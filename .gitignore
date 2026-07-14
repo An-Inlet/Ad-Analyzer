@@ -83,3 +83,6 @@ Desktop.ini
 .docker/
 
 .codex/
+
+# Local OAuth helper output
+.google_ads_refresh_token.local

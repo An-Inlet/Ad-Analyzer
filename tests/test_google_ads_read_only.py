@@ -1,14 +1,19 @@
+from collections.abc import Iterable, Iterator
 from datetime import date
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from app.ads.enums import AdvertisingPlatform
+from app.collectors import google_ads as google_ads_module
 from app.collectors.google_ads import (
     GoogleAdsAuthenticationError,
+    GoogleAdsAuthorizationError,
     GoogleAdsDateRange,
+    GoogleAdsIntegrationError,
     GoogleAdsMissingCredentialsError,
     GoogleAdsRateLimitError,
+    GoogleAdsReadOnlyAdapter,
     GoogleAdsReadOnlyCollector,
     account_query,
     ads_query,
@@ -23,35 +28,77 @@ from app.settings import Settings
 from pydantic import ValidationError
 
 
+class LaterPageErrorIterable:
+    def __init__(self, rows: list[Any], error: Exception) -> None:
+        self.rows = rows
+        self.error = error
+
+    def __iter__(self) -> Iterator[Any]:
+        yield from self.rows
+        raise self.error
+
+
 class FakeGoogleAdsService:
     def __init__(
         self,
         rows_by_query: dict[str, list[Any]] | None = None,
         error: Exception | None = None,
+        later_page_error: Exception | None = None,
     ) -> None:
         self.rows_by_query = rows_by_query or {}
         self.error = error
+        self.later_page_error = later_page_error
         self.queries: list[str] = []
 
-    def search(self, *, customer_id: str, query: str) -> list[Any]:
+    def search(self, *, customer_id: str, query: str) -> Iterable[Any]:
         assert customer_id == "1234567890"
         self.queries.append(query)
         if self.error:
             raise self.error
-        return self.rows_by_query.get(query, [])
+        rows = self.rows_by_query.get(query, [])
+        if self.later_page_error:
+            return LaterPageErrorIterable(rows, self.later_page_error)
+        return rows
+
+    def search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]:
+        assert customer_id == "1234567890"
+        self.queries.append(query)
+        if self.error:
+            raise self.error
+        rows = self.rows_by_query.get(query, [])
+        if self.later_page_error:
+            return LaterPageErrorIterable(rows, self.later_page_error)
+        return rows
 
 
 class FakeGoogleAdsClient:
     def __init__(self, service: FakeGoogleAdsService) -> None:
         self.service = service
+        self.requested_services: list[str] = []
 
     def get_service(self, name: str) -> FakeGoogleAdsService:
         assert name == "GoogleAdsService"
+        self.requested_services.append(name)
         return self.service
+
+
+def read_only_adapter(service: FakeGoogleAdsService) -> GoogleAdsReadOnlyAdapter:
+    return GoogleAdsReadOnlyAdapter(FakeGoogleAdsClient(service))
 
 
 def enum_value(name: str) -> SimpleNamespace:
     return SimpleNamespace(name=name)
+
+
+def campaign_row() -> SimpleNamespace:
+    return SimpleNamespace(
+        campaign=SimpleNamespace(
+            id=11,
+            name="Implants",
+            status=enum_value("ENABLED"),
+            advertising_channel_type=enum_value("SEARCH"),
+        )
+    )
 
 
 def test_google_ads_settings_are_loaded_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -76,6 +123,46 @@ def test_client_factory_requires_all_google_ads_credentials() -> None:
 
     assert "developer_token" in str(exc_info.value)
     assert "service_account_file" in str(exc_info.value)
+
+
+def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GOOGLE_ADS_DEVELOPER_TOKEN", "test-token")
+    monkeypatch.setenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "1112223333")
+    monkeypatch.setenv("GOOGLE_ADS_CUSTOMER_ID", "1234567890")
+    monkeypatch.setenv("GOOGLE_ADS_SERVICE_ACCOUNT_FILE", "/tmp/service-account.json")
+    raw_client = FakeGoogleAdsClient(FakeGoogleAdsService({account_query(): []}))
+    loaded_config: dict[str, Any] | None = None
+
+    class FakeGoogleAdsClientModule:
+        @staticmethod
+        def load_from_dict(config: dict[str, Any]) -> FakeGoogleAdsClient:
+            nonlocal loaded_config
+            loaded_config = config
+            return raw_client
+
+    def fake_require_google_ads_module() -> type[FakeGoogleAdsClientModule]:
+        return FakeGoogleAdsClientModule
+
+    monkeypatch.setattr(
+        google_ads_module, "_require_google_ads_module", fake_require_google_ads_module
+    )
+
+    client = create_google_ads_client(Settings(_env_file=None))
+
+    assert isinstance(client, GoogleAdsReadOnlyAdapter)
+    assert not hasattr(client, "get_service")
+    assert not hasattr(client, "mutate_campaigns")
+    with pytest.raises(AttributeError):
+        object.__getattribute__(client, "get_service")("CampaignService")
+    list(client.search(customer_id="1234567890", query=account_query()))
+    list(client.search_stream(customer_id="1234567890", query=account_query()))
+    assert raw_client.requested_services == ["GoogleAdsService", "GoogleAdsService"]
+    assert loaded_config == {
+        "developer_token": "test-token",
+        "login_customer_id": "1112223333",
+        "json_key_file_path": "/tmp/service-account.json",
+        "use_proto_plus": True,
+    }
 
 
 def test_supported_google_ads_date_ranges_are_deterministic() -> None:
@@ -144,7 +231,7 @@ def test_collector_normalizes_google_ads_rows_to_phase_2_schemas() -> None:
             ],
         }
     )
-    collector = GoogleAdsReadOnlyCollector(FakeGoogleAdsClient(service), "1234567890")
+    collector = GoogleAdsReadOnlyCollector(read_only_adapter(service), "1234567890")
 
     account = collector.collect_account()
     campaigns = collector.collect_campaigns(account_id=1)
@@ -211,7 +298,7 @@ def test_collector_normalizes_child_entities() -> None:
             ],
         }
     )
-    collector = GoogleAdsReadOnlyCollector(FakeGoogleAdsClient(service), "1234567890")
+    collector = GoogleAdsReadOnlyCollector(read_only_adapter(service), "1234567890")
 
     assert collector.collect_ad_groups({"11": 1})[0].campaign_id == 1
     assert collector.collect_ads({"22": 2})[0].ad_group_id == 2
@@ -223,24 +310,55 @@ def test_collector_normalizes_child_entities() -> None:
 
 def test_error_handling_maps_authentication_and_rate_limit_failures() -> None:
     auth_collector = GoogleAdsReadOnlyCollector(
-        FakeGoogleAdsClient(FakeGoogleAdsService(error=RuntimeError("authentication failed"))),
+        read_only_adapter(FakeGoogleAdsService(error=RuntimeError("authentication failed"))),
         "1234567890",
     )
     with pytest.raises(GoogleAdsAuthenticationError):
         auth_collector.collect_campaigns(account_id=1)
 
     rate_limited_collector = GoogleAdsReadOnlyCollector(
-        FakeGoogleAdsClient(FakeGoogleAdsService(error=RuntimeError("RESOURCE_EXHAUSTED quota"))),
+        read_only_adapter(FakeGoogleAdsService(error=RuntimeError("RESOURCE_EXHAUSTED quota"))),
         "1234567890",
     )
     with pytest.raises(GoogleAdsRateLimitError):
         rate_limited_collector.collect_campaigns(account_id=1)
 
 
-def test_normalized_metrics_batch_rejects_empty_metric_collections() -> None:
-    collector = GoogleAdsReadOnlyCollector(
-        FakeGoogleAdsClient(FakeGoogleAdsService()), "1234567890"
+@pytest.mark.parametrize(
+    ("raw_error", "normalized_error"),
+    [
+        (
+            RuntimeError("UNAUTHENTICATED invalid credentials"),
+            GoogleAdsAuthenticationError,
+        ),
+        (
+            RuntimeError("PERMISSION_DENIED customer not authorized"),
+            GoogleAdsAuthorizationError,
+        ),
+        (
+            RuntimeError("RESOURCE_EXHAUSTED quota exceeded"),
+            GoogleAdsRateLimitError,
+        ),
+    ],
+)
+def test_later_page_errors_are_normalized(
+    raw_error: Exception,
+    normalized_error: type[GoogleAdsIntegrationError],
+) -> None:
+    service = FakeGoogleAdsService(
+        {campaigns_query(): [campaign_row()]},
+        later_page_error=raw_error,
     )
+    collector = GoogleAdsReadOnlyCollector(read_only_adapter(service), "1234567890")
+
+    with pytest.raises(normalized_error) as exc_info:
+        collector.collect_campaigns(account_id=1)
+
+    assert exc_info.value.__cause__ is raw_error
+
+
+def test_normalized_metrics_batch_rejects_empty_metric_collections() -> None:
+    collector = GoogleAdsReadOnlyCollector(read_only_adapter(FakeGoogleAdsService()), "1234567890")
 
     with pytest.raises(ValidationError):
         collector.collect_daily_performance_metrics(

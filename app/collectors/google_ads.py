@@ -4,7 +4,8 @@ from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from importlib import import_module
-from typing import Any, NoReturn, Protocol, Self, cast
+from typing import Any, NoReturn, Protocol, cast
+from weakref import WeakKeyDictionary
 
 from app.ads.enums import AdvertisingPlatform
 from app.ads.schemas import (
@@ -58,7 +59,7 @@ class GoogleAdsReadOnlyClient(Protocol):
         window: "ResolvedDateRange",
     ) -> Iterable[Any]: ...
 
-    def daily_performance_metric_rows(
+    def metric_rows(
         self,
         *,
         customer_id: str,
@@ -66,39 +67,34 @@ class GoogleAdsReadOnlyClient(Protocol):
     ) -> Iterable[Any]: ...
 
 
-class GoogleAdsSearchCallable(Protocol):
+class _GoogleAdsSearchCallable(Protocol):
     def __call__(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
 
 
 @dataclass(frozen=True, slots=True)
+class _GoogleAdsReadOnlyTransport:
+    search: _GoogleAdsSearchCallable
+    search_stream: _GoogleAdsSearchCallable
+
+
+@dataclass(frozen=True, slots=True, weakref_slot=True, eq=False)
 class GoogleAdsReadOnlyAdapter:
     """Narrow facade over GoogleAdsClient for approved read-only operations."""
 
-    _search: GoogleAdsSearchCallable
-    _search_stream: GoogleAdsSearchCallable
-
-    @classmethod
-    def from_google_ads_client(cls, google_ads_client: Any) -> Self:
-        service = google_ads_client.get_service("GoogleAdsService")
-        return cls(
-            _search=cast(GoogleAdsSearchCallable, service.search),
-            _search_stream=cast(GoogleAdsSearchCallable, service.search_stream),
-        )
-
     def account_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=account_query())
+        return _run_fixed_search(self, customer_id=customer_id, query=account_query())
 
     def campaign_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=campaigns_query())
+        return _run_fixed_search(self, customer_id=customer_id, query=campaigns_query())
 
     def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=ad_groups_query())
+        return _run_fixed_search(self, customer_id=customer_id, query=ad_groups_query())
 
     def ad_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=ads_query())
+        return _run_fixed_search(self, customer_id=customer_id, query=ads_query())
 
     def keyword_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=keywords_query())
+        return _run_fixed_search(self, customer_id=customer_id, query=keywords_query())
 
     def search_term_rows(
         self,
@@ -106,32 +102,34 @@ class GoogleAdsReadOnlyAdapter:
         customer_id: str,
         window: "ResolvedDateRange",
     ) -> Iterable[Any]:
-        return self._run_search(customer_id=customer_id, query=search_terms_query(window))
+        return _run_fixed_search(self, customer_id=customer_id, query=search_terms_query(window))
 
-    def daily_performance_metric_rows(
+    def metric_rows(
         self,
         *,
         customer_id: str,
         window: "ResolvedDateRange",
     ) -> Iterable[Any]:
-        return self._run_search(
+        return _run_fixed_search(
+            self,
             customer_id=customer_id,
             query=daily_performance_metrics_query(window),
         )
 
-    def _run_search(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        try:
-            rows = self._search(customer_id=customer_id, query=query)
-            yield from rows
-        except Exception as exc:
-            _raise_normalized_google_ads_error(exc)
 
-    def _run_search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        try:
-            rows = self._search_stream(customer_id=customer_id, query=query)
-            yield from rows
-        except Exception as exc:
-            _raise_normalized_google_ads_error(exc)
+_READ_ONLY_TRANSPORTS: WeakKeyDictionary[
+    GoogleAdsReadOnlyAdapter, _GoogleAdsReadOnlyTransport
+] = WeakKeyDictionary()
+
+
+def _create_google_ads_read_only_adapter(google_ads_client: Any) -> GoogleAdsReadOnlyAdapter:
+    service = google_ads_client.get_service("GoogleAdsService")
+    adapter = GoogleAdsReadOnlyAdapter()
+    _READ_ONLY_TRANSPORTS[adapter] = _GoogleAdsReadOnlyTransport(
+        search=cast(_GoogleAdsSearchCallable, service.search),
+        search_stream=cast(_GoogleAdsSearchCallable, service.search_stream),
+    )
+    return adapter
 
 
 class GoogleAdsDateRange(StrEnum):
@@ -285,7 +283,7 @@ def _required_config(settings: Settings) -> dict[str, str]:
 def create_google_ads_client(settings: Settings) -> GoogleAdsReadOnlyClient:
     config = _required_config(settings)
     google_ads_client = _require_google_ads_module()
-    return GoogleAdsReadOnlyAdapter.from_google_ads_client(
+    return _create_google_ads_read_only_adapter(
         google_ads_client.load_from_dict(
             {
                 "developer_token": config["developer_token"],
@@ -359,6 +357,19 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
+
+
+def _run_fixed_search(
+    adapter: GoogleAdsReadOnlyAdapter,
+    *,
+    customer_id: str,
+    query: str,
+) -> Iterable[Any]:
+    try:
+        rows = _READ_ONLY_TRANSPORTS[adapter].search(customer_id=customer_id, query=query)
+        yield from rows
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
 
 class GoogleAdsConnectionTestService:
@@ -479,7 +490,7 @@ class GoogleAdsReadOnlyCollector:
                     Decimal(str(row.metrics.conversions_value)) * 1_000_000
                 ),
             )
-            for row in self.client.daily_performance_metric_rows(
+            for row in self.client.metric_rows(
                 customer_id=self.customer_id,
                 window=window,
             )

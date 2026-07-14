@@ -84,7 +84,7 @@ class FakeGoogleAdsClient:
 
 
 def read_only_adapter(service: FakeGoogleAdsService) -> GoogleAdsReadOnlyAdapter:
-    return GoogleAdsReadOnlyAdapter.from_google_ads_client(FakeGoogleAdsClient(service))
+    return google_ads_module._create_google_ads_read_only_adapter(FakeGoogleAdsClient(service))
 
 
 def enum_value(name: str) -> SimpleNamespace:
@@ -151,15 +151,37 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
     client = create_google_ads_client(Settings(_env_file=None))
 
     assert isinstance(client, GoogleAdsReadOnlyAdapter)
-    assert {field.name for field in fields(client)} == {"_search", "_search_stream"}
+    assert {field.name for field in fields(client)} == set()
     assert raw_client.requested_services == ["GoogleAdsService"]
-    assert not hasattr(client, "search")
-    assert not hasattr(client, "search_stream")
-    assert not hasattr(client, "get_service")
-    assert not hasattr(client, "_google_ads_client")
-    assert not hasattr(client, "mutate_campaigns")
-    with pytest.raises(AttributeError):
-        object.__getattribute__(client, "get_service")("CampaignService")
+    approved_methods = {
+        "account_rows",
+        "ad_group_rows",
+        "ad_rows",
+        "campaign_rows",
+        "keyword_rows",
+        "metric_rows",
+        "search_term_rows",
+    }
+    public_methods = {
+        name for name in dir(client) if not name.startswith("_") and callable(getattr(client, name))
+    }
+    assert public_methods == approved_methods
+    for blocked_name in (
+        "search",
+        "search_stream",
+        "get_service",
+        "from_google_ads_client",
+        "_google_ads_client",
+        "_search",
+        "_search_stream",
+        "_run_search",
+        "_run_search_stream",
+        "_run_fixed_search",
+        "mutate_campaigns",
+    ):
+        assert not hasattr(client, blocked_name)
+        with pytest.raises(AttributeError):
+            getattr(client, blocked_name)
     list(client.account_rows(customer_id="1234567890"))
     assert raw_client.requested_services == ["GoogleAdsService"]
     assert loaded_config == {
@@ -175,13 +197,17 @@ def test_read_only_adapter_rejects_arbitrary_gaql() -> None:
     client = read_only_adapter(service)
     arbitrary_query = "SELECT campaign_budget.amount_micros FROM campaign_budget"
 
-    with pytest.raises(AttributeError):
-        object.__getattribute__(client, "search")(customer_id="1234567890", query=arbitrary_query)
-    with pytest.raises(AttributeError):
-        object.__getattribute__(client, "search_stream")(
-            customer_id="1234567890",
-            query=arbitrary_query,
-        )
+    for blocked_name in (
+        "search",
+        "search_stream",
+        "_search",
+        "_search_stream",
+        "_run_search",
+        "_run_search_stream",
+        "_run_fixed_search",
+    ):
+        with pytest.raises(AttributeError):
+            getattr(client, blocked_name)
 
     fixed_method_name = "campaign_rows"
     fixed_method = getattr(client, fixed_method_name)

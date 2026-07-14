@@ -13,6 +13,7 @@ authors = [{ name = "Denticode" }]
 dependencies = [
     "alembic>=1.13.2",
     "fastapi>=0.111.0",
+    "google-ads>=25.1.0",
     "psycopg[binary]>=3.2.1",
     "pydantic>=2.8.2",
     "pydantic-settings>=2.4.0",
@@ -34,6 +35,7 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
+pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.ruff]

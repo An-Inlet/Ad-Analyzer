@@ -1,10 +1,10 @@
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass as _dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
-from importlib import import_module
-from typing import Any, NoReturn, Protocol, cast
+from importlib import import_module as _import_module
+from typing import Any, NoReturn
+from typing import cast as _cast
 
 from app.ads.enums import AdvertisingPlatform
 from app.ads.schemas import (
@@ -18,6 +18,17 @@ from app.ads.schemas import (
     SearchTermCreate,
 )
 from app.settings import Settings
+from app.settings import settings as app_settings
+
+__all__ = (
+    "collect_account",
+    "collect_ad_groups",
+    "collect_ads",
+    "collect_campaigns",
+    "collect_keywords",
+    "collect_metrics",
+    "collect_search_terms",
+)
 
 
 class GoogleAdsIntegrationError(RuntimeError):
@@ -40,123 +51,6 @@ class GoogleAdsRateLimitError(GoogleAdsIntegrationError):
     """Raised when Google Ads rate limits a read-only request."""
 
 
-class GoogleAdsReadOnlyClient(Protocol):
-    def account_rows(self, *, customer_id: str) -> Iterable[Any]: ...
-
-    def campaign_rows(self, *, customer_id: str) -> Iterable[Any]: ...
-
-    def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]: ...
-
-    def ad_rows(self, *, customer_id: str) -> Iterable[Any]: ...
-
-    def keyword_rows(self, *, customer_id: str) -> Iterable[Any]: ...
-
-    def search_term_rows(
-        self,
-        *,
-        customer_id: str,
-        window: "ResolvedDateRange",
-    ) -> Iterable[Any]: ...
-
-    def metric_rows(
-        self,
-        *,
-        customer_id: str,
-        window: "ResolvedDateRange",
-    ) -> Iterable[Any]: ...
-
-
-_CustomerRowsCallable = Callable[[str], Iterable[Any]]
-_WindowRowsCallable = Callable[[str, "ResolvedDateRange"], Iterable[Any]]
-
-
-@dataclass(frozen=True, slots=True, init=False)
-class GoogleAdsReadOnlyAdapter:
-    """Narrow facade over GoogleAdsClient for approved read-only operations."""
-
-    _account_rows: _CustomerRowsCallable
-    _campaign_rows: _CustomerRowsCallable
-    _ad_group_rows: _CustomerRowsCallable
-    _ad_rows: _CustomerRowsCallable
-    _keyword_rows: _CustomerRowsCallable
-    _search_term_rows: _WindowRowsCallable
-    _metric_rows: _WindowRowsCallable
-
-    def account_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._account_rows(customer_id)
-
-    def campaign_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._campaign_rows(customer_id)
-
-    def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._ad_group_rows(customer_id)
-
-    def ad_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._ad_rows(customer_id)
-
-    def keyword_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return self._keyword_rows(customer_id)
-
-    def search_term_rows(
-        self,
-        *,
-        customer_id: str,
-        window: "ResolvedDateRange",
-    ) -> Iterable[Any]:
-        return self._search_term_rows(customer_id, window)
-
-    def metric_rows(
-        self,
-        *,
-        customer_id: str,
-        window: "ResolvedDateRange",
-    ) -> Iterable[Any]:
-        return self._metric_rows(customer_id, window)
-
-
-def _create_google_ads_read_only_adapter(google_ads_client: Any) -> GoogleAdsReadOnlyAdapter:
-    service = google_ads_client.get_service("GoogleAdsService")
-    search = service.search
-
-    def run_google_ads_query(customer_id: str, fixed_gaql: str) -> Iterable[Any]:
-        try:
-            rows = search(customer_id=customer_id, query=fixed_gaql)
-            yield from rows
-        except Exception as exc:
-            _raise_normalized_google_ads_error(exc)
-
-    def account_rows(customer_id: str) -> Iterable[Any]:
-        return run_google_ads_query(customer_id, account_query())
-
-    def campaign_rows(customer_id: str) -> Iterable[Any]:
-        return run_google_ads_query(customer_id, campaigns_query())
-
-    def ad_group_rows(customer_id: str) -> Iterable[Any]:
-        return run_google_ads_query(customer_id, ad_groups_query())
-
-    def ad_rows(customer_id: str) -> Iterable[Any]:
-        return run_google_ads_query(customer_id, ads_query())
-
-    def keyword_rows(customer_id: str) -> Iterable[Any]:
-        return run_google_ads_query(customer_id, keywords_query())
-
-    def search_term_rows(customer_id: str, window: "ResolvedDateRange") -> Iterable[Any]:
-        return run_google_ads_query(customer_id, search_terms_query(window))
-
-    def metric_rows(customer_id: str, window: "ResolvedDateRange") -> Iterable[Any]:
-        return run_google_ads_query(customer_id, daily_performance_metrics_query(window))
-
-    adapter = GoogleAdsReadOnlyAdapter()
-    object.__setattr__(adapter, "_account_rows", account_rows)
-    object.__setattr__(adapter, "_campaign_rows", campaign_rows)
-    object.__setattr__(adapter, "_ad_group_rows", ad_group_rows)
-    object.__setattr__(adapter, "_ad_rows", ad_rows)
-    object.__setattr__(adapter, "_keyword_rows", keyword_rows)
-    object.__setattr__(adapter, "_search_term_rows", search_term_rows)
-    object.__setattr__(adapter, "_metric_rows", metric_rows)
-    return adapter
-
-
 class GoogleAdsDateRange(StrEnum):
     YESTERDAY = "yesterday"
     LAST_7_DAYS = "last_7_days"
@@ -165,14 +59,21 @@ class GoogleAdsDateRange(StrEnum):
     PRIOR_30_DAYS = "prior_30_days"
 
 
-@dataclass(frozen=True)
-class ResolvedDateRange:
+@_dataclass(frozen=True)
+class _ResolvedDateRange:
     name: GoogleAdsDateRange
     start_date: date
     end_date: date
 
 
-def resolve_date_range(name: GoogleAdsDateRange, today: date | None = None) -> ResolvedDateRange:
+def _settings_or_default(settings: Settings | None) -> Settings:
+    return settings or app_settings
+
+
+def _resolve_date_range(
+    name: GoogleAdsDateRange,
+    today: date | None = None,
+) -> _ResolvedDateRange:
     current_date = today or date.today()
     yesterday = current_date - timedelta(days=1)
     match name:
@@ -186,16 +87,16 @@ def resolve_date_range(name: GoogleAdsDateRange, today: date | None = None) -> R
             start, end = current_date - timedelta(days=30), yesterday
         case GoogleAdsDateRange.PRIOR_30_DAYS:
             start, end = current_date - timedelta(days=60), current_date - timedelta(days=31)
-    return ResolvedDateRange(name=name, start_date=start, end_date=end)
+    return _ResolvedDateRange(name=name, start_date=start, end_date=end)
 
 
-def _between_clause(window: ResolvedDateRange) -> str:
+def _between_clause(window: _ResolvedDateRange) -> str:
     start = window.start_date.isoformat()
     end = window.end_date.isoformat()
     return f"segments.date BETWEEN '{start}' AND '{end}'"
 
 
-def account_query() -> str:
+def _account_query() -> str:
     return """
         SELECT
           customer.id,
@@ -207,7 +108,7 @@ def account_query() -> str:
     """
 
 
-def campaigns_query() -> str:
+def _campaigns_query() -> str:
     return """
         SELECT
           campaign.id,
@@ -219,7 +120,7 @@ def campaigns_query() -> str:
     """
 
 
-def ad_groups_query() -> str:
+def _ad_groups_query() -> str:
     return """
         SELECT
           campaign.id,
@@ -231,7 +132,7 @@ def ad_groups_query() -> str:
     """
 
 
-def ads_query() -> str:
+def _ads_query() -> str:
     return """
         SELECT
           ad_group.id,
@@ -243,7 +144,7 @@ def ads_query() -> str:
     """
 
 
-def keywords_query() -> str:
+def _keywords_query() -> str:
     return """
         SELECT
           ad_group.id,
@@ -256,7 +157,7 @@ def keywords_query() -> str:
     """
 
 
-def search_terms_query(window: ResolvedDateRange) -> str:
+def _search_terms_query(window: _ResolvedDateRange) -> str:
     return f"""
         SELECT
           ad_group.id,
@@ -267,7 +168,7 @@ def search_terms_query(window: ResolvedDateRange) -> str:
     """
 
 
-def daily_performance_metrics_query(window: ResolvedDateRange) -> str:
+def _metrics_query(window: _ResolvedDateRange) -> str:
     return f"""
         SELECT
           segments.date,
@@ -284,7 +185,7 @@ def daily_performance_metrics_query(window: ResolvedDateRange) -> str:
 
 def _require_google_ads_module() -> Any:
     try:
-        module = import_module("google.ads.googleads.client")
+        module = _import_module("google.ads.googleads.client")
     except ImportError as exc:
         raise GoogleAdsIntegrationError("google-ads dependency is not installed") from exc
     return module.__dict__["GoogleAdsClient"]
@@ -302,22 +203,16 @@ def _required_config(settings: Settings) -> dict[str, str]:
         raise GoogleAdsMissingCredentialsError(
             "Missing required Google Ads configuration: " + ", ".join(sorted(missing))
         )
-    return {key: cast(str, value) for key, value in values.items()}
+    return {key: _cast(str, value) for key, value in values.items()}
 
 
-def create_google_ads_client(settings: Settings) -> GoogleAdsReadOnlyClient:
-    config = _required_config(settings)
-    google_ads_client = _require_google_ads_module()
-    return _create_google_ads_read_only_adapter(
-        google_ads_client.load_from_dict(
-            {
-                "developer_token": config["developer_token"],
-                "login_customer_id": config["login_customer_id"],
-                "json_key_file_path": config["service_account_file"],
-                "use_proto_plus": True,
-            }
-        )
-    )
+def _client_config(config: dict[str, str]) -> dict[str, object]:
+    return {
+        "developer_token": config["developer_token"],
+        "login_customer_id": config["login_customer_id"],
+        "json_key_file_path": config["service_account_file"],
+        "use_proto_plus": True,
+    }
 
 
 def _google_ads_error_text(exc: Exception) -> str:
@@ -384,32 +279,38 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 
-class GoogleAdsConnectionTestService:
-    def __init__(self, client: GoogleAdsReadOnlyClient, customer_id: str) -> None:
-        self.client = client
-        self.customer_id = customer_id
+def collect_account(*, settings: Settings | None = None) -> AdvertisingAccountCreate:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
 
-    def test_connection(self) -> bool:
-        next(iter(self.client.account_rows(customer_id=self.customer_id)), None)
-        return True
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_account_query())
+        row = next(iter(rows))
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
+    return AdvertisingAccountCreate(
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_account_id=str(row.customer.id),
+        name=row.customer.descriptive_name or str(row.customer.id),
+        currency_code=row.customer.currency_code,
+        time_zone=row.customer.time_zone,
+    )
 
 
-class GoogleAdsReadOnlyCollector:
-    def __init__(self, client: GoogleAdsReadOnlyClient, customer_id: str) -> None:
-        self.client = client
-        self.customer_id = customer_id
+def collect_campaigns(
+    account_id: int,
+    *,
+    settings: Settings | None = None,
+) -> list[CampaignCreate]:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
 
-    def collect_account(self) -> AdvertisingAccountCreate:
-        row = next(iter(self.client.account_rows(customer_id=self.customer_id)))
-        return AdvertisingAccountCreate(
-            platform=AdvertisingPlatform.GOOGLE_ADS,
-            external_account_id=str(row.customer.id),
-            name=row.customer.descriptive_name or str(row.customer.id),
-            currency_code=row.customer.currency_code,
-            time_zone=row.customer.time_zone,
-        )
-
-    def collect_campaigns(self, account_id: int) -> list[CampaignCreate]:
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_campaigns_query())
         return [
             CampaignCreate(
                 account_id=account_id,
@@ -419,10 +320,24 @@ class GoogleAdsReadOnlyCollector:
                 status=str(row.campaign.status.name),
                 channel_type=str(row.campaign.advertising_channel_type.name),
             )
-            for row in self.client.campaign_rows(customer_id=self.customer_id)
+            for row in rows
         ]
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
-    def collect_ad_groups(self, campaign_ids_by_external_id: dict[str, int]) -> list[AdGroupCreate]:
+
+def collect_ad_groups(
+    campaign_ids_by_external_id: dict[str, int],
+    *,
+    settings: Settings | None = None,
+) -> list[AdGroupCreate]:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
+
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_ad_groups_query())
         return [
             AdGroupCreate(
                 campaign_id=campaign_ids_by_external_id[str(row.campaign.id)],
@@ -431,11 +346,25 @@ class GoogleAdsReadOnlyCollector:
                 name=row.ad_group.name,
                 status=str(row.ad_group.status.name),
             )
-            for row in self.client.ad_group_rows(customer_id=self.customer_id)
+            for row in rows
             if str(row.campaign.id) in campaign_ids_by_external_id
         ]
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
-    def collect_ads(self, ad_group_ids_by_external_id: dict[str, int]) -> list[AdCreate]:
+
+def collect_ads(
+    ad_group_ids_by_external_id: dict[str, int],
+    *,
+    settings: Settings | None = None,
+) -> list[AdCreate]:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
+
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_ads_query())
         return [
             AdCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -444,11 +373,25 @@ class GoogleAdsReadOnlyCollector:
                 name=row.ad_group_ad.ad.name or str(row.ad_group_ad.ad.id),
                 status=str(row.ad_group_ad.status.name),
             )
-            for row in self.client.ad_rows(customer_id=self.customer_id)
+            for row in rows
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
-    def collect_keywords(self, ad_group_ids_by_external_id: dict[str, int]) -> list[KeywordCreate]:
+
+def collect_keywords(
+    ad_group_ids_by_external_id: dict[str, int],
+    *,
+    settings: Settings | None = None,
+) -> list[KeywordCreate]:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
+
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_keywords_query())
         return [
             KeywordCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -458,17 +401,28 @@ class GoogleAdsReadOnlyCollector:
                 match_type=str(row.ad_group_criterion.keyword.match_type.name),
                 status=str(row.ad_group_criterion.status.name),
             )
-            for row in self.client.keyword_rows(customer_id=self.customer_id)
+            for row in rows
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
-    def collect_search_terms(
-        self,
-        ad_group_ids_by_external_id: dict[str, int],
-        date_range: GoogleAdsDateRange,
-        today: date | None = None,
-    ) -> list[SearchTermCreate]:
-        window = resolve_date_range(date_range, today)
+
+def collect_search_terms(
+    ad_group_ids_by_external_id: dict[str, int],
+    date_range: GoogleAdsDateRange,
+    *,
+    today: date | None = None,
+    settings: Settings | None = None,
+) -> list[SearchTermCreate]:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
+    window = _resolve_date_range(date_range, today)
+
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_search_terms_query(window))
         return [
             SearchTermCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -476,17 +430,28 @@ class GoogleAdsReadOnlyCollector:
                 term=row.search_term_view.search_term,
                 match_type=str(row.segments.keyword.info.match_type.name),
             )
-            for row in self.client.search_term_rows(customer_id=self.customer_id, window=window)
+            for row in rows
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
 
-    def collect_daily_performance_metrics(
-        self,
-        campaign_ids_by_external_id: dict[str, int],
-        date_range: GoogleAdsDateRange,
-        today: date | None = None,
-    ) -> NormalizedMetricsBatch:
-        window = resolve_date_range(date_range, today)
+
+def collect_metrics(
+    campaign_ids_by_external_id: dict[str, int],
+    date_range: GoogleAdsDateRange,
+    *,
+    today: date | None = None,
+    settings: Settings | None = None,
+) -> NormalizedMetricsBatch:
+    config = _required_config(_settings_or_default(settings))
+    google_ads_client = _require_google_ads_module()
+    client = google_ads_client.load_from_dict(_client_config(config))
+    service = client.get_service("GoogleAdsService")
+    window = _resolve_date_range(date_range, today)
+
+    try:
+        rows = service.search(customer_id=config["customer_id"], query=_metrics_query(window))
         metrics = [
             DailyMetricCreate(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
@@ -502,10 +467,9 @@ class GoogleAdsReadOnlyCollector:
                     Decimal(str(row.metrics.conversions_value)) * 1_000_000
                 ),
             )
-            for row in self.client.metric_rows(
-                customer_id=self.customer_id,
-                window=window,
-            )
+            for row in rows
             if str(row.campaign.id) in campaign_ids_by_external_id
         ]
-        return NormalizedMetricsBatch(metrics=metrics)
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
+    return NormalizedMetricsBatch(metrics=metrics)

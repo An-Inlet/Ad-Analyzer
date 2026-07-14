@@ -153,13 +153,14 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
     assert isinstance(client, GoogleAdsReadOnlyAdapter)
     assert {field.name for field in fields(client)} == {"_search", "_search_stream"}
     assert raw_client.requested_services == ["GoogleAdsService"]
+    assert not hasattr(client, "search")
+    assert not hasattr(client, "search_stream")
     assert not hasattr(client, "get_service")
     assert not hasattr(client, "_google_ads_client")
     assert not hasattr(client, "mutate_campaigns")
     with pytest.raises(AttributeError):
         object.__getattribute__(client, "get_service")("CampaignService")
-    list(client.search(customer_id="1234567890", query=account_query()))
-    list(client.search_stream(customer_id="1234567890", query=account_query()))
+    list(client.account_rows(customer_id="1234567890"))
     assert raw_client.requested_services == ["GoogleAdsService"]
     assert loaded_config == {
         "developer_token": "test-token",
@@ -167,6 +168,29 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
         "json_key_file_path": "/tmp/service-account.json",
         "use_proto_plus": True,
     }
+
+
+def test_read_only_adapter_rejects_arbitrary_gaql() -> None:
+    service = FakeGoogleAdsService({campaigns_query(): [campaign_row()]})
+    client = read_only_adapter(service)
+    arbitrary_query = "SELECT campaign_budget.amount_micros FROM campaign_budget"
+
+    with pytest.raises(AttributeError):
+        object.__getattribute__(client, "search")(customer_id="1234567890", query=arbitrary_query)
+    with pytest.raises(AttributeError):
+        object.__getattribute__(client, "search_stream")(
+            customer_id="1234567890",
+            query=arbitrary_query,
+        )
+
+    fixed_method_name = "campaign_rows"
+    fixed_method = getattr(client, fixed_method_name)
+    with pytest.raises(TypeError):
+        fixed_method(customer_id="1234567890", query=arbitrary_query)
+
+    assert list(client.campaign_rows(customer_id="1234567890")) == [campaign_row()]
+    assert service.queries == [campaigns_query()]
+    assert arbitrary_query not in service.queries
 
 
 def test_supported_google_ads_date_ranges_are_deterministic() -> None:

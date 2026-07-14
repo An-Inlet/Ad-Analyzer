@@ -41,9 +41,29 @@ class GoogleAdsRateLimitError(GoogleAdsIntegrationError):
 
 
 class GoogleAdsReadOnlyClient(Protocol):
-    def search(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
+    def account_rows(self, *, customer_id: str) -> Iterable[Any]: ...
 
-    def search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
+    def campaign_rows(self, *, customer_id: str) -> Iterable[Any]: ...
+
+    def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]: ...
+
+    def ad_rows(self, *, customer_id: str) -> Iterable[Any]: ...
+
+    def keyword_rows(self, *, customer_id: str) -> Iterable[Any]: ...
+
+    def search_term_rows(
+        self,
+        *,
+        customer_id: str,
+        window: "ResolvedDateRange",
+    ) -> Iterable[Any]: ...
+
+    def daily_performance_metric_rows(
+        self,
+        *,
+        customer_id: str,
+        window: "ResolvedDateRange",
+    ) -> Iterable[Any]: ...
 
 
 class GoogleAdsSearchCallable(Protocol):
@@ -65,11 +85,53 @@ class GoogleAdsReadOnlyAdapter:
             _search_stream=cast(GoogleAdsSearchCallable, service.search_stream),
         )
 
-    def search(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        return self._search(customer_id=customer_id, query=query)
+    def account_rows(self, *, customer_id: str) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=account_query())
 
-    def search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        return self._search_stream(customer_id=customer_id, query=query)
+    def campaign_rows(self, *, customer_id: str) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=campaigns_query())
+
+    def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=ad_groups_query())
+
+    def ad_rows(self, *, customer_id: str) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=ads_query())
+
+    def keyword_rows(self, *, customer_id: str) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=keywords_query())
+
+    def search_term_rows(
+        self,
+        *,
+        customer_id: str,
+        window: "ResolvedDateRange",
+    ) -> Iterable[Any]:
+        return self._run_search(customer_id=customer_id, query=search_terms_query(window))
+
+    def daily_performance_metric_rows(
+        self,
+        *,
+        customer_id: str,
+        window: "ResolvedDateRange",
+    ) -> Iterable[Any]:
+        return self._run_search(
+            customer_id=customer_id,
+            query=daily_performance_metrics_query(window),
+        )
+
+    def _run_search(self, *, customer_id: str, query: str) -> Iterable[Any]:
+        try:
+            rows = self._search(customer_id=customer_id, query=query)
+            yield from rows
+        except Exception as exc:
+            _raise_normalized_google_ads_error(exc)
+
+    def _run_search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]:
+        try:
+            rows = self._search_stream(customer_id=customer_id, query=query)
+            yield from rows
+        except Exception as exc:
+            _raise_normalized_google_ads_error(exc)
 
 
 class GoogleAdsDateRange(StrEnum):
@@ -299,21 +361,13 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 
-def _search(client: GoogleAdsReadOnlyClient, customer_id: str, query: str) -> Iterable[Any]:
-    try:
-        rows = client.search(customer_id=customer_id, query=query)
-        yield from rows
-    except Exception as exc:
-        _raise_normalized_google_ads_error(exc)
-
-
 class GoogleAdsConnectionTestService:
     def __init__(self, client: GoogleAdsReadOnlyClient, customer_id: str) -> None:
         self.client = client
         self.customer_id = customer_id
 
     def test_connection(self) -> bool:
-        next(iter(_search(self.client, self.customer_id, account_query())), None)
+        next(iter(self.client.account_rows(customer_id=self.customer_id)), None)
         return True
 
 
@@ -323,7 +377,7 @@ class GoogleAdsReadOnlyCollector:
         self.customer_id = customer_id
 
     def collect_account(self) -> AdvertisingAccountCreate:
-        row = next(iter(_search(self.client, self.customer_id, account_query())))
+        row = next(iter(self.client.account_rows(customer_id=self.customer_id)))
         return AdvertisingAccountCreate(
             platform=AdvertisingPlatform.GOOGLE_ADS,
             external_account_id=str(row.customer.id),
@@ -342,7 +396,7 @@ class GoogleAdsReadOnlyCollector:
                 status=str(row.campaign.status.name),
                 channel_type=str(row.campaign.advertising_channel_type.name),
             )
-            for row in _search(self.client, self.customer_id, campaigns_query())
+            for row in self.client.campaign_rows(customer_id=self.customer_id)
         ]
 
     def collect_ad_groups(self, campaign_ids_by_external_id: dict[str, int]) -> list[AdGroupCreate]:
@@ -354,7 +408,7 @@ class GoogleAdsReadOnlyCollector:
                 name=row.ad_group.name,
                 status=str(row.ad_group.status.name),
             )
-            for row in _search(self.client, self.customer_id, ad_groups_query())
+            for row in self.client.ad_group_rows(customer_id=self.customer_id)
             if str(row.campaign.id) in campaign_ids_by_external_id
         ]
 
@@ -367,7 +421,7 @@ class GoogleAdsReadOnlyCollector:
                 name=row.ad_group_ad.ad.name or str(row.ad_group_ad.ad.id),
                 status=str(row.ad_group_ad.status.name),
             )
-            for row in _search(self.client, self.customer_id, ads_query())
+            for row in self.client.ad_rows(customer_id=self.customer_id)
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
 
@@ -381,7 +435,7 @@ class GoogleAdsReadOnlyCollector:
                 match_type=str(row.ad_group_criterion.keyword.match_type.name),
                 status=str(row.ad_group_criterion.status.name),
             )
-            for row in _search(self.client, self.customer_id, keywords_query())
+            for row in self.client.keyword_rows(customer_id=self.customer_id)
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
 
@@ -399,7 +453,7 @@ class GoogleAdsReadOnlyCollector:
                 term=row.search_term_view.search_term,
                 match_type=str(row.segments.keyword.info.match_type.name),
             )
-            for row in _search(self.client, self.customer_id, search_terms_query(window))
+            for row in self.client.search_term_rows(customer_id=self.customer_id, window=window)
             if str(row.ad_group.id) in ad_group_ids_by_external_id
         ]
 
@@ -425,8 +479,9 @@ class GoogleAdsReadOnlyCollector:
                     Decimal(str(row.metrics.conversions_value)) * 1_000_000
                 ),
             )
-            for row in _search(
-                self.client, self.customer_id, daily_performance_metrics_query(window)
+            for row in self.client.daily_performance_metric_rows(
+                customer_id=self.customer_id,
+                window=window,
             )
             if str(row.campaign.id) in campaign_ids_by_external_id
         ]

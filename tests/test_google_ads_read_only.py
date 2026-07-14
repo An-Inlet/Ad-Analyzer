@@ -1,3 +1,4 @@
+import inspect
 from collections.abc import Iterable, Iterator
 from dataclasses import fields
 from datetime import date
@@ -102,6 +103,13 @@ def campaign_row() -> SimpleNamespace:
     )
 
 
+def callable_parameters(value: Any) -> set[str]:
+    try:
+        return set(inspect.signature(value).parameters)
+    except (TypeError, ValueError):
+        return set()
+
+
 def test_google_ads_settings_are_loaded_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_ADS_DEVELOPER_TOKEN", "test-token")
     monkeypatch.setenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "1112223333")
@@ -151,7 +159,15 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
     client = create_google_ads_client(Settings(_env_file=None))
 
     assert isinstance(client, GoogleAdsReadOnlyAdapter)
-    assert {field.name for field in fields(client)} == set()
+    assert {field.name for field in fields(client)} == {
+        "_account_rows",
+        "_ad_group_rows",
+        "_ad_rows",
+        "_campaign_rows",
+        "_keyword_rows",
+        "_metric_rows",
+        "_search_term_rows",
+    }
     assert raw_client.requested_services == ["GoogleAdsService"]
     approved_methods = {
         "account_rows",
@@ -190,6 +206,38 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
         "json_key_file_path": "/tmp/service-account.json",
         "use_proto_plus": True,
     }
+
+
+def test_module_defined_callables_do_not_accept_arbitrary_gaql() -> None:
+    offenders: list[str] = []
+    module_name = google_ads_module.__name__
+
+    for name, value in vars(google_ads_module).items():
+        if (
+            inspect.isfunction(value)
+            and value.__module__ == module_name
+            and "query" in callable_parameters(value)
+        ):
+            offenders.append(name)
+        if inspect.isclass(value) and value.__module__ == module_name:
+            for method_name, method in inspect.getmembers(value, inspect.isfunction):
+                if method.__module__ == module_name and "query" in callable_parameters(method):
+                    offenders.append(f"{name}.{method_name}")
+
+    assert offenders == []
+
+
+def test_adapter_callables_do_not_accept_arbitrary_gaql() -> None:
+    client = read_only_adapter(FakeGoogleAdsService({campaigns_query(): [campaign_row()]}))
+    offenders = [
+        name
+        for name in dir(client)
+        if not name.startswith("__")
+        if callable(getattr(client, name))
+        if "query" in callable_parameters(getattr(client, name))
+    ]
+
+    assert offenders == []
 
 
 def test_read_only_adapter_rejects_arbitrary_gaql() -> None:

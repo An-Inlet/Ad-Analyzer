@@ -1,11 +1,10 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from importlib import import_module
 from typing import Any, NoReturn, Protocol, cast
-from weakref import WeakKeyDictionary
 
 from app.ads.enums import AdvertisingPlatform
 from app.ads.schemas import (
@@ -67,34 +66,36 @@ class GoogleAdsReadOnlyClient(Protocol):
     ) -> Iterable[Any]: ...
 
 
-class _GoogleAdsSearchCallable(Protocol):
-    def __call__(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
+_CustomerRowsCallable = Callable[[str], Iterable[Any]]
+_WindowRowsCallable = Callable[[str, "ResolvedDateRange"], Iterable[Any]]
 
 
-@dataclass(frozen=True, slots=True)
-class _GoogleAdsReadOnlyTransport:
-    search: _GoogleAdsSearchCallable
-    search_stream: _GoogleAdsSearchCallable
-
-
-@dataclass(frozen=True, slots=True, weakref_slot=True, eq=False)
+@dataclass(frozen=True, slots=True, init=False)
 class GoogleAdsReadOnlyAdapter:
     """Narrow facade over GoogleAdsClient for approved read-only operations."""
 
+    _account_rows: _CustomerRowsCallable
+    _campaign_rows: _CustomerRowsCallable
+    _ad_group_rows: _CustomerRowsCallable
+    _ad_rows: _CustomerRowsCallable
+    _keyword_rows: _CustomerRowsCallable
+    _search_term_rows: _WindowRowsCallable
+    _metric_rows: _WindowRowsCallable
+
     def account_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=account_query())
+        return self._account_rows(customer_id)
 
     def campaign_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=campaigns_query())
+        return self._campaign_rows(customer_id)
 
     def ad_group_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=ad_groups_query())
+        return self._ad_group_rows(customer_id)
 
     def ad_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=ads_query())
+        return self._ad_rows(customer_id)
 
     def keyword_rows(self, *, customer_id: str) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=keywords_query())
+        return self._keyword_rows(customer_id)
 
     def search_term_rows(
         self,
@@ -102,7 +103,7 @@ class GoogleAdsReadOnlyAdapter:
         customer_id: str,
         window: "ResolvedDateRange",
     ) -> Iterable[Any]:
-        return _run_fixed_search(self, customer_id=customer_id, query=search_terms_query(window))
+        return self._search_term_rows(customer_id, window)
 
     def metric_rows(
         self,
@@ -110,25 +111,49 @@ class GoogleAdsReadOnlyAdapter:
         customer_id: str,
         window: "ResolvedDateRange",
     ) -> Iterable[Any]:
-        return _run_fixed_search(
-            self,
-            customer_id=customer_id,
-            query=daily_performance_metrics_query(window),
-        )
-
-
-_READ_ONLY_TRANSPORTS: WeakKeyDictionary[
-    GoogleAdsReadOnlyAdapter, _GoogleAdsReadOnlyTransport
-] = WeakKeyDictionary()
+        return self._metric_rows(customer_id, window)
 
 
 def _create_google_ads_read_only_adapter(google_ads_client: Any) -> GoogleAdsReadOnlyAdapter:
     service = google_ads_client.get_service("GoogleAdsService")
+    search = service.search
+
+    def run_google_ads_query(customer_id: str, fixed_gaql: str) -> Iterable[Any]:
+        try:
+            rows = search(customer_id=customer_id, query=fixed_gaql)
+            yield from rows
+        except Exception as exc:
+            _raise_normalized_google_ads_error(exc)
+
+    def account_rows(customer_id: str) -> Iterable[Any]:
+        return run_google_ads_query(customer_id, account_query())
+
+    def campaign_rows(customer_id: str) -> Iterable[Any]:
+        return run_google_ads_query(customer_id, campaigns_query())
+
+    def ad_group_rows(customer_id: str) -> Iterable[Any]:
+        return run_google_ads_query(customer_id, ad_groups_query())
+
+    def ad_rows(customer_id: str) -> Iterable[Any]:
+        return run_google_ads_query(customer_id, ads_query())
+
+    def keyword_rows(customer_id: str) -> Iterable[Any]:
+        return run_google_ads_query(customer_id, keywords_query())
+
+    def search_term_rows(customer_id: str, window: "ResolvedDateRange") -> Iterable[Any]:
+        return run_google_ads_query(customer_id, search_terms_query(window))
+
+    def metric_rows(customer_id: str, window: "ResolvedDateRange") -> Iterable[Any]:
+        return run_google_ads_query(customer_id, daily_performance_metrics_query(window))
+
     adapter = GoogleAdsReadOnlyAdapter()
-    _READ_ONLY_TRANSPORTS[adapter] = _GoogleAdsReadOnlyTransport(
-        search=cast(_GoogleAdsSearchCallable, service.search),
-        search_stream=cast(_GoogleAdsSearchCallable, service.search_stream),
-    )
+    object.__setattr__(adapter, "_account_rows", account_rows)
+    object.__setattr__(adapter, "_campaign_rows", campaign_rows)
+    object.__setattr__(adapter, "_ad_group_rows", ad_group_rows)
+    object.__setattr__(adapter, "_ad_rows", ad_rows)
+    object.__setattr__(adapter, "_keyword_rows", keyword_rows)
+    object.__setattr__(adapter, "_search_term_rows", search_term_rows)
+    object.__setattr__(adapter, "_metric_rows", metric_rows)
     return adapter
 
 
@@ -357,19 +382,6 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
-
-
-def _run_fixed_search(
-    adapter: GoogleAdsReadOnlyAdapter,
-    *,
-    customer_id: str,
-    query: str,
-) -> Iterable[Any]:
-    try:
-        rows = _READ_ONLY_TRANSPORTS[adapter].search(customer_id=customer_id, query=query)
-        yield from rows
-    except Exception as exc:
-        _raise_normalized_google_ads_error(exc)
 
 
 class GoogleAdsConnectionTestService:

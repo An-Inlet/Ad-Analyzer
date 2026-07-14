@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from importlib import import_module
-from typing import Any, NoReturn, Protocol, cast
+from typing import Any, NoReturn, Protocol, Self, cast
 
 from app.ads.enums import AdvertisingPlatform
 from app.ads.schemas import (
@@ -46,22 +46,30 @@ class GoogleAdsReadOnlyClient(Protocol):
     def search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
 
 
+class GoogleAdsSearchCallable(Protocol):
+    def __call__(self, *, customer_id: str, query: str) -> Iterable[Any]: ...
+
+
 @dataclass(frozen=True, slots=True)
 class GoogleAdsReadOnlyAdapter:
     """Narrow facade over GoogleAdsClient for approved read-only operations."""
 
-    _google_ads_client: Any
+    _search: GoogleAdsSearchCallable
+    _search_stream: GoogleAdsSearchCallable
+
+    @classmethod
+    def from_google_ads_client(cls, google_ads_client: Any) -> Self:
+        service = google_ads_client.get_service("GoogleAdsService")
+        return cls(
+            _search=cast(GoogleAdsSearchCallable, service.search),
+            _search_stream=cast(GoogleAdsSearchCallable, service.search_stream),
+        )
 
     def search(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        service = self._google_ads_service()
-        return cast(Iterable[Any], service.search(customer_id=customer_id, query=query))
+        return self._search(customer_id=customer_id, query=query)
 
     def search_stream(self, *, customer_id: str, query: str) -> Iterable[Any]:
-        service = self._google_ads_service()
-        return cast(Iterable[Any], service.search_stream(customer_id=customer_id, query=query))
-
-    def _google_ads_service(self) -> Any:
-        return self._google_ads_client.get_service("GoogleAdsService")
+        return self._search_stream(customer_id=customer_id, query=query)
 
 
 class GoogleAdsDateRange(StrEnum):
@@ -215,7 +223,7 @@ def _required_config(settings: Settings) -> dict[str, str]:
 def create_google_ads_client(settings: Settings) -> GoogleAdsReadOnlyClient:
     config = _required_config(settings)
     google_ads_client = _require_google_ads_module()
-    return GoogleAdsReadOnlyAdapter(
+    return GoogleAdsReadOnlyAdapter.from_google_ads_client(
         google_ads_client.load_from_dict(
             {
                 "developer_token": config["developer_token"],
@@ -261,6 +269,22 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
     if any(
         marker in message
         for marker in (
+            "unauthenticated",
+            "authentication",
+            "credential",
+            "invalid_grant",
+            "oauth",
+            "401",
+            "token refresh",
+            "token_refresh",
+            "refresh token",
+            "unauthorized_client",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+    if any(
+        marker in message
+        for marker in (
             "permission_denied",
             "permission denied",
             "authorization",
@@ -272,18 +296,6 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
         )
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
-    if any(
-        marker in message
-        for marker in (
-            "unauthenticated",
-            "authentication",
-            "credential",
-            "invalid_grant",
-            "oauth",
-            "401",
-        )
-    ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

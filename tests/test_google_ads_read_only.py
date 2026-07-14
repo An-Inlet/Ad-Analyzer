@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Iterator
+from dataclasses import fields
 from datetime import date
 from types import SimpleNamespace
 from typing import Any
@@ -83,7 +84,7 @@ class FakeGoogleAdsClient:
 
 
 def read_only_adapter(service: FakeGoogleAdsService) -> GoogleAdsReadOnlyAdapter:
-    return GoogleAdsReadOnlyAdapter(FakeGoogleAdsClient(service))
+    return GoogleAdsReadOnlyAdapter.from_google_ads_client(FakeGoogleAdsClient(service))
 
 
 def enum_value(name: str) -> SimpleNamespace:
@@ -150,13 +151,16 @@ def test_client_factory_returns_read_only_adapter(monkeypatch: pytest.MonkeyPatc
     client = create_google_ads_client(Settings(_env_file=None))
 
     assert isinstance(client, GoogleAdsReadOnlyAdapter)
+    assert {field.name for field in fields(client)} == {"_search", "_search_stream"}
+    assert raw_client.requested_services == ["GoogleAdsService"]
     assert not hasattr(client, "get_service")
+    assert not hasattr(client, "_google_ads_client")
     assert not hasattr(client, "mutate_campaigns")
     with pytest.raises(AttributeError):
         object.__getattribute__(client, "get_service")("CampaignService")
     list(client.search(customer_id="1234567890", query=account_query()))
     list(client.search_stream(customer_id="1234567890", query=account_query()))
-    assert raw_client.requested_services == ["GoogleAdsService", "GoogleAdsService"]
+    assert raw_client.requested_services == ["GoogleAdsService"]
     assert loaded_config == {
         "developer_token": "test-token",
         "login_customer_id": "1112223333",
@@ -322,6 +326,23 @@ def test_error_handling_maps_authentication_and_rate_limit_failures() -> None:
     )
     with pytest.raises(GoogleAdsRateLimitError):
         rate_limited_collector.collect_campaigns(account_id=1)
+
+
+def test_authentication_markers_take_precedence_over_authorization_markers() -> None:
+    collector = GoogleAdsReadOnlyCollector(
+        read_only_adapter(
+            FakeGoogleAdsService(
+                error=RuntimeError(
+                    "PERMISSION_DENIED OAuth credential token refresh failed "
+                    "for unauthorized_client 401"
+                )
+            )
+        ),
+        "1234567890",
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError):
+        collector.collect_campaigns(account_id=1)
 
 
 @pytest.mark.parametrize(

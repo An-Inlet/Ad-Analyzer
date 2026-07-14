@@ -33,6 +33,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "platform", name="uq_ad_accounts_id_platform"),
         sa.UniqueConstraint(
             "platform", "external_account_id", name="uq_ad_accounts_platform_external"
         ),
@@ -50,8 +51,14 @@ def upgrade() -> None:
         sa.Column("channel_type", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(["account_id"], ["advertising_accounts.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["account_id", "platform"],
+            ["advertising_accounts.id", "advertising_accounts.platform"],
+            name="fk_campaigns_account_platform",
+            ondelete="CASCADE",
+        ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("id", "platform", name="uq_campaigns_id_platform"),
         sa.UniqueConstraint(
             "account_id",
             "platform",
@@ -85,7 +92,6 @@ def upgrade() -> None:
         sa.Column(
             "campaign_id",
             sa.Integer(),
-            sa.ForeignKey("campaigns.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("platform", platform_enum, nullable=False),
@@ -94,12 +100,19 @@ def upgrade() -> None:
         sa.Column("status", sa.String(64)),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_ad_groups_campaign_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
             "campaign_id",
             "platform",
             "external_ad_group_id",
             name="uq_ad_groups_campaign_platform_external",
         ),
+        sa.UniqueConstraint("id", "platform", name="uq_ad_groups_id_platform"),
     )
     op.create_index("ix_ad_groups_campaign_platform", "ad_groups", ["campaign_id", "platform"])
     op.create_table(
@@ -108,7 +121,6 @@ def upgrade() -> None:
         sa.Column(
             "campaign_id",
             sa.Integer(),
-            sa.ForeignKey("campaigns.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("platform", platform_enum, nullable=False),
@@ -117,12 +129,19 @@ def upgrade() -> None:
         sa.Column("status", sa.String(64)),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_ad_sets_campaign_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
             "campaign_id",
             "platform",
             "external_ad_set_id",
             name="uq_ad_sets_campaign_platform_external",
         ),
+        sa.UniqueConstraint("id", "platform", name="uq_ad_sets_id_platform"),
     )
     op.create_index("ix_ad_sets_campaign_platform", "ad_sets", ["campaign_id", "platform"])
     op.create_table(
@@ -132,10 +151,27 @@ def upgrade() -> None:
         sa.Column("external_ad_id", sa.String(128), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("status", sa.String(64)),
-        sa.Column("ad_group_id", sa.Integer(), sa.ForeignKey("ad_groups.id", ondelete="CASCADE")),
-        sa.Column("ad_set_id", sa.Integer(), sa.ForeignKey("ad_sets.id", ondelete="CASCADE")),
+        sa.Column("ad_group_id", sa.Integer()),
+        sa.Column("ad_set_id", sa.Integer()),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "(ad_group_id IS NOT NULL AND ad_set_id IS NULL) OR "
+            "(ad_group_id IS NULL AND ad_set_id IS NOT NULL)",
+            name="ck_ads_exactly_one_parent",
+        ),
+        sa.ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_ads_ad_group_platform",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["ad_set_id", "platform"],
+            ["ad_sets.id", "ad_sets.platform"],
+            name="fk_ads_ad_set_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint("platform", "external_ad_id", name="uq_ads_platform_external"),
     )
     op.create_index("ix_ads_platform", "ads", ["platform"])
@@ -145,7 +181,6 @@ def upgrade() -> None:
         sa.Column(
             "ad_group_id",
             sa.Integer(),
-            sa.ForeignKey("ad_groups.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("platform", platform_enum, nullable=False),
@@ -155,6 +190,12 @@ def upgrade() -> None:
         sa.Column("status", sa.String(64)),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_keywords_ad_group_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
             "ad_group_id",
             "platform",
@@ -169,7 +210,6 @@ def upgrade() -> None:
         sa.Column(
             "ad_group_id",
             sa.Integer(),
-            sa.ForeignKey("ad_groups.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("platform", platform_enum, nullable=False),
@@ -177,6 +217,12 @@ def upgrade() -> None:
         sa.Column("match_type", sa.String(64)),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_search_terms_ad_group_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
             "ad_group_id", "platform", "term", name="uq_search_terms_ad_group_platform_term"
         ),
@@ -191,7 +237,7 @@ def upgrade() -> None:
         sa.Column("metric_date", sa.Date(), nullable=False),
         sa.Column("entity_type", sa.String(64), nullable=False),
         sa.Column("entity_id", sa.Integer(), nullable=False),
-        sa.Column("campaign_id", sa.Integer(), sa.ForeignKey("campaigns.id", ondelete="CASCADE")),
+        sa.Column("campaign_id", sa.Integer()),
         sa.Column("impressions", sa.Integer(), nullable=False),
         sa.Column("clicks", sa.Integer(), nullable=False),
         sa.Column("cost_micros", sa.BigInteger(), nullable=False),
@@ -200,6 +246,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("cost_micros >= 0", name="ck_daily_metrics_cost_nonnegative"),
+        sa.ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_daily_metrics_campaign_platform",
+            ondelete="CASCADE",
+        ),
         sa.UniqueConstraint(
             "platform",
             "metric_date",

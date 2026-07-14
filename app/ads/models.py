@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -54,6 +55,7 @@ class AdvertisingAccount(TimestampMixin, Base):
         UniqueConstraint(
             "platform", "external_account_id", name="uq_ad_accounts_platform_external"
         ),
+        UniqueConstraint("id", "platform", name="uq_ad_accounts_id_platform"),
         Index("ix_ad_accounts_platform", "platform"),
     )
 
@@ -79,13 +81,18 @@ class Campaign(TimestampMixin, Base):
             "external_campaign_id",
             name="uq_campaigns_account_platform_external",
         ),
+        UniqueConstraint("id", "platform", name="uq_campaigns_id_platform"),
+        ForeignKeyConstraint(
+            ["account_id", "platform"],
+            ["advertising_accounts.id", "advertising_accounts.platform"],
+            name="fk_campaigns_account_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_campaigns_account_platform", "account_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    account_id: Mapped[int] = mapped_column(
-        ForeignKey("advertising_accounts.id", ondelete="CASCADE"), nullable=False
-    )
+    account_id: Mapped[int] = mapped_column(Integer, nullable=False)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_campaign_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -112,20 +119,25 @@ class AdGroup(TimestampMixin, Base):
             "external_ad_group_id",
             name="uq_ad_groups_campaign_platform_external",
         ),
+        UniqueConstraint("id", "platform", name="uq_ad_groups_id_platform"),
+        ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_ad_groups_campaign_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_ad_groups_campaign_platform", "campaign_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    campaign_id: Mapped[int] = mapped_column(
-        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
-    )
+    campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_ad_group_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str | None] = mapped_column(String(64))
 
     campaign: Mapped[Campaign] = relationship(back_populates="ad_groups")
-    ads: Mapped[list["Ad"]] = relationship(back_populates="ad_group")
+    ads: Mapped[list["Ad"]] = relationship(back_populates="ad_group", overlaps="ad_set,ads")
     keywords: Mapped[list["Keyword"]] = relationship(back_populates="ad_group")
     search_terms: Mapped[list["SearchTerm"]] = relationship(back_populates="ad_group")
 
@@ -139,26 +151,48 @@ class AdSet(TimestampMixin, Base):
             "external_ad_set_id",
             name="uq_ad_sets_campaign_platform_external",
         ),
+        UniqueConstraint("id", "platform", name="uq_ad_sets_id_platform"),
+        ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_ad_sets_campaign_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_ad_sets_campaign_platform", "campaign_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    campaign_id: Mapped[int] = mapped_column(
-        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
-    )
+    campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_ad_set_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str | None] = mapped_column(String(64))
 
     campaign: Mapped[Campaign] = relationship(back_populates="ad_sets")
-    ads: Mapped[list["Ad"]] = relationship(back_populates="ad_set")
+    ads: Mapped[list["Ad"]] = relationship(back_populates="ad_set", overlaps="ad_group,ads")
 
 
 class Ad(TimestampMixin, Base):
     __tablename__ = "ads"
     __table_args__ = (
         UniqueConstraint("platform", "external_ad_id", name="uq_ads_platform_external"),
+        CheckConstraint(
+            "(ad_group_id IS NOT NULL AND ad_set_id IS NULL) OR "
+            "(ad_group_id IS NULL AND ad_set_id IS NOT NULL)",
+            name="ck_ads_exactly_one_parent",
+        ),
+        ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_ads_ad_group_platform",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["ad_set_id", "platform"],
+            ["ad_sets.id", "ad_sets.platform"],
+            name="fk_ads_ad_set_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_ads_platform", "platform"),
     )
 
@@ -167,11 +201,15 @@ class Ad(TimestampMixin, Base):
     external_ad_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str | None] = mapped_column(String(64))
-    ad_group_id: Mapped[int | None] = mapped_column(ForeignKey("ad_groups.id", ondelete="CASCADE"))
-    ad_set_id: Mapped[int | None] = mapped_column(ForeignKey("ad_sets.id", ondelete="CASCADE"))
+    ad_group_id: Mapped[int | None] = mapped_column(Integer)
+    ad_set_id: Mapped[int | None] = mapped_column(Integer)
 
-    ad_group: Mapped[AdGroup | None] = relationship(back_populates="ads")
-    ad_set: Mapped[AdSet | None] = relationship(back_populates="ads")
+    ad_group: Mapped[AdGroup | None] = relationship(
+        back_populates="ads", overlaps="ad_set,ads"
+    )
+    ad_set: Mapped[AdSet | None] = relationship(
+        back_populates="ads", overlaps="ad_group,ads"
+    )
 
 
 class Keyword(TimestampMixin, Base):
@@ -183,13 +221,17 @@ class Keyword(TimestampMixin, Base):
             "external_keyword_id",
             name="uq_keywords_ad_group_platform_external",
         ),
+        ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_keywords_ad_group_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_keywords_ad_group_platform", "ad_group_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ad_group_id: Mapped[int] = mapped_column(
-        ForeignKey("ad_groups.id", ondelete="CASCADE"), nullable=False
-    )
+    ad_group_id: Mapped[int] = mapped_column(Integer, nullable=False)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_keyword_id: Mapped[str] = mapped_column(String(128), nullable=False)
     text: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -205,13 +247,17 @@ class SearchTerm(TimestampMixin, Base):
         UniqueConstraint(
             "ad_group_id", "platform", "term", name="uq_search_terms_ad_group_platform_term"
         ),
+        ForeignKeyConstraint(
+            ["ad_group_id", "platform"],
+            ["ad_groups.id", "ad_groups.platform"],
+            name="fk_search_terms_ad_group_platform",
+            ondelete="CASCADE",
+        ),
         Index("ix_search_terms_ad_group_platform", "ad_group_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ad_group_id: Mapped[int] = mapped_column(
-        ForeignKey("ad_groups.id", ondelete="CASCADE"), nullable=False
-    )
+    ad_group_id: Mapped[int] = mapped_column(Integer, nullable=False)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     term: Mapped[str] = mapped_column(String(512), nullable=False)
     match_type: Mapped[str | None] = mapped_column(String(64))
@@ -231,6 +277,12 @@ class DailyMetric(TimestampMixin, Base):
         ),
         Index("ix_daily_metrics_platform_date", "platform", "metric_date"),
         CheckConstraint("cost_micros >= 0", name="ck_daily_metrics_cost_nonnegative"),
+        ForeignKeyConstraint(
+            ["campaign_id", "platform"],
+            ["campaigns.id", "campaigns.platform"],
+            name="fk_daily_metrics_campaign_platform",
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -238,7 +290,7 @@ class DailyMetric(TimestampMixin, Base):
     metric_date: Mapped[date] = mapped_column(Date, nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"))
+    campaign_id: Mapped[int | None] = mapped_column(Integer)
     impressions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     clicks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cost_micros: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)

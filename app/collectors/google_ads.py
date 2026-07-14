@@ -1,8 +1,10 @@
+import json as _json
 from dataclasses import dataclass as _dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from importlib import import_module as _import_module
+from pathlib import Path as _Path
 from typing import Any, NoReturn
 from typing import cast as _cast
 
@@ -215,6 +217,50 @@ def _client_config(config: dict[str, str]) -> dict[str, object]:
     }
 
 
+def _validate_service_account_file(file_path: str) -> None:
+    try:
+        raw_credentials = _Path(file_path).read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise GoogleAdsMissingCredentialsError(
+            "Google Ads service-account credentials file is missing"
+        ) from exc
+    except OSError as exc:
+        raise GoogleAdsMissingCredentialsError(
+            "Google Ads service-account credentials file is unreadable"
+        ) from exc
+
+    try:
+        credentials = _json.loads(raw_credentials)
+    except _json.JSONDecodeError as exc:
+        raise GoogleAdsAuthenticationError(
+            "Google Ads service-account credentials file is malformed"
+        ) from exc
+
+    if not isinstance(credentials, dict):
+        raise GoogleAdsAuthenticationError(
+            "Google Ads service-account credentials file is invalid"
+        )
+
+    required_fields = ("type", "client_email", "private_key", "token_uri")
+    missing_fields = [name for name in required_fields if not credentials.get(name)]
+    if credentials.get("type") != "service_account" or missing_fields:
+        raise GoogleAdsAuthenticationError(
+            "Google Ads service-account credentials file is invalid"
+        )
+
+
+def _google_ads_service(settings: Settings | None) -> tuple[Any, str]:
+    config = _required_config(_settings_or_default(settings))
+    _validate_service_account_file(config["service_account_file"])
+    google_ads_client = _require_google_ads_module()
+    try:
+        client = google_ads_client.load_from_dict(_client_config(config))
+        service = client.get_service("GoogleAdsService")
+    except Exception as exc:
+        _raise_normalized_google_ads_error(exc)
+    return service, config["customer_id"]
+
+
 def _google_ads_error_text(exc: Exception) -> str:
     parts = [type(exc).__name__, str(exc)]
     code = getattr(exc, "code", None)
@@ -259,6 +305,12 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
             "token_refresh",
             "refresh token",
             "unauthorized_client",
+            "service account",
+            "service-account",
+            "private key",
+            "json key",
+            "client email",
+            "token_uri",
         )
     ):
         raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
@@ -280,13 +332,10 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
 
 
 def collect_account(*, settings: Settings | None = None) -> AdvertisingAccountCreate:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_account_query())
+        rows = service.search(customer_id=customer_id, query=_account_query())
         row = next(iter(rows))
     except Exception as exc:
         _raise_normalized_google_ads_error(exc)
@@ -304,13 +353,10 @@ def collect_campaigns(
     *,
     settings: Settings | None = None,
 ) -> list[CampaignCreate]:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_campaigns_query())
+        rows = service.search(customer_id=customer_id, query=_campaigns_query())
         return [
             CampaignCreate(
                 account_id=account_id,
@@ -331,13 +377,10 @@ def collect_ad_groups(
     *,
     settings: Settings | None = None,
 ) -> list[AdGroupCreate]:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_ad_groups_query())
+        rows = service.search(customer_id=customer_id, query=_ad_groups_query())
         return [
             AdGroupCreate(
                 campaign_id=campaign_ids_by_external_id[str(row.campaign.id)],
@@ -358,13 +401,10 @@ def collect_ads(
     *,
     settings: Settings | None = None,
 ) -> list[AdCreate]:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_ads_query())
+        rows = service.search(customer_id=customer_id, query=_ads_query())
         return [
             AdCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -385,13 +425,10 @@ def collect_keywords(
     *,
     settings: Settings | None = None,
 ) -> list[KeywordCreate]:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_keywords_query())
+        rows = service.search(customer_id=customer_id, query=_keywords_query())
         return [
             KeywordCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -415,14 +452,11 @@ def collect_search_terms(
     today: date | None = None,
     settings: Settings | None = None,
 ) -> list[SearchTermCreate]:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
     window = _resolve_date_range(date_range, today)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_search_terms_query(window))
+        rows = service.search(customer_id=customer_id, query=_search_terms_query(window))
         return [
             SearchTermCreate(
                 ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
@@ -444,14 +478,11 @@ def collect_metrics(
     today: date | None = None,
     settings: Settings | None = None,
 ) -> NormalizedMetricsBatch:
-    config = _required_config(_settings_or_default(settings))
-    google_ads_client = _require_google_ads_module()
-    client = google_ads_client.load_from_dict(_client_config(config))
-    service = client.get_service("GoogleAdsService")
+    service, customer_id = _google_ads_service(settings)
     window = _resolve_date_range(date_range, today)
 
     try:
-        rows = service.search(customer_id=config["customer_id"], query=_metrics_query(window))
+        rows = service.search(customer_id=customer_id, query=_metrics_query(window))
         metrics = [
             DailyMetricCreate(
                 platform=AdvertisingPlatform.GOOGLE_ADS,

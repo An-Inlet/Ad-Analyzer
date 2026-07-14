@@ -1,6 +1,8 @@
 import inspect
+import json
 from collections.abc import Iterable, Iterator
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -70,13 +72,20 @@ class FakeGoogleAdsService:
 
 
 class FakeGoogleAdsClient:
-    def __init__(self, service: FakeGoogleAdsService) -> None:
+    def __init__(
+        self,
+        service: FakeGoogleAdsService,
+        get_service_error: Exception | None = None,
+    ) -> None:
         self.service = service
+        self.get_service_error = get_service_error
         self.requested_services: list[str] = []
 
     def get_service(self, name: str) -> FakeGoogleAdsService:
         assert name == "GoogleAdsService"
         self.requested_services.append(name)
+        if self.get_service_error:
+            raise self.get_service_error
         return self.service
 
 
@@ -95,25 +104,63 @@ def campaign_row() -> SimpleNamespace:
     )
 
 
-def valid_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
+def service_account_payload(overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = {
+        "type": "service_account",
+        "client_email": "ads-reader@example.iam.gserviceaccount.com",
+        "private_key": "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+    if overrides:
+        payload.update(overrides)
+    return payload
+
+
+def write_service_account_file(
+    tmp_path: Path,
+    payload: dict[str, Any] | str | None = None,
+) -> Path:
+    file_path = tmp_path / "service-account.json"
+    if payload is None:
+        payload = service_account_payload()
+    content = payload if isinstance(payload, str) else json.dumps(payload)
+    file_path.write_text(content, encoding="utf-8")
+    return file_path
+
+
+def settings_with_service_account_file(
+    monkeypatch: pytest.MonkeyPatch,
+    service_account_file: str,
+) -> Settings:
     monkeypatch.setenv("GOOGLE_ADS_DEVELOPER_TOKEN", "test-token")
     monkeypatch.setenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "1112223333")
     monkeypatch.setenv("GOOGLE_ADS_CUSTOMER_ID", "1234567890")
-    monkeypatch.setenv("GOOGLE_ADS_SERVICE_ACCOUNT_FILE", "/tmp/service-account.json")
+    monkeypatch.setenv("GOOGLE_ADS_SERVICE_ACCOUNT_FILE", service_account_file)
     return Settings(_env_file=None)
+
+
+def valid_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Settings:
+    return settings_with_service_account_file(
+        monkeypatch,
+        str(write_service_account_file(tmp_path)),
+    )
 
 
 def install_fake_google_ads_module(
     monkeypatch: pytest.MonkeyPatch,
     service: FakeGoogleAdsService,
+    load_error: Exception | None = None,
+    get_service_error: Exception | None = None,
 ) -> tuple[FakeGoogleAdsClient, list[dict[str, Any]]]:
-    raw_client = FakeGoogleAdsClient(service)
+    raw_client = FakeGoogleAdsClient(service, get_service_error=get_service_error)
     loaded_configs: list[dict[str, Any]] = []
 
     class FakeGoogleAdsClientModule:
         @staticmethod
         def load_from_dict(config: dict[str, Any]) -> FakeGoogleAdsClient:
             loaded_configs.append(config)
+            if load_error:
+                raise load_error
             return raw_client
 
     def fake_require_google_ads_module() -> type[FakeGoogleAdsClientModule]:
@@ -134,13 +181,15 @@ def callable_parameters(value: Any) -> set[str]:
 
 def test_google_ads_settings_are_loaded_from_environment(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
 
     assert settings.google_ads_developer_token == "test-token"
     assert settings.google_ads_login_customer_id == "1112223333"
     assert settings.google_ads_customer_id == "1234567890"
-    assert settings.google_ads_service_account_file == "/tmp/service-account.json"
+    assert settings.google_ads_service_account_file is not None
+    assert Path(settings.google_ads_service_account_file).exists()
 
 
 def test_collectors_require_all_google_ads_credentials() -> None:
@@ -151,6 +200,68 @@ def test_collectors_require_all_google_ads_credentials() -> None:
 
     assert "developer_token" in str(exc_info.value)
     assert "service_account_file" in str(exc_info.value)
+
+
+def test_missing_service_account_file_is_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = settings_with_service_account_file(
+        monkeypatch,
+        str(tmp_path / "missing-service-account.json"),
+    )
+
+    with pytest.raises(GoogleAdsMissingCredentialsError) as exc_info:
+        collect_account(settings=settings)
+
+    assert "missing" in str(exc_info.value).lower()
+
+
+def test_unreadable_service_account_file_is_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    service_account_file = write_service_account_file(tmp_path)
+    settings = settings_with_service_account_file(monkeypatch, str(service_account_file))
+
+    def raise_permission_error(self: Path, *, encoding: str | None = None) -> str:
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(Path, "read_text", raise_permission_error)
+
+    with pytest.raises(GoogleAdsMissingCredentialsError) as exc_info:
+        collect_account(settings=settings)
+
+    assert "unreadable" in str(exc_info.value).lower()
+
+
+def test_malformed_service_account_file_is_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    service_account_file = write_service_account_file(tmp_path, "{not json")
+    settings = settings_with_service_account_file(monkeypatch, str(service_account_file))
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_account(settings=settings)
+
+    assert "malformed" in str(exc_info.value).lower()
+
+
+def test_invalid_service_account_file_is_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    service_account_file = write_service_account_file(
+        tmp_path,
+        service_account_payload({"type": "authorized_user", "private_key": ""}),
+    )
+    settings = settings_with_service_account_file(monkeypatch, str(service_account_file))
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_account(settings=settings)
+
+    assert "invalid" in str(exc_info.value).lower()
 
 
 def test_public_api_exposes_only_fixed_collector_functions() -> None:
@@ -261,8 +372,9 @@ def test_fixed_gaql_queries_are_internal_and_approved() -> None:
 
 def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
     window = google_ads_module._resolve_date_range(
         GoogleAdsDateRange.YESTERDAY, date(2026, 7, 14)
     )
@@ -319,13 +431,16 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     assert loaded_configs[0] == {
         "developer_token": "test-token",
         "login_customer_id": "1112223333",
-        "json_key_file_path": "/tmp/service-account.json",
+        "json_key_file_path": settings.google_ads_service_account_file,
         "use_proto_plus": True,
     }
 
 
-def test_collectors_normalize_child_entities(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = valid_settings(monkeypatch)
+def test_collectors_normalize_child_entities(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = valid_settings(monkeypatch, tmp_path)
     service = FakeGoogleAdsService(
         {
             google_ads_module._ad_groups_query(): [
@@ -385,8 +500,9 @@ def test_collectors_normalize_child_entities(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_error_handling_maps_authentication_and_rate_limit_failures(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
     install_fake_google_ads_module(
         monkeypatch,
         FakeGoogleAdsService(error=RuntimeError("authentication failed")),
@@ -402,10 +518,41 @@ def test_error_handling_maps_authentication_and_rate_limit_failures(
         collect_campaigns(account_id=1, settings=settings)
 
 
+def test_client_construction_errors_are_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = valid_settings(monkeypatch, tmp_path)
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(),
+        load_error=RuntimeError("invalid service account private key"),
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError):
+        collect_campaigns(account_id=1, settings=settings)
+
+
+def test_get_service_errors_are_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = valid_settings(monkeypatch, tmp_path)
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(),
+        get_service_error=RuntimeError("authentication failed"),
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError):
+        collect_campaigns(account_id=1, settings=settings)
+
+
 def test_authentication_markers_take_precedence_over_authorization_markers(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
     install_fake_google_ads_module(
         monkeypatch,
         FakeGoogleAdsService(
@@ -439,10 +586,11 @@ def test_authentication_markers_take_precedence_over_authorization_markers(
 )
 def test_later_page_errors_are_normalized(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
     raw_error: Exception,
     normalized_error: type[GoogleAdsIntegrationError],
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
     install_fake_google_ads_module(
         monkeypatch,
         FakeGoogleAdsService(
@@ -459,8 +607,9 @@ def test_later_page_errors_are_normalized(
 
 def test_normalized_metrics_batch_rejects_empty_metric_collections(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    settings = valid_settings(monkeypatch)
+    settings = valid_settings(monkeypatch, tmp_path)
     install_fake_google_ads_module(monkeypatch, FakeGoogleAdsService())
 
     with pytest.raises(ValidationError):

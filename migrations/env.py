@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
+from app.ads import models  # noqa: F401
 from app.database.session import Base
 from app.settings import settings
 from sqlalchemy import engine_from_config, pool

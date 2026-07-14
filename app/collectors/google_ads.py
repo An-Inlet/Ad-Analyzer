@@ -224,6 +224,10 @@ def _validate_service_account_file(file_path: str) -> None:
         raise GoogleAdsMissingCredentialsError(
             "Google Ads service-account credentials file is missing"
         ) from exc
+    except UnicodeDecodeError as exc:
+        raise GoogleAdsAuthenticationError(
+            "Google Ads service-account credentials file is malformed"
+        ) from exc
     except OSError as exc:
         raise GoogleAdsMissingCredentialsError(
             "Google Ads service-account credentials file is unreadable"
@@ -257,7 +261,7 @@ def _google_ads_service(settings: Settings | None) -> tuple[Any, str]:
         client = google_ads_client.load_from_dict(_client_config(config))
         service = client.get_service("GoogleAdsService")
     except Exception as exc:
-        _raise_normalized_google_ads_error(exc)
+        _raise_normalized_google_ads_error(exc, credential_context=True)
     return service, config["customer_id"]
 
 
@@ -277,7 +281,11 @@ def _google_ads_error_text(exc: Exception) -> str:
     return " ".join(parts).lower()
 
 
-def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
+def _raise_normalized_google_ads_error(
+    exc: Exception,
+    *,
+    credential_context: bool = False,
+) -> NoReturn:
     message = _google_ads_error_text(exc)
     if any(
         marker in message
@@ -297,7 +305,6 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
         for marker in (
             "unauthenticated",
             "authentication",
-            "credential",
             "invalid_grant",
             "oauth",
             "401",
@@ -305,12 +312,6 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
             "token_refresh",
             "refresh token",
             "unauthorized_client",
-            "service account",
-            "service-account",
-            "private key",
-            "json key",
-            "client email",
-            "token_uri",
         )
     ):
         raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
@@ -328,6 +329,20 @@ def _raise_normalized_google_ads_error(exc: Exception) -> NoReturn:
         )
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
+    if "credential" in message:
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+    if credential_context and any(
+        marker in message
+        for marker in (
+            "service account",
+            "service-account",
+            "private key",
+            "json key",
+            "client email",
+            "token_uri",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

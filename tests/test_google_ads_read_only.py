@@ -248,6 +248,20 @@ def test_malformed_service_account_file_is_normalized(
     assert "malformed" in str(exc_info.value).lower()
 
 
+def test_non_utf8_service_account_file_is_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    service_account_file = tmp_path / "service-account.json"
+    service_account_file.write_bytes(b"\xff\xfe\x00\x00")
+    settings = settings_with_service_account_file(monkeypatch, str(service_account_file))
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_account(settings=settings)
+
+    assert "malformed" in str(exc_info.value).lower()
+
+
 def test_invalid_service_account_file_is_normalized(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -564,6 +578,28 @@ def test_authentication_markers_take_precedence_over_authorization_markers(
     )
 
     with pytest.raises(GoogleAdsAuthenticationError):
+        collect_campaigns(account_id=1, settings=settings)
+
+
+@pytest.mark.parametrize(
+    "raw_error",
+    [
+        RuntimeError("PERMISSION_DENIED service account lacks access to customer"),
+        RuntimeError("USER_PERMISSION_DENIED service account cannot access customer"),
+    ],
+)
+def test_permission_denied_service_account_errors_are_authorization_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    raw_error: Exception,
+) -> None:
+    settings = valid_settings(monkeypatch, tmp_path)
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(error=raw_error),
+    )
+
+    with pytest.raises(GoogleAdsAuthorizationError):
         collect_campaigns(account_id=1, settings=settings)
 
 

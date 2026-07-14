@@ -81,3 +81,5 @@ Desktop.ini
 
 # Docker / local runtime
 .docker/
+
+.codex/

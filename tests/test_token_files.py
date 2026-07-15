@@ -69,13 +69,13 @@ def test_refresh_token_file_is_created_private_before_writing(
         assert mode_before_write == [PRIVATE_TOKEN_FILE_MODE]
 
 
-def test_windows_private_directory_is_verified_before_writing_token_data(
+def test_windows_file_acl_is_replaced_before_writing_token_data(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     output_file = tmp_path / "google-refresh-token.txt"
     events: list[str] = []
-    acl_queries: list[list[str]] = []
+    acl_commands: list[list[str]] = []
     original_open = os.open
     original_write_all = token_files._write_all
 
@@ -89,15 +89,43 @@ def test_windows_private_directory_is_verified_before_writing_token_data(
         assert check is False
         assert capture_output is True
         assert text is True
-        events.append("acl")
-        acl_queries.append(command)
-        acl_output = (
-            f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
-            "NT AUTHORITY\\SYSTEM:(I)(F)\n"
-            "BUILTIN\\Administrators:(I)(F)\n"
-            "Successfully processed 1 files; Failed processing 0 files\n"
-        )
-        return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+        acl_commands.append(command)
+        if command == ["icacls", str(output_file.parent)]:
+            events.append("directory-acl")
+            acl_output = (
+                f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
+                "NT AUTHORITY\\SYSTEM:(I)(F)\n"
+                "BUILTIN\\Administrators:(I)(F)\n"
+                "Successfully processed 1 files; Failed processing 0 files\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+        if command == [
+            "icacls",
+            str(output_file),
+            "/grant:r",
+            r"TESTDOMAIN\TestUser:F",
+        ]:
+            assert events == ["directory-acl", "open"]
+            events.append("grant-current-user")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command == ["icacls", str(output_file), "/inheritance:r"]:
+            assert events == ["directory-acl", "open", "grant-current-user"]
+            events.append("remove-file-inheritance")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command == ["icacls", str(output_file)]:
+            assert events == [
+                "directory-acl",
+                "open",
+                "grant-current-user",
+                "remove-file-inheritance",
+            ]
+            events.append("verify-file-acl")
+            acl_output = (
+                f"{output_file} TESTDOMAIN\\TestUser:(F)\n"
+                "Successfully processed 1 files; Failed processing 0 files\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+        raise AssertionError(f"Unexpected ACL command: {command}")
 
     def recording_open(
         path: Any,
@@ -108,12 +136,18 @@ def test_windows_private_directory_is_verified_before_writing_token_data(
     ) -> int:
         assert args == ()
         assert kwargs == {}
-        assert events == ["acl"]
+        assert events == ["directory-acl"]
         events.append("open")
         return original_open(path, flags, mode)
 
     def recording_write_all(fd: int, data: bytes) -> None:
-        assert events == ["acl", "open"]
+        assert events == [
+            "directory-acl",
+            "open",
+            "grant-current-user",
+            "remove-file-inheritance",
+            "verify-file-acl",
+        ]
         events.append("write")
         original_write_all(fd, data)
 
@@ -126,9 +160,83 @@ def test_windows_private_directory_is_verified_before_writing_token_data(
 
     secure_write_refresh_token_file(output_file, "test-refresh-token")
 
-    assert events == ["acl", "open", "write"]
-    assert acl_queries == [["icacls", str(output_file.parent)]]
+    assert events == [
+        "directory-acl",
+        "open",
+        "grant-current-user",
+        "remove-file-inheritance",
+        "verify-file-acl",
+        "write",
+    ]
+    assert acl_commands == [
+        ["icacls", str(output_file.parent)],
+        ["icacls", str(output_file), "/grant:r", r"TESTDOMAIN\TestUser:F"],
+        ["icacls", str(output_file), "/inheritance:r"],
+        ["icacls", str(output_file)],
+    ]
     assert output_file.read_text(encoding="utf-8") == "test-refresh-token"
+
+
+def test_windows_file_acl_must_remove_inherited_admin_and_system_before_writing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    output_file = tmp_path / "google-refresh-token.txt"
+    acl_commands: list[list[str]] = []
+
+    def inherited_admin_run(
+        command: list[str],
+        *,
+        check: bool,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        assert capture_output is True
+        assert text is True
+        acl_commands.append(command)
+        if command == ["icacls", str(output_file.parent)]:
+            acl_output = (
+                f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
+                "NT AUTHORITY\\SYSTEM:(I)(F)\n"
+                "BUILTIN\\Administrators:(I)(F)\n"
+                "Successfully processed 1 files; Failed processing 0 files\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+        if command in (
+            ["icacls", str(output_file), "/grant:r", r"TESTDOMAIN\TestUser:F"],
+            ["icacls", str(output_file), "/inheritance:r"],
+        ):
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if command == ["icacls", str(output_file)]:
+            acl_output = (
+                f"{output_file} TESTDOMAIN\\TestUser:(F)\n"
+                "NT AUTHORITY\\SYSTEM:(I)(F)\n"
+                "BUILTIN\\Administrators:(I)(F)\n"
+                "Successfully processed 1 files; Failed processing 0 files\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+        raise AssertionError(f"Unexpected ACL command: {command}")
+
+    def fail_write_all(fd: int, data: bytes) -> None:
+        raise AssertionError("token data must not be written before file ACL is private")
+
+    monkeypatch.setattr(os, "name", "nt")
+    monkeypatch.setenv("USERDOMAIN", "TESTDOMAIN")
+    monkeypatch.setenv("USERNAME", "TestUser")
+    monkeypatch.setattr(subprocess, "run", inherited_admin_run)
+    monkeypatch.setattr(token_files, "_write_all", fail_write_all)
+
+    with pytest.raises(PermissionError, match="current user"):
+        secure_write_refresh_token_file(output_file, "test-refresh-token")
+
+    assert acl_commands == [
+        ["icacls", str(output_file.parent)],
+        ["icacls", str(output_file), "/grant:r", r"TESTDOMAIN\TestUser:F"],
+        ["icacls", str(output_file), "/inheritance:r"],
+        ["icacls", str(output_file)],
+    ]
+    assert not output_file.exists()
 
 
 @pytest.mark.parametrize(

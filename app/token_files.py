@@ -10,6 +10,7 @@ from typing import Final, cast
 
 PRIVATE_TOKEN_FILE_MODE: Final = stat.S_IRUSR | stat.S_IWUSR
 _ACL_ERROR = "Refresh-token output directory is not private to the current Windows user"
+_FILE_ACL_ERROR = "Refresh-token output file ACL could not be restricted to the current user"
 _WINDOWS_ALLOWED_ADMIN_IDENTITIES = frozenset(
     {
         "system",
@@ -55,7 +56,7 @@ def _current_windows_user() -> str:
     return username
 
 
-def _run_windows_acl_query(path: Path) -> str:
+def _run_windows_acl_query(path: Path, error_message: str = _ACL_ERROR) -> str:
     try:
         completed = subprocess.run(
             ["icacls", os.fspath(path)],
@@ -64,15 +65,34 @@ def _run_windows_acl_query(path: Path) -> str:
             text=True,
         )
     except OSError as exc:
-        raise PermissionError(_ACL_ERROR) from exc
+        raise PermissionError(error_message) from exc
 
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
-        message = _ACL_ERROR
+        message = error_message
         if detail:
             message = f"{message}: {detail}"
         raise PermissionError(message)
     return completed.stdout
+
+
+def _run_windows_acl_update(path: Path, *arguments: str) -> None:
+    try:
+        completed = subprocess.run(
+            ["icacls", os.fspath(path), *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise PermissionError(_FILE_ACL_ERROR) from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        message = _FILE_ACL_ERROR
+        if detail:
+            message = f"{message}: {detail}"
+        raise PermissionError(message)
 
 
 def _normalize_windows_identity(identity: str) -> str:
@@ -122,7 +142,34 @@ def _verify_private_windows_directory(path: Path) -> None:
             raise PermissionError(_ACL_ERROR)
 
 
+def _verify_current_user_only_windows_file(path: Path) -> None:
+    current_user = _normalize_windows_identity(_current_windows_user())
+    entries = _iter_windows_acl_entries(path, _run_windows_acl_query(path, _FILE_ACL_ERROR))
+    if len(entries) != 1:
+        raise PermissionError(_FILE_ACL_ERROR)
+
+    identity, permissions = entries[0]
+    normalized_identity = _normalize_windows_identity(identity)
+    normalized_permissions = permissions.upper()
+    if normalized_identity != current_user:
+        raise PermissionError(_FILE_ACL_ERROR)
+    if "(I)" in normalized_permissions or "(DENY)" in normalized_permissions:
+        raise PermissionError(_FILE_ACL_ERROR)
+    if "(F)" not in normalized_permissions:
+        raise PermissionError(_FILE_ACL_ERROR)
+
+
+def _set_current_user_only_windows_file_acl(path: Path) -> None:
+    user = _current_windows_user()
+    _run_windows_acl_update(path, "/grant:r", f"{user}:F")
+    _run_windows_acl_update(path, "/inheritance:r")
+    _verify_current_user_only_windows_file(path)
+
+
 def _secure_new_file_before_write(fd: int, path: Path) -> None:
+    if os.name == "nt":
+        _set_current_user_only_windows_file_acl(path)
+        return
     _set_private_file_permissions(fd)
 
 

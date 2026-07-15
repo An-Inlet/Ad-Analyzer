@@ -36,12 +36,12 @@ def _set_private_file_permissions(fd: int) -> None:
         fchmod(fd, PRIVATE_TOKEN_FILE_MODE)
 
 
-def write_refresh_token_file(path: Path, refresh_token: str) -> None:
+def secure_write_refresh_token_file(path: Path, contents: str) -> None:
     """Create a new private refresh-token file and write token data to it."""
     fd = _open_private_new_file(path)
     try:
         _set_private_file_permissions(fd)
-        _write_all(fd, refresh_token.encode("utf-8"))
+        _write_all(fd, contents.encode("utf-8"))
         os.fsync(fd)
     except BaseException:
         with suppress(OSError):
@@ -50,3 +50,7 @@ def write_refresh_token_file(path: Path, refresh_token: str) -> None:
             path.unlink(missing_ok=True)
         raise
     os.close(fd)
+
+
+def write_refresh_token_file(path: Path, refresh_token: str) -> None:
+    secure_write_refresh_token_file(path, refresh_token)

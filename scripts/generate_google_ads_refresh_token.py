@@ -10,7 +10,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from google_auth_oauthlib.flow import InstalledAppFlow
+from app.token_files import secure_write_refresh_token_file
+from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped]
 
 GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords"
 DEFAULT_OUTPUT_PATH = Path(".google_ads_refresh_token.local")
@@ -54,11 +55,10 @@ def main() -> None:
     if not credentials.refresh_token:
         raise SystemExit("Google did not return a refresh token; retry with a new consent flow.")
 
-    args.output.write_text(
+    secure_write_refresh_token_file(
+        args.output,
         f"GOOGLE_ADS_REFRESH_TOKEN={credentials.refresh_token}\n",
-        encoding="utf-8",
     )
-    args.output.chmod(0o600)
     print(f"Refresh token environment variable written to {args.output}.")
     print("Copy it into your local .env file and do not commit either file.")
 

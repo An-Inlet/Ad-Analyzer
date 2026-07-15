@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from app.token_files import PRIVATE_TOKEN_FILE_MODE, write_refresh_token_file
+from app.token_files import PRIVATE_TOKEN_FILE_MODE, secure_write_refresh_token_file
 
 
 def test_refresh_token_file_is_created_private_before_writing(
@@ -49,7 +49,7 @@ def test_refresh_token_file_is_created_private_before_writing(
     monkeypatch.setattr(os, "write", recording_write)
     monkeypatch.setattr(os, "fchmod", recording_fchmod, raising=False)
 
-    write_refresh_token_file(output_file, "test-refresh-token")
+    secure_write_refresh_token_file(output_file, "test-refresh-token")
 
     assert output_file.read_text(encoding="utf-8") == "test-refresh-token"
     assert open_modes == [PRIVATE_TOKEN_FILE_MODE]
@@ -70,7 +70,7 @@ def test_refresh_token_file_refuses_to_overwrite_existing_file(tmp_path: Path) -
     output_file.write_bytes(b"existing-token-data")
 
     with pytest.raises(FileExistsError):
-        write_refresh_token_file(output_file, "replacement-token")
+        secure_write_refresh_token_file(output_file, "replacement-token")
 
     assert output_file.read_bytes() == b"existing-token-data"
 
@@ -85,7 +85,7 @@ def test_refresh_token_file_refuses_to_follow_symlink(tmp_path: Path) -> None:
         pytest.skip(f"Symlink creation is unavailable in this environment: {exc}")
 
     with pytest.raises(FileExistsError):
-        write_refresh_token_file(output_file, "replacement-token")
+        secure_write_refresh_token_file(output_file, "replacement-token")
 
     assert output_file.is_symlink()
     assert target_file.read_bytes() == b"existing-token-data"

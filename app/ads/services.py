@@ -12,6 +12,10 @@ from app.collectors import google_ads
 FAILED_JOB_RUN_PERSISTENCE_ERROR = (
     "Google Ads sync failed and the failure record could not be persisted"
 )
+FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR = (
+    "Google Ads sync failed; the failure-record commit outcome is unknown "
+    "and must be verified before retrying"
+)
 UNKNOWN_COMMIT_OUTCOME_ERROR = (
     "Google Ads sync commit outcome is unknown; verify the latest job run before retrying"
 )
@@ -140,6 +144,7 @@ class GoogleAdsSyncService:
                 sync_error_message = UNKNOWN_COMMIT_OUTCOME_ERROR
             else:
                 sanitized_error_message = self._sanitize_error(exc)
+                failed_job_run_commit_started = False
                 try:
                     self.session.rollback()
                     failed_account_id = self._restore_failed_run_account_id(
@@ -158,12 +163,17 @@ class GoogleAdsSyncService:
                         records_processed=records_processed,
                         error_message=sanitized_error_message,
                     )
+                    failed_job_run_commit_started = True
                     self.session.commit()
                     sync_error_message = sanitized_error_message
                 except Exception:
                     with suppress(Exception):
                         self.session.rollback()
-                    sync_error_message = FAILED_JOB_RUN_PERSISTENCE_ERROR
+                    sync_error_message = (
+                        FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
+                        if failed_job_run_commit_started
+                        else FAILED_JOB_RUN_PERSISTENCE_ERROR
+                    )
         if sync_error_message is not None:
             raise GoogleAdsSyncError(sync_error_message) from None
         raise GoogleAdsSyncError(FAILED_JOB_RUN_PERSISTENCE_ERROR) from None

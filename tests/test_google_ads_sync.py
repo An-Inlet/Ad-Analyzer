@@ -38,6 +38,7 @@ from app.ads.schemas import (
 )
 from app.ads.services import (
     FAILED_JOB_RUN_PERSISTENCE_ERROR,
+    FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
     GoogleAdsSyncService,
@@ -95,6 +96,18 @@ class SessionContext:
         traceback_value: TracebackType | None,
     ) -> None:
         return None
+
+
+def patch_cli_runtime(monkeypatch: pytest.MonkeyPatch, session: Session) -> None:
+    monkeypatch.setattr(
+        sync_google_ads_script,
+        "_load_runtime",
+        lambda: (
+            GoogleAdsSyncError,
+            GoogleAdsSyncService,
+            lambda: SessionContext(session),
+        ),
+    )
 
 
 def enable_sqlite_foreign_keys(
@@ -621,11 +634,19 @@ def test_failed_job_run_persistence_failure_raises_generic_sync_error(
         rollback_calls += 1
         original_rollback()
 
-    def fail_commit() -> None:
+    def fail_before_failed_job_run_commit(
+        self: GoogleAdsSyncService,
+        account: AdvertisingAccountCreate | None,
+        original_account_id: int | None,
+    ) -> int | None:
         raise RuntimeError(PERSISTENCE_FAILURE_MESSAGE)
 
     monkeypatch.setattr(session, "rollback", counting_rollback)
-    monkeypatch.setattr(session, "commit", fail_commit)
+    monkeypatch.setattr(
+        GoogleAdsSyncService,
+        "_restore_failed_run_account_id",
+        fail_before_failed_job_run_commit,
+    )
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
         GoogleAdsSyncService(session).sync()
@@ -647,6 +668,129 @@ def test_failed_job_run_persistence_failure_raises_generic_sync_error(
     assert rollback_calls >= 2
     assert not session.in_transaction()
     assert session.scalar(select(JobRun)) is None
+
+
+def test_failed_job_run_commit_exception_has_unknown_outcome(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub = GoogleAdsCollectorStub(
+        fail_at="metrics",
+        failure_message=SECRET_FAILURE_MESSAGE,
+    )
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    rollback_calls = 0
+    original_rollback = session.rollback
+
+    def counting_rollback() -> None:
+        nonlocal rollback_calls
+        rollback_calls += 1
+        original_rollback()
+
+    def fail_commit() -> None:
+        raise RuntimeError(PERSISTENCE_FAILURE_MESSAGE)
+
+    monkeypatch.setattr(session, "rollback", counting_rollback)
+    monkeypatch.setattr(session, "commit", fail_commit)
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        GoogleAdsSyncService(session).sync()
+
+    assert str(exc_info.value) == FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    rendered_exception = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert SECRET_FAILURE_MESSAGE not in rendered_exception
+    assert PERSISTENCE_FAILURE_MESSAGE not in rendered_exception
+    for secret_value in SECRET_VALUES:
+        assert secret_value not in str(exc_info.value)
+        assert secret_value not in rendered_exception
+    assert "OperationalError" not in rendered_exception
+    assert "INSERT INTO job_runs" not in rendered_exception
+    assert "db-password" not in rendered_exception
+    assert rollback_calls >= 2
+    assert session.scalar(select(JobRun)) is None
+
+
+def test_durable_failed_job_run_commit_ack_failure_does_not_retry_or_duplicate(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub = GoogleAdsCollectorStub(
+        fail_at="metrics",
+        failure_message=SECRET_FAILURE_MESSAGE,
+    )
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    commit_completed = False
+    after_commit_statements: list[str] = []
+    original_commit = session.commit
+
+    def commit_then_fail_acknowledgement() -> None:
+        nonlocal commit_completed
+        original_commit()
+        commit_completed = True
+        raise RuntimeError(PERSISTENCE_FAILURE_MESSAGE)
+
+    def fail_sql_after_commit(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if commit_completed:
+            after_commit_statements.append(statement)
+            raise RuntimeError("post-commit SQL should not be issued")
+
+    engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", fail_sql_after_commit)
+    monkeypatch.setattr(session, "commit", commit_then_fail_acknowledgement)
+    try:
+        with pytest.raises(GoogleAdsSyncError) as exc_info:
+            GoogleAdsSyncService(session).sync()
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_sql_after_commit)
+
+    assert str(exc_info.value) == FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    rendered_exception = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert SECRET_FAILURE_MESSAGE not in rendered_exception
+    assert PERSISTENCE_FAILURE_MESSAGE not in rendered_exception
+    for secret_value in SECRET_VALUES:
+        assert secret_value not in rendered_exception
+    assert "db-password" not in rendered_exception
+    assert after_commit_statements == []
+
+    job_runs = session.scalars(select(JobRun)).all()
+    assert [(job.status, job.error_message) for job in job_runs] == [
+        (JobRunStatus.FAILED, SANITIZED_SYNC_ERROR)
+    ]
 
 
 def test_concurrent_duplicate_ad_upserts_do_not_create_duplicate_rows(
@@ -760,11 +904,7 @@ def test_google_ads_sync_cli_prints_only_sanitized_failure_and_exits_nonzero(
         "collect_metrics",
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
-    monkeypatch.setattr(
-        sync_google_ads_script,
-        "SessionLocal",
-        lambda: SessionContext(session),
-    )
+    patch_cli_runtime(monkeypatch, session)
 
     exit_code = sync_google_ads_script.main()
     captured = capsys.readouterr()
@@ -795,11 +935,7 @@ def test_google_ads_sync_cli_prints_only_uncertain_commit_message(
         raise RuntimeError(COMMIT_FAILURE_MESSAGE)
 
     monkeypatch.setattr(session, "commit", fail_commit)
-    monkeypatch.setattr(
-        sync_google_ads_script,
-        "SessionLocal",
-        lambda: SessionContext(session),
-    )
+    patch_cli_runtime(monkeypatch, session)
 
     exit_code = sync_google_ads_script.main()
     captured = capsys.readouterr()
@@ -817,6 +953,24 @@ def test_google_ads_sync_cli_prints_only_uncertain_commit_message(
     assert "COMMIT" not in combined_output
     assert "db-password" not in combined_output
     assert session.scalars(select(JobRun)).all() == []
+
+
+def test_google_ads_sync_cli_success_path_still_prints_completion(
+    session: Session,
+    stub_collectors: GoogleAdsCollectorStub,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    patch_cli_runtime(monkeypatch, session)
+
+    exit_code = sync_google_ads_script.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert captured.out == (
+        "Google Ads read-only sync completed: job_run_id=1 records_processed=7\n"
+    )
 
 
 def test_sync_google_ads_script_runs_directly_from_repository_root(
@@ -858,6 +1012,69 @@ def test_sync_google_ads_script_runs_directly_from_repository_root(
     assert "Traceback" not in combined_output
 
 
+def run_sync_script_with_database_url(
+    tmp_path: Path, database_url: str
+) -> subprocess.CompletedProcess[str]:
+    repository_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env["DATABASE_URL"] = database_url
+    env["GOOGLE_ADS_CLIENT_SECRET"] = SECRET_VALUES[0]
+    env["GOOGLE_ADS_REFRESH_TOKEN"] = SECRET_VALUES[1]
+    env["GOOGLE_ADS_DEVELOPER_TOKEN"] = SECRET_VALUES[2]
+    env["GOOGLE_ADS_LOGIN_CUSTOMER_ID"] = "1234567890"
+    env["GOOGLE_ADS_CUSTOMER_ID"] = "1234567890"
+    env["GOOGLE_ADS_CLIENT_ID"] = "client-id.apps.googleusercontent.com"
+    return subprocess.run(
+        [sys.executable, "scripts/sync_google_ads.py"],
+        cwd=repository_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+def assert_startup_failure_is_sanitized(
+    completed: subprocess.CompletedProcess[str],
+    raw_database_url: str,
+) -> None:
+    combined_output = completed.stdout + completed.stderr
+    assert completed.returncode == 1
+    assert completed.stdout == ""
+    assert completed.stderr == f"{sync_google_ads_script.STARTUP_ERROR_MESSAGE}\n"
+    assert "Traceback" not in combined_output
+    assert raw_database_url not in combined_output
+    assert "db-password" not in combined_output
+    assert "secret-host.example" not in combined_output
+    assert "postgresql" not in combined_output
+    for secret_value in SECRET_VALUES:
+        assert secret_value not in combined_output
+
+
+def test_sync_google_ads_script_sanitizes_malformed_database_url_startup(
+    tmp_path: Path,
+) -> None:
+    raw_database_url = "not-a-valid-sqlalchemy-url-db-password-secret-host.example"
+
+    completed = run_sync_script_with_database_url(tmp_path, raw_database_url)
+
+    assert_startup_failure_is_sanitized(completed, raw_database_url)
+
+
+def test_sync_google_ads_script_sanitizes_missing_database_driver_startup(
+    tmp_path: Path,
+) -> None:
+    raw_database_url = (
+        "postgresql+missingdriver://db-user:db-password@secret-host.example/denticode"
+    )
+
+    completed = run_sync_script_with_database_url(tmp_path, raw_database_url)
+
+    assert_startup_failure_is_sanitized(completed, raw_database_url)
+
+
 def test_google_ads_sync_cli_hides_failed_job_run_persistence_failure(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,
@@ -891,18 +1108,14 @@ def test_google_ads_sync_cli_hides_failed_job_run_persistence_failure(
 
     monkeypatch.setattr(session, "rollback", counting_rollback)
     monkeypatch.setattr(session, "commit", fail_commit)
-    monkeypatch.setattr(
-        sync_google_ads_script,
-        "SessionLocal",
-        lambda: SessionContext(session),
-    )
+    patch_cli_runtime(monkeypatch, session)
 
     exit_code = sync_google_ads_script.main()
     captured = capsys.readouterr()
 
     assert exit_code == 1
     assert captured.out == ""
-    assert captured.err == f"{FAILED_JOB_RUN_PERSISTENCE_ERROR}\n"
+    assert captured.err == f"{FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR}\n"
     combined_output = captured.out + captured.err
     assert "Traceback" not in combined_output
     assert SECRET_FAILURE_MESSAGE not in combined_output

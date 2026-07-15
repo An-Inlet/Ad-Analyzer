@@ -1,10 +1,13 @@
+import traceback
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from decimal import Decimal
+from importlib import import_module
 from pathlib import Path
 from sqlite3 import Connection as SQLiteConnection
 from threading import Barrier
+from types import TracebackType
 
 import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -29,12 +32,48 @@ from app.ads.schemas import (
     NormalizedMetricsBatch,
     SearchTermCreate,
 )
-from app.ads.services import GoogleAdsSyncService
+from app.ads.services import GoogleAdsSyncError, GoogleAdsSyncService
 from app.collectors import google_ads
 from app.database.session import Base
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry
+
+sync_google_ads_script = import_module("scripts.sync_google_ads")
+
+SECRET_VALUES = [
+    "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e",
+    "1//0g-refresh-token-realistic-value",
+    "dev-token-realistic-value",
+    "P@ssw0rd-realistic-value",
+    "Bearer ya29.realistic-authorization-value",
+    "serialized-credential-realistic-value",
+]
+
+SECRET_FAILURE_MESSAGE = (
+    f"client_secret={SECRET_VALUES[0]} refresh_token={SECRET_VALUES[1]} "
+    f"developer_token={SECRET_VALUES[2]} password={SECRET_VALUES[3]} "
+    f"Authorization: {SECRET_VALUES[4]} credentials={SECRET_VALUES[5]} "
+    "raw_response={'request_id': 'abc123', 'details': 'private-api-response'} "
+    "sql='postgresql://user:db-password@example.invalid/db'"
+)
+SANITIZED_SYNC_ERROR = "Google Ads read-only sync failed (RuntimeError)"
+
+
+class SessionContext:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def __enter__(self) -> Session:
+        return self.session
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback_value: TracebackType | None,
+    ) -> None:
+        return None
 
 
 def enable_sqlite_foreign_keys(
@@ -346,21 +385,9 @@ def test_campaigns_with_zero_metric_rows_are_successful(
 
 
 def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
-    secret_values = [
-        "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e",
-        "1//0g-refresh-token-realistic-value",
-        "dev-token-realistic-value",
-        "P@ssw0rd-realistic-value",
-        "Bearer ya29.realistic-authorization-value",
-        "serialized-credential-realistic-value",
-    ]
     stub = GoogleAdsCollectorStub(
         fail_at="metrics",
-        failure_message=(
-            f"client_secret={secret_values[0]} refresh_token={secret_values[1]} "
-            f"developer_token={secret_values[2]} password={secret_values[3]} "
-            f"Authorization: {secret_values[4]} credentials={secret_values[5]}"
-        ),
+        failure_message=SECRET_FAILURE_MESSAGE,
     )
     for name in (
         "collect_account",
@@ -373,8 +400,22 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
         GoogleAdsSyncService(session).sync()
+
+    assert str(exc_info.value) == SANITIZED_SYNC_ERROR
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    rendered_exception = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert "Traceback" in rendered_exception
+    assert SECRET_FAILURE_MESSAGE not in rendered_exception
+    for secret_value in SECRET_VALUES:
+        assert secret_value not in str(exc_info.value)
+        assert secret_value not in rendered_exception
+    assert "private-api-response" not in rendered_exception
+    assert "db-password" not in rendered_exception
 
     assert len(session.scalars(select(Campaign)).all()) == 0
     assert len(session.scalars(select(AdGroup)).all()) == 0
@@ -383,10 +424,12 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     assert failed.records_processed == 6
     assert failed.account_id is not None
     assert failed.error_message is not None
-    assert failed.error_message == "Google Ads read-only sync failed (RuntimeError)"
+    assert failed.error_message == SANITIZED_SYNC_ERROR
     assert len(failed.error_message) <= 120
-    for secret_value in secret_values:
+    for secret_value in SECRET_VALUES:
         assert secret_value not in failed.error_message
+    assert "private-api-response" not in failed.error_message
+    assert "db-password" not in failed.error_message
     account = session.get(AdvertisingAccount, failed.account_id)
     assert account is not None
     assert account.external_account_id == "acct-1"
@@ -475,10 +518,54 @@ def test_successful_and_failed_job_run_records(
 ) -> None:
     GoogleAdsSyncService(session).sync()
     stub_collectors.fail_at = "campaigns"
-    with pytest.raises(RuntimeError):
+    with pytest.raises(GoogleAdsSyncError):
         GoogleAdsSyncService(session).sync()
 
     job_runs = session.scalars(select(JobRun).order_by(JobRun.id)).all()
     assert [job.status for job in job_runs] == [JobRunStatus.SUCCEEDED, JobRunStatus.FAILED]
     assert job_runs[0].started_at is not None and job_runs[0].finished_at is not None
     assert job_runs[1].started_at is not None and job_runs[1].finished_at is not None
+
+
+def test_google_ads_sync_cli_prints_only_sanitized_failure_and_exits_nonzero(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stub = GoogleAdsCollectorStub(
+        fail_at="metrics",
+        failure_message=SECRET_FAILURE_MESSAGE,
+    )
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+    monkeypatch.setattr(
+        sync_google_ads_script,
+        "SessionLocal",
+        lambda: SessionContext(session),
+    )
+
+    exit_code = sync_google_ads_script.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err == f"{SANITIZED_SYNC_ERROR}\n"
+    combined_output = captured.out + captured.err
+    assert "Traceback" not in combined_output
+    assert SECRET_FAILURE_MESSAGE not in combined_output
+    for secret_value in SECRET_VALUES:
+        assert secret_value not in combined_output
+    assert "private-api-response" not in combined_output
+    assert "db-password" not in combined_output
+
+    failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
+    assert failed is not None
+    assert failed.error_message == SANITIZED_SYNC_ERROR

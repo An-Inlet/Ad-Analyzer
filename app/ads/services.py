@@ -26,6 +26,10 @@ class GoogleAdsSyncResult:
     status: JobRunStatus
 
 
+class GoogleAdsSyncError(RuntimeError):
+    """Raised when a Google Ads sync fails after sanitizing diagnostics."""
+
+
 class GoogleAdsSyncService:
     """Persist read-only Google Ads collector data to the local database."""
 
@@ -43,6 +47,7 @@ class GoogleAdsSyncService:
         records_processed = 0
         resolved_account: AdvertisingAccountCreate | None = None
         resolved_account_id: int | None = None
+        sanitized_error_message = ""
         try:
             job_run = self.repository.create_job_run(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
@@ -116,6 +121,7 @@ class GoogleAdsSyncService:
                 status=JobRunStatus.SUCCEEDED,
             )
         except Exception as exc:
+            sanitized_error_message = self._sanitize_error(exc)
             self.session.rollback()
             failed_account_id = self._restore_failed_run_account_id(
                 resolved_account,
@@ -131,10 +137,10 @@ class GoogleAdsSyncService:
                 failed_job_run,
                 status=JobRunStatus.FAILED,
                 records_processed=records_processed,
-                error_message=self._sanitize_error(exc),
+                error_message=sanitized_error_message,
             )
             self.session.commit()
-            raise
+        raise GoogleAdsSyncError(sanitized_error_message) from None
 
     def _sanitize_error(self, exc: Exception) -> str:
         return f"Google Ads read-only sync failed ({type(exc).__name__})"[:120]

@@ -1,6 +1,8 @@
 import errno
+import getpass
 import os
 import stat
+import subprocess
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
@@ -36,11 +38,51 @@ def _set_private_file_permissions(fd: int) -> None:
         fchmod(fd, PRIVATE_TOKEN_FILE_MODE)
 
 
+def _current_windows_user() -> str:
+    username = os.environ.get("USERNAME") or getpass.getuser()
+    domain = os.environ.get("USERDOMAIN")
+    if domain and "\\" not in username and "@" not in username:
+        return f"{domain}\\{username}"
+    return username
+
+
+def _run_windows_acl_command(path: Path, *arguments: str) -> None:
+    try:
+        completed = subprocess.run(
+            ["icacls", os.fspath(path), *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        raise PermissionError("Failed to secure refresh-token file ACL") from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        message = "Failed to secure refresh-token file ACL"
+        if detail:
+            message = f"{message}: {detail}"
+        raise PermissionError(message)
+
+
+def _set_private_windows_acl(path: Path) -> None:
+    user = _current_windows_user()
+    _run_windows_acl_command(path, "/grant:r", f"{user}:F")
+    _run_windows_acl_command(path, "/inheritance:r")
+
+
+def _secure_new_file_before_write(fd: int, path: Path) -> None:
+    if os.name == "nt":
+        _set_private_windows_acl(path)
+        return
+    _set_private_file_permissions(fd)
+
+
 def secure_write_refresh_token_file(path: Path, contents: str) -> None:
     """Create a new private refresh-token file and write token data to it."""
     fd = _open_private_new_file(path)
     try:
-        _set_private_file_permissions(fd)
+        _secure_new_file_before_write(fd, path)
         _write_all(fd, contents.encode("utf-8"))
         os.fsync(fd)
     except BaseException:

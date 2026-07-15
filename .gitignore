@@ -40,6 +40,13 @@ env/
 *.json.key
 *credentials*.json
 *client_secret*.json
+*client-secret*.json
+*oauth*client*.json
+*oauth-client*.json
+*desktop-oauth*.json
+*google-oauth*.json
+*google-ads-oauth*.json
+*google_ads_oauth*.json
 secrets/
 credentials/
 

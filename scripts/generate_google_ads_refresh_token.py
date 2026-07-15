@@ -14,7 +14,34 @@ from app.token_files import secure_write_refresh_token_file
 from google_auth_oauthlib.flow import InstalledAppFlow  # type: ignore[import-untyped]
 
 GOOGLE_ADS_SCOPE = "https://www.googleapis.com/auth/adwords"
-DEFAULT_OUTPUT_PATH = Path(".google_ads_refresh_token.local")
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUTPUT_PATH = Path.home() / ".google_ads_refresh_token.local"
+
+
+def _resolved(path: Path) -> Path:
+    return path.expanduser().resolve(strict=False)
+
+
+def _is_repo_local(path: Path) -> bool:
+    return _resolved(path).is_relative_to(REPOSITORY_ROOT)
+
+
+def _validated_desktop_oauth_json(path: Path) -> Path:
+    resolved_path = _resolved(path)
+    if _is_repo_local(resolved_path):
+        raise SystemExit(
+            "Desktop OAuth client JSON must be stored outside this Git repository."
+        )
+    return resolved_path
+
+
+def _validated_output_path(path: Path) -> Path:
+    resolved_path = _resolved(path)
+    if _is_repo_local(resolved_path):
+        raise SystemExit(
+            "Refresh-token output file must be stored outside this Git repository."
+        )
+    return resolved_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,7 +57,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT_PATH,
-        help="Local output file for GOOGLE_ADS_REFRESH_TOKEN; defaults to a gitignored file.",
+        help="Local output file for GOOGLE_ADS_REFRESH_TOKEN; defaults to a home file.",
     )
     parser.add_argument(
         "--port",
@@ -43,8 +70,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    desktop_oauth_json = _validated_desktop_oauth_json(args.desktop_oauth_json)
+    output_path = _validated_output_path(args.output)
     flow = InstalledAppFlow.from_client_secrets_file(
-        str(args.desktop_oauth_json),
+        str(desktop_oauth_json),
         scopes=[GOOGLE_ADS_SCOPE],
     )
     credentials = flow.run_local_server(
@@ -56,10 +85,10 @@ def main() -> None:
         raise SystemExit("Google did not return a refresh token; retry with a new consent flow.")
 
     secure_write_refresh_token_file(
-        args.output,
+        output_path,
         f"GOOGLE_ADS_REFRESH_TOKEN={credentials.refresh_token}\n",
     )
-    print(f"Refresh token environment variable written to {args.output}.")
+    print(f"Refresh token environment variable written to {output_path}.")
     print("Copy it into your local .env file and do not commit either file.")
 
 

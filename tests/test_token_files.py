@@ -93,6 +93,8 @@ def test_windows_private_directory_is_verified_before_writing_token_data(
         acl_queries.append(command)
         acl_output = (
             f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
+            "NT AUTHORITY\\SYSTEM:(I)(F)\n"
+            "BUILTIN\\Administrators:(I)(F)\n"
             "Successfully processed 1 files; Failed processing 0 files\n"
         )
         return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
@@ -129,9 +131,19 @@ def test_windows_private_directory_is_verified_before_writing_token_data(
     assert output_file.read_text(encoding="utf-8") == "test-refresh-token"
 
 
+@pytest.mark.parametrize(
+    "broad_principal",
+    [
+        r"Everyone:(RX)",
+        r"BUILTIN\Users:(I)(RX)",
+        r"NT AUTHORITY\Authenticated Users:(I)(RX)",
+        r"TESTDOMAIN\Marketing:(RX)",
+    ],
+)
 def test_windows_non_private_directory_refuses_before_file_creation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    broad_principal: str,
 ) -> None:
     output_file = tmp_path / "google-refresh-token.txt"
     acl_queries: list[list[str]] = []
@@ -149,8 +161,8 @@ def test_windows_non_private_directory_refuses_before_file_creation(
         acl_queries.append(command)
         acl_output = (
             f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
-            r"BUILTIN\Users:(I)(RX)"
-            "\nSuccessfully processed 1 files; Failed processing 0 files\n"
+            f"{broad_principal}\n"
+            "Successfully processed 1 files; Failed processing 0 files\n"
         )
         return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
 

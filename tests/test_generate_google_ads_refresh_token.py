@@ -23,6 +23,21 @@ class FakeFlow:
         return SimpleNamespace(refresh_token="test-refresh-token")
 
 
+class FailingInstalledAppFlow:
+    @staticmethod
+    def from_client_secrets_file(file_path: str, scopes: list[str]) -> FakeFlow:
+        raise AssertionError("OAuth flow must not start for rejected paths")
+
+
+def fail_secure_write_refresh_token_file(path: Path, contents: str) -> None:
+    raise AssertionError("token output must not be written for rejected paths")
+
+
+def test_default_output_path_is_outside_repository() -> None:
+    assert refresh_token_script.DEFAULT_OUTPUT_PATH.is_absolute()
+    assert not refresh_token_script._is_repo_local(refresh_token_script.DEFAULT_OUTPUT_PATH)
+
+
 def test_refresh_token_script_uses_secure_file_helper(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -77,3 +92,62 @@ def test_refresh_token_script_uses_secure_file_helper(
         "prompt": "consent",
     }
     assert not output_path.exists()
+
+
+def test_refresh_token_script_rejects_repo_local_output_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        refresh_token_script,
+        "parse_args",
+        lambda: SimpleNamespace(
+            desktop_oauth_json=tmp_path / "desktop-oauth.json",
+            output=refresh_token_script.REPOSITORY_ROOT / "google-ads-refresh-token.env",
+            port=4321,
+        ),
+    )
+    monkeypatch.setattr(refresh_token_script, "InstalledAppFlow", FailingInstalledAppFlow)
+    monkeypatch.setattr(
+        refresh_token_script,
+        "secure_write_refresh_token_file",
+        fail_secure_write_refresh_token_file,
+    )
+
+    with pytest.raises(SystemExit, match="output file"):
+        refresh_token_script.main()
+
+
+def test_refresh_token_script_rejects_repo_local_oauth_client_json(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        refresh_token_script,
+        "parse_args",
+        lambda: SimpleNamespace(
+            desktop_oauth_json=refresh_token_script.REPOSITORY_ROOT / "renamed-oauth.json",
+            output=tmp_path / "google-ads-refresh-token.env",
+            port=4321,
+        ),
+    )
+    monkeypatch.setattr(refresh_token_script, "InstalledAppFlow", FailingInstalledAppFlow)
+    monkeypatch.setattr(
+        refresh_token_script,
+        "secure_write_refresh_token_file",
+        fail_secure_write_refresh_token_file,
+    )
+
+    with pytest.raises(SystemExit, match="OAuth client JSON"):
+        refresh_token_script.main()
+
+
+def test_gitignore_covers_renamed_oauth_client_secret_files() -> None:
+    gitignore = (refresh_token_script.REPOSITORY_ROOT / ".gitignore").read_text(
+        encoding="utf-8"
+    )
+
+    assert "*client-secret*.json" in gitignore
+    assert "*oauth*client*.json" in gitignore
+    assert "*desktop-oauth*.json" in gitignore
+    assert "*google-ads-oauth*.json" in gitignore

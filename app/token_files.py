@@ -10,6 +10,14 @@ from typing import Final, cast
 
 PRIVATE_TOKEN_FILE_MODE: Final = stat.S_IRUSR | stat.S_IWUSR
 _ACL_ERROR = "Refresh-token output directory is not private to the current Windows user"
+_WINDOWS_ALLOWED_ADMIN_IDENTITIES = frozenset(
+    {
+        "system",
+        "nt authority\\system",
+        "administrators",
+        "builtin\\administrators",
+    }
+)
 
 
 def _open_private_new_file(path: Path) -> int:
@@ -105,9 +113,12 @@ def _verify_private_windows_directory(path: Path) -> None:
     for identity, permissions in entries:
         normalized_identity = _normalize_windows_identity(identity)
         normalized_permissions = permissions.upper()
-        if normalized_identity != current_user:
+        if "(DENY)" in normalized_permissions:
             raise PermissionError(_ACL_ERROR)
-        if "(I)" in normalized_permissions or "(DENY)" in normalized_permissions:
+        if (
+            normalized_identity != current_user
+            and normalized_identity not in _WINDOWS_ALLOWED_ADMIN_IDENTITIES
+        ):
             raise PermissionError(_ACL_ERROR)
 
 

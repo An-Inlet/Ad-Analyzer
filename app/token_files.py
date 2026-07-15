@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Final, cast
 
 PRIVATE_TOKEN_FILE_MODE: Final = stat.S_IRUSR | stat.S_IWUSR
+_ACL_ERROR = "Refresh-token output directory is not private to the current Windows user"
 
 
 def _open_private_new_file(path: Path) -> int:
@@ -46,40 +47,79 @@ def _current_windows_user() -> str:
     return username
 
 
-def _run_windows_acl_command(path: Path, *arguments: str) -> None:
+def _run_windows_acl_query(path: Path) -> str:
     try:
         completed = subprocess.run(
-            ["icacls", os.fspath(path), *arguments],
+            ["icacls", os.fspath(path)],
             check=False,
             capture_output=True,
             text=True,
         )
     except OSError as exc:
-        raise PermissionError("Failed to secure refresh-token file ACL") from exc
+        raise PermissionError(_ACL_ERROR) from exc
 
     if completed.returncode != 0:
         detail = (completed.stderr or completed.stdout).strip()
-        message = "Failed to secure refresh-token file ACL"
+        message = _ACL_ERROR
         if detail:
             message = f"{message}: {detail}"
         raise PermissionError(message)
+    return completed.stdout
 
 
-def _set_private_windows_acl(path: Path) -> None:
-    user = _current_windows_user()
-    _run_windows_acl_command(path, "/grant:r", f"{user}:F")
-    _run_windows_acl_command(path, "/inheritance:r")
+def _normalize_windows_identity(identity: str) -> str:
+    return identity.strip().casefold()
+
+
+def _iter_windows_acl_entries(path: Path, acl_output: str) -> list[tuple[str, str]]:
+    entries: list[tuple[str, str]] = []
+    path_text = os.fspath(path).casefold()
+    for raw_line in acl_output.splitlines():
+        line = raw_line.strip()
+        if (
+            not line
+            or line.lower().startswith("successfully processed")
+            or line.lower().startswith("failed processing")
+        ):
+            continue
+        if raw_line.casefold().startswith(path_text):
+            line = raw_line[len(os.fspath(path)) :].strip()
+        marker_index = line.find(":(")
+        if marker_index == -1:
+            continue
+        identity = line[:marker_index].strip()
+        permissions = line[marker_index + 1 :].strip()
+        entries.append((identity, permissions))
+    return entries
+
+
+def _verify_private_windows_directory(path: Path) -> None:
+    if not path.is_dir():
+        raise PermissionError(_ACL_ERROR)
+
+    current_user = _normalize_windows_identity(_current_windows_user())
+    entries = _iter_windows_acl_entries(path, _run_windows_acl_query(path))
+    if not entries:
+        raise PermissionError(_ACL_ERROR)
+
+    for identity, permissions in entries:
+        normalized_identity = _normalize_windows_identity(identity)
+        normalized_permissions = permissions.upper()
+        if normalized_identity != current_user:
+            raise PermissionError(_ACL_ERROR)
+        if "(I)" in normalized_permissions or "(DENY)" in normalized_permissions:
+            raise PermissionError(_ACL_ERROR)
 
 
 def _secure_new_file_before_write(fd: int, path: Path) -> None:
-    if os.name == "nt":
-        _set_private_windows_acl(path)
-        return
     _set_private_file_permissions(fd)
 
 
 def secure_write_refresh_token_file(path: Path, contents: str) -> None:
     """Create a new private refresh-token file and write token data to it."""
+    if os.name == "nt":
+        _verify_private_windows_directory(path.parent)
+
     fd = _open_private_new_file(path)
     try:
         _secure_new_file_before_write(fd, path)

@@ -69,17 +69,15 @@ def test_refresh_token_file_is_created_private_before_writing(
         assert mode_before_write == [PRIVATE_TOKEN_FILE_MODE]
 
 
-def test_windows_acl_is_applied_before_writing_token_data(
+def test_windows_private_directory_is_verified_before_writing_token_data(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     output_file = tmp_path / "google-refresh-token.txt"
-    acl_commands: list[list[str]] = []
+    events: list[str] = []
+    acl_queries: list[list[str]] = []
+    original_open = os.open
     original_write_all = token_files._write_all
-    expected_commands = [
-        ["icacls", str(output_file), "/grant:r", r"TESTDOMAIN\TestUser:F"],
-        ["icacls", str(output_file), "/inheritance:r"],
-    ]
 
     def recording_run(
         command: list[str],
@@ -91,33 +89,54 @@ def test_windows_acl_is_applied_before_writing_token_data(
         assert check is False
         assert capture_output is True
         assert text is True
-        acl_commands.append(command)
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        events.append("acl")
+        acl_queries.append(command)
+        acl_output = (
+            f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
+            "Successfully processed 1 files; Failed processing 0 files\n"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+
+    def recording_open(
+        path: Any,
+        flags: int,
+        mode: int = 0o777,
+        *args: Any,
+        **kwargs: Any,
+    ) -> int:
+        assert args == ()
+        assert kwargs == {}
+        assert events == ["acl"]
+        events.append("open")
+        return original_open(path, flags, mode)
 
     def recording_write_all(fd: int, data: bytes) -> None:
-        assert acl_commands == expected_commands
+        assert events == ["acl", "open"]
+        events.append("write")
         original_write_all(fd, data)
 
     monkeypatch.setattr(os, "name", "nt")
     monkeypatch.setenv("USERDOMAIN", "TESTDOMAIN")
     monkeypatch.setenv("USERNAME", "TestUser")
     monkeypatch.setattr(subprocess, "run", recording_run)
+    monkeypatch.setattr(os, "open", recording_open)
     monkeypatch.setattr(token_files, "_write_all", recording_write_all)
 
     secure_write_refresh_token_file(output_file, "test-refresh-token")
 
-    assert acl_commands == expected_commands
+    assert events == ["acl", "open", "write"]
+    assert acl_queries == [["icacls", str(output_file.parent)]]
     assert output_file.read_text(encoding="utf-8") == "test-refresh-token"
 
 
-def test_windows_acl_failure_refuses_to_write_token_data(
+def test_windows_non_private_directory_refuses_before_file_creation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     output_file = tmp_path / "google-refresh-token.txt"
-    acl_commands: list[list[str]] = []
+    acl_queries: list[list[str]] = []
 
-    def failing_run(
+    def shared_directory_run(
         command: list[str],
         *,
         check: bool,
@@ -127,31 +146,45 @@ def test_windows_acl_failure_refuses_to_write_token_data(
         assert check is False
         assert capture_output is True
         assert text is True
-        acl_commands.append(command)
-        return_code = 1 if len(acl_commands) == 2 else 0
-        stderr = "access denied" if return_code else ""
-        return subprocess.CompletedProcess(command, return_code, stdout="", stderr=stderr)
+        acl_queries.append(command)
+        acl_output = (
+            f"{output_file.parent} TESTDOMAIN\\TestUser:(OI)(CI)(F)\n"
+            r"BUILTIN\Users:(I)(RX)"
+            "\nSuccessfully processed 1 files; Failed processing 0 files\n"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=acl_output, stderr="")
+
+    def fail_open(
+        path: Any,
+        flags: int,
+        mode: int = 0o777,
+        *args: Any,
+        **kwargs: Any,
+    ) -> int:
+        raise AssertionError("token file must not be created in a non-private directory")
 
     def fail_write_all(fd: int, data: bytes) -> None:
-        raise AssertionError("token data must not be written before private ACL is applied")
+        raise AssertionError("token data must not be written in a non-private directory")
 
     monkeypatch.setattr(os, "name", "nt")
     monkeypatch.setenv("USERDOMAIN", "TESTDOMAIN")
     monkeypatch.setenv("USERNAME", "TestUser")
-    monkeypatch.setattr(subprocess, "run", failing_run)
+    monkeypatch.setattr(subprocess, "run", shared_directory_run)
+    monkeypatch.setattr(os, "open", fail_open)
     monkeypatch.setattr(token_files, "_write_all", fail_write_all)
 
-    with pytest.raises(PermissionError, match="access denied"):
+    with pytest.raises(PermissionError, match="not private"):
         secure_write_refresh_token_file(output_file, "test-refresh-token")
 
-    assert acl_commands == [
-        ["icacls", str(output_file), "/grant:r", r"TESTDOMAIN\TestUser:F"],
-        ["icacls", str(output_file), "/inheritance:r"],
-    ]
+    assert acl_queries == [["icacls", str(output_file.parent)]]
     assert not output_file.exists()
 
 
-def test_refresh_token_file_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
+def test_refresh_token_file_refuses_to_overwrite_existing_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(os, "name", "posix")
     output_file = tmp_path / "google-refresh-token.txt"
     output_file.write_bytes(b"existing-token-data")
 
@@ -161,7 +194,11 @@ def test_refresh_token_file_refuses_to_overwrite_existing_file(tmp_path: Path) -
     assert output_file.read_bytes() == b"existing-token-data"
 
 
-def test_refresh_token_file_refuses_to_follow_symlink(tmp_path: Path) -> None:
+def test_refresh_token_file_refuses_to_follow_symlink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(os, "name", "posix")
     target_file = tmp_path / "target-token.txt"
     target_file.write_bytes(b"existing-token-data")
     output_file = tmp_path / "google-refresh-token.txt"

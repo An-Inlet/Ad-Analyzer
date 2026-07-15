@@ -278,7 +278,7 @@ def _raise_normalized_google_ads_error(
             "unauthorized_client",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
     if any(
         marker in message
         for marker in (
@@ -294,7 +294,7 @@ def _raise_normalized_google_ads_error(
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
     if "credential" in message:
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
     if credential_context and any(
         marker in message
         for marker in (
@@ -304,7 +304,7 @@ def _raise_normalized_google_ads_error(
             "client id",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

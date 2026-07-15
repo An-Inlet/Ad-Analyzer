@@ -1,4 +1,5 @@
 import inspect
+import traceback
 from collections.abc import Iterable, Iterator
 from datetime import date
 from types import SimpleNamespace
@@ -437,6 +438,34 @@ def test_client_construction_errors_are_normalized(
         collect_campaigns(account_id=1, settings=settings)
 
 
+def test_authentication_errors_suppress_secret_bearing_exception_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = valid_settings(monkeypatch)
+    secret_refresh_token = "secret-refresh-token-value"
+    secret_client_secret = "secret-client-secret-value"
+    raw_error = RuntimeError(
+        "UNAUTHENTICATED token refresh failed "
+        f"refresh_token={secret_refresh_token} client_secret={secret_client_secret}"
+    )
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(error=raw_error),
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_campaigns(account_id=1, settings=settings)
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__ is True
+    rendered_traceback = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert secret_refresh_token not in rendered_traceback
+    assert secret_client_secret not in rendered_traceback
+    assert "Google Ads API authentication failed" in rendered_traceback
+
+
 def test_get_service_errors_are_normalized(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -524,7 +553,11 @@ def test_later_page_errors_are_normalized(
     with pytest.raises(normalized_error) as exc_info:
         collect_campaigns(account_id=1, settings=settings)
 
-    assert exc_info.value.__cause__ is raw_error
+    if normalized_error is GoogleAdsAuthenticationError:
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__ is True
+    else:
+        assert exc_info.value.__cause__ is raw_error
 
 
 def test_normalized_metrics_batch_rejects_empty_metric_collections(

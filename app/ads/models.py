@@ -175,7 +175,18 @@ class AdSet(TimestampMixin, Base):
 class Ad(TimestampMixin, Base):
     __tablename__ = "ads"
     __table_args__ = (
-        UniqueConstraint("platform", "external_ad_id", name="uq_ads_platform_external"),
+        UniqueConstraint(
+            "ad_group_id",
+            "platform",
+            "external_ad_id",
+            name="uq_ads_ad_group_platform_external",
+        ),
+        UniqueConstraint(
+            "ad_set_id",
+            "platform",
+            "external_ad_id",
+            name="uq_ads_ad_set_platform_external",
+        ),
         CheckConstraint(
             "(ad_group_id IS NOT NULL AND ad_set_id IS NULL) OR "
             "(ad_group_id IS NULL AND ad_set_id IS NOT NULL)",

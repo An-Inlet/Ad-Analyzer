@@ -134,6 +134,8 @@ class GoogleAdsCollectorStub:
     def __init__(
         self,
         *,
+        account_external_id: str = "acct-1",
+        account_name: str = "Denticode Search",
         campaign_name: str = "Implants",
         fail_at: str | None = None,
         failure_message: str = "refresh token leaked-secret should be sanitized",
@@ -141,6 +143,8 @@ class GoogleAdsCollectorStub:
         zero_metrics: bool = False,
         shared_ad_in_two_ad_groups: bool = False,
     ) -> None:
+        self.account_external_id = account_external_id
+        self.account_name = account_name
         self.campaign_name = campaign_name
         self.fail_at = fail_at
         self.failure_message = failure_message
@@ -156,8 +160,8 @@ class GoogleAdsCollectorStub:
         self._fail_if_needed("account")
         return AdvertisingAccountCreate(
             platform=AdvertisingPlatform.GOOGLE_ADS,
-            external_account_id="acct-1",
-            name="Denticode Search",
+            external_account_id=self.account_external_id,
+            name=self.account_name,
             currency_code="USD",
             time_zone="America/New_York",
         )
@@ -501,7 +505,7 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
     assert failed is not None
     assert failed.records_processed == 6
-    assert failed.account_id is not None
+    assert failed.account_id is None
     assert failed.error_message is not None
     assert failed.error_message == SANITIZED_SYNC_ERROR
     assert len(failed.error_message) <= 120
@@ -511,9 +515,85 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     assert "db-password" not in failed.error_message
     job_runs = session.scalars(select(JobRun)).all()
     assert [(job.id, job.status) for job in job_runs] == [(failed.id, JobRunStatus.FAILED)]
-    account = session.get(AdvertisingAccount, failed.account_id)
+    assert session.scalars(select(AdvertisingAccount)).all() == []
+
+
+def test_failed_sync_links_existing_durable_account_without_persisting_rename(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    durable_account = AdvertisingAccount(
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_account_id="acct-1",
+        name="Durable Account Name",
+        currency_code="USD",
+        time_zone="America/New_York",
+    )
+    session.add(durable_account)
+    session.flush()
+    durable_account_id = durable_account.id
+    session.commit()
+    stub = GoogleAdsCollectorStub(
+        account_name="Renamed During Failed Sync",
+        fail_at="campaigns",
+        failure_message=SECRET_FAILURE_MESSAGE,
+    )
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        GoogleAdsSyncService(session).sync()
+
+    assert str(exc_info.value) == SANITIZED_SYNC_ERROR
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
+    assert failed is not None
+    assert failed.account_id == durable_account_id
+    account = session.get(AdvertisingAccount, durable_account_id)
     assert account is not None
-    assert account.external_account_id == "acct-1"
+    assert account.name == "Durable Account Name"
+
+
+def test_failed_sync_with_new_account_does_not_create_account_for_audit_link(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stub = GoogleAdsCollectorStub(
+        account_external_id="acct-new",
+        account_name="New Account From Failed Sync",
+        fail_at="campaigns",
+        failure_message=SECRET_FAILURE_MESSAGE,
+    )
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        GoogleAdsSyncService(session).sync()
+
+    assert str(exc_info.value) == SANITIZED_SYNC_ERROR
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
+    assert failed is not None
+    assert failed.account_id is None
+    assert session.scalars(select(AdvertisingAccount)).all() == []
 
 
 def test_success_commit_exception_creates_no_failed_job_run(
@@ -607,7 +687,7 @@ def test_durable_commit_ack_failure_does_not_create_success_and_failed_job_runs(
     ]
 
 
-def test_failed_job_run_persistence_failure_raises_generic_sync_error(
+def test_failed_job_run_flush_failure_raises_persistence_error_not_uncertain_commit(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -627,26 +707,32 @@ def test_failed_job_run_persistence_failure_raises_generic_sync_error(
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
     original_rollback = session.rollback
+    original_flush = session.flush
     rollback_calls = 0
+    flush_calls = 0
+    commit_calls = 0
+    failed_audit_flush_attempted = False
 
     def counting_rollback() -> None:
         nonlocal rollback_calls
         rollback_calls += 1
         original_rollback()
 
-    def fail_before_failed_job_run_commit(
-        self: GoogleAdsSyncService,
-        account: AdvertisingAccountCreate | None,
-        original_account_id: int | None,
-    ) -> int | None:
-        raise RuntimeError(PERSISTENCE_FAILURE_MESSAGE)
+    def fail_failed_job_run_flush() -> None:
+        nonlocal failed_audit_flush_attempted, flush_calls
+        flush_calls += 1
+        if rollback_calls >= 1 and not failed_audit_flush_attempted:
+            failed_audit_flush_attempted = True
+            raise RuntimeError(PERSISTENCE_FAILURE_MESSAGE)
+        original_flush()
+
+    def count_commit() -> None:
+        nonlocal commit_calls
+        commit_calls += 1
 
     monkeypatch.setattr(session, "rollback", counting_rollback)
-    monkeypatch.setattr(
-        GoogleAdsSyncService,
-        "_restore_failed_run_account_id",
-        fail_before_failed_job_run_commit,
-    )
+    monkeypatch.setattr(session, "flush", fail_failed_job_run_flush)
+    monkeypatch.setattr(session, "commit", count_commit)
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
         GoogleAdsSyncService(session).sync()
@@ -666,6 +752,9 @@ def test_failed_job_run_persistence_failure_raises_generic_sync_error(
     assert "INSERT INTO job_runs" not in rendered_exception
     assert "db-password" not in rendered_exception
     assert rollback_calls >= 2
+    assert flush_calls >= 2
+    assert failed_audit_flush_attempted is True
+    assert commit_calls == 0
     assert not session.in_transaction()
     assert session.scalar(select(JobRun)) is None
 

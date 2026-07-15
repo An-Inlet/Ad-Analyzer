@@ -1,10 +1,11 @@
 from contextlib import suppress
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
-from app.ads.models import DailyMetric
+from app.ads.models import AdvertisingAccount, DailyMetric
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate, NormalizedMetricsBatch
 from app.collectors import google_ads
@@ -58,7 +59,6 @@ class GoogleAdsSyncService:
     ) -> GoogleAdsSyncResult:
         records_processed = 0
         resolved_account: AdvertisingAccountCreate | None = None
-        resolved_account_id: int | None = None
         sync_error_message: str | None = None
         success_commit_started = False
         try:
@@ -71,7 +71,6 @@ class GoogleAdsSyncService:
             resolved_account = google_ads.collect_account()
             account = self.repository.upsert_account(resolved_account)
             job_run.account_id = account.id
-            resolved_account_id = account.id
             records_processed += 1
 
             campaigns = [
@@ -147,9 +146,8 @@ class GoogleAdsSyncService:
                 failed_job_run_commit_started = False
                 try:
                     self.session.rollback()
-                    failed_account_id = self._restore_failed_run_account_id(
-                        resolved_account,
-                        resolved_account_id,
+                    failed_account_id = self._resolve_durable_failed_run_account_id(
+                        resolved_account
                     )
                     failed_job_run = self.repository.create_job_run(
                         platform=AdvertisingPlatform.GOOGLE_ADS,
@@ -163,6 +161,7 @@ class GoogleAdsSyncService:
                         records_processed=records_processed,
                         error_message=sanitized_error_message,
                     )
+                    self.session.flush()
                     failed_job_run_commit_started = True
                     self.session.commit()
                     sync_error_message = sanitized_error_message
@@ -181,13 +180,15 @@ class GoogleAdsSyncService:
     def _sanitize_error(self, exc: Exception) -> str:
         return f"Google Ads read-only sync failed ({type(exc).__name__})"[:120]
 
-    def _restore_failed_run_account_id(
+    def _resolve_durable_failed_run_account_id(
         self,
         account: AdvertisingAccountCreate | None,
-        original_account_id: int | None,
     ) -> int | None:
-        if account is None or original_account_id is None:
+        if account is None:
             return None
-        restored_account = self.repository.upsert_account(account)
-        self.session.flush()
-        return restored_account.id
+        return self.session.scalar(
+            select(AdvertisingAccount.id).where(
+                AdvertisingAccount.platform == account.platform,
+                AdvertisingAccount.external_account_id == account.external_account_id,
+            )
+        )

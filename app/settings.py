@@ -21,8 +21,12 @@ class Settings(BaseSettings):
     google_ads_customer_id: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_CUSTOMER_ID"
     )
-    google_ads_service_account_file: str | None = Field(
-        default=None, validation_alias="GOOGLE_ADS_SERVICE_ACCOUNT_FILE"
+    google_ads_client_id: str | None = Field(default=None, validation_alias="GOOGLE_ADS_CLIENT_ID")
+    google_ads_client_secret: str | None = Field(
+        default=None, validation_alias="GOOGLE_ADS_CLIENT_SECRET"
+    )
+    google_ads_refresh_token: str | None = Field(
+        default=None, validation_alias="GOOGLE_ADS_REFRESH_TOKEN"
     )
 
 

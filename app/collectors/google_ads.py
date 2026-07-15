@@ -1,10 +1,8 @@
-import json as _json
 from dataclasses import dataclass as _dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from importlib import import_module as _import_module
-from pathlib import Path as _Path
 from typing import Any, NoReturn
 from typing import cast as _cast
 
@@ -198,7 +196,9 @@ def _required_config(settings: Settings) -> dict[str, str]:
         "developer_token": settings.google_ads_developer_token,
         "login_customer_id": settings.google_ads_login_customer_id,
         "customer_id": settings.google_ads_customer_id,
-        "service_account_file": settings.google_ads_service_account_file,
+        "client_id": settings.google_ads_client_id,
+        "client_secret": settings.google_ads_client_secret,
+        "refresh_token": settings.google_ads_refresh_token,
     }
     missing = [name for name, value in values.items() if not value]
     if missing:
@@ -212,50 +212,15 @@ def _client_config(config: dict[str, str]) -> dict[str, object]:
     return {
         "developer_token": config["developer_token"],
         "login_customer_id": config["login_customer_id"],
-        "json_key_file_path": config["service_account_file"],
+        "client_id": config["client_id"],
+        "client_secret": config["client_secret"],
+        "refresh_token": config["refresh_token"],
         "use_proto_plus": True,
     }
 
 
-def _validate_service_account_file(file_path: str) -> None:
-    try:
-        raw_credentials = _Path(file_path).read_text(encoding="utf-8")
-    except FileNotFoundError as exc:
-        raise GoogleAdsMissingCredentialsError(
-            "Google Ads service-account credentials file is missing"
-        ) from exc
-    except UnicodeDecodeError as exc:
-        raise GoogleAdsAuthenticationError(
-            "Google Ads service-account credentials file is malformed"
-        ) from exc
-    except OSError as exc:
-        raise GoogleAdsMissingCredentialsError(
-            "Google Ads service-account credentials file is unreadable"
-        ) from exc
-
-    try:
-        credentials = _json.loads(raw_credentials)
-    except _json.JSONDecodeError as exc:
-        raise GoogleAdsAuthenticationError(
-            "Google Ads service-account credentials file is malformed"
-        ) from exc
-
-    if not isinstance(credentials, dict):
-        raise GoogleAdsAuthenticationError(
-            "Google Ads service-account credentials file is invalid"
-        )
-
-    required_fields = ("type", "client_email", "private_key", "token_uri")
-    missing_fields = [name for name in required_fields if not credentials.get(name)]
-    if credentials.get("type") != "service_account" or missing_fields:
-        raise GoogleAdsAuthenticationError(
-            "Google Ads service-account credentials file is invalid"
-        )
-
-
 def _google_ads_service(settings: Settings | None) -> tuple[Any, str]:
     config = _required_config(_settings_or_default(settings))
-    _validate_service_account_file(config["service_account_file"])
     google_ads_client = _require_google_ads_module()
     try:
         client = google_ads_client.load_from_dict(_client_config(config))
@@ -290,6 +255,52 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
+            "invalid_grant",
+            "invalid_client",
+            "token refresh",
+            "token_refresh",
+            "token-refresh",
+            "refresh token",
+            "refresh_token",
+            "refresh-token",
+            "unauthorized_client",
+            "client secret",
+            "client_secret",
+            "client-secret",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if any(
+        marker in message
+        for marker in (
+            "unauthenticated",
+            "invalid credentials",
+            "invalid credential",
+            "authentication failed",
+            "authentication",
+            "auth failed",
+            "auth failure",
+            "auth_error",
+            "credential",
+            "401",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if credential_context and any(
+        marker in message
+        for marker in (
+            "client secret",
+            "client-secret",
+            "refresh token",
+            "refresh-token",
+            "client_id",
+            "client id",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if any(
+        marker in message
+        for marker in (
             "resource_exhausted",
             "resource exhausted",
             "quota",
@@ -303,46 +314,23 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
-            "unauthenticated",
-            "authentication",
-            "invalid_grant",
-            "oauth",
-            "401",
-            "token refresh",
-            "token_refresh",
-            "refresh token",
-            "unauthorized_client",
+            "permission_denied",
+            "permission denied",
+            "user_permission_denied",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
+        raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
     if any(
         marker in message
         for marker in (
-            "permission_denied",
-            "permission denied",
             "authorization",
             "unauthorized",
             "not authorized",
             "access denied",
-            "user_permission_denied",
             "403",
         )
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
-    if "credential" in message:
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
-    if credential_context and any(
-        marker in message
-        for marker in (
-            "service account",
-            "service-account",
-            "private key",
-            "json key",
-            "client email",
-            "token_uri",
-        )
-    ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

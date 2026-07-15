@@ -268,6 +268,24 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
+            "invalid_grant",
+            "invalid_client",
+            "token refresh",
+            "token_refresh",
+            "token-refresh",
+            "refresh token",
+            "refresh_token",
+            "refresh-token",
+            "unauthorized_client",
+            "client secret",
+            "client_secret",
+            "client-secret",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if any(
+        marker in message
+        for marker in (
             "permission_denied",
             "permission denied",
             "user_permission_denied",
@@ -279,15 +297,7 @@ def _raise_normalized_google_ads_error(
         for marker in (
             "unauthenticated",
             "authentication",
-            "invalid_grant",
-            "invalid_client",
             "401",
-            "token refresh",
-            "token_refresh",
-            "token-refresh",
-            "refresh token",
-            "refresh-token",
-            "unauthorized_client",
         )
     ):
         raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None

@@ -525,23 +525,46 @@ def test_get_service_errors_are_normalized(
         collect_campaigns(account_id=1, settings=settings)
 
 
-def test_permission_denied_markers_take_precedence_over_authentication_markers(
+@pytest.mark.parametrize(
+    ("raw_message", "secret_fragment"),
+    [
+        (
+            "PERMISSION_DENIED invalid_client client_secret=secret-mixed-client-value",
+            "secret-mixed-client-value",
+        ),
+        (
+            "USER_PERMISSION_DENIED token refresh failed refresh_token=secret-mixed-refresh-value",
+            "secret-mixed-refresh-value",
+        ),
+        (
+            "PERMISSION_DENIED unauthorized_client client-secret=secret-mixed-unauthorized-value",
+            "secret-mixed-unauthorized-value",
+        ),
+    ],
+)
+def test_credential_markers_take_precedence_over_permission_denied(
     monkeypatch: pytest.MonkeyPatch,
+    raw_message: str,
+    secret_fragment: str,
 ) -> None:
     settings = valid_settings(monkeypatch)
-    raw_error = RuntimeError(
-        "PERMISSION_DENIED OAuth credential token refresh failed "
-        "for unauthorized_client 401"
-    )
+    raw_error = RuntimeError(raw_message)
     install_fake_google_ads_module(
         monkeypatch,
         FakeGoogleAdsService(error=raw_error),
     )
 
-    with pytest.raises(GoogleAdsAuthorizationError) as exc_info:
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
         collect_campaigns(account_id=1, settings=settings)
 
-    assert exc_info.value.__cause__ is raw_error
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__ is True
+    rendered_traceback = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert raw_message not in rendered_traceback
+    assert secret_fragment not in rendered_traceback
+    assert "Google Ads API authentication failed" in rendered_traceback
 
 
 @pytest.mark.parametrize(
@@ -563,8 +586,10 @@ def test_permission_denied_access_errors_are_authorization_failures(
         FakeGoogleAdsService(error=raw_error),
     )
 
-    with pytest.raises(GoogleAdsAuthorizationError):
+    with pytest.raises(GoogleAdsAuthorizationError) as exc_info:
         collect_campaigns(account_id=1, settings=settings)
+
+    assert exc_info.value.__cause__ is raw_error
 
 
 @pytest.mark.parametrize(

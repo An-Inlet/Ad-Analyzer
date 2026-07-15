@@ -255,19 +255,6 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
-            "resource_exhausted",
-            "resource exhausted",
-            "quota",
-            "rate limit",
-            "rate_limit",
-            "too many requests",
-            "429",
-        )
-    ):
-        raise GoogleAdsRateLimitError("Google Ads API rate limit encountered") from exc
-    if any(
-        marker in message
-        for marker in (
             "invalid_grant",
             "invalid_client",
             "token refresh",
@@ -283,6 +270,19 @@ def _raise_normalized_google_ads_error(
         )
     ):
         raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if any(
+        marker in message
+        for marker in (
+            "resource_exhausted",
+            "resource exhausted",
+            "quota",
+            "rate limit",
+            "rate_limit",
+            "too many requests",
+            "429",
+        )
+    ):
+        raise GoogleAdsRateLimitError("Google Ads API rate limit encountered") from exc
     if any(
         marker in message
         for marker in (

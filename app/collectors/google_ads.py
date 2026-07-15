@@ -271,10 +271,14 @@ def _raise_normalized_google_ads_error(
             "unauthenticated",
             "authentication",
             "invalid_grant",
+            "invalid_client",
+            "oauth",
             "401",
             "token refresh",
             "token_refresh",
+            "token-refresh",
             "refresh token",
+            "refresh-token",
             "unauthorized_client",
         )
     ):
@@ -299,7 +303,9 @@ def _raise_normalized_google_ads_error(
         marker in message
         for marker in (
             "client secret",
+            "client-secret",
             "refresh token",
+            "refresh-token",
             "client_id",
             "client id",
         )

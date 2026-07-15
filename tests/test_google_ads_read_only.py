@@ -466,6 +466,51 @@ def test_authentication_errors_suppress_secret_bearing_exception_chain(
     assert "Google Ads API authentication failed" in rendered_traceback
 
 
+@pytest.mark.parametrize(
+    ("raw_message", "secret_fragment"),
+    [
+        (
+            "invalid_client client_secret=secret-invalid-client-value",
+            "secret-invalid-client-value",
+        ),
+        (
+            "unauthorized_client client-secret=secret-unauthorized-client-value",
+            "secret-unauthorized-client-value",
+        ),
+        (
+            "OAuth credential failure refresh-token=secret-oauth-refresh-token-value",
+            "secret-oauth-refresh-token-value",
+        ),
+        (
+            "token-refresh failed refresh_token=secret-token-refresh-value",
+            "secret-token-refresh-value",
+        ),
+    ],
+)
+def test_oauth_authentication_markers_are_sanitized_without_chaining(
+    monkeypatch: pytest.MonkeyPatch,
+    raw_message: str,
+    secret_fragment: str,
+) -> None:
+    settings = valid_settings(monkeypatch)
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(error=RuntimeError(raw_message)),
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_campaigns(account_id=1, settings=settings)
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__ is True
+    rendered_traceback = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert raw_message not in rendered_traceback
+    assert secret_fragment not in rendered_traceback
+    assert "Google Ads API authentication failed" in rendered_traceback
+
+
 def test_get_service_errors_are_normalized(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -501,11 +546,11 @@ def test_authentication_markers_take_precedence_over_authorization_markers(
 @pytest.mark.parametrize(
     "raw_error",
     [
-        RuntimeError("PERMISSION_DENIED OAuth user lacks access to customer"),
-        RuntimeError("USER_PERMISSION_DENIED OAuth user cannot access customer"),
+        RuntimeError("PERMISSION_DENIED user lacks access to customer"),
+        RuntimeError("USER_PERMISSION_DENIED user cannot access customer"),
     ],
 )
-def test_permission_denied_oauth_errors_are_authorization_failures(
+def test_permission_denied_access_errors_are_authorization_failures(
     monkeypatch: pytest.MonkeyPatch,
     raw_error: Exception,
 ) -> None:

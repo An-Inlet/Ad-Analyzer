@@ -1,7 +1,12 @@
 import sys
+from pathlib import Path
 
-from app.ads.services import GoogleAdsSyncError, GoogleAdsSyncService
-from app.database.session import SessionLocal
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from app.ads.services import GoogleAdsSyncError, GoogleAdsSyncService  # noqa: E402
+from app.database.session import SessionLocal  # noqa: E402
 
 
 def main() -> int:

@@ -119,12 +119,15 @@ class GoogleAdsSyncService:
                 status=JobRunStatus.SUCCEEDED,
                 records_processed=records_processed,
             )
-            self.session.commit()
-            return GoogleAdsSyncResult(
-                job_run_id=job_run.id,
+            self.session.flush()
+            job_run_id = job_run.id
+            result = GoogleAdsSyncResult(
+                job_run_id=job_run_id,
                 records_processed=records_processed,
                 status=JobRunStatus.SUCCEEDED,
             )
+            self.session.commit()
+            return result
         except Exception as exc:
             sanitized_error_message = self._sanitize_error(exc)
             try:

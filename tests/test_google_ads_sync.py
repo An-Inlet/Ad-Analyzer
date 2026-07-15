@@ -1,3 +1,6 @@
+import os
+import subprocess
+import sys
 import traceback
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
@@ -8,6 +11,7 @@ from pathlib import Path
 from sqlite3 import Connection as SQLiteConnection
 from threading import Barrier
 from types import TracebackType
+from typing import Any
 
 import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -293,6 +297,51 @@ def test_first_sync_persists_google_ads_data(
     )
     assert search_term is not None
     assert session.scalar(select(DailyMetric).where(DailyMetric.impressions == 100)) is not None
+
+
+def test_successful_sync_uses_captured_job_run_id_without_post_commit_refresh(
+    session: Session,
+    stub_collectors: GoogleAdsCollectorStub,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commit_completed = False
+    after_commit_statements: list[str] = []
+    original_commit = session.commit
+
+    def commit_and_mark_complete() -> None:
+        nonlocal commit_completed
+        original_commit()
+        commit_completed = True
+
+    def fail_sql_after_commit(
+        conn: Any,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if commit_completed:
+            after_commit_statements.append(statement)
+            raise RuntimeError("simulated database disconnect after successful commit")
+
+    engine = session.get_bind()
+    event.listen(engine, "before_cursor_execute", fail_sql_after_commit)
+    monkeypatch.setattr(session, "commit", commit_and_mark_complete)
+    try:
+        result = GoogleAdsSyncService(session).sync()
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_sql_after_commit)
+
+    assert result.status is JobRunStatus.SUCCEEDED
+    assert result.job_run_id == 1
+    assert result.records_processed == 7
+    assert after_commit_statements == []
+
+    job_runs = session.scalars(select(JobRun)).all()
+    assert [(job.id, job.status) for job in job_runs] == [
+        (result.job_run_id, JobRunStatus.SUCCEEDED)
+    ]
 
 
 def test_repeated_sync_is_idempotent(
@@ -634,6 +683,45 @@ def test_google_ads_sync_cli_prints_only_sanitized_failure_and_exits_nonzero(
     failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
     assert failed is not None
     assert failed.error_message == SANITIZED_SYNC_ERROR
+
+
+def test_sync_google_ads_script_runs_directly_from_repository_root(
+    tmp_path: Path,
+) -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    database_path = tmp_path / "direct-script-sync.db"
+    engine = create_engine(f"sqlite:///{database_path.as_posix()}")
+    Base.metadata.create_all(engine)
+    engine.dispose()
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env["DATABASE_URL"] = f"sqlite:///{database_path.as_posix()}"
+    for key in (
+        "GOOGLE_ADS_DEVELOPER_TOKEN",
+        "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+        "GOOGLE_ADS_CUSTOMER_ID",
+        "GOOGLE_ADS_CLIENT_ID",
+        "GOOGLE_ADS_CLIENT_SECRET",
+        "GOOGLE_ADS_REFRESH_TOKEN",
+    ):
+        env[key] = ""
+
+    completed = subprocess.run(
+        [sys.executable, "scripts/sync_google_ads.py"],
+        cwd=repository_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    combined_output = completed.stdout + completed.stderr
+    assert completed.returncode == 1
+    assert completed.stdout == ""
+    assert "Google Ads read-only sync failed" in completed.stderr
+    assert "ModuleNotFoundError" not in combined_output
+    assert "Traceback" not in combined_output
 
 
 def test_google_ads_sync_cli_hides_failed_job_run_persistence_failure(

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import DailyMetric
 from app.ads.repository import AdvertisingMetricsRepository
-from app.ads.schemas import NormalizedMetricsBatch
+from app.ads.schemas import AdvertisingAccountCreate, NormalizedMetricsBatch
 from app.collectors import google_ads
 
 
@@ -41,6 +41,8 @@ class GoogleAdsSyncService:
         date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
     ) -> GoogleAdsSyncResult:
         records_processed = 0
+        resolved_account: AdvertisingAccountCreate | None = None
+        resolved_account_id: int | None = None
         try:
             job_run = self.repository.create_job_run(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
@@ -48,8 +50,10 @@ class GoogleAdsSyncService:
                 status=JobRunStatus.RUNNING,
             )
             self.session.flush()
-            account = self.repository.upsert_account(google_ads.collect_account())
+            resolved_account = google_ads.collect_account()
+            account = self.repository.upsert_account(resolved_account)
             job_run.account_id = account.id
+            resolved_account_id = account.id
             records_processed += 1
 
             campaigns = [
@@ -113,10 +117,15 @@ class GoogleAdsSyncService:
             )
         except Exception as exc:
             self.session.rollback()
+            failed_account_id = self._restore_failed_run_account_id(
+                resolved_account,
+                resolved_account_id,
+            )
             failed_job_run = self.repository.create_job_run(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 job_name=self.job_name,
                 status=JobRunStatus.FAILED,
+                account_id=failed_account_id,
             )
             self.repository.finish_job_run(
                 failed_job_run,
@@ -128,9 +137,15 @@ class GoogleAdsSyncService:
             raise
 
     def _sanitize_error(self, exc: Exception) -> str:
-        message = f"{type(exc).__name__}: {exc}"
-        redacted_markers = ("token", "secret", "password", "authorization", "credential")
-        for marker in redacted_markers:
-            message = message.replace(marker, "[redacted]")
-            message = message.replace(marker.upper(), "[REDACTED]")
-        return message[:500]
+        return f"Google Ads read-only sync failed ({type(exc).__name__})"[:120]
+
+    def _restore_failed_run_account_id(
+        self,
+        account: AdvertisingAccountCreate | None,
+        original_account_id: int | None,
+    ) -> int | None:
+        if account is None or original_account_id is None:
+            return None
+        restored_account = self.repository.upsert_account(account)
+        self.session.flush()
+        return restored_account.id

@@ -24,7 +24,6 @@ from app.collectors.google_ads import (
     collect_search_terms,
 )
 from app.settings import Settings
-from pydantic import ValidationError
 
 
 class LaterPageErrorIterable:
@@ -707,16 +706,17 @@ def test_later_page_errors_are_normalized(
         assert exc_info.value.__cause__ is raw_error
 
 
-def test_normalized_metrics_batch_rejects_empty_metric_collections(
+def test_normalized_metrics_batch_allows_empty_metric_collections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = valid_settings(monkeypatch)
     install_fake_google_ads_module(monkeypatch, FakeGoogleAdsService())
 
-    with pytest.raises(ValidationError):
-        collect_metrics(
-            {"11": 55},
-            GoogleAdsDateRange.YESTERDAY,
-            today=date(2026, 7, 14),
-            settings=settings,
-        )
+    metrics = collect_metrics(
+        {"11": 55},
+        GoogleAdsDateRange.YESTERDAY,
+        today=date(2026, 7, 14),
+        settings=settings,
+    )
+
+    assert metrics.metrics == []

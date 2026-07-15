@@ -123,4 +123,4 @@ class JobRunCreate(BaseModel):
 
 
 class NormalizedMetricsBatch(BaseModel):
-    metrics: list[DailyMetricCreate] = Field(min_length=1)
+    metrics: list[DailyMetricCreate] = Field(default_factory=list)

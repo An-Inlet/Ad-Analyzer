@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
-from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -15,6 +16,7 @@ from app.ads.models import (
     JobRun,
     Keyword,
     SearchTerm,
+    utc_now,
 )
 from app.ads.schemas import (
     AdCreate,
@@ -44,73 +46,54 @@ class AdvertisingMetricsRepository:
         return [self.add_daily_metric(metric) for metric in metrics]
 
     def upsert_account(self, account: AdvertisingAccountCreate) -> AdvertisingAccount:
-        db_account = self.session.scalar(
-            select(AdvertisingAccount).where(
-                AdvertisingAccount.platform == account.platform,
-                AdvertisingAccount.external_account_id == account.external_account_id,
-            )
+        return self._atomic_upsert(
+            AdvertisingAccount,
+            account.model_dump(),
+            ("platform", "external_account_id"),
         )
-        return self._upsert(db_account, AdvertisingAccount, account.model_dump())
 
     def upsert_campaign(self, campaign: CampaignCreate) -> Campaign:
-        db_campaign = self.session.scalar(
-            select(Campaign).where(
-                Campaign.account_id == campaign.account_id,
-                Campaign.platform == campaign.platform,
-                Campaign.external_campaign_id == campaign.external_campaign_id,
-            )
+        return self._atomic_upsert(
+            Campaign,
+            campaign.model_dump(),
+            ("account_id", "platform", "external_campaign_id"),
         )
-        return self._upsert(db_campaign, Campaign, campaign.model_dump())
 
     def upsert_ad_group(self, ad_group: AdGroupCreate) -> AdGroup:
-        db_ad_group = self.session.scalar(
-            select(AdGroup).where(
-                AdGroup.campaign_id == ad_group.campaign_id,
-                AdGroup.platform == ad_group.platform,
-                AdGroup.external_ad_group_id == ad_group.external_ad_group_id,
-            )
+        return self._atomic_upsert(
+            AdGroup,
+            ad_group.model_dump(),
+            ("campaign_id", "platform", "external_ad_group_id"),
         )
-        return self._upsert(db_ad_group, AdGroup, ad_group.model_dump())
 
     def upsert_ad(self, ad: AdCreate) -> Ad:
-        db_ad = self.session.scalar(
-            select(Ad).where(
-                Ad.platform == ad.platform,
-                Ad.external_ad_id == ad.external_ad_id,
-            )
+        conflict_columns = (
+            ("ad_group_id", "platform", "external_ad_id")
+            if ad.ad_group_id is not None
+            else ("ad_set_id", "platform", "external_ad_id")
         )
-        return self._upsert(db_ad, Ad, ad.model_dump())
+        return self._atomic_upsert(Ad, ad.model_dump(), conflict_columns)
 
     def upsert_keyword(self, keyword: KeywordCreate) -> Keyword:
-        db_keyword = self.session.scalar(
-            select(Keyword).where(
-                Keyword.ad_group_id == keyword.ad_group_id,
-                Keyword.platform == keyword.platform,
-                Keyword.external_keyword_id == keyword.external_keyword_id,
-            )
+        return self._atomic_upsert(
+            Keyword,
+            keyword.model_dump(),
+            ("ad_group_id", "platform", "external_keyword_id"),
         )
-        return self._upsert(db_keyword, Keyword, keyword.model_dump())
 
     def upsert_search_term(self, search_term: SearchTermCreate) -> SearchTerm:
-        db_search_term = self.session.scalar(
-            select(SearchTerm).where(
-                SearchTerm.ad_group_id == search_term.ad_group_id,
-                SearchTerm.platform == search_term.platform,
-                SearchTerm.term == search_term.term,
-            )
+        return self._atomic_upsert(
+            SearchTerm,
+            search_term.model_dump(),
+            ("ad_group_id", "platform", "term"),
         )
-        return self._upsert(db_search_term, SearchTerm, search_term.model_dump())
 
     def upsert_daily_metric(self, metric: DailyMetricCreate) -> DailyMetric:
-        db_metric = self.session.scalar(
-            select(DailyMetric).where(
-                DailyMetric.platform == metric.platform,
-                DailyMetric.metric_date == metric.metric_date,
-                DailyMetric.entity_type == metric.entity_type,
-                DailyMetric.entity_id == metric.entity_id,
-            )
+        return self._atomic_upsert(
+            DailyMetric,
+            metric.model_dump(),
+            ("platform", "metric_date", "entity_type", "entity_id"),
         )
-        return self._upsert(db_metric, DailyMetric, metric.model_dump())
 
     def create_job_run(
         self,
@@ -144,17 +127,36 @@ class AdvertisingMetricsRepository:
         job_run.error_message = error_message
         return job_run
 
-    def _upsert(
+    def _atomic_upsert(
         self,
-        instance: ModelT | None,
         model: type[ModelT],
         values: dict[str, Any],
+        conflict_columns: Sequence[str],
     ) -> ModelT:
-        if instance is None:
-            instance = model(**values)
-            self.session.add(instance)
+        dialect_name = self.session.get_bind().dialect.name
+        insert_statement: Any
+        if dialect_name == "postgresql":
+            insert_statement = postgresql_insert(model).values(**values)
+        elif dialect_name == "sqlite":
+            insert_statement = sqlite_insert(model).values(**values)
         else:
-            for key, value in values.items():
-                setattr(instance, key, value)
-        self.session.flush()
-        return instance
+            raise RuntimeError(f"Atomic upsert is not supported for {dialect_name}")
+
+        update_values = {
+            key: getattr(insert_statement.excluded, key)
+            for key in values
+            if key not in {"id", "created_at"}
+        }
+        table = cast(Any, model).__table__
+        if "updated_at" in table.c:
+            update_values["updated_at"] = utc_now()
+
+        statement = (
+            insert_statement.on_conflict_do_update(
+                index_elements=list(conflict_columns),
+                set_=update_values,
+            )
+            .returning(model)
+            .execution_options(populate_existing=True)
+        )
+        return cast(ModelT, self.session.scalars(statement).one())

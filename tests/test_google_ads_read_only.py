@@ -610,6 +610,38 @@ def test_credential_markers_take_precedence_over_rate_limits(
 
 
 @pytest.mark.parametrize(
+    "raw_message",
+    [
+        "RESOURCE_EXHAUSTED quota exceeded UNAUTHENTICATED invalid credentials",
+        "quota exceeded while authentication failed",
+        "too many requests 429 credential validation failed",
+        "rate limit auth failure",
+    ],
+)
+def test_generic_auth_markers_take_precedence_over_rate_limits(
+    monkeypatch: pytest.MonkeyPatch,
+    raw_message: str,
+) -> None:
+    settings = valid_settings(monkeypatch)
+    raw_error = RuntimeError(raw_message)
+    install_fake_google_ads_module(
+        monkeypatch,
+        FakeGoogleAdsService(error=raw_error),
+    )
+
+    with pytest.raises(GoogleAdsAuthenticationError) as exc_info:
+        collect_campaigns(account_id=1, settings=settings)
+
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__ is True
+    rendered_traceback = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert raw_message not in rendered_traceback
+    assert "Google Ads API authentication failed" in rendered_traceback
+
+
+@pytest.mark.parametrize(
     "raw_error",
     [
         RuntimeError("PERMISSION_DENIED user lacks access to customer"),

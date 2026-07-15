@@ -273,6 +273,34 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
+            "unauthenticated",
+            "invalid credentials",
+            "invalid credential",
+            "authentication failed",
+            "authentication",
+            "auth failed",
+            "auth failure",
+            "auth_error",
+            "credential",
+            "401",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if credential_context and any(
+        marker in message
+        for marker in (
+            "client secret",
+            "client-secret",
+            "refresh token",
+            "refresh-token",
+            "client_id",
+            "client id",
+        )
+    ):
+        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+    if any(
+        marker in message
+        for marker in (
             "resource_exhausted",
             "resource exhausted",
             "quota",
@@ -295,15 +323,6 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
-            "unauthenticated",
-            "authentication",
-            "401",
-        )
-    ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
-    if any(
-        marker in message
-        for marker in (
             "authorization",
             "unauthorized",
             "not authorized",
@@ -312,20 +331,6 @@ def _raise_normalized_google_ads_error(
         )
     ):
         raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
-    if "credential" in message:
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
-    if credential_context and any(
-        marker in message
-        for marker in (
-            "client secret",
-            "client-secret",
-            "refresh token",
-            "refresh-token",
-            "client_id",
-            "client id",
-        )
-    ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

@@ -268,11 +268,19 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
+            "permission_denied",
+            "permission denied",
+            "user_permission_denied",
+        )
+    ):
+        raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
+    if any(
+        marker in message
+        for marker in (
             "unauthenticated",
             "authentication",
             "invalid_grant",
             "invalid_client",
-            "oauth",
             "401",
             "token refresh",
             "token_refresh",
@@ -286,13 +294,10 @@ def _raise_normalized_google_ads_error(
     if any(
         marker in message
         for marker in (
-            "permission_denied",
-            "permission denied",
             "authorization",
             "unauthorized",
             "not authorized",
             "access denied",
-            "user_permission_denied",
             "403",
         )
     ):

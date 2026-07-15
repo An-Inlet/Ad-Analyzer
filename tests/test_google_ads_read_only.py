@@ -525,22 +525,23 @@ def test_get_service_errors_are_normalized(
         collect_campaigns(account_id=1, settings=settings)
 
 
-def test_authentication_markers_take_precedence_over_authorization_markers(
+def test_permission_denied_markers_take_precedence_over_authentication_markers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = valid_settings(monkeypatch)
+    raw_error = RuntimeError(
+        "PERMISSION_DENIED OAuth credential token refresh failed "
+        "for unauthorized_client 401"
+    )
     install_fake_google_ads_module(
         monkeypatch,
-        FakeGoogleAdsService(
-            error=RuntimeError(
-                "PERMISSION_DENIED OAuth credential token refresh failed "
-                "for unauthorized_client 401"
-            )
-        ),
+        FakeGoogleAdsService(error=raw_error),
     )
 
-    with pytest.raises(GoogleAdsAuthenticationError):
+    with pytest.raises(GoogleAdsAuthorizationError) as exc_info:
         collect_campaigns(account_id=1, settings=settings)
+
+    assert exc_info.value.__cause__ is raw_error
 
 
 @pytest.mark.parametrize(
@@ -548,6 +549,8 @@ def test_authentication_markers_take_precedence_over_authorization_markers(
     [
         RuntimeError("PERMISSION_DENIED user lacks access to customer"),
         RuntimeError("USER_PERMISSION_DENIED user cannot access customer"),
+        RuntimeError("PERMISSION_DENIED OAuth user lacks access to customer"),
+        RuntimeError("USER_PERMISSION_DENIED OAuth user cannot access customer"),
     ],
 )
 def test_permission_denied_access_errors_are_authorization_failures(

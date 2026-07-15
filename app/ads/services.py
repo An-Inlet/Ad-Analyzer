@@ -1,3 +1,4 @@
+from contextlib import suppress
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -7,6 +8,10 @@ from app.ads.models import DailyMetric
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate, NormalizedMetricsBatch
 from app.collectors import google_ads
+
+FAILED_JOB_RUN_PERSISTENCE_ERROR = (
+    "Google Ads sync failed and the failure record could not be persisted"
+)
 
 
 class NormalizedMetricsService:
@@ -47,7 +52,7 @@ class GoogleAdsSyncService:
         records_processed = 0
         resolved_account: AdvertisingAccountCreate | None = None
         resolved_account_id: int | None = None
-        sanitized_error_message = ""
+        sync_error_message: str | None = None
         try:
             job_run = self.repository.create_job_run(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
@@ -122,25 +127,33 @@ class GoogleAdsSyncService:
             )
         except Exception as exc:
             sanitized_error_message = self._sanitize_error(exc)
-            self.session.rollback()
-            failed_account_id = self._restore_failed_run_account_id(
-                resolved_account,
-                resolved_account_id,
-            )
-            failed_job_run = self.repository.create_job_run(
-                platform=AdvertisingPlatform.GOOGLE_ADS,
-                job_name=self.job_name,
-                status=JobRunStatus.FAILED,
-                account_id=failed_account_id,
-            )
-            self.repository.finish_job_run(
-                failed_job_run,
-                status=JobRunStatus.FAILED,
-                records_processed=records_processed,
-                error_message=sanitized_error_message,
-            )
-            self.session.commit()
-        raise GoogleAdsSyncError(sanitized_error_message) from None
+            try:
+                self.session.rollback()
+                failed_account_id = self._restore_failed_run_account_id(
+                    resolved_account,
+                    resolved_account_id,
+                )
+                failed_job_run = self.repository.create_job_run(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    job_name=self.job_name,
+                    status=JobRunStatus.FAILED,
+                    account_id=failed_account_id,
+                )
+                self.repository.finish_job_run(
+                    failed_job_run,
+                    status=JobRunStatus.FAILED,
+                    records_processed=records_processed,
+                    error_message=sanitized_error_message,
+                )
+                self.session.commit()
+                sync_error_message = sanitized_error_message
+            except Exception:
+                with suppress(Exception):
+                    self.session.rollback()
+                sync_error_message = FAILED_JOB_RUN_PERSISTENCE_ERROR
+        if sync_error_message is not None:
+            raise GoogleAdsSyncError(sync_error_message) from None
+        raise GoogleAdsSyncError(FAILED_JOB_RUN_PERSISTENCE_ERROR) from None
 
     def _sanitize_error(self, exc: Exception) -> str:
         return f"Google Ads read-only sync failed ({type(exc).__name__})"[:120]

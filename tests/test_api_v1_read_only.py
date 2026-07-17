@@ -10,10 +10,14 @@ import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
 from app.ads.schemas import AdvertisingAccountCreate
+from app.api.auth import require_api_token
 from app.collectors import google_ads
 from app.database.session import Base, get_db
 from app.main import app
+from app.settings import settings
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import create_engine, event
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -147,7 +151,7 @@ def seed(db: Session) -> dict[str, int]:
 
 @contextmanager
 def make_client(
-    *, foreign_keys: bool = True
+    *, foreign_keys: bool = True, bypass_auth: bool = True
 ) -> Generator[tuple[TestClient, Session, dict[str, int]], None, None]:
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -163,6 +167,8 @@ def make_client(
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
+    if bypass_auth:
+        app.dependency_overrides[require_api_token] = lambda: None
     try:
         yield TestClient(app), db, ids
     finally:
@@ -258,12 +264,94 @@ def test_database_failure_returns_sanitized_503() -> None:
         yield BrokenSession()  # type: ignore[misc]
 
     app.dependency_overrides[get_db] = broken_get_db
+    app.dependency_overrides[require_api_token] = lambda: None
     try:
         response = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 503
     assert response.json() == {"detail": "database temporarily unavailable"}
+
+
+def test_api_v1_requires_bearer_authentication_for_every_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "test-operator-token"
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    client = TestClient(app, raise_server_exceptions=False)
+    protected_routes = [
+        route
+        for route in app.routes
+        if isinstance(route, APIRoute) and route.path.startswith("/api/v1")
+    ]
+    for route in protected_routes:
+        path = route.path.replace("{account_id}", "1").replace("{campaign_id}", "1")
+        response = client.get(path)
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"] == "Bearer"
+        assert response.json() == {"detail": "authentication failed"}
+
+    invalid = client.get("/api/v1/accounts", headers={"Authorization": "Bearer invalid"})
+    malformed = client.get("/api/v1/accounts", headers={"Authorization": "Basic invalid"})
+    assert invalid.status_code == 401 and malformed.status_code == 401
+    assert token not in invalid.text and token not in malformed.text
+    assert token not in client.get("/openapi.json").text
+
+
+def test_api_v1_valid_auth_and_missing_token_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = "test-operator-token"
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    with make_client(bypass_auth=False) as (client, _db, _ids):
+        response = client.get("/api/v1/accounts", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+    monkeypatch.setattr(settings, "denticode_api_token", None)
+    unavailable = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
+    assert unavailable.status_code == 503
+    assert unavailable.json() == {"detail": "service temporarily unavailable"}
+    assert TestClient(app).get("/").status_code == 200
+    assert TestClient(app).get("/health").status_code == 200
+
+
+def test_job_run_error_messages_are_replaced_at_the_http_boundary() -> None:
+    malicious_error = (
+        "client_secret=do-not-expose refresh_token=do-not-expose "
+        "Authorization: Bearer do-not-expose postgresql://operator:password@host/db "
+        "Traceback customer-identifier " + "x" * 10_000
+    )
+    with make_client() as (client, db, ids):
+        account = db.get(AdvertisingAccount, ids["a1"])
+        assert account is not None
+        db.add(
+            JobRun(
+                platform=account.platform,
+                account_id=account.id,
+                job_name="sync",
+                status=JobRunStatus.FAILED,
+                started_at=datetime(2026, 7, 30, tzinfo=UTC),
+                finished_at=datetime(2026, 7, 30, tzinfo=UTC),
+                records_processed=0,
+                error_message=malicious_error,
+            )
+        )
+        db.commit()
+        listed = client.get("/api/v1/job-runs").json()
+        latest = client.get("/api/v1/job-runs/latest").json()
+
+    public_payload = f"{listed}{latest}"
+    for sensitive_fragment in (
+        "client_secret",
+        "refresh_token",
+        "Authorization",
+        "postgresql://",
+        "Traceback",
+        "customer-identifier",
+        "do-not-expose",
+    ):
+        assert sensitive_fragment not in public_payload
+    assert latest["error_message"] == "Advertising sync failed."
+    assert all(
+        item["error_message"] in {None, "Advertising sync failed."} for item in listed["items"]
+    )
 
 
 def test_campaign_metrics_are_canonical_and_paginated() -> None:
@@ -591,10 +679,13 @@ def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
     }
     for path in expected:
         responses = schema["paths"][path]["get"]["responses"]
-        assert {"404", "422", "503"} <= set(responses)
+        assert {"401", "404", "422", "503"} <= set(responses)
         assert responses["404"]["content"]["application/json"]["schema"]["$ref"].endswith(
             "/ApiErrorResponse"
         )
     for path in {"/api/v1/accounts", "/api/v1/job-runs", "/api/v1/sync-status"}:
         responses = schema["paths"][path]["get"]["responses"]
-        assert {"422", "503"} <= set(responses)
+        assert {"401", "422", "503"} <= set(responses)
+    for path, operations in schema["paths"].items():
+        if path.startswith("/api/v1"):
+            assert operations["get"]["security"] == [{"BearerAuth": []}]

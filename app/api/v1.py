@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.models import JobRun
+from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
     AccountMetricSummaryResponse,
@@ -21,12 +23,17 @@ from app.api.schemas import (
 )
 from app.database.session import get_db
 
-router = APIRouter(prefix="/api/v1", tags=["read-only advertising data"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["read-only advertising data"],
+    dependencies=[Depends(require_api_token)],
+)
 Limit = Annotated[
     int, Query(ge=1, le=100, description="Page size. Defaults to 25 and is capped at 100.")
 ]
 Offset = Annotated[int, Query(ge=0)]
 VALIDATION_AND_DATABASE_ERRORS: dict[int | str, dict[str, Any]] = {
+    401: {"model": ApiErrorResponse},
     422: {"model": ApiErrorResponse},
     503: {"model": ApiErrorResponse},
 }
@@ -38,6 +45,21 @@ RESOURCE_ERRORS: dict[int | str, dict[str, Any]] = {
 
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
+
+
+def job_run_response(job_run: JobRun) -> JobRunResponse:
+    """Expose only the bounded public error message, never stored job diagnostics."""
+    return JobRunResponse(
+        id=job_run.id,
+        platform=job_run.platform,
+        account_id=job_run.account_id,
+        job_name=job_run.job_name,
+        status=job_run.status,
+        started_at=job_run.started_at,
+        finished_at=job_run.finished_at,
+        records_processed=job_run.records_processed,
+        error_message="Advertising sync failed." if job_run.error_message is not None else None,
+    )
 
 
 def default_dates(date_from: date | None, date_to: date | None) -> tuple[date, date]:
@@ -217,7 +239,9 @@ def list_job_runs(
     offset: Offset = 0,
 ) -> PaginatedResponse[JobRunResponse]:
     items, total = repository.list_job_runs(platform, account_id, status, limit, offset)
-    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+    return PaginatedResponse(
+        items=[job_run_response(item) for item in items], limit=limit, offset=offset, total=total
+    )
 
 
 @router.get(
@@ -230,11 +254,11 @@ def latest_job_run(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     platform: AdvertisingPlatform | None = None,
     account_id: int | None = None,
-) -> object:
+) -> JobRunResponse:
     job = repository.latest_job_run(platform, account_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job run not found")
-    return job
+    return job_run_response(job)
 
 
 @router.get(

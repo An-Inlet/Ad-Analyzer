@@ -95,7 +95,11 @@ class JobRunResponse(ApiModel):
     started_at: datetime
     finished_at: datetime | None
     records_processed: int
-    error_message: str | None = Field(description="Already-sanitized bounded error message.")
+    error_message: str | None = Field(
+        default=None,
+        max_length=24,
+        description="Fixed public failure message; stored diagnostics are never exposed.",
+    )
 
 
 class SyncStatusResponse(BaseModel):

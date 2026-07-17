@@ -103,7 +103,7 @@ uvicorn app.main:app --reload
 
 Phase 5 exposes versioned read-only advertising data endpoints under `/api/v1`. These API routes read only from the local PostgreSQL database. They do not contact Google Ads, cannot trigger syncs, and cannot mutate Google Ads campaigns, bids, budgets, audiences, or conversions.
 
-All `/api/v1` endpoints require an operator bearer token. Set `DENTICODE_API_TOKEN` in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
+All `/api/v1` endpoints require an operator bearer token. `DENTICODE_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
 
 Endpoint groups:
 

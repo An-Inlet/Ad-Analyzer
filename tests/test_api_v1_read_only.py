@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
 from pathlib import Path
+from secrets import token_urlsafe
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
@@ -30,6 +31,10 @@ from starlette.types import Message, Scope
 
 def enable_fk(dbapi_connection: SQLiteConnection, _connection_record: ConnectionPoolEntry) -> None:
     dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+
+def operator_token() -> str:
+    return token_urlsafe(48)
 
 
 def seed(db: Session) -> dict[str, int]:
@@ -278,7 +283,7 @@ def test_database_failure_returns_sanitized_503() -> None:
 def test_api_v1_requires_bearer_authentication_for_every_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    token = "test-operator-token"
+    token = operator_token()
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
     client = TestClient(app, raise_server_exceptions=False)
     protected_routes = [
@@ -303,8 +308,23 @@ def test_api_v1_requires_bearer_authentication_for_every_route(
     assert token not in client.get("/openapi.json").text
 
 
-def test_raw_non_ascii_bearer_header_returns_generic_401(monkeypatch: pytest.MonkeyPatch) -> None:
-    token = "test-operator-token"
+@pytest.mark.parametrize(
+    "credential",
+    [
+        b"a" * 42,
+        b"a" * 129,
+        b"a" * 42 + b" ",
+        b"a" * 42 + b"\t",
+        b"a" * 42 + b"\n",
+        b"a" * 42 + b"\x00",
+        b"a" * 42 + b".",
+        b"a" * 42 + b"\xff",
+    ],
+)
+def test_invalid_raw_bearer_headers_return_generic_401(
+    monkeypatch: pytest.MonkeyPatch, credential: bytes
+) -> None:
+    token = operator_token()
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
     messages: list[Message] = []
     scope: Scope = {
@@ -316,7 +336,7 @@ def test_raw_non_ascii_bearer_header_returns_generic_401(monkeypatch: pytest.Mon
         "path": "/api/v1/accounts",
         "raw_path": b"/api/v1/accounts",
         "query_string": b"",
-        "headers": [(b"authorization", b"Bearer \xff")],
+        "headers": [(b"authorization", b"Bearer " + credential)],
         "client": ("testclient", 50000),
         "server": ("testserver", 80),
     }
@@ -337,11 +357,13 @@ def test_raw_non_ascii_bearer_header_returns_generic_401(monkeypatch: pytest.Mon
     assert response_start["status"] == 401
     assert (b"www-authenticate", b"Bearer") in response_start["headers"]
     assert response_body == b'{"detail":"authentication failed"}'
-    assert token.encode() not in response_body and b"\xff" not in response_body
+    assert token.encode() not in response_body and credential not in response_body
 
 
-def test_api_v1_valid_auth_and_missing_token_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
-    token = "test-operator-token"
+def test_api_v1_valid_auth_and_invalid_configuration_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = operator_token()
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
     with make_client(bypass_auth=False) as (client, _db, _ids):
         response = client.get("/api/v1/accounts", headers={"Authorization": f"Bearer {token}"})
@@ -350,10 +372,23 @@ def test_api_v1_valid_auth_and_missing_token_fail_closed(monkeypatch: pytest.Mon
     unavailable = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
     assert unavailable.status_code == 503
     assert unavailable.json() == {"detail": "service temporarily unavailable"}
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr("caf\u00e9"))
-    invalid_configuration = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
-    assert invalid_configuration.status_code == 503
-    assert invalid_configuration.json() == {"detail": "service temporarily unavailable"}
+    for invalid_token in (
+        "a" * 42,
+        "a" * 129,
+        "a" * 42 + " ",
+        "a" * 42 + "\t",
+        "a" * 42 + "\n",
+        "a" * 42 + "\x00",
+        "a" * 42 + ".",
+        "a" * 42 + "\u00e9",
+    ):
+        monkeypatch.setattr(settings, "denticode_api_token", SecretStr(invalid_token))
+        invalid_configuration = TestClient(app, raise_server_exceptions=False).get(
+            "/api/v1/accounts"
+        )
+        assert invalid_configuration.status_code == 503
+        assert invalid_configuration.json() == {"detail": "service temporarily unavailable"}
+        assert invalid_token not in invalid_configuration.text
     assert TestClient(app).get("/").status_code == 200
     assert TestClient(app).get("/health").status_code == 200
 

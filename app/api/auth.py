@@ -1,5 +1,6 @@
 """Authentication for the operator-only read-only API."""
 
+import re
 from secrets import compare_digest
 from typing import Annotated
 
@@ -9,6 +10,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.settings import settings
 
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
+_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+
+
+def _is_valid_token(value: str) -> bool:
+    """Accept only bounded URL-safe opaque bearer tokens without normalization."""
+    return _TOKEN_PATTERN.fullmatch(value) is not None
 
 
 def authentication_failed() -> HTTPException:
@@ -28,9 +35,9 @@ def require_api_token(
     if expected_token is None:
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
     expected_value = expected_token.get_secret_value()
-    if not expected_value or not expected_value.isascii():
+    if not _is_valid_token(expected_value):
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
-    if credentials is None or not credentials.credentials.isascii():
+    if credentials is None or not _is_valid_token(credentials.credentials):
         raise authentication_failed()
     if not compare_digest(
         credentials.credentials.encode("ascii"), expected_value.encode("ascii")

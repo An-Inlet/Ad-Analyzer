@@ -92,3 +92,37 @@ Override it with the `DATABASE_URL` environment variable when running against a 
 alembic revision --autogenerate -m "describe change"
 alembic upgrade head
 ```
+
+## Local read-only API
+
+Start the FastAPI application locally with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Phase 5 exposes versioned read-only advertising data endpoints under `/api/v1`. These API routes read only from the local PostgreSQL database. They do not contact Google Ads, cannot trigger syncs, and cannot mutate Google Ads campaigns, bids, budgets, audiences, or conversions.
+
+Endpoint groups:
+
+- Accounts: `GET /api/v1/accounts`, `GET /api/v1/accounts/{account_id}`
+- Account campaigns: `GET /api/v1/accounts/{account_id}/campaigns`
+- Campaigns and child data: `GET /api/v1/campaigns/{campaign_id}`, `GET /api/v1/campaigns/{campaign_id}/ad-groups`, `GET /api/v1/campaigns/{campaign_id}/metrics`
+- Account metrics: `GET /api/v1/accounts/{account_id}/metrics/summary`
+- Sync job visibility: `GET /api/v1/job-runs`, `GET /api/v1/job-runs/latest`, `GET /api/v1/sync-status`
+
+Examples:
+
+```bash
+curl "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
+curl "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
+curl "http://127.0.0.1:8000/api/v1/sync-status"
+```
+
+PowerShell:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_from=2026-07-01&date_to=2026-07-31"
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads"
+```

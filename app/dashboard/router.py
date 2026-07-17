@@ -21,6 +21,7 @@ from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_dashboard_session)])
+DASHBOARD_MAX_OFFSET = 10_000
 templates = Jinja2Templates(directory="app/dashboard/templates")
 templates.env.filters["money"] = money_from_micros
 templates.env.filters["percent"] = ratio_percent
@@ -46,7 +47,7 @@ def overview(
     request: Request,
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     limit: int = Query(25, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     accounts, total = repository.dashboard_accounts(limit, offset)
     jobs, job_total = repository.list_job_runs(None, None, None, 10, 0)
@@ -74,7 +75,7 @@ def account_detail(
     date_from: date | None = None,
     date_to: date | None = None,
     limit: int = Query(25, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     account = repository.get_account(account_id)
     if account is None:
@@ -137,7 +138,7 @@ def campaign_detail(
     date_from: date | None = None,
     date_to: date | None = None,
     limit: int = Query(25, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     campaign = repository.get_campaign(campaign_id)
     if campaign is None:
@@ -169,7 +170,7 @@ def job_runs(
     request: Request,
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     limit: int = Query(25, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     jobs, total = repository.list_job_runs(None, None, None, limit, offset)
     return templates.TemplateResponse(

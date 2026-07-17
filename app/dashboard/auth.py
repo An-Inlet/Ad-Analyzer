@@ -44,6 +44,7 @@ def cookie_secure(request: Request) -> bool:
 
 def require_dashboard_session(request: Request) -> None:
     """Use an active opaque session, or authenticate and mark a session for middleware issuance."""
+    secure = cookie_secure(request)
     now = datetime.now(UTC)
     presented = request.cookies.get(COOKIE_NAME)
     with _lock:
@@ -52,7 +53,6 @@ def require_dashboard_session(request: Request) -> None:
             request.state.dashboard_csrf = _sessions[presented][1]
             return
     require_api_token(request, None)
-    secure = cookie_secure(request)
     session_id, csrf = token_urlsafe(32), token_urlsafe(24)
     with _lock:
         _purge(now)

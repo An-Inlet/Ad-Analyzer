@@ -38,11 +38,19 @@ class ReadOnlyAdsRepository:
         offset: int,
     ) -> tuple[list[tuple[AdvertisingAccount, int, JobRun | None, Any]], int]:
         """Return overview rows in bounded queries, without loading campaigns per account."""
+        page_accounts = (
+            select(AdvertisingAccount.id.label("id"), AdvertisingAccount.platform.label("platform"))
+            .order_by(AdvertisingAccount.id.asc())
+            .limit(limit)
+            .offset(offset)
+            .subquery()
+        )
         campaign_counts = (
             select(
                 Campaign.account_id.label("account_id"),
                 func.count(Campaign.id).label("campaign_count"),
             )
+            .join(page_accounts, page_accounts.c.id == Campaign.account_id)
             .group_by(Campaign.account_id)
             .subquery()
         )
@@ -57,13 +65,26 @@ class ReadOnlyAdsRepository:
                 JobRun.platform.label("platform"),
                 latest_rank.label("rank"),
             )
-            .where(JobRun.account_id.is_not(None))
+            .join(
+                page_accounts,
+                and_(
+                    page_accounts.c.id == JobRun.account_id,
+                    page_accounts.c.platform == JobRun.platform,
+                ),
+            )
             .subquery()
         )
         latest = select(ranked).where(ranked.c.rank == 1).subquery()
         last_success = (
             select(JobRun.account_id.label("account_id"), func.max(JobRun.finished_at).label("at"))
-            .where(JobRun.status == JobRunStatus.SUCCEEDED, JobRun.account_id.is_not(None))
+            .join(
+                page_accounts,
+                and_(
+                    page_accounts.c.id == JobRun.account_id,
+                    page_accounts.c.platform == JobRun.platform,
+                ),
+            )
+            .where(JobRun.status == JobRunStatus.SUCCEEDED)
             .group_by(JobRun.account_id)
             .subquery()
         )
@@ -74,6 +95,7 @@ class ReadOnlyAdsRepository:
                 JobRun,
                 last_success.c.at,
             )
+            .join(page_accounts, page_accounts.c.id == AdvertisingAccount.id)
             .outerjoin(campaign_counts, campaign_counts.c.account_id == AdvertisingAccount.id)
             .outerjoin(
                 latest,

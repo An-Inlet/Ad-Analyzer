@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
@@ -24,6 +25,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 from sqlalchemy.schema import CreateIndex
+from starlette.types import Message, Scope
 
 
 def enable_fk(dbapi_connection: SQLiteConnection, _connection_record: ConnectionPoolEntry) -> None:
@@ -294,8 +296,48 @@ def test_api_v1_requires_bearer_authentication_for_every_route(
     invalid = client.get("/api/v1/accounts", headers={"Authorization": "Bearer invalid"})
     malformed = client.get("/api/v1/accounts", headers={"Authorization": "Basic invalid"})
     assert invalid.status_code == 401 and malformed.status_code == 401
+    assert all(
+        response.headers["WWW-Authenticate"] == "Bearer" for response in (invalid, malformed)
+    )
     assert token not in invalid.text and token not in malformed.text
     assert token not in client.get("/openapi.json").text
+
+
+def test_raw_non_ascii_bearer_header_returns_generic_401(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = "test-operator-token"
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    messages: list[Message] = []
+    scope: Scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/api/v1/accounts",
+        "raw_path": b"/api/v1/accounts",
+        "query_string": b"",
+        "headers": [(b"authorization", b"Bearer \xff")],
+        "client": ("testclient", 50000),
+        "server": ("testserver", 80),
+    }
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    asyncio.run(app(scope, receive, send))
+    response_start = next(
+        message for message in messages if message["type"] == "http.response.start"
+    )
+    response_body = b"".join(
+        message.get("body", b"") for message in messages if message["type"] == "http.response.body"
+    )
+    assert response_start["status"] == 401
+    assert (b"www-authenticate", b"Bearer") in response_start["headers"]
+    assert response_body == b'{"detail":"authentication failed"}'
+    assert token.encode() not in response_body and b"\xff" not in response_body
 
 
 def test_api_v1_valid_auth_and_missing_token_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -308,6 +350,10 @@ def test_api_v1_valid_auth_and_missing_token_fail_closed(monkeypatch: pytest.Mon
     unavailable = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
     assert unavailable.status_code == 503
     assert unavailable.json() == {"detail": "service temporarily unavailable"}
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr("caf\u00e9"))
+    invalid_configuration = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
+    assert invalid_configuration.status_code == 503
+    assert invalid_configuration.json() == {"detail": "service temporarily unavailable"}
     assert TestClient(app).get("/").status_code == 200
     assert TestClient(app).get("/health").status_code == 200
 

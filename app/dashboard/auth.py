@@ -28,7 +28,15 @@ def _purge(now: datetime) -> None:
 def _is_loopback(request: Request) -> bool:
     """Trust only the ASGI connection peer, never client-controlled host headers."""
     client = request.scope.get("client")
-    if not isinstance(client, tuple) or not client or not isinstance(client[0], str):
+    if (
+        not isinstance(client, (tuple, list))
+        or len(client) != 2
+        or not isinstance(client[0], str)
+        or not client[0]
+        or not isinstance(client[1], int)
+        or isinstance(client[1], bool)
+        or not 0 <= client[1] <= 65535
+    ):
         return False
     try:
         peer = ip_address(client[0])

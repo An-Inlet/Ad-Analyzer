@@ -137,15 +137,21 @@ def campaign_detail(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     date_from: date | None = None,
     date_to: date | None = None,
-    limit: int = Query(25, ge=1, le=100),
-    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+    ad_group_limit: int = Query(25, ge=1, le=100),
+    ad_group_offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+    metric_limit: int = Query(25, ge=1, le=100),
+    metric_offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     campaign = repository.get_campaign(campaign_id)
     if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
     start, end = valid_dates(date_from, date_to)
-    groups, group_total = repository.list_campaign_ad_groups(campaign_id, limit, offset)
-    metrics, metric_total = repository.list_campaign_metrics(campaign_id, start, end, limit, offset)
+    groups, group_total = repository.list_campaign_ad_groups(
+        campaign_id, ad_group_limit, ad_group_offset
+    )
+    metrics, metric_total = repository.list_campaign_metrics(
+        campaign_id, start, end, metric_limit, metric_offset
+    )
     return templates.TemplateResponse(
         request,
         "campaign.html",
@@ -157,8 +163,10 @@ def campaign_detail(
             group_total=group_total,
             metrics=metrics,
             metric_total=metric_total,
-            limit=limit,
-            offset=offset,
+            ad_group_limit=ad_group_limit,
+            ad_group_offset=ad_group_offset,
+            metric_limit=metric_limit,
+            metric_offset=metric_offset,
             date_from=start,
             date_to=end,
         ),

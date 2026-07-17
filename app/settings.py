@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer",
         validation_alias="DATABASE_URL",
+    )
+    denticode_api_token: SecretStr | None = Field(
+        default=None, validation_alias="DENTICODE_API_TOKEN"
     )
     google_ads_developer_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_DEVELOPER_TOKEN"

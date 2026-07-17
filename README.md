@@ -75,7 +75,7 @@ Build and run the development container:
 
 ```powershell
 docker build -t denticode-ads-optimizer:dev .
-docker run --rm -p 8000:8000 denticode-ads-optimizer:dev
+docker run --rm --env-file .env -p 8000:8000 denticode-ads-optimizer:dev
 ```
 
 ## Database and migrations
@@ -91,4 +91,41 @@ Override it with the `DATABASE_URL` environment variable when running against a 
 ```powershell
 alembic revision --autogenerate -m "describe change"
 alembic upgrade head
+```
+
+## Local read-only API
+
+Start the FastAPI application locally with:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Phase 5 exposes versioned read-only advertising data endpoints under `/api/v1`. These API routes read only from the local PostgreSQL database. They do not contact Google Ads, cannot trigger syncs, and cannot mutate Google Ads campaigns, bids, budgets, audiences, or conversions.
+
+All `/api/v1` endpoints require an operator bearer token. `DENTICODE_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
+
+Endpoint groups:
+
+- Accounts: `GET /api/v1/accounts`, `GET /api/v1/accounts/{account_id}`
+- Account campaigns: `GET /api/v1/accounts/{account_id}/campaigns`
+- Campaigns and child data: `GET /api/v1/campaigns/{campaign_id}`, `GET /api/v1/campaigns/{campaign_id}/ad-groups`, `GET /api/v1/campaigns/{campaign_id}/metrics`
+- Account metrics: `GET /api/v1/accounts/{account_id}/metrics/summary`
+- Sync job visibility: `GET /api/v1/job-runs`, `GET /api/v1/job-runs/latest`, `GET /api/v1/sync-status`
+
+Examples:
+
+```bash
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
+```
+
+PowerShell:
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:DENTICODE_API_TOKEN" }
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0" -Headers $headers
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_from=2026-07-01&date_to=2026-07-31" -Headers $headers
+Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads" -Headers $headers
 ```

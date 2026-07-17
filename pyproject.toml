@@ -13,6 +13,7 @@ authors = [{ name = "Denticode" }]
 dependencies = [
     "alembic>=1.13.2",
     "fastapi>=0.111.0",
+    "jinja2>=3.1.4",
     "google-ads>=25.1.0",
     "google-auth-oauthlib>=1.2.1",
     "psycopg[binary]>=3.2.1",

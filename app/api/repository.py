@@ -32,6 +32,73 @@ class ReadOnlyAdsRepository:
     def get_account(self, account_id: int) -> AdvertisingAccount | None:
         return self.session.get(AdvertisingAccount, account_id)
 
+    def dashboard_accounts(
+        self,
+    ) -> tuple[list[tuple[AdvertisingAccount, int, JobRun | None, Any]], int]:
+        """Return overview rows in bounded queries, without loading campaigns per account."""
+        campaign_counts = (
+            select(
+                Campaign.account_id.label("account_id"),
+                func.count(Campaign.id).label("campaign_count"),
+            )
+            .group_by(Campaign.account_id)
+            .subquery()
+        )
+        latest_rank = func.row_number().over(
+            partition_by=(JobRun.account_id, JobRun.platform),
+            order_by=(JobRun.started_at.desc(), JobRun.id.desc()),
+        )
+        ranked = (
+            select(
+                JobRun.id.label("id"),
+                JobRun.account_id.label("account_id"),
+                JobRun.platform.label("platform"),
+                latest_rank.label("rank"),
+            )
+            .where(JobRun.account_id.is_not(None))
+            .subquery()
+        )
+        latest = select(ranked).where(ranked.c.rank == 1).subquery()
+        last_success = (
+            select(JobRun.account_id.label("account_id"), func.max(JobRun.finished_at).label("at"))
+            .where(JobRun.status == JobRunStatus.SUCCEEDED, JobRun.account_id.is_not(None))
+            .group_by(JobRun.account_id)
+            .subquery()
+        )
+        stmt = (
+            select(
+                AdvertisingAccount,
+                func.coalesce(campaign_counts.c.campaign_count, 0),
+                JobRun,
+                last_success.c.at,
+            )
+            .outerjoin(campaign_counts, campaign_counts.c.account_id == AdvertisingAccount.id)
+            .outerjoin(
+                latest,
+                and_(
+                    latest.c.account_id == AdvertisingAccount.id,
+                    latest.c.platform == AdvertisingAccount.platform,
+                ),
+            )
+            .outerjoin(JobRun, JobRun.id == latest.c.id)
+            .outerjoin(last_success, last_success.c.account_id == AdvertisingAccount.id)
+            .order_by(AdvertisingAccount.id.asc())
+        )
+        total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0
+        return cast(
+            list[tuple[AdvertisingAccount, int, JobRun | None, Any]],
+            self.session.execute(stmt).all(),
+        ), total
+
+    def account_sync_status(self, account_id: int) -> tuple[JobRun | None, Any]:
+        latest = self.latest_job_run(None, account_id)
+        successful = self.session.scalar(
+            select(func.max(JobRun.finished_at)).where(
+                JobRun.account_id == account_id, JobRun.status == JobRunStatus.SUCCEEDED
+            )
+        )
+        return latest, successful
+
     def list_account_campaigns(
         self, account_id: int, status: str | None, limit: int, offset: int
     ) -> tuple[list[Campaign], int]:
@@ -190,6 +257,4 @@ class ReadOnlyAdsRepository:
         )
         total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0
         rows = self.session.execute(stmt.limit(limit).offset(offset)).all()
-        return cast(
-            tuple[list[tuple[AdvertisingAccount, JobRun | None, Any]], int], (rows, total)
-        )
+        return cast(tuple[list[tuple[AdvertisingAccount, JobRun | None, Any]], int], (rows, total))

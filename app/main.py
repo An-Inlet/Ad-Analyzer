@@ -3,10 +3,12 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import router as api_v1_router
+from app.dashboard.router import router as dashboard_router
 
 
 class RootResponse(BaseModel):
@@ -62,3 +64,21 @@ def validation_error_handler(_request: Request, _exc: RequestValidationError) ->
 
 
 app.include_router(api_v1_router)
+app.include_router(dashboard_router)
+app.mount(
+    "/dashboard/assets", StaticFiles(directory="app/dashboard/static"), name="dashboard-assets"
+)
+
+
+@app.middleware("http")
+async def dashboard_security_headers(request: Request, call_next: object) -> object:
+    response = await call_next(request)  # type: ignore[operator]
+    if request.url.path.startswith("/dashboard"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'self'; "
+            "frame-ancestors 'none'; form-action 'self'"
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response

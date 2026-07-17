@@ -111,7 +111,7 @@ class ReadOnlyAdsRepository:
         total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0
         return cast(
             list[tuple[AdvertisingAccount, int, JobRun | None, Any]],
-            self.session.execute(stmt.limit(limit).offset(offset)).all(),
+            self.session.execute(stmt).all(),
         ), total
 
     def account_sync_status(self, account_id: int) -> tuple[JobRun | None, Any]:

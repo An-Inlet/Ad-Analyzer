@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
+from ipaddress import IPv6Address, ip_address
 from secrets import token_urlsafe
 from threading import Lock
 
@@ -25,7 +26,17 @@ def _purge(now: datetime) -> None:
 
 
 def _is_loopback(request: Request) -> bool:
-    return request.url.hostname in {"127.0.0.1", "::1", "localhost"}
+    """Trust only the ASGI connection peer, never client-controlled host headers."""
+    client = request.scope.get("client")
+    if not isinstance(client, tuple) or not client or not isinstance(client[0], str):
+        return False
+    try:
+        peer = ip_address(client[0])
+    except ValueError:
+        return False
+    if isinstance(peer, IPv6Address) and peer.ipv4_mapped is not None:
+        return peer.ipv4_mapped.is_loopback
+    return peer.is_loopback
 
 
 def insecure_local_http(request: Request) -> bool:

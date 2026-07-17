@@ -2,9 +2,11 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from importlib import import_module
 from pathlib import Path
 from sqlite3 import Connection as SQLiteConnection
 
+import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
 from app.ads.schemas import AdvertisingAccountCreate
@@ -13,9 +15,11 @@ from app.database.session import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
+from sqlalchemy.schema import CreateIndex
 
 
 def enable_fk(dbapi_connection: SQLiteConnection, _connection_record: ConnectionPoolEntry) -> None:
@@ -471,22 +475,108 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
         assert statuses[meta_account.id]["last_success_at"].startswith("2026-07-17")
 
 
+def test_job_run_account_delete_is_restricted_and_unscoped_runs_are_valid() -> None:
+    with make_client() as (_client, db, ids):
+        account = db.get(AdvertisingAccount, ids["a1"])
+        assert account is not None
+        db.delete(account)
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+
+        db.add(
+            JobRun(
+                platform=AdvertisingPlatform.GOOGLE_ADS,
+                account_id=None,
+                job_name="platform-sync",
+                status=JobRunStatus.SUCCEEDED,
+                started_at=datetime(2026, 7, 20, tzinfo=UTC),
+                finished_at=datetime(2026, 7, 20, tzinfo=UTC),
+                records_processed=1,
+            )
+        )
+        db.commit()
+
+
+def test_legacy_cross_platform_job_runs_are_detached_before_constraint_creation() -> None:
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        connection.exec_driver_sql(
+            "CREATE TABLE advertising_accounts ("
+            "id INTEGER PRIMARY KEY, platform TEXT NOT NULL, UNIQUE (id, platform))"
+        )
+        connection.exec_driver_sql(
+            "CREATE TABLE job_runs (id INTEGER PRIMARY KEY, platform TEXT NOT NULL, "
+            "account_id INTEGER)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO advertising_accounts (id, platform) VALUES (1, 'google_ads')"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO job_runs (id, platform, account_id) VALUES "
+            "(1, 'google_ads', 1), (2, 'meta_ads', 1), (3, 'meta_ads', NULL)"
+        )
+        migration = import_module(
+            "migrations.versions.20260717_0004_job_run_account_platform_foreign_key"
+        )
+        migration.cleanup_legacy_cross_platform_job_runs(connection)
+        rows = connection.exec_driver_sql(
+            "SELECT id, account_id FROM job_runs ORDER BY id"
+        ).fetchall()
+        assert [(row[0], row[1]) for row in rows] == [(1, 1), (2, None), (3, None)]
+
+        connection.exec_driver_sql(
+            "CREATE TABLE scoped_job_runs ("
+            "id INTEGER PRIMARY KEY, platform TEXT NOT NULL, account_id INTEGER, "
+            "FOREIGN KEY (account_id, platform) REFERENCES advertising_accounts (id, platform) "
+            "ON DELETE RESTRICT)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO scoped_job_runs (id, platform, account_id) "
+            "SELECT id, platform, account_id FROM job_runs"
+        )
+
+
 def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
-    index_names = {index.name for index in Base.metadata.tables["job_runs"].indexes}
-    assert {"ix_job_runs_account_started_id", "ix_job_runs_account_status_finished"} <= index_names
+    indexes = Base.metadata.tables["job_runs"].indexes
+    latest_index = next(
+        index for index in indexes if index.name == "ix_job_runs_account_platform_started_id"
+    )
+    success_index = next(
+        index
+        for index in indexes
+        if index.name == "ix_job_runs_account_platform_status_finished"
+    )
+    latest_index_sql = str(
+        CreateIndex(latest_index).compile(
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
+        )
+    )
+    success_index_sql = str(
+        CreateIndex(success_index).compile(
+            dialect=postgresql.dialect()  # type: ignore[no-untyped-call]
+        )
+    )
+    assert "account_id, platform, started_at DESC, id DESC" in latest_index_sql
+    assert "account_id, platform, status, finished_at DESC" in success_index_sql
+    assert "WHERE account_id IS NOT NULL" in latest_index_sql
     foreign_keys = Base.metadata.tables["job_runs"].foreign_key_constraints
     job_run_account_fk = next(
         fk for fk in foreign_keys if fk.name == "fk_job_runs_account_platform"
     )
     assert [column.name for column in job_run_account_fk.columns] == ["account_id", "platform"]
+    assert job_run_account_fk.ondelete == "RESTRICT"
     migration = Path("migrations/versions/20260717_0003_job_run_sync_status_indexes.py").read_text()
-    assert "ix_job_runs_account_started_id" in migration
-    assert "ix_job_runs_account_status_finished" in migration
+    assert "ix_job_runs_account_platform_started_id" in migration
+    assert "ix_job_runs_account_platform_status_finished" in migration
     composite_fk_migration = Path(
         "migrations/versions/20260717_0004_job_run_account_platform_foreign_key.py"
     ).read_text()
     assert "fk_job_runs_account_platform" in composite_fk_migration
     assert "job_runs_account_id_fkey" in composite_fk_migration
+    assert "cleanup_legacy_cross_platform_job_runs" in composite_fk_migration
+    assert 'ondelete="RESTRICT"' in composite_fk_migration
 
     schema = TestClient(app).get("/openapi.json").json()
     assert "ApiErrorResponse" in schema["components"]["schemas"]

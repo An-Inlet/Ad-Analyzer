@@ -15,6 +15,8 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    desc,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -69,7 +71,7 @@ class AdvertisingAccount(TimestampMixin, Base):
     campaigns: Mapped[list["Campaign"]] = relationship(
         back_populates="account", cascade="all, delete-orphan"
     )
-    job_runs: Mapped[list["JobRun"]] = relationship(back_populates="account")
+    job_runs: Mapped[list["JobRun"]] = relationship(back_populates="account", passive_deletes=True)
 
 
 class Campaign(TimestampMixin, Base):
@@ -341,11 +343,25 @@ class JobRun(TimestampMixin, Base):
             ["account_id", "platform"],
             ["advertising_accounts.id", "advertising_accounts.platform"],
             name="fk_job_runs_account_platform",
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
         Index("ix_job_runs_platform_started", "platform", "started_at"),
-        Index("ix_job_runs_account_started_id", "account_id", "started_at", "id"),
-        Index("ix_job_runs_account_status_finished", "account_id", "status", "finished_at"),
+        Index(
+            "ix_job_runs_account_platform_started_id",
+            "account_id",
+            "platform",
+            desc("started_at"),
+            desc("id"),
+            postgresql_where=text("account_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_job_runs_account_platform_status_finished",
+            "account_id",
+            "platform",
+            "status",
+            desc("finished_at"),
+            postgresql_where=text("account_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -26,6 +26,14 @@ Limit = Annotated[
     int, Query(ge=1, le=100, description="Page size. Defaults to 25 and is capped at 100.")
 ]
 Offset = Annotated[int, Query(ge=0)]
+VALIDATION_AND_DATABASE_ERRORS: dict[int | str, dict[str, Any]] = {
+    422: {"model": ApiErrorResponse},
+    503: {"model": ApiErrorResponse},
+}
+RESOURCE_ERRORS: dict[int | str, dict[str, Any]] = {
+    404: {"model": ApiErrorResponse},
+    **VALIDATION_AND_DATABASE_ERRORS,
+}
 
 
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
@@ -56,7 +64,7 @@ def ratios(
     "/accounts",
     response_model=PaginatedResponse[AccountResponse],
     operation_id="read_only_list_accounts",
-    responses={503: {"model": ApiErrorResponse}},
+    responses=VALIDATION_AND_DATABASE_ERRORS,
 )
 def list_accounts(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
@@ -69,7 +77,10 @@ def list_accounts(
 
 
 @router.get(
-    "/accounts/{account_id}", response_model=AccountResponse, operation_id="read_only_get_account"
+    "/accounts/{account_id}",
+    response_model=AccountResponse,
+    operation_id="read_only_get_account",
+    responses=RESOURCE_ERRORS,
 )
 def get_account(
     account_id: int, repository: Annotated[ReadOnlyAdsRepository, Depends(repo)]
@@ -84,6 +95,7 @@ def get_account(
     "/accounts/{account_id}/campaigns",
     response_model=PaginatedResponse[CampaignResponse],
     operation_id="read_only_list_account_campaigns",
+    responses=RESOURCE_ERRORS,
 )
 def list_account_campaigns(
     account_id: int,
@@ -102,6 +114,7 @@ def list_account_campaigns(
     "/campaigns/{campaign_id}",
     response_model=CampaignDetailResponse,
     operation_id="read_only_get_campaign",
+    responses=RESOURCE_ERRORS,
 )
 def get_campaign(
     campaign_id: int, repository: Annotated[ReadOnlyAdsRepository, Depends(repo)]
@@ -116,6 +129,7 @@ def get_campaign(
     "/campaigns/{campaign_id}/ad-groups",
     response_model=PaginatedResponse[AdGroupResponse],
     operation_id="read_only_list_campaign_ad_groups",
+    responses=RESOURCE_ERRORS,
 )
 def list_campaign_ad_groups(
     campaign_id: int,
@@ -131,28 +145,30 @@ def list_campaign_ad_groups(
 
 @router.get(
     "/campaigns/{campaign_id}/metrics",
-    response_model=list[DailyMetricResponse],
+    response_model=PaginatedResponse[DailyMetricResponse],
     operation_id="read_only_list_campaign_metrics",
+    responses=RESOURCE_ERRORS,
 )
 def list_campaign_metrics(
     campaign_id: int,
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     date_from: date | None = None,
     date_to: date | None = None,
-) -> list[DailyMetricResponse]:
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[DailyMetricResponse]:
     if repository.get_campaign(campaign_id) is None:
         raise HTTPException(status_code=404, detail="campaign not found")
     start, end = default_dates(date_from, date_to)
-    return [
-        DailyMetricResponse.model_validate(item)
-        for item in repository.list_campaign_metrics(campaign_id, start, end)
-    ]
+    items, total = repository.list_campaign_metrics(campaign_id, start, end, limit, offset)
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
 
 
 @router.get(
     "/accounts/{account_id}/metrics/summary",
     response_model=AccountMetricSummaryResponse,
     operation_id="read_only_get_account_metric_summary",
+    responses=RESOURCE_ERRORS,
 )
 def account_metric_summary(
     account_id: int,
@@ -190,6 +206,7 @@ def account_metric_summary(
     "/job-runs",
     response_model=PaginatedResponse[JobRunResponse],
     operation_id="read_only_list_job_runs",
+    responses=VALIDATION_AND_DATABASE_ERRORS,
 )
 def list_job_runs(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
@@ -204,7 +221,10 @@ def list_job_runs(
 
 
 @router.get(
-    "/job-runs/latest", response_model=JobRunResponse, operation_id="read_only_get_latest_job_run"
+    "/job-runs/latest",
+    response_model=JobRunResponse,
+    operation_id="read_only_get_latest_job_run",
+    responses=RESOURCE_ERRORS,
 )
 def latest_job_run(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
@@ -218,12 +238,18 @@ def latest_job_run(
 
 
 @router.get(
-    "/sync-status", response_model=list[SyncStatusResponse], operation_id="read_only_sync_status"
+    "/sync-status",
+    response_model=PaginatedResponse[SyncStatusResponse],
+    operation_id="read_only_sync_status",
+    responses=VALIDATION_AND_DATABASE_ERRORS,
 )
 def sync_status(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
-) -> list[SyncStatusResponse]:
-    return [
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[SyncStatusResponse]:
+    rows, total = repository.sync_status(limit, offset)
+    items = [
         SyncStatusResponse(
             account_id=a.id,
             platform=a.platform,
@@ -236,5 +262,6 @@ def sync_status(
             records_processed=j.records_processed if j else None,
             last_success_at=s,
         )
-        for a, j, s in repository.sync_status()
+        for a, j, s in rows
     ]
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)

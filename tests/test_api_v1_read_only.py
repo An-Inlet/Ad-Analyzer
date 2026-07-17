@@ -2,6 +2,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from sqlite3 import Connection as SQLiteConnection
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -71,6 +72,7 @@ def seed(db: Session) -> dict[str, int]:
         status="ENABLED",
     )
     db.add_all([ag1, ag2])
+    db.flush()
     db.add_all(
         [
             DailyMetric(
@@ -96,6 +98,18 @@ def seed(db: Session) -> dict[str, int]:
                 cost_micros=0,
                 conversions=Decimal("0"),
                 conversion_value_micros=0,
+            ),
+            DailyMetric(
+                platform=c1.platform,
+                metric_date=date(2026, 7, 1),
+                entity_type="ad_group",
+                entity_id=ag1.id,
+                campaign_id=c1.id,
+                impressions=999,
+                clicks=999,
+                cost_micros=999_000_000,
+                conversions=Decimal("99"),
+                conversion_value_micros=999_000_000,
             ),
         ]
     )
@@ -167,7 +181,8 @@ def test_accounts_campaigns_scoping_metrics_jobs_and_sync_status() -> None:
         metrics = client.get(
             f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-02"
         ).json()
-        assert [row["metric_date"] for row in metrics] == ["2026-07-01", "2026-07-02"]
+        assert metrics["total"] == 2
+        assert [row["metric_date"] for row in metrics["items"]] == ["2026-07-01", "2026-07-02"]
         summary = client.get(
             f"/api/v1/accounts/{ids['a1']}/metrics/summary?date_from=2026-07-01&date_to=2026-07-02"
         ).json()
@@ -179,7 +194,7 @@ def test_accounts_campaigns_scoping_metrics_jobs_and_sync_status() -> None:
         assert zero["ctr"] == "0" and zero["cost_per_conversion_micros"] == "0"
         assert client.get("/api/v1/job-runs").json()["total"] == 2
         assert client.get("/api/v1/job-runs/latest").json()["status"] == "failed"
-        assert client.get("/api/v1/sync-status").json()[0]["latest_status"] == "failed"
+        assert client.get("/api/v1/sync-status").json()["items"][0]["latest_status"] == "failed"
 
 
 def test_errors_pagination_limits_no_collectors_and_no_writes() -> None:
@@ -242,3 +257,156 @@ def test_database_failure_returns_sanitized_503() -> None:
         app.dependency_overrides.clear()
     assert response.status_code == 503
     assert response.json() == {"detail": "database temporarily unavailable"}
+
+
+def test_campaign_metrics_are_canonical_and_paginated() -> None:
+    with make_client() as (client, db, ids):
+        campaign = db.get(Campaign, ids["c1"])
+        assert campaign is not None
+        db.add(
+            DailyMetric(
+                platform=campaign.platform,
+                metric_date=date(2026, 7, 3),
+                entity_type="campaign",
+                entity_id=campaign.id,
+                campaign_id=campaign.id,
+                impressions=5,
+                clicks=1,
+                cost_micros=100,
+                conversions=Decimal("0"),
+                conversion_value_micros=0,
+            )
+        )
+        db.commit()
+
+        first_page = client.get(
+            f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-03&limit=1"
+        ).json()
+        second_page = client.get(
+            f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-03&limit=1&offset=1"
+        ).json()
+
+        assert first_page["limit"] == 1 and first_page["offset"] == 0 and first_page["total"] == 3
+        assert first_page["items"][0]["impressions"] == 100
+        assert second_page["items"][0]["metric_date"] == "2026-07-02"
+        assert client.get(
+            f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-03&limit=101"
+        ).status_code == 422
+
+
+def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> None:
+    with make_client() as (client, db, ids):
+        a1 = db.get(AdvertisingAccount, ids["a1"])
+        a2 = db.get(AdvertisingAccount, ids["a2"])
+        assert a1 is not None and a2 is not None
+        same_start = datetime(2026, 7, 17, tzinfo=UTC)
+        db.add_all(
+            [
+                JobRun(
+                    platform=a1.platform,
+                    account_id=a1.id,
+                    job_name="sync",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=same_start,
+                    finished_at=same_start,
+                    records_processed=8,
+                ),
+                JobRun(
+                    platform=a1.platform,
+                    account_id=a1.id,
+                    job_name="sync",
+                    status=JobRunStatus.FAILED,
+                    started_at=same_start,
+                    finished_at=same_start,
+                    records_processed=9,
+                ),
+                JobRun(
+                    platform=a2.platform,
+                    account_id=a2.id,
+                    job_name="sync",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=datetime(2026, 7, 15, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 15, tzinfo=UTC),
+                    records_processed=4,
+                ),
+                JobRun(
+                    platform=a1.platform,
+                    account_id=a1.id,
+                    job_name="backfill",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=datetime(2026, 7, 14, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 14, tzinfo=UTC),
+                    records_processed=11,
+                ),
+                JobRun(
+                    platform=a1.platform,
+                    account_id=None,
+                    job_name="platform-sync",
+                    status=JobRunStatus.FAILED,
+                    started_at=datetime(2026, 7, 18, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 18, tzinfo=UTC),
+                    records_processed=0,
+                ),
+            ]
+        )
+        db.commit()
+
+        first = client.get("/api/v1/sync-status?limit=1").json()
+        second = client.get("/api/v1/sync-status?limit=1&offset=1").json()
+        latest = client.get(f"/api/v1/job-runs/latest?account_id={ids['a1']}").json()
+
+        assert first["total"] == 2 and first["items"][0]["account_id"] == ids["a1"]
+        assert first["items"][0]["latest_status"] == "failed"
+        assert first["items"][0]["records_processed"] == 9
+        assert second["items"][0]["account_id"] == ids["a2"]
+        assert second["items"][0]["latest_status"] == "succeeded"
+        assert latest["records_processed"] == 9
+
+
+def test_sync_status_uses_a_bounded_set_based_query() -> None:
+    with make_client() as (client, db, _ids):
+        statements: list[str] = []
+
+        def before_cursor_execute(_conn, _cursor, statement: str, _params, _context, _many) -> None:  # type: ignore[no-untyped-def]
+            statements.append(statement)
+
+        event.listen(db.get_bind(), "before_cursor_execute", before_cursor_execute)
+        try:
+            response = client.get("/api/v1/sync-status")
+        finally:
+            event.remove(db.get_bind(), "before_cursor_execute", before_cursor_execute)
+        assert response.status_code == 200
+        selects = [
+            statement for statement in statements if statement.lstrip().upper().startswith("SELECT")
+        ]
+        assert len(selects) <= 2
+        assert "ROW_NUMBER() OVER" in selects[-1].upper()
+
+
+def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
+    index_names = {index.name for index in Base.metadata.tables["job_runs"].indexes}
+    assert {"ix_job_runs_account_started_id", "ix_job_runs_account_status_finished"} <= index_names
+    migration = Path("migrations/versions/20260717_0003_job_run_sync_status_indexes.py").read_text()
+    assert "ix_job_runs_account_started_id" in migration
+    assert "ix_job_runs_account_status_finished" in migration
+
+    schema = TestClient(app).get("/openapi.json").json()
+    assert "ApiErrorResponse" in schema["components"]["schemas"]
+    expected = {
+        "/api/v1/accounts/{account_id}",
+        "/api/v1/accounts/{account_id}/campaigns",
+        "/api/v1/campaigns/{campaign_id}",
+        "/api/v1/campaigns/{campaign_id}/ad-groups",
+        "/api/v1/campaigns/{campaign_id}/metrics",
+        "/api/v1/accounts/{account_id}/metrics/summary",
+        "/api/v1/job-runs/latest",
+    }
+    for path in expected:
+        responses = schema["paths"][path]["get"]["responses"]
+        assert {"404", "422", "503"} <= set(responses)
+        assert responses["404"]["content"]["application/json"]["schema"]["$ref"].endswith(
+            "/ApiErrorResponse"
+        )
+    for path in {"/api/v1/accounts", "/api/v1/job-runs", "/api/v1/sync-status"}:
+        responses = schema["paths"][path]["get"]["responses"]
+        assert {"422", "503"} <= set(responses)

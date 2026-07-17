@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
@@ -52,6 +53,12 @@ logger = logging.getLogger(__name__)
 def database_error_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:
     logger.warning("database operation failed for read-only API: %s", exc.__class__.__name__)
     return JSONResponse(status_code=503, content={"detail": "database temporarily unavailable"})
+
+
+@app.exception_handler(RequestValidationError)
+def validation_error_handler(_request: Request, _exc: RequestValidationError) -> JSONResponse:
+    """Return a stable, sanitized error envelope documented by the API schema."""
+    return JSONResponse(status_code=422, content={"detail": "invalid request parameters"})
 
 
 app.include_router(api_v1_router)

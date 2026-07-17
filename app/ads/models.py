@@ -336,7 +336,11 @@ class ConversionEvent(TimestampMixin, Base):
 
 class JobRun(TimestampMixin, Base):
     __tablename__ = "job_runs"
-    __table_args__ = (Index("ix_job_runs_platform_started", "platform", "started_at"),)
+    __table_args__ = (
+        Index("ix_job_runs_platform_started", "platform", "started_at"),
+        Index("ix_job_runs_account_started_id", "account_id", "started_at", "id"),
+        Index("ix_job_runs_account_status_finished", "account_id", "status", "finished_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)

@@ -143,6 +143,11 @@ $env:DENTICODE_API_TOKEN = "<your locally generated opaque token>"
 uvicorn app.main:app --reload
 ```
 
+For local loopback HTTP only, also set `DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP=true`.
+This development-only opt-in is rejected for non-loopback hosts; deployed dashboard cookies always
+use the `Secure` attribute. Dashboard sessions are process-local, bounded, and therefore require
+a single worker (or future shared session storage) for reliable multi-worker navigation.
+
 Open `http://127.0.0.1:8000/dashboard` through an operator tool that can send an
 `Authorization: Bearer <token>` request on the first visit. The server validates that header
 using the same boundary as `/api/v1`, then creates a short-lived opaque, HTTP-only dashboard

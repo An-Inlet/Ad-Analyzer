@@ -34,6 +34,8 @@ class ReadOnlyAdsRepository:
 
     def dashboard_accounts(
         self,
+        limit: int,
+        offset: int,
     ) -> tuple[list[tuple[AdvertisingAccount, int, JobRun | None, Any]], int]:
         """Return overview rows in bounded queries, without loading campaigns per account."""
         campaign_counts = (
@@ -87,7 +89,7 @@ class ReadOnlyAdsRepository:
         total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0
         return cast(
             list[tuple[AdvertisingAccount, int, JobRun | None, Any]],
-            self.session.execute(stmt).all(),
+            self.session.execute(stmt.limit(limit).offset(offset)).all(),
         ), total
 
     def account_sync_status(self, account_id: int) -> tuple[JobRun | None, Any]:

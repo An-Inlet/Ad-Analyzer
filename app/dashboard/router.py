@@ -4,13 +4,19 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import default_dates, ratios
-from app.dashboard.auth import require_dashboard_session
+from app.dashboard.auth import (
+    COOKIE_NAME,
+    cookie_secure,
+    require_dashboard_session,
+    revoke_session,
+    validate_csrf,
+)
 from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
 
@@ -24,8 +30,8 @@ def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
 
 
-def page_context(**values: object) -> dict[str, object]:
-    return {"read_only": True, **values}
+def page_context(request: Request, **values: object) -> dict[str, object]:
+    return {"read_only": True, "csrf_token": getattr(request.state, "dashboard_csrf", ""), **values}
 
 
 def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, date]:
@@ -37,19 +43,25 @@ def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, dat
 
 @router.get("", response_class=HTMLResponse)
 def overview(
-    request: Request, repository: Annotated[ReadOnlyAdsRepository, Depends(repo)]
+    request: Request,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ) -> HTMLResponse:
-    accounts, total = repository.dashboard_accounts()
+    accounts, total = repository.dashboard_accounts(limit, offset)
     jobs, job_total = repository.list_job_runs(None, None, None, 10, 0)
     return templates.TemplateResponse(
         request,
         "overview.html",
         page_context(
+            request,
             accounts=accounts,
             total=total,
             jobs=jobs,
             job_total=job_total,
             title="Dashboard",
+            limit=limit,
+            offset=offset,
         ),
     )
 
@@ -82,6 +94,7 @@ def account_detail(
         request,
         "account.html",
         page_context(
+            request,
             title=account.name,
             account=account,
             campaigns=campaigns,
@@ -96,6 +109,24 @@ def account_detail(
             sync=sync,
         ),
     )
+
+
+@router.post("/logout")
+async def logout(request: Request) -> RedirectResponse:
+    """Revoke the current session; only a same-origin CSRF-protected POST may do so."""
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    revoke_session(request.cookies.get(COOKIE_NAME))
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie(
+        COOKIE_NAME,
+        path="/dashboard",
+        httponly=True,
+        samesite="strict",
+        secure=cookie_secure(request),
+    )
+    return response
 
 
 @router.get("/campaigns/{campaign_id}", response_class=HTMLResponse)
@@ -118,6 +149,7 @@ def campaign_detail(
         request,
         "campaign.html",
         page_context(
+            request,
             title=campaign.name,
             campaign=campaign,
             groups=groups,
@@ -143,5 +175,5 @@ def job_runs(
     return templates.TemplateResponse(
         request,
         "job_runs.html",
-        page_context(title="Job runs", jobs=jobs, total=total, limit=limit, offset=offset),
+        page_context(request, title="Job runs", jobs=jobs, total=total, limit=limit, offset=offset),
     )

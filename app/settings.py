@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     denticode_api_token: SecretStr | None = Field(
         default=None, validation_alias="DENTICODE_API_TOKEN"
     )
+    denticode_dashboard_allow_insecure_local_http: bool = Field(
+        default=False, validation_alias="DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP"
+    )
     google_ads_developer_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_DEVELOPER_TOKEN"
     )

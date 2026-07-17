@@ -81,4 +81,19 @@ async def dashboard_security_headers(request: Request, call_next: object) -> obj
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        if not request.url.path.startswith("/dashboard/assets"):
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        session_id = getattr(request.state, "dashboard_new_session", None)
+        if session_id is not None:
+            response.set_cookie(
+                "denticode_dashboard_session",
+                session_id,
+                max_age=8 * 60 * 60,
+                httponly=True,
+                samesite="strict",
+                secure=request.state.dashboard_cookie_secure,
+                path="/dashboard",
+            )
     return response

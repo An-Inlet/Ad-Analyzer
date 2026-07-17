@@ -4,7 +4,7 @@ import re
 from secrets import compare_digest
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.settings import settings
@@ -28,6 +28,7 @@ def authentication_failed() -> HTTPException:
 
 
 def require_api_token(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> None:
     """Require the configured bearer token without exposing authentication details."""
@@ -37,6 +38,11 @@ def require_api_token(
     expected_value = expected_token.get_secret_value()
     if not _is_valid_token(expected_value):
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
+    authorization_headers = [
+        value for name, value in request.scope["headers"] if name.lower() == b"authorization"
+    ]
+    if len(authorization_headers) != 1:
+        raise authentication_failed()
     if credentials is None or not _is_valid_token(credentials.credentials):
         raise authentication_failed()
     if not compare_digest(

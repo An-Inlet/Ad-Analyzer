@@ -28,6 +28,8 @@ from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 from sqlalchemy.schema import CreateIndex
 from starlette.types import Message, Scope
 
+RawResponse = tuple[int, list[tuple[bytes, bytes]], bytes]
+
 
 def enable_fk(dbapi_connection: SQLiteConnection, _connection_record: ConnectionPoolEntry) -> None:
     dbapi_connection.execute("PRAGMA foreign_keys=ON")
@@ -358,6 +360,77 @@ def test_invalid_raw_bearer_headers_return_generic_401(
     assert (b"www-authenticate", b"Bearer") in response_start["headers"]
     assert response_body == b'{"detail":"authentication failed"}'
     assert token.encode() not in response_body and credential not in response_body
+
+
+def raw_api_response(headers: list[tuple[bytes, bytes]]) -> RawResponse:
+    messages: list[Message] = []
+    scope: Scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/api/v1/accounts",
+        "raw_path": b"/api/v1/accounts",
+        "query_string": b"",
+        "headers": headers,
+        "client": ("testclient", 50000),
+        "server": ("testserver", 80),
+    }
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        messages.append(message)
+
+    asyncio.run(app(scope, receive, send))
+    response_start = next(
+        message for message in messages if message["type"] == "http.response.start"
+    )
+    response_body = b"".join(
+        message.get("body", b"") for message in messages if message["type"] == "http.response.body"
+    )
+    return response_start["status"], response_start["headers"], response_body
+
+
+def test_duplicate_authorization_headers_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    token = operator_token()
+    other_token = operator_token()
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    valid = b"Bearer " + token.encode()
+    invalid = b"Bearer invalid"
+    duplicate_cases: tuple[list[tuple[bytes, bytes]], ...] = (
+        [],
+        [(b"authorization", valid), (b"authorization", invalid)],
+        [(b"authorization", invalid), (b"authorization", valid)],
+        [(b"authorization", valid), (b"authorization", valid)],
+        [(b"authorization", valid), (b"authorization", b"Bearer " + other_token.encode())],
+        [(b"authorization", valid), (b"authorization", b"Basic ignored")],
+        [(b"Authorization", valid), (b"aUtHoRiZaTiOn", invalid)],
+    )
+    for headers in duplicate_cases:
+        status, response_headers, response_body = raw_api_response(headers)
+        assert status == 401
+        assert (b"www-authenticate", b"Bearer") in response_headers
+        assert response_body == b'{"detail":"authentication failed"}'
+        assert token.encode() not in response_body and other_token.encode() not in response_body
+
+
+def test_duplicate_non_authorization_headers_do_not_change_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = operator_token()
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    status, _headers, body = raw_api_response(
+        [
+            (b"authorization", b"Bearer " + token.encode()),
+            (b"x-request-id", b"one"),
+            (b"X-Request-ID", b"two"),
+        ]
+    )
+    assert status != 401
+    assert token.encode() not in body
 
 
 def test_api_v1_valid_auth_and_invalid_configuration_fail_closed(

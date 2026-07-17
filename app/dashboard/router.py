@@ -35,6 +35,10 @@ def page_context(request: Request, **values: object) -> dict[str, object]:
     return {"read_only": True, "csrf_token": getattr(request.state, "dashboard_csrf", ""), **values}
 
 
+def has_next(offset: int, limit: int, returned: int, total: int) -> bool:
+    return offset + returned < total and offset + limit <= DASHBOARD_MAX_OFFSET
+
+
 def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, date]:
     try:
         return default_dates(date_from, date_to)
@@ -63,6 +67,7 @@ def overview(
             title="Dashboard",
             limit=limit,
             offset=offset,
+            has_next=has_next(offset, limit, len(accounts), total),
         ),
     )
 
@@ -108,6 +113,7 @@ def account_detail(
             ctr=ctr,
             cpa=cpa,
             sync=sync,
+            has_next=has_next(offset, limit, len(campaigns), total),
         ),
     )
 
@@ -167,6 +173,8 @@ def campaign_detail(
             ad_group_offset=ad_group_offset,
             metric_limit=metric_limit,
             metric_offset=metric_offset,
+            has_next_ad_groups=has_next(ad_group_offset, ad_group_limit, len(groups), group_total),
+            has_next_metrics=has_next(metric_offset, metric_limit, len(metrics), metric_total),
             date_from=start,
             date_to=end,
         ),
@@ -184,5 +192,13 @@ def job_runs(
     return templates.TemplateResponse(
         request,
         "job_runs.html",
-        page_context(request, title="Job runs", jobs=jobs, total=total, limit=limit, offset=offset),
+        page_context(
+            request,
+            title="Job runs",
+            jobs=jobs,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_next=has_next(offset, limit, len(jobs), total),
+        ),
     )

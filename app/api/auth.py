@@ -27,9 +27,21 @@ def authentication_failed() -> HTTPException:
     )
 
 
+def _parse_bearer_credential(value: bytes) -> str | None:
+    """Parse one raw Authorization field without normalizing its credential."""
+    try:
+        scheme, credential = value.split(b" ")
+        decoded_credential = credential.decode("ascii")
+    except (UnicodeDecodeError, ValueError):
+        return None
+    if scheme.lower() != b"bearer" or not decoded_credential:
+        return None
+    return decoded_credential
+
+
 def require_api_token(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    _credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> None:
     """Require the configured bearer token without exposing authentication details."""
     expected_token = settings.denticode_api_token
@@ -38,14 +50,15 @@ def require_api_token(
     expected_value = expected_token.get_secret_value()
     if not _is_valid_token(expected_value):
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
-    authorization_headers = [
+    authorization_headers: list[bytes] = [
         value for name, value in request.scope["headers"] if name.lower() == b"authorization"
     ]
     if len(authorization_headers) != 1:
         raise authentication_failed()
-    if credentials is None or not _is_valid_token(credentials.credentials):
+    presented_value = _parse_bearer_credential(authorization_headers[0])
+    if presented_value is None or not _is_valid_token(presented_value):
         raise authentication_failed()
     if not compare_digest(
-        credentials.credentials.encode("ascii"), expected_value.encode("ascii")
+        presented_value.encode("ascii"), expected_value.encode("ascii")
     ):
         raise authentication_failed()

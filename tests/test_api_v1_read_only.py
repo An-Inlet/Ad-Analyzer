@@ -433,6 +433,50 @@ def test_duplicate_non_authorization_headers_do_not_change_authentication(
     assert token.encode() not in body
 
 
+def test_raw_authorization_header_name_casing_authenticates_consistently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = operator_token()
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    with make_client(bypass_auth=False) as (_client, _db, _ids):
+        for header_name in (b"authorization", b"AUTHORIZATION", b"aUtHoRiZaTiOn"):
+            status, _headers, _body = raw_api_response(
+                [(header_name, b"bEaReR " + token.encode())]
+            )
+            assert status == 200
+        status, response_headers, body = raw_api_response(
+            [(b"AUTHORIZATION", b"Bearer invalid")]
+        )
+        assert status == 401
+        assert (b"www-authenticate", b"Bearer") in response_headers
+        assert body == b'{"detail":"authentication failed"}'
+
+
+@pytest.mark.parametrize(
+    "authorization_value",
+    [
+        b"Basic ignored",
+        b"Bearer",
+        b"Bearer ",
+        b"Bearer  token",
+        b"Bearer\ttoken",
+        b"Bearer token extra",
+        b"Bearer \x00",
+        b"Bearer \xff",
+    ],
+)
+def test_malformed_raw_bearer_format_returns_generic_401(
+    monkeypatch: pytest.MonkeyPatch, authorization_value: bytes
+) -> None:
+    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(operator_token()))
+    status, response_headers, body = raw_api_response(
+        [(b"aUtHoRiZaTiOn", authorization_value)]
+    )
+    assert status == 401
+    assert (b"www-authenticate", b"Bearer") in response_headers
+    assert body == b'{"detail":"authentication failed"}'
+
+
 def test_api_v1_valid_auth_and_invalid_configuration_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

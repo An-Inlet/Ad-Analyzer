@@ -129,3 +129,31 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&lim
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_from=2026-07-01&date_to=2026-07-31" -Headers $headers
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads" -Headers $headers
 ```
+
+## Local operator dashboard (Phase 6)
+
+The server-rendered local dashboard is strictly read-only. It displays already-synchronized
+local database data only; it never invokes collectors, starts a sync, contacts Google Ads, or
+changes advertising accounts, campaigns, budgets, bids, audiences, or conversions.
+
+Set a locally generated `DENTICODE_API_TOKEN` before startup (never commit the value), then run:
+
+```powershell
+$env:DENTICODE_API_TOKEN = "<your locally generated opaque token>"
+uvicorn app.main:app --reload
+```
+
+For local loopback HTTP only, also set `DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP=true`.
+This development-only opt-in is rejected for non-loopback hosts; deployed dashboard cookies always
+use the `Secure` attribute. Dashboard sessions are process-local, bounded, and therefore require
+a single worker (or future shared session storage) for reliable multi-worker navigation.
+
+Open `http://127.0.0.1:8000/dashboard` through an operator tool that can send an
+`Authorization: Bearer <token>` request on the first visit. The server validates that header
+using the same boundary as `/api/v1`, then creates a short-lived opaque, HTTP-only dashboard
+session. The bearer token is never put into dashboard URLs, HTML, JavaScript, storage, cookies,
+or logs. Later dashboard requests use only that session.
+
+Dashboard routes are `GET /dashboard`, `GET /dashboard/accounts/{account_id}`,
+`GET /dashboard/campaigns/{campaign_id}`, and `GET /dashboard/job-runs`. All require operator
+authentication. The public `GET /` and `GET /health` routes remain unchanged.

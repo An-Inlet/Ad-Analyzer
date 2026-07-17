@@ -142,11 +142,14 @@ def seed(db: Session) -> dict[str, int]:
 
 
 @contextmanager
-def make_client() -> Generator[tuple[TestClient, Session, dict[str, int]], None, None]:
+def make_client(
+    *, foreign_keys: bool = True
+) -> Generator[tuple[TestClient, Session, dict[str, int]], None, None]:
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    event.listen(engine, "connect", enable_fk)
+    if foreign_keys:
+        event.listen(engine, "connect", enable_fk)
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine)
     db = SessionLocal()
@@ -383,12 +386,107 @@ def test_sync_status_uses_a_bounded_set_based_query() -> None:
         assert "ROW_NUMBER() OVER" in selects[-1].upper()
 
 
+def test_sync_status_ignores_cross_platform_job_runs() -> None:
+    with make_client(foreign_keys=False) as (client, db, ids):
+        google_account = db.get(AdvertisingAccount, ids["a1"])
+        assert google_account is not None
+        meta_account = AdvertisingAccount(
+            platform=AdvertisingPlatform.META_ADS,
+            external_account_id="meta-100",
+            name="Meta account",
+            currency_code="USD",
+            time_zone="UTC",
+        )
+        db.add(meta_account)
+        db.flush()
+        correct_success = datetime(2026, 7, 17, tzinfo=UTC)
+        db.add_all(
+            [
+                JobRun(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    account_id=google_account.id,
+                    job_name="sync",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=correct_success,
+                    finished_at=correct_success,
+                    records_processed=12,
+                ),
+                JobRun(
+                    platform=AdvertisingPlatform.META_ADS,
+                    account_id=google_account.id,
+                    job_name="malformed",
+                    status=JobRunStatus.FAILED,
+                    started_at=datetime(2026, 7, 20, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 20, tzinfo=UTC),
+                    records_processed=100,
+                ),
+                JobRun(
+                    platform=AdvertisingPlatform.META_ADS,
+                    account_id=meta_account.id,
+                    job_name="sync",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=correct_success,
+                    finished_at=correct_success,
+                    records_processed=13,
+                ),
+                JobRun(
+                    platform=AdvertisingPlatform.META_ADS,
+                    account_id=meta_account.id,
+                    job_name="sync",
+                    status=JobRunStatus.FAILED,
+                    started_at=datetime(2026, 7, 18, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 18, tzinfo=UTC),
+                    records_processed=14,
+                ),
+                JobRun(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    account_id=meta_account.id,
+                    job_name="malformed",
+                    status=JobRunStatus.SUCCEEDED,
+                    started_at=datetime(2026, 7, 20, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 20, tzinfo=UTC),
+                    records_processed=101,
+                ),
+                JobRun(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    account_id=None,
+                    job_name="platform-sync",
+                    status=JobRunStatus.FAILED,
+                    started_at=datetime(2026, 7, 21, tzinfo=UTC),
+                    finished_at=datetime(2026, 7, 21, tzinfo=UTC),
+                    records_processed=102,
+                ),
+            ]
+        )
+        db.commit()
+
+        response = client.get("/api/v1/sync-status").json()
+        statuses = {item["account_id"]: item for item in response["items"]}
+
+        assert statuses[google_account.id]["latest_status"] == "succeeded"
+        assert statuses[google_account.id]["records_processed"] == 12
+        assert statuses[google_account.id]["last_success_at"].startswith("2026-07-17")
+        assert statuses[meta_account.id]["latest_status"] == "failed"
+        assert statuses[meta_account.id]["records_processed"] == 14
+        assert statuses[meta_account.id]["last_success_at"].startswith("2026-07-17")
+
+
 def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
     index_names = {index.name for index in Base.metadata.tables["job_runs"].indexes}
     assert {"ix_job_runs_account_started_id", "ix_job_runs_account_status_finished"} <= index_names
+    foreign_keys = Base.metadata.tables["job_runs"].foreign_key_constraints
+    job_run_account_fk = next(
+        fk for fk in foreign_keys if fk.name == "fk_job_runs_account_platform"
+    )
+    assert [column.name for column in job_run_account_fk.columns] == ["account_id", "platform"]
     migration = Path("migrations/versions/20260717_0003_job_run_sync_status_indexes.py").read_text()
     assert "ix_job_runs_account_started_id" in migration
     assert "ix_job_runs_account_status_finished" in migration
+    composite_fk_migration = Path(
+        "migrations/versions/20260717_0004_job_run_account_platform_foreign_key.py"
+    ).read_text()
+    assert "fk_job_runs_account_platform" in composite_fk_migration
+    assert "job_runs_account_id_fkey" in composite_fk_migration
 
     schema = TestClient(app).get("/openapi.json").json()
     assert "ApiErrorResponse" in schema["components"]["schemas"]

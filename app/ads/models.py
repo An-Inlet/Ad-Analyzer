@@ -337,6 +337,12 @@ class ConversionEvent(TimestampMixin, Base):
 class JobRun(TimestampMixin, Base):
     __tablename__ = "job_runs"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "platform"],
+            ["advertising_accounts.id", "advertising_accounts.platform"],
+            name="fk_job_runs_account_platform",
+            ondelete="SET NULL",
+        ),
         Index("ix_job_runs_platform_started", "platform", "started_at"),
         Index("ix_job_runs_account_started_id", "account_id", "started_at", "id"),
         Index("ix_job_runs_account_status_finished", "account_id", "status", "finished_at"),
@@ -344,9 +350,7 @@ class JobRun(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
-    account_id: Mapped[int | None] = mapped_column(
-        ForeignKey("advertising_accounts.id", ondelete="SET NULL")
-    )
+    account_id: Mapped[int | None] = mapped_column(Integer)
     job_name: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[JobRunStatus] = mapped_column(
         job_status_enum, default=JobRunStatus.PENDING, nullable=False

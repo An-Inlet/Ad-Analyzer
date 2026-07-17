@@ -141,12 +141,13 @@ class ReadOnlyAdsRepository:
         self, limit: int, offset: int
     ) -> tuple[list[tuple[AdvertisingAccount, JobRun | None, Any]], int]:
         latest_rank = func.row_number().over(
-            partition_by=JobRun.account_id,
+            partition_by=(JobRun.account_id, JobRun.platform),
             order_by=(JobRun.started_at.desc(), JobRun.id.desc()),
         )
         ranked_runs = (
             select(
                 JobRun.account_id.label("account_id"),
+                JobRun.platform.label("platform"),
                 JobRun.id.label("job_run_id"),
                 latest_rank.label("rank"),
             )
@@ -154,24 +155,37 @@ class ReadOnlyAdsRepository:
             .subquery()
         )
         latest_runs = (
-            select(ranked_runs.c.account_id, ranked_runs.c.job_run_id)
+            select(ranked_runs.c.account_id, ranked_runs.c.platform, ranked_runs.c.job_run_id)
             .where(ranked_runs.c.rank == 1)
             .subquery()
         )
         last_success = (
             select(
                 JobRun.account_id.label("account_id"),
+                JobRun.platform.label("platform"),
                 func.max(JobRun.finished_at).label("last_success_at"),
             )
             .where(JobRun.account_id.is_not(None), JobRun.status == JobRunStatus.SUCCEEDED)
-            .group_by(JobRun.account_id)
+            .group_by(JobRun.account_id, JobRun.platform)
             .subquery()
         )
         stmt = (
             select(AdvertisingAccount, JobRun, last_success.c.last_success_at)
-            .outerjoin(latest_runs, latest_runs.c.account_id == AdvertisingAccount.id)
+            .outerjoin(
+                latest_runs,
+                and_(
+                    latest_runs.c.account_id == AdvertisingAccount.id,
+                    latest_runs.c.platform == AdvertisingAccount.platform,
+                ),
+            )
             .outerjoin(JobRun, JobRun.id == latest_runs.c.job_run_id)
-            .outerjoin(last_success, last_success.c.account_id == AdvertisingAccount.id)
+            .outerjoin(
+                last_success,
+                and_(
+                    last_success.c.account_id == AdvertisingAccount.id,
+                    last_success.c.platform == AdvertisingAccount.platform,
+                ),
+            )
             .order_by(AdvertisingAccount.id.asc())
         )
         total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0

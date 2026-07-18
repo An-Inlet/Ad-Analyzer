@@ -25,7 +25,6 @@ from app.ads.services import (
     GoogleAdsSyncService,
     Phase7SyncCapability,
     SyncFailureClassification,
-    _new_phase7_sync_capability,
 )
 from app.collectors.google_ads import GoogleAdsRateLimitError
 from app.settings import Settings
@@ -206,6 +205,90 @@ def _safe_jitter(random_value: Callable[[], Any]) -> float:
     if isinstance(raw, bool) or not isinstance(raw, int | float) or not math.isfinite(raw):
         return 0.0
     return min(1.0, max(0.0, float(raw)))
+
+
+_CAPABILITY_INTERRUPTED_ERROR = "Google Ads synchronization interrupted before retry."
+_CAPABILITY_LOCK_LOST_ERROR = "Google Ads synchronization lost advisory-lock ownership."
+
+
+class _WorkerPhase7SyncCapability(Phase7SyncCapability):
+    """Worker-private capability bound to one run_cycle invocation."""
+
+    __slots__ = (
+        "_lock",
+        "_connection",
+        "_session",
+        "_lock_key",
+        "_backend_pid",
+        "_stop_requested",
+        "_valid",
+    )
+
+    def __init__(
+        self,
+        *,
+        lock: object,
+        connection: object,
+        session: Session,
+        lock_key: int,
+        backend_pid: int | None,
+        stop_requested: Callable[[], bool],
+    ) -> None:
+        self._lock = lock
+        self._connection = connection
+        self._session = session
+        self._lock_key = lock_key
+        self._backend_pid = backend_pid
+        self._stop_requested = stop_requested
+        self._valid = True
+
+    def invalidate(self) -> None:
+        self._valid = False
+
+    def validate(self, session: Session) -> None:
+        if not self._valid:
+            raise GoogleAdsSyncError(
+                "Google Ads synchronization must be run through the Phase 7 worker.",
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if session is not self._session:
+            raise GoogleAdsSyncError(
+                "Google Ads synchronization must be run through the Phase 7 worker.",
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if self._stop_requested():
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_INTERRUPTED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if getattr(self._connection, "invalidated", False):
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
+            )
+        if getattr(self._lock, "key", None) != self._lock_key:
+            raise GoogleAdsSyncError(
+                "Google Ads synchronization must be run through the Phase 7 worker.",
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if getattr(self._lock, "backend_pid", None) != self._backend_pid:
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
+            )
+        owns_current_session = getattr(self._lock, "owns_current_session", None)
+        if not callable(owns_current_session) or not bool(owns_current_session(session)):
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
+            )
 
 
 def retry_delay(
@@ -438,7 +521,7 @@ def run_cycle(
             try:
                 _raise_if_stop_requested(stop_requested)
                 last_attempt = attempt
-                capability = _new_phase7_sync_capability(
+                capability = _WorkerPhase7SyncCapability(
                     lock=lock,
                     connection=connection,
                     session=session,

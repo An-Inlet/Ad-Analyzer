@@ -25,7 +25,7 @@ from app.jobs.reliability import (
     retry_delay,
     run_cycle,
 )
-from app.settings import Settings
+from app.settings import Settings, SyncAdvisoryLockConfigError
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -1413,7 +1413,7 @@ def test_sync_advisory_lock_key_invalid_environment_fails_closed(
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
-    with pytest.raises(ValidationError):
+    with pytest.raises((ValidationError, SyncAdvisoryLockConfigError)):
         Settings()
 
 
@@ -1470,10 +1470,10 @@ def test_phase7_capability_rejects_wrong_session_and_released_lock(
         invalidated = False
 
     with Session(sqlite_engine) as session, Session(sqlite_engine) as other_session:
-        from app.ads.services import _new_phase7_sync_capability
+        from app.jobs.reliability import _WorkerPhase7SyncCapability
 
         lock = Lock()
-        capability = _new_phase7_sync_capability(
+        capability = _WorkerPhase7SyncCapability(
             lock=lock,
             connection=Connection(),
             session=session,
@@ -1493,6 +1493,7 @@ def test_google_ads_sync_service_has_no_production_unlocked_sync_bypass() -> Non
     import app.ads.services as services_module
 
     assert not hasattr(services_module, "_CAPABILITY_TOKEN")
+    assert not hasattr(services_module, "_new_phase7_sync_capability")
     production_text = "\n".join(
         path.read_text() for path in Path("app").rglob("*.py")
     )
@@ -1534,8 +1535,9 @@ def test_sync_advisory_lock_key_conflict_inside_dotenv(
         "DENTICODE_SYNC_ADVISORY_LOCK_KEY=1\nDENTICODE_SYNC_LOCK_KEY=2\n"
     )
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings()
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
 def test_sync_advisory_lock_key_matching_dotenv_values(
@@ -1579,8 +1581,9 @@ def test_sync_advisory_lock_key_mixed_source_conflicts(
     monkeypatch.setenv(env_key, env_value)
     (tmp_path / ".env").write_text(dotenv_text)
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings()
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
 def test_sync_advisory_lock_key_matching_mixed_sources(
@@ -1596,14 +1599,16 @@ def test_sync_advisory_lock_key_matching_mixed_sources(
 
 
 def test_sync_advisory_lock_key_direct_construction_conflict() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings(DENTICODE_SYNC_ADVISORY_LOCK_KEY="1", DENTICODE_SYNC_LOCK_KEY="2")
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
 def test_phase7_capability_public_construction_and_copied_values_fail(
     sqlite_engine: Any,
 ) -> None:
-    from app.ads.services import Phase7SyncCapability, _new_phase7_sync_capability
+    from app.ads.services import Phase7SyncCapability
+    from app.jobs.reliability import _WorkerPhase7SyncCapability
 
     with pytest.raises(RuntimeError):
         Phase7SyncCapability()
@@ -1619,7 +1624,7 @@ def test_phase7_capability_public_construction_and_copied_values_fail(
         invalidated = False
 
     with Session(sqlite_engine) as session:
-        genuine = _new_phase7_sync_capability(
+        genuine = _WorkerPhase7SyncCapability(
             lock=Lock(),
             connection=Connection(),
             session=session,
@@ -1631,3 +1636,23 @@ def test_phase7_capability_public_construction_and_copied_values_fail(
         assert not hasattr(genuine, "__dict__")
         with pytest.raises(GoogleAdsSyncError):
             copied.validate(session)
+
+
+def test_worker_entrypoints_do_not_log_lock_conflict_values(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    from app.settings import SyncAdvisoryLockConfigError
+
+    secret_value = "lock-secret-12345"
+
+    def fail_loader() -> object:
+        _ = secret_value
+        raise SyncAdvisoryLockConfigError()
+
+    with caplog.at_level("ERROR"):
+        assert google_ads_sync_once.main(fail_loader) == google_ads_sync_once.FAILURE_EXIT_CODE
+        assert google_ads_scheduler.main(runtime_loader=fail_loader) == 1
+
+    assert secret_value not in caplog.text
+    assert "input_value" not in caplog.text
+    assert "Conflicting sync advisory lock key settings" not in caplog.text

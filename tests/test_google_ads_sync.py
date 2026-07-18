@@ -133,9 +133,9 @@ def make_phase7_capability(
     lock: Any | None = None,
     stop_requested: Callable[[], bool] | None = None,
 ) -> Any:
-    from app.ads.services import _new_phase7_sync_capability
+    from app.jobs.reliability import _WorkerPhase7SyncCapability
 
-    return _new_phase7_sync_capability(
+    return _WorkerPhase7SyncCapability(
         lock=lock or TestPhase7Lock(),
         connection=TestPhase7Connection(),
         session=session,

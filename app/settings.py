@@ -26,14 +26,48 @@ def _read_dotenv_lock_values() -> tuple[str | None, str | None]:
     return canonical, legacy
 
 
+class SyncAdvisoryLockConfigError(RuntimeError):
+    """Fixed sanitized sync advisory-lock configuration error."""
+
+    def __init__(self) -> None:
+        super().__init__("Conflicting sync advisory lock key settings.")
+
+
+def _lock_values_conflict(
+    data: dict[str, Any], dotenv_canonical: str | None, dotenv_legacy: str | None
+) -> bool:
+    canonical_values = [
+        value
+        for value in (
+            os.environ.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY"),
+            dotenv_canonical,
+            data.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY"),
+        )
+        if value is not None
+    ]
+    legacy_values = [
+        value
+        for value in (
+            os.environ.get("DENTICODE_SYNC_LOCK_KEY"),
+            dotenv_legacy,
+            data.get("DENTICODE_SYNC_LOCK_KEY"),
+        )
+        if value is not None
+    ]
+    return bool(
+        canonical_values
+        and legacy_values
+        and {str(value) for value in canonical_values}
+        != {str(value) for value in legacy_values}
+    )
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     def __init__(self, **data: Any) -> None:
-        canonical = data.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY")
-        legacy = data.get("DENTICODE_SYNC_LOCK_KEY")
-        if canonical is not None and legacy is not None and str(canonical) != str(legacy):
-            raise ValueError("conflicting sync advisory lock key settings")
+        if _lock_values_conflict(data, *_read_dotenv_lock_values()):
+            raise SyncAdvisoryLockConfigError()
         super().__init__(**data)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -92,38 +126,6 @@ class Settings(BaseSettings):
         ),
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def sync_lock_aliases_do_not_conflict(cls, data: Any) -> Any:
-        dotenv_canonical, dotenv_legacy = _read_dotenv_lock_values()
-        canonical_values = [
-            value
-            for value in (
-                os.environ.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY"),
-                dotenv_canonical,
-                data.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY")
-                if isinstance(data, dict)
-                else None,
-            )
-            if value is not None
-        ]
-        legacy_values = [
-            value
-            for value in (
-                os.environ.get("DENTICODE_SYNC_LOCK_KEY"),
-                dotenv_legacy,
-                data.get("DENTICODE_SYNC_LOCK_KEY") if isinstance(data, dict) else None,
-            )
-            if value is not None
-        ]
-        if (
-            canonical_values
-            and legacy_values
-            and {str(value) for value in canonical_values}
-            != {str(value) for value in legacy_values}
-        ):
-            raise ValueError("conflicting sync advisory lock key settings")
-        return data
 
     @model_validator(mode="after")
     def retry_bounds_are_valid(self) -> "Settings":

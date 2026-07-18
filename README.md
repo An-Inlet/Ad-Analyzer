@@ -157,3 +157,43 @@ or logs. Later dashboard requests use only that session.
 Dashboard routes are `GET /dashboard`, `GET /dashboard/accounts/{account_id}`,
 `GET /dashboard/campaigns/{campaign_id}`, and `GET /dashboard/job-runs`. All require operator
 authentication. The public `GET /` and `GET /health` routes remain unchanged.
+
+## Phase 7: separate Google Ads sync worker
+
+The API/dashboard process and the sync scheduler are deliberately separate processes.  FastAPI
+startup and lifespan hooks never schedule collection, so future API workers cannot multiply
+Google Ads requests.  Both the API sync-health view and dashboard panel read only local JobRun
+rows; neither can initiate a sync or call Google Ads.
+
+Run the API and scheduler in separate PowerShell windows:
+
+```powershell
+# Window 1
+python -m uvicorn app.main:app
+# Window 2
+python -m app.jobs.google_ads_scheduler
+```
+
+For a single production-oriented cycle use `python -m app.jobs.google_ads_sync_once`. The worker
+uses `DENTICODE_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
+`DENTICODE_SYNC_RUN_IMMEDIATELY` (default true), `DENTICODE_SYNC_MAX_ATTEMPTS` (1--5, default 3),
+`DENTICODE_SYNC_RETRY_BASE_SECONDS` (1--300, default 5),
+`DENTICODE_SYNC_RETRY_MAX_SECONDS` (1--900, default 60),
+`DENTICODE_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
+`DENTICODE_SYNC_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
+collection. Put only local values in an uncommitted `.env`; never commit `.env` or credentials.
+
+Each cycle obtains a nonblocking PostgreSQL advisory lock on a dedicated session before any
+collector call. A competing worker logs a safe overlap skip and creates no JobRun, so it cannot
+report an overlap as success. The lock remains held across retries and is released on success,
+failure, and shutdown. Retry is conservative: only recognized transient network/database/service
+failures retry with capped exponential backoff and bounded jitter; authentication, configuration,
+authorization, and unknown failures do not retry. Ctrl+C, SIGINT, and SIGTERM stop scheduling
+after the current synchronous cycle finishes and release resources deterministically.
+
+`GET /api/v1/operations/sync-health` is bearer-token protected and exposes bounded, read-only
+sync status. Healthy means the most recent successful sync is within the configured stale window;
+Stale means it is older (or absent), Failed means the latest attempt failed, Running means the
+latest JobRun is in progress, and Never Synced means no prior attempt exists. In production run
+the scheduler as its own supervised process; do not put it in Uvicorn, FastAPI startup, or a web
+request handler.

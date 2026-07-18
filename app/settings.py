@@ -1,4 +1,4 @@
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,33 @@ class Settings(BaseSettings):
     google_ads_refresh_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_REFRESH_TOKEN"
     )
+    sync_interval_minutes: int = Field(
+        default=60, ge=5, le=1440, validation_alias="DENTICODE_SYNC_INTERVAL_MINUTES"
+    )
+    sync_run_immediately: bool = Field(
+        default=True, validation_alias="DENTICODE_SYNC_RUN_IMMEDIATELY"
+    )
+    sync_max_attempts: int = Field(
+        default=3, ge=1, le=5, validation_alias="DENTICODE_SYNC_MAX_ATTEMPTS"
+    )
+    sync_retry_base_seconds: float = Field(
+        default=5, ge=1, le=300, validation_alias="DENTICODE_SYNC_RETRY_BASE_SECONDS"
+    )
+    sync_retry_max_seconds: float = Field(
+        default=60, ge=1, le=900, validation_alias="DENTICODE_SYNC_RETRY_MAX_SECONDS"
+    )
+    sync_stale_after_minutes: int = Field(
+        default=180, ge=1, le=10080, validation_alias="DENTICODE_SYNC_STALE_AFTER_MINUTES"
+    )
+    sync_lock_key: int = Field(
+        default=719_042_711, ge=-(2**63), le=2**63 - 1, validation_alias="DENTICODE_SYNC_LOCK_KEY"
+    )
+
+    @model_validator(mode="after")
+    def retry_bounds_are_valid(self) -> "Settings":
+        if self.sync_retry_max_seconds < self.sync_retry_base_seconds:
+            raise ValueError("sync retry maximum must not be lower than retry base")
+        return self
 
 
 settings = Settings()

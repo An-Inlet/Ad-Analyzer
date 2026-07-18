@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
+from app.ads.operations import sync_health
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
@@ -19,9 +20,11 @@ from app.api.schemas import (
     DailyMetricResponse,
     JobRunResponse,
     PaginatedResponse,
+    SyncHealthResponse,
     SyncStatusResponse,
 )
 from app.database.session import get_db
+from app.settings import settings
 
 router = APIRouter(
     prefix="/api/v1",
@@ -45,6 +48,16 @@ RESOURCE_ERRORS: dict[int | str, dict[str, Any]] = {
 
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
+
+
+@router.get(
+    "/operations/sync-health",
+    response_model=SyncHealthResponse,
+    operation_id="read_only_google_ads_sync_health",
+    responses=VALIDATION_AND_DATABASE_ERRORS,
+)
+def get_sync_health(db: Annotated[Session, Depends(get_db)]) -> SyncHealthResponse:
+    return SyncHealthResponse.model_validate(sync_health(db, settings).__dict__)
 
 
 def job_run_response(job_run: JobRun) -> JobRunResponse:

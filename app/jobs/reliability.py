@@ -6,6 +6,7 @@ import random
 import socket
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,6 +19,7 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.services import (
+    FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
     GoogleAdsSyncResult,
     GoogleAdsSyncService,
@@ -33,10 +35,20 @@ _TRANSIENT_CLASSIFICATIONS = {
     SyncFailureClassification.TRANSIENT_NETWORK,
     SyncFailureClassification.TRANSIENT_DATABASE,
 }
+INTERRUPTED_SYNC_ERROR = "Google Ads synchronization interrupted before retry."
+LOCK_LOST_SYNC_ERROR = "Google Ads synchronization lost advisory-lock ownership."
 
 
 class SyncOverlapSkipped(RuntimeError):
     """Raised internally when another worker owns the PostgreSQL lock."""
+
+
+class SyncShutdownRequested(RuntimeError):
+    """Raised after shutdown is requested during retry backoff."""
+
+
+class AdvisoryLockLostError(RuntimeError):
+    """Raised when the physical backend that owned the advisory lock is lost."""
 
 
 class PostgreSQLAdvisoryLock:
@@ -56,7 +68,6 @@ class PostgreSQLAdvisoryLock:
     def release(self) -> None:
         if not self.acquired:
             return
-        unlocked = False
         try:
             unlocked = bool(
                 self.connection.scalar(
@@ -72,8 +83,23 @@ class PostgreSQLAdvisoryLock:
             self.acquired = False
 
 
+def lock_ownership_lost(exc: BaseException) -> bool:
+    """Return true when the pinned backend session can no longer own the lock."""
+    return isinstance(exc, DBAPIError) and exc.connection_invalidated or bool(
+        getattr(exc, "lock_lost", False)
+    )
+
+
+def unknown_commit_outcome(exc: BaseException) -> bool:
+    return isinstance(exc, GoogleAdsSyncError) and (
+        exc.classification == SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    )
+
+
 def is_transient_failure(exc: BaseException) -> bool:
-    """Conservative classification: unknown and commit-outcome errors never retry."""
+    """Conservative classification: unknown, lock-loss, and commit outcomes never retry."""
+    if lock_ownership_lost(exc) or unknown_commit_outcome(exc):
+        return False
     if isinstance(exc, GoogleAdsSyncError):
         return exc.classification in _TRANSIENT_CLASSIFICATIONS
     if isinstance(exc, (TimeoutError, ConnectionError, socket.gaierror)):
@@ -81,12 +107,12 @@ def is_transient_failure(exc: BaseException) -> bool:
     if isinstance(exc, GoogleAdsRateLimitError):
         return True
     if isinstance(exc, DBAPIError) and exc.connection_invalidated:
-        return True
+        return False
     if isinstance(exc, OperationalError):
         code = getattr(getattr(exc, "orig", None), "pgcode", None) or getattr(
             getattr(exc, "orig", None), "sqlstate", None
         )
-        return code in {"40001", "40P01", "57014", "08000", "08003", "08006"}
+        return code in {"40001", "40P01", "57014"}
     code = getattr(exc, "code", None)
     return code in {429, 500, 502, 503, 504}
 
@@ -131,32 +157,63 @@ def _create_authoritative_job_run(session: Session) -> JobRun:
     return job_run
 
 
+def _safe_failure_summary(exc: BaseException, attempts: int) -> str:
+    if isinstance(exc, SyncShutdownRequested):
+        return INTERRUPTED_SYNC_ERROR
+    if isinstance(exc, AdvisoryLockLostError) or lock_ownership_lost(exc):
+        return LOCK_LOST_SYNC_ERROR
+    return f"Google Ads read-only sync failed ({type(exc).__name__}; attempts={attempts})"[:120]
+
+
 def _finalize_failed_job_run(
     session: Session, job_run: JobRun, exc: BaseException, attempts: int
 ) -> None:
-    with context_rollback(session):
+    commit_started = False
+    try:
+        session.rollback()
         job_run = session.merge(job_run)
         AdvertisingMetricsRepository(session).finish_job_run(
             job_run,
             status=JobRunStatus.FAILED,
             records_processed=0,
-            error_message=(
-                f"Google Ads read-only sync failed ({type(exc).__name__}; attempts={attempts})"
-            )[:120],
+            error_message=_safe_failure_summary(exc, attempts),
         )
+        session.flush()
+        commit_started = True
         session.commit()
+    except Exception as finalize_exc:
+        with suppress(Exception):
+            session.rollback()
+        if commit_started:
+            raise GoogleAdsSyncError(
+                FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
+                classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+                lock_lost=lock_ownership_lost(finalize_exc),
+            ) from None
+        raise
 
 
-class context_rollback:
-    def __init__(self, session: Session) -> None:
-        self.session = session
 
-    def __enter__(self) -> None:
-        self.session.rollback()
+def _finalize_failed_job_run_on_engine(
+    engine: Engine, job_run_id: int, exc: BaseException, attempts: int
+) -> None:
+    with engine.connect() as connection:
+        session = sessionmaker(
+            bind=connection,
+            autoflush=False,
+            autocommit=False,
+            expire_on_commit=False,
+        )()
+        try:
+            job_run = session.get(JobRun, job_run_id)
+            if job_run is not None:
+                _finalize_failed_job_run(session, job_run, exc, attempts)
+        finally:
+            session.close()
 
-    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-        if exc_type is not None:
-            self.session.rollback()
+def _wait_for_retry(delay: float, wait: Callable[[float], bool | None]) -> None:
+    if wait(delay):
+        raise SyncShutdownRequested(INTERRUPTED_SYNC_ERROR)
 
 
 def run_cycle(
@@ -164,21 +221,32 @@ def run_cycle(
     engine: Engine,
     *,
     sleep: Callable[[float], None] = time.sleep,
+    wait: Callable[[float], bool | None] | None = None,
     random_value: Callable[[], Any] = random.random,
 ) -> CycleOutcome:
     """Run one locked cycle; all retries retain the same advisory-lock connection."""
     connection = engine.connect()
     lock = PostgreSQLAdvisoryLock(connection, settings.sync_lock_key)
-    session_factory = sessionmaker(bind=connection, autoflush=False, autocommit=False)
+    session_factory = sessionmaker(
+        bind=connection,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
     session = session_factory()
-    acquired = False
     job_run: JobRun | None = None
     last_attempt = 0
+    retry_wait: Callable[[float], bool | None]
+    if wait is None:
+        def retry_wait(delay: float) -> bool:
+            sleep(delay)
+            return False
+    else:
+        retry_wait = wait
     try:
         if not lock.try_acquire():
             logger.info("google_ads_sync_overlap_skipped")
             return CycleOutcome(skipped=True, result=None, attempts=0)
-        acquired = True
         job_run = _create_authoritative_job_run(session)
         for attempt in range(1, settings.sync_max_attempts + 1):
             last_attempt = attempt
@@ -189,6 +257,21 @@ def run_cycle(
                 )
                 return CycleOutcome(skipped=False, result=result, attempts=attempt)
             except BaseException as exc:
+                if lock_ownership_lost(exc):
+                    lock.acquired = False
+                    connection.invalidate()
+                    session.close()
+                    _finalize_failed_job_run_on_engine(
+                        engine, job_run.id, AdvisoryLockLostError(), attempt
+                    )
+                    raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
+                if unknown_commit_outcome(exc):
+                    logger.error(
+                        "google_ads_sync_unknown_commit_outcome run_id=%s attempt=%s",
+                        job_run.id,
+                        attempt,
+                    )
+                    raise
                 retryable = isinstance(exc, Exception) and is_transient_failure(exc)
                 if attempt >= settings.sync_max_attempts or not retryable:
                     _finalize_failed_job_run(session, job_run, exc, attempt)
@@ -206,10 +289,14 @@ def run_cycle(
                     attempt,
                     delay,
                 )
-                sleep(delay)
+                try:
+                    _wait_for_retry(delay, retry_wait)
+                except BaseException as wait_exc:
+                    _finalize_failed_job_run(session, job_run, wait_exc, attempt)
+                    raise
         raise AssertionError("unreachable")
     except BaseException as exc:
-        if acquired and job_run is not None and last_attempt == 0:
+        if job_run is not None and last_attempt == 0 and not unknown_commit_outcome(exc):
             _finalize_failed_job_run(session, job_run, exc, last_attempt)
         raise
     finally:

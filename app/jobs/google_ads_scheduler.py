@@ -4,14 +4,27 @@ import logging
 import signal
 import time
 from threading import Event
+from typing import Any
 
-from app.database.session import engine
-from app.jobs.reliability import run_cycle
-from app.settings import settings
+logger = logging.getLogger(__name__)
 
 
-def main(stop_event: Event | None = None) -> int:
+def _load_runtime() -> tuple[Any, Any, Any]:
+    """Load settings, database, and worker code inside sanitized startup handling."""
+    from app.database.session import engine
+    from app.jobs.reliability import run_cycle
+    from app.settings import settings
+
+    return settings, engine, run_cycle
+
+
+def main(stop_event: Event | None = None, runtime_loader: Any = _load_runtime) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    try:
+        settings, engine, run_cycle = runtime_loader()
+    except Exception as exc:
+        logger.error("google_ads_scheduler_startup_failed error_type=%s", type(exc).__name__)
+        return 1
     stop = stop_event or Event()
     if stop_event is None:
         signal.signal(signal.SIGINT, lambda *_: stop.set())
@@ -25,15 +38,17 @@ def main(stop_event: Event | None = None) -> int:
         if immediate or now >= deadline:
             immediate = False
             try:
-                run_cycle(settings, engine)
+                run_cycle(settings, engine, wait=stop.wait)
+            except KeyboardInterrupt:
+                logger.error("google_ads_scheduler_cycle_interrupted")
+                stop.set()
+                break
             except Exception as exc:
-                logging.getLogger(__name__).error(
-                    "google_ads_scheduler_cycle_failed error_type=%s", type(exc).__name__
-                )
+                logger.error("google_ads_scheduler_cycle_failed error_type=%s", type(exc).__name__)
             deadline = time.monotonic() + interval_seconds
             now = time.monotonic()
         stop.wait(max(0.0, deadline - now))
-    logging.getLogger(__name__).info("google_ads_scheduler_stopped")
+    logger.info("google_ads_scheduler_stopped")
     return 0
 
 

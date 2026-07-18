@@ -14,6 +14,7 @@ from app.ads.schemas import AdvertisingAccountCreate, NormalizedMetricsBatch
 from app.collectors import google_ads
 from app.collectors.google_ads import (
     GoogleAdsAuthenticationError,
+    GoogleAdsIntegrationError,
     GoogleAdsRateLimitError,
 )
 
@@ -65,9 +66,11 @@ class GoogleAdsSyncError(RuntimeError):
         message: str,
         *,
         classification: SyncFailureClassification = SyncFailureClassification.UNKNOWN_PERMANENT,
+        lock_lost: bool = False,
     ) -> None:
         super().__init__(message[:120])
         self.classification = classification
+        self.lock_lost = lock_lost
 
 
 class GoogleAdsSyncService:
@@ -146,7 +149,9 @@ class GoogleAdsSyncService:
                     failure_classification = SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
         if sync_error_message is not None:
             raise GoogleAdsSyncError(
-                sync_error_message, classification=failure_classification
+                sync_error_message,
+                classification=failure_classification,
+                lock_lost=self._lock_lost_from_classification(failure_classification),
             ) from None
         raise GoogleAdsSyncError(FAILED_JOB_RUN_PERSISTENCE_ERROR) from None
 
@@ -156,8 +161,10 @@ class GoogleAdsSyncService:
         *,
         date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
     ) -> GoogleAdsSyncResult:
+        success_commit_started = False
         try:
             result = self._collect_and_persist(job_run, date_range=date_range)
+            success_commit_started = True
             self.session.commit()
             return result
         except GoogleAdsSyncError:
@@ -165,8 +172,17 @@ class GoogleAdsSyncService:
         except Exception as exc:
             with suppress(Exception):
                 self.session.rollback()
+            if success_commit_started:
+                raise GoogleAdsSyncError(
+                    UNKNOWN_COMMIT_OUTCOME_ERROR,
+                    classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+                    lock_lost=self._is_lock_lost_failure(exc),
+                ) from None
+            classification = self._classify_failure(exc)
             raise GoogleAdsSyncError(
-                self._sanitize_error(exc), classification=self._classify_failure(exc)
+                self._sanitize_error(exc),
+                classification=classification,
+                lock_lost=self._lock_lost_from_classification(classification),
             ) from None
 
     def _collect_and_persist(
@@ -252,23 +268,37 @@ class GoogleAdsSyncService:
         return f"Google Ads read-only sync failed ({type(exc).__name__})"[:120]
 
     def _classify_failure(self, exc: BaseException) -> SyncFailureClassification:
+        collector_classification = getattr(exc, "retry_classification", None)
+        if isinstance(collector_classification, str):
+            with suppress(ValueError):
+                return SyncFailureClassification(collector_classification)
         if isinstance(exc, GoogleAdsRateLimitError):
             return SyncFailureClassification.TRANSIENT_RATE_LIMIT
+        if isinstance(exc, GoogleAdsIntegrationError):
+            return SyncFailureClassification.UNKNOWN_PERMANENT
         if isinstance(exc, (TimeoutError, ConnectionError, socket.gaierror)):
             return SyncFailureClassification.TRANSIENT_NETWORK
-        if isinstance(exc, DBAPIError) and exc.connection_invalidated:
-            return SyncFailureClassification.TRANSIENT_DATABASE
+        if self._is_lock_lost_failure(exc):
+            return SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
         if isinstance(exc, OperationalError):
             code = getattr(getattr(exc, "orig", None), "pgcode", None) or getattr(
                 getattr(exc, "orig", None), "sqlstate", None
             )
-            if code in {"40001", "40P01", "57014", "08000", "08003", "08006"}:
+            if code in {"40001", "40P01", "57014"}:
                 return SyncFailureClassification.TRANSIENT_DATABASE
+            if code in {"08000", "08003", "08006"}:
+                return SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
         if isinstance(exc, GoogleAdsAuthenticationError):
             return SyncFailureClassification.PERMANENT_AUTH
         if isinstance(exc, (ValueError, TypeError)):
             return SyncFailureClassification.PERMANENT_VALIDATION
         return SyncFailureClassification.UNKNOWN_PERMANENT
+
+    def _is_lock_lost_failure(self, exc: BaseException) -> bool:
+        return isinstance(exc, DBAPIError) and exc.connection_invalidated
+
+    def _lock_lost_from_classification(self, classification: SyncFailureClassification) -> bool:
+        return classification == SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
 
     def _resolve_durable_failed_run_account_id(
         self,

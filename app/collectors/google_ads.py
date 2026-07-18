@@ -34,6 +34,10 @@ __all__ = (
 class GoogleAdsIntegrationError(RuntimeError):
     """Base error for read-only Google Ads integration failures."""
 
+    def __init__(self, message: str, *, retry_classification: str = "UNKNOWN_PERMANENT") -> None:
+        super().__init__(message[:200])
+        self.retry_classification = retry_classification
+
 
 class GoogleAdsMissingCredentialsError(GoogleAdsIntegrationError):
     """Raised when required Google Ads environment settings are missing."""
@@ -187,7 +191,10 @@ def _require_google_ads_module() -> Any:
     try:
         module = _import_module("google.ads.googleads.client")
     except ImportError as exc:
-        raise GoogleAdsIntegrationError("google-ads dependency is not installed") from exc
+        raise GoogleAdsIntegrationError(
+            "google-ads dependency is not installed",
+            retry_classification="PERMANENT_CONFIGURATION",
+        ) from exc
     return module.__dict__["GoogleAdsClient"]
 
 
@@ -203,7 +210,8 @@ def _required_config(settings: Settings) -> dict[str, str]:
     missing = [name for name, value in values.items() if not value]
     if missing:
         raise GoogleAdsMissingCredentialsError(
-            "Missing required Google Ads configuration: " + ", ".join(sorted(missing))
+            "Missing required Google Ads configuration: " + ", ".join(sorted(missing)),
+            retry_classification="PERMANENT_CONFIGURATION",
         )
     return {key: _cast(str, value) for key, value in values.items()}
 
@@ -269,7 +277,9 @@ def _raise_normalized_google_ads_error(
             "client-secret",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+        raise GoogleAdsAuthenticationError(
+            "Google Ads API authentication failed", retry_classification="PERMANENT_AUTH"
+        ) from None
     if any(
         marker in message
         for marker in (
@@ -285,7 +295,9 @@ def _raise_normalized_google_ads_error(
             "401",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+        raise GoogleAdsAuthenticationError(
+            "Google Ads API authentication failed", retry_classification="PERMANENT_AUTH"
+        ) from None
     if credential_context and any(
         marker in message
         for marker in (
@@ -297,7 +309,9 @@ def _raise_normalized_google_ads_error(
             "client id",
         )
     ):
-        raise GoogleAdsAuthenticationError("Google Ads API authentication failed") from None
+        raise GoogleAdsAuthenticationError(
+            "Google Ads API authentication failed", retry_classification="PERMANENT_AUTH"
+        ) from None
     if any(
         marker in message
         for marker in (
@@ -310,7 +324,10 @@ def _raise_normalized_google_ads_error(
             "429",
         )
     ):
-        raise GoogleAdsRateLimitError("Google Ads API rate limit encountered") from exc
+        raise GoogleAdsRateLimitError(
+            "Google Ads API rate limit encountered",
+            retry_classification="TRANSIENT_RATE_LIMIT",
+        ) from exc
     if any(
         marker in message
         for marker in (
@@ -319,7 +336,9 @@ def _raise_normalized_google_ads_error(
             "user_permission_denied",
         )
     ):
-        raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
+        raise GoogleAdsAuthorizationError(
+            "Google Ads API authorization failed", retry_classification="PERMANENT_AUTH"
+        ) from exc
     if any(
         marker in message
         for marker in (
@@ -330,7 +349,33 @@ def _raise_normalized_google_ads_error(
             "403",
         )
     ):
-        raise GoogleAdsAuthorizationError("Google Ads API authorization failed") from exc
+        raise GoogleAdsAuthorizationError(
+            "Google Ads API authorization failed", retry_classification="PERMANENT_AUTH"
+        ) from exc
+    if any(
+        marker in message
+        for marker in (
+            "internal",
+            "unavailable",
+            "deadline_exceeded",
+            "deadline exceeded",
+            "server error",
+            "backend error",
+            "500",
+            "502",
+            "503",
+            "504",
+        )
+    ):
+        raise GoogleAdsIntegrationError(
+            "Google Ads read-only request failed",
+            retry_classification="TRANSIENT_DATABASE",
+        ) from exc
+    if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
+        raise GoogleAdsIntegrationError(
+            "Google Ads read-only request failed",
+            retry_classification="TRANSIENT_NETWORK",
+        ) from exc
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 

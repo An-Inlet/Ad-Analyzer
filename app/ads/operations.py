@@ -10,6 +10,35 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.settings import Settings
 
+_PUBLIC_FAILURE_SUMMARY = "Google Ads synchronization failed."
+_SAFE_FAILURE_PREFIXES = (
+    "Google Ads read-only sync failed (",
+    "Google Ads synchronization interrupted before retry.",
+    "Google Ads synchronization lost advisory-lock ownership.",
+    "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
+    "Google Ads sync failed; the failure-record commit outcome is unknown",
+)
+_UNSAFE_MARKERS = (
+    "authorization:",
+    "bearer ",
+    "client_secret",
+    "developer_token",
+    "refresh_token",
+    "traceback",
+    "sqlalchemy",
+    "select ",
+    "insert ",
+    "update ",
+    "delete ",
+    "postgresql://",
+    "http://",
+    "https://",
+    "raw_response",
+    "request_id",
+    "/workspace/",
+    "\\",
+)
+
 
 @dataclass(frozen=True)
 class SyncHealth:
@@ -22,6 +51,19 @@ class SyncHealth:
     last_failure_summary: str | None
     success_age_seconds: int | None
     stale_after_seconds: int
+
+
+def public_failure_summary(error_message: str | None) -> str | None:
+    """Sanitize untrusted stored JobRun text for API and dashboard boundaries."""
+    if not error_message:
+        return None
+    candidate = error_message.strip()[:120]
+    lowered = candidate.lower()
+    if any(marker in lowered for marker in _UNSAFE_MARKERS):
+        return _PUBLIC_FAILURE_SUMMARY
+    if any(candidate.startswith(prefix) for prefix in _SAFE_FAILURE_PREFIXES):
+        return candidate
+    return _PUBLIC_FAILURE_SUMMARY
 
 
 def sync_health(session: Session, settings: Settings, now: datetime | None = None) -> SyncHealth:
@@ -61,7 +103,7 @@ def sync_health(session: Session, settings: Settings, now: datetime | None = Non
         status = "Stale"
     else:
         status = "Healthy"
-    summary = failure.error_message[:120] if failure and failure.error_message else None
+    summary = public_failure_summary(failure.error_message if failure else None)
     return SyncHealth(
         status,
         stale,

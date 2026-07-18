@@ -97,7 +97,7 @@ class JobRunResponse(ApiModel):
     records_processed: int
     error_message: str | None = Field(
         default=None,
-        max_length=24,
+        max_length=160,
         description="Fixed public failure message; stored diagnostics are never exposed.",
     )
 

@@ -10,7 +10,7 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.settings import Settings
 
-_PUBLIC_FAILURE_SUMMARY = "Google Ads synchronization failed."
+PUBLIC_SYNC_FAILURE_SUMMARY = "Google Ads synchronization failed."
 _SAFE_FAILURE_MESSAGES = (
     "Google Ads synchronization interrupted before retry.",
     "Google Ads synchronization lost advisory-lock ownership.",
@@ -61,10 +61,10 @@ def public_failure_summary(error_message: str | None) -> str | None:
     candidate = error_message.strip()[:120]
     lowered = candidate.lower()
     if any(marker in lowered for marker in _UNSAFE_MARKERS):
-        return _PUBLIC_FAILURE_SUMMARY
+        return PUBLIC_SYNC_FAILURE_SUMMARY
     if candidate in _SAFE_FAILURE_MESSAGES:
         return candidate
-    return _PUBLIC_FAILURE_SUMMARY
+    return PUBLIC_SYNC_FAILURE_SUMMARY
 
 
 def sync_health(session: Session, settings: Settings, now: datetime | None = None) -> SyncHealth:

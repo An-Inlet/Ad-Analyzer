@@ -9,6 +9,7 @@ from app.ads.enums import JobRunStatus
 from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.services import (
+    FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
     GoogleAdsSyncResult,
     GoogleAdsSyncService,
@@ -17,12 +18,15 @@ from app.ads.services import (
 from app.database.session import Base
 from app.jobs import google_ads_scheduler, google_ads_sync_once
 from app.jobs.reliability import (
+    LOCK_LOST_SYNC_ERROR,
+    AdvisoryLockLostError,
     CycleOutcome,
     PostgreSQLAdvisoryLock,
     retry_delay,
     run_cycle,
 )
 from app.settings import Settings
+from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -795,3 +799,222 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
     assert campaign_calls == 0
     Base.metadata.drop_all(sqlite_engine)
     sqlite_engine.dispose()
+
+@pytest.fixture()
+def sqlite_file_engine(tmp_path: Path) -> Generator[Any, None, None]:
+    engine = create_engine(f"sqlite:///{tmp_path / 'phase7.db'}")
+    Base.metadata.create_all(engine)
+    try:
+        yield engine
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def test_failed_finalization_pre_commit_lock_loss_uses_fresh_connection(
+    sqlite_file_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    collector_calls = 0
+    finalize_calls = 0
+    unlock_calls = 0
+    real_finalize = __import__(
+        "app.jobs.reliability", fromlist=["_finalize_failed_job_run"]
+    )._finalize_failed_job_run
+
+    def permanent(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
+        nonlocal collector_calls
+        collector_calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads read-only sync failed (ValueError)",
+            classification=SyncFailureClassification.PERMANENT_VALIDATION,
+        )
+
+    def flaky_finalize(
+        session: Session, job_run: JobRun, exc: BaseException, attempts: int
+    ) -> None:
+        nonlocal finalize_calls
+        finalize_calls += 1
+        if finalize_calls == 1:
+            raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR)
+        real_finalize(session, job_run, exc, attempts)
+
+    def release(self: PostgreSQLAdvisoryLock) -> None:
+        nonlocal unlock_calls
+        unlock_calls += 1
+        if self.acquired:
+            pytest.fail("invalidated lock must not be unlocked")
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run", permanent
+    )
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run", flaky_finalize)
+    monkeypatch.setattr(PostgreSQLAdvisoryLock, "release", release)
+
+    with pytest.raises(GoogleAdsSyncError):
+        run_cycle(Settings(), sqlite_file_engine)
+
+    assert collector_calls == 1
+    assert finalize_calls == 2
+    assert unlock_calls == 1
+    with Session(sqlite_file_engine) as session:
+        job_runs = session.scalars(select(JobRun)).all()
+        assert len(job_runs) == 1
+        assert job_runs[0].status is JobRunStatus.FAILED
+        assert job_runs[0].error_message is not None
+        assert "GoogleAdsSyncError" in job_runs[0].error_message
+        assert "secret" not in job_runs[0].error_message
+
+
+def test_failed_finalization_post_commit_unknown_does_not_replace_or_retry(
+    sqlite_file_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    collector_calls = 0
+    replacement_calls = 0
+
+    def permanent(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
+        nonlocal collector_calls
+        collector_calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads read-only sync failed (ValueError)",
+            classification=SyncFailureClassification.PERMANENT_VALIDATION,
+        )
+
+    def unknown_finalize(
+        _session: Session, _job_run: JobRun, _exc: BaseException, _attempts: int
+    ) -> None:
+        raise GoogleAdsSyncError(
+            FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            lock_lost=True,
+        )
+
+    def replacement(*_args: object, **_kwargs: object) -> None:
+        nonlocal replacement_calls
+        replacement_calls += 1
+        pytest.fail("unknown commit outcome must not be replacement-finalized")
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run", permanent
+    )
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run", unknown_finalize)
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run_on_engine", replacement)
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(Settings(), sqlite_file_engine)
+
+    assert exc_info.value.classification is SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    assert collector_calls == 1
+    assert replacement_calls == 0
+    with Session(sqlite_file_engine) as session:
+        job_runs = session.scalars(select(JobRun)).all()
+        assert len(job_runs) == 1
+        assert job_runs[0].status is JobRunStatus.RUNNING
+
+
+def test_fresh_replacement_unknown_outcome_is_primary_and_not_retried(
+    sqlite_file_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    collector_calls = 0
+    finalize_calls = 0
+    real_finalize = __import__(
+        "app.jobs.reliability", fromlist=["_finalize_failed_job_run"]
+    )._finalize_failed_job_run
+
+    def permanent(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
+        nonlocal collector_calls
+        collector_calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads read-only sync failed (ValueError)",
+            classification=SyncFailureClassification.PERMANENT_VALIDATION,
+        )
+
+    def flaky_finalize(
+        session: Session, job_run: JobRun, exc: BaseException, attempts: int
+    ) -> None:
+        nonlocal finalize_calls
+        finalize_calls += 1
+        if finalize_calls == 1:
+            raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR)
+        if finalize_calls == 2:
+            raise GoogleAdsSyncError(
+                FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
+                classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+                lock_lost=True,
+            )
+        real_finalize(session, job_run, exc, attempts)
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run", permanent
+    )
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run", flaky_finalize)
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(Settings(), sqlite_file_engine)
+
+    assert exc_info.value.classification is SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    assert collector_calls == 1
+    assert finalize_calls == 2
+    with Session(sqlite_file_engine) as session:
+        assert len(session.scalars(select(JobRun)).all()) == 1
+
+
+def test_job_run_response_schema_accepts_generic_public_failure_message() -> None:
+    from app.ads.operations import PUBLIC_SYNC_FAILURE_SUMMARY
+    from app.api.schemas import JobRunResponse
+
+    response = JobRunResponse(
+        id=1,
+        platform="google_ads",
+        account_id=None,
+        job_name="google_ads_read_only_sync",
+        status="failed",
+        started_at="2026-07-18T00:00:00Z",
+        finished_at="2026-07-18T00:01:00Z",
+        records_processed=0,
+        error_message=PUBLIC_SYNC_FAILURE_SUMMARY,
+    )
+
+    assert response.error_message == "Google Ads synchronization failed."
+    with pytest.raises(ValidationError):
+        JobRunResponse(
+            id=1,
+            platform="google_ads",
+            account_id=None,
+            job_name="google_ads_read_only_sync",
+            status="failed",
+            started_at="2026-07-18T00:00:00Z",
+            finished_at="2026-07-18T00:01:00Z",
+            records_processed=0,
+            error_message="x" * 161,
+        )
+
+
+def test_job_run_response_uses_shared_public_failure_summary() -> None:
+    from datetime import UTC, datetime
+
+    from app.ads.enums import AdvertisingPlatform
+    from app.ads.operations import PUBLIC_SYNC_FAILURE_SUMMARY
+    from app.api.v1 import job_run_response
+
+    job_run = JobRun(
+        id=1,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        account_id=None,
+        job_name="google_ads_read_only_sync",
+        status=JobRunStatus.FAILED,
+        started_at=datetime(2026, 7, 18, tzinfo=UTC),
+        finished_at=datetime(2026, 7, 18, tzinfo=UTC),
+        records_processed=0,
+        error_message="Google Ads read-only sync failed (Bearer secret)",
+    )
+
+    response = job_run_response(job_run)
+
+    assert response.error_message == PUBLIC_SYNC_FAILURE_SUMMARY
+    assert response.error_message != "Advertising sync failed."

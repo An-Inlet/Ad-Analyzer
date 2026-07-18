@@ -546,10 +546,9 @@ def test_job_run_error_messages_are_replaced_at_the_http_boundary() -> None:
         "do-not-expose",
     ):
         assert sensitive_fragment not in public_payload
-    assert latest["error_message"] == "Advertising sync failed."
-    assert all(
-        item["error_message"] in {None, "Advertising sync failed."} for item in listed["items"]
-    )
+    assert latest["error_message"] == "Google Ads synchronization failed."
+    public_messages = {None, "Google Ads synchronization failed."}
+    assert all(item["error_message"] in public_messages for item in listed["items"])
 
 
 def test_campaign_metrics_are_canonical_and_paginated() -> None:

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
-from app.ads.operations import sync_health
+from app.ads.operations import public_failure_summary, sync_health
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
@@ -71,7 +71,7 @@ def job_run_response(job_run: JobRun) -> JobRunResponse:
         started_at=job_run.started_at,
         finished_at=job_run.finished_at,
         records_processed=job_run.records_processed,
-        error_message="Advertising sync failed." if job_run.error_message is not None else None,
+        error_message=public_failure_summary(job_run.error_message),
     )
 
 

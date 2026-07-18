@@ -301,6 +301,35 @@ def run_cycle(
             return False
     else:
         retry_wait = wait
+
+    def handle_failed_finalization_error(
+        finalize_exc: BaseException,
+        original_exc: BaseException,
+        attempts: int,
+    ) -> None:
+        nonlocal primary_error
+        if unknown_commit_outcome(finalize_exc):
+            primary_error = finalize_exc
+            if lock_ownership_lost(finalize_exc):
+                lock.acquired = False
+                connection.invalidate()
+            raise finalize_exc
+        if lock_ownership_lost(finalize_exc):
+            if job_run is None:
+                raise finalize_exc
+            lock.acquired = False
+            connection.invalidate()
+            session.close()
+            try:
+                _finalize_failed_job_run_on_engine(engine, job_run.id, original_exc, attempts)
+            except BaseException as replacement_exc:
+                if unknown_commit_outcome(replacement_exc):
+                    primary_error = replacement_exc
+                    raise replacement_exc
+                raise
+            return
+        raise finalize_exc
+
     try:
         _raise_if_stop_requested(stop_requested)
         if not lock.try_acquire():
@@ -310,7 +339,10 @@ def run_cycle(
         try:
             _raise_if_stop_requested(stop_requested)
         except BaseException as stop_exc:
-            _finalize_failed_job_run(session, job_run, stop_exc, 0)
+            try:
+                _finalize_failed_job_run(session, job_run, stop_exc, 0)
+            except BaseException as finalize_exc:
+                handle_failed_finalization_error(finalize_exc, stop_exc, 0)
             raise
         for attempt in range(1, settings.sync_max_attempts + 1):
             try:
@@ -351,13 +383,7 @@ def run_cycle(
                     try:
                         _finalize_failed_job_run(session, job_run, exc, attempt)
                     except BaseException as finalize_exc:
-                        if unknown_commit_outcome(finalize_exc):
-                            primary_error = finalize_exc
-                            if lock_ownership_lost(finalize_exc):
-                                lock.acquired = False
-                                connection.invalidate()
-                            raise
-                        raise
+                        handle_failed_finalization_error(finalize_exc, exc, attempt)
                     logger.error(
                         "google_ads_sync_failed run_id=%s attempt=%s error_type=%s",
                         job_run.id,
@@ -383,13 +409,7 @@ def run_cycle(
                     try:
                         _finalize_failed_job_run(session, job_run, wait_exc, attempt)
                     except BaseException as finalize_exc:
-                        if unknown_commit_outcome(finalize_exc):
-                            primary_error = finalize_exc
-                            if lock_ownership_lost(finalize_exc):
-                                lock.acquired = False
-                                connection.invalidate()
-                            raise
-                        raise
+                        handle_failed_finalization_error(finalize_exc, wait_exc, attempt)
                     raise
         raise AssertionError("unreachable")
     except BaseException as exc:
@@ -403,13 +423,7 @@ def run_cycle(
             try:
                 _finalize_failed_job_run(session, job_run, exc, last_attempt)
             except BaseException as finalize_exc:
-                if unknown_commit_outcome(finalize_exc):
-                    primary_error = finalize_exc
-                    if lock_ownership_lost(finalize_exc):
-                        lock.acquired = False
-                        connection.invalidate()
-                    raise
-                raise
+                handle_failed_finalization_error(finalize_exc, exc, last_attempt)
         raise
     finally:
         release_error: BaseException | None = None

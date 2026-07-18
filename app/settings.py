@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Any
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
@@ -50,6 +52,38 @@ def _parse_lock_key(value: object) -> int:
     if not (_SYNC_LOCK_MIN <= parsed <= _SYNC_LOCK_MAX):
         raise InvalidSyncAdvisoryLockConfigError()
     return parsed
+
+
+def _raw_environment_lock_values() -> list[object]:
+    return [value for key, value in os.environ.items() if _is_sync_lock_key_name(key)]
+
+
+def _dotenv_paths(env_file: object) -> list[Path]:
+    if env_file is None:
+        return []
+    if isinstance(env_file, (str, os.PathLike)):
+        return [Path(env_file)]
+    if isinstance(env_file, list | tuple):
+        return [Path(path) for path in env_file if path is not None]
+    return []
+
+
+def _raw_dotenv_lock_values(source: PydanticBaseSettingsSource) -> list[object]:
+    raw_values: list[object] = []
+    encoding = getattr(source, "env_file_encoding", None)
+    for dotenv_path in _dotenv_paths(getattr(source, "env_file", None)):
+        if not dotenv_path.exists() or not dotenv_path.is_file():
+            continue
+        for raw_line in dotenv_path.read_text(encoding=encoding).splitlines():
+            line = raw_line.strip()
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if _is_sync_lock_key_name(key.strip()):
+                raw_values.append(value.strip().strip("'\""))
+    return raw_values
 
 
 def _resolve_lock_key_values(source_values: list[object]) -> int | None:
@@ -113,6 +147,10 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
     def _lock_values_from_source(self, source: PydanticBaseSettingsSource) -> list[object]:
         raw_values: list[object] = []
+        if hasattr(source, "env_file"):
+            raw_values.extend(_raw_dotenv_lock_values(source))
+        elif hasattr(source, "env_vars"):
+            raw_values.extend(_raw_environment_lock_values())
         env_vars = getattr(source, "env_vars", None)
         if isinstance(env_vars, dict):
             raw_values.extend(
@@ -140,9 +178,7 @@ class Settings(BaseSettings):
         lock_values = [value for key, value in data.items() if _is_sync_lock_key_name(key)]
         resolved = _resolve_lock_key_values(lock_values)
         if resolved is not None:
-            data = {
-                key: value for key, value in data.items() if not _is_sync_lock_key_name(key)
-            }
+            data = {key: value for key, value in data.items() if not _is_sync_lock_key_name(key)}
             data[_SYNC_LOCK_FIELD] = resolved
         super().__init__(**data)
 
@@ -213,11 +249,8 @@ class Settings(BaseSettings):
         default=719_042_711,
         ge=-(2**63),
         le=2**63 - 1,
-        validation_alias=AliasChoices(
-            _SYNC_LOCK_FIELD, _SYNC_LOCK_CANONICAL, _SYNC_LOCK_LEGACY
-        ),
+        validation_alias=AliasChoices(_SYNC_LOCK_FIELD, _SYNC_LOCK_CANONICAL, _SYNC_LOCK_LEGACY),
     )
-
 
     @model_validator(mode="after")
     def retry_bounds_are_valid(self) -> "Settings":

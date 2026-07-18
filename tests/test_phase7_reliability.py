@@ -140,9 +140,10 @@ def test_scheduler_delays_first_cycle_when_immediate_disabled(
             self.set()
             return True
 
-    assert google_ads_scheduler.main(
-        StopBeforeDeadline(), lambda: (settings, object(), run_cycle)
-    ) == 0
+    assert (
+        google_ads_scheduler.main(StopBeforeDeadline(), lambda: (settings, object(), run_cycle))
+        == 0
+    )
     assert calls == 1
 
 
@@ -173,9 +174,7 @@ def test_run_cycle_uses_one_authoritative_job_run_across_retry(
 ) -> None:
     calls = 0
 
-    def sync_authoritative(
-        self: Any, job_run: JobRun, **_kwargs: object
-    ) -> GoogleAdsSyncResult:
+    def sync_authoritative(self: Any, job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -429,9 +428,7 @@ def test_unknown_commit_with_lock_loss_does_not_replacement_finalize(
     calls = 0
     fresh_finalize_calls = 0
 
-    def unknown_and_lost(
-        self: Any, _job_run: JobRun, **_kwargs: object
-    ) -> GoogleAdsSyncResult:
+    def unknown_and_lost(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -717,7 +714,6 @@ def test_failed_finalization_unknown_is_primary_and_no_replacement_finalize(
     assert replacement_calls == 0
 
 
-
 def test_stop_after_account_collector_prevents_campaign_collector(
     sqlite_engine: Any,
     relaxed_lock: None,
@@ -806,6 +802,7 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
     assert campaign_calls == 0
     Base.metadata.drop_all(sqlite_engine)
     sqlite_engine.dispose()
+
 
 @pytest.fixture()
 def sqlite_file_engine(tmp_path: Path) -> Generator[Any, None, None]:
@@ -1429,6 +1426,7 @@ def test_default_sync_advisory_lock_key_is_documented_default(
 
     assert Settings().sync_lock_key == 719_042_711
 
+
 @pytest.mark.parametrize(
     ("env_key", "expected"),
     [
@@ -1514,6 +1512,7 @@ def test_sync_advisory_lock_key_malformed_accepted_forms_are_sanitized(
     ):
         monkeypatch.delenv(env_key, raising=False)
     if key == "sync_lock_key":
+
         def build_settings() -> Settings:
             return Settings(_env_file=None, sync_lock_key=value)
     else:
@@ -1556,6 +1555,211 @@ def test_sync_advisory_lock_key_direct_field_conflicts_with_environment(
     assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
+@pytest.mark.parametrize(
+    ("first_key", "first_value", "second_key", "second_value", "error_type"),
+    [
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "123",
+            "denticode_sync_advisory_lock_key",
+            "secret-case-bad",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "secret-case-bad",
+            "denticode_sync_advisory_lock_key",
+            "123",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "123",
+            "denticode_sync_advisory_lock_key",
+            "124",
+            SyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_LOCK_KEY",
+            "125",
+            "denticode_sync_lock_key",
+            "secret-case-bad",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_LOCK_KEY",
+            "125",
+            "denticode_sync_lock_key",
+            "126",
+            SyncAdvisoryLockConfigError,
+        ),
+    ],
+)
+def test_sync_advisory_lock_key_environment_case_collisions_are_not_hidden(
+    monkeypatch: pytest.MonkeyPatch,
+    first_key: str,
+    first_value: str,
+    second_key: str,
+    second_value: str,
+    error_type: type[Exception],
+) -> None:
+    for key in (
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+        "denticode_sync_advisory_lock_key",
+        "DENTICODE_SYNC_LOCK_KEY",
+        "denticode_sync_lock_key",
+        "sync_lock_key",
+        "SYNC_LOCK_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(first_key, first_value)
+    monkeypatch.setenv(second_key, second_value)
+
+    with pytest.raises(error_type) as exc_info:
+        Settings(_env_file=None)
+
+    rendered = str(exc_info.value)
+    assert rendered in {
+        "Invalid sync advisory lock key setting.",
+        "Conflicting sync advisory lock key settings.",
+    }
+    assert "secret-case-bad" not in rendered
+    assert "123" not in rendered
+    assert "124" not in rendered
+    assert "input_value" not in rendered
+
+
+def test_sync_advisory_lock_key_matching_environment_case_variants_are_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "127")
+    monkeypatch.setenv("denticode_sync_advisory_lock_key", "127")
+    monkeypatch.setenv("Denticode_Sync_Advisory_Lock_Key", "127")
+
+    assert Settings(_env_file=None).sync_lock_key == 127
+
+
+@pytest.mark.parametrize(
+    ("dotenv_text", "error_type"),
+    [
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=128\n"
+            "denticode_sync_advisory_lock_key=secret-dotenv-bad\n",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=secret-dotenv-bad\n"
+            "denticode_sync_advisory_lock_key=128\n",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=128\ndenticode_sync_advisory_lock_key=129\n",
+            SyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_LOCK_KEY=130\ndenticode_sync_lock_key=131\n",
+            SyncAdvisoryLockConfigError,
+        ),
+    ],
+)
+def test_sync_advisory_lock_key_dotenv_case_collisions_are_not_hidden(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    dotenv_text: str,
+    error_type: type[Exception],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("denticode_sync_advisory_lock_key", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("denticode_sync_lock_key", raising=False)
+    (tmp_path / ".env").write_text(dotenv_text)
+
+    with pytest.raises(error_type) as exc_info:
+        Settings()
+
+    rendered = str(exc_info.value)
+    assert rendered in {
+        "Invalid sync advisory lock key setting.",
+        "Conflicting sync advisory lock key settings.",
+    }
+    assert "secret-dotenv-bad" not in rendered
+    assert "input_value" not in rendered
+
+
+def test_sync_advisory_lock_key_matching_dotenv_case_variants_are_allowed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("denticode_sync_advisory_lock_key", raising=False)
+    (tmp_path / ".env").write_text(
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=132\n"
+        "denticode_sync_advisory_lock_key=132\n"
+        "Denticode_Sync_Advisory_Lock_Key=132\n"
+    )
+
+    assert Settings().sync_lock_key == 132
+
+
+@pytest.mark.parametrize(
+    ("env_key", "env_value", "dotenv_text", "error_type"),
+    [
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "133",
+            "denticode_sync_advisory_lock_key=secret-mixed-bad\n",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "133",
+            "denticode_sync_advisory_lock_key=134\n",
+            SyncAdvisoryLockConfigError,
+        ),
+    ],
+)
+def test_sync_advisory_lock_key_environment_dotenv_case_collisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    env_key: str,
+    env_value: str,
+    dotenv_text: str,
+    error_type: type[Exception],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv(env_key, env_value)
+    (tmp_path / ".env").write_text(dotenv_text)
+
+    with pytest.raises(error_type) as exc_info:
+        Settings()
+
+    rendered = str(exc_info.value)
+    assert "secret-mixed-bad" not in rendered
+    assert "input_value" not in rendered
+
+
+def test_sync_advisory_lock_key_direct_case_collision_is_not_hidden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
+        Settings(_env_file=None, **{"sync_lock_key": "135", "SYNC_LOCK_KEY": "136"})
+
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
+
+
+@pytest.mark.parametrize("value", [str(-(2**63)), str(2**63 - 1)])
+def test_sync_advisory_lock_key_case_collision_accepts_signed_bounds(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", value)
+    monkeypatch.setenv("denticode_sync_advisory_lock_key", value)
+
+    assert Settings(_env_file=None).sync_lock_key == int(value)
+
+
 @pytest.mark.parametrize("guard", [None, (lambda: None), object()])
 def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_collectors(
     sqlite_engine: Any,
@@ -1580,7 +1784,8 @@ def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_colle
                 GoogleAdsSyncService(session).sync_authoritative_job_run(job_run)  # type: ignore[call-arg]
             else:
                 GoogleAdsSyncService(session).sync_authoritative_job_run(
-                    job_run, capability=guard  # type: ignore[arg-type]
+                    job_run,
+                    capability=guard,  # type: ignore[arg-type]
                 )
         assert session.scalars(select(JobRun)).all() == []
 
@@ -1591,16 +1796,13 @@ def test_reliability_exposes_no_constructible_worker_capability_class() -> None:
     assert not hasattr(reliability, "_WorkerPhase7SyncCapability")
 
 
-
 def test_google_ads_sync_service_has_no_production_unlocked_sync_bypass() -> None:
     assert not hasattr(GoogleAdsSyncService, "_sync_without_worker_for_tests")
     import app.ads.services as services_module
 
     assert not hasattr(services_module, "_CAPABILITY_TOKEN")
     assert not hasattr(services_module, "_new_phase7_sync_capability")
-    production_text = "\n".join(
-        path.read_text() for path in Path("app").rglob("*.py")
-    )
+    production_text = "\n".join(path.read_text() for path in Path("app").rglob("*.py"))
     assert "_sync_without_worker_for_tests" not in production_text
 
 
@@ -1623,9 +1825,7 @@ def test_fabricated_phase7_capability_cannot_reach_collectors(
             status=JobRunStatus.RUNNING,
         )
         with pytest.raises(GoogleAdsSyncError):
-            GoogleAdsSyncService(session).sync_authoritative_job_run(
-                job_run, capability=fabricated
-            )
+            GoogleAdsSyncService(session).sync_authoritative_job_run(job_run, capability=fabricated)
         assert session.scalars(select(JobRun)).all() == []
 
 

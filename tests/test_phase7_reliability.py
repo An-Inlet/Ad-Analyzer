@@ -1,4 +1,5 @@
 import math
+import os
 from collections.abc import Callable, Generator
 from pathlib import Path
 from threading import Event
@@ -29,6 +30,8 @@ from app.settings import (
     InvalidSyncAdvisoryLockConfigError,
     Settings,
     SyncAdvisoryLockConfigError,
+    _is_sync_lock_key_name,
+    _resolve_lock_key_values,
 )
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select
@@ -1595,28 +1598,21 @@ def test_sync_advisory_lock_key_direct_field_conflicts_with_environment(
         ),
     ],
 )
-def test_sync_advisory_lock_key_environment_case_collisions_are_not_hidden(
-    monkeypatch: pytest.MonkeyPatch,
+def test_sync_advisory_lock_key_synthetic_case_collisions_are_not_hidden(
     first_key: str,
     first_value: str,
     second_key: str,
     second_value: str,
     error_type: type[Exception],
 ) -> None:
-    for key in (
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
-        "denticode_sync_advisory_lock_key",
-        "DENTICODE_SYNC_LOCK_KEY",
-        "denticode_sync_lock_key",
-        "sync_lock_key",
-        "SYNC_LOCK_KEY",
-    ):
-        monkeypatch.delenv(key, raising=False)
-    monkeypatch.setenv(first_key, first_value)
-    monkeypatch.setenv(second_key, second_value)
+    values: list[object] = [
+        value
+        for key, value in ((first_key, first_value), (second_key, second_value))
+        if _is_sync_lock_key_name(key)
+    ]
 
     with pytest.raises(error_type) as exc_info:
-        Settings(_env_file=None)
+        _resolve_lock_key_values(values)
 
     rendered = str(exc_info.value)
     assert rendered in {
@@ -1629,6 +1625,43 @@ def test_sync_advisory_lock_key_environment_case_collisions_are_not_hidden(
     assert "input_value" not in rendered
 
 
+def test_sync_advisory_lock_key_synthetic_matching_case_variants_are_allowed() -> None:
+    values: list[object] = [
+        value
+        for key, value in (
+            ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "127"),
+            ("denticode_sync_advisory_lock_key", "127"),
+            ("Denticode_Sync_Advisory_Lock_Key", "127"),
+        )
+        if _is_sync_lock_key_name(key)
+    ]
+
+    assert _resolve_lock_key_values(values) == 127
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows cannot represent duplicate environment names that differ only by case.",
+)
+def test_sync_advisory_lock_key_process_environment_case_collisions_are_not_hidden(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "123")
+    monkeypatch.setenv("denticode_sync_advisory_lock_key", "secret-case-bad")
+
+    with pytest.raises(InvalidSyncAdvisoryLockConfigError) as exc_info:
+        Settings(_env_file=None)
+
+    rendered = str(exc_info.value)
+    assert rendered == "Invalid sync advisory lock key setting."
+    assert "secret-case-bad" not in rendered
+    assert "input_value" not in rendered
+
+
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows cannot represent duplicate environment names that differ only by case.",
+)
 def test_sync_advisory_lock_key_matching_environment_case_variants_are_allowed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1750,6 +1783,10 @@ def test_sync_advisory_lock_key_direct_case_collision_is_not_hidden(
     assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows cannot represent duplicate environment names that differ only by case.",
+)
 @pytest.mark.parametrize("value", [str(-(2**63)), str(2**63 - 1)])
 def test_sync_advisory_lock_key_case_collision_accepts_signed_bounds(
     monkeypatch: pytest.MonkeyPatch, value: str

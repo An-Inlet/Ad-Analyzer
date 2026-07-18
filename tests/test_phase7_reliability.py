@@ -1337,3 +1337,36 @@ def test_scheduler_runtime_loader_failure_restores_handlers_and_sanitizes_output
     assert restored is not None
     assert "hunter2" not in captured.out + captured.err
     assert "database-url" not in captured.out + captured.err
+
+
+def test_direct_google_ads_sync_fails_closed_before_collectors_or_job_run(
+    sqlite_engine: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.collectors import google_ads
+
+    monkeypatch.setattr(
+        google_ads,
+        "collect_account",
+        lambda *_args, **_kwargs: pytest.fail("direct sync must not call collectors"),
+    )
+
+    with Session(sqlite_engine) as session:
+        with pytest.raises(GoogleAdsSyncError, match="Phase 7 worker") as exc_info:
+            GoogleAdsSyncService(session).sync()
+        assert exc_info.value.classification is SyncFailureClassification.PERMANENT_CONFIGURATION
+        assert session.scalars(select(JobRun)).all() == []
+
+
+def test_legacy_sync_script_delegates_to_one_shot_worker() -> None:
+    from scripts import sync_google_ads
+
+    calls = 0
+
+    def worker_main() -> int:
+        nonlocal calls
+        calls += 1
+        return google_ads_sync_once.OVERLAP_EXIT_CODE
+
+    assert sync_google_ads.main(worker_main) == google_ads_sync_once.OVERLAP_EXIT_CODE
+    assert calls == 1

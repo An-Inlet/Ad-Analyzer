@@ -89,6 +89,18 @@ class GoogleAdsSyncService:
         *,
         date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
     ) -> GoogleAdsSyncResult:
+        _ = date_range
+        raise GoogleAdsSyncError(
+            "Google Ads synchronization must be run through the Phase 7 worker.",
+            classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+        )
+
+    def _sync_without_worker_for_tests(
+        self,
+        *,
+        date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
+    ) -> GoogleAdsSyncResult:
+        """Exercise persistence internals in tests without exposing a production entry point."""
         records_processed = 0
         resolved_account: AdvertisingAccountCreate | None = None
         sync_error_message: str | None = None

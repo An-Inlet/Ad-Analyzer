@@ -97,7 +97,7 @@ class JobRunResponse(ApiModel):
     records_processed: int
     error_message: str | None = Field(
         default=None,
-        max_length=24,
+        max_length=160,
         description="Fixed public failure message; stored diagnostics are never exposed.",
     )
 
@@ -113,6 +113,18 @@ class SyncStatusResponse(BaseModel):
     latest_finished_at: datetime | None
     records_processed: int | None
     last_success_at: datetime | None
+
+
+class SyncHealthResponse(BaseModel):
+    status: str = Field(max_length=16)
+    stale: bool
+    running: bool
+    last_attempt_at: datetime | None
+    last_success_at: datetime | None
+    last_failure_at: datetime | None
+    last_failure_summary: str | None = Field(default=None, max_length=120)
+    success_age_seconds: int | None = Field(default=None, ge=0)
+    stale_after_seconds: int = Field(ge=60, le=604800)
 
 
 class ApiErrorResponse(BaseModel):

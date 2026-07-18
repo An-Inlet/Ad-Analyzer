@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app.ads.operations import public_failure_summary, sync_health
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import default_dates, ratios
 from app.dashboard.auth import (
@@ -19,12 +20,14 @@ from app.dashboard.auth import (
 )
 from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
+from app.settings import settings
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_dashboard_session)])
 DASHBOARD_MAX_OFFSET = 10_000
 templates = Jinja2Templates(directory="app/dashboard/templates")
 templates.env.filters["money"] = money_from_micros
 templates.env.filters["percent"] = ratio_percent
+templates.env.filters["public_failure_summary"] = public_failure_summary
 
 
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
@@ -55,6 +58,7 @@ def overview(
 ) -> HTMLResponse:
     accounts, total = repository.dashboard_accounts(limit, offset)
     jobs, job_total = repository.list_job_runs(None, None, None, 10, 0)
+    health = sync_health(repository.session, settings)
     return templates.TemplateResponse(
         request,
         "overview.html",
@@ -64,6 +68,7 @@ def overview(
             total=total,
             jobs=jobs,
             job_total=job_total,
+            health=health,
             title="Dashboard",
             limit=limit,
             offset=offset,

@@ -157,3 +157,60 @@ or logs. Later dashboard requests use only that session.
 Dashboard routes are `GET /dashboard`, `GET /dashboard/accounts/{account_id}`,
 `GET /dashboard/campaigns/{campaign_id}`, and `GET /dashboard/job-runs`. All require operator
 authentication. The public `GET /` and `GET /health` routes remain unchanged.
+
+## Phase 7: separate Google Ads sync worker
+
+The API/dashboard process and the sync scheduler are deliberately separate processes.  FastAPI
+startup and lifespan hooks never schedule collection, so future API workers cannot multiply
+Google Ads requests.  Both the API sync-health view and dashboard panel read only local JobRun
+rows; neither can initiate a sync or call Google Ads.
+
+Run the API and scheduler in separate PowerShell windows:
+
+```powershell
+# Window 1
+python -m uvicorn app.main:app
+# Window 2
+python -m app.jobs.google_ads_scheduler
+```
+
+For a single production-oriented cycle use `python -m app.jobs.google_ads_sync_once`. Exit
+codes are `0` for an actual successful sync, `2` when another worker already holds the
+advisory lock and the cycle is skipped, and `1` for configuration or synchronization failure.
+Cron jobs and supervisors can use that contract to distinguish success, overlap skips, and
+failures. The worker
+uses `DENTICODE_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
+`DENTICODE_SYNC_RUN_IMMEDIATELY` (default true), `DENTICODE_SYNC_MAX_ATTEMPTS` (1--5, default 3),
+`DENTICODE_SYNC_RETRY_BASE_SECONDS` (1--300, default 5),
+`DENTICODE_SYNC_RETRY_MAX_SECONDS` (1--900, default 60),
+`DENTICODE_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
+`DENTICODE_SYNC_ADVISORY_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
+collection. Put only local values in an uncommitted `.env`; never commit `.env` or credentials.
+
+Each cycle checks out one PostgreSQL connection, obtains a nonblocking session-level advisory
+lock on that exact physical connection, and binds the synchronization SQLAlchemy Session to it
+before any collector call. A competing worker logs a safe overlap skip and creates no JobRun, so
+it cannot report an overlap as success. The lock remains held on the pinned connection across
+all retries and is released on that same connection on success, failure, and shutdown; failed
+unlocks invalidate the connection so a possibly locked connection cannot re-enter the pool. If
+the lock-owning backend is invalidated, the cycle aborts fail-closed instead of reconnecting and
+continuing without a verified advisory lock.
+Retry is conservative: only recognized transient network/database/service
+failures retry with capped exponential backoff and bounded jitter; authentication, configuration,
+authorization, unknown commit outcomes, and unknown failures do not retry. The recurring
+scheduler uses fixed-delay cadence: after each completed, failed, or skipped cycle, it waits the
+full configured interval before the next attempt. If `DENTICODE_SYNC_RUN_IMMEDIATELY=false`, the
+first cycle is delayed until the first interval elapses. Retry backoff is shutdown-aware in both the scheduler and one-shot worker: Ctrl+C, SIGINT,
+and SIGTERM request shutdown, stop waiting, avoid another collector attempt, finalize the
+authoritative JobRun with a bounded interruption summary when the transaction outcome is known,
+and release resources deterministically. Startup/configuration failures are caught after runtime loading and logged as
+sanitized event/type pairs without raw validation text or tracebacks.
+
+`GET /api/v1/operations/sync-health` is bearer-token protected and exposes bounded, read-only
+sync status. Stored JobRun failure text is treated as untrusted at this public boundary and
+re-sanitized before JSON or dashboard rendering using exact fixed-message allowlists only;
+legacy, extended, or externally inserted text is mapped to a generic public failure summary.  Healthy means the most recent successful sync is within the configured stale window;
+Stale means it is older (or absent), Failed means the latest attempt failed, Running means the
+latest JobRun is in progress, and Never Synced means no prior attempt exists. In production run
+the scheduler as its own supervised process; do not put it in Uvicorn, FastAPI startup, or a web
+request handler.

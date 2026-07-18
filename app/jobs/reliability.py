@@ -19,10 +19,12 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.services import (
+    _CAPABILITY_TOKEN,
     FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
     GoogleAdsSyncResult,
     GoogleAdsSyncService,
+    Phase7SyncCapability,
     SyncFailureClassification,
 )
 from app.collectors.google_ads import GoogleAdsRateLimitError
@@ -363,6 +365,7 @@ def run_cycle(
     finalization_completed = False
     finalization_outcome_unknown = False
     primary_error: BaseException | None = None
+    capability: Phase7SyncCapability | None = None
     retry_wait: Callable[[float], bool | None]
     if wait is None:
         def retry_wait(delay: float) -> bool:
@@ -389,6 +392,8 @@ def run_cycle(
                 raise finalize_exc
             lock.acquired = False
             connection.invalidate()
+            if capability is not None:
+                capability.invalidate()
             if session is not None:
                 session.close()
             try:
@@ -433,11 +438,22 @@ def run_cycle(
             try:
                 _raise_if_stop_requested(stop_requested)
                 last_attempt = attempt
+                pre_collector_check = _make_pre_collector_check(
+                    lock, connection, session, stop_requested
+                )
+                pre_collector_check._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
+                capability = Phase7SyncCapability._create(
+                    lock=lock,
+                    connection=connection,
+                    session=session,
+                    lock_key=settings.sync_lock_key,
+                    backend_pid=lock.backend_pid,
+                    stop_requested=stop_requested or (lambda: False),
+                    validate_callback=pre_collector_check,
+                )
                 result = GoogleAdsSyncService(session).sync_authoritative_job_run(
                     job_run,
-                    pre_collector_check=_make_pre_collector_check(
-                        lock, connection, session, stop_requested
-                    ),
+                    capability=capability,
                 )
                 logger.info(
                     "google_ads_sync_succeeded run_id=%s attempt=%s", result.job_run_id, attempt
@@ -518,6 +534,8 @@ def run_cycle(
     finally:
         release_error: BaseException | None = None
         try:
+            if capability is not None:
+                capability.invalidate()
             if session is not None:
                 session.close()
         finally:

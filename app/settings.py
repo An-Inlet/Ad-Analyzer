@@ -1,4 +1,7 @@
-from pydantic import Field, SecretStr, model_validator
+import os
+from typing import Any
+
+from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,8 +56,32 @@ class Settings(BaseSettings):
         default=180, ge=1, le=10080, validation_alias="DENTICODE_SYNC_STALE_AFTER_MINUTES"
     )
     sync_lock_key: int = Field(
-        default=719_042_711, ge=-(2**63), le=2**63 - 1, validation_alias="DENTICODE_SYNC_LOCK_KEY"
+        default=719_042_711,
+        ge=-(2**63),
+        le=2**63 - 1,
+        validation_alias=AliasChoices(
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY", "DENTICODE_SYNC_LOCK_KEY"
+        ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_lock_aliases_do_not_conflict(cls, data: Any) -> Any:
+        env_canonical = os.environ.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY")
+        env_legacy = os.environ.get("DENTICODE_SYNC_LOCK_KEY")
+        data_canonical = (
+            data.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY")
+            if isinstance(data, dict)
+            else None
+        )
+        data_legacy = (
+            data.get("DENTICODE_SYNC_LOCK_KEY") if isinstance(data, dict) else None
+        )
+        canonical = data_canonical if data_canonical is not None else env_canonical
+        legacy = data_legacy if data_legacy is not None else env_legacy
+        if canonical is not None and legacy is not None and str(canonical) != str(legacy):
+            raise ValueError("conflicting sync advisory lock key settings")
+        return data
 
     @model_validator(mode="after")
     def retry_bounds_are_valid(self) -> "Settings":

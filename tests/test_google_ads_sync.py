@@ -4,6 +4,7 @@ import sys
 import traceback
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from datetime import date
 from decimal import Decimal
 from importlib import import_module
@@ -41,7 +42,9 @@ from app.ads.services import (
     FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
+    GoogleAdsSyncResult,
     GoogleAdsSyncService,
+    SyncFailureClassification,
 )
 from app.collectors import google_ads
 from app.database.session import Base
@@ -108,6 +111,113 @@ def patch_cli_runtime(monkeypatch: pytest.MonkeyPatch, session: Session) -> None
             lambda: SessionContext(session),
         ),
     )
+
+
+
+
+class TestPhase7Lock:
+    key = 1
+    backend_pid = 1
+
+    def owns_current_session(self, _session: Session) -> bool:
+        return True
+
+
+class TestPhase7Connection:
+    invalidated = False
+
+
+def make_phase7_capability(session: Session) -> Any:
+    from app.ads.services import _CAPABILITY_TOKEN, Phase7SyncCapability
+
+    def validate_callback() -> None:
+        return None
+
+    validate_callback._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
+    return Phase7SyncCapability._create(
+        lock=TestPhase7Lock(),
+        connection=TestPhase7Connection(),
+        session=session,
+        lock_key=1,
+        backend_pid=1,
+        stop_requested=lambda: False,
+        validate_callback=validate_callback,
+    )
+
+
+def sync_without_worker_for_tests(
+    session: Session,
+    *,
+    date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
+) -> GoogleAdsSyncResult:
+    service = GoogleAdsSyncService(session)
+    repository = service.repository
+    job_run = repository.create_job_run(
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        job_name=service.job_name,
+        status=JobRunStatus.RUNNING,
+    )
+    success_commit_started = False
+    captured_exc: Exception | None = None
+    try:
+        session.flush()
+        result = service._collect_and_persist(
+            job_run, date_range=date_range, capability=make_phase7_capability(session)
+        )
+        success_commit_started = True
+        session.commit()
+        return result
+    except Exception as exc:
+        captured_exc = exc
+
+    if success_commit_started:
+        with suppress(Exception):
+            session.rollback()
+        raise GoogleAdsSyncError(
+            UNKNOWN_COMMIT_OUTCOME_ERROR,
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+        ) from None
+
+    assert captured_exc is not None
+    records_processed = service._last_records_processed
+    resolved_account = service._last_resolved_account
+    sanitized_error_message = service._sanitize_error(captured_exc)
+    classification = service._classify_failure(captured_exc)
+    failed_commit_started = False
+    final_error: GoogleAdsSyncError | None = None
+    try:
+        session.rollback()
+        failed_account_id = service._resolve_durable_failed_run_account_id(
+            resolved_account
+        )
+        failed_job_run = repository.create_job_run(
+            platform=AdvertisingPlatform.GOOGLE_ADS,
+            job_name=service.job_name,
+            status=JobRunStatus.FAILED,
+            account_id=failed_account_id,
+        )
+        repository.finish_job_run(
+            failed_job_run,
+            status=JobRunStatus.FAILED,
+            records_processed=records_processed,
+            error_message=sanitized_error_message,
+        )
+        session.flush()
+        failed_commit_started = True
+        session.commit()
+        final_error = GoogleAdsSyncError(
+            sanitized_error_message, classification=classification
+        )
+    except Exception:
+        with suppress(Exception):
+            session.rollback()
+        final_error = GoogleAdsSyncError(
+            FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
+            if failed_commit_started
+            else FAILED_JOB_RUN_PERSISTENCE_ERROR,
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+        )
+    raise final_error
 
 
 def enable_sqlite_foreign_keys(
@@ -303,7 +413,7 @@ def stub_collectors(monkeypatch: pytest.MonkeyPatch) -> GoogleAdsCollectorStub:
 def test_first_sync_persists_google_ads_data(
     session: Session, stub_collectors: GoogleAdsCollectorStub
 ) -> None:
-    result = GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    result = sync_without_worker_for_tests(session)
 
     assert result.status is JobRunStatus.SUCCEEDED
     assert result.records_processed == 7
@@ -353,7 +463,7 @@ def test_successful_sync_uses_captured_job_run_id_without_post_commit_refresh(
     event.listen(engine, "before_cursor_execute", fail_sql_after_commit)
     monkeypatch.setattr(session, "commit", commit_and_mark_complete)
     try:
-        result = GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        result = sync_without_worker_for_tests(session)
     finally:
         event.remove(engine, "before_cursor_execute", fail_sql_after_commit)
 
@@ -371,8 +481,8 @@ def test_successful_sync_uses_captured_job_run_id_without_post_commit_refresh(
 def test_repeated_sync_is_idempotent(
     session: Session, stub_collectors: GoogleAdsCollectorStub
 ) -> None:
-    GoogleAdsSyncService(session)._sync_without_worker_for_tests()
-    GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    sync_without_worker_for_tests(session)
+    sync_without_worker_for_tests(session)
 
     assert len(session.scalars(select(Campaign)).all()) == 1
     assert len(session.scalars(select(AdGroup)).all()) == 1
@@ -398,7 +508,7 @@ def test_same_google_ad_external_id_can_exist_in_multiple_ad_groups(
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
-    result = GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    result = sync_without_worker_for_tests(session)
 
     assert result.status is JobRunStatus.SUCCEEDED
     ads = session.scalars(
@@ -413,9 +523,9 @@ def test_same_google_ad_external_id_can_exist_in_multiple_ad_groups(
 def test_updated_campaign_data_is_upserted(
     session: Session, stub_collectors: GoogleAdsCollectorStub
 ) -> None:
-    GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    sync_without_worker_for_tests(session)
     stub_collectors.campaign_name = "Implants Updated"
-    GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    sync_without_worker_for_tests(session)
 
     campaign = session.scalar(select(Campaign).where(Campaign.external_campaign_id == "camp-1"))
     assert campaign is not None
@@ -437,7 +547,7 @@ def test_zero_campaign_account_is_successful(
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
-    result = GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    result = sync_without_worker_for_tests(session)
 
     assert result.status is JobRunStatus.SUCCEEDED
     assert result.records_processed == 1
@@ -459,7 +569,7 @@ def test_campaigns_with_zero_metric_rows_are_successful(
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
-    result = GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    result = sync_without_worker_for_tests(session)
 
     assert result.status is JobRunStatus.SUCCEEDED
     assert result.records_processed == 6
@@ -484,7 +594,7 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == SANITIZED_SYNC_ERROR
     assert exc_info.value.__cause__ is None
@@ -550,7 +660,7 @@ def test_failed_sync_links_existing_durable_account_without_persisting_rename(
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == SANITIZED_SYNC_ERROR
     assert exc_info.value.__cause__ is None
@@ -585,7 +695,7 @@ def test_failed_sync_with_new_account_does_not_create_account_for_audit_link(
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == SANITIZED_SYNC_ERROR
     assert exc_info.value.__cause__ is None
@@ -616,7 +726,7 @@ def test_success_commit_exception_creates_no_failed_job_run(
     monkeypatch.setattr(session, "commit", fail_commit)
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == UNKNOWN_COMMIT_OUTCOME_ERROR
     assert exc_info.value.__cause__ is None
@@ -667,7 +777,7 @@ def test_durable_commit_ack_failure_does_not_create_success_and_failed_job_runs(
     monkeypatch.setattr(session, "commit", commit_then_fail_acknowledgement)
     try:
         with pytest.raises(GoogleAdsSyncError) as exc_info:
-            GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+            sync_without_worker_for_tests(session)
     finally:
         event.remove(engine, "before_cursor_execute", fail_sql_after_commit)
 
@@ -735,7 +845,7 @@ def test_failed_job_run_flush_failure_raises_persistence_error_not_uncertain_com
     monkeypatch.setattr(session, "commit", count_commit)
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == FAILED_JOB_RUN_PERSISTENCE_ERROR
     assert exc_info.value.__cause__ is None
@@ -793,7 +903,7 @@ def test_failed_job_run_commit_exception_has_unknown_outcome(
     monkeypatch.setattr(session, "commit", fail_commit)
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     assert str(exc_info.value) == FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
     assert exc_info.value.__cause__ is None
@@ -859,7 +969,7 @@ def test_durable_failed_job_run_commit_ack_failure_does_not_retry_or_duplicate(
     monkeypatch.setattr(session, "commit", commit_then_fail_acknowledgement)
     try:
         with pytest.raises(GoogleAdsSyncError) as exc_info:
-            GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+            sync_without_worker_for_tests(session)
     finally:
         event.remove(engine, "before_cursor_execute", fail_sql_after_commit)
 
@@ -963,10 +1073,10 @@ def test_concurrent_duplicate_ad_upserts_do_not_create_duplicate_rows(
 def test_successful_and_failed_job_run_records(
     session: Session, stub_collectors: GoogleAdsCollectorStub
 ) -> None:
-    GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+    sync_without_worker_for_tests(session)
     stub_collectors.fail_at = "campaigns"
     with pytest.raises(GoogleAdsSyncError):
-        GoogleAdsSyncService(session)._sync_without_worker_for_tests()
+        sync_without_worker_for_tests(session)
 
     job_runs = session.scalars(select(JobRun).order_by(JobRun.id)).all()
     assert [job.status for job in job_runs] == [JobRunStatus.SUCCEEDED, JobRunStatus.FAILED]

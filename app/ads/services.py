@@ -1,4 +1,5 @@
 import socket
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.enums import JobRunStatus
 from app.ads.models import AdvertisingAccount, DailyMetric, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate, NormalizedMetricsBatch
@@ -73,6 +74,110 @@ class GoogleAdsSyncError(RuntimeError):
         self.lock_lost = lock_lost
 
 
+_CAPABILITY_TOKEN = object()
+_WORKER_REQUIRED_ERROR = "Google Ads synchronization must be run through the Phase 7 worker."
+
+
+class Phase7SyncCapability:
+    """Worker-owned capability tying collector access to one locked sync cycle."""
+
+    _token: object
+    _lock: object
+    _connection: object
+    _session: Session
+    _lock_key: int
+    _backend_pid: int | None
+    _stop_requested: Callable[[], bool]
+    _validate_callback: Callable[[], None]
+    _valid: bool
+
+    def __init__(self, *_args: object, **_kwargs: object) -> None:
+        raise RuntimeError(_WORKER_REQUIRED_ERROR)
+
+    @classmethod
+    def _create(
+        cls,
+        *,
+        lock: object,
+        connection: object,
+        session: Session,
+        lock_key: int,
+        backend_pid: int | None,
+        stop_requested: Callable[[], bool],
+        validate_callback: Callable[[], None],
+    ) -> "Phase7SyncCapability":
+        if (
+            not callable(validate_callback)
+            or getattr(validate_callback, "_phase7_capability_token", None)
+            is not _CAPABILITY_TOKEN
+        ):
+            raise RuntimeError(_WORKER_REQUIRED_ERROR)
+        capability = object.__new__(cls)
+        capability._token = _CAPABILITY_TOKEN
+        capability._lock = lock
+        capability._connection = connection
+        capability._session = session
+        capability._lock_key = lock_key
+        capability._backend_pid = backend_pid
+        capability._stop_requested = stop_requested
+        capability._validate_callback = validate_callback
+        capability._valid = True
+        return capability
+
+    def invalidate(self) -> None:
+        self._valid = False
+
+    def validate(self, session: Session) -> None:
+        if getattr(self, "_token", None) is not _CAPABILITY_TOKEN or not self._valid:
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if session is not self._session:
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if self._stop_requested():
+            validate_callback = self._validate_callback
+            if callable(validate_callback):
+                validate_callback()
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        lock = self._lock
+        connection = self._connection
+        if getattr(connection, "invalidated", False):
+            validate_callback = self._validate_callback
+            if callable(validate_callback):
+                validate_callback()
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if getattr(lock, "key", None) != self._lock_key:
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if getattr(lock, "backend_pid", None) != self._backend_pid:
+            validate_callback = self._validate_callback
+            if callable(validate_callback):
+                validate_callback()
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        validate_callback = self._validate_callback
+        if not callable(validate_callback):
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        validate_callback()
+
+
 class GoogleAdsSyncService:
     """Persist read-only Google Ads collector data to the local database."""
 
@@ -91,93 +196,21 @@ class GoogleAdsSyncService:
     ) -> GoogleAdsSyncResult:
         _ = date_range
         raise GoogleAdsSyncError(
-            "Google Ads synchronization must be run through the Phase 7 worker.",
+            _WORKER_REQUIRED_ERROR,
             classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
         )
-
-    def _sync_without_worker_for_tests(
-        self,
-        *,
-        date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
-    ) -> GoogleAdsSyncResult:
-        """Exercise persistence internals in tests without exposing a production entry point."""
-        records_processed = 0
-        resolved_account: AdvertisingAccountCreate | None = None
-        sync_error_message: str | None = None
-        failure_classification = SyncFailureClassification.UNKNOWN_PERMANENT
-        success_commit_started = False
-        try:
-            job_run = self.repository.create_job_run(
-                platform=AdvertisingPlatform.GOOGLE_ADS,
-                job_name=self.job_name,
-                status=JobRunStatus.RUNNING,
-            )
-            self.session.flush()
-            result = self._collect_and_persist(job_run, date_range=date_range)
-            success_commit_started = True
-            self.session.commit()
-            return result
-        except Exception as exc:
-            if success_commit_started:
-                with suppress(Exception):
-                    self.session.rollback()
-                sync_error_message = UNKNOWN_COMMIT_OUTCOME_ERROR
-                failure_classification = SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
-            else:
-                records_processed = self._last_records_processed
-                resolved_account = self._last_resolved_account
-                sanitized_error_message = self._sanitize_error(exc)
-                failure_classification = self._classify_failure(exc)
-                failed_job_run_commit_started = False
-                try:
-                    self.session.rollback()
-                    failed_account_id = self._resolve_durable_failed_run_account_id(
-                        resolved_account
-                    )
-                    failed_job_run = self.repository.create_job_run(
-                        platform=AdvertisingPlatform.GOOGLE_ADS,
-                        job_name=self.job_name,
-                        status=JobRunStatus.FAILED,
-                        account_id=failed_account_id,
-                    )
-                    self.repository.finish_job_run(
-                        failed_job_run,
-                        status=JobRunStatus.FAILED,
-                        records_processed=records_processed,
-                        error_message=sanitized_error_message,
-                    )
-                    self.session.flush()
-                    failed_job_run_commit_started = True
-                    self.session.commit()
-                    sync_error_message = sanitized_error_message
-                except Exception:
-                    with suppress(Exception):
-                        self.session.rollback()
-                    sync_error_message = (
-                        FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR
-                        if failed_job_run_commit_started
-                        else FAILED_JOB_RUN_PERSISTENCE_ERROR
-                    )
-                    failure_classification = SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
-        if sync_error_message is not None:
-            raise GoogleAdsSyncError(
-                sync_error_message,
-                classification=failure_classification,
-                lock_lost=self._lock_lost_from_classification(failure_classification),
-            ) from None
-        raise GoogleAdsSyncError(FAILED_JOB_RUN_PERSISTENCE_ERROR) from None
 
     def sync_authoritative_job_run(
         self,
         job_run: JobRun,
         *,
         date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
-        pre_collector_check: object | None = None,
+        capability: Phase7SyncCapability,
     ) -> GoogleAdsSyncResult:
         success_commit_started = False
         try:
             result = self._collect_and_persist(
-                job_run, date_range=date_range, pre_collector_check=pre_collector_check
+                job_run, date_range=date_range, capability=capability
             )
             success_commit_started = True
             self.session.commit()
@@ -202,20 +235,24 @@ class GoogleAdsSyncService:
                 lock_lost=self._is_lock_lost_failure(exc),
             ) from None
 
-    def _check_before_collector(self, pre_collector_check: object | None) -> None:
-        if callable(pre_collector_check):
-            pre_collector_check()
+    def _check_before_collector(self, capability: Phase7SyncCapability) -> None:
+        if not isinstance(capability, Phase7SyncCapability):
+            raise GoogleAdsSyncError(
+                _WORKER_REQUIRED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        capability.validate(self.session)
 
     def _collect_and_persist(
         self,
         job_run: JobRun,
         *,
         date_range: google_ads.GoogleAdsDateRange,
-        pre_collector_check: object | None = None,
+        capability: Phase7SyncCapability,
     ) -> GoogleAdsSyncResult:
         records_processed = 0
         self._last_records_processed = records_processed
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         resolved_account = google_ads.collect_account()
         self._last_resolved_account = resolved_account
         account = self.repository.upsert_account(resolved_account)
@@ -223,7 +260,7 @@ class GoogleAdsSyncService:
         records_processed += 1
         self._last_records_processed = records_processed
 
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         campaigns = [
             self.repository.upsert_campaign(campaign)
             for campaign in google_ads.collect_campaigns(account.id)
@@ -234,7 +271,7 @@ class GoogleAdsSyncService:
             campaign.external_campaign_id: campaign.id for campaign in campaigns
         }
 
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         ad_groups = [
             self.repository.upsert_ad_group(ad_group)
             for ad_group in google_ads.collect_ad_groups(campaign_ids_by_external_id)
@@ -245,7 +282,7 @@ class GoogleAdsSyncService:
             ad_group.external_ad_group_id: ad_group.id for ad_group in ad_groups
         }
 
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         ads = [
             self.repository.upsert_ad(ad)
             for ad in google_ads.collect_ads(ad_group_ids_by_external_id)
@@ -253,7 +290,7 @@ class GoogleAdsSyncService:
         records_processed += len(ads)
         self._last_records_processed = records_processed
 
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         keywords = [
             self.repository.upsert_keyword(keyword)
             for keyword in google_ads.collect_keywords(ad_group_ids_by_external_id)
@@ -261,7 +298,7 @@ class GoogleAdsSyncService:
         records_processed += len(keywords)
         self._last_records_processed = records_processed
 
-        self._check_before_collector(pre_collector_check)
+        self._check_before_collector(capability)
         search_terms = [
             self.repository.upsert_search_term(search_term)
             for search_term in google_ads.collect_search_terms(
@@ -273,7 +310,7 @@ class GoogleAdsSyncService:
         self._last_records_processed = records_processed
 
         if campaign_ids_by_external_id:
-            self._check_before_collector(pre_collector_check)
+            self._check_before_collector(capability)
             metrics = google_ads.collect_metrics(campaign_ids_by_external_id, date_range).metrics
         else:
             metrics = []

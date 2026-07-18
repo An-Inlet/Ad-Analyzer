@@ -184,7 +184,7 @@ uses `DENTICODE_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
 `DENTICODE_SYNC_RETRY_BASE_SECONDS` (1--300, default 5),
 `DENTICODE_SYNC_RETRY_MAX_SECONDS` (1--900, default 60),
 `DENTICODE_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
-`DENTICODE_SYNC_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
+`DENTICODE_SYNC_ADVISORY_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
 collection. Put only local values in an uncommitted `.env`; never commit `.env` or credentials.
 
 Each cycle checks out one PostgreSQL connection, obtains a nonblocking session-level advisory

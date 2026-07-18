@@ -1370,3 +1370,159 @@ def test_legacy_sync_script_delegates_to_one_shot_worker() -> None:
 
     assert sync_google_ads.main(worker_main) == google_ads_sync_once.OVERLAP_EXIT_CODE
     assert calls == 1
+
+
+@pytest.mark.parametrize(
+    ("env", "expected"),
+    [
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "0"}, 0),
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "42"}, 42),
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "-42"}, -42),
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(2**63 - 1)}, 2**63 - 1),
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(-(2**63))}, -(2**63)),
+        ({"DENTICODE_SYNC_LOCK_KEY": "99"}, 99),
+        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "123", "DENTICODE_SYNC_LOCK_KEY": "123"}, 123),
+    ],
+)
+def test_sync_advisory_lock_key_environment_aliases(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str], expected: int
+) -> None:
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+
+    assert Settings().sync_lock_key == expected
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(2**63)},
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(-(2**63) - 1)},
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "not-an-int"},
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": ""},
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "1", "DENTICODE_SYNC_LOCK_KEY": "2"},
+    ],
+)
+def test_sync_advisory_lock_key_invalid_environment_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, env: dict[str, str]
+) -> None:
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_default_sync_advisory_lock_key_is_documented_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+
+    assert Settings().sync_lock_key == 719_042_711
+
+
+@pytest.mark.parametrize("guard", [None, (lambda: None), object()])
+def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_collectors(
+    sqlite_engine: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    guard: object,
+) -> None:
+    from app.collectors import google_ads
+
+    monkeypatch.setattr(
+        google_ads,
+        "collect_account",
+        lambda *_args, **_kwargs: pytest.fail("rejected capability must not collect"),
+    )
+    with Session(sqlite_engine) as session:
+        job_run = JobRun(
+            platform="google_ads",
+            job_name="google_ads_read_only_sync",
+            status=JobRunStatus.RUNNING,
+        )
+        with pytest.raises((GoogleAdsSyncError, TypeError)):
+            if guard is None:
+                GoogleAdsSyncService(session).sync_authoritative_job_run(job_run)  # type: ignore[call-arg]
+            else:
+                GoogleAdsSyncService(session).sync_authoritative_job_run(
+                    job_run, capability=guard  # type: ignore[arg-type]
+                )
+        assert session.scalars(select(JobRun)).all() == []
+
+
+def test_phase7_capability_rejects_wrong_session_and_released_lock(
+    sqlite_engine: Any,
+) -> None:
+    class Lock:
+        key = 1
+        backend_pid = 1
+        acquired = True
+
+        def owns_current_session(self, _session: Session) -> bool:
+            return self.acquired
+
+    class Connection:
+        invalidated = False
+
+    with Session(sqlite_engine) as session, Session(sqlite_engine) as other_session:
+        from app.ads.services import _CAPABILITY_TOKEN, Phase7SyncCapability
+
+        lock = Lock()
+
+        def validate_callback() -> None:
+            if not lock.acquired:
+                raise GoogleAdsSyncError("advisory-lock lost")
+
+        validate_callback._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
+        capability = Phase7SyncCapability._create(
+            lock=lock,
+            connection=Connection(),
+            session=session,
+            lock_key=1,
+            backend_pid=1,
+            stop_requested=lambda: False,
+            validate_callback=validate_callback,
+        )
+        with pytest.raises(GoogleAdsSyncError):
+            capability.validate(other_session)
+        lock.acquired = False
+        with pytest.raises(GoogleAdsSyncError):
+            capability.validate(session)
+
+
+def test_google_ads_sync_service_has_no_production_unlocked_sync_bypass() -> None:
+    assert not hasattr(GoogleAdsSyncService, "_sync_without_worker_for_tests")
+    production_text = "\n".join(
+        path.read_text() for path in Path("app").rglob("*.py")
+    )
+    assert "_sync_without_worker_for_tests" not in production_text
+
+
+def test_fabricated_phase7_capability_cannot_reach_collectors(
+    sqlite_engine: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.ads.services import Phase7SyncCapability
+    from app.collectors import google_ads
+
+    monkeypatch.setattr(
+        google_ads,
+        "collect_account",
+        lambda *_args, **_kwargs: pytest.fail("fabricated capability must not collect"),
+    )
+    fabricated = object.__new__(Phase7SyncCapability)
+    with Session(sqlite_engine) as session:
+        job_run = JobRun(
+            platform="google_ads",
+            job_name="google_ads_read_only_sync",
+            status=JobRunStatus.RUNNING,
+        )
+        with pytest.raises(GoogleAdsSyncError):
+            GoogleAdsSyncService(session).sync_authoritative_job_run(
+                job_run, capability=fabricated
+            )
+        assert session.scalars(select(JobRun)).all() == []

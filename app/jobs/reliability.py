@@ -19,13 +19,13 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.services import (
-    _CAPABILITY_TOKEN,
     FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
     GoogleAdsSyncError,
     GoogleAdsSyncResult,
     GoogleAdsSyncService,
     Phase7SyncCapability,
     SyncFailureClassification,
+    _new_phase7_sync_capability,
 )
 from app.collectors.google_ads import GoogleAdsRateLimitError
 from app.settings import Settings
@@ -438,18 +438,13 @@ def run_cycle(
             try:
                 _raise_if_stop_requested(stop_requested)
                 last_attempt = attempt
-                pre_collector_check = _make_pre_collector_check(
-                    lock, connection, session, stop_requested
-                )
-                pre_collector_check._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
-                capability = Phase7SyncCapability._create(
+                capability = _new_phase7_sync_capability(
                     lock=lock,
                     connection=connection,
                     session=session,
                     lock_key=settings.sync_lock_key,
                     backend_pid=lock.backend_pid,
                     stop_requested=stop_requested or (lambda: False),
-                    validate_callback=pre_collector_check,
                 )
                 result = GoogleAdsSyncService(session).sync_authoritative_job_run(
                     job_run,

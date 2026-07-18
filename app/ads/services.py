@@ -3,6 +3,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
+from weakref import WeakKeyDictionary
 
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, OperationalError
@@ -74,108 +75,107 @@ class GoogleAdsSyncError(RuntimeError):
         self.lock_lost = lock_lost
 
 
-_CAPABILITY_TOKEN = object()
 _WORKER_REQUIRED_ERROR = "Google Ads synchronization must be run through the Phase 7 worker."
+_CAPABILITY_INTERRUPTED_ERROR = "Google Ads synchronization interrupted before retry."
+_CAPABILITY_LOCK_LOST_ERROR = "Google Ads synchronization lost advisory-lock ownership."
+
+
+@dataclass
+class _Phase7SyncCapabilityState:
+    lock: object
+    connection: object
+    session: Session
+    lock_key: int
+    backend_pid: int | None
+    stop_requested: Callable[[], bool]
+    valid: bool = True
 
 
 class Phase7SyncCapability:
-    """Worker-owned capability tying collector access to one locked sync cycle."""
+    """Opaque worker-owned capability tying collector access to one locked cycle."""
 
-    _token: object
-    _lock: object
-    _connection: object
-    _session: Session
-    _lock_key: int
-    _backend_pid: int | None
-    _stop_requested: Callable[[], bool]
-    _validate_callback: Callable[[], None]
-    _valid: bool
+    __slots__ = ("__weakref__",)
 
     def __init__(self, *_args: object, **_kwargs: object) -> None:
         raise RuntimeError(_WORKER_REQUIRED_ERROR)
 
-    @classmethod
-    def _create(
-        cls,
-        *,
-        lock: object,
-        connection: object,
-        session: Session,
-        lock_key: int,
-        backend_pid: int | None,
-        stop_requested: Callable[[], bool],
-        validate_callback: Callable[[], None],
-    ) -> "Phase7SyncCapability":
-        if (
-            not callable(validate_callback)
-            or getattr(validate_callback, "_phase7_capability_token", None)
-            is not _CAPABILITY_TOKEN
-        ):
-            raise RuntimeError(_WORKER_REQUIRED_ERROR)
-        capability = object.__new__(cls)
-        capability._token = _CAPABILITY_TOKEN
-        capability._lock = lock
-        capability._connection = connection
-        capability._session = session
-        capability._lock_key = lock_key
-        capability._backend_pid = backend_pid
-        capability._stop_requested = stop_requested
-        capability._validate_callback = validate_callback
-        capability._valid = True
-        return capability
-
     def invalidate(self) -> None:
-        self._valid = False
+        state = _CAPABILITY_STATES.get(self)
+        if state is not None:
+            state.valid = False
 
     def validate(self, session: Session) -> None:
-        if getattr(self, "_token", None) is not _CAPABILITY_TOKEN or not self._valid:
+        state = _CAPABILITY_STATES.get(self)
+        if state is None or not state.valid:
             raise GoogleAdsSyncError(
                 _WORKER_REQUIRED_ERROR,
                 classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
             )
-        if session is not self._session:
+        if session is not state.session:
             raise GoogleAdsSyncError(
                 _WORKER_REQUIRED_ERROR,
                 classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
             )
-        if self._stop_requested():
-            validate_callback = self._validate_callback
-            if callable(validate_callback):
-                validate_callback()
+        if state.stop_requested():
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_INTERRUPTED_ERROR,
+                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+            )
+        if getattr(state.connection, "invalidated", False):
+            self.invalidate()
+            raise GoogleAdsSyncError(
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
+            )
+        lock = state.lock
+        if getattr(lock, "key", None) != state.lock_key:
             raise GoogleAdsSyncError(
                 _WORKER_REQUIRED_ERROR,
                 classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
             )
-        lock = self._lock
-        connection = self._connection
-        if getattr(connection, "invalidated", False):
-            validate_callback = self._validate_callback
-            if callable(validate_callback):
-                validate_callback()
+        if getattr(lock, "backend_pid", None) != state.backend_pid:
+            self.invalidate()
             raise GoogleAdsSyncError(
-                _WORKER_REQUIRED_ERROR,
-                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
             )
-        if getattr(lock, "key", None) != self._lock_key:
+        owns_current_session = getattr(lock, "owns_current_session", None)
+        if not callable(owns_current_session) or not bool(owns_current_session(session)):
+            self.invalidate()
             raise GoogleAdsSyncError(
-                _WORKER_REQUIRED_ERROR,
-                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
+                _CAPABILITY_LOCK_LOST_ERROR,
+                classification=SyncFailureClassification.TRANSIENT_DATABASE,
+                lock_lost=True,
             )
-        if getattr(lock, "backend_pid", None) != self._backend_pid:
-            validate_callback = self._validate_callback
-            if callable(validate_callback):
-                validate_callback()
-            raise GoogleAdsSyncError(
-                _WORKER_REQUIRED_ERROR,
-                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
-            )
-        validate_callback = self._validate_callback
-        if not callable(validate_callback):
-            raise GoogleAdsSyncError(
-                _WORKER_REQUIRED_ERROR,
-                classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
-            )
-        validate_callback()
+
+
+_CAPABILITY_STATES: WeakKeyDictionary[
+    Phase7SyncCapability, _Phase7SyncCapabilityState
+] = WeakKeyDictionary()
+
+
+def _new_phase7_sync_capability(
+    *,
+    lock: object,
+    connection: object,
+    session: Session,
+    lock_key: int,
+    backend_pid: int | None,
+    stop_requested: Callable[[], bool],
+) -> Phase7SyncCapability:
+    capability = object.__new__(Phase7SyncCapability)
+    _CAPABILITY_STATES[capability] = _Phase7SyncCapabilityState(
+        lock=lock,
+        connection=connection,
+        session=session,
+        lock_key=lock_key,
+        backend_pid=backend_pid,
+        stop_requested=stop_requested,
+    )
+    return capability
 
 
 class GoogleAdsSyncService:
@@ -212,6 +212,7 @@ class GoogleAdsSyncService:
             result = self._collect_and_persist(
                 job_run, date_range=date_range, capability=capability
             )
+            capability.validate(self.session)
             success_commit_started = True
             self.session.commit()
             return result
@@ -314,10 +315,12 @@ class GoogleAdsSyncService:
             metrics = google_ads.collect_metrics(campaign_ids_by_external_id, date_range).metrics
         else:
             metrics = []
+        self._check_before_collector(capability)
         daily_metrics = [self.repository.upsert_daily_metric(metric) for metric in metrics]
         records_processed += len(daily_metrics)
         self._last_records_processed = records_processed
 
+        self._check_before_collector(capability)
         self.repository.finish_job_run(
             job_run,
             status=JobRunStatus.SUCCEEDED,

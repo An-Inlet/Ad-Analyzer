@@ -1470,23 +1470,16 @@ def test_phase7_capability_rejects_wrong_session_and_released_lock(
         invalidated = False
 
     with Session(sqlite_engine) as session, Session(sqlite_engine) as other_session:
-        from app.ads.services import _CAPABILITY_TOKEN, Phase7SyncCapability
+        from app.ads.services import _new_phase7_sync_capability
 
         lock = Lock()
-
-        def validate_callback() -> None:
-            if not lock.acquired:
-                raise GoogleAdsSyncError("advisory-lock lost")
-
-        validate_callback._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
-        capability = Phase7SyncCapability._create(
+        capability = _new_phase7_sync_capability(
             lock=lock,
             connection=Connection(),
             session=session,
             lock_key=1,
             backend_pid=1,
             stop_requested=lambda: False,
-            validate_callback=validate_callback,
         )
         with pytest.raises(GoogleAdsSyncError):
             capability.validate(other_session)
@@ -1497,6 +1490,9 @@ def test_phase7_capability_rejects_wrong_session_and_released_lock(
 
 def test_google_ads_sync_service_has_no_production_unlocked_sync_bypass() -> None:
     assert not hasattr(GoogleAdsSyncService, "_sync_without_worker_for_tests")
+    import app.ads.services as services_module
+
+    assert not hasattr(services_module, "_CAPABILITY_TOKEN")
     production_text = "\n".join(
         path.read_text() for path in Path("app").rglob("*.py")
     )
@@ -1526,3 +1522,112 @@ def test_fabricated_phase7_capability_cannot_reach_collectors(
                 job_run, capability=fabricated
             )
         assert session.scalars(select(JobRun)).all() == []
+
+
+def test_sync_advisory_lock_key_conflict_inside_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    (tmp_path / ".env").write_text(
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=1\nDENTICODE_SYNC_LOCK_KEY=2\n"
+    )
+
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_sync_advisory_lock_key_matching_dotenv_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    (tmp_path / ".env").write_text(
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=123\nDENTICODE_SYNC_LOCK_KEY=123\n"
+    )
+
+    assert Settings().sync_lock_key == 123
+
+
+@pytest.mark.parametrize(
+    ("env_key", "env_value", "dotenv_text"),
+    [
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "10",
+            "DENTICODE_SYNC_LOCK_KEY=11\n",
+        ),
+        (
+            "DENTICODE_SYNC_LOCK_KEY",
+            "10",
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=11\n",
+        ),
+    ],
+)
+def test_sync_advisory_lock_key_mixed_source_conflicts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    env_key: str,
+    env_value: str,
+    dotenv_text: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.setenv(env_key, env_value)
+    (tmp_path / ".env").write_text(dotenv_text)
+
+    with pytest.raises(ValidationError):
+        Settings()
+
+
+def test_sync_advisory_lock_key_matching_mixed_sources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "77")
+    (tmp_path / ".env").write_text("DENTICODE_SYNC_LOCK_KEY=77\n")
+
+    assert Settings().sync_lock_key == 77
+
+
+def test_sync_advisory_lock_key_direct_construction_conflict() -> None:
+    with pytest.raises(ValueError):
+        Settings(DENTICODE_SYNC_ADVISORY_LOCK_KEY="1", DENTICODE_SYNC_LOCK_KEY="2")
+
+
+def test_phase7_capability_public_construction_and_copied_values_fail(
+    sqlite_engine: Any,
+) -> None:
+    from app.ads.services import Phase7SyncCapability, _new_phase7_sync_capability
+
+    with pytest.raises(RuntimeError):
+        Phase7SyncCapability()
+
+    class Lock:
+        key = 1
+        backend_pid = 1
+
+        def owns_current_session(self, _session: Session) -> bool:
+            return True
+
+    class Connection:
+        invalidated = False
+
+    with Session(sqlite_engine) as session:
+        genuine = _new_phase7_sync_capability(
+            lock=Lock(),
+            connection=Connection(),
+            session=session,
+            lock_key=1,
+            backend_pid=1,
+            stop_requested=lambda: False,
+        )
+        copied = object.__new__(Phase7SyncCapability)
+        assert not hasattr(genuine, "__dict__")
+        with pytest.raises(GoogleAdsSyncError):
+            copied.validate(session)

@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 import traceback
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from datetime import date
@@ -10,7 +10,7 @@ from decimal import Decimal
 from importlib import import_module
 from pathlib import Path
 from sqlite3 import Connection as SQLiteConnection
-from threading import Barrier
+from threading import Barrier, Event
 from types import TracebackType
 from typing import Any
 
@@ -127,21 +127,21 @@ class TestPhase7Connection:
     invalidated = False
 
 
-def make_phase7_capability(session: Session) -> Any:
-    from app.ads.services import _CAPABILITY_TOKEN, Phase7SyncCapability
+def make_phase7_capability(
+    session: Session,
+    *,
+    lock: Any | None = None,
+    stop_requested: Callable[[], bool] | None = None,
+) -> Any:
+    from app.ads.services import _new_phase7_sync_capability
 
-    def validate_callback() -> None:
-        return None
-
-    validate_callback._phase7_capability_token = _CAPABILITY_TOKEN  # type: ignore[attr-defined]
-    return Phase7SyncCapability._create(
-        lock=TestPhase7Lock(),
+    return _new_phase7_sync_capability(
+        lock=lock or TestPhase7Lock(),
         connection=TestPhase7Connection(),
         session=session,
         lock_key=1,
         backend_pid=1,
-        stop_requested=lambda: False,
-        validate_callback=validate_callback,
+        stop_requested=stop_requested or (lambda: False),
     )
 
 
@@ -149,6 +149,8 @@ def sync_without_worker_for_tests(
     session: Session,
     *,
     date_range: google_ads.GoogleAdsDateRange = google_ads.GoogleAdsDateRange.LAST_7_DAYS,
+    lock: Any | None = None,
+    stop_requested: Callable[[], bool] | None = None,
 ) -> GoogleAdsSyncResult:
     service = GoogleAdsSyncService(session)
     repository = service.repository
@@ -162,7 +164,11 @@ def sync_without_worker_for_tests(
     try:
         session.flush()
         result = service._collect_and_persist(
-            job_run, date_range=date_range, capability=make_phase7_capability(session)
+            job_run,
+            date_range=date_range,
+            capability=make_phase7_capability(
+                session, lock=lock, stop_requested=stop_requested
+            ),
         )
         success_commit_started = True
         session.commit()
@@ -1132,3 +1138,104 @@ def test_sync_google_ads_script_runs_directly_from_repository_root(
     for secret_value in SECRET_VALUES:
         assert secret_value not in combined_output
     assert "db-password" not in combined_output
+
+
+def test_final_capability_revalidation_after_metrics_collection_prevents_success(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop = Event()
+    stub = GoogleAdsCollectorStub()
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    def collect_metrics_then_stop(*args: Any, **kwargs: Any) -> NormalizedMetricsBatch:
+        result = stub.collect_metrics(*args, **kwargs)
+        stop.set()
+        return result
+
+    monkeypatch.setattr(google_ads, "collect_metrics", collect_metrics_then_stop)
+
+    with pytest.raises(GoogleAdsSyncError):
+        sync_without_worker_for_tests(session, stop_requested=stop.is_set)
+
+    assert session.scalars(select(DailyMetric)).all() == []
+    assert (
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
+        == []
+    )
+
+
+def test_final_capability_revalidation_when_metrics_skipped_prevents_success(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop = Event()
+    stub = GoogleAdsCollectorStub(zero=True)
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_metrics",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    def collect_search_terms_then_stop(*args: Any, **kwargs: Any) -> list[Any]:
+        result = stub.collect_search_terms(*args, **kwargs)
+        stop.set()
+        return result
+
+    monkeypatch.setattr(google_ads, "collect_search_terms", collect_search_terms_then_stop)
+
+    with pytest.raises(GoogleAdsSyncError):
+        sync_without_worker_for_tests(session, stop_requested=stop.is_set)
+
+    assert (
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
+        == []
+    )
+
+
+def test_final_capability_revalidation_after_metrics_detects_lock_loss(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class MutableLock(TestPhase7Lock):
+        acquired = True
+
+        def owns_current_session(self, _session: Session) -> bool:
+            return self.acquired
+
+    lock = MutableLock()
+    stub = GoogleAdsCollectorStub()
+    for name in (
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+    ):
+        monkeypatch.setattr(google_ads, name, getattr(stub, name))
+
+    def collect_metrics_then_lose_lock(*args: Any, **kwargs: Any) -> NormalizedMetricsBatch:
+        result = stub.collect_metrics(*args, **kwargs)
+        lock.acquired = False
+        return result
+
+    monkeypatch.setattr(google_ads, "collect_metrics", collect_metrics_then_lose_lock)
+
+    with pytest.raises(GoogleAdsSyncError):
+        sync_without_worker_for_tests(session, lock=lock)
+
+    assert session.scalars(select(DailyMetric)).all() == []
+    assert (
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
+        == []
+    )

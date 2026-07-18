@@ -1140,3 +1140,81 @@ def test_raw_exception_internal_summary_never_copies_secret_text(error: Exceptio
     assert "Authorization" not in summary
     assert "refresh_token" not in summary
     assert len(summary) <= 120
+
+
+class _FakeDialect:
+    name = "postgresql"
+
+
+class _FakeAdvisoryConnection:
+    dialect = _FakeDialect()
+    invalidated = False
+
+    def __init__(self, scalars: list[object], *, commit_fails: bool = False) -> None:
+        self.scalars = scalars
+        self.commit_fails = commit_fails
+        self.commits = 0
+        self.rollbacks = 0
+        self.invalidations = 0
+        self._in_transaction = False
+
+    def scalar(self, *_args: object, **_kwargs: object) -> object:
+        self._in_transaction = True
+        return self.scalars.pop(0)
+
+    def in_transaction(self) -> bool:
+        return self._in_transaction
+
+    def commit(self) -> None:
+        self.commits += 1
+        if self.commit_fails:
+            raise RuntimeError("commit failed")
+        self._in_transaction = False
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
+        self._in_transaction = False
+
+    def invalidate(self) -> None:
+        self.invalidated = True
+        self.invalidations += 1
+        self._in_transaction = False
+
+
+def test_advisory_lock_acquisition_and_unlock_end_raw_transactions() -> None:
+    connection = _FakeAdvisoryConnection([True, 123, True])
+    lock = PostgreSQLAdvisoryLock(connection, 12345)  # type: ignore[arg-type]
+
+    assert lock.try_acquire() is True
+    assert lock.acquired is True
+    assert lock.backend_pid == 123
+    assert connection.commits == 1
+    assert connection.in_transaction() is False
+
+    lock.release()
+
+    assert lock.acquired is False
+    assert connection.commits == 2
+    assert connection.in_transaction() is False
+    assert connection.invalidations == 0
+
+
+def test_advisory_lock_overlap_skip_ends_raw_transaction() -> None:
+    connection = _FakeAdvisoryConnection([False])
+    lock = PostgreSQLAdvisoryLock(connection, 12345)  # type: ignore[arg-type]
+
+    assert lock.try_acquire() is False
+    assert lock.acquired is False
+    assert connection.commits == 1
+    assert connection.in_transaction() is False
+
+
+def test_advisory_lock_acquisition_commit_failure_invalidates_connection() -> None:
+    connection = _FakeAdvisoryConnection([True, 123], commit_fails=True)
+    lock = PostgreSQLAdvisoryLock(connection, 12345)  # type: ignore[arg-type]
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        lock.try_acquire()
+
+    assert connection.invalidations >= 1
+    assert connection.in_transaction() is False

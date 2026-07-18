@@ -58,14 +58,39 @@ class PostgreSQLAdvisoryLock:
         self.connection, self.key, self.acquired = connection, key, False
         self.backend_pid: int | None = None
 
+    def _end_raw_transaction(self, *, commit: bool) -> None:
+        if not self.connection.in_transaction():
+            return
+        if commit:
+            self.connection.commit()
+        else:
+            self.connection.rollback()
+        if self.connection.in_transaction():
+            raise RuntimeError("raw advisory-lock transaction remained active")
+
     def try_acquire(self) -> bool:
         if self.connection.dialect.name != "postgresql":
             raise RuntimeError("Google Ads scheduler requires PostgreSQL advisory locks")
-        self.acquired = bool(
-            self.connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key})
-        )
-        if self.acquired:
-            self.backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
+        try:
+            self.acquired = bool(
+                self.connection.scalar(
+                    text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key}
+                )
+            )
+            if self.acquired:
+                self.backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
+            self._end_raw_transaction(commit=True)
+        except BaseException:
+            if self.acquired and not self.connection.invalidated:
+                with suppress(BaseException):
+                    self._end_raw_transaction(commit=False)
+                with suppress(BaseException):
+                    self.release()
+            if self.acquired or self.connection.invalidated or self.connection.in_transaction():
+                self.connection.invalidate()
+            raise
+        if self.connection.in_transaction():
+            raise RuntimeError("advisory-lock acquisition transaction is still active")
         return self.acquired
 
     def owns_current_connection(self) -> bool:
@@ -73,7 +98,12 @@ class PostgreSQLAdvisoryLock:
             return False
         if self.connection.dialect.name != "postgresql":
             return True
-        return int(self.connection.scalar(text("SELECT pg_backend_pid()"))) == self.backend_pid
+        try:
+            backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
+            return backend_pid == self.backend_pid
+        finally:
+            if not self.connection.invalidated and self.connection.in_transaction():
+                self._end_raw_transaction(commit=True)
 
     def release(self) -> None:
         if not self.acquired or self.connection.invalidated:
@@ -86,7 +116,10 @@ class PostgreSQLAdvisoryLock:
             )
             if not unlocked:
                 raise RuntimeError("PostgreSQL advisory lock release failed")
+            self._end_raw_transaction(commit=True)
         except BaseException:
+            with suppress(BaseException):
+                self._end_raw_transaction(commit=False)
             self.connection.invalidate()
             raise
         finally:
@@ -286,13 +319,7 @@ def run_cycle(
     """Run one locked cycle; all retries retain the same advisory-lock connection."""
     connection = engine.connect()
     lock = PostgreSQLAdvisoryLock(connection, settings.sync_lock_key)
-    session_factory = sessionmaker(
-        bind=connection,
-        autoflush=False,
-        autocommit=False,
-        expire_on_commit=False,
-    )
-    session = session_factory()
+    session: Session | None = None
     job_run: JobRun | None = None
     last_attempt = 0
     finalization_completed = False
@@ -324,7 +351,8 @@ def run_cycle(
                 raise finalize_exc
             lock.acquired = False
             connection.invalidate()
-            session.close()
+            if session is not None:
+                session.close()
             try:
                 _finalize_failed_job_run_on_engine(engine, job_run.id, original_exc, attempts)
                 finalization_completed = True
@@ -344,6 +372,15 @@ def run_cycle(
         if not lock.try_acquire():
             logger.info("google_ads_sync_overlap_skipped")
             return CycleOutcome(skipped=True, result=None, attempts=0)
+        if connection.in_transaction():
+            raise RuntimeError("advisory-lock acquisition transaction is still active")
+        session_factory = sessionmaker(
+            bind=connection,
+            autoflush=False,
+            autocommit=False,
+            expire_on_commit=False,
+        )
+        session = session_factory()
         job_run = _create_authoritative_job_run(session)
         try:
             _raise_if_stop_requested(stop_requested)
@@ -433,6 +470,7 @@ def run_cycle(
                 connection.invalidate()
             raise
         if job_run is not None and not finalization_completed and not finalization_outcome_unknown:
+            assert session is not None
             try:
                 _finalize_failed_job_run(session, job_run, exc, last_attempt)
                 finalization_completed = True
@@ -442,7 +480,8 @@ def run_cycle(
     finally:
         release_error: BaseException | None = None
         try:
-            session.close()
+            if session is not None:
+                session.close()
         finally:
             try:
                 lock.release()

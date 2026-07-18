@@ -5,7 +5,7 @@ import signal
 import time
 from threading import Event
 
-from app.database.session import SessionLocal
+from app.database.session import engine
 from app.jobs.reliability import run_cycle
 from app.settings import settings
 
@@ -16,19 +16,23 @@ def main(stop_event: Event | None = None) -> int:
     if stop_event is None:
         signal.signal(signal.SIGINT, lambda *_: stop.set())
         signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    interval_seconds = settings.sync_interval_minutes * 60
     immediate = settings.sync_run_immediately
-    deadline = time.monotonic()
+    initial_now = time.monotonic()
+    deadline = initial_now if immediate else initial_now + interval_seconds
     while not stop.is_set():
-        if immediate or time.monotonic() >= deadline:
+        now = time.monotonic()
+        if immediate or now >= deadline:
             immediate = False
             try:
-                run_cycle(settings, SessionLocal)
+                run_cycle(settings, engine)
             except Exception as exc:
                 logging.getLogger(__name__).error(
                     "google_ads_scheduler_cycle_failed error_type=%s", type(exc).__name__
                 )
-            deadline = time.monotonic() + settings.sync_interval_minutes * 60
-        stop.wait(max(0.0, deadline - time.monotonic()))
+            deadline = time.monotonic() + interval_seconds
+            now = time.monotonic()
+        stop.wait(max(0.0, deadline - now))
     logging.getLogger(__name__).info("google_ads_scheduler_stopped")
     return 0
 

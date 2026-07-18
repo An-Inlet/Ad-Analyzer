@@ -9,7 +9,7 @@ from collections.abc import Generator
 
 import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
-from app.ads.models import JobRun
+from app.ads.models import AdvertisingAccount, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.database.session import Base
 from app.jobs.reliability import PostgreSQLAdvisoryLock
@@ -55,6 +55,51 @@ def test_postgres_lock_acquisition_transaction_ends_and_lock_survives(
         assert competitor.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": key}) is True
         assert competitor.scalar(text("SELECT pg_advisory_unlock(:key)"), {"key": key}) is True
         competitor.commit()
+
+
+def test_postgres_ownership_checks_do_not_commit_session_writes(
+    postgres_engine: Engine,
+) -> None:
+    key = 42424219
+    with postgres_engine.connect() as pinned:
+        lock = PostgreSQLAdvisoryLock(pinned, key)
+        assert lock.try_acquire() is True
+        session = sessionmaker(bind=pinned, autoflush=False, autocommit=False)()
+        try:
+            account = AdvertisingAccount(
+                platform=AdvertisingPlatform.GOOGLE_ADS,
+                external_account_id="uncommitted-account",
+                name="Uncommitted account",
+                currency_code="USD",
+                time_zone="UTC",
+            )
+            session.add(account)
+            session.flush()
+            assert pinned.in_transaction() is True
+
+            assert lock.owns_current_connection(session) is True
+            assert pinned.in_transaction() is True
+            with Session(postgres_engine) as visible_session:
+                visible = visible_session.scalars(
+                    select(AdvertisingAccount).where(
+                        AdvertisingAccount.external_account_id == "uncommitted-account"
+                    )
+                ).first()
+                assert visible is None
+
+            assert lock.owns_current_connection(session) is True
+            assert pinned.in_transaction() is True
+            session.rollback()
+            with Session(postgres_engine) as visible_session:
+                visible = visible_session.scalars(
+                    select(AdvertisingAccount).where(
+                        AdvertisingAccount.external_account_id == "uncommitted-account"
+                    )
+                ).first()
+                assert visible is None
+        finally:
+            session.close()
+            lock.release()
 
 
 def test_postgres_session_commits_are_visible_while_lock_is_held(

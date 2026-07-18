@@ -51,6 +51,27 @@ class AdvisoryLockLostError(RuntimeError):
     """Raised when the physical backend that owned the advisory lock is lost."""
 
 
+
+def _advisory_lock_key_parts(key: int) -> tuple[int, int]:
+    if key < -(2**63) or key > 2**63 - 1:
+        raise ValueError("PostgreSQL advisory lock key must be a signed 64-bit integer")
+    unsigned = key & ((1 << 64) - 1)
+    return unsigned >> 32, unsigned & 0xFFFFFFFF
+
+
+def _owns_advisory_lock_sql() -> str:
+    return (
+        "SELECT EXISTS ("
+        "SELECT 1 FROM pg_locks "
+        "WHERE locktype = 'advisory' "
+        "AND pid = :pid "
+        "AND classid = :classid "
+        "AND objid = :objid "
+        "AND objsubid = 1 "
+        "AND mode = 'ExclusiveLock' "
+        "AND granted)"
+    )
+
 class PostgreSQLAdvisoryLock:
     """A session-level lock held by exactly one pinned physical connection."""
 
@@ -93,14 +114,21 @@ class PostgreSQLAdvisoryLock:
             raise RuntimeError("advisory-lock acquisition transaction is still active")
         return self.acquired
 
-    def owns_current_connection(self) -> bool:
+    def owns_current_connection(self, session: Session | None = None) -> bool:
         if not self.acquired or self.connection.invalidated:
             return False
         if self.connection.dialect.name != "postgresql":
             return True
+        classid, objid = _advisory_lock_key_parts(self.key)
+        params = {"pid": self.backend_pid, "classid": classid, "objid": objid}
+        if session is not None:
+            backend_pid = int(session.scalar(text("SELECT pg_backend_pid()")))
+            owns_lock = bool(session.scalar(text(_owns_advisory_lock_sql()), params))
+            return backend_pid == self.backend_pid and owns_lock
         try:
             backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
-            return backend_pid == self.backend_pid
+            owns_lock = bool(self.connection.scalar(text(_owns_advisory_lock_sql()), params))
+            return backend_pid == self.backend_pid and owns_lock
         finally:
             if not self.connection.invalidated and self.connection.in_transaction():
                 self._end_raw_transaction(commit=True)
@@ -291,12 +319,13 @@ def _raise_if_stop_requested(stop_requested: Callable[[], bool] | None) -> None:
 def _make_pre_collector_check(
     lock: PostgreSQLAdvisoryLock,
     connection: Connection,
+    session: Session,
     stop_requested: Callable[[], bool] | None,
 ) -> Callable[[], None]:
     def check() -> None:
         _raise_if_stop_requested(stop_requested)
         try:
-            owns_lock = lock.owns_current_connection()
+            owns_lock = lock.owns_current_connection(session)
         except BaseException:
             connection.invalidate()
             raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
@@ -398,7 +427,7 @@ def run_cycle(
                 result = GoogleAdsSyncService(session).sync_authoritative_job_run(
                     job_run,
                     pre_collector_check=_make_pre_collector_check(
-                        lock, connection, stop_requested
+                        lock, connection, session, stop_requested
                     ),
                 )
                 logger.info(

@@ -792,7 +792,7 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
     monkeypatch.setattr(
         PostgreSQLAdvisoryLock,
         "owns_current_connection",
-        lambda _self: next(checks, False),
+        lambda _self, _session=None: next(checks, False),
     )
 
     with pytest.raises(Exception, match="advisory-lock"):
@@ -1218,3 +1218,52 @@ def test_advisory_lock_acquisition_commit_failure_invalidates_connection() -> No
 
     assert connection.invalidations >= 1
     assert connection.in_transaction() is False
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        (0, (0, 0)),
+        (1, (0, 1)),
+        (-1, (0xFFFFFFFF, 0xFFFFFFFF)),
+        (2**63 - 1, (0x7FFFFFFF, 0xFFFFFFFF)),
+        (-(2**63), (0x80000000, 0)),
+    ],
+)
+def test_advisory_lock_key_parts_map_signed_bigints(key: int, expected: tuple[int, int]) -> None:
+    from app.jobs.reliability import _advisory_lock_key_parts
+
+    assert _advisory_lock_key_parts(key) == expected
+
+
+@pytest.mark.parametrize("key", [2**63, -(2**63) - 1])
+def test_advisory_lock_key_parts_reject_out_of_range_values(key: int) -> None:
+    from app.jobs.reliability import _advisory_lock_key_parts
+
+    with pytest.raises(ValueError):
+        _advisory_lock_key_parts(key)
+
+
+class _FakeOwnershipSession:
+    def __init__(self, values: list[object]) -> None:
+        self.values = values
+        self.scalar_calls = 0
+
+    def scalar(self, *_args: object, **_kwargs: object) -> object:
+        self.scalar_calls += 1
+        return self.values.pop(0)
+
+
+def test_ownership_check_through_session_does_not_commit_or_rollback_connection() -> None:
+    connection = _FakeAdvisoryConnection([])
+    lock = PostgreSQLAdvisoryLock(connection, -1)  # type: ignore[arg-type]
+    lock.acquired = True
+    lock.backend_pid = 123
+    session = _FakeOwnershipSession([123, True])
+
+    assert lock.owns_current_connection(session) is True  # type: ignore[arg-type]
+
+    assert session.scalar_calls == 2
+    assert connection.commits == 0
+    assert connection.rollbacks == 0
+    assert connection.invalidations == 0

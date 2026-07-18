@@ -133,16 +133,26 @@ def make_phase7_capability(
     lock: Any | None = None,
     stop_requested: Callable[[], bool] | None = None,
 ) -> Any:
-    from app.jobs.reliability import _WorkerPhase7SyncCapability
+    from app.ads.services import Phase7SyncCapability
 
-    return _WorkerPhase7SyncCapability(
-        lock=lock or TestPhase7Lock(),
-        connection=TestPhase7Connection(),
-        session=session,
-        lock_key=1,
-        backend_pid=1,
-        stop_requested=stop_requested or (lambda: False),
-    )
+    class TestCapability(Phase7SyncCapability):
+        def __init__(self) -> None:
+            self.lock = lock or TestPhase7Lock()
+            self.stop_requested = stop_requested or (lambda: False)
+
+        def validate(self, _session: Session) -> None:
+            if self.stop_requested():
+                raise GoogleAdsSyncError("Google Ads synchronization interrupted before retry.")
+            if not self.lock.owns_current_session(_session):
+                raise GoogleAdsSyncError(
+                    "Google Ads synchronization lost advisory-lock ownership.",
+                    lock_lost=True,
+                )
+
+        def invalidate(self) -> None:
+            return None
+
+    return TestCapability()
 
 
 def sync_without_worker_for_tests(

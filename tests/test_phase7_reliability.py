@@ -25,7 +25,11 @@ from app.jobs.reliability import (
     retry_delay,
     run_cycle,
 )
-from app.settings import Settings, SyncAdvisoryLockConfigError
+from app.settings import (
+    InvalidSyncAdvisoryLockConfigError,
+    Settings,
+    SyncAdvisoryLockConfigError,
+)
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -1413,7 +1417,7 @@ def test_sync_advisory_lock_key_invalid_environment_fails_closed(
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
-    with pytest.raises((ValidationError, SyncAdvisoryLockConfigError)):
+    with pytest.raises((InvalidSyncAdvisoryLockConfigError, SyncAdvisoryLockConfigError)):
         Settings()
 
 
@@ -1455,37 +1459,11 @@ def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_colle
         assert session.scalars(select(JobRun)).all() == []
 
 
-def test_phase7_capability_rejects_wrong_session_and_released_lock(
-    sqlite_engine: Any,
-) -> None:
-    class Lock:
-        key = 1
-        backend_pid = 1
-        acquired = True
+def test_reliability_exposes_no_constructible_worker_capability_class() -> None:
+    from app.jobs import reliability
 
-        def owns_current_session(self, _session: Session) -> bool:
-            return self.acquired
+    assert not hasattr(reliability, "_WorkerPhase7SyncCapability")
 
-    class Connection:
-        invalidated = False
-
-    with Session(sqlite_engine) as session, Session(sqlite_engine) as other_session:
-        from app.jobs.reliability import _WorkerPhase7SyncCapability
-
-        lock = Lock()
-        capability = _WorkerPhase7SyncCapability(
-            lock=lock,
-            connection=Connection(),
-            session=session,
-            lock_key=1,
-            backend_pid=1,
-            stop_requested=lambda: False,
-        )
-        with pytest.raises(GoogleAdsSyncError):
-            capability.validate(other_session)
-        lock.acquired = False
-        with pytest.raises(GoogleAdsSyncError):
-            capability.validate(session)
 
 
 def test_google_ads_sync_service_has_no_production_unlocked_sync_bypass() -> None:
@@ -1608,32 +1586,14 @@ def test_phase7_capability_public_construction_and_copied_values_fail(
     sqlite_engine: Any,
 ) -> None:
     from app.ads.services import Phase7SyncCapability
-    from app.jobs.reliability import _WorkerPhase7SyncCapability
+    from app.jobs import reliability
 
+    assert not hasattr(reliability, "_WorkerPhase7SyncCapability")
     with pytest.raises(RuntimeError):
         Phase7SyncCapability()
 
-    class Lock:
-        key = 1
-        backend_pid = 1
-
-        def owns_current_session(self, _session: Session) -> bool:
-            return True
-
-    class Connection:
-        invalidated = False
-
     with Session(sqlite_engine) as session:
-        genuine = _WorkerPhase7SyncCapability(
-            lock=Lock(),
-            connection=Connection(),
-            session=session,
-            lock_key=1,
-            backend_pid=1,
-            stop_requested=lambda: False,
-        )
         copied = object.__new__(Phase7SyncCapability)
-        assert not hasattr(genuine, "__dict__")
         with pytest.raises(GoogleAdsSyncError):
             copied.validate(session)
 
@@ -1656,3 +1616,62 @@ def test_worker_entrypoints_do_not_log_lock_conflict_values(
     assert secret_value not in caplog.text
     assert "input_value" not in caplog.text
     assert "Conflicting sync advisory lock key settings" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("dotenv_text", "expected_error"),
+    [
+        (
+            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=lock-secret-bad\n",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+        ("DENTICODE_SYNC_LOCK_KEY=\n", InvalidSyncAdvisoryLockConfigError),
+        (
+            f"DENTICODE_SYNC_ADVISORY_LOCK_KEY={2**63}\n",
+            InvalidSyncAdvisoryLockConfigError,
+        ),
+    ],
+)
+def test_sync_advisory_lock_key_invalid_dotenv_values_are_sanitized(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    dotenv_text: str,
+    expected_error: type[Exception],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    (tmp_path / ".env").write_text(dotenv_text)
+
+    with pytest.raises(expected_error) as exc_info:
+        Settings()
+
+    assert str(exc_info.value) == "Invalid sync advisory lock key setting."
+    assert "lock-secret-bad" not in str(exc_info.value)
+    assert "input_value" not in str(exc_info.value)
+
+
+def test_sync_advisory_lock_key_malformed_direct_construction_is_sanitized() -> None:
+    with pytest.raises(InvalidSyncAdvisoryLockConfigError) as exc_info:
+        Settings(DENTICODE_SYNC_ADVISORY_LOCK_KEY="direct-secret-bad")
+
+    assert str(exc_info.value) == "Invalid sync advisory lock key setting."
+    assert "direct-secret-bad" not in str(exc_info.value)
+
+
+def test_worker_entrypoints_do_not_log_invalid_lock_key_values(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    secret_value = "invalid-lock-secret-12345"
+
+    def fail_loader() -> object:
+        _ = secret_value
+        raise InvalidSyncAdvisoryLockConfigError()
+
+    with caplog.at_level("ERROR"):
+        assert google_ads_sync_once.main(fail_loader) == google_ads_sync_once.FAILURE_EXIT_CODE
+        assert google_ads_scheduler.main(runtime_loader=fail_loader) == 1
+
+    assert secret_value not in caplog.text
+    assert "input_value" not in caplog.text
+    assert "Invalid sync advisory lock key setting" not in caplog.text

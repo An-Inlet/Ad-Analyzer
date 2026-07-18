@@ -33,9 +33,31 @@ class SyncAdvisoryLockConfigError(RuntimeError):
         super().__init__("Conflicting sync advisory lock key settings.")
 
 
-def _lock_values_conflict(
+class InvalidSyncAdvisoryLockConfigError(RuntimeError):
+    """Fixed sanitized invalid advisory-lock key configuration error."""
+
+    def __init__(self) -> None:
+        super().__init__("Invalid sync advisory lock key setting.")
+
+
+def _parse_lock_key(value: object) -> int:
+    if isinstance(value, bool):
+        raise InvalidSyncAdvisoryLockConfigError()
+    text = str(value).strip()
+    if text == "":
+        raise InvalidSyncAdvisoryLockConfigError()
+    try:
+        parsed = int(text, 10)
+    except ValueError:
+        raise InvalidSyncAdvisoryLockConfigError() from None
+    if not (-(2**63) <= parsed <= 2**63 - 1):
+        raise InvalidSyncAdvisoryLockConfigError()
+    return parsed
+
+
+def _resolve_lock_key_override(
     data: dict[str, Any], dotenv_canonical: str | None, dotenv_legacy: str | None
-) -> bool:
+) -> int | None:
     canonical_values = [
         value
         for value in (
@@ -54,20 +76,26 @@ def _lock_values_conflict(
         )
         if value is not None
     ]
-    return bool(
-        canonical_values
-        and legacy_values
-        and {str(value) for value in canonical_values}
-        != {str(value) for value in legacy_values}
-    )
+    canonical_keys = [_parse_lock_key(value) for value in canonical_values]
+    legacy_keys = [_parse_lock_key(value) for value in legacy_values]
+    if canonical_keys and legacy_keys and set(canonical_keys) != set(legacy_keys):
+        raise SyncAdvisoryLockConfigError()
+    resolved_values = canonical_keys or legacy_keys
+    if not resolved_values:
+        return None
+    if len(set(resolved_values)) != 1:
+        raise SyncAdvisoryLockConfigError()
+    return resolved_values[0]
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     def __init__(self, **data: Any) -> None:
-        if _lock_values_conflict(data, *_read_dotenv_lock_values()):
-            raise SyncAdvisoryLockConfigError()
+        lock_key = _resolve_lock_key_override(data, *_read_dotenv_lock_values())
+        if lock_key is not None:
+            data = {**data, "DENTICODE_SYNC_ADVISORY_LOCK_KEY": lock_key}
+            data.pop("DENTICODE_SYNC_LOCK_KEY", None)
         super().__init__(**data)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

@@ -11,35 +11,6 @@ from app.ads.models import JobRun
 from app.settings import Settings
 
 PUBLIC_SYNC_FAILURE_SUMMARY = "Google Ads synchronization failed."
-_SAFE_FAILURE_MESSAGES = (
-    "Google Ads synchronization interrupted before retry.",
-    "Google Ads synchronization lost advisory-lock ownership.",
-    "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
-    "Google Ads sync failed; the failure-record commit outcome is unknown "
-    "and must be verified before retrying",
-)
-
-_UNSAFE_MARKERS = (
-    "authorization:",
-    "bearer ",
-    "client_secret",
-    "developer_token",
-    "refresh_token",
-    "traceback",
-    "sqlalchemy",
-    "select ",
-    "insert ",
-    "update ",
-    "delete ",
-    "postgresql://",
-    "http://",
-    "https://",
-    "raw_response",
-    "request_id",
-    "/workspace/",
-    "\\",
-)
-
 
 @dataclass(frozen=True)
 class SyncHealth:
@@ -58,12 +29,6 @@ def public_failure_summary(error_message: str | None) -> str | None:
     """Sanitize untrusted stored JobRun text for API and dashboard boundaries."""
     if not error_message:
         return None
-    candidate = error_message.strip()[:120]
-    lowered = candidate.lower()
-    if any(marker in lowered for marker in _UNSAFE_MARKERS):
-        return PUBLIC_SYNC_FAILURE_SUMMARY
-    if candidate in _SAFE_FAILURE_MESSAGES:
-        return candidate
     return PUBLIC_SYNC_FAILURE_SUMMARY
 
 

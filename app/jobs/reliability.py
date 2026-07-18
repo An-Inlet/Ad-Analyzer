@@ -190,6 +190,8 @@ def _safe_failure_summary(exc: BaseException, attempts: int) -> str:
         return INTERRUPTED_SYNC_ERROR
     if isinstance(exc, AdvisoryLockLostError) or lock_ownership_lost(exc):
         return LOCK_LOST_SYNC_ERROR
+    if isinstance(exc, GoogleAdsSyncError):
+        return f"{str(exc)}; attempts={attempts}"[:120]
     return f"Google Ads read-only sync failed ({type(exc).__name__}; attempts={attempts})"[:120]
 
 
@@ -293,6 +295,8 @@ def run_cycle(
     session = session_factory()
     job_run: JobRun | None = None
     last_attempt = 0
+    finalization_completed = False
+    finalization_outcome_unknown = False
     primary_error: BaseException | None = None
     retry_wait: Callable[[float], bool | None]
     if wait is None:
@@ -307,8 +311,9 @@ def run_cycle(
         original_exc: BaseException,
         attempts: int,
     ) -> None:
-        nonlocal primary_error
+        nonlocal finalization_completed, finalization_outcome_unknown, primary_error
         if unknown_commit_outcome(finalize_exc):
+            finalization_outcome_unknown = True
             primary_error = finalize_exc
             if lock_ownership_lost(finalize_exc):
                 lock.acquired = False
@@ -322,9 +327,13 @@ def run_cycle(
             session.close()
             try:
                 _finalize_failed_job_run_on_engine(engine, job_run.id, original_exc, attempts)
+                finalization_completed = True
             except BaseException as replacement_exc:
                 if unknown_commit_outcome(replacement_exc):
+                    finalization_outcome_unknown = True
                     primary_error = replacement_exc
+                    if lock_ownership_lost(replacement_exc):
+                        connection.invalidate()
                     raise replacement_exc
                 raise
             return
@@ -341,6 +350,7 @@ def run_cycle(
         except BaseException as stop_exc:
             try:
                 _finalize_failed_job_run(session, job_run, stop_exc, 0)
+                finalization_completed = True
             except BaseException as finalize_exc:
                 handle_failed_finalization_error(finalize_exc, stop_exc, 0)
             raise
@@ -377,11 +387,13 @@ def run_cycle(
                     _finalize_failed_job_run_on_engine(
                         engine, job_run.id, AdvisoryLockLostError(), attempt
                     )
+                    finalization_completed = True
                     raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
                 retryable = isinstance(exc, Exception) and is_transient_failure(exc)
                 if attempt >= settings.sync_max_attempts or not retryable:
                     try:
                         _finalize_failed_job_run(session, job_run, exc, attempt)
+                        finalization_completed = True
                     except BaseException as finalize_exc:
                         handle_failed_finalization_error(finalize_exc, exc, attempt)
                     logger.error(
@@ -408,6 +420,7 @@ def run_cycle(
                         raise
                     try:
                         _finalize_failed_job_run(session, job_run, wait_exc, attempt)
+                        finalization_completed = True
                     except BaseException as finalize_exc:
                         handle_failed_finalization_error(finalize_exc, wait_exc, attempt)
                     raise
@@ -419,9 +432,10 @@ def run_cycle(
                 lock.acquired = False
                 connection.invalidate()
             raise
-        if job_run is not None and last_attempt == 0:
+        if job_run is not None and not finalization_completed and not finalization_outcome_unknown:
             try:
                 _finalize_failed_job_run(session, job_run, exc, last_attempt)
+                finalization_completed = True
             except BaseException as finalize_exc:
                 handle_failed_finalization_error(finalize_exc, exc, last_attempt)
         raise

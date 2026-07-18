@@ -549,10 +549,13 @@ def test_stop_requested_after_retry_wait_prevents_later_collector(
 @pytest.mark.parametrize(
     ("stored_message", "expected"),
     [
+        ("Google Ads synchronization interrupted before retry.", None),
         (
-            "Google Ads synchronization interrupted before retry.",
-            "Google Ads synchronization interrupted before retry.",
+            "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
+            None,
         ),
+        ("Google Ads read-only sync failed (GoogleAdsRateLimitError); attempts=2", None),
+        ("Google Ads read-only sync failed (GoogleAdsAuthenticationError)", None),
         ("Google Ads read-only sync failed (/home/app/.env password=hunter2)", None),
         ("Google Ads read-only sync failed (api_key=abc)", None),
         ("Google Ads read-only sync failed (Bearer secret)", None),
@@ -863,7 +866,9 @@ def test_failed_finalization_pre_commit_lock_loss_uses_fresh_connection(
         assert len(job_runs) == 1
         assert job_runs[0].status is JobRunStatus.FAILED
         assert job_runs[0].error_message is not None
-        assert "GoogleAdsSyncError" in job_runs[0].error_message
+        assert job_runs[0].error_message == (
+            "Google Ads read-only sync failed (ValueError); attempts=1"
+        )
         assert "secret" not in job_runs[0].error_message
 
 
@@ -1018,3 +1023,120 @@ def test_job_run_response_uses_shared_public_failure_summary() -> None:
 
     assert response.error_message == PUBLIC_SYNC_FAILURE_SUMMARY
     assert response.error_message != "Advertising sync failed."
+
+
+def test_pre_attempt_shutdown_finalizes_authoritative_job_run_once(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checks = 0
+    finalize_calls = 0
+    real_finalize = __import__(
+        "app.jobs.reliability", fromlist=["_finalize_failed_job_run"]
+    )._finalize_failed_job_run
+
+    def stop_requested() -> bool:
+        nonlocal checks
+        checks += 1
+        return checks >= 2
+
+    def finalize_once(session: Session, job_run: JobRun, exc: BaseException, attempts: int) -> None:
+        nonlocal finalize_calls
+        finalize_calls += 1
+        if finalize_calls > 1:
+            raise GoogleAdsSyncError(
+                FAILED_JOB_RUN_UNKNOWN_COMMIT_OUTCOME_ERROR,
+                classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            )
+        real_finalize(session, job_run, exc, attempts)
+
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run", finalize_once)
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        lambda *_args, **_kwargs: pytest.fail("collector must not run after shutdown"),
+    )
+
+    with pytest.raises(Exception, match="interrupted"):
+        run_cycle(Settings(), sqlite_engine, stop_requested=stop_requested)
+
+    assert finalize_calls == 1
+    with Session(sqlite_engine) as session:
+        job_run = session.scalars(select(JobRun)).one()
+        assert job_run.status is JobRunStatus.FAILED
+        assert job_run.error_message == "Google Ads synchronization interrupted before retry."
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_fragment"),
+    [
+        (
+            GoogleAdsSyncError(
+                "Google Ads read-only sync failed (GoogleAdsRateLimitError)",
+                classification=SyncFailureClassification.TRANSIENT_RATE_LIMIT,
+            ),
+            "GoogleAdsRateLimitError",
+        ),
+        (
+            GoogleAdsSyncError(
+                "Google Ads read-only sync failed (TimeoutError)",
+                classification=SyncFailureClassification.TRANSIENT_NETWORK,
+            ),
+            "TimeoutError",
+        ),
+        (
+            GoogleAdsSyncError(
+                "Google Ads read-only sync failed (GoogleAdsAuthenticationError)",
+                classification=SyncFailureClassification.PERMANENT_AUTH,
+            ),
+            "GoogleAdsAuthenticationError",
+        ),
+        (
+            GoogleAdsSyncError(
+                "Google Ads read-only sync failed (ValueError)",
+                classification=SyncFailureClassification.PERMANENT_VALIDATION,
+            ),
+            "ValueError",
+        ),
+        (
+            GoogleAdsSyncError(
+                "Google Ads read-only sync failed (GoogleAdsRateLimitError)",
+                classification=SyncFailureClassification.TRANSIENT_RATE_LIMIT,
+            ),
+            "attempts=3",
+        ),
+    ],
+)
+def test_google_ads_sync_error_internal_summary_is_preserved(
+    error: GoogleAdsSyncError,
+    expected_fragment: str,
+) -> None:
+    from app.jobs.reliability import _safe_failure_summary
+
+    summary = _safe_failure_summary(error, 3)
+
+    assert expected_fragment in summary
+    assert "GoogleAdsSyncError" not in summary
+    assert len(summary) <= 120
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ValueError("refresh_token=secret-value"),
+        RuntimeError("Authorization: Bearer secret-value"),
+        __import__("sqlalchemy.exc", fromlist=["OperationalError"]).OperationalError(
+            "SELECT * FROM credentials WHERE token='secret'", {}, Exception("secret")
+        ),
+    ],
+)
+def test_raw_exception_internal_summary_never_copies_secret_text(error: Exception) -> None:
+    from app.jobs.reliability import _safe_failure_summary
+
+    summary = _safe_failure_summary(error, 1)
+
+    assert "secret" not in summary
+    assert "SELECT" not in summary
+    assert "Authorization" not in summary
+    assert "refresh_token" not in summary
+    assert len(summary) <= 120

@@ -114,17 +114,26 @@ class PostgreSQLAdvisoryLock:
             raise RuntimeError("advisory-lock acquisition transaction is still active")
         return self.acquired
 
-    def owns_current_connection(self, session: Session | None = None) -> bool:
+    def owns_current_session(self, session: Session) -> bool:
         if not self.acquired or self.connection.invalidated:
             return False
         if self.connection.dialect.name != "postgresql":
             return True
         classid, objid = _advisory_lock_key_parts(self.key)
         params = {"pid": self.backend_pid, "classid": classid, "objid": objid}
-        if session is not None:
-            backend_pid = int(session.scalar(text("SELECT pg_backend_pid()")))
-            owns_lock = bool(session.scalar(text(_owns_advisory_lock_sql()), params))
-            return backend_pid == self.backend_pid and owns_lock
+        backend_pid = int(session.scalar(text("SELECT pg_backend_pid()")))
+        owns_lock = bool(session.scalar(text(_owns_advisory_lock_sql()), params))
+        return backend_pid == self.backend_pid and owns_lock
+
+    def owns_current_connection(self) -> bool:
+        if self.connection.in_transaction():
+            raise RuntimeError("raw advisory-lock ownership checks require no active transaction")
+        if not self.acquired or self.connection.invalidated:
+            return False
+        if self.connection.dialect.name != "postgresql":
+            return True
+        classid, objid = _advisory_lock_key_parts(self.key)
+        params = {"pid": self.backend_pid, "classid": classid, "objid": objid}
         try:
             backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
             owns_lock = bool(self.connection.scalar(text(_owns_advisory_lock_sql()), params))
@@ -325,7 +334,7 @@ def _make_pre_collector_check(
     def check() -> None:
         _raise_if_stop_requested(stop_requested)
         try:
-            owns_lock = lock.owns_current_connection(session)
+            owns_lock = lock.owns_current_session(session)
         except BaseException:
             connection.invalidate()
             raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None

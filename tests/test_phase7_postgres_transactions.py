@@ -76,8 +76,11 @@ def test_postgres_ownership_checks_do_not_commit_session_writes(
             session.add(account)
             session.flush()
             assert pinned.in_transaction() is True
+            with pytest.raises(RuntimeError, match="no active transaction"):
+                lock.owns_current_connection()
+            assert pinned.in_transaction() is True
 
-            assert lock.owns_current_connection(session) is True
+            assert lock.owns_current_session(session) is True
             assert pinned.in_transaction() is True
             with Session(postgres_engine) as visible_session:
                 visible = visible_session.scalars(
@@ -87,7 +90,7 @@ def test_postgres_ownership_checks_do_not_commit_session_writes(
                 ).first()
                 assert visible is None
 
-            assert lock.owns_current_connection(session) is True
+            assert lock.owns_current_session(session) is True
             assert pinned.in_transaction() is True
             session.rollback()
             with Session(postgres_engine) as visible_session:

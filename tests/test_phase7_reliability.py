@@ -791,8 +791,8 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
     monkeypatch.setattr(google_ads, "collect_campaigns", collect_campaigns)
     monkeypatch.setattr(
         PostgreSQLAdvisoryLock,
-        "owns_current_connection",
-        lambda _self, _session=None: next(checks, False),
+        "owns_current_session",
+        lambda _self, _session: next(checks, False),
     )
 
     with pytest.raises(Exception, match="advisory-lock"):
@@ -1261,9 +1261,79 @@ def test_ownership_check_through_session_does_not_commit_or_rollback_connection(
     lock.backend_pid = 123
     session = _FakeOwnershipSession([123, True])
 
-    assert lock.owns_current_connection(session) is True  # type: ignore[arg-type]
+    assert lock.owns_current_session(session) is True  # type: ignore[arg-type]
 
     assert session.scalar_calls == 2
     assert connection.commits == 0
     assert connection.rollbacks == 0
     assert connection.invalidations == 0
+
+
+def test_raw_ownership_check_with_active_transaction_fails_without_cleanup() -> None:
+    connection = _FakeAdvisoryConnection([123, True])
+    connection._in_transaction = True
+    lock = PostgreSQLAdvisoryLock(connection, 12345)  # type: ignore[arg-type]
+    lock.acquired = True
+    lock.backend_pid = 123
+
+    with pytest.raises(RuntimeError, match="no active transaction"):
+        lock.owns_current_connection()
+
+    assert connection.scalars == [123, True]
+    assert connection.commits == 0
+    assert connection.rollbacks == 0
+    assert connection.invalidations == 0
+
+
+def test_scheduler_stop_before_runtime_loading_prevents_cycle() -> None:
+    stop = Event()
+    stop.set()
+
+    def loader() -> tuple[object, object, object]:
+        pytest.fail("runtime loader must not run after startup stop")
+
+    assert google_ads_scheduler.main(stop, loader) == google_ads_scheduler.FAILURE_EXIT_CODE
+
+
+def test_scheduler_stop_during_runtime_loading_prevents_cycle() -> None:
+    stop = Event()
+
+    def run_cycle(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("run_cycle must not run after startup stop")
+
+    def loader() -> tuple[Settings, object, object]:
+        stop.set()
+        return Settings(), object(), run_cycle
+
+    assert google_ads_scheduler.main(stop, loader) == google_ads_scheduler.FAILURE_EXIT_CODE
+
+
+def test_scheduler_runtime_loader_failure_restores_handlers_and_sanitizes_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    installed = False
+    restored: dict[int, object] | None = None
+
+    def install(stop: Event) -> dict[int, object]:
+        nonlocal installed
+        installed = True
+        return {1: object()}
+
+    def restore(previous: dict[int, object]) -> None:
+        nonlocal restored
+        restored = previous
+
+    def loader() -> tuple[object, object, object]:
+        raise RuntimeError("secret database-url password=hunter2")
+
+    monkeypatch.setattr(google_ads_scheduler, "_install_signal_handlers", install)
+    monkeypatch.setattr(google_ads_scheduler, "_restore_signal_handlers", restore)
+
+    assert google_ads_scheduler.main(None, loader) == google_ads_scheduler.FAILURE_EXIT_CODE
+    captured = capsys.readouterr()
+
+    assert installed is True
+    assert restored is not None
+    assert "hunter2" not in captured.out + captured.err
+    assert "database-url" not in captured.out + captured.err

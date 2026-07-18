@@ -1429,6 +1429,132 @@ def test_default_sync_advisory_lock_key_is_documented_default(
 
     assert Settings().sync_lock_key == 719_042_711
 
+@pytest.mark.parametrize(
+    ("env_key", "expected"),
+    [
+        ("denticode_sync_advisory_lock_key", 901),
+        ("DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY", 902),
+        ("denticode_sync_lock_key", 903),
+        ("DeNtIcOdE_SyNc_LoCk_KeY", 904),
+    ],
+)
+def test_sync_advisory_lock_key_accepts_case_insensitive_environment_forms(
+    monkeypatch: pytest.MonkeyPatch, env_key: str, expected: int
+) -> None:
+    for key in (
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+        "denticode_sync_advisory_lock_key",
+        "DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY",
+        "DENTICODE_SYNC_LOCK_KEY",
+        "denticode_sync_lock_key",
+        "DeNtIcOdE_SyNc_LoCk_KeY",
+        "sync_lock_key",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv(env_key, str(expected))
+
+    assert Settings(_env_file=None).sync_lock_key == expected
+
+
+@pytest.mark.parametrize(
+    ("dotenv_text", "expected"),
+    [
+        ("denticode_sync_advisory_lock_key=905\n", 905),
+        ("DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY=906\n", 906),
+        ("denticode_sync_lock_key=907\n", 907),
+        ("DeNtIcOdE_SyNc_LoCk_KeY=908\n", 908),
+    ],
+)
+def test_sync_advisory_lock_key_accepts_case_insensitive_dotenv_forms(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dotenv_text: str, expected: int
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    (tmp_path / ".env").write_text(dotenv_text)
+
+    assert Settings().sync_lock_key == expected
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"sync_lock_key": "909"},
+        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "909"},
+        {"DENTICODE_SYNC_LOCK_KEY": "909"},
+    ],
+)
+def test_sync_advisory_lock_key_accepts_direct_pydantic_forms(kwargs: dict[str, str]) -> None:
+    assert Settings(_env_file=None, **kwargs).sync_lock_key == 909
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("sync_lock_key", "secret-lock-not-an-int"),
+        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "secret-lock-not-an-int"),
+        ("DENTICODE_SYNC_LOCK_KEY", "secret-lock-not-an-int"),
+        ("denticode_sync_advisory_lock_key", "secret-lock-not-an-int"),
+        ("denticode_sync_lock_key", "secret-lock-not-an-int"),
+        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", ""),
+        ("DENTICODE_SYNC_LOCK_KEY", ""),
+        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", str(-(2**63) - 1)),
+        ("DENTICODE_SYNC_LOCK_KEY", str(2**63)),
+    ],
+)
+def test_sync_advisory_lock_key_malformed_accepted_forms_are_sanitized(
+    monkeypatch: pytest.MonkeyPatch, key: str, value: str
+) -> None:
+    for env_key in (
+        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+        "denticode_sync_advisory_lock_key",
+        "DENTICODE_SYNC_LOCK_KEY",
+        "denticode_sync_lock_key",
+        "sync_lock_key",
+    ):
+        monkeypatch.delenv(env_key, raising=False)
+    if key == "sync_lock_key":
+        def build_settings() -> Settings:
+            return Settings(_env_file=None, sync_lock_key=value)
+    else:
+        monkeypatch.setenv(key, value)
+
+        def build_settings() -> Settings:
+            return Settings(_env_file=None)
+
+    with pytest.raises(InvalidSyncAdvisoryLockConfigError) as exc_info:
+        build_settings()
+
+    rendered = str(exc_info.value)
+    assert rendered == "Invalid sync advisory lock key setting."
+    assert "secret-lock-not-an-int" not in rendered
+    assert "input_value" not in rendered
+
+
+def test_sync_advisory_lock_key_detects_case_variant_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("denticode_sync_advisory_lock_key", "910")
+    monkeypatch.setenv("DeNtIcOdE_SyNc_LoCk_KeY", "911")
+
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
+        Settings(_env_file=None)
+
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
+    assert "910" not in str(exc_info.value)
+    assert "911" not in str(exc_info.value)
+
+
+def test_sync_advisory_lock_key_direct_field_conflicts_with_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "912")
+
+    with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
+        Settings(_env_file=None, sync_lock_key="913")
+
+    assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
+
 
 @pytest.mark.parametrize("guard", [None, (lambda: None), object()])
 def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_collectors(

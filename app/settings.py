@@ -1,29 +1,22 @@
-import os
-from pathlib import Path
 from typing import Any
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
-
-def _read_dotenv_lock_values() -> tuple[str | None, str | None]:
-    dotenv_path = Path(".env")
-    if not dotenv_path.exists():
-        return None, None
-    canonical: str | None = None
-    legacy: str | None = None
-    for raw_line in dotenv_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'\"")
-        if key == "DENTICODE_SYNC_ADVISORY_LOCK_KEY":
-            canonical = value
-        elif key == "DENTICODE_SYNC_LOCK_KEY":
-            legacy = value
-    return canonical, legacy
+_SYNC_LOCK_FIELD = "sync_lock_key"
+_SYNC_LOCK_CANONICAL = "DENTICODE_SYNC_ADVISORY_LOCK_KEY"
+_SYNC_LOCK_LEGACY = "DENTICODE_SYNC_LOCK_KEY"
+_SYNC_LOCK_KEY_NAMES = {
+    _SYNC_LOCK_FIELD.lower(),
+    _SYNC_LOCK_CANONICAL.lower(),
+    _SYNC_LOCK_LEGACY.lower(),
+}
+_SYNC_LOCK_MIN = -(2**63)
+_SYNC_LOCK_MAX = 2**63 - 1
 
 
 class SyncAdvisoryLockConfigError(RuntimeError):
@@ -40,6 +33,10 @@ class InvalidSyncAdvisoryLockConfigError(RuntimeError):
         super().__init__("Invalid sync advisory lock key setting.")
 
 
+def _is_sync_lock_key_name(key: object) -> bool:
+    return isinstance(key, str) and key.lower() in _SYNC_LOCK_KEY_NAMES
+
+
 def _parse_lock_key(value: object) -> int:
     if isinstance(value, bool):
         raise InvalidSyncAdvisoryLockConfigError()
@@ -50,55 +47,122 @@ def _parse_lock_key(value: object) -> int:
         parsed = int(text, 10)
     except ValueError:
         raise InvalidSyncAdvisoryLockConfigError() from None
-    if not (-(2**63) <= parsed <= 2**63 - 1):
+    if not (_SYNC_LOCK_MIN <= parsed <= _SYNC_LOCK_MAX):
         raise InvalidSyncAdvisoryLockConfigError()
     return parsed
 
 
-def _resolve_lock_key_override(
-    data: dict[str, Any], dotenv_canonical: str | None, dotenv_legacy: str | None
-) -> int | None:
-    canonical_values = [
-        value
-        for value in (
-            os.environ.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY"),
-            dotenv_canonical,
-            data.get("DENTICODE_SYNC_ADVISORY_LOCK_KEY"),
-        )
-        if value is not None
-    ]
-    legacy_values = [
-        value
-        for value in (
-            os.environ.get("DENTICODE_SYNC_LOCK_KEY"),
-            dotenv_legacy,
-            data.get("DENTICODE_SYNC_LOCK_KEY"),
-        )
-        if value is not None
-    ]
-    canonical_keys = [_parse_lock_key(value) for value in canonical_values]
-    legacy_keys = [_parse_lock_key(value) for value in legacy_values]
-    if canonical_keys and legacy_keys and set(canonical_keys) != set(legacy_keys):
-        raise SyncAdvisoryLockConfigError()
-    resolved_values = canonical_keys or legacy_keys
-    if not resolved_values:
+def _resolve_lock_key_values(source_values: list[object]) -> int | None:
+    if not source_values:
         return None
-    if len(set(resolved_values)) != 1:
+    parsed_values = [_parse_lock_key(value) for value in source_values]
+    if len(set(parsed_values)) != 1:
         raise SyncAdvisoryLockConfigError()
-    return resolved_values[0]
+    return parsed_values[0]
+
+
+class _CachedSettingsSource(PydanticBaseSettingsSource):
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        source: PydanticBaseSettingsSource,
+        cache: dict[int, dict[str, Any]],
+    ) -> None:
+        super().__init__(settings_cls)
+        self._source = source
+        self._cache = cache
+
+    def _source_data(self) -> dict[str, Any]:
+        source_id = id(self._source)
+        if source_id not in self._cache:
+            self._cache[source_id] = dict(self._source())
+        return self._cache[source_id]
+
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+
+class _SanitizedSettingsSource(_CachedSettingsSource):
+    def __call__(self) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in self._source_data().items()
+            if not _is_sync_lock_key_name(key)
+        }
+
+
+class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        sources: tuple[PydanticBaseSettingsSource, ...],
+        cache: dict[int, dict[str, Any]],
+    ) -> None:
+        super().__init__(settings_cls)
+        self._sources = sources
+        self._cache = cache
+
+    def _source_data(self, source: PydanticBaseSettingsSource) -> dict[str, Any]:
+        source_id = id(source)
+        if source_id not in self._cache:
+            self._cache[source_id] = dict(source())
+        return self._cache[source_id]
+
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def _lock_values_from_source(self, source: PydanticBaseSettingsSource) -> list[object]:
+        raw_values: list[object] = []
+        env_vars = getattr(source, "env_vars", None)
+        if isinstance(env_vars, dict):
+            raw_values.extend(
+                value for key, value in env_vars.items() if _is_sync_lock_key_name(key)
+            )
+        raw_values.extend(
+            value for key, value in self._source_data(source).items() if _is_sync_lock_key_name(key)
+        )
+        return raw_values
+
+    def __call__(self) -> dict[str, Any]:
+        raw_values: list[object] = []
+        for source in self._sources:
+            raw_values.extend(self._lock_values_from_source(source))
+        resolved = _resolve_lock_key_values(raw_values)
+        if resolved is None:
+            return {}
+        return {_SYNC_LOCK_FIELD: resolved}
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     def __init__(self, **data: Any) -> None:
-        lock_key = _resolve_lock_key_override(data, *_read_dotenv_lock_values())
-        if lock_key is not None:
-            data = {**data, "DENTICODE_SYNC_ADVISORY_LOCK_KEY": lock_key}
-            data.pop("DENTICODE_SYNC_LOCK_KEY", None)
+        lock_values = [value for key, value in data.items() if _is_sync_lock_key_name(key)]
+        resolved = _resolve_lock_key_values(lock_values)
+        if resolved is not None:
+            data = {
+                key: value for key, value in data.items() if not _is_sync_lock_key_name(key)
+            }
+            data[_SYNC_LOCK_FIELD] = resolved
         super().__init__(**data)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        sources = (init_settings, env_settings, dotenv_settings, file_secret_settings)
+        cache: dict[int, dict[str, Any]] = {}
+        return (
+            _SyncLockKeySettingsSource(settings_cls, sources, cache),
+            *(_SanitizedSettingsSource(settings_cls, source, cache) for source in sources),
+        )
 
     app_env: str = Field(default="development", validation_alias="APP_ENV")
     database_url: str = Field(
@@ -150,7 +214,7 @@ class Settings(BaseSettings):
         ge=-(2**63),
         le=2**63 - 1,
         validation_alias=AliasChoices(
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY", "DENTICODE_SYNC_LOCK_KEY"
+            _SYNC_LOCK_FIELD, _SYNC_LOCK_CANONICAL, _SYNC_LOCK_LEGACY
         ),
     )
 

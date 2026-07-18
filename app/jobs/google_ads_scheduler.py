@@ -38,7 +38,7 @@ def main(stop_event: Event | None = None, runtime_loader: Any = _load_runtime) -
         if immediate or now >= deadline:
             immediate = False
             try:
-                run_cycle(settings, engine, wait=stop.wait)
+                run_cycle(settings, engine, wait=stop.wait, stop_requested=stop.is_set)
             except KeyboardInterrupt:
                 logger.error("google_ads_scheduler_cycle_interrupted")
                 stop.set()

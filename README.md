@@ -200,15 +200,16 @@ failures retry with capped exponential backoff and bounded jitter; authenticatio
 authorization, unknown commit outcomes, and unknown failures do not retry. The recurring
 scheduler uses fixed-delay cadence: after each completed, failed, or skipped cycle, it waits the
 full configured interval before the next attempt. If `DENTICODE_SYNC_RUN_IMMEDIATELY=false`, the
-first cycle is delayed until the first interval elapses. Retry backoff is shutdown-aware in the
-scheduler: Ctrl+C, SIGINT, and SIGTERM stop waiting, avoid another collector attempt, finalize
-the authoritative JobRun with a bounded interruption summary, and release resources
-deterministically. Startup/configuration failures are caught after runtime loading and logged as
+first cycle is delayed until the first interval elapses. Retry backoff is shutdown-aware in both the scheduler and one-shot worker: Ctrl+C, SIGINT,
+and SIGTERM request shutdown, stop waiting, avoid another collector attempt, finalize the
+authoritative JobRun with a bounded interruption summary when the transaction outcome is known,
+and release resources deterministically. Startup/configuration failures are caught after runtime loading and logged as
 sanitized event/type pairs without raw validation text or tracebacks.
 
 `GET /api/v1/operations/sync-health` is bearer-token protected and exposes bounded, read-only
 sync status. Stored JobRun failure text is treated as untrusted at this public boundary and
-re-sanitized before JSON or dashboard rendering.  Healthy means the most recent successful sync is within the configured stale window;
+re-sanitized before JSON or dashboard rendering using exact fixed-message allowlists only;
+legacy, extended, or externally inserted text is mapped to a generic public failure summary.  Healthy means the most recent successful sync is within the configured stale window;
 Stale means it is older (or absent), Failed means the latest attempt failed, Running means the
 latest JobRun is in progress, and Never Synced means no prior attempt exists. In production run
 the scheduler as its own supervised process; do not put it in Uvicorn, FastAPI startup, or a web

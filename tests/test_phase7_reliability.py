@@ -250,7 +250,7 @@ def test_run_cycle_aborts_without_retry_after_lock_connection_loss(
         calls += 1
         raise GoogleAdsSyncError(
             "Google Ads synchronization lost advisory-lock ownership.",
-            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            classification=SyncFailureClassification.TRANSIENT_DATABASE,
             lock_lost=True,
         )
 
@@ -403,3 +403,219 @@ def test_one_shot_startup_failure_is_sanitized() -> None:
     assert "Traceback" not in combined
     assert "super-secret-token-value" not in combined
     assert "ValidationError" in combined
+
+
+def test_unknown_commit_with_lock_loss_does_not_replacement_finalize(
+    tmp_path: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sqlite_engine = create_engine(f"sqlite:///{(tmp_path / 'unknown-lock-loss.db').as_posix()}")
+    Base.metadata.create_all(sqlite_engine)
+    calls = 0
+    fresh_finalize_calls = 0
+
+    def unknown_and_lost(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+        nonlocal calls
+        calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            lock_lost=True,
+        )
+
+    def fail_if_replacement_finalize(*_args: object, **_kwargs: object) -> None:
+        nonlocal fresh_finalize_calls
+        fresh_finalize_calls += 1
+        pytest.fail("unknown commit outcome must not use replacement finalization")
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        unknown_and_lost,
+    )
+    monkeypatch.setattr(
+        "app.jobs.reliability._finalize_failed_job_run_on_engine",
+        fail_if_replacement_finalize,
+    )
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(
+            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            sqlite_engine,
+            sleep=lambda _delay: pytest.fail("unknown commit must not retry"),
+        )
+
+    assert exc_info.value.classification is SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    assert calls == 1
+    assert fresh_finalize_calls == 0
+    with Session(sqlite_engine) as session:
+        job_runs = session.scalars(select(JobRun)).all()
+    assert len(job_runs) == 1
+    assert job_runs[0].status is JobRunStatus.RUNNING
+    Base.metadata.drop_all(sqlite_engine)
+    sqlite_engine.dispose()
+
+
+def test_stop_requested_before_lock_acquisition_skips_all_work(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        lambda *_args, **_kwargs: pytest.fail("collector must not run after stop"),
+    )
+
+    with pytest.raises(Exception, match="interrupted"):
+        run_cycle(Settings(), sqlite_engine, stop_requested=lambda: True)
+
+    with Session(sqlite_engine) as session:
+        assert session.scalars(select(JobRun)).all() == []
+
+
+def test_stop_requested_after_running_job_run_prevents_first_collector(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checks = iter([False, True])
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        lambda *_args, **_kwargs: pytest.fail("collector must not run after stop"),
+    )
+
+    with pytest.raises(Exception, match="interrupted"):
+        run_cycle(Settings(), sqlite_engine, stop_requested=lambda: next(checks, True))
+
+    with Session(sqlite_engine) as session:
+        job_run = session.scalars(select(JobRun)).one()
+        assert job_run.status is JobRunStatus.FAILED
+        assert job_run.error_message == "Google Ads synchronization interrupted before retry."
+
+
+def test_stop_requested_after_retry_wait_prevents_later_collector(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = 0
+    stopped = False
+
+    def transient(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+        nonlocal calls
+        calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads read-only sync failed (GoogleAdsRateLimitError)",
+            classification=SyncFailureClassification.TRANSIENT_RATE_LIMIT,
+        )
+
+    def wait(_delay: float) -> bool:
+        nonlocal stopped
+        stopped = True
+        return False
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        transient,
+    )
+
+    with pytest.raises(Exception, match="interrupted"):
+        run_cycle(
+            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            sqlite_engine,
+            wait=wait,
+            stop_requested=lambda: stopped,
+            random_value=lambda: 0,
+        )
+
+    assert calls == 1
+    with Session(sqlite_engine) as session:
+        job_run = session.scalars(select(JobRun)).one()
+        assert job_run.status is JobRunStatus.FAILED
+
+
+@pytest.mark.parametrize(
+    ("stored_message", "expected"),
+    [
+        (
+            "Google Ads synchronization interrupted before retry.",
+            "Google Ads synchronization interrupted before retry.",
+        ),
+        ("Google Ads read-only sync failed (/home/app/.env password=hunter2)", None),
+        ("Google Ads read-only sync failed (api_key=abc)", None),
+        ("Google Ads read-only sync failed (Bearer secret)", None),
+        ("SELECT * FROM credentials", None),
+        ("Traceback ...", None),
+        (r"C:\secrets\.env", None),
+        ("https://example.test/?token=secret", None),
+        ("x" * 1000, None),
+        ("Google Ads synchronization interrupted before retry.x", None),
+    ],
+)
+def test_public_failure_summary_allows_only_exact_safe_messages(
+    stored_message: str,
+    expected: str | None,
+) -> None:
+    from app.ads.operations import public_failure_summary
+
+    generic = "Google Ads synchronization failed."
+    assert public_failure_summary(stored_message) == (expected or generic)
+
+
+@pytest.mark.parametrize(
+    ("raw_error", "expected_calls"),
+    [
+        (RuntimeError("RESOURCE_EXHAUSTED quota exceeded"), 2),
+        (RuntimeError("500 internal server error"), 2),
+        (RuntimeError("502 backend error"), 2),
+        (RuntimeError("503 unavailable"), 2),
+        (RuntimeError("504 deadline exceeded"), 2),
+        (TimeoutError("request timeout secret-token"), 2),
+        (OSError("temporary transport failure"), 2),
+        (RuntimeError("UNAUTHENTICATED invalid credentials"), 1),
+        (RuntimeError("PERMISSION_DENIED customer not authorized"), 1),
+        (RuntimeError("INVALID_CUSTOMER_ID"), 1),
+        (RuntimeError("unknown raw google payload secret"), 1),
+    ],
+)
+def test_run_cycle_preserves_collector_normalization_attempt_counts(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+    raw_error: Exception,
+    expected_calls: int,
+) -> None:
+    from app.collectors import google_ads
+
+    calls = 0
+
+    class FailingService:
+        def search(self, **_kwargs: object) -> list[object]:
+            nonlocal calls
+            calls += 1
+            raise raw_error
+
+    monkeypatch.setattr(
+        google_ads, "_google_ads_service", lambda _settings: (FailingService(), "1")
+    )
+    monkeypatch.setattr(google_ads, "collect_campaigns", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(google_ads, "collect_ad_groups", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(google_ads, "collect_ads", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(google_ads, "collect_keywords", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(google_ads, "collect_search_terms", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(google_ads, "collect_metrics", lambda *_args, **_kwargs: [])
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(
+            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=2, DENTICODE_SYNC_RETRY_BASE_SECONDS=1),
+            sqlite_engine,
+            sleep=lambda _delay: None,
+            random_value=lambda: 0,
+        )
+
+    assert calls == expected_calls
+    assert "secret" not in str(exc_info.value)
+    with Session(sqlite_engine) as session:
+        job_run = session.scalars(select(JobRun)).one()
+        assert job_run.status is JobRunStatus.FAILED
+        assert "secret" not in (job_run.error_message or "")

@@ -11,13 +11,14 @@ from app.ads.models import JobRun
 from app.settings import Settings
 
 _PUBLIC_FAILURE_SUMMARY = "Google Ads synchronization failed."
-_SAFE_FAILURE_PREFIXES = (
-    "Google Ads read-only sync failed (",
+_SAFE_FAILURE_MESSAGES = (
     "Google Ads synchronization interrupted before retry.",
     "Google Ads synchronization lost advisory-lock ownership.",
     "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
-    "Google Ads sync failed; the failure-record commit outcome is unknown",
+    "Google Ads sync failed; the failure-record commit outcome is unknown "
+    "and must be verified before retrying",
 )
+
 _UNSAFE_MARKERS = (
     "authorization:",
     "bearer ",
@@ -61,7 +62,7 @@ def public_failure_summary(error_message: str | None) -> str | None:
     lowered = candidate.lower()
     if any(marker in lowered for marker in _UNSAFE_MARKERS):
         return _PUBLIC_FAILURE_SUMMARY
-    if any(candidate.startswith(prefix) for prefix in _SAFE_FAILURE_PREFIXES):
+    if candidate in _SAFE_FAILURE_MESSAGES:
         return candidate
     return _PUBLIC_FAILURE_SUMMARY
 

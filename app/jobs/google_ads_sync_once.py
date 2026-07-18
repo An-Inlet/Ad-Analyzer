@@ -42,10 +42,13 @@ def _restore_signal_handlers(previous: dict[int, Any]) -> None:
 def main(runtime_loader: Any = _load_runtime) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     previous_handlers: dict[int, Any] = {}
+    stop = Event()
+    previous_handlers = _install_signal_handlers(stop)
     try:
         settings, engine, run_cycle, job_run_status = runtime_loader()
-        stop = Event()
-        previous_handlers = _install_signal_handlers(stop)
+        if stop.is_set():
+            logger.error("google_ads_sync_worker_interrupted")
+            return FAILURE_EXIT_CODE
         outcome = run_cycle(settings, engine, wait=stop.wait, stop_requested=stop.is_set)
         if outcome.skipped:
             logger.info("google_ads_sync_worker_skipped_overlap")

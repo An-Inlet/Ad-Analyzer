@@ -56,6 +56,7 @@ class PostgreSQLAdvisoryLock:
 
     def __init__(self, connection: Connection, key: int) -> None:
         self.connection, self.key, self.acquired = connection, key, False
+        self.backend_pid: int | None = None
 
     def try_acquire(self) -> bool:
         if self.connection.dialect.name != "postgresql":
@@ -63,10 +64,19 @@ class PostgreSQLAdvisoryLock:
         self.acquired = bool(
             self.connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key})
         )
+        if self.acquired:
+            self.backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
         return self.acquired
 
+    def owns_current_connection(self) -> bool:
+        if not self.acquired or self.connection.invalidated:
+            return False
+        if self.connection.dialect.name != "postgresql":
+            return True
+        return int(self.connection.scalar(text("SELECT pg_backend_pid()"))) == self.backend_pid
+
     def release(self) -> None:
-        if not self.acquired:
+        if not self.acquired or self.connection.invalidated:
             return
         try:
             unlocked = bool(
@@ -85,8 +95,10 @@ class PostgreSQLAdvisoryLock:
 
 def lock_ownership_lost(exc: BaseException) -> bool:
     """Return true when the pinned backend session can no longer own the lock."""
-    return isinstance(exc, DBAPIError) and exc.connection_invalidated or bool(
-        getattr(exc, "lock_lost", False)
+    return (
+        isinstance(exc, AdvisoryLockLostError)
+        or (isinstance(exc, DBAPIError) and exc.connection_invalidated)
+        or bool(getattr(exc, "lock_lost", False))
     )
 
 
@@ -152,8 +164,24 @@ def _create_authoritative_job_run(session: Session) -> JobRun:
         job_name=GoogleAdsSyncService.job_name,
         status=JobRunStatus.RUNNING,
     )
-    session.flush()
-    session.commit()
+    commit_started = False
+    try:
+        session.flush()
+        commit_started = True
+        session.commit()
+    except Exception as exc:
+        with suppress(Exception):
+            session.rollback()
+        if commit_started:
+            raise GoogleAdsSyncError(
+                (
+                    "Google Ads sync commit outcome is unknown; "
+                    "verify the latest job run before retrying"
+                ),
+                classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+                lock_lost=lock_ownership_lost(exc),
+            ) from None
+        raise
     return job_run
 
 
@@ -225,6 +253,25 @@ def _raise_if_stop_requested(stop_requested: Callable[[], bool] | None) -> None:
         raise SyncShutdownRequested(INTERRUPTED_SYNC_ERROR)
 
 
+def _make_pre_collector_check(
+    lock: PostgreSQLAdvisoryLock,
+    connection: Connection,
+    stop_requested: Callable[[], bool] | None,
+) -> Callable[[], None]:
+    def check() -> None:
+        _raise_if_stop_requested(stop_requested)
+        try:
+            owns_lock = lock.owns_current_connection()
+        except BaseException:
+            connection.invalidate()
+            raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
+        if not owns_lock:
+            connection.invalidate()
+            raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR)
+
+    return check
+
+
 def run_cycle(
     settings: Settings,
     engine: Engine,
@@ -246,6 +293,7 @@ def run_cycle(
     session = session_factory()
     job_run: JobRun | None = None
     last_attempt = 0
+    primary_error: BaseException | None = None
     retry_wait: Callable[[float], bool | None]
     if wait is None:
         def retry_wait(delay: float) -> bool:
@@ -268,13 +316,19 @@ def run_cycle(
             try:
                 _raise_if_stop_requested(stop_requested)
                 last_attempt = attempt
-                result = GoogleAdsSyncService(session).sync_authoritative_job_run(job_run)
+                result = GoogleAdsSyncService(session).sync_authoritative_job_run(
+                    job_run,
+                    pre_collector_check=_make_pre_collector_check(
+                        lock, connection, stop_requested
+                    ),
+                )
                 logger.info(
                     "google_ads_sync_succeeded run_id=%s attempt=%s", result.job_run_id, attempt
                 )
                 return CycleOutcome(skipped=False, result=result, attempts=attempt)
             except BaseException as exc:
                 if unknown_commit_outcome(exc):
+                    primary_error = exc
                     if lock_ownership_lost(exc):
                         lock.acquired = False
                         connection.invalidate()
@@ -294,7 +348,16 @@ def run_cycle(
                     raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
                 retryable = isinstance(exc, Exception) and is_transient_failure(exc)
                 if attempt >= settings.sync_max_attempts or not retryable:
-                    _finalize_failed_job_run(session, job_run, exc, attempt)
+                    try:
+                        _finalize_failed_job_run(session, job_run, exc, attempt)
+                    except BaseException as finalize_exc:
+                        if unknown_commit_outcome(finalize_exc):
+                            primary_error = finalize_exc
+                            if lock_ownership_lost(finalize_exc):
+                                lock.acquired = False
+                                connection.invalidate()
+                            raise
+                        raise
                     logger.error(
                         "google_ads_sync_failed run_id=%s attempt=%s error_type=%s",
                         job_run.id,
@@ -315,13 +378,38 @@ def run_cycle(
                     _raise_if_stop_requested(stop_requested)
                 except BaseException as wait_exc:
                     if unknown_commit_outcome(wait_exc):
+                        primary_error = wait_exc
                         raise
-                    _finalize_failed_job_run(session, job_run, wait_exc, attempt)
+                    try:
+                        _finalize_failed_job_run(session, job_run, wait_exc, attempt)
+                    except BaseException as finalize_exc:
+                        if unknown_commit_outcome(finalize_exc):
+                            primary_error = finalize_exc
+                            if lock_ownership_lost(finalize_exc):
+                                lock.acquired = False
+                                connection.invalidate()
+                            raise
+                        raise
                     raise
         raise AssertionError("unreachable")
     except BaseException as exc:
-        if job_run is not None and last_attempt == 0 and not unknown_commit_outcome(exc):
-            _finalize_failed_job_run(session, job_run, exc, last_attempt)
+        if unknown_commit_outcome(exc):
+            primary_error = exc
+            if lock_ownership_lost(exc):
+                lock.acquired = False
+                connection.invalidate()
+            raise
+        if job_run is not None and last_attempt == 0:
+            try:
+                _finalize_failed_job_run(session, job_run, exc, last_attempt)
+            except BaseException as finalize_exc:
+                if unknown_commit_outcome(finalize_exc):
+                    primary_error = finalize_exc
+                    if lock_ownership_lost(finalize_exc):
+                        lock.acquired = False
+                        connection.invalidate()
+                    raise
+                raise
         raise
     finally:
         release_error: BaseException | None = None
@@ -334,5 +422,7 @@ def run_cycle(
                 release_error = exc
             finally:
                 connection.close()
-            if release_error is not None:
+            if release_error is not None and not unknown_commit_outcome(
+                primary_error or release_error
+            ):
                 raise release_error

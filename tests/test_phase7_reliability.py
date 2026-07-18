@@ -45,7 +45,11 @@ def sqlite_engine() -> Generator[Any, None, None]:
 
 @pytest.fixture()
 def relaxed_lock(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(PostgreSQLAdvisoryLock, "try_acquire", lambda self: True)
+    def acquire(self: PostgreSQLAdvisoryLock) -> bool:
+        self.acquired = True
+        return True
+
+    monkeypatch.setattr(PostgreSQLAdvisoryLock, "try_acquire", acquire)
     monkeypatch.setattr(PostgreSQLAdvisoryLock, "release", lambda self: None)
 
 
@@ -161,7 +165,9 @@ def test_run_cycle_uses_one_authoritative_job_run_across_retry(
 ) -> None:
     calls = 0
 
-    def sync_authoritative(self: Any, job_run: JobRun) -> GoogleAdsSyncResult:
+    def sync_authoritative(
+        self: Any, job_run: JobRun, **_kwargs: object
+    ) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -206,7 +212,7 @@ def test_run_cycle_retry_exhaustion_finalizes_one_failed_job_run(
     relaxed_lock: None,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def always_fail(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def always_fail(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         raise GoogleAdsSyncError(
             "Google Ads read-only sync failed (GoogleAdsRateLimitError)",
             classification=SyncFailureClassification.TRANSIENT_RATE_LIMIT,
@@ -245,7 +251,7 @@ def test_run_cycle_aborts_without_retry_after_lock_connection_loss(
     Base.metadata.create_all(engine)
     calls = 0
 
-    def lose_lock(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def lose_lock(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -278,7 +284,7 @@ def test_unknown_commit_outcome_does_not_retry_or_create_contradictory_failure(
 ) -> None:
     calls = 0
 
-    def unknown_commit(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def unknown_commit(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -312,7 +318,7 @@ def test_stop_event_during_backoff_finalizes_and_prevents_next_attempt(
 ) -> None:
     calls = 0
 
-    def transient(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def transient(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -415,7 +421,9 @@ def test_unknown_commit_with_lock_loss_does_not_replacement_finalize(
     calls = 0
     fresh_finalize_calls = 0
 
-    def unknown_and_lost(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def unknown_and_lost(
+        self: Any, _job_run: JobRun, **_kwargs: object
+    ) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -501,7 +509,7 @@ def test_stop_requested_after_retry_wait_prevents_later_collector(
     calls = 0
     stopped = False
 
-    def transient(self: Any, _job_run: JobRun) -> GoogleAdsSyncResult:
+    def transient(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
         nonlocal calls
         calls += 1
         raise GoogleAdsSyncError(
@@ -619,3 +627,171 @@ def test_run_cycle_preserves_collector_normalization_attempt_counts(
         job_run = session.scalars(select(JobRun)).one()
         assert job_run.status is JobRunStatus.FAILED
         assert "secret" not in (job_run.error_message or "")
+
+
+def test_initial_running_commit_unknown_is_primary_and_not_unlocked(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unlock_calls = 0
+
+    def unknown_create(_session: Session) -> JobRun:
+        raise GoogleAdsSyncError(
+            "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            lock_lost=True,
+        )
+
+    def release(self: PostgreSQLAdvisoryLock) -> None:
+        nonlocal unlock_calls
+        unlock_calls += 1
+        if self.acquired:
+            pytest.fail("must not unlock after invalidated unknown initial commit")
+
+    monkeypatch.setattr("app.jobs.reliability._create_authoritative_job_run", unknown_create)
+    monkeypatch.setattr(PostgreSQLAdvisoryLock, "release", release)
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run",
+        lambda *_args, **_kwargs: pytest.fail("collector must not run after unknown create"),
+    )
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(Settings(), sqlite_engine)
+
+    assert exc_info.value.classification is SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    assert unlock_calls == 1
+
+
+def test_failed_finalization_unknown_is_primary_and_no_replacement_finalize(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    collector_calls = 0
+    replacement_calls = 0
+
+    def permanent(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
+        nonlocal collector_calls
+        collector_calls += 1
+        raise GoogleAdsSyncError(
+            "Google Ads read-only sync failed (ValueError)",
+            classification=SyncFailureClassification.PERMANENT_VALIDATION,
+        )
+
+    def unknown_finalize(*_args: object, **_kwargs: object) -> None:
+        raise GoogleAdsSyncError(
+            "Google Ads sync failed; the failure-record commit outcome is unknown "
+            "and must be verified before retrying",
+            classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
+            lock_lost=True,
+        )
+
+    def replacement(*_args: object, **_kwargs: object) -> None:
+        nonlocal replacement_calls
+        replacement_calls += 1
+        pytest.fail("unknown finalization must not use replacement finalization")
+
+    monkeypatch.setattr(
+        "app.jobs.reliability.GoogleAdsSyncService.sync_authoritative_job_run", permanent
+    )
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run", unknown_finalize)
+    monkeypatch.setattr("app.jobs.reliability._finalize_failed_job_run_on_engine", replacement)
+
+    with pytest.raises(GoogleAdsSyncError) as exc_info:
+        run_cycle(Settings(), sqlite_engine)
+
+    assert exc_info.value.classification is SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME
+    assert collector_calls == 1
+    assert replacement_calls == 0
+
+
+
+def test_stop_after_account_collector_prevents_campaign_collector(
+    sqlite_engine: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.ads.enums import AdvertisingPlatform
+    from app.ads.schemas import AdvertisingAccountCreate
+    from app.collectors import google_ads
+
+    account_calls = 0
+    campaign_calls = 0
+
+    def collect_account(*_args: object, **_kwargs: object) -> AdvertisingAccountCreate:
+        nonlocal account_calls
+        account_calls += 1
+        return AdvertisingAccountCreate(
+            platform=AdvertisingPlatform.GOOGLE_ADS,
+            external_account_id="acct-1",
+            name="Acct",
+            currency_code="USD",
+            time_zone="UTC",
+        )
+
+    def collect_campaigns(*_args: object, **_kwargs: object) -> list[object]:
+        nonlocal campaign_calls
+        campaign_calls += 1
+        pytest.fail("campaign collector must not run after stop")
+
+    monkeypatch.setattr(google_ads, "collect_account", collect_account)
+    monkeypatch.setattr(google_ads, "collect_campaigns", collect_campaigns)
+
+    with pytest.raises(Exception, match="interrupted"):
+        run_cycle(
+            Settings(),
+            sqlite_engine,
+            stop_requested=lambda: account_calls > 0,
+        )
+
+    assert account_calls == 1
+    assert campaign_calls == 0
+
+
+def test_lock_loss_after_account_collector_prevents_campaign_collector(
+    tmp_path: Any,
+    relaxed_lock: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sqlite_engine = create_engine(f"sqlite:///{(tmp_path / 'collector-lock-loss.db').as_posix()}")
+    Base.metadata.create_all(sqlite_engine)
+    from app.ads.enums import AdvertisingPlatform
+    from app.ads.schemas import AdvertisingAccountCreate
+    from app.collectors import google_ads
+
+    checks = iter([True, False])
+    account_calls = 0
+    campaign_calls = 0
+
+    def collect_account(*_args: object, **_kwargs: object) -> AdvertisingAccountCreate:
+        nonlocal account_calls
+        account_calls += 1
+        return AdvertisingAccountCreate(
+            platform=AdvertisingPlatform.GOOGLE_ADS,
+            external_account_id="acct-1",
+            name="Acct",
+            currency_code="USD",
+            time_zone="UTC",
+        )
+
+    def collect_campaigns(*_args: object, **_kwargs: object) -> list[object]:
+        nonlocal campaign_calls
+        campaign_calls += 1
+        pytest.fail("campaign collector must not run after lock loss")
+
+    monkeypatch.setattr(google_ads, "collect_account", collect_account)
+    monkeypatch.setattr(google_ads, "collect_campaigns", collect_campaigns)
+    monkeypatch.setattr(
+        PostgreSQLAdvisoryLock,
+        "owns_current_connection",
+        lambda _self: next(checks, False),
+    )
+
+    with pytest.raises(Exception, match="advisory-lock"):
+        run_cycle(Settings(), sqlite_engine)
+
+    assert account_calls == 1
+    assert campaign_calls == 0
+    Base.metadata.drop_all(sqlite_engine)
+    sqlite_engine.dispose()

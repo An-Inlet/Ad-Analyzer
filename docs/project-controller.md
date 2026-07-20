@@ -26,3 +26,15 @@ You are the persistent Codex project controller for Konner-An-Inlet/Denticode-Ad
 ## Human approval boundary
 
 The controller can prepare code, respond to CI, and request auto-merge when protections allow, but it cannot review, approve, or merge its own work without required human approval.
+
+## Permanent roadmap-controller runbook
+
+Every scheduled or manual controller run must perform the following state-machine step before changing code:
+
+1. Fetch latest `main` and inspect GitHub pull requests, checks, and review comments.
+2. If an automation PR is open, work only on that PR branch: fix concrete in-scope CI failures and P1/P2 review findings, push to the same branch, and wait for human merge after checks pass.
+3. If no automation PR is open, refresh `docs/roadmap-status.md`, identify the earliest partially complete or missing roadmap unit whose dependencies and human decisions are satisfied, and create exactly one branch and pull request for that unit.
+4. If all non-blocked units are complete, refresh `docs/roadmap-status.md`, maintain `docs/human-decisions-required.md`, and do not create implementation PRs.
+5. Always report completion percentage, current unit, PR URL, commit SHA, CI status, tests run, files changed, blocked decisions, next action, and confirmation that no live Google Ads activity occurred.
+
+The controller must treat PR #11 as the consolidated Phase 8-12 baseline and must never recreate equivalent implemented capabilities merely to match suggested roadmap filenames.

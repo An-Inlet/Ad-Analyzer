@@ -22,6 +22,8 @@ DECISIONS = ROOT / "docs" / "decision-register.md"
 DONE = ROOT / "docs" / "definition-of-done.md"
 CONTROLLER = ROOT / "docs" / "project-controller.md"
 GITHUB_SETUP = ROOT / "docs" / "github-automation-setup.md"
+ROADMAP_STATUS = ROOT / "docs" / "roadmap-status.md"
+HUMAN_DECISIONS = ROOT / "docs" / "human-decisions-required.md"
 
 
 def resolve_bash() -> str | None:
@@ -246,6 +248,52 @@ def test_project_controller_cannot_bypass_human_approval() -> None:
         "starts only the next unblocked roadmap PR" in controller
         or "Start only the next unblocked roadmap PR" in controller
     )
+
+
+def test_roadmap_controller_status_tracks_phase8_through_phase12() -> None:
+    status = read(ROADMAP_STATUS)
+    decisions = read(HUMAN_DECISIONS)
+    controller = read(CONTROLLER)
+
+    for unit in (
+        "8.1 Analytics foundations",
+        "8.2 Repository aggregation and query safety",
+        "8.3 Deterministic findings service and API",
+        "8.4 Dashboard analytics views",
+        "9.1 Recommendation schemas",
+        "9.2 Deterministic recommendation service",
+        "9.3 Recommendation API/dashboard preview",
+        "10.1 Audit data model",
+        "10.2 Review queue service and API",
+        "10.3 Review dashboard",
+        "11.1 Execution policy model",
+        "11.2 Dry-run executor",
+        "11.3 Approved controlled mutations",
+        "11.4 Execution operations dashboard",
+        "12.1 Deployment architecture",
+        "12.2 Managed infrastructure configuration",
+        "12.3 Monitoring backup and incident response",
+        "12.4 Production readiness release",
+    ):
+        assert unit in status
+
+    for required_field in (
+        "Existing implementation files",
+        "Tests covering it",
+        "Missing acceptance criteria",
+        "Blocking decisions",
+        "Latest associated PR",
+        "Validation status",
+        "Current automated completion percentage",
+    ):
+        assert required_field in status
+
+    assert "PR #11" in controller
+    assert "must never recreate equivalent implemented capabilities" in controller
+    assert "Phase 11.3 production mutation enablement" in decisions
+    assert "Production release approval" in decisions
+    assert "DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false" in decisions
+    assert "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true" in decisions
 
 
 def test_github_setup_requires_protected_human_review() -> None:

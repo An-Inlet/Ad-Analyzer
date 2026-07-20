@@ -58,6 +58,12 @@ def strip_ansi(value: str) -> str:
     return ANSI_ESCAPE.sub("", value)
 
 
+def normalize_powershell_output(value: str) -> str:
+    value = strip_ansi(value)
+    value = re.sub(r"(?m)^\s*\|\s?", " ", value)
+    return " ".join(value.split())
+
+
 def validate_command(scope: str) -> list[str]:
     if os.name == "nt":
         powershell = resolve_powershell()
@@ -402,7 +408,30 @@ def test_powershell_premature_controlled_writes_and_release_fail_closed() -> Non
             env=minimal_subprocess_env(),
         )
         assert result.returncode != 0
-        assert "not implemented" in strip_ansi(result.stderr)
+        assert "not implemented" in normalize_powershell_output(result.stderr)
+
+
+def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> None:
+    staging_sample = (
+        "\x1b[31;1mWrite-Error: \x1b[0m\n"
+        "\x1b[31;1m| Refusing migration validation: staging/production database names are\x1b[0m\n"
+        "\x1b[31;1m| never disposable.\x1b[0m\n"
+    )
+    controlled_name_sample = (
+        "\x1b[31;1mWrite-Error: \x1b[0m\n"
+        "\x1b[31;1m| Refusing migration validation: database name must use a "
+        "controlled _ci\x1b[0m\n"
+        "\x1b[31;1m| or _test naming convention.\x1b[0m\n"
+    )
+
+    assert (
+        "staging/production database names are never disposable"
+        in normalize_powershell_output(staging_sample)
+    )
+    assert (
+        "controlled _ci or _test naming convention"
+        in normalize_powershell_output(controlled_name_sample)
+    )
 
 
 @pytest.mark.parametrize(
@@ -460,9 +489,15 @@ def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
         capture_output=True,
         env=minimal_subprocess_env(env_overrides),
     )
-    normalized_stderr = strip_ansi(result.stderr)
+    normalized_stdout = normalize_powershell_output(result.stdout)
+    normalized_stderr = normalize_powershell_output(result.stderr)
     assert result.returncode != 0
     assert expected_error in normalized_stderr
+    raw_url = env_overrides.get("DENTICODE_TEST_POSTGRES_URL", "")
+    for output in (result.stdout, result.stderr, normalized_stdout, normalized_stderr):
+        assert "postgres:postgres" not in output
+        if raw_url:
+            assert raw_url not in output
 
 
 def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connection() -> None:
@@ -480,8 +515,8 @@ def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connecti
             }
         ),
     )
-    normalized_stdout = strip_ansi(result.stdout)
-    normalized_stderr = strip_ansi(result.stderr)
+    normalized_stdout = normalize_powershell_output(result.stdout)
+    normalized_stderr = normalize_powershell_output(result.stderr)
     assert result.returncode != 0
     assert "+ python scripts/reset_disposable_postgres.py" in normalized_stdout
     assert "+ alembic upgrade head" not in normalized_stdout

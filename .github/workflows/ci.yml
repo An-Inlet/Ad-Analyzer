@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    name: Validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: denticode_ads_optimizer_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d denticode_ads_optimizer_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci
+      DENTICODE_TEST_POSTGRES_URL: postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci
+      DENTICODE_CI_DISPOSABLE_POSTGRES: "true"
+      DENTICODE_PROJECT_PHASE: pre-controlled-writes
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+
+      - name: Fail closed for unsafe PostgreSQL targets
+        run: ./scripts/validate.sh PostgreSQL
+
+      - name: Alembic upgrade head
+        run: alembic upgrade head
+
+      - name: Complete pytest suite including PostgreSQL integration tests
+        run: python -m pytest
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy
+
+      - name: Whitespace diff check
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            git diff --check "${{ github.event.before }}...HEAD"
+          else
+            git diff --check "origin/main...HEAD"
+          fi
+
+      - name: Reversible migration test on disposable PostgreSQL
+        run: ./scripts/validate.sh Migrations
+
+      - name: Read-only boundary for pre-write phases
+        run: ./scripts/validate.sh ReadOnly
+
+      - name: Security gates
+        run: ./scripts/validate.sh Security
+
+      - name: Privacy and sensitive-output gates
+        run: ./scripts/validate.sh Privacy
+
+      - name: Account-isolation and project automation gates
+        run: ./scripts/validate.sh Focused

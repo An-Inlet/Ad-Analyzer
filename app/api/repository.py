@@ -171,6 +171,7 @@ class ReadOnlyAdsRepository:
                 func.coalesce(func.sum(DailyMetric.cost_micros), 0),
                 func.coalesce(func.sum(DailyMetric.conversions), Decimal("0")),
                 func.coalesce(func.sum(DailyMetric.conversion_value_micros), 0),
+                func.count(func.distinct(DailyMetric.metric_date)),
             )
             .join(
                 Campaign,
@@ -194,6 +195,7 @@ class ReadOnlyAdsRepository:
             "cost_micros": row[2],
             "conversions": row[3],
             "conversion_value_micros": row[4],
+            "days_with_metrics": row[5],
         }
 
     def list_job_runs(

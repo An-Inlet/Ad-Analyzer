@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     CheckConstraint,
     Date,
@@ -20,7 +21,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.database.session import Base
 
 
@@ -46,6 +47,18 @@ platform_enum = Enum(
 job_status_enum = Enum(
     JobRunStatus,
     name="job_run_status",
+    native_enum=False,
+    values_callable=lambda enum_cls: [item.value for item in enum_cls],
+)
+recommendation_status_enum = Enum(
+    RecommendationStatus,
+    name="recommendation_status",
+    native_enum=False,
+    values_callable=lambda enum_cls: [item.value for item in enum_cls],
+)
+execution_status_enum = Enum(
+    ExecutionStatus,
+    name="execution_status",
     native_enum=False,
     values_callable=lambda enum_cls: [item.value for item in enum_cls],
 )
@@ -217,12 +230,8 @@ class Ad(TimestampMixin, Base):
     ad_group_id: Mapped[int | None] = mapped_column(Integer)
     ad_set_id: Mapped[int | None] = mapped_column(Integer)
 
-    ad_group: Mapped[AdGroup | None] = relationship(
-        back_populates="ads", overlaps="ad_set,ads"
-    )
-    ad_set: Mapped[AdSet | None] = relationship(
-        back_populates="ads", overlaps="ad_group,ads"
-    )
+    ad_group: Mapped[AdGroup | None] = relationship(back_populates="ads", overlaps="ad_set,ads")
+    ad_set: Mapped[AdSet | None] = relationship(back_populates="ads", overlaps="ad_group,ads")
 
 
 class Keyword(TimestampMixin, Base):
@@ -379,3 +388,68 @@ class JobRun(TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text)
 
     account: Mapped[AdvertisingAccount | None] = relationship(back_populates="job_runs")
+
+
+class Recommendation(TimestampMixin, Base):
+    __tablename__ = "recommendations"
+    __table_args__ = (
+        Index("ix_recommendations_account_status", "account_id", "status"),
+        ForeignKeyConstraint(
+            ["account_id", "platform"],
+            ["advertising_accounts.id", "advertising_accounts.platform"],
+            name="fk_recommendations_account_platform",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
+    account_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    campaign_id: Mapped[int | None] = mapped_column(Integer)
+    recommendation_type: Mapped[str] = mapped_column(String(96), nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    supporting_metrics: Mapped[dict[str, object]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    planned_action: Mapped[dict[str, object]] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[RecommendationStatus] = mapped_column(
+        recommendation_status_enum, default=RecommendationStatus.PENDING_REVIEW, nullable=False
+    )
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class RecommendationAudit(TimestampMixin, Base):
+    __tablename__ = "recommendation_audits"
+    __table_args__ = (
+        Index("ix_recommendation_audits_recommendation", "recommendation_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recommendation_id: Mapped[int] = mapped_column(
+        ForeignKey("recommendations.id", ondelete="CASCADE"), nullable=False
+    )
+    actor: Mapped[str] = mapped_column(String(128), nullable=False)
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+
+
+class ExecutionAudit(TimestampMixin, Base):
+    __tablename__ = "execution_audits"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_execution_audits_idempotency_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recommendation_id: Mapped[int] = mapped_column(
+        ForeignKey("recommendations.id", ondelete="RESTRICT"), nullable=False
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[ExecutionStatus] = mapped_column(execution_status_enum, nullable=False)
+    dry_run: Mapped[bool] = mapped_column(default=True, nullable=False)
+    validation_errors: Mapped[list[object]] = mapped_column(JSON, default=list, nullable=False)
+    rollback_instructions: Mapped[str] = mapped_column(Text, nullable=False)

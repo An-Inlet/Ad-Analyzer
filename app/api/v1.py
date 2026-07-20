@@ -5,8 +5,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
-from app.ads.models import JobRun
+from app.ads.enums import AdvertisingPlatform, JobRunStatus, RecommendationStatus
+from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
@@ -18,12 +18,20 @@ from app.api.schemas import (
     CampaignDetailResponse,
     CampaignResponse,
     DailyMetricResponse,
+    ExecutionAuditResponse,
+    FindingResponse,
     JobRunResponse,
+    MetricWindowResponse,
     PaginatedResponse,
+    RecommendationDecisionRequest,
+    RecommendationResponse,
     SyncHealthResponse,
     SyncStatusResponse,
 )
 from app.database.session import get_db
+from app.executors.planner import plan_dry_run
+from app.optimizer.analytics import MetricWindow
+from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
 
 router = APIRouter(
@@ -302,3 +310,260 @@ def sync_status(
         for a, j, s in rows
     ]
     return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+def _window(
+    repository: ReadOnlyAdsRepository, account_id: int, start: date, end: date
+) -> MetricWindow:
+    totals = repository.account_metric_totals(account_id, start, end)
+    return MetricWindow(
+        start,
+        end,
+        int(totals.get("days_with_metrics") or 0),
+        int(totals["impressions"] or 0),
+        int(totals["clicks"] or 0),
+        int(totals["cost_micros"] or 0),
+        Decimal(totals["conversions"] or 0),
+        int(totals["conversion_value_micros"] or 0),
+    )
+
+
+@router.get(
+    "/accounts/{account_id}/analytics/window",
+    response_model=MetricWindowResponse,
+    operation_id="read_only_account_analytics_window",
+    responses=RESOURCE_ERRORS,
+)
+def account_analytics_window(
+    account_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> MetricWindowResponse:
+    if repository.get_account(account_id) is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    start, end = default_dates(date_from, date_to)
+    span = (end - start).days + 1
+    comparison_end = start - timedelta(days=1)
+    comparison_start = comparison_end - timedelta(days=span - 1)
+    current = _window(repository, account_id, start, end)
+    comparison = _window(repository, account_id, comparison_start, comparison_end)
+    coverage = "sufficient" if current.has_minimum_coverage else "insufficient"
+    return MetricWindowResponse(
+        account_id=account_id,
+        date_from=start,
+        date_to=end,
+        comparison_date_from=comparison_start,
+        comparison_date_to=comparison_end,
+        days_with_metrics=current.days_with_metrics,
+        comparison_days_with_metrics=comparison.days_with_metrics,
+        impressions=current.impressions,
+        clicks=current.clicks,
+        cost_micros=current.cost_micros,
+        conversions=current.conversions,
+        ctr=current.ctr,
+        average_cpc_micros=current.average_cpc_micros,
+        conversion_rate=current.conversion_rate,
+        cost_per_conversion_micros=current.cost_per_conversion_micros,
+        data_coverage=coverage,
+    )
+
+
+@router.get(
+    "/accounts/{account_id}/findings",
+    response_model=list[FindingResponse],
+    operation_id="read_only_account_findings",
+    responses=RESOURCE_ERRORS,
+)
+def account_findings(
+    account_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[FindingResponse]:
+    if repository.get_account(account_id) is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    start, end = default_dates(date_from, date_to)
+    latest, success_at = repository.account_sync_status(account_id)
+    del latest
+    findings = generate_findings(
+        _window(repository, account_id, start, end), None, last_success_at=success_at
+    )
+    return [FindingResponse(**f.__dict__) for f in findings]
+
+
+@router.post(
+    "/accounts/{account_id}/recommendations/generate",
+    response_model=list[RecommendationResponse],
+    operation_id="generate_account_recommendations",
+    responses=RESOURCE_ERRORS,
+    include_in_schema=False,
+)
+def generate_account_recommendations(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> list[Recommendation]:
+    account = repository.get_account(account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    start, end = default_dates(date_from, date_to)
+    _, success_at = repository.account_sync_status(account_id)
+    findings = generate_findings(
+        _window(repository, account_id, start, end), None, last_success_at=success_at
+    )
+    drafts = recommendations_from_findings(
+        findings, expires_at=datetime.now(UTC) + timedelta(days=14)
+    )
+    rows = [
+        Recommendation(
+            platform=account.platform,
+            account_id=account.id,
+            recommendation_type=d.recommendation_type,
+            severity=d.severity,
+            confidence=d.confidence,
+            rationale=d.rationale,
+            supporting_metrics=d.supporting_metrics,
+            planned_action=d.planned_action,
+            status=RecommendationStatus.PENDING_REVIEW,
+            generated_at=datetime.now(UTC),
+            expires_at=d.expires_at,
+        )
+        for d in drafts
+    ]
+    db.add_all(rows)
+    db.commit()
+    for row in rows:
+        db.refresh(row)
+    return rows
+
+
+@router.get(
+    "/recommendations",
+    response_model=PaginatedResponse[RecommendationResponse],
+    operation_id="list_recommendations",
+    responses=VALIDATION_AND_DATABASE_ERRORS,
+)
+def list_recommendations(
+    db: Annotated[Session, Depends(get_db)],
+    status: RecommendationStatus | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[RecommendationResponse]:
+    from sqlalchemy import func, select
+
+    stmt = select(Recommendation)
+    if status:
+        stmt = stmt.where(Recommendation.status == status)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = list(
+        db.scalars(stmt.order_by(Recommendation.id.asc()).limit(limit).offset(offset)).all()
+    )
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+@router.post(
+    "/recommendations/{recommendation_id}/approve",
+    response_model=RecommendationResponse,
+    operation_id="approve_recommendation",
+    responses=RESOURCE_ERRORS,
+    include_in_schema=False,
+)
+def approve_recommendation(
+    recommendation_id: int,
+    payload: RecommendationDecisionRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> Recommendation:
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    if rec.status != RecommendationStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=422, detail="recommendation is not pending review")
+    expires_at = (
+        rec.expires_at.replace(tzinfo=UTC) if rec.expires_at.tzinfo is None else rec.expires_at
+    )
+    if expires_at < datetime.now(UTC):
+        rec.status = RecommendationStatus.EXPIRED
+        db.add(
+            RecommendationAudit(
+                recommendation_id=rec.id,
+                actor=payload.actor,
+                action="expired",
+                reason="expired before approval",
+            )
+        )
+        db.commit()
+        raise HTTPException(status_code=422, detail="recommendation expired")
+    rec.status = RecommendationStatus.APPROVED
+    db.add(
+        RecommendationAudit(
+            recommendation_id=rec.id, actor=payload.actor, action="approved", reason=payload.reason
+        )
+    )
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+@router.post(
+    "/recommendations/{recommendation_id}/reject",
+    response_model=RecommendationResponse,
+    operation_id="reject_recommendation",
+    responses=RESOURCE_ERRORS,
+    include_in_schema=False,
+)
+def reject_recommendation(
+    recommendation_id: int,
+    payload: RecommendationDecisionRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> Recommendation:
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    if rec.status != RecommendationStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=422, detail="recommendation is not pending review")
+    rec.status = RecommendationStatus.REJECTED
+    db.add(
+        RecommendationAudit(
+            recommendation_id=rec.id, actor=payload.actor, action="rejected", reason=payload.reason
+        )
+    )
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+@router.post(
+    "/recommendations/{recommendation_id}/execute-dry-run",
+    response_model=ExecutionAuditResponse,
+    operation_id="execute_recommendation_dry_run",
+    responses=RESOURCE_ERRORS,
+    include_in_schema=False,
+)
+def execute_recommendation_dry_run(
+    recommendation_id: int, idempotency_key: str, db: Annotated[Session, Depends(get_db)]
+) -> ExecutionAudit:
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    existing = db.query(ExecutionAudit).filter_by(idempotency_key=idempotency_key).first()
+    if existing:
+        return existing
+    if rec.status != RecommendationStatus.APPROVED:
+        raise HTTPException(status_code=422, detail="recommendation must be approved by a human")
+    plan = plan_dry_run(rec, settings)
+    audit = ExecutionAudit(
+        recommendation_id=rec.id,
+        idempotency_key=idempotency_key,
+        status=plan.status,
+        dry_run=True,
+        validation_errors=plan.validation_errors,
+        rollback_instructions=plan.rollback_instructions,
+    )
+    rec.status = RecommendationStatus.EXECUTED_DRY_RUN
+    db.add(audit)
+    db.commit()
+    db.refresh(audit)
+    return audit

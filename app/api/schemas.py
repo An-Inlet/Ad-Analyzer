@@ -129,3 +129,61 @@ class SyncHealthResponse(BaseModel):
 
 class ApiErrorResponse(BaseModel):
     detail: str
+
+
+class MetricWindowResponse(BaseModel):
+    account_id: int
+    date_from: date
+    date_to: date
+    comparison_date_from: date
+    comparison_date_to: date
+    days_with_metrics: int
+    comparison_days_with_metrics: int
+    impressions: int
+    clicks: int
+    cost_micros: int
+    conversions: Decimal
+    ctr: Decimal
+    average_cpc_micros: Decimal
+    conversion_rate: Decimal
+    cost_per_conversion_micros: Decimal
+    data_coverage: str
+
+
+class FindingResponse(BaseModel):
+    code: str
+    severity: str
+    message: str
+    supporting_metrics: dict[str, str]
+
+
+class RecommendationResponse(ApiModel):
+    id: int
+    account_id: int
+    campaign_id: int | None
+    platform: AdvertisingPlatform
+    recommendation_type: str
+    severity: str
+    confidence: Decimal
+    rationale: str
+    supporting_metrics: dict[str, object]
+    planned_action: dict[str, object]
+    status: str
+    generated_at: datetime
+    expires_at: datetime
+
+
+class RecommendationDecisionRequest(BaseModel):
+    actor: str = Field(min_length=1, max_length=128)
+    reason: str | None = Field(default=None, max_length=2000)
+
+
+class ExecutionAuditResponse(ApiModel):
+    id: int
+    recommendation_id: int
+    idempotency_key: str
+    status: str
+    dry_run: bool
+    validation_errors: list[object]
+    rollback_instructions: str
+    created_at: datetime

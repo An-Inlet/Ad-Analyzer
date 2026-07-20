@@ -5,6 +5,7 @@ from app.ads.enums import RecommendationStatus
 from app.ads.models import DailyMetric, ExecutionAudit, JobRun, RecommendationAudit
 from app.optimizer.analytics import MetricWindow
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
+
 from tests.test_api_v1_read_only import make_client
 
 

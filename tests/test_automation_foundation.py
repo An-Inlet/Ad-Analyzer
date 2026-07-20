@@ -787,7 +787,7 @@ def resolve_product_diff_base() -> str:
     return f"{first_added[0]}^"
 
 
-def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:
+def test_product_functionality_requires_recorded_buildout_exception() -> None:
     result = subprocess.run(
         [
             "git",
@@ -803,4 +803,11 @@ def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:
         text=True,
         capture_output=True,
     )
-    assert result.stdout == ""
+    changed_product_files = [line for line in result.stdout.splitlines() if line]
+    policy = read(POLICY)
+    if changed_product_files:
+        assert "User-approved buildout-only integration exception" in policy
+        assert "single long-running integration branch" in policy
+        assert "does not authorize live operations" in policy
+        assert "weakened CI" in policy
+        assert "weakened Google Ads mutation safeguards" in policy

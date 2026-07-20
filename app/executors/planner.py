@@ -22,7 +22,7 @@ def plan_dry_run(recommendation: Recommendation, settings: Settings) -> Executio
     if recommendation.account_id not in settings.allowed_execution_account_ids:
         errors.append("account is not in the execution allowlist")
     return ExecutionPlan(
-        status=ExecutionStatus.DRY_RUN_SUCCEEDED,
+        status=ExecutionStatus.BLOCKED if errors else ExecutionStatus.DRY_RUN_SUCCEEDED,
         dry_run=True,
         validation_errors=errors,
         rollback_instructions=(

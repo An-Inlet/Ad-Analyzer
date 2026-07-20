@@ -2,19 +2,47 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-MIN_COVERAGE_DAYS = 7
+MIN_COVERAGE_RATIO = Decimal("0.50")
 
 
 @dataclass(frozen=True)
 class MetricWindow:
     date_from: date
     date_to: date
-    days_with_metrics: int
+    window_days: int
+    days_with_metric_rows: int
     impressions: int
     clicks: int
     cost_micros: int
     conversions: Decimal
     conversion_value_micros: int
+
+    @property
+    def days_with_metrics(self) -> int:
+        """Backward-compatible alias for templates/tests that still use the old name."""
+        return self.days_with_metric_rows
+
+    @property
+    def data_coverage_ratio(self) -> Decimal:
+        if self.window_days <= 0:
+            return Decimal("0")
+        return Decimal(self.days_with_metric_rows) / Decimal(self.window_days)
+
+    @property
+    def has_metric_rows(self) -> bool:
+        return self.days_with_metric_rows > 0
+
+    @property
+    def has_minimum_coverage(self) -> bool:
+        return self.has_metric_rows and self.data_coverage_ratio >= MIN_COVERAGE_RATIO
+
+    @property
+    def coverage_status(self) -> str:
+        if not self.has_metric_rows:
+            return "unavailable"
+        if self.has_minimum_coverage:
+            return "sufficient"
+        return "partial"
 
     @property
     def ctr(self) -> Decimal:
@@ -42,9 +70,9 @@ class MetricWindow:
             else Decimal("0")
         )
 
-    @property
-    def has_minimum_coverage(self) -> bool:
-        return self.days_with_metrics >= MIN_COVERAGE_DAYS
+
+def inclusive_window_days(date_from: date, date_to: date) -> int:
+    return (date_to - date_from).days + 1
 
 
 def percent_delta(current: Decimal, comparison: Decimal) -> Decimal | None:

@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus, RecommendationStatus
+from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.api.auth import require_api_token
@@ -30,7 +30,7 @@ from app.api.schemas import (
 )
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
-from app.optimizer.analytics import MetricWindow
+from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
 
@@ -317,14 +317,27 @@ def _window(
 ) -> MetricWindow:
     totals = repository.account_metric_totals(account_id, start, end)
     return MetricWindow(
-        start,
-        end,
-        int(totals.get("days_with_metrics") or 0),
-        int(totals["impressions"] or 0),
-        int(totals["clicks"] or 0),
-        int(totals["cost_micros"] or 0),
-        Decimal(totals["conversions"] or 0),
-        int(totals["conversion_value_micros"] or 0),
+        date_from=start,
+        date_to=end,
+        window_days=inclusive_window_days(start, end),
+        days_with_metric_rows=int(totals.get("days_with_metrics") or 0),
+        impressions=int(totals["impressions"] or 0),
+        clicks=int(totals["clicks"] or 0),
+        cost_micros=int(totals["cost_micros"] or 0),
+        conversions=Decimal(totals["conversions"] or 0),
+        conversion_value_micros=int(totals["conversion_value_micros"] or 0),
+    )
+
+
+def _windows(
+    repository: ReadOnlyAdsRepository, account_id: int, start: date, end: date
+) -> tuple[MetricWindow, MetricWindow]:
+    span = inclusive_window_days(start, end)
+    comparison_end = start - timedelta(days=1)
+    comparison_start = comparison_end - timedelta(days=span - 1)
+    return (
+        _window(repository, account_id, start, end),
+        _window(repository, account_id, comparison_start, comparison_end),
     )
 
 
@@ -343,20 +356,19 @@ def account_analytics_window(
     if repository.get_account(account_id) is None:
         raise HTTPException(status_code=404, detail="account not found")
     start, end = default_dates(date_from, date_to)
-    span = (end - start).days + 1
-    comparison_end = start - timedelta(days=1)
-    comparison_start = comparison_end - timedelta(days=span - 1)
-    current = _window(repository, account_id, start, end)
-    comparison = _window(repository, account_id, comparison_start, comparison_end)
-    coverage = "sufficient" if current.has_minimum_coverage else "insufficient"
+    current, comparison = _windows(repository, account_id, start, end)
     return MetricWindowResponse(
         account_id=account_id,
         date_from=start,
         date_to=end,
-        comparison_date_from=comparison_start,
-        comparison_date_to=comparison_end,
-        days_with_metrics=current.days_with_metrics,
-        comparison_days_with_metrics=comparison.days_with_metrics,
+        comparison_date_from=comparison.date_from,
+        comparison_date_to=comparison.date_to,
+        window_days=current.window_days,
+        days_with_metric_rows=current.days_with_metric_rows,
+        data_coverage_ratio=current.data_coverage_ratio,
+        comparison_window_days=comparison.window_days,
+        comparison_days_with_metric_rows=comparison.days_with_metric_rows,
+        comparison_data_coverage_ratio=comparison.data_coverage_ratio,
         impressions=current.impressions,
         clicks=current.clicks,
         cost_micros=current.cost_micros,
@@ -365,7 +377,8 @@ def account_analytics_window(
         average_cpc_micros=current.average_cpc_micros,
         conversion_rate=current.conversion_rate,
         cost_per_conversion_micros=current.cost_per_conversion_micros,
-        data_coverage=coverage,
+        data_coverage=current.coverage_status,
+        comparison_data_coverage=comparison.coverage_status,
     )
 
 
@@ -386,9 +399,8 @@ def account_findings(
     start, end = default_dates(date_from, date_to)
     latest, success_at = repository.account_sync_status(account_id)
     del latest
-    findings = generate_findings(
-        _window(repository, account_id, start, end), None, last_success_at=success_at
-    )
+    current, comparison = _windows(repository, account_id, start, end)
+    findings = generate_findings(current, comparison, last_success_at=success_at)
     return [FindingResponse(**f.__dict__) for f in findings]
 
 
@@ -411,9 +423,8 @@ def generate_account_recommendations(
         raise HTTPException(status_code=404, detail="account not found")
     start, end = default_dates(date_from, date_to)
     _, success_at = repository.account_sync_status(account_id)
-    findings = generate_findings(
-        _window(repository, account_id, start, end), None, last_success_at=success_at
-    )
+    current, comparison = _windows(repository, account_id, start, end)
+    findings = generate_findings(current, comparison, last_success_at=success_at)
     drafts = recommendations_from_findings(
         findings, expires_at=datetime.now(UTC) + timedelta(days=14)
     )
@@ -548,7 +559,11 @@ def execute_recommendation_dry_run(
     rec = db.get(Recommendation, recommendation_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="recommendation not found")
-    existing = db.query(ExecutionAudit).filter_by(idempotency_key=idempotency_key).first()
+    existing = (
+        db.query(ExecutionAudit)
+        .filter_by(recommendation_id=recommendation_id, idempotency_key=idempotency_key)
+        .first()
+    )
     if existing:
         return existing
     if rec.status != RecommendationStatus.APPROVED:
@@ -562,7 +577,8 @@ def execute_recommendation_dry_run(
         validation_errors=plan.validation_errors,
         rollback_instructions=plan.rollback_instructions,
     )
-    rec.status = RecommendationStatus.EXECUTED_DRY_RUN
+    if plan.status == ExecutionStatus.DRY_RUN_SUCCEEDED:
+        rec.status = RecommendationStatus.EXECUTED_DRY_RUN
     db.add(audit)
     db.commit()
     db.refresh(audit)

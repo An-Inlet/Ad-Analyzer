@@ -137,8 +137,12 @@ class MetricWindowResponse(BaseModel):
     date_to: date
     comparison_date_from: date
     comparison_date_to: date
-    days_with_metrics: int
-    comparison_days_with_metrics: int
+    window_days: int
+    days_with_metric_rows: int
+    data_coverage_ratio: Decimal
+    comparison_window_days: int
+    comparison_days_with_metric_rows: int
+    comparison_data_coverage_ratio: Decimal
     impressions: int
     clicks: int
     cost_micros: int
@@ -148,6 +152,7 @@ class MetricWindowResponse(BaseModel):
     conversion_rate: Decimal
     cost_per_conversion_micros: Decimal
     data_coverage: str
+    comparison_data_coverage: str
 
 
 class FindingResponse(BaseModel):

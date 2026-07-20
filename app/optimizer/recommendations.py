@@ -52,7 +52,11 @@ def generate_findings(
                 "insufficient_data",
                 "medium",
                 "Current window has insufficient metric coverage.",
-                {"days_with_metrics": str(current.days_with_metrics)},
+                {
+                    "window_days": str(current.window_days),
+                    "days_with_metric_rows": str(current.days_with_metric_rows),
+                    "data_coverage_ratio": str(current.data_coverage_ratio),
+                },
             )
         )
         return findings

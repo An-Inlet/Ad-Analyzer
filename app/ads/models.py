@@ -441,7 +441,11 @@ class RecommendationAudit(TimestampMixin, Base):
 class ExecutionAudit(TimestampMixin, Base):
     __tablename__ = "execution_audits"
     __table_args__ = (
-        UniqueConstraint("idempotency_key", name="uq_execution_audits_idempotency_key"),
+        UniqueConstraint(
+            "recommendation_id",
+            "idempotency_key",
+            name="uq_execution_audits_recommendation_idempotency_key",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

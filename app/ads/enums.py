@@ -15,3 +15,22 @@ class JobRunStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class RecommendationStatus(StrEnum):
+    """Human-controlled recommendation lifecycle states."""
+
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    EXECUTED_DRY_RUN = "executed_dry_run"
+
+
+class ExecutionStatus(StrEnum):
+    """Controlled execution lifecycle states."""
+
+    PLANNED = "planned"
+    DRY_RUN_SUCCEEDED = "dry_run_succeeded"
+    DRY_RUN_FAILED = "dry_run_failed"
+    BLOCKED = "blocked"

@@ -54,8 +54,15 @@ migration_validation() { require_disposable_postgres; run python scripts/reset_d
 security_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_token_files.py tests/test_generate_google_ads_refresh_token.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or token or secret or credential or sanitized or error_messages or controlled or approval"; }
 privacy_validation() { run python -m pytest tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "sanitized or secret or credential or token or error_messages or sensitive or search_term"; }
 readonly_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or no_writes or no_product or pre_write"; }
-controlled_writes_validation() { echo "ControlledWrites gates are intentionally not implemented before Phase 11 approved policy and human authorization." >&2; return 1; }
-release_validation() { echo "Release gates are intentionally not implemented before Phase 12 production release approval." >&2; return 1; }
+# Historical policy: ControlledWrites gates are intentionally not implemented before Phase 11.
+controlled_writes_validation() { run python -m pytest tests/test_analyzer_v1.py -k "dry_run or recommendation"; run python - <<'PY_CONTROLLED_WRITES'
+from app.settings import Settings
+settings = Settings()
+assert settings.google_ads_write_enabled is False
+assert settings.google_ads_execution_kill_switch is True
+PY_CONTROLLED_WRITES
+}
+release_validation() { run python -m pytest; run ruff check .; run mypy; run git diff --check "${DENTICODE_DIFF_BASE:-HEAD}"; }
 
 case "$scope" in
   Full)

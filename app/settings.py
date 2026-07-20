@@ -251,6 +251,23 @@ class Settings(BaseSettings):
         le=2**63 - 1,
         validation_alias=AliasChoices(_SYNC_LOCK_FIELD, _SYNC_LOCK_CANONICAL, _SYNC_LOCK_LEGACY),
     )
+    google_ads_write_enabled: bool = Field(
+        default=False, validation_alias="DENTICODE_GOOGLE_ADS_WRITE_ENABLED"
+    )
+    google_ads_execution_kill_switch: bool = Field(
+        default=True, validation_alias="DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH"
+    )
+    allowed_execution_account_ids_csv: str = Field(
+        default="", validation_alias="DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS"
+    )
+
+    @property
+    def allowed_execution_account_ids(self) -> set[int]:
+        return {
+            int(item.strip())
+            for item in self.allowed_execution_account_ids_csv.split(",")
+            if item.strip().isdigit()
+        }
 
     @model_validator(mode="after")
     def retry_bounds_are_valid(self) -> "Settings":

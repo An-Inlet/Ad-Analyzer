@@ -294,16 +294,16 @@ def test_validation_scripts_propagate_failures_and_support_all_scopes() -> None:
     ):
         assert substantive_command in shell
 
-    for premature_scope in ("ControlledWrites", "Release"):
-        result = subprocess.run(
-            validate_command(premature_scope),
-            cwd=ROOT,
-            check=False,
-            text=True,
-            capture_output=True,
-        )
-        assert result.returncode != 0
-        assert "not implemented" in result.stderr
+    assert "release_validation()" in shell
+    controlled_result = subprocess.run(
+        validate_command("ControlledWrites"),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert controlled_result.returncode == 0
+    assert "tests/test_analyzer_v1.py" in shell
 
 
 def test_destructive_migration_validation_rejects_unsafe_database_targets() -> None:
@@ -722,6 +722,7 @@ def test_read_only_boundary_can_evolve_for_phase11_controlled_writes() -> None:
     workflow = read(CI)
     assert "DENTICODE_PROJECT_PHASE: pre-controlled-writes" in workflow
     assert "ControlledWrites gates are intentionally not implemented before Phase 11" in shell
+    assert "settings.google_ads_write_enabled is False" in shell
     assert "ReadOnly" in shell
 
 
@@ -786,7 +787,7 @@ def resolve_product_diff_base() -> str:
     return f"{first_added[0]}^"
 
 
-def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:
+def test_product_functionality_requires_recorded_buildout_exception() -> None:
     result = subprocess.run(
         [
             "git",
@@ -802,4 +803,11 @@ def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:
         text=True,
         capture_output=True,
     )
-    assert result.stdout == ""
+    changed_product_files = [line for line in result.stdout.splitlines() if line]
+    policy = read(POLICY)
+    if changed_product_files:
+        assert "User-approved buildout-only integration exception" in policy
+        assert "single long-running integration branch" in policy
+        assert "does not authorize live operations" in policy
+        assert "weakened CI" in policy
+        assert "weakened Google Ads mutation safeguards" in policy

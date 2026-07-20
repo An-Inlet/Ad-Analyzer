@@ -29,3 +29,7 @@ This policy governs every remaining Denticode Ads Optimizer phase through produc
 ## Completion rule
 
 - Stop automatically after the production-ready v1 definition is satisfied and produce the final readiness report.
+
+## User-approved buildout-only integration exception (2026-07-20)
+
+For the remaining Denticode Ads Analyzer v1 buildout, the user approved a single long-running integration branch, `codex/complete-denticode-ads-analyzer-buildout`, with sequential phase commits and one final pull request against `main` after the complete analyzer is ready for human review. This exception does not authorize live operations, production deployment, self-approval, final merge, credential handling, weakened CI, weakened account isolation, weakened migration safety, weakened privacy protections, or weakened Google Ads mutation safeguards.

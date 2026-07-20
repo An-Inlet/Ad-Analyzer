@@ -1,16 +1,19 @@
 """Read-only browser views backed by the existing repository layer."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.ads.enums import ExecutionStatus, RecommendationStatus
+from app.ads.models import ExecutionAudit, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.api.repository import ReadOnlyAdsRepository
-from app.api.v1 import default_dates, ratios
+from app.api.v1 import _windows, default_dates, ratios
 from app.dashboard.auth import (
     COOKIE_NAME,
     cookie_secure,
@@ -20,6 +23,8 @@ from app.dashboard.auth import (
 )
 from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
+from app.executors.planner import plan_dry_run
+from app.optimizer.recommendations import generate_findings
 from app.settings import settings
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_dashboard_session)])
@@ -82,6 +87,7 @@ def account_detail(
     request: Request,
     account_id: int,
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
     date_from: date | None = None,
     date_to: date | None = None,
     limit: int = Query(25, ge=1, le=100),
@@ -101,6 +107,29 @@ def account_detail(
     conversions = totals["conversions"]
     ctr, _cpc, _rate, cpa = ratios(clicks, impressions, cost, conversions)
     sync = repository.account_sync_status(account_id)
+    current_window, comparison_window = _windows(repository, account_id, start, end)
+    findings = generate_findings(current_window, comparison_window, last_success_at=sync[1])
+    recommendations = list(
+        db.scalars(
+            select(Recommendation)
+            .where(
+                Recommendation.account_id == account_id,
+                Recommendation.status.in_(
+                    [RecommendationStatus.PENDING_REVIEW, RecommendationStatus.APPROVED]
+                ),
+            )
+            .order_by(Recommendation.generated_at.desc(), Recommendation.id.desc())
+            .limit(25)
+        ).all()
+    )
+    latest_execution_rows = db.execute(
+        select(ExecutionAudit)
+        .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
+        .where(Recommendation.account_id == account_id)
+        .order_by(ExecutionAudit.created_at.desc(), ExecutionAudit.id.desc())
+        .limit(25)
+    ).scalars()
+    latest_executions = {row.recommendation_id: row for row in latest_execution_rows}
     return templates.TemplateResponse(
         request,
         "account.html",
@@ -118,9 +147,119 @@ def account_detail(
             ctr=ctr,
             cpa=cpa,
             sync=sync,
+            current_window=current_window,
+            comparison_window=comparison_window,
+            findings=findings,
+            recommendations=recommendations,
+            latest_executions=latest_executions,
+            execution_status=ExecutionStatus,
             has_next=has_next(offset, limit, len(campaigns), total),
         ),
     )
+
+
+@router.post("/recommendations/{recommendation_id}/approve")
+async def dashboard_approve_recommendation(
+    request: Request,
+    recommendation_id: int,
+    db: Annotated[Session, Depends(get_db)],
+) -> RedirectResponse:
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    reason = str(form.get("reason")) if form.get("reason") is not None else None
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    if rec.status != RecommendationStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=422, detail="recommendation is not pending review")
+    expires_at = (
+        rec.expires_at.replace(tzinfo=UTC) if rec.expires_at.tzinfo is None else rec.expires_at
+    )
+    if expires_at < datetime.now(UTC):
+        rec.status = RecommendationStatus.EXPIRED
+        action = "expired"
+        reason = "expired before approval"
+    else:
+        rec.status = RecommendationStatus.APPROVED
+        action = "approved"
+    db.add(
+        RecommendationAudit(
+            recommendation_id=rec.id,
+            actor="dashboard_operator",
+            action=action,
+            reason=reason,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url=f"/dashboard/accounts/{rec.account_id}", status_code=303)
+
+
+@router.post("/recommendations/{recommendation_id}/reject")
+async def dashboard_reject_recommendation(
+    request: Request,
+    recommendation_id: int,
+    db: Annotated[Session, Depends(get_db)],
+) -> RedirectResponse:
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    reason = str(form.get("reason")) if form.get("reason") is not None else None
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    if rec.status != RecommendationStatus.PENDING_REVIEW:
+        raise HTTPException(status_code=422, detail="recommendation is not pending review")
+    rec.status = RecommendationStatus.REJECTED
+    db.add(
+        RecommendationAudit(
+            recommendation_id=rec.id,
+            actor="dashboard_operator",
+            action="rejected",
+            reason=reason,
+        )
+    )
+    db.commit()
+    return RedirectResponse(url=f"/dashboard/accounts/{rec.account_id}", status_code=303)
+
+
+@router.post("/recommendations/{recommendation_id}/execute-dry-run")
+async def dashboard_execute_dry_run(
+    request: Request,
+    recommendation_id: int,
+    db: Annotated[Session, Depends(get_db)],
+) -> RedirectResponse:
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    idempotency_key = str(form.get("idempotency_key") or "")
+    if not idempotency_key:
+        raise HTTPException(status_code=422, detail="idempotency key is required")
+    rec = db.get(Recommendation, recommendation_id)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="recommendation not found")
+    if rec.status != RecommendationStatus.APPROVED:
+        raise HTTPException(status_code=422, detail="recommendation must be approved by a human")
+    existing = (
+        db.query(ExecutionAudit)
+        .filter_by(recommendation_id=recommendation_id, idempotency_key=idempotency_key)
+        .first()
+    )
+    if existing is None:
+        plan = plan_dry_run(rec, settings)
+        existing = ExecutionAudit(
+            recommendation_id=rec.id,
+            idempotency_key=idempotency_key,
+            status=plan.status,
+            dry_run=True,
+            validation_errors=plan.validation_errors,
+            rollback_instructions=plan.rollback_instructions,
+        )
+        if plan.status == ExecutionStatus.DRY_RUN_SUCCEEDED:
+            rec.status = RecommendationStatus.EXECUTED_DRY_RUN
+        db.add(existing)
+        db.commit()
+    return RedirectResponse(url=f"/dashboard/accounts/{rec.account_id}", status_code=303)
 
 
 @router.post("/logout")

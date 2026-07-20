@@ -7,10 +7,6 @@ import sys
 from typing import NoReturn
 from urllib.parse import unquote, urlparse
 
-from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import SQLAlchemyError
-
 SAFE_SCHEME_NAMES = {"postgresql", "postgresql+psycopg"}
 FORBIDDEN_DATABASE_NAME_PARTS = ("prod", "production", "stage", "staging")
 
@@ -51,23 +47,20 @@ def validate_disposable_url() -> str:
     ):
         fail("database name must use a controlled _ci or _test naming convention.")
 
-    try:
-        make_url(url)
-    except Exception:
-        fail("malformed DENTICODE_TEST_POSTGRES_URL.")
-
     return url
 
 
 def reset_public_schema(url: str) -> None:
     try:
+        from sqlalchemy import create_engine
+
         engine = create_engine(url, future=True)
         with engine.begin() as connection:
             connection.exec_driver_sql("DROP SCHEMA IF EXISTS public CASCADE")
             connection.exec_driver_sql("CREATE SCHEMA public")
             connection.exec_driver_sql("GRANT ALL ON SCHEMA public TO CURRENT_USER")
             connection.exec_driver_sql("GRANT USAGE ON SCHEMA public TO PUBLIC")
-    except SQLAlchemyError as exc:
+    except Exception as exc:
         print(
             f"Disposable PostgreSQL schema reset failed: {exc.__class__.__name__}.",
             file=sys.stderr,

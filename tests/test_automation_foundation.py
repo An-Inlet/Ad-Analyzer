@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,7 @@ def minimal_subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str
         "PATHEXT",
         "PSModulePath",
         "POWERSHELL_TELEMETRY_OPTOUT",
+        "VIRTUAL_ENV",
         "HOME",
         "USERPROFILE",
         "TMP",
@@ -96,7 +98,7 @@ def powershell_validate_command(scope: str) -> list[str]:
 
 
 def reset_helper_command() -> list[str]:
-    return ["python", str(RESET_POSTGRES)]
+    return [sys.executable, str(RESET_POSTGRES)]
 
 
 def disposable_postgres_env(extra: dict[str, str] | None = None) -> dict[str, str]:
@@ -453,6 +455,7 @@ def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
 
 
 def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connection() -> None:
+    raw_url = "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci"
     result = subprocess.run(
         powershell_validate_command("Migrations"),
         cwd=ROOT,
@@ -462,16 +465,17 @@ def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connecti
         env=minimal_subprocess_env(
             {
                 "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "denticode_ads_optimizer_ci"
-                ),
+                "DENTICODE_TEST_POSTGRES_URL": raw_url,
             }
         ),
     )
     assert result.returncode != 0
+    assert "+ python scripts/reset_disposable_postgres.py" in result.stdout
+    assert "+ alembic upgrade head" not in result.stdout
     assert "Refusing migration validation" not in result.stderr
-    assert "+ alembic upgrade head" in result.stdout
+    assert "Disposable PostgreSQL schema reset failed" in result.stderr
+    assert "postgres" not in result.stderr
+    assert raw_url not in result.stderr
 
 
 def test_powershell_child_command_failures_propagate_nonzero_exit_codes(tmp_path: Path) -> None:
@@ -569,9 +573,10 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
     from app.database.session import Base
     from sqlalchemy import create_engine, text
 
+    command = validate_command("Migrations")
     env = disposable_postgres_env()
     subprocess.run(
-        bash_validate_command("Migrations"),
+        command,
         cwd=ROOT,
         check=True,
         text=True,
@@ -590,7 +595,7 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
         engine.dispose()
 
     result = subprocess.run(
-        bash_validate_command("Migrations"),
+        command,
         cwd=ROOT,
         check=False,
         text=True,
@@ -601,9 +606,10 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
 
 
 def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
+    migration_command = validate_command("Migrations")
     env = disposable_postgres_env()
     subprocess.run(
-        ["python", "-m", "pytest", "tests/test_phase7_postgres_transactions.py", "-q"],
+        [sys.executable, "-m", "pytest", "tests/test_phase7_postgres_transactions.py", "-q"],
         cwd=ROOT,
         check=True,
         text=True,
@@ -611,7 +617,7 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
         env=env,
     )
     subprocess.run(
-        bash_validate_command("Migrations"),
+        migration_command,
         cwd=ROOT,
         check=True,
         text=True,
@@ -623,10 +629,11 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
 def test_full_validation_can_run_twice_against_same_disposable_database() -> None:
     if os.environ.get("DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
         pytest.skip("nested Full validation regression test is disabled")
+    command = validate_command("Full")
     env = disposable_postgres_env({"DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
     for _ in range(2):
         subprocess.run(
-            bash_validate_command("Full"),
+            command,
             cwd=ROOT,
             check=True,
             text=True,

@@ -619,8 +619,11 @@ def test_validation_scripts_invoke_reset_before_migration_upgrade() -> None:
 
 def test_migration_validation_repairs_head_state_with_missing_application_tables() -> None:
     pytest.importorskip("psycopg")
+    from app.ads import models as ads_models  # noqa: F401
     from app.database.session import Base
     from sqlalchemy import create_engine, text
+
+    assert any(table.name == "job_runs" for table in Base.metadata.tables.values())
 
     command = validate_command("Migrations")
     env = disposable_postgres_env()

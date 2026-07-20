@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github" / "workflows" / "ci.yml"
@@ -15,6 +18,80 @@ DECISIONS = ROOT / "docs" / "decision-register.md"
 DONE = ROOT / "docs" / "definition-of-done.md"
 CONTROLLER = ROOT / "docs" / "project-controller.md"
 GITHUB_SETUP = ROOT / "docs" / "github-automation-setup.md"
+
+
+def resolve_bash() -> str | None:
+    return shutil.which("bash")
+
+
+def resolve_powershell() -> str | None:
+    return shutil.which("pwsh") or shutil.which("powershell")
+
+
+def minimal_subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    env = {"PATH": os.environ.get("PATH", "")}
+    for name in (
+        "SystemRoot",
+        "ComSpec",
+        "PATHEXT",
+        "PSModulePath",
+        "POWERSHELL_TELEMETRY_OPTOUT",
+        "HOME",
+        "USERPROFILE",
+        "TMP",
+        "TEMP",
+    ):
+        value = os.environ.get(name)
+        if value is not None:
+            env[name] = value
+    if extra:
+        env.update(extra)
+    return env
+
+
+def validate_command(scope: str) -> list[str]:
+    if os.name == "nt":
+        powershell = resolve_powershell()
+        if powershell is None:
+            pytest.skip("PowerShell is unavailable on this platform")
+        return [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(VALIDATE_PS1),
+            "-Scope",
+            scope,
+        ]
+
+    bash = resolve_bash()
+    if bash is None:
+        pytest.skip("bash is unavailable on this platform")
+    return [bash, str(VALIDATE_SH), scope]
+
+
+def bash_validate_command(scope: str) -> list[str]:
+    bash = resolve_bash()
+    if bash is None:
+        pytest.skip("bash is unavailable on this platform")
+    return [bash, str(VALIDATE_SH), scope]
+
+
+def powershell_validate_command(scope: str) -> list[str]:
+    powershell = resolve_powershell()
+    if powershell is None:
+        pytest.skip("PowerShell is unavailable on this platform")
+    return [
+        powershell,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(VALIDATE_PS1),
+        "-Scope",
+        scope,
+    ]
 
 
 def read(path: Path) -> str:
@@ -181,7 +258,7 @@ def test_validation_scripts_propagate_failures_and_support_all_scopes() -> None:
 
     for premature_scope in ("ControlledWrites", "Release"):
         result = subprocess.run(
-            ["bash", str(VALIDATE_SH), premature_scope],
+            validate_command(premature_scope),
             cwd=ROOT,
             check=False,
             text=True,
@@ -193,15 +270,14 @@ def test_validation_scripts_propagate_failures_and_support_all_scopes() -> None:
 
 def test_destructive_migration_validation_rejects_unsafe_database_targets() -> None:
     result = subprocess.run(
-        ["bash", str(VALIDATE_SH), "Migrations"],
+        validate_command("Migrations"),
         cwd=ROOT,
         check=False,
         text=True,
         capture_output=True,
-        env={
-            "PATH": os.environ.get("PATH", ""),
+        env=minimal_subprocess_env({
             "DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer",
-        },
+        }),
     )
     assert result.returncode != 0
     assert "Refusing migration validation" in result.stderr
@@ -221,16 +297,15 @@ def test_disposable_postgres_validation_requires_marker_and_database_name() -> N
 
 
 def test_bash_disposable_postgres_validation_accepts_ci_database_until_connection() -> None:
-    env = {
-        "PATH": os.environ.get("PATH", ""),
+    env = minimal_subprocess_env({
         "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
         "DENTICODE_TEST_POSTGRES_URL": (
             "postgresql+psycopg://postgres:postgres@localhost:5432/"
             "denticode_ads_optimizer_ci"
         ),
-    }
+    })
     result = subprocess.run(
-        ["bash", str(VALIDATE_SH), "Migrations"],
+        bash_validate_command("Migrations"),
         cwd=ROOT,
         check=False,
         text=True,
@@ -242,16 +317,15 @@ def test_bash_disposable_postgres_validation_accepts_ci_database_until_connectio
 
 
 def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database() -> None:
-    env = {
-        "PATH": os.environ.get("PATH", ""),
+    env = minimal_subprocess_env({
         "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
         "DENTICODE_TEST_POSTGRES_URL": (
             "postgresql+psycopg://postgres:postgres@localhost:5432/"
             "denticode_ads_optimizer"
         ),
-    }
+    })
     result = subprocess.run(
-        ["bash", str(VALIDATE_SH), "Migrations"],
+        bash_validate_command("Migrations"),
         cwd=ROOT,
         check=False,
         text=True,
@@ -263,15 +337,14 @@ def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database(
 
 
 def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() -> None:
-    env = {
-        "PATH": os.environ.get("PATH", ""),
+    env = minimal_subprocess_env({
         "DENTICODE_TEST_POSTGRES_URL": (
             "postgresql+psycopg://postgres:postgres@localhost:5432/"
             "denticode_ads_optimizer_ci"
         ),
-    }
+    })
     result = subprocess.run(
-        ["bash", str(VALIDATE_SH), "Migrations"],
+        bash_validate_command("Migrations"),
         cwd=ROOT,
         check=False,
         text=True,
@@ -280,6 +353,122 @@ def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() ->
     )
     assert result.returncode != 0
     assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
+
+
+def test_powershell_premature_controlled_writes_and_release_fail_closed() -> None:
+    for premature_scope in ("ControlledWrites", "Release"):
+        result = subprocess.run(
+            powershell_validate_command(premature_scope),
+            cwd=ROOT,
+            check=False,
+            text=True,
+            capture_output=True,
+            env=minimal_subprocess_env(),
+        )
+        assert result.returncode != 0
+        assert "not implemented" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("env_overrides", "expected_error"),
+    (
+        (
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
+                    "denticode_ads_optimizer_prod"
+                ),
+            },
+            "staging/production database names are never disposable",
+        ),
+        (
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
+                    "denticode_ads_optimizer_staging"
+                ),
+            },
+            "staging/production database names are never disposable",
+        ),
+        (
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
+                    "denticode_ads_optimizer"
+                ),
+            },
+            "controlled _ci or _test naming convention",
+        ),
+        (
+            {
+                "DENTICODE_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
+                    "denticode_ads_optimizer_ci"
+                ),
+            },
+            "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true",
+        ),
+    ),
+)
+def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
+    env_overrides: dict[str, str], expected_error: str
+) -> None:
+    result = subprocess.run(
+        powershell_validate_command("Migrations"),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=minimal_subprocess_env(env_overrides),
+    )
+    assert result.returncode != 0
+    assert expected_error in result.stderr
+
+
+def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connection() -> None:
+    result = subprocess.run(
+        powershell_validate_command("Migrations"),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=minimal_subprocess_env(
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
+                    "denticode_ads_optimizer_ci"
+                ),
+            }
+        ),
+    )
+    assert result.returncode != 0
+    assert "Refusing migration validation" not in result.stderr
+    assert "+ alembic upgrade head" in result.stdout
+
+
+def test_powershell_child_command_failures_propagate_nonzero_exit_codes(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_python = fake_bin / ("python.cmd" if os.name == "nt" else "python")
+    fake_python.write_text(
+        "@exit 37\n" if os.name == "nt" else "#!/usr/bin/env sh\nexit 37\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+
+    result = subprocess.run(
+        powershell_validate_command("Focused"),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=minimal_subprocess_env({"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}"}),
+    )
+    assert result.returncode == 37
 
 
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:

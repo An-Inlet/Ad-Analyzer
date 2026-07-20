@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,7 @@ CI = ROOT / ".github" / "workflows" / "ci.yml"
 VALIDATE_SH = ROOT / "scripts" / "validate.sh"
 VALIDATE_PS1 = ROOT / "scripts" / "validate.ps1"
 RESET_POSTGRES = ROOT / "scripts" / "reset_disposable_postgres.py"
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 ROADMAP = ROOT / "docs" / "project-roadmap.md"
 PHASE8_SUPPLEMENT = ROOT / "docs" / "phase8-roadmap.md"
 POLICY = ROOT / "docs" / "automation-policy.md"
@@ -31,7 +33,7 @@ def resolve_powershell() -> str | None:
 
 
 def minimal_subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-    env = {"PATH": os.environ.get("PATH", "")}
+    env = {"PATH": os.environ.get("PATH", ""), "NO_COLOR": "1", "TERM": "dumb"}
     for name in (
         "SystemRoot",
         "ComSpec",
@@ -50,6 +52,10 @@ def minimal_subprocess_env(extra: dict[str, str] | None = None) -> dict[str, str
     if extra:
         env.update(extra)
     return env
+
+
+def strip_ansi(value: str) -> str:
+    return ANSI_ESCAPE.sub("", value)
 
 
 def validate_command(scope: str) -> list[str]:
@@ -323,23 +329,27 @@ def test_disposable_postgres_validation_requires_marker_and_database_name() -> N
 
 
 def test_bash_disposable_postgres_validation_accepts_ci_database_until_connection() -> None:
-    env = minimal_subprocess_env({
-        "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-        "DENTICODE_TEST_POSTGRES_URL": (
-            "postgresql+psycopg://postgres:postgres@localhost:5432/"
-            "denticode_ads_optimizer_ci"
-        ),
-    })
+    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/denticode_ads_optimizer_ci"
     result = subprocess.run(
         bash_validate_command("Migrations"),
         cwd=ROOT,
         check=False,
         text=True,
         capture_output=True,
-        env=env,
+        env=minimal_subprocess_env(
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": raw_url,
+            }
+        ),
     )
     assert result.returncode != 0
+    assert "+ python scripts/reset_disposable_postgres.py" in result.stdout
+    assert "+ alembic upgrade head" not in result.stdout
     assert "Refusing migration validation" not in result.stderr
+    assert "Disposable PostgreSQL schema reset failed" in result.stderr
+    assert "postgres:postgres" not in result.stderr
+    assert raw_url not in result.stderr
 
 
 def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database() -> None:
@@ -392,7 +402,7 @@ def test_powershell_premature_controlled_writes_and_release_fail_closed() -> Non
             env=minimal_subprocess_env(),
         )
         assert result.returncode != 0
-        assert "not implemented" in result.stderr
+        assert "not implemented" in strip_ansi(result.stderr)
 
 
 @pytest.mark.parametrize(
@@ -450,12 +460,13 @@ def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
         capture_output=True,
         env=minimal_subprocess_env(env_overrides),
     )
+    normalized_stderr = strip_ansi(result.stderr)
     assert result.returncode != 0
-    assert expected_error in result.stderr
+    assert expected_error in normalized_stderr
 
 
 def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connection() -> None:
-    raw_url = "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci"
+    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/denticode_ads_optimizer_ci"
     result = subprocess.run(
         powershell_validate_command("Migrations"),
         cwd=ROOT,
@@ -469,13 +480,16 @@ def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connecti
             }
         ),
     )
+    normalized_stdout = strip_ansi(result.stdout)
+    normalized_stderr = strip_ansi(result.stderr)
     assert result.returncode != 0
-    assert "+ python scripts/reset_disposable_postgres.py" in result.stdout
-    assert "+ alembic upgrade head" not in result.stdout
-    assert "Refusing migration validation" not in result.stderr
-    assert "Disposable PostgreSQL schema reset failed" in result.stderr
-    assert "postgres" not in result.stderr
-    assert raw_url not in result.stderr
+    assert "+ python scripts/reset_disposable_postgres.py" in normalized_stdout
+    assert "+ alembic upgrade head" not in normalized_stdout
+    assert "Refusing migration validation" not in normalized_stderr
+    assert "Disposable PostgreSQL schema reset failed" in normalized_stderr
+    for output in (result.stdout, result.stderr, normalized_stdout, normalized_stderr):
+        assert "postgres:postgres" not in output
+        assert raw_url not in output
 
 
 def test_powershell_child_command_failures_propagate_nonzero_exit_codes(tmp_path: Path) -> None:

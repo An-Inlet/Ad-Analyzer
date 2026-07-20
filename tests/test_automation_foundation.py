@@ -207,6 +207,81 @@ def test_destructive_migration_validation_rejects_unsafe_database_targets() -> N
     assert "Refusing migration validation" in result.stderr
 
 
+def test_disposable_postgres_validation_requires_marker_and_database_name() -> None:
+    shell = read(VALIDATE_SH)
+    powershell = read(VALIDATE_PS1)
+    for contents in (shell, powershell):
+        assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in contents
+        assert "database name must use a controlled _ci or _test naming convention" in contents
+        assert "staging/production database names are never disposable" in contents
+        assert "DATABASE_URL" in contents
+        assert "DENTICODE_TEST_POSTGRES_URL" in contents
+    assert "urlparse" in shell
+    assert "System.Uri" in powershell
+
+
+def test_bash_disposable_postgres_validation_accepts_ci_database_until_connection() -> None:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+        "DENTICODE_TEST_POSTGRES_URL": (
+            "postgresql+psycopg://postgres:postgres@localhost:5432/"
+            "denticode_ads_optimizer_ci"
+        ),
+    }
+    result = subprocess.run(
+        ["bash", str(VALIDATE_SH), "Migrations"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode != 0
+    assert "Refusing migration validation" not in result.stderr
+
+
+def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database() -> None:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+        "DENTICODE_TEST_POSTGRES_URL": (
+            "postgresql+psycopg://postgres:postgres@localhost:5432/"
+            "denticode_ads_optimizer"
+        ),
+    }
+    result = subprocess.run(
+        ["bash", str(VALIDATE_SH), "Migrations"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode != 0
+    assert "controlled _ci or _test naming convention" in result.stderr
+
+
+def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() -> None:
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "DENTICODE_TEST_POSTGRES_URL": (
+            "postgresql+psycopg://postgres:postgres@localhost:5432/"
+            "denticode_ads_optimizer_ci"
+        ),
+    }
+    result = subprocess.run(
+        ["bash", str(VALIDATE_SH), "Migrations"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode != 0
+    assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
+
+
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     workflow = read(CI)
     assert "postgres:16" in workflow
@@ -219,8 +294,14 @@ def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     assert "./scripts/validate.sh Security" in workflow
     assert "./scripts/validate.sh Privacy" in workflow
     assert "./scripts/validate.sh Focused" in workflow
-    assert "uses:" not in workflow
-    assert "--depth=0" in workflow
+    assert "permissions:" in workflow
+    assert "contents: read" in workflow
+    assert "actions/checkout@v4" in workflow
+    assert "fetch-depth: 0" in workflow
+    assert "actions/setup-python@v5" in workflow
+    assert "x-access-token" not in workflow
+    assert "git init" not in workflow
+    assert "git fetch --no-tags --prune --depth=0" not in workflow
     assert "git diff --check \"origin/${{ github.base_ref }}...HEAD\"" in workflow
 
 
@@ -249,17 +330,61 @@ def test_pre_write_modules_do_not_log_sensitive_search_terms_or_call_mutations()
                 assert fragment not in contents, f"{path.relative_to(ROOT)} contains {fragment}"
 
 
-def test_workflow_validates_without_external_action_allowlist_dependencies() -> None:
+def test_workflow_uses_official_actions_without_token_bearing_checkout() -> None:
     workflow = read(CI)
-    assert "Check out repository without external actions" in workflow
-    assert "actions/checkout" not in workflow
-    assert "actions/setup-python" not in workflow
-    assert "actionlint" not in workflow
+    assert "actions/checkout@v4" in workflow
+    assert "fetch-depth: 0" in workflow
+    assert "actions/setup-python@v5" in workflow
+    assert "GH_TOKEN" not in workflow
+    assert "x-access-token" not in workflow
+    assert "refs/pull" not in workflow
+
+
+
+def resolve_product_diff_base() -> str:
+    configured = os.environ.get("DENTICODE_DIFF_BASE")
+    if configured:
+        return configured
+    origin_main = subprocess.run(
+        ["git", "rev-parse", "--verify", "origin/main"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if origin_main.returncode == 0:
+        return "origin/main"
+
+    first_added = subprocess.run(
+        [
+            "git",
+            "log",
+            "--diff-filter=A",
+            "--reverse",
+            "--format=%H",
+            "--",
+            ".github/workflows/ci.yml",
+        ],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.splitlines()
+    assert first_added, "cannot resolve local automation branch base"
+    return f"{first_added[0]}^"
 
 
 def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:
     result = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD^", "--", "app", "migrations/versions"],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            f"{resolve_product_diff_base()}...HEAD",
+            "--",
+            "app",
+            "migrations/versions",
+        ],
         cwd=ROOT,
         check=True,
         text=True,

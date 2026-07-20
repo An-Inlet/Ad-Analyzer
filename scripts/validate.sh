@@ -14,10 +14,37 @@ require_disposable_postgres() {
     echo "DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run." >&2
     return 1
   fi
-  if [[ "${DENTICODE_CI_DISPOSABLE_POSTGRES:-}" != "true" && "${DENTICODE_TEST_POSTGRES_URL}" != *"_ci"* && "${DENTICODE_TEST_POSTGRES_URL}" != *"test"* ]]; then
-    echo "Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must identify a disposable CI/test database." >&2
+  if [[ "${DENTICODE_CI_DISPOSABLE_POSTGRES:-}" != "true" ]]; then
+    echo "Refusing migration validation: DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true." >&2
     return 1
   fi
+  python - <<'PY_VALIDATE_POSTGRES'
+import os
+import sys
+from urllib.parse import unquote, urlparse
+
+url = os.environ.get("DENTICODE_TEST_POSTGRES_URL", "")
+try:
+    parsed = urlparse(url)
+except ValueError as exc:
+    print(f"Refusing migration validation: malformed DENTICODE_TEST_POSTGRES_URL ({exc}).", file=sys.stderr)
+    sys.exit(1)
+
+if parsed.scheme not in {"postgresql", "postgresql+psycopg"} or not parsed.path or parsed.path == "/":
+    print("Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must be a PostgreSQL URL with a database name.", file=sys.stderr)
+    sys.exit(1)
+
+database_name = unquote(parsed.path.rsplit("/", 1)[-1]).lower()
+if not database_name:
+    print("Refusing migration validation: PostgreSQL database name is empty.", file=sys.stderr)
+    sys.exit(1)
+if any(forbidden in database_name for forbidden in ("prod", "production", "stage", "staging")):
+    print("Refusing migration validation: staging/production database names are never disposable.", file=sys.stderr)
+    sys.exit(1)
+if not (database_name.endswith("_ci") or database_name.endswith("_test") or "_ci_" in database_name or "_test_" in database_name):
+    print("Refusing migration validation: database name must use a controlled _ci or _test naming convention.", file=sys.stderr)
+    sys.exit(1)
+PY_VALIDATE_POSTGRES
   export DATABASE_URL="$DENTICODE_TEST_POSTGRES_URL"
 }
 

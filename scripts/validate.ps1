@@ -11,8 +11,30 @@ function Invoke-Step {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 function Require-DisposablePostgres {
-    if ([string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) { Write-Error 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run.' }
-    if ($env:DENTICODE_CI_DISPOSABLE_POSTGRES -ne 'true' -and $env:DENTICODE_TEST_POSTGRES_URL -notmatch '(_ci|test)') { Write-Error 'Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must identify a disposable CI/test database.' }
+    if ([string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) {
+        Write-Error 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run.'
+    }
+    if ($env:DENTICODE_CI_DISPOSABLE_POSTGRES -ne 'true') {
+        Write-Error 'Refusing migration validation: DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true.'
+    }
+    try {
+        $uri = [System.Uri]::new($env:DENTICODE_TEST_POSTGRES_URL)
+    } catch {
+        Write-Error 'Refusing migration validation: malformed DENTICODE_TEST_POSTGRES_URL.'
+    }
+    if ($uri.Scheme -ne 'postgresql' -and $uri.Scheme -ne 'postgresql+psycopg') {
+        Write-Error 'Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must use a PostgreSQL scheme.'
+    }
+    $databaseName = [System.Uri]::UnescapeDataString(($uri.AbsolutePath.Trim('/') -split '/')[-1]).ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($databaseName)) {
+        Write-Error 'Refusing migration validation: PostgreSQL database name is empty.'
+    }
+    if ($databaseName -match 'prod|production|stage|staging') {
+        Write-Error 'Refusing migration validation: staging/production database names are never disposable.'
+    }
+    if (-not ($databaseName.EndsWith('_ci') -or $databaseName.EndsWith('_test') -or $databaseName.Contains('_ci_') -or $databaseName.Contains('_test_'))) {
+        Write-Error 'Refusing migration validation: database name must use a controlled _ci or _test naming convention.'
+    }
     $env:DATABASE_URL = $env:DENTICODE_TEST_POSTGRES_URL
 }
 function Invoke-Focused { Invoke-Step 'python -m pytest tests/test_automation_foundation.py tests/test_api_v1_read_only.py -k "automation_foundation or scoping or account_scoped or no_writes"' }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -41,6 +42,12 @@ def test_master_roadmap_includes_all_remaining_phases() -> None:
     ):
         assert field in roadmap
     assert "Only one dependent implementation PR may be open at a time" in roadmap
+    assert "migrations: none; do not add read-only tables in PR 8.1" in roadmap
+    assert "8.2 — Repository aggregation and query safety" in roadmap
+    assert "8.3 — Deterministic findings service and API" in roadmap
+    assert "explicit exclusions: dashboard routes, templates, CSS" in roadmap
+    assert "8.4 — Dashboard analytics views" in roadmap
+    assert "explicit exclusions: new API endpoints" in roadmap
 
 
 def test_phase8_only_document_is_not_complete_project_roadmap() -> None:
@@ -48,6 +55,8 @@ def test_phase8_only_document_is_not_complete_project_roadmap() -> None:
     assert "supplement only" in supplement
     assert "must not be treated as the complete project roadmap" in supplement
     assert "docs/project-roadmap.md" in supplement
+    assert "No database migration and no read-only tables" in supplement
+    assert "Dashboard analytics views" in supplement
 
 
 def test_automation_policy_is_project_wide_and_requires_human_gates() -> None:
@@ -161,6 +170,14 @@ def test_validation_scripts_propagate_failures_and_support_all_scopes() -> None:
     assert "set -euo pipefail" in shell
     assert "$ErrorActionPreference = 'Stop'" in powershell
     assert "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }" in powershell
+    for substantive_command in (
+        "tests/test_api_v1_read_only.py",
+        "tests/test_google_ads_read_only.py",
+        "tests/test_token_files.py",
+        "tests/test_generate_google_ads_refresh_token.py",
+        "tests/test_phase7_postgres_transactions.py",
+    ):
+        assert substantive_command in shell
 
     for premature_scope in ("ControlledWrites", "Release"):
         result = subprocess.run(
@@ -181,7 +198,10 @@ def test_destructive_migration_validation_rejects_unsafe_database_targets() -> N
         check=False,
         text=True,
         capture_output=True,
-        env={"DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer"},
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer",
+        },
     )
     assert result.returncode != 0
     assert "Refusing migration validation" in result.stderr
@@ -199,6 +219,9 @@ def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     assert "./scripts/validate.sh Security" in workflow
     assert "./scripts/validate.sh Privacy" in workflow
     assert "./scripts/validate.sh Focused" in workflow
+    assert "uses:" not in workflow
+    assert "--depth=0" in workflow
+    assert "git diff --check \"origin/${{ github.base_ref }}...HEAD\"" in workflow
 
 
 def test_read_only_boundary_can_evolve_for_phase11_controlled_writes() -> None:
@@ -207,6 +230,31 @@ def test_read_only_boundary_can_evolve_for_phase11_controlled_writes() -> None:
     assert "DENTICODE_PROJECT_PHASE: pre-controlled-writes" in workflow
     assert "ControlledWrites gates are intentionally not implemented before Phase 11" in shell
     assert "ReadOnly" in shell
+
+
+def test_pre_write_modules_do_not_log_sensitive_search_terms_or_call_mutations() -> None:
+    forbidden_fragments = (
+        "logger.info(search_term",
+        "logger.debug(search_term",
+        "print(search_term",
+        ".mutate(",
+        "upload_click_conversions",
+        "GoogleAdsService.Mutate",
+    )
+    checked_roots = (ROOT / "app" / "api", ROOT / "app" / "dashboard", ROOT / "app" / "optimizer")
+    for root in checked_roots:
+        for path in root.rglob("*.py"):
+            contents = read(path)
+            for fragment in forbidden_fragments:
+                assert fragment not in contents, f"{path.relative_to(ROOT)} contains {fragment}"
+
+
+def test_workflow_validates_without_external_action_allowlist_dependencies() -> None:
+    workflow = read(CI)
+    assert "Check out repository without external actions" in workflow
+    assert "actions/checkout" not in workflow
+    assert "actions/setup-python" not in workflow
+    assert "actionlint" not in workflow
 
 
 def test_no_product_functionality_is_added_in_infrastructure_pr() -> None:

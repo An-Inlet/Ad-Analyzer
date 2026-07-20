@@ -30,19 +30,32 @@ jobs:
       DENTICODE_TEST_POSTGRES_URL: postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci
       DENTICODE_CI_DISPOSABLE_POSTGRES: "true"
       DENTICODE_PROJECT_PHASE: pre-controlled-writes
+      PIP_CACHE_DIR: ~/.cache/pip
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Check out repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git fetch --no-tags --prune --depth=0 origin \
+              "+refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/pull/${{ github.event.pull_request.number }}/merge" \
+              "+refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+            git checkout --force "refs/remotes/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --no-tags --prune --depth=0 origin \
+              "+${GITHUB_SHA}:refs/remotes/origin/current" \
+              "+refs/heads/main:refs/remotes/origin/main"
+            git checkout --force "${GITHUB_SHA}"
+          fi
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-          cache-dependency-path: pyproject.toml
+      - name: Verify Python 3.12
+        run: python3.12 --version
 
       - name: Install dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+        run: python3.12 -m pip install --upgrade pip && python3.12 -m pip install -e '.[dev]'
 
       - name: Fail closed for unsafe PostgreSQL targets
         run: ./scripts/validate.sh PostgreSQL
@@ -51,7 +64,7 @@ jobs:
         run: alembic upgrade head
 
       - name: Complete pytest suite including PostgreSQL integration tests
-        run: python -m pytest
+        run: python3.12 -m pytest
 
       - name: Ruff
         run: ruff check .
@@ -60,7 +73,15 @@ jobs:
         run: mypy
 
       - name: Whitespace diff check
-        run: git diff --check
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            git diff --check "${{ github.event.before }}...HEAD"
+          else
+            git diff --check "origin/main...HEAD"
+          fi
 
       - name: Reversible migration test on disposable PostgreSQL
         run: ./scripts/validate.sh Migrations

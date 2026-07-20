@@ -4,7 +4,7 @@ This roadmap is based on the current repository shape: a FastAPI app, SQLAlchemy
 
 ## Phase 8 — Read-only analytics
 
-Required capabilities: calculations and account-local windows; PostgreSQL aggregation; deterministic findings; analytics API; read-only dashboard.
+Required capabilities: calculations and account-local windows; PostgreSQL aggregation; deterministic findings; analytics API; read-only dashboard. Phase 8 findings are calculated live unless a later human decision explicitly approves persistence.
 
 ### 8.1 — Analytics foundations
 
@@ -13,74 +13,74 @@ Required capabilities: calculations and account-local windows; PostgreSQL aggreg
 - branch name: codex/phase8-analytics-foundations
 - PR title: Add read-only analytics foundations
 - dependencies: none
-- exact scope: schemas, calculators, account-local windows
-- explicit exclusions: dashboard, recommendations, writes
-- expected files: app/analytics/*, tests/test_phase8_*.py
-- migrations: new read-only tables only if required
-- focused tests: calculator/window tests plus account isolation
-- full validation: validate Full, PostgreSQL, ReadOnly
-- security gates: no external calls; read-only imports
-- privacy gates: redact search terms
-- rollback requirements: drop new artifacts before merge or reversible migration
-- human decisions: threshold defaults, metric availability
-- acceptance criteria: window_days/days_with_metric_rows/data_coverage_ratio correct
+- exact scope: calculations, schemas, account-local windows, settings, and tests
+- explicit exclusions: database migrations, PostgreSQL aggregation, findings, API endpoints, dashboard views, recommendations, approval workflow, and writes
+- expected files: app/analytics/calculations.py, app/analytics/schemas.py, app/settings.py if needed, tests/test_phase8_analytics_foundations.py
+- migrations: none; do not add read-only tables in PR 8.1
+- focused tests: calculation, schema, settings, account-local window, Decimal/integer micros, observed-zero versus unavailable metrics
+- full validation: validate Full, ReadOnly, Privacy
+- security gates: no external calls; no collector, executor, sync-trigger, token, conversion upload, or mutation imports
+- privacy gates: no sensitive search-term output or logs
+- rollback requirements: remove analytics-only modules and tests
+- human decisions: threshold defaults and metric availability matrix
+- acceptance criteria: window_days, days_with_metric_rows, and data_coverage_ratio are distinct and correct without persistence
 
-### 8.2 — PostgreSQL aggregation
+### 8.2 — Repository aggregation and query safety
 
 - identifier: 8.2
-- objective: PostgreSQL aggregation
-- branch name: codex/phase8-postgres-aggregation
-- PR title: Add PostgreSQL analytics aggregation
+- objective: Repository aggregation and query safety
+- branch name: codex/phase8-repository-aggregation-query-safety
+- PR title: Add PostgreSQL analytics aggregation and query safety
 - dependencies: 8.1 merged
-- exact scope: repository aggregation and query safety
-- explicit exclusions: findings/API/dashboard/writes
-- expected files: app/analytics/repository.py, migrations, tests
-- migrations: aggregation indexes only after query plans
-- focused tests: SQL aggregation tests
-- full validation: validate Full, PostgreSQL, Migrations
-- security gates: disposable DB migrations only
-- privacy gates: no sensitive query logs
-- rollback requirements: reversible migration
-- human decisions: index approval if plans require
-- acceptance criteria: server-side comparison windows
+- exact scope: PostgreSQL aggregation, account isolation, pagination, query-plan review, and query safety tests
+- explicit exclusions: deterministic finding rules, API endpoints, dashboard views, recommendations, approval workflow, and writes
+- expected files: app/analytics/repository.py, tests/test_phase8_repository_aggregation.py, optional Alembic migration only for query-plan-justified indexes
+- migrations: query-plan-justified index migration only; no persistence tables unless a later human decision approves them
+- focused tests: PostgreSQL aggregation, account isolation, pagination, server-side comparison windows, unavailable metrics, unsafe query rejection
+- full validation: validate Full, PostgreSQL, Migrations, ReadOnly
+- security gates: migration downgrade tests only on disposable PostgreSQL; no mutation imports
+- privacy gates: no sensitive query logs or search-term dumps
+- rollback requirements: reversible index migration if added; remove repository module and tests
+- human decisions: index approval based on actual query plans
+- acceptance criteria: aggregations are account-scoped, paginated safely, and comparison windows are derived server-side
 
-### 8.3 — Deterministic findings
+### 8.3 — Deterministic findings service and API
 
 - identifier: 8.3
-- objective: Deterministic findings
-- branch name: codex/phase8-findings-service
-- PR title: Add deterministic analytics findings
+- objective: Deterministic findings service and API
+- branch name: codex/phase8-deterministic-findings-api
+- PR title: Add deterministic analytics findings service and API
 - dependencies: 8.2 merged
-- exact scope: deterministic rules, sorting before pagination
-- explicit exclusions: recommendations and writes
-- expected files: app/analytics/findings.py, app/api/*, tests
-- migrations: none unless persistence approved
-- focused tests: finding rule tests
-- full validation: validate Full, ReadOnly
-- security gates: no mutation imports
-- privacy gates: no raw search terms
-- rollback requirements: remove service/API
-- human decisions: severity thresholds
-- acceptance criteria: stable sorted findings
+- exact scope: finding rules, service layer, API endpoints, authorization, deterministic sorting, pagination after sorting, and no-write tests
+- explicit exclusions: dashboard routes, templates, CSS, recommendations, approval workflow, persistence, and Google Ads writes
+- expected files: app/analytics/findings.py, app/analytics/service.py, app/api/*, tests/test_phase8_findings_api.py
+- migrations: none unless a human decision explicitly approves persistence before this PR starts
+- focused tests: deterministic rule tests, API authorization, account isolation, no-write boundary, sanitized errors, stable sorting before pagination
+- full validation: validate Full, ReadOnly, Security, Privacy
+- security gates: authenticated API access; no executor, collector, sync-trigger, token, conversion upload, or mutation invocation
+- privacy gates: sensitive search-term text redacted or excluded according to approved display decision
+- rollback requirements: remove findings service, API routes, and tests
+- human decisions: severity thresholds, display/redaction policy, and whether persistence is explicitly approved
+- acceptance criteria: API returns deterministic read-only findings without invoking write-capable code
 
-### 8.4 — Analytics API and dashboard
+### 8.4 — Dashboard analytics views
 
 - identifier: 8.4
-- objective: Analytics API and dashboard
-- branch name: codex/phase8-dashboard-analytics
-- PR title: Add read-only analytics API and dashboard
+- objective: Dashboard analytics views
+- branch name: codex/phase8-dashboard-analytics-views
+- PR title: Add read-only dashboard analytics views
 - dependencies: 8.3 merged
-- exact scope: API routes and read-only dashboard views
-- explicit exclusions: recommendations and execution
-- expected files: app/api/*, app/dashboard/*, tests
+- exact scope: dashboard route, templates, CSS, navigation, and dashboard tests only
+- explicit exclusions: new API endpoints, recommendation generation, approval workflow, execution, collectors, sync triggers, and Google Ads writes
+- expected files: app/dashboard/router.py, app/dashboard/templates/*, app/dashboard/static/dashboard.css, tests/test_phase8_dashboard_analytics.py
 - migrations: none expected
-- focused tests: API/dashboard tests
+- focused tests: dashboard auth, route rendering, account isolation, redacted display, no synchronization or mutation trigger
 - full validation: validate Full, ReadOnly, Privacy
-- security gates: authenticated read-only access
-- privacy gates: redacted UI/logs
-- rollback requirements: remove views/routes
-- human decisions: display policy
-- acceptance criteria: dashboard reads synchronized data
+- security gates: authenticated read-only dashboard access
+- privacy gates: no sensitive search-term text in logs, screenshots, or broad rendered dumps
+- rollback requirements: remove dashboard route, templates, CSS changes, and tests
+- human decisions: dashboard UX and redaction policy
+- acceptance criteria: dashboard renders read-only analytics views backed by existing API/service behavior only
 
 ## Phase 9 — Recommendation generation
 

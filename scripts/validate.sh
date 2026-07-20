@@ -21,12 +21,12 @@ require_disposable_postgres() {
   export DATABASE_URL="$DENTICODE_TEST_POSTGRES_URL"
 }
 
-focused_validation() { run python -m pytest tests/test_automation_foundation.py; }
+focused_validation() { run python -m pytest tests/test_automation_foundation.py tests/test_api_v1_read_only.py -k "automation_foundation or scoping or account_scoped or no_writes"; }
 postgres_validation() { require_disposable_postgres; run python -m pytest tests/test_phase7_postgres_transactions.py; }
 migration_validation() { require_disposable_postgres; run alembic upgrade head; run alembic downgrade base; run alembic upgrade head; }
-security_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_automation_foundation.py -k "security or approval or controlled or read_only"; }
-privacy_validation() { run python -m pytest tests/test_automation_foundation.py; }
-readonly_validation() { run python -m pytest tests/test_automation_foundation.py -k "read_only or no_product"; }
+security_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_token_files.py tests/test_generate_google_ads_refresh_token.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or token or secret or credential or sanitized or error_messages or controlled or approval"; }
+privacy_validation() { run python -m pytest tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "sanitized or secret or credential or token or error_messages or sensitive or search_term"; }
+readonly_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or no_writes or no_product or pre_write"; }
 controlled_writes_validation() { echo "ControlledWrites gates are intentionally not implemented before Phase 11 approved policy and human authorization." >&2; return 1; }
 release_validation() { echo "Release gates are intentionally not implemented before Phase 12 production release approval." >&2; return 1; }
 

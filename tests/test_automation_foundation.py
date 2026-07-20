@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 VALIDATE_SH = ROOT / "scripts" / "validate.sh"
 VALIDATE_PS1 = ROOT / "scripts" / "validate.ps1"
+RESET_POSTGRES = ROOT / "scripts" / "reset_disposable_postgres.py"
 ROADMAP = ROOT / "docs" / "project-roadmap.md"
 PHASE8_SUPPLEMENT = ROOT / "docs" / "phase8-roadmap.md"
 POLICY = ROOT / "docs" / "automation-policy.md"
@@ -92,6 +93,29 @@ def powershell_validate_command(scope: str) -> list[str]:
         "-Scope",
         scope,
     ]
+
+
+def reset_helper_command() -> list[str]:
+    return ["python", str(RESET_POSTGRES)]
+
+
+def disposable_postgres_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+    url = os.environ.get("DENTICODE_TEST_POSTGRES_URL")
+    marker = os.environ.get("DENTICODE_CI_DISPOSABLE_POSTGRES")
+    if not url or marker != "true":
+        pytest.skip(
+            "DENTICODE_TEST_POSTGRES_URL and DENTICODE_CI_DISPOSABLE_POSTGRES=true "
+            "are required for disposable PostgreSQL integration tests"
+        )
+    env = minimal_subprocess_env(
+        {
+            "DENTICODE_TEST_POSTGRES_URL": url,
+            "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+        }
+    )
+    if extra:
+        env.update(extra)
+    return env
 
 
 def read(path: Path) -> str:
@@ -469,6 +493,146 @@ def test_powershell_child_command_failures_propagate_nonzero_exit_codes(tmp_path
         env=minimal_subprocess_env({"PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}"}),
     )
     assert result.returncode == 37
+
+
+def test_reset_disposable_postgres_rejects_missing_marker() -> None:
+    result = subprocess.run(
+        reset_helper_command(),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=minimal_subprocess_env(
+            {"DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://user:secret@localhost/db_ci"}
+        ),
+    )
+    assert result.returncode != 0
+    assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
+    assert "secret" not in result.stderr
+    assert "postgresql+psycopg://" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_error"),
+    (
+        (
+            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer",
+            "controlled _ci or _test naming convention",
+        ),
+        (
+            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer_staging_ci",
+            "staging/production database names are never disposable",
+        ),
+        (
+            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer_prod_test",
+            "staging/production database names are never disposable",
+        ),
+        ("not a url", "DENTICODE_TEST_POSTGRES_URL must use a PostgreSQL scheme"),
+        ("postgresql+psycopg://[bad", "malformed DENTICODE_TEST_POSTGRES_URL"),
+        ("postgresql+psycopg://localhost/", "PostgreSQL database name is empty"),
+        ("sqlite:///denticode_ads_optimizer_ci", "must use a PostgreSQL scheme"),
+    ),
+)
+def test_reset_disposable_postgres_rejects_unsafe_urls_without_exposing_credentials(
+    url: str, expected_error: str
+) -> None:
+    result = subprocess.run(
+        reset_helper_command(),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=minimal_subprocess_env(
+            {
+                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+                "DENTICODE_TEST_POSTGRES_URL": url,
+            }
+        ),
+    )
+    assert result.returncode != 0
+    assert expected_error in result.stderr
+    assert "secret" not in result.stderr
+    assert url not in result.stderr
+
+
+def test_validation_scripts_invoke_reset_before_migration_upgrade() -> None:
+    for script in (read(VALIDATE_SH), read(VALIDATE_PS1)):
+        reset_index = script.index("python scripts/reset_disposable_postgres.py")
+        upgrade_index = script.index("alembic upgrade head")
+        assert reset_index < upgrade_index
+        assert "DATABASE_URL" in script
+        assert "DENTICODE_TEST_POSTGRES_URL" in script
+
+
+def test_migration_validation_repairs_head_state_with_missing_application_tables() -> None:
+    pytest.importorskip("psycopg")
+    from app.database.session import Base
+    from sqlalchemy import create_engine, text
+
+    env = disposable_postgres_env()
+    subprocess.run(
+        bash_validate_command("Migrations"),
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    engine = create_engine(env["DENTICODE_TEST_POSTGRES_URL"])
+    try:
+        Base.metadata.drop_all(engine)
+        with engine.connect() as connection:
+            version = connection.scalar(text("SELECT version_num FROM alembic_version"))
+            assert version is not None
+            job_runs_exists = connection.scalar(text("SELECT to_regclass('public.job_runs')"))
+            assert job_runs_exists is None
+    finally:
+        engine.dispose()
+
+    result = subprocess.run(
+        bash_validate_command("Migrations"),
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    assert result.returncode == 0
+
+
+def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
+    env = disposable_postgres_env()
+    subprocess.run(
+        ["python", "-m", "pytest", "tests/test_phase7_postgres_transactions.py", "-q"],
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    subprocess.run(
+        bash_validate_command("Migrations"),
+        cwd=ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+
+
+def test_full_validation_can_run_twice_against_same_disposable_database() -> None:
+    if os.environ.get("DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
+        pytest.skip("nested Full validation regression test is disabled")
+    env = disposable_postgres_env({"DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
+    for _ in range(2):
+        subprocess.run(
+            bash_validate_command("Full"),
+            cwd=ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+            env=env,
+        )
 
 
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:

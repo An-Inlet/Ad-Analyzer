@@ -50,7 +50,7 @@ PY_VALIDATE_POSTGRES
 
 focused_validation() { run python -m pytest tests/test_automation_foundation.py tests/test_api_v1_read_only.py -k "automation_foundation or scoping or account_scoped or no_writes"; }
 postgres_validation() { require_disposable_postgres; run python -m pytest tests/test_phase7_postgres_transactions.py; }
-migration_validation() { require_disposable_postgres; run alembic upgrade head; run alembic downgrade base; run alembic upgrade head; }
+migration_validation() { require_disposable_postgres; run python scripts/reset_disposable_postgres.py; run alembic upgrade head; run alembic downgrade base; run alembic upgrade head; }
 security_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_token_files.py tests/test_generate_google_ads_refresh_token.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or token or secret or credential or sanitized or error_messages or controlled or approval"; }
 privacy_validation() { run python -m pytest tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "sanitized or secret or credential or token or error_messages or sensitive or search_term"; }
 readonly_validation() { run python -m pytest tests/test_google_ads_read_only.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or no_writes or no_product or pre_write"; }

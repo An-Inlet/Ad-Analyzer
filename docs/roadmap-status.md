@@ -15,11 +15,11 @@ Automation controller: `docs/project-controller.md`
 ## Completion summary
 
 - Total roadmap units audited: 17
-- Complete or superseded units: 14
+- Complete or superseded units: 15
 - Partially complete units: 0
 - Missing units with satisfied dependencies: 0
-- Human-blocked units: 3
-- Current automated completion percentage: 82% (14 of 17 units complete or superseded)
+- Human-blocked units: 2
+- Current automated completion percentage: 88% (15 of 17 units complete or superseded)
 
 ## Roadmap unit audit
 
@@ -39,14 +39,14 @@ Automation controller: `docs/project-controller.md`
 | 11.2 Dry-run executor | Complete | `app/executors/planner.py`, `app/api/v1.py`, `app/dashboard/router.py` | `tests/test_analyzer_v1.py` | None found; dry-run output is auditable, idempotent, and stores rollback instructions without live mutation calls. | DR-009 and DR-010 remain pending before any live execution policy. | #11 | Pending in this controller run. |
 | 11.3 Approved controlled mutations | Complete for safe non-live controlled execution | `app/executors/google_executor.py`, `app/executors/planner.py`, `app/settings.py` | `tests/test_phase11_controlled_execution.py`, `tests/test_analyzer_v1.py`, `tests/test_google_ads_read_only.py` | None for Phase 11.3 safe non-live scope; live mutation enablement remains intentionally not implemented. | Production/live mutation enablement still requires DR-005, DR-006, DR-008, DR-009, and DR-010 before any live account or write-capable adapter is added. | This PR | Pending in this controller run. |
 | 11.4 Execution operations dashboard | Complete for non-live operator execution operations | `app/dashboard/router.py`, `app/dashboard/templates/account.html`, `app/dashboard/templates/execution_operations.html`, `docs/operations/runbook.md` | `tests/test_analyzer_v1.py` | None for non-live Phase 11.4 scope; the dashboard intentionally omits live execution and synchronization controls. | Live mutation enablement remains blocked by DR-005, DR-006, DR-008, DR-009, and DR-010. | This PR | Pending in this controller run. |
-| 12.1 Deployment architecture | Blocked by a required human decision | `deploy/docker-compose.yml`, `docs/operations/runbook.md`, `docs/build-progress.md` | `tests/test_automation_foundation.py`, validation scope `Release` | Production architecture approval is not recorded. | DR-011 hosting platform and production deployment approval. | #11 | Blocked pending hosting decision; no production deployment occurred. |
-| 12.2 Managed infrastructure configuration | Blocked by a required human decision | `deploy/docker-compose.yml`, `.env.example`, `docs/operations/runbook.md` | `tests/test_automation_foundation.py` | Provider-specific managed PostgreSQL, secrets manager, and deployment config cannot be finalized without provider choices. | DR-011, DR-012, DR-013; paid infrastructure and production credentials are mandatory human stops. | #11 | Blocked; repository contains only safe examples/placeholders. |
+| 12.1 Deployment architecture | Complete for provider-neutral non-production deployment architecture | `Dockerfile`, `.env.example`, `app/deployment.py`, `app/main.py`, `deploy/docker-compose.yml`, `deploy/reverse-proxy.example.conf`, `docs/deployment-architecture.md`, `docs/operations/runbook.md`, `scripts/validate_deployment_startup.py` | `tests/test_deployment_architecture.py` | None for the approved provider-neutral, non-production scope. | Production decisions remain blocked: hosting provider selection, paid infrastructure activation, production credentials, production database connection, and production deployment. | #16 | GitHub Actions passed with disposable PostgreSQL and migration validation. |
+| 12.2 Managed infrastructure configuration | Eligible for approved safe non-production scope | `deploy/docker-compose.yml`, `.env.example`, `docs/operations/runbook.md` | `tests/test_automation_foundation.py` | Provider-neutral managed infrastructure configuration examples, external secret-manager placeholders, process/environment configuration, and startup validation remain eligible; provider selection, paid infrastructure, real credentials, and deployment are excluded. | Production provider selection, paid infrastructure activation, production credentials, production database connection, and production deployment remain human-blocked. | Not started | Eligible after PR #16 merges for provider-neutral non-production configuration only. |
 | 12.3 Monitoring backup and incident response | Complete | `docs/operations/runbook.md` | `tests/test_automation_foundation.py` | None for documentation-level runbook; live alert sinks and backup execution remain launch inputs. | DR-014 and DR-015 remain required before production activation. | #11 | Pending in this controller run. |
 | 12.4 Production readiness release | Blocked by a required human decision | `docs/definition-of-done.md`, `docs/build-progress.md` | `tests/test_automation_foundation.py`, validation scope `Release` | Final production readiness report and release approval are not complete. | Mandatory human stop: Phase 12.4 release approval; DR-016. | #11 | Blocked; no production release or deployment occurred. |
 
 ## Next controller action
 
-Earliest eligible incomplete unit after this refresh: none. Phase 11.4 is complete for non-live operator execution operations; Phase 12 launch units remain blocked by deployment, hosting, secrets, monitoring, backup, and release decisions. On the next run, the controller should fetch latest `main`, inspect open automation PRs, refresh this file, run validation, and either report buildout completion for non-blocked work or implement newly introduced defects/roadmap work.
+Earliest eligible incomplete unit after PR #16 merges: Phase 12.2 — provider-neutral managed infrastructure configuration. The eligible Phase 12.2 scope is limited to provider-neutral managed infrastructure configuration examples, external secret-manager placeholders, process/environment configuration, and startup validation. Provider selection, paid infrastructure, real credentials, production database connections, production deployment, and live Google Ads activity remain blocked.
 
 ## Safety confirmation
 
@@ -54,4 +54,4 @@ This audit and Phase 11.4 non-live dashboard implementation did not connect to G
 
 ## Phase 12.1 status
 
-Provider-neutral deployment architecture is defined with a production-oriented Dockerfile, separate Compose process definitions, startup validation, health/readiness checks, TLS reverse-proxy example, external-secret placeholders, and rollback guidance. No provider was selected and no live advertising or production database activity was performed.
+Phase 12.1 is complete for provider-neutral non-production deployment architecture in PR #16. It includes `Dockerfile`, `.env.example`, `app/deployment.py`, `app/main.py`, `deploy/docker-compose.yml`, `deploy/reverse-proxy.example.conf`, `docs/deployment-architecture.md`, `docs/operations/runbook.md`, and `scripts/validate_deployment_startup.py`, with deterministic coverage in `tests/test_deployment_architecture.py`. There are no missing acceptance criteria for the approved provider-neutral, non-production scope. Production hosting provider selection, paid infrastructure activation, production credentials, production database connection, and production deployment remain blocked, and live Google Ads activity remains blocked. GitHub Actions passed with disposable PostgreSQL and migration validation.

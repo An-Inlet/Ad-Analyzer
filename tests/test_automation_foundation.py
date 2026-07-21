@@ -296,6 +296,38 @@ def test_roadmap_controller_status_tracks_phase8_through_phase12() -> None:
     assert "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true" in decisions
 
 
+def test_roadmap_status_records_phase_12_1_completion_and_next_safe_unit() -> None:
+    status = read(ROADMAP_STATUS)
+
+    assert "Complete or superseded units: 15" in status
+    assert (
+        "Current automated completion percentage: 88% (15 of 17 units complete or superseded)"
+        in status
+    )
+    assert (
+        "| 12.1 Deployment architecture | Complete for provider-neutral non-production "
+        "deployment architecture |"
+    ) in status
+    assert "None for the approved provider-neutral, non-production scope." in status
+    assert (
+        "#16 | GitHub Actions passed with disposable PostgreSQL and migration validation." in status
+    )
+    assert (
+        "Earliest eligible incomplete unit after PR #16 merges: Phase 12.2 — "
+        "provider-neutral managed infrastructure configuration."
+    ) in status
+    assert "Eligible for approved safe non-production scope" in status
+    for blocked_activity in (
+        "hosting provider selection",
+        "paid infrastructure activation",
+        "production credentials",
+        "production database connection",
+        "production deployment",
+        "live Google Ads activity remains blocked",
+    ):
+        assert blocked_activity in status
+
+
 def test_github_setup_requires_protected_human_review() -> None:
     setup = read(GITHUB_SETUP)
     for requirement in (
@@ -361,9 +393,11 @@ def test_destructive_migration_validation_rejects_unsafe_database_targets() -> N
         check=False,
         text=True,
         capture_output=True,
-        env=minimal_subprocess_env({
-            "DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer",
-        }),
+        env=minimal_subprocess_env(
+            {
+                "DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer",
+            }
+        ),
     )
     assert result.returncode != 0
     assert "Refusing migration validation" in result.stderr
@@ -407,13 +441,14 @@ def test_bash_disposable_postgres_validation_accepts_ci_database_until_connectio
 
 
 def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database() -> None:
-    env = minimal_subprocess_env({
-        "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-        "DENTICODE_TEST_POSTGRES_URL": (
-            "postgresql+psycopg://postgres:postgres@localhost:5432/"
-            "denticode_ads_optimizer"
-        ),
-    })
+    env = minimal_subprocess_env(
+        {
+            "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+            "DENTICODE_TEST_POSTGRES_URL": (
+                "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer"
+            ),
+        }
+    )
     result = subprocess.run(
         bash_validate_command("Migrations"),
         cwd=ROOT,
@@ -427,12 +462,13 @@ def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database(
 
 
 def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() -> None:
-    env = minimal_subprocess_env({
-        "DENTICODE_TEST_POSTGRES_URL": (
-            "postgresql+psycopg://postgres:postgres@localhost:5432/"
-            "denticode_ads_optimizer_ci"
-        ),
-    })
+    env = minimal_subprocess_env(
+        {
+            "DENTICODE_TEST_POSTGRES_URL": (
+                "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci"
+            ),
+        }
+    )
     result = subprocess.run(
         bash_validate_command("Migrations"),
         cwd=ROOT,
@@ -472,13 +508,11 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
         "\x1b[31;1m| or _test naming convention.\x1b[0m\n"
     )
 
-    assert (
-        "staging/production database names are never disposable"
-        in normalize_powershell_output(staging_sample)
+    assert "staging/production database names are never disposable" in normalize_powershell_output(
+        staging_sample
     )
-    assert (
-        "controlled _ci or _test naming convention"
-        in normalize_powershell_output(controlled_name_sample)
+    assert "controlled _ci or _test naming convention" in normalize_powershell_output(
+        controlled_name_sample
     )
 
 
@@ -509,8 +543,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
             {
                 "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
                 "DENTICODE_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "denticode_ads_optimizer"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer"
                 ),
             },
             "controlled _ci or _test naming convention",
@@ -746,7 +779,7 @@ def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     workflow = read(CI)
     assert "postgres:16" in workflow
     assert "POSTGRES_DB: denticode_ads_optimizer_ci" in workflow
-    assert "DENTICODE_CI_DISPOSABLE_POSTGRES: \"true\"" in workflow
+    assert 'DENTICODE_CI_DISPOSABLE_POSTGRES: "true"' in workflow
     assert "DENTICODE_TEST_POSTGRES_URL:" in workflow
     assert "./scripts/validate.sh PostgreSQL" in workflow
     assert "./scripts/validate.sh Migrations" in workflow
@@ -762,7 +795,7 @@ def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     assert "x-access-token" not in workflow
     assert "git init" not in workflow
     assert "git fetch --no-tags --prune --depth=0" not in workflow
-    assert "git diff --check \"origin/${{ github.base_ref }}...HEAD\"" in workflow
+    assert 'git diff --check "origin/${{ github.base_ref }}...HEAD"' in workflow
 
 
 def test_read_only_boundary_can_evolve_for_phase11_controlled_writes() -> None:
@@ -799,7 +832,6 @@ def test_workflow_uses_official_actions_without_token_bearing_checkout() -> None
     assert "GH_TOKEN" not in workflow
     assert "x-access-token" not in workflow
     assert "refs/pull" not in workflow
-
 
 
 def resolve_product_diff_base() -> str:

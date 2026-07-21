@@ -26,3 +26,12 @@
 
 ## Final readiness checklist
 - CI green; migrations reversible; no secrets in repository; account isolation tests pass; dashboard/API authentication configured; live writes disabled by default.
+
+## Phase 12.1 deployment operations
+
+- Build one immutable container image from `Dockerfile` and run separate `web`, `worker`, `scheduler`, and `migration` processes.
+- Source all secrets from the deployment platform secret store; never from committed files.
+- Run `python scripts/validate_deployment_startup.py --process migration` before `alembic upgrade head`.
+- Verify `GET /health` and `GET /ready` after every restart.
+- Roll back by stopping `scheduler`, restoring the previous image tag and environment set, verifying `web`, and then restarting `scheduler`.
+- Keep `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false`, `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`, and production allowlists empty.

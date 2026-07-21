@@ -1,23 +1,74 @@
+name: denticode-ads-optimizer
+
+x-app-env: &app-env
+  APP_ENV: production
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://denticode:replace-with-external-secret@postgres:5432/denticode_ads_optimizer}
+  DENTICODE_API_TOKEN: ${DENTICODE_API_TOKEN:-replace-with-external-secret}
+  DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"
+  DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
+  DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS: ""
+  DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS: ""
+  DENTICODE_SYNC_INTERVAL_MINUTES: ${DENTICODE_SYNC_INTERVAL_MINUTES:-60}
+  DENTICODE_SYNC_RUN_IMMEDIATELY: ${DENTICODE_SYNC_RUN_IMMEDIATELY:-false}
+  DENTICODE_SYNC_MAX_ATTEMPTS: ${DENTICODE_SYNC_MAX_ATTEMPTS:-3}
+  DENTICODE_SYNC_RETRY_BASE_SECONDS: ${DENTICODE_SYNC_RETRY_BASE_SECONDS:-5}
+  DENTICODE_SYNC_RETRY_MAX_SECONDS: ${DENTICODE_SYNC_RETRY_MAX_SECONDS:-60}
+  DENTICODE_SYNC_STALE_AFTER_MINUTES: ${DENTICODE_SYNC_STALE_AFTER_MINUTES:-180}
+  DENTICODE_SYNC_ADVISORY_LOCK_KEY: ${DENTICODE_SYNC_ADVISORY_LOCK_KEY:-719042711}
+
+x-app-base: &app-base
+  build:
+    context: ..
+  image: denticode-ads-optimizer:${DENTICODE_IMAGE_TAG:-local}
+  restart: unless-stopped
+  stop_grace_period: 30s
+  environment: *app-env
+  depends_on:
+    postgres:
+      condition: service_healthy
+
 services:
-  app:
-    build: ..
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    environment:
-      APP_ENV: production
-      DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"
-      DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
-    depends_on: [postgres]
+  web:
+    <<: *app-base
+    command: sh -c "python scripts/validate_deployment_startup.py --process web && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"
+    ports:
+      - "${DENTICODE_HTTP_BIND:-127.0.0.1:8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   worker:
-    build: ..
-    command: python -m app.jobs.google_ads_scheduler
-    environment:
-      APP_ENV: production
-      DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"
-      DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
-    depends_on: [postgres]
+    <<: *app-base
+    command: sh -c "python scripts/validate_deployment_startup.py --process worker && python -m app.jobs.google_ads_sync_once"
+    restart: "no"
+
+  scheduler:
+    <<: *app-base
+    command: sh -c "python scripts/validate_deployment_startup.py --process scheduler && python -m app.jobs.google_ads_scheduler"
+
+  migration:
+    <<: *app-base
+    command: sh -c "python scripts/validate_deployment_startup.py --process migration && alembic upgrade head"
+    restart: "no"
+
   postgres:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: denticode_ads_optimizer
-      POSTGRES_USER: denticode
-      POSTGRES_PASSWORD: replace-with-external-secret
+      POSTGRES_DB: ${POSTGRES_DB:-denticode_ads_optimizer}
+      POSTGRES_USER: ${POSTGRES_USER:-denticode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-replace-with-external-secret}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:

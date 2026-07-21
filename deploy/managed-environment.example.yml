@@ -1,0 +1,32 @@
+# Provider-neutral managed environment example. This is documentation, not a deployable provider spec.
+# Store secret values in an external secret system or mounted secret files; keep only references here.
+processes:
+  web:
+    command: "python scripts/validate_deployment_startup.py --process web && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"
+    concurrency_env: DENTICODE_WEB_CONCURRENCY
+    timeout_env: DENTICODE_WEB_TIMEOUT_SECONDS
+    restart: on-failure
+  worker:
+    command: "python scripts/validate_deployment_startup.py --process worker && python -m app.jobs.google_ads_sync_once"
+    concurrency_env: DENTICODE_WORKER_CONCURRENCY
+    timeout_env: DENTICODE_WORKER_TIMEOUT_SECONDS
+    restart: no
+  scheduler:
+    command: "python scripts/validate_deployment_startup.py --process scheduler && python -m app.jobs.google_ads_scheduler"
+    concurrency_env: DENTICODE_SCHEDULER_CONCURRENCY
+    timeout_env: DENTICODE_SCHEDULER_TIMEOUT_SECONDS
+    restart: on-failure
+  migration:
+    command: "python scripts/validate_deployment_startup.py --process migration && alembic upgrade head"
+    concurrency: 1
+    timeout_env: DENTICODE_MIGRATION_TIMEOUT_SECONDS
+    restart: no
+environment:
+  APP_ENV: production
+  DATABASE_URL: "${EXTERNAL_SECRET_DATABASE_URL}"
+  DENTICODE_API_TOKEN: "${EXTERNAL_SECRET_DENTICODE_API_TOKEN}"
+  DATABASE_SSL_MODE: require
+  DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"
+  DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
+  DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS: ""
+  DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS: ""

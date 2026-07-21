@@ -48,3 +48,7 @@ The Compose example uses `restart: unless-stopped` for persistent services and `
 6. For database issues, restore from a verified PostgreSQL backup or run an approved Alembic downgrade only in a controlled maintenance window.
 
 No deployment step should enable live Google Ads writes or disable the kill switch in Phase 12.1.
+
+## Phase 12.2 managed configuration extension
+
+Managed environments should supply `DATABASE_URL`, `DATABASE_SSL_MODE`, pool sizing, timeout, and secret-reference variables through external configuration. The web, worker, scheduler, and migration processes remain separate and must each run startup validation. Migrations run before web, worker, and scheduler startup for a release; rollback means restoring the last known-good secret and environment references, rerunning validation, and restarting processes with writes disabled and the kill switch enabled.

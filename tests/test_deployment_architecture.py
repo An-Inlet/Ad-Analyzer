@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 def _settings(**overrides: object) -> Settings:
     defaults: dict[str, object] = {
         "APP_ENV": "production",
-        "DATABASE_URL": "postgresql+psycopg://denticode:placeholder@postgres:5432/denticode_ads_optimizer",
-        "DENTICODE_API_TOKEN": "placeholder-token",
+        "DATABASE_URL": "postgresql+psycopg://denticode:safe-secret@postgres:5432/denticode_ads_optimizer?sslmode=require",
+        "DENTICODE_API_TOKEN": "safe-token",
         "DENTICODE_GOOGLE_ADS_WRITE_ENABLED": False,
         "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH": True,
         "DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS": "",
@@ -26,7 +26,10 @@ def test_deployment_startup_accepts_safe_production_web_config() -> None:
     assert result.ok is True
     assert {check.name for check in result.checks} == {
         "database_url",
+        "database_tls",
+        "database_pooling",
         "api_token",
+        "required_secrets",
         "write_guards",
         "production_allowlists",
     }

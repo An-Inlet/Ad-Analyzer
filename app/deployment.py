@@ -1,5 +1,5 @@
 from enum import StrEnum
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,19 +29,90 @@ class DeploymentValidationResult(BaseModel):
     checks: tuple[DeploymentCheck, ...]
 
 
+class RuntimeProcessConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    process: DeploymentProcess
+    command: tuple[str, ...]
+    concurrency: int
+    timeout_seconds: int
+    graceful_shutdown_seconds: int
+    restart_policy: str
+    run_migrations_before_start: bool = False
+
+
+POSTGRESQL_SCHEMES = {"postgresql", "postgresql+psycopg", "postgresql+psycopg2"}
+PLACEHOLDER_FRAGMENTS = ("placeholder", "replace-with", "changeme", "example", "dummy")
+
+
+def _is_placeholder(value: str | None) -> bool:
+    return (
+        value is None
+        or not value.strip()
+        or any(fragment in value.lower() for fragment in PLACEHOLDER_FRAGMENTS)
+    )
+
+
 def _database_url_check(settings: Settings) -> DeploymentCheck:
     parsed = urlparse(settings.database_url)
     ok = (
-        parsed.scheme in {"postgresql", "postgresql+psycopg"}
+        parsed.scheme in POSTGRESQL_SCHEMES
         and bool(parsed.hostname)
         and bool(parsed.path.strip("/"))
+        and not _is_placeholder(parsed.password)
+        if settings.app_env == "production"
+        else True
     )
+    if settings.app_env != "production":
+        ok = (
+            parsed.scheme in POSTGRESQL_SCHEMES
+            and bool(parsed.hostname)
+            and bool(parsed.path.strip("/"))
+        )
     return DeploymentCheck(
         name="database_url",
         ok=ok,
         detail="PostgreSQL-compatible DATABASE_URL configured."
         if ok
-        else "DATABASE_URL must be a PostgreSQL URL with host and database name.",
+        else (
+            "DATABASE_URL must be a PostgreSQL URL with host, database name, "
+            "and non-placeholder production secret."
+        ),
+    )
+
+
+def _tls_check(settings: Settings) -> DeploymentCheck:
+    query = parse_qs(urlparse(settings.database_url).query)
+    url_sslmode = query.get("sslmode", [None])[-1]
+    sslmode = (url_sslmode or settings.database_ssl_mode).lower()
+    production_modes = {"require", "verify-ca", "verify-full"}
+    ok = (
+        sslmode in production_modes
+        if settings.app_env == "production"
+        else sslmode in production_modes | {"prefer", "disable", "allow"}
+    )
+    return DeploymentCheck(
+        name="database_tls",
+        ok=ok,
+        detail="PostgreSQL TLS mode is configured without exposing credentials."
+        if ok
+        else "Production PostgreSQL requires sslmode=require, verify-ca, or verify-full.",
+    )
+
+
+def _pool_check(settings: Settings) -> DeploymentCheck:
+    ok = (
+        settings.database_pool_size >= 1
+        and settings.database_max_overflow >= 0
+        and settings.database_connect_timeout_seconds >= 1
+        and settings.database_pool_recycle_seconds >= 60
+    )
+    return DeploymentCheck(
+        name="database_pooling",
+        ok=ok,
+        detail="Connection pool, timeout, and recycle settings are bounded."
+        if ok
+        else "Database pool and timeout settings must be positive bounded values.",
     )
 
 
@@ -52,15 +123,44 @@ def _api_token_check(settings: Settings, process: DeploymentProcess) -> Deployme
             ok=True,
             detail="API token is not required for this process/environment.",
         )
-    ok = settings.denticode_api_token is not None and bool(
-        settings.denticode_api_token.get_secret_value()
+    secret = (
+        settings.denticode_api_token.get_secret_value() if settings.denticode_api_token else None
     )
+    ok = not _is_placeholder(secret)
     return DeploymentCheck(
         name="api_token",
         ok=ok,
         detail="DENTICODE_API_TOKEN configured for production web process."
         if ok
-        else "Production web process requires DENTICODE_API_TOKEN from an external secret.",
+        else (
+            "Production web process requires a non-placeholder external secret "
+            "for DENTICODE_API_TOKEN."
+        ),
+    )
+
+
+def _required_secrets_check(settings: Settings) -> DeploymentCheck:
+    if settings.app_env != "production":
+        return DeploymentCheck(
+            name="required_secrets",
+            ok=True,
+            detail="Production-only secret validation skipped outside production.",
+        )
+    missing = []
+    for name in settings.required_secret_names:
+        value = settings.secret_reference_for(name)
+        if name == "DATABASE_URL":
+            parsed = urlparse(value or "")
+            if not value or _is_placeholder(parsed.password):
+                missing.append(name)
+        elif _is_placeholder(value):
+            missing.append(name)
+    return DeploymentCheck(
+        name="required_secrets",
+        ok=not missing,
+        detail="Required production secrets are referenced externally."
+        if not missing
+        else "One or more required production secrets are missing or placeholder values.",
     )
 
 
@@ -82,23 +182,56 @@ def _allowlist_check(settings: Settings) -> DeploymentCheck:
         ok=ok,
         detail="Execution account and mutation allowlists are empty."
         if ok
-        else "Production execution allowlists must remain empty for Phase 12.1.",
+        else "Production execution allowlists must remain empty for Phase 12.2.",
+    )
+
+
+def runtime_process_config(process: DeploymentProcess, settings: Settings) -> RuntimeProcessConfig:
+    commands = {
+        DeploymentProcess.WEB: ("uvicorn", "app.main:app"),
+        DeploymentProcess.WORKER: ("python", "-m", "app.jobs.google_ads_sync_once"),
+        DeploymentProcess.SCHEDULER: ("python", "-m", "app.jobs.google_ads_scheduler"),
+        DeploymentProcess.MIGRATION: ("alembic", "upgrade", "head"),
+    }
+    concurrency = {
+        DeploymentProcess.WEB: settings.web_concurrency,
+        DeploymentProcess.WORKER: settings.worker_concurrency,
+        DeploymentProcess.SCHEDULER: settings.scheduler_concurrency,
+        DeploymentProcess.MIGRATION: 1,
+    }[process]
+    timeout = {
+        DeploymentProcess.WEB: settings.web_timeout_seconds,
+        DeploymentProcess.WORKER: settings.worker_timeout_seconds,
+        DeploymentProcess.SCHEDULER: settings.scheduler_timeout_seconds,
+        DeploymentProcess.MIGRATION: settings.migration_timeout_seconds,
+    }[process]
+    restart = (
+        "on-failure" if process in {DeploymentProcess.WEB, DeploymentProcess.SCHEDULER} else "no"
+    )
+    return RuntimeProcessConfig(
+        process=process,
+        command=commands[process],
+        concurrency=concurrency,
+        timeout_seconds=timeout,
+        graceful_shutdown_seconds=settings.graceful_shutdown_seconds,
+        restart_policy=restart,
+        run_migrations_before_start=process is not DeploymentProcess.MIGRATION,
     )
 
 
 def validate_deployment_startup(
-    process: DeploymentProcess,
-    settings: Settings | None = None,
+    process: DeploymentProcess, settings: Settings | None = None
 ) -> DeploymentValidationResult:
     resolved_settings = settings or Settings()
     checks = (
         _database_url_check(resolved_settings),
+        _tls_check(resolved_settings),
+        _pool_check(resolved_settings),
         _api_token_check(resolved_settings, process),
+        _required_secrets_check(resolved_settings),
         _write_guard_check(resolved_settings),
         _allowlist_check(resolved_settings),
     )
     return DeploymentValidationResult(
-        process=process,
-        ok=all(check.ok for check in checks),
-        checks=checks,
+        process=process, ok=all(check.ok for check in checks), checks=checks
     )

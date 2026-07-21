@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import ExecutionStatus, RecommendationStatus
@@ -34,6 +34,33 @@ templates.env.filters["money"] = money_from_micros
 templates.env.filters["percent"] = ratio_percent
 templates.env.filters["public_failure_summary"] = public_failure_summary
 
+
+
+def redacted_mapping(value: object) -> object:
+    if isinstance(value, dict):
+        redacted: dict[str, object] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            if "id" in key_text.lower() or key_text.lower() in {"account", "customer"}:
+                redacted[key_text] = "[redacted]"
+            else:
+                redacted[key_text] = redacted_mapping(item)
+        return redacted
+    if isinstance(value, list):
+        return [redacted_mapping(item) for item in value]
+    return value
+
+
+def execution_safety_context() -> dict[str, object]:
+    allowed_account_count = len(settings.allowed_execution_account_ids)
+    allowed_mutations = sorted(settings.allowed_google_ads_mutations)
+    return {
+        "kill_switch_active": settings.google_ads_execution_kill_switch,
+        "write_enabled": settings.google_ads_write_enabled,
+        "allowed_account_count": allowed_account_count,
+        "allowlist_configured": allowed_account_count > 0 and bool(allowed_mutations),
+        "allowed_mutations": allowed_mutations,
+    }
 
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
@@ -154,6 +181,63 @@ def account_detail(
             latest_executions=latest_executions,
             execution_status=ExecutionStatus,
             has_next=has_next(offset, limit, len(campaigns), total),
+        ),
+    )
+
+
+@router.get("/accounts/{account_id}/execution-operations", response_class=HTMLResponse)
+def execution_operations(
+    request: Request,
+    account_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+) -> HTMLResponse:
+    account = repository.get_account(account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    base_query = (
+        select(ExecutionAudit, Recommendation)
+        .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
+        .where(Recommendation.account_id == account_id)
+    )
+    total = db.scalar(
+        select(func.count())
+        .select_from(ExecutionAudit)
+        .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
+        .where(Recommendation.account_id == account_id)
+    ) or 0
+    rows = list(
+        db.execute(
+            base_query.order_by(ExecutionAudit.created_at.desc(), ExecutionAudit.id.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
+    operations = [
+        {
+            "audit": audit,
+            "recommendation": recommendation,
+            "redacted_errors": redacted_mapping(audit.validation_errors),
+            "redacted_payload": redacted_mapping(recommendation.planned_action),
+        }
+        for audit, recommendation in rows
+    ]
+    return templates.TemplateResponse(
+        request,
+        "execution_operations.html",
+        page_context(
+            request,
+            title=f"Execution operations for {account.name}",
+            account=account,
+            operations=operations,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_next=has_next(offset, limit, len(operations), total),
+            safety=execution_safety_context(),
+            execution_status=ExecutionStatus,
         ),
     )
 

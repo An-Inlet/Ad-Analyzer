@@ -233,3 +233,47 @@ def test_dashboard_displays_analytics_findings_recommendations_and_dry_run_statu
         recommendation = db.get(Recommendation, rec_id)
         assert recommendation is not None
         assert recommendation.status == RecommendationStatus.APPROVED
+
+
+def test_execution_operations_dashboard_is_account_scoped_and_redacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.dashboard import router as dashboard_router
+    from app.dashboard.auth import require_dashboard_session
+    from app.main import app
+
+    with make_client() as (client, db, ids):
+        app.dependency_overrides[require_dashboard_session] = lambda: None
+        monkeypatch.setattr(dashboard_router, "validate_csrf", lambda _request: None)
+        add_current_window_metrics(db, ids["c1"])
+        add_successful_sync(db, ids["a1"])
+        db.commit()
+        rec_id = generate_and_approve(client, ids["a1"])
+        blocked = client.post(
+            f"/dashboard/recommendations/{rec_id}/execute-dry-run",
+            data={"csrf_token": "test", "idempotency_key": "ops-key"},
+            follow_redirects=False,
+        )
+        assert blocked.status_code == 303
+
+        page = client.get(
+            f"/dashboard/accounts/{ids['a1']}/execution-operations?limit=1&offset=0"
+        )
+        assert page.status_code == 200
+        assert "Execution safety state" in page.text
+        assert "Kill switch" in page.text
+        assert "Active" in page.text
+        assert "Write enabled" in page.text
+        assert "Disabled" in page.text
+        assert "Blocked dry run" in page.text
+        assert "Redacted validation errors" in page.text
+        assert "Redacted planned payload" in page.text
+        assert "No live execution control is available" in page.text
+        assert "No synchronization trigger is available" in page.text
+        assert "100" not in page.text
+        assert "ops-key" not in page.text
+
+        isolated = client.get(f"/dashboard/accounts/{ids['a2']}/execution-operations")
+        assert isolated.status_code == 200
+        assert "No dry-run execution audits for this account" in isolated.text
+        assert "Blocked dry run" not in isolated.text

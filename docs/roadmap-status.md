@@ -1,7 +1,7 @@
 # Roadmap status
 
-Last refreshed: 2026-07-20
-Baseline audited: current branch commit `682d225` (PR #12 merge)
+Last refreshed: 2026-07-21
+Baseline audited: latest available main containing Phase 11.3 (PR #13)
 Automation controller: `docs/project-controller.md`
 
 ## Status legend
@@ -15,11 +15,11 @@ Automation controller: `docs/project-controller.md`
 ## Completion summary
 
 - Total roadmap units audited: 17
-- Complete or superseded units: 13
+- Complete or superseded units: 14
 - Partially complete units: 0
 - Missing units with satisfied dependencies: 0
-- Human-blocked units: 4
-- Current automated completion percentage: 76% (13 of 17 units complete or superseded)
+- Human-blocked units: 3
+- Current automated completion percentage: 82% (14 of 17 units complete or superseded)
 
 ## Roadmap unit audit
 
@@ -38,7 +38,7 @@ Automation controller: `docs/project-controller.md`
 | 11.1 Execution policy model | Complete | `app/settings.py`, `app/executors/planner.py`, `app/ads/models.py`, `migrations/versions/20260720_0005_analyzer_recommendations_execution.py` | `tests/test_analyzer_v1.py`, validation scope `ControlledWrites` | None found; policy fails closed with writes disabled, kill switch enabled, and empty allowlist by default. | DR-005, DR-006, DR-008 remain pending before live mutations. | #11 | Pending in this controller run. |
 | 11.2 Dry-run executor | Complete | `app/executors/planner.py`, `app/api/v1.py`, `app/dashboard/router.py` | `tests/test_analyzer_v1.py` | None found; dry-run output is auditable, idempotent, and stores rollback instructions without live mutation calls. | DR-009 and DR-010 remain pending before any live execution policy. | #11 | Pending in this controller run. |
 | 11.3 Approved controlled mutations | Complete for safe non-live controlled execution | `app/executors/google_executor.py`, `app/executors/planner.py`, `app/settings.py` | `tests/test_phase11_controlled_execution.py`, `tests/test_analyzer_v1.py`, `tests/test_google_ads_read_only.py` | None for Phase 11.3 safe non-live scope; live mutation enablement remains intentionally not implemented. | Production/live mutation enablement still requires DR-005, DR-006, DR-008, DR-009, and DR-010 before any live account or write-capable adapter is added. | This PR | Pending in this controller run. |
-| 11.4 Execution operations dashboard | Blocked by a required human decision | `app/dashboard/router.py`, `app/dashboard/templates/account.html` show dry-run execution history and kill-switch outcomes at account level | `tests/test_analyzer_v1.py` | Full live-execution operations dashboard is blocked until approved controlled mutations exist. | Same blockers as 11.3 plus incident UX decision. | #11 | Blocked for live execution operations; dry-run monitoring is validated by tests. |
+| 11.4 Execution operations dashboard | Complete for non-live operator execution operations | `app/dashboard/router.py`, `app/dashboard/templates/account.html`, `app/dashboard/templates/execution_operations.html`, `docs/operations/runbook.md` | `tests/test_analyzer_v1.py` | None for non-live Phase 11.4 scope; the dashboard intentionally omits live execution and synchronization controls. | Live mutation enablement remains blocked by DR-005, DR-006, DR-008, DR-009, and DR-010. | This PR | Pending in this controller run. |
 | 12.1 Deployment architecture | Blocked by a required human decision | `deploy/docker-compose.yml`, `docs/operations/runbook.md`, `docs/build-progress.md` | `tests/test_automation_foundation.py`, validation scope `Release` | Production architecture approval is not recorded. | DR-011 hosting platform and production deployment approval. | #11 | Blocked pending hosting decision; no production deployment occurred. |
 | 12.2 Managed infrastructure configuration | Blocked by a required human decision | `deploy/docker-compose.yml`, `.env.example`, `docs/operations/runbook.md` | `tests/test_automation_foundation.py` | Provider-specific managed PostgreSQL, secrets manager, and deployment config cannot be finalized without provider choices. | DR-011, DR-012, DR-013; paid infrastructure and production credentials are mandatory human stops. | #11 | Blocked; repository contains only safe examples/placeholders. |
 | 12.3 Monitoring backup and incident response | Complete | `docs/operations/runbook.md` | `tests/test_automation_foundation.py` | None for documentation-level runbook; live alert sinks and backup execution remain launch inputs. | DR-014 and DR-015 remain required before production activation. | #11 | Pending in this controller run. |
@@ -46,8 +46,8 @@ Automation controller: `docs/project-controller.md`
 
 ## Next controller action
 
-Earliest eligible incomplete unit after this refresh: none. Phase 11.4 remains blocked for live execution operations until production controlled mutations are human-approved; Phase 12 launch units remain blocked by deployment, hosting, secrets, monitoring, backup, and release decisions. On the next run, the controller should fetch latest `main`, inspect open automation PRs, refresh this file, run validation, and either report buildout completion for non-blocked work or implement newly introduced defects/roadmap work.
+Earliest eligible incomplete unit after this refresh: none. Phase 11.4 is complete for non-live operator execution operations; Phase 12 launch units remain blocked by deployment, hosting, secrets, monitoring, backup, and release decisions. On the next run, the controller should fetch latest `main`, inspect open automation PRs, refresh this file, run validation, and either report buildout completion for non-blocked work or implement newly introduced defects/roadmap work.
 
 ## Safety confirmation
 
-This audit and Phase 11.3 safe non-live implementation did not connect to Google Ads, Meta Ads, OpenAI APIs, or other advertising services, did not request or store credentials, did not perform live Google Ads activity, and preserves `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` with `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` as the safe defaults.
+This audit and Phase 11.4 non-live dashboard implementation did not connect to Google Ads, Meta Ads, OpenAI APIs, or other advertising services, did not request or store credentials, did not perform live Google Ads activity, and preserves `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` with `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` as the safe defaults.

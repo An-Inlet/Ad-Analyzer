@@ -10,6 +10,14 @@
 - Take a PostgreSQL logical backup before each migration.
 - Restore into disposable PostgreSQL and run `alembic upgrade head` before promoting backups as valid.
 
+## Phase 11.4 execution operations dashboard
+- Use `/dashboard/accounts/{account_id}/execution-operations` for the authenticated, operator-only, account-scoped execution operations view.
+- The page shows recommendation status, dry-run preflight status, blocked versus successful dry runs, kill-switch state, write-enabled state, and allowlist configuration counts without exposing allowlisted account identifiers.
+- Validation errors and planned payloads are redacted before rendering. Review database audit records only in approved investigation environments.
+- The dashboard intentionally has no live execution button and no synchronization trigger. It must not import or invoke a live Google Ads client.
+- For rollback review, follow each audit row's rollback instructions and compensating-action guidance. Phase 11.4 remains non-live, so rollback normally means discarding the modeled plan unless a future human-approved mutation policy says otherwise.
+- Use server-side pagination links for long audit histories; do not export raw customer or campaign payloads from production.
+
 ## Incident response
 - Activate the kill switch immediately for execution concerns.
 - Stop workers before investigation.

@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import ExecutionStatus, RecommendationStatus
@@ -46,6 +46,27 @@ def page_context(request: Request, **values: object) -> dict[str, object]:
 def has_next(offset: int, limit: int, returned: int, total: int) -> bool:
     return offset + returned < total and offset + limit <= DASHBOARD_MAX_OFFSET
 
+
+
+def redacted_validation_errors(errors: list[object]) -> list[str]:
+    safe_errors: list[str] = []
+    for error in errors:
+        message = str(error)
+        if len(message) > 160:
+            message = f"{message[:157]}..."
+        safe_errors.append(message)
+    return safe_errors
+
+
+def execution_preflight_label(rec: Recommendation) -> tuple[str, list[str], str]:
+    if rec.status == RecommendationStatus.APPROVED:
+        plan = plan_dry_run(rec, settings)
+        return plan.status.value, plan.validation_errors, plan.rollback_instructions
+    if rec.status == RecommendationStatus.EXECUTED_DRY_RUN:
+        return ExecutionStatus.DRY_RUN_SUCCEEDED.value, [], "Dry-run plan already recorded."
+    return "not_ready", ["recommendation is not approved for dry-run planning"], (
+        "Review, approve, or reject the recommendation before planning a dry run."
+    )
 
 def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, date]:
     try:
@@ -154,6 +175,62 @@ def account_detail(
             latest_executions=latest_executions,
             execution_status=ExecutionStatus,
             has_next=has_next(offset, limit, len(campaigns), total),
+        ),
+    )
+
+
+@router.get("/accounts/{account_id}/executions", response_class=HTMLResponse)
+def account_execution_operations(
+    request: Request,
+    account_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+) -> HTMLResponse:
+    account = repository.get_account(account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    recommendation_stmt = (
+        select(Recommendation)
+        .where(Recommendation.account_id == account_id)
+        .order_by(Recommendation.generated_at.desc(), Recommendation.id.desc())
+    )
+    total = db.scalar(select(func.count()).select_from(recommendation_stmt.subquery())) or 0
+    recommendations = list(db.scalars(recommendation_stmt.limit(limit).offset(offset)).all())
+    recommendation_ids = [rec.id for rec in recommendations]
+
+    latest_executions: dict[int, ExecutionAudit] = {}
+    if recommendation_ids:
+        execution_rows = db.execute(
+            select(ExecutionAudit)
+            .where(ExecutionAudit.recommendation_id.in_(recommendation_ids))
+            .order_by(ExecutionAudit.created_at.desc(), ExecutionAudit.id.desc())
+        ).scalars()
+        for audit in execution_rows:
+            latest_executions.setdefault(audit.recommendation_id, audit)
+
+    preflights = {rec.id: execution_preflight_label(rec) for rec in recommendations}
+    return templates.TemplateResponse(
+        request,
+        "execution_operations.html",
+        page_context(
+            request,
+            title=f"Execution operations — {account.name}",
+            account=account,
+            recommendations=recommendations,
+            latest_executions=latest_executions,
+            preflights=preflights,
+            redacted_validation_errors=redacted_validation_errors,
+            kill_switch_enabled=settings.google_ads_execution_kill_switch,
+            write_enabled=settings.google_ads_write_enabled,
+            allowlist_configured=bool(settings.allowed_execution_account_ids),
+            mutation_allowlist_configured=False,
+            total=total,
+            limit=limit,
+            offset=offset,
+            has_next=has_next(offset, limit, len(recommendations), total),
         ),
     )
 

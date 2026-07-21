@@ -230,3 +230,154 @@ def test_dashboard_displays_analytics_findings_recommendations_and_dry_run_statu
         recommendation = db.get(Recommendation, rec_id)
         assert recommendation is not None
         assert recommendation.status == RecommendationStatus.APPROVED
+
+
+def test_dry_run_blocks_stale_recommendations_even_when_other_safeguards_pass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with make_client() as (client, db, ids):
+        add_current_window_metrics(db, ids["c1"])
+        add_successful_sync(db, ids["a1"])
+        db.commit()
+        rec_id = generate_and_approve(client, ids["a1"])
+        recommendation = db.get(Recommendation, rec_id)
+        assert recommendation is not None
+        recommendation.expires_at = datetime(2026, 7, 1, tzinfo=UTC)
+        db.commit()
+        monkeypatch.setattr(settings, "google_ads_write_enabled", True)
+        monkeypatch.setattr(settings, "google_ads_execution_kill_switch", False)
+        monkeypatch.setattr(settings, "allowed_execution_account_ids_csv", str(ids["a1"]))
+        dry = client.post(
+            f"/api/v1/recommendations/{rec_id}/execute-dry-run?idempotency_key=stale-key"
+        ).json()
+        assert dry["status"] == ExecutionStatus.BLOCKED
+        assert "recommendation is stale" in dry["validation_errors"][-1]
+        assert "No live Google Ads mutation" in dry["rollback_instructions"]
+
+
+def test_google_ads_mutation_adapters_fail_closed_without_live_attempts() -> None:
+    from app.executors.google_executor import (
+        FailClosedGoogleAdsMutationAdapter,
+        MockGoogleAdsMutationAdapter,
+    )
+
+    with make_client() as (_client, db, ids):
+        rec = Recommendation(
+            platform="google_ads",
+            account_id=ids["a1"],
+            recommendation_type="budget_review",
+            severity="medium",
+            confidence=Decimal("0.7000"),
+            rationale="test-only recommendation",
+            supporting_metrics={},
+            planned_action={"mutation": "mocked_budget_change"},
+            status=RecommendationStatus.APPROVED,
+            generated_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC),
+        )
+        db.add(rec)
+        db.commit()
+        db.refresh(rec)
+
+        fail_closed = FailClosedGoogleAdsMutationAdapter().preflight(rec, settings)
+        mocked = MockGoogleAdsMutationAdapter().preflight(rec, settings)
+
+        assert fail_closed.status == ExecutionStatus.BLOCKED
+        assert mocked.status == ExecutionStatus.BLOCKED
+        assert fail_closed.attempted_live_mutation is False
+        assert mocked.attempted_live_mutation is False
+        assert "live Google Ads mutations are disabled" in mocked.validation_errors[0]
+
+
+def test_execution_operations_dashboard_requires_authentication() -> None:
+    from app.dashboard.auth import require_dashboard_session
+    from app.main import app
+
+    with make_client() as (client, _db, ids):
+        app.dependency_overrides.pop(require_dashboard_session, None)
+        response = client.get(f"/dashboard/accounts/{ids['a1']}/executions")
+        assert response.status_code in {401, 403}
+
+
+def test_execution_operations_dashboard_is_account_scoped_redacted_and_paginated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.dashboard import router as dashboard_router
+    from app.dashboard.auth import require_dashboard_session
+    from app.main import app
+
+    with make_client() as (client, db, ids):
+        app.dependency_overrides[require_dashboard_session] = lambda: None
+        monkeypatch.setattr(dashboard_router, "validate_csrf", lambda _request: None)
+        add_current_window_metrics(db, ids["c1"])
+        add_successful_sync(db, ids["a1"])
+        db.commit()
+        rec_id = generate_and_approve(client, ids["a1"])
+        blocked = client.post(
+            f"/api/v1/recommendations/{rec_id}/execute-dry-run?idempotency_key=ops-blocked"
+        ).json()
+        assert blocked["status"] == ExecutionStatus.BLOCKED
+        for _ in range(2):
+            generate_and_approve(client, ids["a1"])
+        other = Recommendation(
+            platform="google_ads",
+            account_id=ids["a2"],
+            recommendation_type="hidden_other_account",
+            severity="medium",
+            confidence=Decimal("0.7000"),
+            rationale="other account should not render",
+            supporting_metrics={},
+            planned_action={"sensitive": "payload"},
+            status=RecommendationStatus.APPROVED,
+            generated_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC),
+        )
+        db.add(other)
+        db.commit()
+
+        page = client.get(f"/dashboard/accounts/{ids['a1']}/executions?limit=2&offset=0")
+        assert page.status_code == 200
+        assert "Execution safeguards" in page.text
+        assert "Kill switch" in page.text
+        assert "enabled" in page.text
+        assert "Google Ads writes" in page.text
+        assert "disabled" in page.text
+        assert "Live account allowlist" in page.text
+        assert "Live mutation allowlist" in page.text
+        assert "empty" in page.text
+        assert "redacted" in page.text
+        assert "blocked" in page.text
+        assert "No live Google Ads mutation" in page.text
+        assert "hidden_other_account" not in page.text
+        assert "payload" not in page.text
+        assert "Next execution rows" in page.text
+
+
+def test_execution_operations_dashboard_renders_successful_mocked_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.dashboard import router as dashboard_router
+    from app.dashboard.auth import require_dashboard_session
+    from app.main import app
+
+    with make_client() as (client, db, ids):
+        app.dependency_overrides[require_dashboard_session] = lambda: None
+        monkeypatch.setattr(dashboard_router, "validate_csrf", lambda _request: None)
+        add_current_window_metrics(db, ids["c1"])
+        add_successful_sync(db, ids["a1"])
+        db.commit()
+        rec_id = generate_and_approve(client, ids["a1"])
+        monkeypatch.setattr(settings, "google_ads_write_enabled", True)
+        monkeypatch.setattr(settings, "google_ads_execution_kill_switch", False)
+        monkeypatch.setattr(settings, "allowed_execution_account_ids_csv", str(ids["a1"]))
+        dry = client.post(
+            f"/api/v1/recommendations/{rec_id}/execute-dry-run?idempotency_key=ops-success"
+        ).json()
+        assert dry["status"] == ExecutionStatus.DRY_RUN_SUCCEEDED
+
+        page = client.get(f"/dashboard/accounts/{ids['a1']}/executions")
+        assert page.status_code == 200
+        assert "dry_run_succeeded" in page.text
+        assert "No validation errors" in page.text
+        assert "Execute dry run" not in page.text
+        assert "sync_google_ads" not in page.text

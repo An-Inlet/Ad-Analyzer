@@ -260,6 +260,9 @@ class Settings(BaseSettings):
     allowed_execution_account_ids_csv: str = Field(
         default="", validation_alias="DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS"
     )
+    allowed_google_ads_mutations_csv: str = Field(
+        default="", validation_alias="DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS"
+    )
 
     @property
     def allowed_execution_account_ids(self) -> set[int]:
@@ -267,6 +270,14 @@ class Settings(BaseSettings):
             int(item.strip())
             for item in self.allowed_execution_account_ids_csv.split(",")
             if item.strip().isdigit()
+        }
+
+    @property
+    def allowed_google_ads_mutations(self) -> set[str]:
+        return {
+            item.strip()
+            for item in self.allowed_google_ads_mutations_csv.split(",")
+            if item.strip()
         }
 
     @model_validator(mode="after")

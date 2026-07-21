@@ -163,6 +163,9 @@ def test_successful_dry_run_marks_executed_when_safeguards_are_explicitly_satisf
         monkeypatch.setattr(settings, "google_ads_write_enabled", True)
         monkeypatch.setattr(settings, "google_ads_execution_kill_switch", False)
         monkeypatch.setattr(settings, "allowed_execution_account_ids_csv", str(ids["a1"]))
+        monkeypatch.setattr(
+            settings, "allowed_google_ads_mutations_csv", "none_without_human_approval"
+        )
         dry = client.post(
             f"/api/v1/recommendations/{rec_id}/execute-dry-run?idempotency_key=success-key"
         ).json()

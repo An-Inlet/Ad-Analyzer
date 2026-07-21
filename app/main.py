@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import router as api_v1_router
 from app.dashboard.router import router as dashboard_router
+from app.deployment import DeploymentProcess, validate_deployment_startup
 
 
 class RootResponse(BaseModel):
@@ -23,6 +24,14 @@ class HealthResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     status: str
+
+
+class ReadinessResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    status: str
+    database_configured: bool
+    write_access_enabled: bool
 
 
 app = FastAPI(
@@ -46,6 +55,18 @@ def read_root() -> RootResponse:
 def read_health() -> HealthResponse:
     """Return an in-process health check."""
     return HealthResponse(status="ok")
+
+
+@app.get("/ready", response_model=ReadinessResponse)
+def read_ready() -> ReadinessResponse:
+    """Return startup readiness without contacting external services."""
+    result = validate_deployment_startup(DeploymentProcess.WEB)
+    database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
+    return ReadinessResponse(
+        status="ready" if result.ok else "not_ready",
+        database_configured=database_configured,
+        write_access_enabled=False,
+    )
 
 
 logger = logging.getLogger(__name__)

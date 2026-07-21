@@ -51,3 +51,7 @@ Earliest eligible incomplete unit after this refresh: none. Phase 11.4 is comple
 ## Safety confirmation
 
 This audit and Phase 11.4 non-live dashboard implementation did not connect to Google Ads, Meta Ads, OpenAI APIs, or other advertising services, did not request or store credentials, did not perform live Google Ads activity, and preserves `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` with `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` as the safe defaults.
+
+## Phase 12.1 status
+
+Provider-neutral deployment architecture is defined with a production-oriented Dockerfile, separate Compose process definitions, startup validation, health/readiness checks, TLS reverse-proxy example, external-secret placeholders, and rollback guidance. No provider was selected and no live advertising or production database activity was performed.

@@ -10,7 +10,14 @@ class Base(DeclarativeBase):
     """Base class for SQLAlchemy models."""
 
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_recycle=settings.database_pool_recycle_seconds,
+    connect_args={"connect_timeout": settings.database_connect_timeout_seconds},
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

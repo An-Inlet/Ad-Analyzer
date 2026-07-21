@@ -205,6 +205,17 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer",
         validation_alias="DATABASE_URL",
     )
+    database_ssl_mode: str = Field(default="prefer", validation_alias="DATABASE_SSL_MODE")
+    database_pool_size: int = Field(default=5, ge=1, le=50, validation_alias="DATABASE_POOL_SIZE")
+    database_max_overflow: int = Field(
+        default=5, ge=0, le=100, validation_alias="DATABASE_MAX_OVERFLOW"
+    )
+    database_connect_timeout_seconds: int = Field(
+        default=10, ge=1, le=120, validation_alias="DATABASE_CONNECT_TIMEOUT_SECONDS"
+    )
+    database_pool_recycle_seconds: int = Field(
+        default=1800, ge=60, le=86400, validation_alias="DATABASE_POOL_RECYCLE_SECONDS"
+    )
     denticode_api_token: SecretStr | None = Field(
         default=None, validation_alias="DENTICODE_API_TOKEN"
     )
@@ -263,6 +274,50 @@ class Settings(BaseSettings):
     allowed_google_ads_mutations_csv: str = Field(
         default="", validation_alias="DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS"
     )
+    required_secret_names_csv: str = Field(
+        default="DENTICODE_API_TOKEN,DATABASE_URL",
+        validation_alias="DENTICODE_REQUIRED_SECRET_NAMES",
+    )
+    secret_reference_prefix: str = Field(
+        default="", validation_alias="DENTICODE_SECRET_REFERENCE_PREFIX"
+    )
+    web_concurrency: int = Field(
+        default=2, ge=1, le=16, validation_alias="DENTICODE_WEB_CONCURRENCY"
+    )
+    worker_concurrency: int = Field(
+        default=1, ge=1, le=8, validation_alias="DENTICODE_WORKER_CONCURRENCY"
+    )
+    scheduler_concurrency: int = Field(
+        default=1, ge=1, le=1, validation_alias="DENTICODE_SCHEDULER_CONCURRENCY"
+    )
+    web_timeout_seconds: int = Field(
+        default=60, ge=5, le=600, validation_alias="DENTICODE_WEB_TIMEOUT_SECONDS"
+    )
+    worker_timeout_seconds: int = Field(
+        default=900, ge=30, le=86400, validation_alias="DENTICODE_WORKER_TIMEOUT_SECONDS"
+    )
+    scheduler_timeout_seconds: int = Field(
+        default=300, ge=30, le=3600, validation_alias="DENTICODE_SCHEDULER_TIMEOUT_SECONDS"
+    )
+    migration_timeout_seconds: int = Field(
+        default=900, ge=30, le=3600, validation_alias="DENTICODE_MIGRATION_TIMEOUT_SECONDS"
+    )
+    graceful_shutdown_seconds: int = Field(
+        default=30, ge=5, le=300, validation_alias="DENTICODE_GRACEFUL_SHUTDOWN_SECONDS"
+    )
+
+    @property
+    def required_secret_names(self) -> tuple[str, ...]:
+        return tuple(
+            item.strip() for item in self.required_secret_names_csv.split(",") if item.strip()
+        )
+
+    def secret_reference_for(self, name: str) -> str | None:
+        if name == "DATABASE_URL":
+            return self.database_url if self.database_url.strip() else None
+        if name == "DENTICODE_API_TOKEN":
+            return self.denticode_api_token.get_secret_value() if self.denticode_api_token else None
+        return self.secret_reference_prefix or None
 
     @property
     def allowed_execution_account_ids(self) -> set[int]:

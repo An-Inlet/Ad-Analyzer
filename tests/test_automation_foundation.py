@@ -299,9 +299,9 @@ def test_roadmap_controller_status_tracks_phase8_through_phase12() -> None:
 def test_roadmap_status_records_phase_12_1_completion_and_next_safe_unit() -> None:
     status = read(ROADMAP_STATUS)
 
-    assert "Complete or superseded units: 15" in status
+    assert "Complete or superseded units: 16" in status
     assert (
-        "Current automated completion percentage: 88% (15 of 17 units complete or superseded)"
+        "Current automated completion percentage: 94% (16 of 17 units complete or superseded)"
         in status
     )
     assert (
@@ -312,11 +312,8 @@ def test_roadmap_status_records_phase_12_1_completion_and_next_safe_unit() -> No
     assert (
         "#16 | GitHub Actions passed with disposable PostgreSQL and migration validation." in status
     )
-    assert (
-        "Earliest eligible incomplete unit after PR #16 merges: Phase 12.2 — "
-        "provider-neutral managed infrastructure configuration."
-    ) in status
-    assert "Eligible for approved safe non-production scope" in status
+    assert "All approved non-production buildout work is complete." in status
+    assert "Phase 12.4 production release approval remains blocked" in status
     for blocked_activity in (
         "hosting provider selection",
         "paid infrastructure activation",

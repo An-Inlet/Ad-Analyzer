@@ -35,3 +35,12 @@
 - Verify `GET /health` and `GET /ready` after every restart.
 - Roll back by stopping `scheduler`, restoring the previous image tag and environment set, verifying `web`, and then restarting `scheduler`.
 - Keep `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false`, `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`, and production allowlists empty.
+
+## Phase 12.2 managed configuration runbook
+
+1. Confirm `APP_ENV=production` only in managed environments that have completed human release review.
+2. Inject `DATABASE_URL` and `DENTICODE_API_TOKEN` from external secret references or mounted secret files mapped to environment variables; never commit values.
+3. Require PostgreSQL TLS (`require`, `verify-ca`, or `verify-full`) and bounded pool/timeout settings.
+4. Run `python scripts/validate_deployment_startup.py --process migration`, then `alembic upgrade head`, then validate and start web, worker, and scheduler.
+5. For rotation, create a new secret version, point runtime references to it, validate, restart safely, verify readiness, then revoke the old version.
+6. For rollback, restore previous known-good configuration references, keep Google Ads writes disabled, keep the kill switch enabled, and rerun validation before restart.

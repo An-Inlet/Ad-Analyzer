@@ -15,7 +15,7 @@ All processes run the same container image and start with `scripts/validate_depl
 
 Use environment variables or an external secret manager. Never commit populated `.env` files. Required production placeholders are documented in `.env.example`.
 
-`DATABASE_URL` must use a PostgreSQL-compatible scheme such as `postgresql+psycopg://...`. Compose includes a local PostgreSQL service for disposable environments only; production should supply a managed PostgreSQL URL from external secrets.
+`DATABASE_URL` remains supported and must use a PostgreSQL-compatible scheme such as `postgresql+psycopg://...`. Compose includes a local PostgreSQL service for disposable environments only. On Cloud Run, all four process types instead use the same `CLOUD_SQL_CONNECTION_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, and `DATABASE_NAME` settings and connect through `/cloudsql/<CLOUD_SQL_CONNECTION_NAME>`. Attach the instance to each service or job and source `DATABASE_PASSWORD` from Secret Manager.
 
 Phase 12.1 preserves safety defaults:
 
@@ -51,4 +51,4 @@ No deployment step should enable live Google Ads writes or disable the kill swit
 
 ## Phase 12.2 managed configuration extension
 
-Managed environments should supply `DATABASE_URL`, `DATABASE_SSL_MODE`, pool sizing, timeout, and secret-reference variables through external configuration. The web, worker, scheduler, and migration processes remain separate and must each run startup validation. Migrations run before web, worker, and scheduler startup for a release; rollback means restoring the last known-good secret and environment references, rerunning validation, and restarting processes with writes disabled and the kill switch enabled.
+Managed TCP environments should supply `DATABASE_URL`, `DATABASE_SSL_MODE`, pool sizing, timeout, and secret-reference variables through external configuration. Cloud Run may supply the four Cloud SQL socket variables instead; `DATABASE_PASSWORD` is then the database secret and the local socket transport does not require PostgreSQL `sslmode`. The web, worker, scheduler, and migration processes remain separate and must each run startup validation. Migrations run before web, worker, and scheduler startup for a release; rollback means restoring the last known-good secret and environment references, rerunning validation, and restarting processes with writes disabled and the kill switch enabled.

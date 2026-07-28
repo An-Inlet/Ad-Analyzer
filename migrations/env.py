@@ -7,7 +7,10 @@ from app.settings import settings
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
+resolved_database_url = settings.resolved_database_url
+config.set_main_option(
+    "sqlalchemy.url", resolved_database_url.render_as_string(hide_password=False).replace("%", "%%")
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -18,7 +21,7 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations without creating an engine."""
     context.configure(
-        url=settings.database_url,
+        url=resolved_database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},

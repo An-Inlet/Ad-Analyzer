@@ -231,6 +231,12 @@ class Settings(BaseSettings):
     denticode_dashboard_allow_insecure_local_http: bool = Field(
         default=False, validation_alias="DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP"
     )
+    denticode_iap_audience: str = Field(
+        default="", validation_alias="DENTICODE_IAP_AUDIENCE"
+    )
+    denticode_dashboard_allowed_emails_csv: str = Field(
+        default="", validation_alias="DENTICODE_DASHBOARD_ALLOWED_EMAILS"
+    )
     google_ads_developer_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_DEVELOPER_TOKEN"
     )
@@ -386,6 +392,15 @@ class Settings(BaseSettings):
         return {
             item.strip()
             for item in self.allowed_google_ads_mutations_csv.split(",")
+            if item.strip()
+        }
+
+    @property
+    def dashboard_allowed_emails(self) -> set[str]:
+        """Return the configured IAP identities in a canonical comparison form."""
+        return {
+            item.strip().casefold()
+            for item in self.denticode_dashboard_allowed_emails_csv.split(",")
             if item.strip()
         }
 

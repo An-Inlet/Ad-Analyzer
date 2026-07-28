@@ -4,6 +4,8 @@ x-app-env: &app-env
   APP_ENV: production
   DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://denticode:replace-with-external-secret@postgres:5432/denticode_ads_optimizer?sslmode=require}
   DENTICODE_API_TOKEN: ${DENTICODE_API_TOKEN:-replace-with-external-secret}
+  DENTICODE_IAP_AUDIENCE: ${DENTICODE_IAP_AUDIENCE:-}
+  DENTICODE_DASHBOARD_ALLOWED_EMAILS: ${DENTICODE_DASHBOARD_ALLOWED_EMAILS:-}
   DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-require}
   DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
   DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-5}

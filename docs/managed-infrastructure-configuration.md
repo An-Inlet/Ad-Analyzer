@@ -1,14 +1,18 @@
 # Phase 12.2 Managed Infrastructure Configuration
 
-This guide is provider-neutral. It does not select, purchase, activate, or deploy infrastructure.
+This guide documents configuration only; operators retain control of infrastructure deployment.
 
 ## Database
 
-Set `DATABASE_URL` to a PostgreSQL-compatible URL supplied by an external secret reference. Production validation rejects SQLite, malformed URLs, empty values, and placeholder passwords. Use `DATABASE_SSL_MODE=require`, `verify-ca`, or `verify-full`; a URL `sslmode` query parameter is also accepted. Tune `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`, `DATABASE_CONNECT_TIMEOUT_SECONDS`, and `DATABASE_POOL_RECYCLE_SECONDS` for the selected managed database after human provider selection.
+Local, Docker, test, and existing managed deployments may continue to set `DATABASE_URL`. Production TCP URLs require a PostgreSQL scheme, hostname, database, non-placeholder password, and `sslmode=require`, `verify-ca`, or `verify-full` (in the URL or `DATABASE_SSL_MODE`).
+
+For Cloud Run, attach Cloud SQL instance `totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres` to every web service, worker job, scheduler job, and migration job. Set `CLOUD_SQL_CONNECTION_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD`, and `DATABASE_NAME`; the application constructs a psycopg URL using `host=/cloudsql/<connection-name>`. Use `denticode_app` and `denticode_ads_optimizer` for the production user and database, and inject only the password from Secret Manager. Do not require PostgreSQL `sslmode` for this local Unix socket: Cloud Run's Cloud SQL integration secures the connection to Cloud SQL. Partial socket configuration fails startup validation.
+
+Tune `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`, `DATABASE_CONNECT_TIMEOUT_SECONDS`, and `DATABASE_POOL_RECYCLE_SECONDS` for the managed database.
 
 ## Secrets
 
-Required production secrets are listed in `DENTICODE_REQUIRED_SECRET_NAMES`. Values must come from environment variables injected by an external secret manager or from file-mounted secrets that are mapped into environment variables by the runtime. Do not commit secrets. Placeholder values such as `replace-with-external-secret` are rejected in production validation. Rotate by creating a new secret version, updating the runtime reference, running startup validation, restarting one process group at a time, and revoking the old version after verification.
+Required production secrets are listed in `DENTICODE_REQUIRED_SECRET_NAMES`. Use `DENTICODE_API_TOKEN,DATABASE_PASSWORD` for Cloud SQL socket deployments; the default `DATABASE_URL` entry is also interpreted as `DATABASE_PASSWORD` when socket configuration is selected. Values must come from environment variables injected by an external secret manager or from file-mounted secrets that are mapped into environment variables by the runtime. Do not commit secrets. Placeholder values such as `replace-with-external-secret` are rejected in production validation. Rotate by creating a new secret version, updating the runtime reference, running startup validation, restarting one process group at a time, and revoking the old version after verification.
 
 ## Processes
 

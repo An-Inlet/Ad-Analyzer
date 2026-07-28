@@ -1,7 +1,7 @@
 from enum import StrEnum
-from urllib.parse import parse_qs, urlparse
 
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.exc import ArgumentError
 
 from app.settings import Settings
 
@@ -54,36 +54,44 @@ def _is_placeholder(value: str | None) -> bool:
 
 
 def _database_url_check(settings: Settings) -> DeploymentCheck:
-    parsed = urlparse(settings.database_url)
-    ok = (
-        parsed.scheme in POSTGRESQL_SCHEMES
-        and bool(parsed.hostname)
-        and bool(parsed.path.strip("/"))
-        and not _is_placeholder(parsed.password)
-        if settings.app_env == "production"
-        else True
-    )
-    if settings.app_env != "production":
-        ok = (
-            parsed.scheme in POSTGRESQL_SCHEMES
-            and bool(parsed.hostname)
-            and bool(parsed.path.strip("/"))
+    try:
+        parsed = settings.resolved_database_url
+    except ArgumentError:
+        return DeploymentCheck(
+            name="database_url",
+            ok=False,
+            detail="Database configuration must contain a valid SQLAlchemy PostgreSQL URL.",
         )
+    socket_configured = settings.cloud_sql_configuration_complete
+    location_valid = socket_configured if settings.uses_cloud_sql_socket else bool(parsed.host)
+    password = parsed.password
+    ok = parsed.drivername in POSTGRESQL_SCHEMES and location_valid and bool(parsed.database)
+    if settings.app_env == "production":
+        ok = ok and not _is_placeholder(password)
     return DeploymentCheck(
         name="database_url",
         ok=ok,
         detail="PostgreSQL-compatible DATABASE_URL configured."
         if ok
         else (
-            "DATABASE_URL must be a PostgreSQL URL with host, database name, "
-            "and non-placeholder production secret."
+            "Database configuration must be PostgreSQL with a TCP host or complete Cloud SQL "
+            "socket settings, a database name, and a non-placeholder production secret."
         ),
     )
 
 
 def _tls_check(settings: Settings) -> DeploymentCheck:
-    query = parse_qs(urlparse(settings.database_url).query)
-    url_sslmode = query.get("sslmode", [None])[-1]
+    if settings.cloud_sql_configuration_complete:
+        return DeploymentCheck(
+            name="database_tls",
+            ok=True,
+            detail="Cloud SQL Unix socket security is managed by the Cloud Run integration.",
+        )
+    try:
+        raw_sslmode = settings.resolved_database_url.query.get("sslmode")
+    except ArgumentError:
+        raw_sslmode = None
+    url_sslmode = raw_sslmode[-1] if isinstance(raw_sslmode, tuple) else raw_sslmode
     sslmode = (url_sslmode or settings.database_ssl_mode).lower()
     production_modes = {"require", "verify-ca", "verify-full"}
     ok = (
@@ -147,11 +155,18 @@ def _required_secrets_check(settings: Settings) -> DeploymentCheck:
             detail="Production-only secret validation skipped outside production.",
         )
     missing = []
-    for name in settings.required_secret_names:
+    required_names = tuple(
+        "DATABASE_PASSWORD" if name == "DATABASE_URL" and settings.uses_cloud_sql_socket else name
+        for name in settings.required_secret_names
+    )
+    for name in required_names:
         value = settings.secret_reference_for(name)
         if name == "DATABASE_URL":
-            parsed = urlparse(value or "")
-            if not value or _is_placeholder(parsed.password):
+            try:
+                password = settings.resolved_database_url.password
+            except (ArgumentError, ValueError):
+                password = None
+            if not value or _is_placeholder(password):
                 missing.append(name)
         elif _is_placeholder(value):
             missing.append(name)

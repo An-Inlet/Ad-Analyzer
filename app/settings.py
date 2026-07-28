@@ -8,6 +8,7 @@ from pydantic_settings import (
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
+from sqlalchemy import URL, make_url
 
 _SYNC_LOCK_FIELD = "sync_lock_key"
 _SYNC_LOCK_CANONICAL = "DENTICODE_SYNC_ADVISORY_LOCK_KEY"
@@ -205,6 +206,14 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer",
         validation_alias="DATABASE_URL",
     )
+    cloud_sql_connection_name: str | None = Field(
+        default=None, validation_alias="CLOUD_SQL_CONNECTION_NAME"
+    )
+    database_user: str | None = Field(default=None, validation_alias="DATABASE_USER")
+    database_password: SecretStr | None = Field(
+        default=None, validation_alias="DATABASE_PASSWORD"
+    )
+    database_name: str | None = Field(default=None, validation_alias="DATABASE_NAME")
     database_ssl_mode: str = Field(default="prefer", validation_alias="DATABASE_SSL_MODE")
     database_pool_size: int = Field(default=5, ge=1, le=50, validation_alias="DATABASE_POOL_SIZE")
     database_max_overflow: int = Field(
@@ -317,7 +326,52 @@ class Settings(BaseSettings):
             return self.database_url if self.database_url.strip() else None
         if name == "DENTICODE_API_TOKEN":
             return self.denticode_api_token.get_secret_value() if self.denticode_api_token else None
+        if name == "DATABASE_PASSWORD":
+            return self.database_password.get_secret_value() if self.database_password else None
         return self.secret_reference_prefix or None
+
+    @property
+    def uses_cloud_sql_socket(self) -> bool:
+        """Return whether Cloud SQL socket configuration has been selected."""
+        password = self.database_password.get_secret_value() if self.database_password else ""
+        return any(
+            value and value.strip()
+            for value in (
+                self.cloud_sql_connection_name,
+                self.database_user,
+                password,
+                self.database_name,
+            )
+        )
+
+    @property
+    def cloud_sql_configuration_complete(self) -> bool:
+        """Return whether every setting needed for a Cloud SQL socket is present."""
+        password = self.database_password.get_secret_value() if self.database_password else ""
+        return self.uses_cloud_sql_socket and all(
+            value and value.strip()
+            for value in (
+                self.cloud_sql_connection_name,
+                self.database_user,
+                password,
+                self.database_name,
+            )
+        )
+
+    @property
+    def resolved_database_url(self) -> URL:
+        """Resolve the legacy URL or build a safely escaped Cloud SQL socket URL."""
+        if not self.uses_cloud_sql_socket:
+            return make_url(self.database_url)
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.database_user,
+            password=(
+                self.database_password.get_secret_value() if self.database_password else None
+            ),
+            database=self.database_name,
+            query={"host": f"/cloudsql/{self.cloud_sql_connection_name or ''}"},
+        )
 
     @property
     def allowed_execution_account_ids(self) -> set[int]:

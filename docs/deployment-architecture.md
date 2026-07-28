@@ -28,11 +28,13 @@ Phase 12.1 preserves safety defaults:
 
 `deploy/reverse-proxy.example.conf` shows a neutral Nginx TLS reverse proxy. Certificates and private keys must be provisioned outside the repository.
 
-## Google Cloud IAP dashboard authentication
+## Direct Cloud Run IAP dashboard authentication
 
+Direct Cloud Run IAP is the selected dashboard ingress architecture. It protects the service's
+`run.app` endpoint directly; no external Application Load Balancer or backend service is required.
 Production `/dashboard` requests require a signed Google Cloud IAP assertion. Configure
-`DENTICODE_IAP_AUDIENCE` with the backend service audience (normally
-`/projects/PROJECT_NUMBER/global/backendServices/BACKEND_SERVICE_ID`) and configure
+`DENTICODE_IAP_AUDIENCE` with the Cloud Run service audience:
+`/projects/PROJECT_NUMBER/locations/REGION/services/SERVICE_NAME`. Configure
 `DENTICODE_DASHBOARD_ALLOWED_EMAILS` as a comma-separated, least-privilege list of operator
 email addresses. Keep `DENTICODE_API_TOKEN` configured: every `/api/v1` route continues to use
 its existing bearer-token authentication, independently of IAP. Do not use
@@ -40,14 +42,28 @@ its existing bearer-token authentication, independently of IAP. Do not use
 
 Deployment sequence:
 
-1. Create the HTTPS backend and enable IAP, following the Google Cloud change-review process.
-2. Grant the IAP-secured Web App User role only to intended operators.
-3. Set `APP_ENV=production`, the exact IAP audience, and the allowed-email list in the managed
+1. Enable IAP directly on the Cloud Run service, following the Google Cloud change-review process:
+
+   ```shell
+   gcloud run services update SERVICE_NAME --region=REGION --iap
+   ```
+
+2. Grant `roles/run.invoker` on the service to the Google-managed IAP service agent
+   `service-PROJECT_NUMBER@gcp-sa-iap.iam.gserviceaccount.com`:
+
+   ```shell
+   gcloud run services add-iam-policy-binding SERVICE_NAME --region=REGION \
+     --member=serviceAccount:service-PROJECT_NUMBER@gcp-sa-iap.iam.gserviceaccount.com \
+     --role=roles/run.invoker
+   ```
+
+3. Grant the IAP-secured Web App User role only to intended operators.
+4. Set `APP_ENV=production`, the exact IAP audience, and the allowed-email list in the managed
    runtime configuration; inject `DENTICODE_API_TOKEN` from the secret manager.
-4. Confirm `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` and
+5. Confirm `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` and
    `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` before promotion.
-5. Run migrations, start the web process, and verify `/health` and `/ready` through the approved
-   ingress. Verify an allowed and a denied IAP identity before starting read-only workers.
+6. Run migrations, start the web process, and verify `/health` and `/ready` through the IAP-protected
+   `run.app` endpoint. Verify an allowed and a denied IAP identity before starting read-only workers.
 
 The application verifies the IAP JWT signature, audience, expiration, and IAP issuer using the
 official Google authentication library and authorizes only the verified JWT `email` claim.

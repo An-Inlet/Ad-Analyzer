@@ -43,8 +43,17 @@ function Invoke-Migrations { Require-DisposablePostgres; Invoke-Step 'python scr
 function Invoke-Security { Invoke-Step 'python -m pytest tests/test_google_ads_read_only.py tests/test_token_files.py tests/test_generate_google_ads_refresh_token.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or token or secret or credential or sanitized or error_messages or controlled or approval"' }
 function Invoke-Privacy { Invoke-Step 'python -m pytest tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "sanitized or secret or credential or token or error_messages or sensitive or search_term"' }
 function Invoke-ReadOnly { Invoke-Step 'python -m pytest tests/test_google_ads_read_only.py tests/test_api_v1_read_only.py tests/test_automation_foundation.py -k "read_only or no_writes or no_product or pre_write"' }
-function Invoke-ControlledWrites { Write-Error 'ControlledWrites gates are intentionally not implemented before Phase 11 approved policy and human authorization.' }
-function Invoke-Release { Write-Error 'Release gates are intentionally not implemented before Phase 12 production release approval.' }
+function Invoke-ControlledWrites {
+    Invoke-Step 'python -m pytest tests/test_analyzer_v1.py -k "dry_run or recommendation"'
+    Invoke-Step 'python -c "from app.settings import Settings; settings = Settings(); assert settings.google_ads_write_enabled is False; assert settings.google_ads_execution_kill_switch is True"'
+}
+function Invoke-Release {
+    Invoke-Step 'python -m pytest'
+    Invoke-Step 'ruff check .'
+    Invoke-Step 'mypy'
+    $diffBase = if ([string]::IsNullOrWhiteSpace($env:DENTICODE_DIFF_BASE)) { 'HEAD' } else { $env:DENTICODE_DIFF_BASE }
+    Invoke-Step "git diff --check $diffBase"
+}
 
 switch ($Scope) {
     'Full' {

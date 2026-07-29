@@ -25,10 +25,33 @@ function Invoke-Native {
     }
 }
 
+function Test-Native {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Command,
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Arguments
+    )
+
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & $Command @Arguments *> $null
+        return $LASTEXITCODE -eq 0
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+}
+
 foreach ($command in @("gcloud", "gh")) {
     if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
         throw "Required command not found: $command"
     }
+}
+
+if (-not (Test-Native gh auth status --hostname github.com)) {
+    throw "GitHub CLI is not authenticated. Run: gh auth login"
 }
 
 $activeProject = (& gcloud config get-value project 2>$null).Trim()
@@ -49,13 +72,9 @@ Invoke-Native gcloud services enable `
     iam.googleapis.com `
     --project=$ProjectId
 
-$poolExists = $true
-& gcloud iam workload-identity-pools describe $PoolId `
+$poolExists = Test-Native gcloud iam workload-identity-pools describe $PoolId `
     --project=$ProjectId `
-    --location=global *> $null
-if ($LASTEXITCODE -ne 0) {
-    $poolExists = $false
-}
+    --location=global
 
 if (-not $poolExists) {
     Invoke-Native gcloud iam workload-identity-pools create $PoolId `
@@ -64,14 +83,10 @@ if (-not $poolExists) {
         --display-name="GitHub Actions"
 }
 
-$providerExists = $true
-& gcloud iam workload-identity-pools providers describe $ProviderId `
+$providerExists = Test-Native gcloud iam workload-identity-pools providers describe $ProviderId `
     --project=$ProjectId `
     --location=global `
-    --workload-identity-pool=$PoolId *> $null
-if ($LASTEXITCODE -ne 0) {
-    $providerExists = $false
-}
+    --workload-identity-pool=$PoolId
 
 $attributeMapping = "google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref"
 $attributeCondition = "assertion.repository=='$Repository' && assertion.ref=='refs/heads/main'"
@@ -96,12 +111,8 @@ else {
 }
 
 $serviceAccountEmail = "$ServiceAccountId@$ProjectId.iam.gserviceaccount.com"
-$serviceAccountExists = $true
-& gcloud iam service-accounts describe $serviceAccountEmail `
-    --project=$ProjectId *> $null
-if ($LASTEXITCODE -ne 0) {
-    $serviceAccountExists = $false
-}
+$serviceAccountExists = Test-Native gcloud iam service-accounts describe $serviceAccountEmail `
+    --project=$ProjectId
 
 if (-not $serviceAccountExists) {
     Invoke-Native gcloud iam service-accounts create $ServiceAccountId `
@@ -148,4 +159,4 @@ Write-Host "Workload identity provider: $providerResource"
 Write-Host "Operations service account: $serviceAccountEmail"
 Write-Host ""
 Write-Host "No service-account key was created."
-Write-Host "After the pull request is merged, run the Production Operations Audit workflow once manually."
+Write-Host "Run the Production Operations Audit workflow once manually."

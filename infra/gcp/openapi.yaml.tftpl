@@ -1,0 +1,33 @@
+swagger: "2.0"
+info:
+  title: Denticode private CRM inlet
+  version: "1.0"
+schemes: [https]
+produces: [application/json]
+paths:
+  /health:
+    get:
+      operationId: health
+      x-google-backend:
+        address: ${gateway_url}
+        jwt_audience: ${gateway_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        "200": {description: Healthy}
+  /v1/crm/events:
+    post:
+      operationId: receiveCrmEvent
+      x-google-backend:
+        address: ${gateway_url}
+        jwt_audience: ${gateway_url}
+        path_translation: APPEND_PATH_TO_ADDRESS
+      parameters:
+        - {name: X-AnInlet-Event-Id, in: header, required: true, type: string}
+        - {name: X-AnInlet-Timestamp, in: header, required: true, type: string}
+        - {name: X-AnInlet-Signature, in: header, required: true, type: string}
+        - {name: body, in: body, required: true, schema: {type: object}}
+      responses:
+        "202": {description: Accepted}
+        "401": {description: Authentication failed}
+        "409": {description: Duplicate event}
+        "422": {description: Invalid event}

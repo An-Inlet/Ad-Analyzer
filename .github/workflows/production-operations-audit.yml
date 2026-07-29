@@ -1,0 +1,103 @@
+name: Production Operations Audit
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: production-operations-audit
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: totemic-alchemy-502420-p4
+  GCP_PROJECT_NUMBER: '89443799388'
+  GCP_REGION: us-west1
+  GCP_WEB_SERVICE: denticode-web
+  GCP_SYNC_JOB: denticode-sync
+  GCP_MIGRATION_JOB: denticode-migration
+  GCP_SQL_INSTANCE: denticode-analyzer-postgres
+  GCP_SCHEDULER_JOB: denticode-sync-hourly
+  DENTICODE_EXPECTED_DASHBOARD_EMAIL: konner@aninlet.com
+  DENTICODE_MAX_SYNC_AGE_MINUTES: '150'
+
+jobs:
+  audit:
+    name: Read-only production audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud without a service-account key
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_OPERATIONS_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Run production audit
+        id: audit
+        continue-on-error: true
+        run: python scripts/production_ops_audit.py
+
+      - name: Upload sanitized audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-operations-audit-${{ github.run_id }}
+          path: production-audit.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Open or update incident issue
+        if: steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Production operations audit failed'
+          body=$(cat <<EOF
+          The scheduled read-only production audit detected one or more failed controls.
+
+          Run: ${RUN_URL}
+
+          Review the workflow summary and sanitized audit artifact. Do not paste secret values into this issue.
+          EOF
+          )
+          issue_number=$(gh issue list --repo "$REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$REPOSITORY" --title "$title" --body "$body"
+          fi
+
+      - name: Close recovered incident issue
+        if: steps.audit.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Production operations audit failed'
+          issue_number=$(gh issue list --repo "$REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$issue_number" ]; then
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "Recovered. The latest production audit passed: ${RUN_URL}"
+            gh issue close "$issue_number" --repo "$REPOSITORY" --reason completed
+          fi
+
+      - name: Fail workflow when audit failed
+        if: steps.audit.outcome == 'failure'
+        run: exit 1

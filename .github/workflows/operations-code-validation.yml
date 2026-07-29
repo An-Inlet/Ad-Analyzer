@@ -1,0 +1,40 @@
+name: Operations Code Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/production_ops_audit.py'
+      - 'scripts/bootstrap_github_operations.ps1'
+      - '.github/workflows/production-operations-audit.yml'
+      - '.github/workflows/operations-code-validation.yml'
+      - 'docs/operations-automation.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  operations-validation:
+    name: Validate operations automation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ruff
+        run: python -m pip install 'ruff>=0.5.6'
+
+      - name: Compile production audit
+        run: python -m py_compile scripts/production_ops_audit.py
+
+      - name: Lint production audit
+        run: ruff check scripts/production_ops_audit.py
+
+      - name: Check workflow and documentation whitespace
+        run: git diff --check origin/main...HEAD

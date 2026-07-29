@@ -89,6 +89,16 @@ Desktop.ini
 # Docker / local runtime
 .docker/
 
+# Terraform working data, generated plans, local inputs, and state
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.plan
+*.tfvars
+*.tfvars.json
+!.tfvars.example
+
 .codex/
 
 # Local OAuth helper output

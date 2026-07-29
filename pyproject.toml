@@ -17,6 +17,7 @@ dependencies = [
     "google-ads>=25.1.0",
     "google-auth>=2.35.0",
     "google-auth-oauthlib>=1.2.1",
+    "google-cloud-pubsub>=2.23.0",
     "psycopg[binary]>=3.2.1",
     "pydantic>=2.8.2",
     "pydantic-settings>=2.4.0",

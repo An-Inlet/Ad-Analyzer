@@ -210,9 +210,7 @@ class Settings(BaseSettings):
         default=None, validation_alias="CLOUD_SQL_CONNECTION_NAME"
     )
     database_user: str | None = Field(default=None, validation_alias="DATABASE_USER")
-    database_password: SecretStr | None = Field(
-        default=None, validation_alias="DATABASE_PASSWORD"
-    )
+    database_password: SecretStr | None = Field(default=None, validation_alias="DATABASE_PASSWORD")
     database_name: str | None = Field(default=None, validation_alias="DATABASE_NAME")
     database_ssl_mode: str = Field(default="prefer", validation_alias="DATABASE_SSL_MODE")
     database_pool_size: int = Field(default=5, ge=1, le=50, validation_alias="DATABASE_POOL_SIZE")
@@ -228,12 +226,22 @@ class Settings(BaseSettings):
     denticode_api_token: SecretStr | None = Field(
         default=None, validation_alias="DENTICODE_API_TOKEN"
     )
+    crm_webhook_secret: SecretStr | None = Field(
+        default=None, validation_alias="DENTICODE_CRM_WEBHOOK_SECRET"
+    )
+    crm_pubsub_project_id: str = Field(
+        default="", validation_alias="DENTICODE_CRM_PUBSUB_PROJECT_ID"
+    )
+    crm_pubsub_topic_id: str = Field(
+        default="crm-events", validation_alias="DENTICODE_CRM_PUBSUB_TOPIC_ID"
+    )
+    crm_pubsub_subscription_id: str = Field(
+        default="", validation_alias="DENTICODE_CRM_PUBSUB_SUBSCRIPTION_ID"
+    )
     denticode_dashboard_allow_insecure_local_http: bool = Field(
         default=False, validation_alias="DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP"
     )
-    denticode_iap_audience: str = Field(
-        default="", validation_alias="DENTICODE_IAP_AUDIENCE"
-    )
+    denticode_iap_audience: str = Field(default="", validation_alias="DENTICODE_IAP_AUDIENCE")
     denticode_dashboard_allowed_emails_csv: str = Field(
         default="", validation_alias="DENTICODE_DASHBOARD_ALLOWED_EMAILS"
     )

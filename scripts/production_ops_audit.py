@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-"""Read-only production audit for the Denticode Google Cloud deployment.
-
-The script intentionally retrieves configuration and IAM metadata only. It never reads
-Secret Manager payloads, never mutates Google Ads, and never changes Google Cloud state.
-"""
+"""Run a read-only audit of the Denticode Google Cloud deployment."""
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -26,9 +21,13 @@ SYNC_JOB = os.getenv("GCP_SYNC_JOB", "denticode-sync")
 MIGRATION_JOB = os.getenv("GCP_MIGRATION_JOB", "denticode-migration")
 SQL_INSTANCE = os.getenv("GCP_SQL_INSTANCE", "denticode-analyzer-postgres")
 SCHEDULER_JOB = os.getenv("GCP_SCHEDULER_JOB", "denticode-sync-hourly")
-DASHBOARD_EMAIL = os.getenv("DENTICODE_EXPECTED_DASHBOARD_EMAIL", "konner@aninlet.com")
+DASHBOARD_EMAIL = os.getenv(
+    "DENTICODE_EXPECTED_DASHBOARD_EMAIL", "konner@aninlet.com"
+)
 REPORT_PATH = Path(os.getenv("DENTICODE_AUDIT_REPORT", "production-audit.json"))
-MAX_SYNC_AGE = timedelta(minutes=int(os.getenv("DENTICODE_MAX_SYNC_AGE_MINUTES", "150")))
+MAX_SYNC_AGE = timedelta(
+    minutes=int(os.getenv("DENTICODE_MAX_SYNC_AGE_MINUTES", "150"))
+)
 
 WEB_ACCOUNT = f"serviceAccount:denticode-web@{PROJECT_ID}.iam.gserviceaccount.com"
 SYNC_ACCOUNT = f"serviceAccount:denticode-sync@{PROJECT_ID}.iam.gserviceaccount.com"
@@ -41,7 +40,9 @@ SCHEDULER_ACCOUNT = (
 DEPLOYER_ACCOUNT = (
     f"serviceAccount:denticode-deployer@{PROJECT_ID}.iam.gserviceaccount.com"
 )
-IAP_AGENT = f"serviceAccount:service-{PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com"
+IAP_AGENT = (
+    f"serviceAccount:service-{PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com"
+)
 
 EXPECTED_SECRET_ACCESS: dict[str, set[str]] = {
     "DATABASE_PASSWORD": {WEB_ACCOUNT, SYNC_ACCOUNT, MIGRATION_ACCOUNT},
@@ -80,26 +81,24 @@ class AuditResult:
 RESULTS: list[AuditResult] = []
 
 
-def _safe_text(value: object, limit: int = 500) -> str:
-    text = " ".join(str(value).split())
-    return text[:limit]
+def safe_text(value: object, limit: int = 500) -> str:
+    return " ".join(str(value).split())[:limit]
 
 
 def record(name: str, passed: bool, detail: object) -> None:
-    RESULTS.append(
-        AuditResult(name=name, status="PASS" if passed else "FAIL", detail=_safe_text(detail))
-    )
+    status = "PASS" if passed else "FAIL"
+    RESULTS.append(AuditResult(name, status, safe_text(detail)))
 
 
 def warn(name: str, detail: object) -> None:
-    RESULTS.append(AuditResult(name=name, status="WARN", detail=_safe_text(detail)))
+    RESULTS.append(AuditResult(name, "WARN", safe_text(detail)))
 
 
 def run_text(args: list[str]) -> str:
     completed = subprocess.run(args, check=False, capture_output=True, text=True)
     if completed.returncode != 0:
-        error = completed.stderr.strip() or completed.stdout.strip() or "command failed"
-        raise RuntimeError(f"{args[0]} command failed: {_safe_text(error)}")
+        detail = completed.stderr.strip() or completed.stdout.strip() or "command failed"
+        raise RuntimeError(f"{args[0]} command failed: {safe_text(detail)}")
     return completed.stdout.strip()
 
 
@@ -108,16 +107,24 @@ def run_json(args: list[str]) -> Any:
     return json.loads(output or "{}")
 
 
-def api_get(path: str, access_token: str) -> dict[str, Any]:
-    request = urllib.request.Request(
-        f"https://run.googleapis.com/v2/{path}",
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
+def cloud_run_get(path: str, access_token: str) -> dict[str, Any]:
+    connection = http.client.HTTPSConnection("run.googleapis.com", timeout=30)
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"Cloud Run API request failed: {_safe_text(exc)}") from exc
+        connection.request(
+            "GET",
+            f"/v2/{path}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        response = connection.getresponse()
+        payload = response.read().decode("utf-8")
+    finally:
+        connection.close()
+    if response.status != 200:
+        raise RuntimeError(f"Cloud Run API returned HTTP {response.status}")
+    parsed = json.loads(payload)
+    if not isinstance(parsed, dict):
+        raise RuntimeError("Cloud Run API returned an unexpected response")
+    return parsed
 
 
 def nested(data: dict[str, Any], *keys: str, default: Any = None) -> Any:
@@ -137,7 +144,9 @@ def role_members(policy: dict[str, Any], role: str) -> set[str]:
     return members
 
 
-def environment(container: dict[str, Any]) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
+def environment(
+    container: dict[str, Any],
+) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
     plain: dict[str, str] = {}
     secret_refs: dict[str, tuple[str, str]] = {}
     for item in container.get("env", []):
@@ -166,37 +175,30 @@ def execution_status(execution: dict[str, Any]) -> tuple[bool, str, datetime | N
     conditions = execution.get("conditions") or nested(
         execution, "status", "conditions", default=[]
     )
-    completed_condition = None
+    completed = None
     for condition in conditions or []:
         if condition.get("type") in {"Completed", "Ready"}:
-            completed_condition = condition
+            completed = condition
             break
     success = bool(
-        completed_condition
-        and str(completed_condition.get("status", "")).casefold() == "true"
+        completed and str(completed.get("status", "")).casefold() == "true"
     )
-    message = (
-        completed_condition.get("message")
-        if isinstance(completed_condition, dict)
-        else "no terminal condition"
-    )
+    if isinstance(completed, dict):
+        message = completed.get("message") or "completed successfully"
+    else:
+        message = "no terminal condition"
     completion_time = parse_time(
         execution.get("completionTime")
         or nested(execution, "status", "completionTime")
     )
-    return success, _safe_text(message or "completed successfully"), completion_time
+    return success, safe_text(message), completion_time
 
 
 def audit_cloud_run(access_token: str) -> None:
-    service = api_get(
-        f"projects/{PROJECT_ID}/locations/{REGION}/services/{WEB_SERVICE}", access_token
-    )
-    sync = api_get(
-        f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{SYNC_JOB}", access_token
-    )
-    migration = api_get(
-        f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{MIGRATION_JOB}", access_token
-    )
+    prefix = f"projects/{PROJECT_ID}/locations/{REGION}"
+    service = cloud_run_get(f"{prefix}/services/{WEB_SERVICE}", access_token)
+    sync = cloud_run_get(f"{prefix}/jobs/{SYNC_JOB}", access_token)
+    migration = cloud_run_get(f"{prefix}/jobs/{MIGRATION_JOB}", access_token)
 
     record("Cloud Run IAP enabled", service.get("iapEnabled") is True, service.get("iapEnabled"))
     record(
@@ -207,16 +209,21 @@ def audit_cloud_run(access_token: str) -> None:
     record(
         "Latest web revision ready",
         service.get("latestCreatedRevision") == service.get("latestReadyRevision"),
-        f"created={service.get('latestCreatedRevision')} ready={service.get('latestReadyRevision')}",
+        (
+            f"created={service.get('latestCreatedRevision')} "
+            f"ready={service.get('latestReadyRevision')}"
+        ),
     )
 
-    traffic = service.get("trafficStatuses", [])
-    traffic_100 = [entry for entry in traffic if int(entry.get("percent", 0)) == 100]
-    old_traffic = [entry for entry in traffic if int(entry.get("percent", 0)) > 0]
+    active_traffic = [
+        entry
+        for entry in service.get("trafficStatuses", [])
+        if int(entry.get("percent", 0)) > 0
+    ]
     record(
         "Web traffic pinned to one revision",
-        len(traffic_100) == 1 and len(old_traffic) == 1,
-        json.dumps(old_traffic, sort_keys=True),
+        len(active_traffic) == 1 and int(active_traffic[0].get("percent", 0)) == 100,
+        json.dumps(active_traffic, sort_keys=True),
     )
 
     web_container = nested(service, "template", "containers", default=[{}])[0]
@@ -229,31 +236,34 @@ def audit_cloud_run(access_token: str) -> None:
         SYNC_JOB: sync_container,
         MIGRATION_JOB: migration_container,
     }
-    images = {name: str(container.get("image", "")) for name, container in containers.items()}
+    images = {
+        name: str(container.get("image", ""))
+        for name, container in containers.items()
+    }
     record(
         "Runtime image parity",
         len(set(images.values())) == 1 and all(images.values()),
         "; ".join(f"{name}={image}" for name, image in images.items()),
     )
 
-    web_plain, web_refs = environment(web_container)
-    sync_plain, sync_refs = environment(sync_container)
-    migration_plain, migration_refs = environment(migration_container)
-    plain_by_resource = {
-        WEB_SERVICE: web_plain,
-        SYNC_JOB: sync_plain,
-        MIGRATION_JOB: migration_plain,
-    }
-    refs_by_resource = {
-        WEB_SERVICE: web_refs,
-        SYNC_JOB: sync_refs,
-        MIGRATION_JOB: migration_refs,
-    }
+    plain_by_resource: dict[str, dict[str, str]] = {}
+    refs_by_resource: dict[str, dict[str, tuple[str, str]]] = {}
+    for resource_name, container in containers.items():
+        plain, references = environment(container)
+        plain_by_resource[resource_name] = plain
+        refs_by_resource[resource_name] = references
 
-    record("Production application environment", web_plain.get("APP_ENV") == "production", web_plain.get("APP_ENV"))
+    web_plain = plain_by_resource[WEB_SERVICE]
+    sync_plain = plain_by_resource[SYNC_JOB]
+    record(
+        "Production application environment",
+        web_plain.get("APP_ENV") == "production",
+        web_plain.get("APP_ENV"),
+    )
     record(
         "Google Ads writes disabled",
-        sync_plain.get("DENTICODE_GOOGLE_ADS_WRITE_ENABLED", "").casefold() == "false",
+        sync_plain.get("DENTICODE_GOOGLE_ADS_WRITE_ENABLED", "").casefold()
+        == "false",
         sync_plain.get("DENTICODE_GOOGLE_ADS_WRITE_ENABLED"),
     )
     record(
@@ -265,17 +275,20 @@ def audit_cloud_run(access_token: str) -> None:
     record(
         "Google Ads account allowlist empty",
         not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_ACCOUNTS", "").strip(),
-        "empty" if not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_ACCOUNTS", "").strip() else "configured",
+        "empty or absent",
     )
     record(
         "Google Ads mutation allowlist empty",
         not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS", "").strip(),
-        "empty" if not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS", "").strip() else "configured",
+        "empty or absent",
+    )
+
+    expected_audience = (
+        f"/projects/{PROJECT_NUMBER}/locations/{REGION}/services/{WEB_SERVICE}"
     )
     record(
         "Dashboard IAP audience exact",
-        web_plain.get("DENTICODE_IAP_AUDIENCE")
-        == f"/projects/{PROJECT_NUMBER}/locations/{REGION}/services/{WEB_SERVICE}",
+        web_plain.get("DENTICODE_IAP_AUDIENCE") == expected_audience,
         web_plain.get("DENTICODE_IAP_AUDIENCE"),
     )
     allowed_emails = {
@@ -297,9 +310,9 @@ def audit_cloud_run(access_token: str) -> None:
     malformed: list[str] = []
     for resource_name, values in plain_by_resource.items():
         for variable_name in values:
-            if not variable_name or not (
-                variable_name[0].isalpha() or variable_name[0] == "_"
-            ) or not all(char.isalnum() or char == "_" for char in variable_name):
+            valid_start = variable_name[:1].isalpha() or variable_name.startswith("_")
+            valid_body = all(char.isalnum() or char == "_" for char in variable_name)
+            if not variable_name or not valid_start or not valid_body:
                 malformed.append(f"{resource_name}:{variable_name!r}")
     record(
         "Runtime environment variable names valid",
@@ -308,17 +321,22 @@ def audit_cloud_run(access_token: str) -> None:
     )
 
     for resource_name, expected_names in EXPECTED_SECRET_REFERENCES.items():
-        actual_refs = refs_by_resource[resource_name]
-        numeric_versions = all(version.isdigit() for _, version in actual_refs.values())
-        matching_names = set(actual_refs) == expected_names
-        matching_targets = all(name == secret for name, (secret, _) in actual_refs.items())
+        references = refs_by_resource[resource_name]
+        matching_names = set(references) == expected_names
+        matching_targets = all(
+            name == secret for name, (secret, _) in references.items()
+        )
+        numeric_versions = all(
+            version.isdigit() for _, version in references.values()
+        )
+        detail = "; ".join(
+            f"{name}->{secret}:{version}"
+            for name, (secret, version) in sorted(references.items())
+        )
         record(
             f"{resource_name} secret references pinned",
             matching_names and matching_targets and numeric_versions,
-            "; ".join(
-                f"{name}->{secret}:{version}"
-                for name, (secret, version) in sorted(actual_refs.items())
-            ),
+            detail,
         )
 
 
@@ -343,10 +361,14 @@ def audit_cloud_run_iam() -> None:
     record(
         "Cloud Run service has no public principal",
         not public_members,
-        "none" if not public_members else ",".join(sorted(public_members)),
+        ",".join(sorted(public_members)) or "none",
     )
     invokers = role_members(service_policy, "roles/run.invoker")
-    record("IAP service agent can invoke web", IAP_AGENT in invokers, ",".join(sorted(invokers)))
+    record(
+        "IAP service agent can invoke web",
+        IAP_AGENT in invokers,
+        ",".join(sorted(invokers)),
+    )
 
     iap_policy = run_json(
         [
@@ -361,10 +383,10 @@ def audit_cloud_run_iam() -> None:
         ]
     )
     accessors = role_members(iap_policy, "roles/iap.httpsResourceAccessor")
-    expected_accessor = {f"user:{DASHBOARD_EMAIL}"}
+    expected = {f"user:{DASHBOARD_EMAIL}"}
     record(
         "IAP dashboard accessors exact",
-        accessors == expected_accessor,
+        accessors == expected,
         ",".join(sorted(accessors)),
     )
 
@@ -384,7 +406,8 @@ def audit_scheduler() -> None:
     target = scheduler.get("httpTarget", {})
     oauth = target.get("oauthToken", {})
     expected_uri = (
-        f"https://run.googleapis.com/v2/projects/{PROJECT_ID}/locations/{REGION}/jobs/{SYNC_JOB}:run"
+        f"https://run.googleapis.com/v2/projects/{PROJECT_ID}/locations/{REGION}"
+        f"/jobs/{SYNC_JOB}:run"
     )
     record("Sync scheduler enabled", scheduler.get("state") == "ENABLED", scheduler.get("state"))
     record("Sync scheduler hourly", scheduler.get("schedule") == "0 * * * *", scheduler.get("schedule"))
@@ -393,12 +416,20 @@ def audit_scheduler() -> None:
         scheduler.get("timeZone") == "America/Los_Angeles",
         scheduler.get("timeZone"),
     )
-    record("Sync scheduler target exact", target.get("uri") == expected_uri, target.get("uri"))
-    record("Sync scheduler method POST", target.get("httpMethod") == "POST", target.get("httpMethod"))
+    record(
+        "Sync scheduler target exact",
+        target.get("uri") == expected_uri,
+        target.get("uri"),
+    )
+    record(
+        "Sync scheduler method POST",
+        target.get("httpMethod") == "POST",
+        target.get("httpMethod"),
+    )
+    scheduler_email = f"denticode-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
     record(
         "Sync scheduler uses OAuth service account",
-        oauth.get("serviceAccountEmail")
-        == f"denticode-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
+        oauth.get("serviceAccountEmail") == scheduler_email
         and not target.get("oidcToken"),
         oauth.get("serviceAccountEmail"),
     )
@@ -439,8 +470,8 @@ def audit_scheduler() -> None:
             f"--region={REGION}",
         ]
     )
-    migration_success, migration_message, _ = execution_status(migration_execution)
-    record("Latest migration execution succeeded", migration_success, migration_message)
+    success, message, _ = execution_status(migration_execution)
+    record("Latest migration execution succeeded", success, message)
 
 
 def audit_cloud_sql() -> None:
@@ -455,13 +486,10 @@ def audit_cloud_sql() -> None:
         ]
     )
     settings = instance.get("settings", {})
-    ip_configuration = settings.get("ipConfiguration", {})
+    ip_config = settings.get("ipConfiguration", {})
     backup = settings.get("backupConfiguration", {})
-    authorized_networks = [
-        network
-        for network in ip_configuration.get("authorizedNetworks", []) or []
-        if network
-    ]
+    networks = [item for item in ip_config.get("authorizedNetworks", []) or [] if item]
+
     record("Cloud SQL state runnable", instance.get("state") == "RUNNABLE", instance.get("state"))
     record(
         "Cloud SQL connector enforcement required",
@@ -470,13 +498,13 @@ def audit_cloud_sql() -> None:
     )
     record(
         "Cloud SQL authorized networks empty",
-        not authorized_networks,
-        "none" if not authorized_networks else json.dumps(authorized_networks, sort_keys=True),
+        not networks,
+        json.dumps(networks, sort_keys=True) if networks else "none",
     )
     record(
         "Cloud SQL encrypted connections required",
-        ip_configuration.get("sslMode") == "ENCRYPTED_ONLY",
-        ip_configuration.get("sslMode"),
+        ip_config.get("sslMode") == "ENCRYPTED_ONLY",
+        ip_config.get("sslMode"),
     )
     record("Cloud SQL backups enabled", backup.get("enabled") is True, backup.get("enabled"))
     record(
@@ -522,19 +550,19 @@ def audit_iam_and_secrets() -> None:
     record(
         "No user-managed service account keys",
         not accounts_with_keys,
-        "none" if not accounts_with_keys else ",".join(sorted(accounts_with_keys)),
+        ",".join(sorted(accounts_with_keys)) or "none",
     )
 
     project_policy = run_json(
         ["gcloud", "projects", "get-iam-policy", PROJECT_ID]
     )
-    project_secret_accessors = role_members(
+    secret_accessors = role_members(
         project_policy, "roles/secretmanager.secretAccessor"
     )
     record(
         "No project-wide Secret Manager accessors",
-        not project_secret_accessors,
-        "none" if not project_secret_accessors else ",".join(sorted(project_secret_accessors)),
+        not secret_accessors,
+        ",".join(sorted(secret_accessors)) or "none",
     )
     project_invokers = role_members(project_policy, "roles/run.invoker")
     record(
@@ -562,7 +590,7 @@ def audit_iam_and_secrets() -> None:
     )
     sync_invokers = role_members(sync_policy, "roles/run.invoker")
     record(
-        "Scheduler can invoke only sync job",
+        "Scheduler can invoke sync job",
         SCHEDULER_ACCOUNT in sync_invokers,
         ",".join(sorted(sync_invokers)),
     )
@@ -607,10 +635,8 @@ def audit_iam_and_secrets() -> None:
         if enabled:
             created = parse_time(enabled[0].get("createTime"))
             if created and datetime.now(UTC) - created > timedelta(days=365):
-                warn(
-                    f"{secret_name} rotation review",
-                    f"enabled version age_days={(datetime.now(UTC) - created).days}",
-                )
+                age_days = (datetime.now(UTC) - created).days
+                warn(f"{secret_name} rotation review", f"age_days={age_days}")
 
     for runtime_account in sorted(RUNTIME_ACCOUNTS):
         policy = run_json(
@@ -624,8 +650,9 @@ def audit_iam_and_secrets() -> None:
             ]
         )
         act_as_members = role_members(policy, "roles/iam.serviceAccountUser")
+        short_name = runtime_account.split("@", 1)[0]
         record(
-            f"Deployer actAs scoped to {runtime_account.split('@', 1)[0]}",
+            f"Deployer actAs scoped to {short_name}",
             DEPLOYER_ACCOUNT in act_as_members,
             ",".join(sorted(act_as_members)),
         )
@@ -646,14 +673,19 @@ def write_report() -> None:
         },
         "results": [asdict(result) for result in RESULTS],
     }
-    REPORT_PATH.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    REPORT_PATH.write_text(
+        json.dumps(report, indent=2) + chr(10), encoding="utf-8"
+    )
 
     lines = [
         "# Denticode production operations audit",
         "",
         f"Generated: `{generated_at}`",
         "",
-        f"**{len(failures)} failure(s), {len(warnings)} warning(s), {len(RESULTS)} total checks.**",
+        (
+            f"**{len(failures)} failure(s), {len(warnings)} warning(s), "
+            f"{len(RESULTS)} total checks.**"
+        ),
         "",
         "| Status | Check | Detail |",
         "|---|---|---|",
@@ -661,7 +693,7 @@ def write_report() -> None:
     for result in RESULTS:
         detail = result.detail.replace("|", "\\|")
         lines.append(f"| {result.status} | {result.name} | `{detail}` |")
-    summary = "\n".join(lines) + "\n"
+    summary = chr(10).join(lines) + chr(10)
     print(summary)
 
     summary_path = os.getenv("GITHUB_STEP_SUMMARY")
@@ -674,22 +706,24 @@ def main() -> int:
     try:
         access_token = run_text(["gcloud", "auth", "print-access-token"])
         audit_cloud_run(access_token)
-    except Exception as exc:  # noqa: BLE001 - audit must record infrastructure failures
+    except Exception as exc:  # noqa: BLE001
         record("Cloud Run configuration audit", False, exc)
 
-    for name, audit in (
+    audits = (
         ("Cloud Run IAM audit", audit_cloud_run_iam),
         ("Scheduler and execution audit", audit_scheduler),
         ("Cloud SQL audit", audit_cloud_sql),
         ("IAM and Secret Manager audit", audit_iam_and_secrets),
-    ):
+    )
+    for name, audit in audits:
         try:
             audit()
-        except Exception as exc:  # noqa: BLE001 - audit must report, not hide, failures
+        except Exception as exc:  # noqa: BLE001
             record(name, False, exc)
 
     write_report()
-    return 1 if any(result.status == "FAIL" for result in RESULTS) else 0
+    has_failures = any(result.status == "FAIL" for result in RESULTS)
+    return 1 if has_failures else 0
 
 
 if __name__ == "__main__":

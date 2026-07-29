@@ -171,8 +171,12 @@ resource "google_cloud_run_v2_service_iam_member" "api_gateway_invoker" {
   member   = "serviceAccount:${google_service_account.api_gateway.email}"
 }
 
-resource "google_api_gateway_api" "crm" { api_id = "${local.prefix}-api" }
+resource "google_api_gateway_api" "crm" {
+  provider = google-beta
+  api_id   = "${local.prefix}-api"
+}
 resource "google_api_gateway_api_config" "crm" {
+  provider      = google-beta
   api           = google_api_gateway_api.crm.api_id
   api_config_id = "${local.prefix}-config"
   gateway_config {
@@ -189,6 +193,7 @@ resource "google_api_gateway_api_config" "crm" {
   lifecycle { create_before_destroy = true }
 }
 resource "google_api_gateway_gateway" "crm" {
+  provider   = google-beta
   gateway_id = "${local.prefix}-gateway"
   api_config = google_api_gateway_api_config.crm.id
   region     = var.region

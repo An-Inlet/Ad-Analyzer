@@ -478,18 +478,44 @@ def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() ->
     assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
 
 
-def test_powershell_premature_controlled_writes_and_release_fail_closed() -> None:
-    for premature_scope in ("ControlledWrites", "Release"):
-        result = subprocess.run(
-            powershell_validate_command(premature_scope),
-            cwd=ROOT,
-            check=False,
-            text=True,
-            capture_output=True,
-            env=minimal_subprocess_env(),
-        )
-        assert result.returncode != 0
-        assert "not implemented" in normalize_powershell_output(result.stderr)
+def test_powershell_controlled_writes_and_release_are_validation_only() -> None:
+    powershell = read(VALIDATE_PS1)
+    controlled_writes_match = re.search(
+        r"function Invoke-ControlledWrites \{(?P<body>.*?)\n\}",
+        powershell,
+        re.DOTALL,
+    )
+    release_match = re.search(
+        r"function Invoke-Release \{(?P<body>.*?)\n\}",
+        powershell,
+        re.DOTALL,
+    )
+    assert controlled_writes_match is not None
+    assert release_match is not None
+
+    controlled_writes = controlled_writes_match.group("body")
+    release = release_match.group("body")
+    assert (
+        'python -m pytest tests/test_analyzer_v1.py -k "dry_run or recommendation"'
+        in controlled_writes
+    )
+    assert "settings.google_ads_write_enabled is False" in controlled_writes
+    assert "settings.google_ads_execution_kill_switch is True" in controlled_writes
+
+    for command in ("python -m pytest", "ruff check .", "mypy", "git diff --check"):
+        assert command in release
+
+    validation_only_scopes = (controlled_writes + release).lower()
+    for unsafe_operation in (
+        "deploy",
+        "terraform apply",
+        ".mutate(",
+        "googleadsservice.mutate",
+        "upload_click_conversions",
+        "google_ads_write_enabled is true",
+        "google_ads_execution_kill_switch is false",
+    ):
+        assert unsafe_operation not in validation_only_scopes
 
 
 def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> None:

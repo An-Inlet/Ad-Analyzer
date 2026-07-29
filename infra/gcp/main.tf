@@ -24,7 +24,11 @@ resource "google_service_account" "gateway" {
 }
 resource "google_service_account" "worker" {
   account_id   = "${local.prefix}-worker"
-  display_name = "CRM worker (subscribe only)"
+  display_name = "CRM worker (database processing only)"
+}
+resource "google_service_account" "pubsub_push" {
+  account_id   = "${local.prefix}-push"
+  display_name = "CRM Pub/Sub push authenticator"
 }
 resource "google_service_account" "api_gateway" {
   account_id   = "${local.prefix}-api-gw"
@@ -45,6 +49,13 @@ resource "google_pubsub_subscription" "worker" {
   dead_letter_policy {
     dead_letter_topic     = google_pubsub_topic.dead_letter.id
     max_delivery_attempts = 5
+  }
+  push_config {
+    push_endpoint = "${google_cloud_run_v2_service.worker.uri}/internal/pubsub/crm-events"
+    oidc_token {
+      service_account_email = google_service_account.pubsub_push.email
+      audience              = google_cloud_run_v2_service.worker.uri
+    }
   }
 }
 
@@ -104,19 +115,10 @@ resource "google_cloud_run_v2_service" "worker" {
   template {
     service_account = google_service_account.worker.email
     containers {
-      image   = var.worker_image
-      command = ["python", "-m", "app.jobs.crm_worker"]
+      image = var.worker_image
       env {
         name  = "APP_ENV"
         value = var.environment
-      }
-      env {
-        name  = "DENTICODE_CRM_PUBSUB_PROJECT_ID"
-        value = var.project_id
-      }
-      env {
-        name  = "DENTICODE_CRM_PUBSUB_SUBSCRIPTION_ID"
-        value = google_pubsub_subscription.worker.name
       }
       env {
         name = "DATABASE_URL"
@@ -137,12 +139,6 @@ resource "google_pubsub_topic_iam_member" "gateway_publish" {
   role   = "roles/pubsub.publisher"
   member = "serviceAccount:${google_service_account.gateway.email}"
 }
-resource "google_pubsub_subscription_iam_member" "worker_subscribe" {
-  subscription = google_pubsub_subscription.worker.name
-  role         = "roles/pubsub.subscriber"
-  member       = "serviceAccount:${google_service_account.worker.email}"
-}
-
 resource "google_pubsub_topic_iam_member" "dead_letter_service_agent_publish" {
   topic  = google_pubsub_topic.dead_letter.name
   role   = "roles/pubsub.publisher"
@@ -169,6 +165,17 @@ resource "google_cloud_run_v2_service_iam_member" "api_gateway_invoker" {
   name     = google_cloud_run_v2_service.gateway.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.api_gateway.email}"
+}
+resource "google_cloud_run_v2_service_iam_member" "pubsub_push_invoker" {
+  location = google_cloud_run_v2_service.worker.location
+  name     = google_cloud_run_v2_service.worker.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.pubsub_push.email}"
+}
+resource "google_service_account_iam_member" "pubsub_service_agent_push_token" {
+  service_account_id = google_service_account.pubsub_push.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 resource "google_api_gateway_api" "crm" {

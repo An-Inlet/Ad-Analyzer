@@ -48,7 +48,7 @@ jobs:
       - name: Run production audit
         id: audit
         continue-on-error: true
-        run: python scripts/production_ops_audit.py
+        run: python scripts/production_ops_audit_entrypoint.py
 
       - name: Upload sanitized audit report
         if: always()

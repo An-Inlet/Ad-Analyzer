@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 
 GCP_TERRAFORM = Path("infra/gcp/main.tf")
+GCP_VARIABLES = Path("infra/gcp/variables.tf")
 SERVICE_ACCOUNT_SUFFIXES = ("gateway", "worker", "push", "api-gw")
 
 
@@ -51,3 +52,74 @@ def test_every_accepted_custom_environment_length_fits_service_account_limit() -
 
     longest_rejected_environment = "e" * 13
     assert len(f"denti-{longest_rejected_environment}-crm-gateway") > 30
+
+
+def _resource_body(terraform: str, resource_type: str, name: str) -> str:
+    start = terraform.index(f'resource "{resource_type}" "{name}"')
+    next_block = terraform.find('\nresource "', start + 1)
+    return terraform[start : next_block if next_block != -1 else None]
+
+
+def test_worker_uses_existing_database_password_secret() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    variables = GCP_VARIABLES.read_text()
+
+    assert 'resource "google_secret_manager_secret" "database"' not in terraform
+    assert "denticode-crm-database-url" not in terraform + variables
+    assert 'data "google_secret_manager_secret" "database_password"' in terraform
+    assert "secret_id = var.database_password_secret_id" in terraform
+    assert 'variable "database_password_secret_id"' in variables
+    assert 'default = "DATABASE_PASSWORD"' in variables
+    assert "var.database_secret_id" not in terraform + variables
+
+
+def test_worker_has_cloud_sql_socket_configuration_and_database_environment() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    worker = _resource_body(terraform, "google_cloud_run_v2_service", "worker")
+
+    assert 'cloud_sql_instance {' in worker
+    assert "instances = [var.cloud_sql_connection_name]" in worker
+    assert 'mount_path = "/cloudsql"' in worker
+    for name in (
+        "CLOUD_SQL_CONNECTION_NAME",
+        "DATABASE_USER",
+        "DATABASE_NAME",
+        "DATABASE_PASSWORD",
+    ):
+        assert f'name  = "{name}"' in worker or f'name = "{name}"' in worker
+    assert 'name  = "DENTICODE_REQUIRED_SECRET_NAMES"' in worker
+    assert 'value = "DATABASE_PASSWORD"' in worker
+    assert "data.google_secret_manager_secret.database_password.secret_id" in worker
+    assert 'version = "latest"' in worker
+
+
+def test_cloud_sql_access_is_worker_only_and_gateway_has_no_database_configuration() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    gateway = _resource_body(terraform, "google_cloud_run_v2_service", "gateway")
+    cloud_sql_iam = _resource_body(
+        terraform, "google_project_iam_member", "worker_cloud_sql_client"
+    )
+
+    assert terraform.count('role    = "roles/cloudsql.client"') == 1
+    assert "google_service_account.worker.email" in cloud_sql_iam
+    assert "cloud_sql" not in gateway.lower()
+    assert "DATABASE_" not in gateway
+
+
+def test_cloud_run_services_wait_for_their_secret_and_database_iam() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    gateway = _resource_body(terraform, "google_cloud_run_v2_service", "gateway")
+    worker = _resource_body(terraform, "google_cloud_run_v2_service", "worker")
+
+    assert "depends_on = [" in gateway
+    assert "google_project_service.required," in gateway
+    assert "google_secret_manager_secret_iam_member.gateway_webhook," in gateway
+
+    assert "depends_on = [" in worker
+    assert "google_project_service.required," in worker
+    assert "google_secret_manager_secret_iam_member.worker_database," in worker
+    assert "google_project_iam_member.worker_cloud_sql_client," in worker
+
+
+def test_sql_admin_api_is_enabled() -> None:
+    assert '"sqladmin.googleapis.com"' in GCP_TERRAFORM.read_text()

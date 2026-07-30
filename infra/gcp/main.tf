@@ -1,5 +1,17 @@
 locals {
   prefix = "denticode-${var.environment}-crm"
+  service_account_environment = lookup({
+    development = "dev"
+    production  = "prod"
+    staging     = "stg"
+  }, var.environment, var.environment)
+  service_account_prefix = "denti-${local.service_account_environment}-crm"
+  service_account_ids = {
+    api_gateway = "${local.service_account_prefix}-api-gw"
+    gateway     = "${local.service_account_prefix}-gateway"
+    pubsub_push = "${local.service_account_prefix}-push"
+    worker      = "${local.service_account_prefix}-worker"
+  }
   apis = toset([
     "apigateway.googleapis.com", "artifactregistry.googleapis.com", "iam.googleapis.com",
     "pubsub.googleapis.com", "run.googleapis.com", "secretmanager.googleapis.com",
@@ -19,19 +31,19 @@ resource "google_project_service" "required" {
 }
 
 resource "google_service_account" "gateway" {
-  account_id   = "${local.prefix}-gateway"
+  account_id   = local.service_account_ids.gateway
   display_name = "CRM gateway (publish only)"
 }
 resource "google_service_account" "worker" {
-  account_id   = "${local.prefix}-worker"
+  account_id   = local.service_account_ids.worker
   display_name = "CRM worker (database processing only)"
 }
 resource "google_service_account" "pubsub_push" {
-  account_id   = "${local.prefix}-push"
+  account_id   = local.service_account_ids.pubsub_push
   display_name = "CRM Pub/Sub push authenticator"
 }
 resource "google_service_account" "api_gateway" {
-  account_id   = "${local.prefix}-api-gw"
+  account_id   = local.service_account_ids.api_gateway
   display_name = "API Gateway CRM invoker"
 }
 
@@ -81,6 +93,9 @@ resource "google_cloud_run_v2_service" "gateway" {
     service_account = google_service_account.gateway.email
     containers {
       image = var.gateway_image
+      ports {
+        container_port = 8000
+      }
       env {
         name  = "APP_ENV"
         value = var.environment
@@ -116,6 +131,9 @@ resource "google_cloud_run_v2_service" "worker" {
     service_account = google_service_account.worker.email
     containers {
       image = var.worker_image
+      ports {
+        container_port = 8000
+      }
       env {
         name  = "APP_ENV"
         value = var.environment
@@ -197,11 +215,20 @@ resource "google_api_gateway_api_config" "crm" {
       contents = base64encode(templatefile("${path.module}/openapi.yaml.tftpl", { gateway_url = google_cloud_run_v2_service.gateway.uri }))
     }
   }
-  lifecycle { create_before_destroy = true }
 }
 resource "google_api_gateway_gateway" "crm" {
   provider   = google-beta
   gateway_id = "${local.prefix}-gateway"
   api_config = google_api_gateway_api_config.crm.id
   region     = var.region
+}
+
+check "service_account_ids" {
+  assert {
+    condition = alltrue([
+      for account_id in values(local.service_account_ids) :
+      length(account_id) >= 6 && length(account_id) <= 30 && can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", account_id))
+    ])
+    error_message = "Generated service-account IDs must contain 6-30 lowercase letters, digits, or hyphens, and must start with a letter and end with a letter or digit."
+  }
 }

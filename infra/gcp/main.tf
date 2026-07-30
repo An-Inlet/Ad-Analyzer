@@ -118,7 +118,10 @@ resource "google_cloud_run_v2_service" "gateway" {
       }
     }
   }
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_secret_manager_secret_iam_member.gateway_webhook,
+  ]
 }
 
 resource "google_cloud_run_v2_service" "worker" {
@@ -174,7 +177,11 @@ resource "google_cloud_run_v2_service" "worker" {
       }
     }
   }
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_secret_manager_secret_iam_member.worker_database,
+    google_project_iam_member.worker_cloud_sql_client,
+  ]
 }
 
 resource "google_pubsub_topic_iam_member" "gateway_publish" {

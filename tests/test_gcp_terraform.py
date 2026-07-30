@@ -106,5 +106,20 @@ def test_cloud_sql_access_is_worker_only_and_gateway_has_no_database_configurati
     assert "DATABASE_" not in gateway
 
 
+def test_cloud_run_services_wait_for_their_secret_and_database_iam() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    gateway = _resource_body(terraform, "google_cloud_run_v2_service", "gateway")
+    worker = _resource_body(terraform, "google_cloud_run_v2_service", "worker")
+
+    assert "depends_on = [" in gateway
+    assert "google_project_service.required," in gateway
+    assert "google_secret_manager_secret_iam_member.gateway_webhook," in gateway
+
+    assert "depends_on = [" in worker
+    assert "google_project_service.required," in worker
+    assert "google_secret_manager_secret_iam_member.worker_database," in worker
+    assert "google_project_iam_member.worker_cloud_sql_client," in worker
+
+
 def test_sql_admin_api_is_enabled() -> None:
     assert '"sqladmin.googleapis.com"' in GCP_TERRAFORM.read_text()

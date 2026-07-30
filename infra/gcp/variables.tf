@@ -36,12 +36,24 @@ variable "worker_image" {
     error_message = "Worker image must be an immutable image reference ending in @sha256:<64 lowercase hexadecimal characters>."
   }
 }
-variable "database_secret_id" {
+variable "database_password_secret_id" {
   type    = string
-  default = "denticode-crm-database-url"
+  default = "DATABASE_PASSWORD"
 
   validation {
-    condition     = can(regex("^[A-Za-z0-9_-]{1,255}$", var.database_secret_id))
-    error_message = "Database secret ID must contain 1-255 letters, digits, hyphens, or underscores."
+    condition     = can(regex("^[A-Za-z0-9_-]{1,255}$", var.database_password_secret_id))
+    error_message = "Database password secret ID must contain 1-255 letters, digits, hyphens, or underscores."
   }
+}
+variable "cloud_sql_connection_name" {
+  type    = string
+  default = "totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres"
+}
+variable "database_user" {
+  type    = string
+  default = "denticode_app"
+}
+variable "database_name" {
+  type    = string
+  default = "denticode_ads_optimizer"
 }

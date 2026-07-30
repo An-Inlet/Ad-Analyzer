@@ -42,13 +42,14 @@ Install Python 3.12 dependencies and run `pytest`, `ruff check .`, and `mypy`. T
 - `DENTICODE_CRM_WEBHOOK_SECRET` (Secret Manager injection only)
 - `DENTICODE_CRM_PUBSUB_PROJECT_ID`
 - `DENTICODE_CRM_PUBSUB_TOPIC_ID`
-- `DATABASE_URL` for the worker (Secret Manager injection only)
+- `CLOUD_SQL_CONNECTION_NAME`, `DATABASE_USER`, and `DATABASE_NAME` for the worker
+- `DATABASE_PASSWORD` for the worker (existing Secret Manager secret injection only)
 
 For local manual calls only, place a disposable secret in an untracked `.env`, start `uvicorn app.main:app`, and generate the headers using the process above. Never commit that file.
 
 ## Infrastructure and secrets
 
-Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4` and defaults to `us-west1`. It creates empty Secret Manager containers, but never secret versions. After infrastructure review, an authorized operator manually adds values, for example through the Cloud Console or an approved secret-input process that does not expose values in shell history or state. The connection record stores only the resulting Secret Manager resource reference.
+Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4` and defaults to `us-west1`. It creates the webhook HMAC Secret Manager container, but never secret versions. It references the existing `DATABASE_PASSWORD` secret for the worker and does not read or manage its value. The worker connects to the existing Cloud SQL instance through its `/cloudsql` Unix-socket mount; the public gateway has no database configuration or Cloud SQL permission.
 
 Review-only command sequence (do not run `apply` from automation):
 

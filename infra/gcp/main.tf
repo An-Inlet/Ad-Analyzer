@@ -16,6 +16,7 @@ locals {
     "apigateway.googleapis.com", "artifactregistry.googleapis.com", "iam.googleapis.com",
     "pubsub.googleapis.com", "run.googleapis.com", "secretmanager.googleapis.com",
     "servicecontrol.googleapis.com", "servicemanagement.googleapis.com",
+    "sqladmin.googleapis.com",
   ])
 }
 
@@ -77,11 +78,9 @@ resource "google_secret_manager_secret" "webhook" {
     auto {}
   }
 }
-resource "google_secret_manager_secret" "database" {
-  secret_id = var.database_secret_id
-  replication {
-    auto {}
-  }
+
+data "google_secret_manager_secret" "database_password" {
+  secret_id = var.database_password_secret_id
 }
 
 resource "google_cloud_run_v2_service" "gateway" {
@@ -139,13 +138,39 @@ resource "google_cloud_run_v2_service" "worker" {
         value = var.environment
       }
       env {
-        name = "DATABASE_URL"
+        name  = "CLOUD_SQL_CONNECTION_NAME"
+        value = var.cloud_sql_connection_name
+      }
+      env {
+        name  = "DATABASE_USER"
+        value = var.database_user
+      }
+      env {
+        name  = "DATABASE_NAME"
+        value = var.database_name
+      }
+      env {
+        name = "DATABASE_PASSWORD"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.database.secret_id
+            secret  = data.google_secret_manager_secret.database_password.secret_id
             version = "latest"
           }
         }
+      }
+      env {
+        name  = "DENTICODE_REQUIRED_SECRET_NAMES"
+        value = "DATABASE_PASSWORD"
+      }
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+    }
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [var.cloud_sql_connection_name]
       }
     }
   }
@@ -174,9 +199,14 @@ resource "google_secret_manager_secret_iam_member" "gateway_webhook" {
   member    = "serviceAccount:${google_service_account.gateway.email}"
 }
 resource "google_secret_manager_secret_iam_member" "worker_database" {
-  secret_id = google_secret_manager_secret.database.id
+  secret_id = data.google_secret_manager_secret.database_password.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.worker.email}"
+}
+resource "google_project_iam_member" "worker_cloud_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.worker.email}"
 }
 resource "google_cloud_run_v2_service_iam_member" "api_gateway_invoker" {
   location = google_cloud_run_v2_service.gateway.location

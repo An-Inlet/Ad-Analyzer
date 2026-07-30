@@ -2,7 +2,9 @@ import re
 from pathlib import Path
 
 GCP_TERRAFORM = Path("infra/gcp/main.tf")
+GCP_OUTPUTS = Path("infra/gcp/outputs.tf")
 GCP_VARIABLES = Path("infra/gcp/variables.tf")
+GCP_VERSIONS = Path("infra/gcp/versions.tf")
 SERVICE_ACCOUNT_SUFFIXES = ("gateway", "worker", "push", "api-gw")
 
 
@@ -71,6 +73,36 @@ def test_worker_uses_existing_database_password_secret() -> None:
     assert 'variable "database_password_secret_id"' in variables
     assert 'default = "DATABASE_PASSWORD"' in variables
     assert "var.database_secret_id" not in terraform + variables
+
+
+def test_remote_state_and_existing_webhook_secret_are_declarative_only() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    variables = GCP_VARIABLES.read_text()
+    all_terraform = "".join(path.read_text() for path in Path("infra/gcp").glob("*.tf"))
+
+    assert 'backend "gcs" {}' in GCP_VERSIONS.read_text()
+    assert 'resource "google_secret_manager_secret" "webhook"' not in terraform
+    assert 'data "google_secret_manager_secret" "webhook"' in terraform
+    assert "secret_id = var.webhook_secret_id" in terraform
+    assert 'variable "webhook_secret_id"' in variables
+    assert 'default = "denticode-production-crm-webhook-hmac"' in variables
+    assert "google_secret_manager_secret_version" not in all_terraform
+    assert (
+        "data.google_secret_manager_secret.webhook.secret_id"
+        in GCP_OUTPUTS.read_text()
+    )
+
+
+def test_gateway_uses_existing_webhook_secret_for_injection_and_iam() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    gateway = _resource_body(terraform, "google_cloud_run_v2_service", "gateway")
+    webhook_iam = _resource_body(
+        terraform, "google_secret_manager_secret_iam_member", "gateway_webhook"
+    )
+
+    assert 'name = "DENTICODE_CRM_WEBHOOK_SECRET"' in gateway
+    assert "data.google_secret_manager_secret.webhook.secret_id" in gateway
+    assert "secret_id = data.google_secret_manager_secret.webhook.id" in webhook_iam
 
 
 def test_worker_has_cloud_sql_socket_configuration_and_database_environment() -> None:

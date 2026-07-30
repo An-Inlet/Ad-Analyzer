@@ -4,7 +4,16 @@
 
 The public API Gateway exposes only `GET /health` and `POST /v1/crm/events`. It invokes an authenticated, private Cloud Run gateway. The gateway verifies the CRM HMAC, applies a strict non-PHI allowlist, and publishes normalized JSON to a dedicated Pub/Sub topic. A separate private worker consumes the subscription, persists events idempotently, and updates attribution/lifecycle state. The analyzer API, dashboard, database, recommendations, and advertising credentials are not routed through API Gateway.
 
-The three service accounts are intentionally separate. API Gateway can invoke only the gateway; the gateway can read only its HMAC secret and publish to the CRM topic; the worker can consume its subscription and read only its database secret. No advertising credential or write role is granted. Cloud Run direct invocation has no `allUsers` binding. Payloads and identifiers are omitted from application logs.
+The four service accounts are intentionally separate. API Gateway can invoke only the gateway; the gateway can read only its HMAC secret and publish to the CRM topic; Pub/Sub uses a dedicated push authenticator to invoke the worker; and the worker can read only its database secret. No advertising credential or write role is granted. Cloud Run direct invocation has no `allUsers` binding. Payloads and identifiers are omitted from application logs.
+
+Service accounts use a shorter prefix than the other resources so their IDs always fit Google's 30-character limit. For the default `production` environment, Terraform generates these exact, stable account IDs:
+
+- `denti-prod-crm-gateway`
+- `denti-prod-crm-worker`
+- `denti-prod-crm-push`
+- `denti-prod-crm-api-gw`
+
+The `development`, `staging`, and `production` environment names are abbreviated to `dev`, `stg`, and `prod` respectively. Other valid environment names remain unchanged; the environment validation reserves those abbreviations to avoid collisions between, for example, `production` and `prod`.
 
 ## Event contract
 

@@ -12,10 +12,10 @@ variable "environment" {
 
   validation {
     condition = (
-      can(regex("^[a-z][a-z0-9-]{0,11}[a-z0-9]$", var.environment)) &&
+      can(regex("^[a-z][a-z0-9-]{0,10}[a-z0-9]$", var.environment)) &&
       !contains(["dev", "prod", "stg"], var.environment)
     )
-    error_message = "Environment must be 2-13 lowercase letters, digits, or hyphens; start with a letter; end with a letter or digit; and not be a reserved service-account abbreviation (dev, prod, or stg)."
+    error_message = "Environment must be 2-12 lowercase letters, digits, or hyphens; start with a letter; end with a letter or digit; and not be a reserved service-account abbreviation (dev, prod, or stg)."
   }
 }
 variable "gateway_image" {

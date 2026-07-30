@@ -201,9 +201,9 @@ resource "google_api_gateway_api" "crm" {
   api_id   = "${local.prefix}-api"
 }
 resource "google_api_gateway_api_config" "crm" {
-  provider      = google-beta
-  api           = google_api_gateway_api.crm.api_id
-  api_config_id = "${local.prefix}-config"
+  provider             = google-beta
+  api                  = google_api_gateway_api.crm.api_id
+  api_config_id_prefix = "${local.prefix}-config-"
   gateway_config {
     backend_config {
       google_service_account = google_service_account.api_gateway.email
@@ -214,6 +214,9 @@ resource "google_api_gateway_api_config" "crm" {
       path     = "openapi.yaml"
       contents = base64encode(templatefile("${path.module}/openapi.yaml.tftpl", { gateway_url = google_cloud_run_v2_service.gateway.uri }))
     }
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 resource "google_api_gateway_gateway" "crm" {

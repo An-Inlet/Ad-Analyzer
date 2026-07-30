@@ -45,6 +45,15 @@ variable "database_password_secret_id" {
     error_message = "Database password secret ID must contain 1-255 letters, digits, hyphens, or underscores."
   }
 }
+variable "webhook_secret_id" {
+  type    = string
+  default = "denticode-production-crm-webhook-hmac"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_-]{1,255}$", var.webhook_secret_id))
+    error_message = "Webhook secret ID must contain 1-255 letters, digits, hyphens, or underscores."
+  }
+}
 variable "cloud_sql_connection_name" {
   type    = string
   default = "totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres"

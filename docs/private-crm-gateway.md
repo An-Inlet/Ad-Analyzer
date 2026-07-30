@@ -49,13 +49,13 @@ For local manual calls only, place a disposable secret in an untracked `.env`, s
 
 ## Infrastructure and secrets
 
-Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4` and defaults to `us-west1`. It creates the webhook HMAC Secret Manager container, but never secret versions. It references the existing `DATABASE_PASSWORD` secret for the worker and does not read or manage its value. The worker connects to the existing Cloud SQL instance through its `/cloudsql` Unix-socket mount; the public gateway has no database configuration or Cloud SQL permission.
+Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4` and defaults to `us-west1`. Its partial GCS backend must be initialized by an operator with bucket `totemic-alchemy-502420-p4-terraform-state` and prefix `denticode/crm-production`; the backend credentials are not stored in this configuration. Both `DATABASE_PASSWORD` and `denticode-production-crm-webhook-hmac` are existing Secret Manager containers. Secret versions are created through an approved out-of-band process. Terraform neither creates secret versions nor reads or stores secret payloads in its state. The worker connects to the existing Cloud SQL instance through its `/cloudsql` Unix-socket mount; the public gateway has no database configuration or Cloud SQL permission.
 
 Review-only command sequence (do not run `apply` from automation):
 
 ```sh
 cd infra/gcp
-terraform init
+terraform init -backend-config='bucket=totemic-alchemy-502420-p4-terraform-state' -backend-config='prefix=denticode/crm-production'
 terraform fmt -check -recursive
 terraform validate
 terraform plan -var='gateway_image=us-west1-docker.pkg.dev/PROJECT/REPOSITORY/GATEWAY@sha256:DIGEST' -var='worker_image=us-west1-docker.pkg.dev/PROJECT/REPOSITORY/WORKER@sha256:DIGEST' -out=review.tfplan

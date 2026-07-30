@@ -72,11 +72,8 @@ resource "google_pubsub_subscription" "worker" {
   }
 }
 
-resource "google_secret_manager_secret" "webhook" {
-  secret_id = "${local.prefix}-webhook-hmac"
-  replication {
-    auto {}
-  }
+data "google_secret_manager_secret" "webhook" {
+  secret_id = var.webhook_secret_id
 }
 
 data "google_secret_manager_secret" "database_password" {
@@ -111,7 +108,7 @@ resource "google_cloud_run_v2_service" "gateway" {
         name = "DENTICODE_CRM_WEBHOOK_SECRET"
         value_source {
           secret_key_ref {
-            secret  = google_secret_manager_secret.webhook.secret_id
+            secret  = data.google_secret_manager_secret.webhook.secret_id
             version = "latest"
           }
         }
@@ -201,7 +198,7 @@ resource "google_pubsub_subscription_iam_member" "dead_letter_service_agent_forw
 }
 
 resource "google_secret_manager_secret_iam_member" "gateway_webhook" {
-  secret_id = google_secret_manager_secret.webhook.id
+  secret_id = data.google_secret_manager_secret.webhook.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.gateway.email}"
 }

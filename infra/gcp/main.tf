@@ -257,7 +257,7 @@ resource "google_api_gateway_gateway" "crm" {
   provider   = google-beta
   gateway_id = "${local.prefix}-gateway"
   api_config = google_api_gateway_api_config.crm.id
-  region     = var.region
+  region     = var.api_gateway_region
 }
 
 check "service_account_ids" {

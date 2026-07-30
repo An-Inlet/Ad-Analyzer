@@ -43,6 +43,42 @@ def test_api_config_uses_unique_prefix_before_destroying_previous_config() -> No
     assert "lifecycle {\n    create_before_destroy = true\n  }" in terraform
 
 
+def test_api_gateway_region_is_separate_from_existing_regional_resources() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    variables = GCP_VARIABLES.read_text()
+    gateway = _resource_body(terraform, "google_api_gateway_gateway", "crm")
+    cloud_run_gateway = _resource_body(
+        terraform, "google_cloud_run_v2_service", "gateway"
+    )
+    cloud_run_worker = _resource_body(terraform, "google_cloud_run_v2_service", "worker")
+
+    assert re.search(r'variable "region" \{.*?default = "us-west1"', variables, re.DOTALL)
+    assert re.search(
+        r'variable "api_gateway_region" \{.*?default\s+= "us-west3"',
+        variables,
+        re.DOTALL,
+    )
+    assert "region     = var.api_gateway_region" in gateway
+    assert "location            = var.region" in cloud_run_gateway
+    assert "location            = var.region" in cloud_run_worker
+
+
+def test_api_gateway_global_resources_and_deployment_names_remain_stable() -> None:
+    terraform = GCP_TERRAFORM.read_text()
+    api = _resource_body(terraform, "google_api_gateway_api", "crm")
+    api_config = _resource_body(terraform, "google_api_gateway_api_config", "crm")
+    gateway = _resource_body(terraform, "google_api_gateway_gateway", "crm")
+
+    assert 'prefix = "denticode-${var.environment}-crm"' in terraform
+    assert 'api_id   = "${local.prefix}-api"' in api
+    assert 'api_config_id_prefix = "${local.prefix}-config-"' in api_config
+    assert 'gateway_id = "${local.prefix}-gateway"' in gateway
+    assert 'resource "google_api_gateway_api" "crm"' in terraform
+    assert 'resource "google_api_gateway_api_config" "crm"' in terraform
+    assert "create_before_destroy = true" in api_config
+    assert terraform.count("deletion_protection = true") == 2
+
+
 def test_every_accepted_custom_environment_length_fits_service_account_limit() -> None:
     for environment_length in range(2, 13):
         environment = "e" * environment_length

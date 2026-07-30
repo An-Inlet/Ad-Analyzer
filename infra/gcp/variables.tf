@@ -6,6 +6,28 @@ variable "region" {
   type    = string
   default = "us-west1"
 }
+variable "api_gateway_region" {
+  type        = string
+  default     = "us-west3"
+  description = "Supported Google Cloud API Gateway deployment region."
+
+  validation {
+    condition = contains([
+      "asia-northeast1",
+      "australia-southeast1",
+      "europe-west1",
+      "europe-west2",
+      "us-east1",
+      "us-east4",
+      "us-central1",
+      "us-west2",
+      "us-west3",
+      "us-west4"
+    ], var.api_gateway_region)
+
+    error_message = "api_gateway_region must be a region supported by Google Cloud API Gateway."
+  }
+}
 variable "environment" {
   type    = string
   default = "production"

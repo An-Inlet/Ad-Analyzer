@@ -1,9 +1,8 @@
 from enum import StrEnum
 
+from app.settings import Settings
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import ArgumentError
-
-from app.settings import Settings
 
 
 class DeploymentProcess(StrEnum):

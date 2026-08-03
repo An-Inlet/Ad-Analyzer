@@ -1,6 +1,5 @@
 from datetime import UTC, date, datetime
 
-from app.database.session import Base
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -16,6 +15,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database.session import Base
 
 
 def utc_now() -> datetime:

@@ -6,13 +6,12 @@ import json
 import logging
 from typing import Annotated
 
+from app.crm.worker import CrmEventProcessor
+from app.database.session import get_db
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.orm import Session
-
-from app.crm.worker import CrmEventProcessor
-from app.database.session import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/internal/pubsub", include_in_schema=False)

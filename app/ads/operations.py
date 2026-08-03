@@ -3,14 +3,14 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.settings import Settings
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 PUBLIC_SYNC_FAILURE_SUMMARY = "Google Ads synchronization failed."
+
 
 @dataclass(frozen=True)
 class SyncHealth:
@@ -32,13 +32,31 @@ def public_failure_summary(error_message: str | None) -> str | None:
     return PUBLIC_SYNC_FAILURE_SUMMARY
 
 
-def sync_health(session: Session, settings: Settings, now: datetime | None = None) -> SyncHealth:
+def _utc(value: datetime) -> datetime:
+    """Treat timezone-naive database values as UTC for SQLite test parity."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def sync_health(
+    session: Session,
+    settings: Settings,
+    now: datetime | None = None,
+    *,
+    workspace_ids: set[int] | None = None,
+) -> SyncHealth:
     """Use three indexed scalar queries, never collectors or mutations."""
     current = now or datetime.now(UTC)
     base = select(JobRun).where(
         JobRun.platform == AdvertisingPlatform.GOOGLE_ADS,
         JobRun.job_name == "google_ads_read_only_sync",
     )
+    if workspace_ids is not None:
+        if not workspace_ids:
+            base = base.where(JobRun.workspace_id == -1)
+        else:
+            base = base.where(JobRun.workspace_id.in_(workspace_ids))
     latest = session.scalars(
         base.order_by(JobRun.started_at.desc(), JobRun.id.desc()).limit(1)
     ).first()
@@ -53,9 +71,7 @@ def sync_health(session: Session, settings: Settings, now: datetime | None = Non
         .limit(1)
     ).first()
     success_at = successful.finished_at if successful else None
-    age = (
-        max(0, int((current - success_at.astimezone(UTC)).total_seconds())) if success_at else None
-    )
+    age = max(0, int((_utc(current) - _utc(success_at)).total_seconds())) if success_at else None
     stale_after = settings.sync_stale_after_minutes * 60
     running = latest is not None and latest.status == JobRunStatus.RUNNING
     stale = success_at is None or (age is not None and age > stale_after)

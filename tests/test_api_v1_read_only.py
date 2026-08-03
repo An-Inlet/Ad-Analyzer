@@ -17,6 +17,7 @@ from app.collectors import google_ads
 from app.database.session import Base, get_db
 from app.main import app
 from app.settings import settings
+from app.workspaces.models import Workspace
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -40,7 +41,17 @@ def operator_token() -> str:
 
 
 def seed(db: Session) -> dict[str, int]:
+    workspace = Workspace(
+        slug="denticode",
+        name="Denticode Ad Analyzer",
+        client_name="Denticode",
+        status="active",
+        is_default=True,
+    )
+    db.add(workspace)
+    db.flush()
     a1 = AdvertisingAccount(
+        workspace_id=workspace.id,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="100",
         name="Denticode",
@@ -48,6 +59,7 @@ def seed(db: Session) -> dict[str, int]:
         time_zone="UTC",
     )
     a2 = AdvertisingAccount(
+        workspace_id=workspace.id,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="200",
         name="Empty",
@@ -134,6 +146,7 @@ def seed(db: Session) -> dict[str, int]:
     db.add_all(
         [
             JobRun(
+                workspace_id=workspace.id,
                 platform=a1.platform,
                 account_id=a1.id,
                 job_name="sync",
@@ -143,6 +156,7 @@ def seed(db: Session) -> dict[str, int]:
                 records_processed=7,
             ),
             JobRun(
+                workspace_id=workspace.id,
                 platform=a1.platform,
                 account_id=a1.id,
                 job_name="sync",
@@ -155,7 +169,13 @@ def seed(db: Session) -> dict[str, int]:
         ]
     )
     db.commit()
-    return {"a1": a1.id, "a2": a2.id, "c1": c1.id, "c2": c2.id}
+    return {
+        "workspace": workspace.id,
+        "a1": a1.id,
+        "a2": a2.id,
+        "c1": c1.id,
+        "c2": c2.id,
+    }
 
 
 @contextmanager
@@ -440,13 +460,9 @@ def test_raw_authorization_header_name_casing_authenticates_consistently(
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
     with make_client(bypass_auth=False) as (_client, _db, _ids):
         for header_name in (b"authorization", b"AUTHORIZATION", b"aUtHoRiZaTiOn"):
-            status, _headers, _body = raw_api_response(
-                [(header_name, b"bEaReR " + token.encode())]
-            )
+            status, _headers, _body = raw_api_response([(header_name, b"bEaReR " + token.encode())])
             assert status == 200
-        status, response_headers, body = raw_api_response(
-            [(b"AUTHORIZATION", b"Bearer invalid")]
-        )
+        status, response_headers, body = raw_api_response([(b"AUTHORIZATION", b"Bearer invalid")])
         assert status == 401
         assert (b"www-authenticate", b"Bearer") in response_headers
         assert body == b'{"detail":"authentication failed"}'
@@ -469,9 +485,7 @@ def test_malformed_raw_bearer_format_returns_generic_401(
     monkeypatch: pytest.MonkeyPatch, authorization_value: bytes
 ) -> None:
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(operator_token()))
-    status, response_headers, body = raw_api_response(
-        [(b"aUtHoRiZaTiOn", authorization_value)]
-    )
+    status, response_headers, body = raw_api_response([(b"aUtHoRiZaTiOn", authorization_value)])
     assert status == 401
     assert (b"www-authenticate", b"Bearer") in response_headers
     assert body == b'{"detail":"authentication failed"}'
@@ -581,9 +595,12 @@ def test_campaign_metrics_are_canonical_and_paginated() -> None:
         assert first_page["limit"] == 1 and first_page["offset"] == 0 and first_page["total"] == 3
         assert first_page["items"][0]["impressions"] == 100
         assert second_page["items"][0]["metric_date"] == "2026-07-02"
-        assert client.get(
-            f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-03&limit=101"
-        ).status_code == 422
+        assert (
+            client.get(
+                f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-03&limit=101"
+            ).status_code
+            == 422
+        )
 
 
 def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> None:
@@ -829,9 +846,7 @@ def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
         index for index in indexes if index.name == "ix_job_runs_account_platform_started_id"
     )
     success_index = next(
-        index
-        for index in indexes
-        if index.name == "ix_job_runs_account_platform_status_finished"
+        index for index in indexes if index.name == "ix_job_runs_account_platform_status_finished"
     )
     latest_index_sql = str(
         CreateIndex(latest_index).compile(

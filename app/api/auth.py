@@ -4,9 +4,10 @@ import re
 from secrets import compare_digest
 from typing import Annotated
 
-from app.settings import settings
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.settings import settings
 
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43,128}$")

@@ -2,11 +2,10 @@
 
 import logging
 
-from google.cloud import pubsub_v1  # type: ignore[import-untyped]
-
 from app.crm.worker import handle_message
 from app.database.session import SessionLocal
 from app.settings import settings
+from google.cloud import pubsub_v1  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

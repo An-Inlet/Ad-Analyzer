@@ -1,4 +1,7 @@
-# Denticode Ads Analyzer operator runbook
+# Ad Analyzer operator runbook
+
+The current production deployment serves the Denticode Ad Analyzer workspace. Legacy Denticode
+resource and environment names remain in place for deployment compatibility.
 
 ## Launch prerequisites
 1. Provision PostgreSQL and configure `DATABASE_URL` through an external secret manager.

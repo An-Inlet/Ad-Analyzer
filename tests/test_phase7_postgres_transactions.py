@@ -32,7 +32,9 @@ def postgres_engine() -> Generator[Engine, None, None]:
         Base.metadata.create_all(engine)
         yield engine
     finally:
-        Base.metadata.drop_all(engine)
+        with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA public CASCADE"))
+            connection.execute(text("CREATE SCHEMA public"))
         engine.dispose()
 
 

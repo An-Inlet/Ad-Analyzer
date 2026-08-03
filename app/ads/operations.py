@@ -3,11 +3,12 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.settings import Settings
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 PUBLIC_SYNC_FAILURE_SUMMARY = "Google Ads synchronization failed."
 

@@ -67,3 +67,4 @@ def test_worker_nacks_failure_for_retry() -> None:
     message = Message(b"not-json")
     handle_message(message, session())
     assert message.nacked and not message.acked
+

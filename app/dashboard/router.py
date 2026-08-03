@@ -3,14 +3,8 @@
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
 from app.ads.enums import ExecutionStatus, RecommendationStatus
-from app.ads.models import ExecutionAudit, Recommendation, RecommendationAudit
+from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import _windows, default_dates, ratios
@@ -26,6 +20,18 @@ from app.database.session import get_db
 from app.executors.planner import plan_dry_run
 from app.optimizer.recommendations import generate_findings
 from app.settings import settings
+from app.workspaces.access import (
+    accessible_workspace_ids,
+    require_workspace_review,
+    require_workspace_view,
+)
+from app.workspaces.models import Workspace
+from app.workspaces.repository import WorkspaceRepository
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_dashboard_session)])
 DASHBOARD_MAX_OFFSET = 10_000
@@ -33,7 +39,6 @@ templates = Jinja2Templates(directory="app/dashboard/templates")
 templates.env.filters["money"] = money_from_micros
 templates.env.filters["percent"] = ratio_percent
 templates.env.filters["public_failure_summary"] = public_failure_summary
-
 
 
 def redacted_mapping(value: object) -> object:
@@ -62,8 +67,45 @@ def execution_safety_context() -> dict[str, object]:
         "allowed_mutations": allowed_mutations,
     }
 
+
 def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
+
+
+def workspace_repo(db: Annotated[Session, Depends(get_db)]) -> WorkspaceRepository:
+    return WorkspaceRepository(db)
+
+
+def accessible_jobs(
+    db: Session,
+    workspace_ids: set[int] | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[JobRun], int]:
+    stmt = select(JobRun)
+    if workspace_ids is not None:
+        if not workspace_ids:
+            return [], 0
+        stmt = stmt.where(JobRun.workspace_id.in_(workspace_ids))
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    jobs = list(
+        db.scalars(
+            stmt.order_by(JobRun.started_at.desc(), JobRun.id.desc()).limit(limit).offset(offset)
+        ).all()
+    )
+    return jobs, total
+
+
+def job_workspace_names(db: Session, jobs: list[JobRun]) -> dict[int, str]:
+    workspace_ids = {job.workspace_id for job in jobs}
+    if not workspace_ids:
+        return {}
+    return {
+        workspace_id: name
+        for workspace_id, name in db.execute(
+            select(Workspace.id, Workspace.name).where(Workspace.id.in_(workspace_ids))
+        ).tuples()
+    }
 
 
 def page_context(request: Request, **values: object) -> dict[str, object]:
@@ -84,24 +126,61 @@ def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, dat
 @router.get("", response_class=HTMLResponse)
 def overview(
     request: Request,
-    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    db: Annotated[Session, Depends(get_db)],
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
-    accounts, total = repository.dashboard_accounts(limit, offset)
-    jobs, job_total = repository.list_job_runs(None, None, None, 10, 0)
-    health = sync_health(repository.session, settings)
+    allowed_ids = accessible_workspace_ids(request, db)
+    workspaces, total = workspace_repository.dashboard_rows(allowed_ids, limit, offset)
+    jobs, job_total = accessible_jobs(db, allowed_ids, 10, 0)
+    health = sync_health(db, settings, workspace_ids=allowed_ids)
     return templates.TemplateResponse(
         request,
         "overview.html",
         page_context(
             request,
-            accounts=accounts,
+            workspaces=workspaces,
             total=total,
             jobs=jobs,
             job_total=job_total,
+            workspace_names=job_workspace_names(db, jobs),
             health=health,
-            title="Dashboard",
+            title="Workspaces",
+            limit=limit,
+            offset=offset,
+            has_next=has_next(offset, limit, len(workspaces), total),
+        ),
+    )
+
+
+@router.get("/workspaces/{workspace_slug}", response_class=HTMLResponse)
+def workspace_detail(
+    request: Request,
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+) -> HTMLResponse:
+    workspace = workspace_repository.get_by_slug(workspace_slug)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    role = require_workspace_view(request, db, workspace.id)
+    accounts, total = workspace_repository.list_advertising_accounts(workspace.id, limit, offset)
+    return templates.TemplateResponse(
+        request,
+        "workspace.html",
+        page_context(
+            request,
+            title=workspace.name,
+            workspace=workspace,
+            workspace_role=role,
+            configuration=workspace_repository.configuration(workspace.id),
+            integrations=workspace_repository.integrations(workspace.id),
+            memberships=workspace_repository.memberships(workspace.id),
+            accounts=accounts,
+            total=total,
             limit=limit,
             offset=offset,
             has_next=has_next(offset, limit, len(accounts), total),
@@ -123,6 +202,10 @@ def account_detail(
     account = repository.get_account(account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
+    workspace = WorkspaceRepository(db).get_by_id(account.workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    role = require_workspace_view(request, db, workspace.id)
     start, end = valid_dates(date_from, date_to)
     campaigns, total = repository.list_account_campaigns(account_id, None, limit, offset)
     totals = repository.account_metric_totals(account_id, start, end)
@@ -141,6 +224,7 @@ def account_detail(
             select(Recommendation)
             .where(
                 Recommendation.account_id == account_id,
+                Recommendation.workspace_id == workspace.id,
                 Recommendation.status.in_(
                     [RecommendationStatus.PENDING_REVIEW, RecommendationStatus.APPROVED]
                 ),
@@ -152,7 +236,10 @@ def account_detail(
     latest_execution_rows = db.execute(
         select(ExecutionAudit)
         .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
-        .where(Recommendation.account_id == account_id)
+        .where(
+            Recommendation.account_id == account_id,
+            Recommendation.workspace_id == workspace.id,
+        )
         .order_by(ExecutionAudit.created_at.desc(), ExecutionAudit.id.desc())
         .limit(25)
     ).scalars()
@@ -163,6 +250,9 @@ def account_detail(
         page_context(
             request,
             title=account.name,
+            workspace=workspace,
+            workspace_role=role,
+            can_review=role in {"platform_admin", "owner", "admin"},
             account=account,
             campaigns=campaigns,
             total=total,
@@ -197,17 +287,30 @@ def execution_operations(
     account = repository.get_account(account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="account not found")
+    workspace = WorkspaceRepository(db).get_by_id(account.workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    require_workspace_view(request, db, workspace.id)
     base_query = (
         select(ExecutionAudit, Recommendation)
         .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
-        .where(Recommendation.account_id == account_id)
+        .where(
+            Recommendation.account_id == account_id,
+            Recommendation.workspace_id == workspace.id,
+        )
     )
-    total = db.scalar(
-        select(func.count())
-        .select_from(ExecutionAudit)
-        .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
-        .where(Recommendation.account_id == account_id)
-    ) or 0
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(ExecutionAudit)
+            .join(Recommendation, Recommendation.id == ExecutionAudit.recommendation_id)
+            .where(
+                Recommendation.account_id == account_id,
+                Recommendation.workspace_id == workspace.id,
+            )
+        )
+        or 0
+    )
     rows = list(
         db.execute(
             base_query.order_by(ExecutionAudit.created_at.desc(), ExecutionAudit.id.desc())
@@ -230,6 +333,7 @@ def execution_operations(
         page_context(
             request,
             title=f"Execution operations for {account.name}",
+            workspace=workspace,
             account=account,
             operations=operations,
             total=total,
@@ -255,6 +359,7 @@ async def dashboard_approve_recommendation(
     rec = db.get(Recommendation, recommendation_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="recommendation not found")
+    require_workspace_review(request, db, rec.workspace_id)
     if rec.status != RecommendationStatus.PENDING_REVIEW:
         raise HTTPException(status_code=422, detail="recommendation is not pending review")
     expires_at = (
@@ -270,7 +375,7 @@ async def dashboard_approve_recommendation(
     db.add(
         RecommendationAudit(
             recommendation_id=rec.id,
-            actor="dashboard_operator",
+            actor=getattr(request.state, "dashboard_identity", "local_operator"),
             action=action,
             reason=reason,
         )
@@ -292,13 +397,14 @@ async def dashboard_reject_recommendation(
     rec = db.get(Recommendation, recommendation_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="recommendation not found")
+    require_workspace_review(request, db, rec.workspace_id)
     if rec.status != RecommendationStatus.PENDING_REVIEW:
         raise HTTPException(status_code=422, detail="recommendation is not pending review")
     rec.status = RecommendationStatus.REJECTED
     db.add(
         RecommendationAudit(
             recommendation_id=rec.id,
-            actor="dashboard_operator",
+            actor=getattr(request.state, "dashboard_identity", "local_operator"),
             action="rejected",
             reason=reason,
         )
@@ -322,6 +428,7 @@ async def dashboard_execute_dry_run(
     rec = db.get(Recommendation, recommendation_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="recommendation not found")
+    require_workspace_review(request, db, rec.workspace_id)
     if rec.status != RecommendationStatus.APPROVED:
         raise HTTPException(status_code=422, detail="recommendation must be approved by a human")
     existing = (
@@ -369,6 +476,7 @@ def campaign_detail(
     request: Request,
     campaign_id: int,
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
     date_from: date | None = None,
     date_to: date | None = None,
     ad_group_limit: int = Query(25, ge=1, le=100),
@@ -379,6 +487,10 @@ def campaign_detail(
     campaign = repository.get_campaign(campaign_id)
     if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
+    workspace = WorkspaceRepository(db).get_by_id(campaign.account.workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    require_workspace_view(request, db, workspace.id)
     start, end = valid_dates(date_from, date_to)
     groups, group_total = repository.list_campaign_ad_groups(
         campaign_id, ad_group_limit, ad_group_offset
@@ -392,6 +504,7 @@ def campaign_detail(
         page_context(
             request,
             title=campaign.name,
+            workspace=workspace,
             campaign=campaign,
             groups=groups,
             group_total=group_total,
@@ -412,11 +525,11 @@ def campaign_detail(
 @router.get("/job-runs", response_class=HTMLResponse)
 def job_runs(
     request: Request,
-    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
-    jobs, total = repository.list_job_runs(None, None, None, limit, offset)
+    jobs, total = accessible_jobs(db, accessible_workspace_ids(request, db), limit, offset)
     return templates.TemplateResponse(
         request,
         "job_runs.html",
@@ -424,6 +537,7 @@ def job_runs(
             request,
             title="Job runs",
             jobs=jobs,
+            workspace_names=job_workspace_names(db, jobs),
             total=total,
             limit=limit,
             offset=offset,

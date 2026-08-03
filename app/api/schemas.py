@@ -1,8 +1,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.ads.enums import AdvertisingPlatform, JobRunStatus
 
 
 class ApiModel(BaseModel):

@@ -2,6 +2,10 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, TypeVar, cast
 
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import (
     Ad,
@@ -23,9 +27,6 @@ from app.ads.schemas import (
     KeywordCreate,
     SearchTermCreate,
 )
-from sqlalchemy.dialects.postgresql import insert as postgresql_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
 
 ModelT = TypeVar("ModelT")
 

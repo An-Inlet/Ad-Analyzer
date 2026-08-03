@@ -202,6 +202,11 @@ class Settings(BaseSettings):
         )
 
     app_env: str = Field(default="development", validation_alias="APP_ENV")
+    workspace_id: int = Field(
+        default=1,
+        ge=1,
+        validation_alias=AliasChoices("AD_ANALYZER_WORKSPACE_ID", "DENTICODE_WORKSPACE_ID"),
+    )
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer",
         validation_alias="DATABASE_URL",
@@ -238,12 +243,22 @@ class Settings(BaseSettings):
     crm_pubsub_subscription_id: str = Field(
         default="", validation_alias="DENTICODE_CRM_PUBSUB_SUBSCRIPTION_ID"
     )
-    denticode_dashboard_allow_insecure_local_http: bool = Field(
-        default=False, validation_alias="DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP"
+    dashboard_allow_insecure_local_http: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
+            "DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
+        ),
     )
-    denticode_iap_audience: str = Field(default="", validation_alias="DENTICODE_IAP_AUDIENCE")
-    denticode_dashboard_allowed_emails_csv: str = Field(
-        default="", validation_alias="DENTICODE_DASHBOARD_ALLOWED_EMAILS"
+    iap_audience: str = Field(
+        default="",
+        validation_alias=AliasChoices("AD_ANALYZER_IAP_AUDIENCE", "DENTICODE_IAP_AUDIENCE"),
+    )
+    platform_admin_emails_csv: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AD_ANALYZER_PLATFORM_ADMIN_EMAILS", "DENTICODE_DASHBOARD_ALLOWED_EMAILS"
+        ),
     )
     google_ads_developer_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_DEVELOPER_TOKEN"
@@ -405,10 +420,10 @@ class Settings(BaseSettings):
 
     @property
     def dashboard_allowed_emails(self) -> set[str]:
-        """Return the configured IAP identities in a canonical comparison form."""
+        """Return platform administrators; workspace members are stored per workspace."""
         return {
             item.strip().casefold()
-            for item in self.denticode_dashboard_allowed_emails_csv.split(",")
+            for item in self.platform_admin_emails_csv.split(",")
             if item.strip()
         }
 

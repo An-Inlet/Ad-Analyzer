@@ -2,9 +2,6 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-
 from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
@@ -27,12 +24,20 @@ from app.api.schemas import (
     RecommendationResponse,
     SyncHealthResponse,
     SyncStatusResponse,
+    WorkspaceConfigurationResponse,
+    WorkspaceIntegrationResponse,
+    WorkspaceMembershipResponse,
+    WorkspaceResponse,
 )
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
+from app.workspaces.models import Workspace
+from app.workspaces.repository import WorkspaceRepository
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/v1",
@@ -58,6 +63,119 @@ def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
     return ReadOnlyAdsRepository(db)
 
 
+def workspace_repo(db: Annotated[Session, Depends(get_db)]) -> WorkspaceRepository:
+    return WorkspaceRepository(db)
+
+
+@router.get(
+    "/workspaces",
+    response_model=PaginatedResponse[WorkspaceResponse],
+    operation_id="list_ad_analyzer_workspaces",
+    responses=VALIDATION_AND_DATABASE_ERRORS,
+)
+def list_workspaces(
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[WorkspaceResponse]:
+    items, total = repository.list_workspaces(None, limit, offset)
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+def _workspace_or_404(repository: WorkspaceRepository, workspace_slug: str) -> Workspace:
+    workspace = repository.get_by_slug(workspace_slug)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    return workspace
+
+
+@router.get(
+    "/workspaces/{workspace_slug}",
+    response_model=WorkspaceResponse,
+    operation_id="get_ad_analyzer_workspace",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace(
+    workspace_slug: str,
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+) -> object:
+    return _workspace_or_404(repository, workspace_slug)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/advertising-accounts",
+    response_model=PaginatedResponse[AccountResponse],
+    operation_id="list_workspace_advertising_accounts",
+    responses=RESOURCE_ERRORS,
+)
+def list_workspace_advertising_accounts(
+    workspace_slug: str,
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[AccountResponse]:
+    workspace = _workspace_or_404(repository, workspace_slug)
+    items, total = repository.list_advertising_accounts(workspace.id, limit, offset)
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/configuration",
+    response_model=WorkspaceConfigurationResponse,
+    operation_id="get_workspace_configuration",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace_configuration(
+    workspace_slug: str,
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+) -> object:
+    workspace = _workspace_or_404(repository, workspace_slug)
+    configuration = repository.configuration(workspace.id)
+    if configuration is None:
+        raise HTTPException(status_code=404, detail="workspace configuration not found")
+    return configuration
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/integrations",
+    response_model=list[WorkspaceIntegrationResponse],
+    operation_id="list_workspace_integrations",
+    responses=RESOURCE_ERRORS,
+)
+def list_workspace_integrations(
+    workspace_slug: str,
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+) -> list[WorkspaceIntegrationResponse]:
+    workspace = _workspace_or_404(repository, workspace_slug)
+    return [
+        WorkspaceIntegrationResponse(
+            id=item.id,
+            workspace_id=item.workspace_id,
+            integration_key=item.integration_key,
+            provider=item.provider,
+            display_name=item.display_name,
+            status=item.status,
+            configuration=item.configuration,
+            credential_reference_configured=item.secret_manager_reference is not None,
+        )
+        for item in repository.integrations(workspace.id)
+    ]
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/memberships",
+    response_model=list[WorkspaceMembershipResponse],
+    operation_id="list_workspace_memberships",
+    responses=RESOURCE_ERRORS,
+)
+def list_workspace_memberships(
+    workspace_slug: str,
+    repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+) -> object:
+    workspace = _workspace_or_404(repository, workspace_slug)
+    return repository.memberships(workspace.id)
+
+
 @router.get(
     "/operations/sync-health",
     response_model=SyncHealthResponse,
@@ -72,6 +190,7 @@ def job_run_response(job_run: JobRun) -> JobRunResponse:
     """Expose only the bounded public error message, never stored job diagnostics."""
     return JobRunResponse(
         id=job_run.id,
+        workspace_id=job_run.workspace_id or 1,
         platform=job_run.platform,
         account_id=job_run.account_id,
         job_name=job_run.job_name,
@@ -112,10 +231,11 @@ def ratios(
 def list_accounts(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     platform: AdvertisingPlatform | None = None,
+    workspace_id: int | None = None,
     limit: Limit = 25,
     offset: Offset = 0,
 ) -> PaginatedResponse[AccountResponse]:
-    items, total = repository.list_accounts(platform, limit, offset)
+    items, total = repository.list_accounts(platform, limit, offset, workspace_id)
     return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
 
 
@@ -255,11 +375,14 @@ def list_job_runs(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
     platform: AdvertisingPlatform | None = None,
     account_id: int | None = None,
+    workspace_id: int | None = None,
     status: JobRunStatus | None = None,
     limit: Limit = 25,
     offset: Offset = 0,
 ) -> PaginatedResponse[JobRunResponse]:
-    items, total = repository.list_job_runs(platform, account_id, status, limit, offset)
+    items, total = repository.list_job_runs(
+        platform, account_id, status, limit, offset, workspace_id
+    )
     return PaginatedResponse(
         items=[job_run_response(item) for item in items], limit=limit, offset=offset, total=total
     )
@@ -290,12 +413,14 @@ def latest_job_run(
 )
 def sync_status(
     repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    workspace_id: int | None = None,
     limit: Limit = 25,
     offset: Offset = 0,
 ) -> PaginatedResponse[SyncStatusResponse]:
-    rows, total = repository.sync_status(limit, offset)
+    rows, total = repository.sync_status(limit, offset, workspace_id)
     items = [
         SyncStatusResponse(
+            workspace_id=a.workspace_id,
             account_id=a.id,
             platform=a.platform,
             external_account_id=a.external_account_id,
@@ -394,14 +519,22 @@ def account_findings(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> list[FindingResponse]:
-    if repository.get_account(account_id) is None:
+    account = repository.get_account(account_id)
+    if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     start, end = default_dates(date_from, date_to)
     latest, success_at = repository.account_sync_status(account_id)
     del latest
     current, comparison = _windows(repository, account_id, start, end)
     findings = generate_findings(current, comparison, last_success_at=success_at)
-    return [FindingResponse(**f.__dict__) for f in findings]
+    return [
+        FindingResponse(
+            workspace_id=account.workspace_id,
+            advertising_account_id=account.id,
+            **finding.__dict__,
+        )
+        for finding in findings
+    ]
 
 
 @router.post(
@@ -430,6 +563,7 @@ def generate_account_recommendations(
     )
     rows = [
         Recommendation(
+            workspace_id=account.workspace_id,
             platform=account.platform,
             account_id=account.id,
             recommendation_type=d.recommendation_type,
@@ -460,12 +594,15 @@ def generate_account_recommendations(
 def list_recommendations(
     db: Annotated[Session, Depends(get_db)],
     status: RecommendationStatus | None = None,
+    workspace_id: int | None = None,
     limit: Limit = 25,
     offset: Offset = 0,
 ) -> PaginatedResponse[RecommendationResponse]:
     from sqlalchemy import func, select
 
     stmt = select(Recommendation)
+    if workspace_id is not None:
+        stmt = stmt.where(Recommendation.workspace_id == workspace_id)
     if status:
         stmt = stmt.where(Recommendation.status == status)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0

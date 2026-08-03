@@ -48,6 +48,7 @@ from app.ads.services import (
 )
 from app.collectors import google_ads
 from app.database.session import Base
+from app.workspaces.models import Workspace
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry
@@ -113,8 +114,6 @@ def patch_cli_runtime(monkeypatch: pytest.MonkeyPatch, session: Session) -> None
     )
 
 
-
-
 class TestPhase7Lock:
     key = 1
     backend_pid = 1
@@ -176,9 +175,7 @@ def sync_without_worker_for_tests(
         result = service._collect_and_persist(
             job_run,
             date_range=date_range,
-            capability=make_phase7_capability(
-                session, lock=lock, stop_requested=stop_requested
-            ),
+            capability=make_phase7_capability(session, lock=lock, stop_requested=stop_requested),
         )
         success_commit_started = True
         session.commit()
@@ -203,9 +200,7 @@ def sync_without_worker_for_tests(
     final_error: GoogleAdsSyncError | None = None
     try:
         session.rollback()
-        failed_account_id = service._resolve_durable_failed_run_account_id(
-            resolved_account
-        )
+        failed_account_id = service._resolve_durable_failed_run_account_id(resolved_account)
         failed_job_run = repository.create_job_run(
             platform=AdvertisingPlatform.GOOGLE_ADS,
             job_name=service.job_name,
@@ -221,9 +216,7 @@ def sync_without_worker_for_tests(
         session.flush()
         failed_commit_started = True
         session.commit()
-        final_error = GoogleAdsSyncError(
-            sanitized_error_message, classification=classification
-        )
+        final_error = GoogleAdsSyncError(sanitized_error_message, classification=classification)
     except Exception:
         with suppress(Exception):
             session.rollback()
@@ -249,6 +242,17 @@ def session() -> Generator[Session, None, None]:
     Base.metadata.create_all(engine)
     local_session = sessionmaker(bind=engine)
     db = local_session()
+    db.add(
+        Workspace(
+            id=1,
+            slug="denticode",
+            name="Denticode Ad Analyzer",
+            client_name="Denticode",
+            status="active",
+            is_default=True,
+        )
+    )
+    db.commit()
     try:
         yield db
     finally:
@@ -365,16 +369,20 @@ class GoogleAdsCollectorStub:
 
     def collect_keywords(self, ad_group_ids_by_external_id: dict[str, int]) -> list[KeywordCreate]:
         self._fail_if_needed("keywords")
-        return [
-            KeywordCreate(
-                ad_group_id=ad_group_ids_by_external_id["ag-1"],
-                platform=AdvertisingPlatform.GOOGLE_ADS,
-                external_keyword_id="kw-1",
-                text="dental implants",
-                match_type="EXACT",
-                status="ENABLED",
-            )
-        ] if ad_group_ids_by_external_id else []
+        return (
+            [
+                KeywordCreate(
+                    ad_group_id=ad_group_ids_by_external_id["ag-1"],
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    external_keyword_id="kw-1",
+                    text="dental implants",
+                    match_type="EXACT",
+                    status="ENABLED",
+                )
+            ]
+            if ad_group_ids_by_external_id
+            else []
+        )
 
     def collect_search_terms(
         self,
@@ -382,14 +390,18 @@ class GoogleAdsCollectorStub:
         date_range: google_ads.GoogleAdsDateRange,
     ) -> list[SearchTermCreate]:
         self._fail_if_needed("search_terms")
-        return [
-            SearchTermCreate(
-                ad_group_id=ad_group_ids_by_external_id["ag-1"],
-                platform=AdvertisingPlatform.GOOGLE_ADS,
-                term="best dental implants",
-                match_type="EXACT",
-            )
-        ] if ad_group_ids_by_external_id else []
+        return (
+            [
+                SearchTermCreate(
+                    ad_group_id=ad_group_ids_by_external_id["ag-1"],
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    term="best dental implants",
+                    match_type="EXACT",
+                )
+            ]
+            if ad_group_ids_by_external_id
+            else []
+        )
 
     def collect_metrics(
         self,
@@ -399,28 +411,35 @@ class GoogleAdsCollectorStub:
         self._fail_if_needed("metrics")
         if self.zero_metrics:
             return NormalizedMetricsBatch(metrics=[])
-        return NormalizedMetricsBatch(metrics=[
-            DailyMetricCreate(
-                platform=AdvertisingPlatform.GOOGLE_ADS,
-                metric_date=date(2026, 7, 14),
-                entity_type="campaign",
-                entity_id=campaign_ids_by_external_id["camp-1"],
-                campaign_id=campaign_ids_by_external_id["camp-1"],
-                impressions=100,
-                clicks=10,
-                cost_micros=1230000,
-                conversions=Decimal("2.5"),
-                conversion_value_micros=2500000,
-            )
-        ])
+        return NormalizedMetricsBatch(
+            metrics=[
+                DailyMetricCreate(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    metric_date=date(2026, 7, 14),
+                    entity_type="campaign",
+                    entity_id=campaign_ids_by_external_id["camp-1"],
+                    campaign_id=campaign_ids_by_external_id["camp-1"],
+                    impressions=100,
+                    clicks=10,
+                    cost_micros=1230000,
+                    conversions=Decimal("2.5"),
+                    conversion_value_micros=2500000,
+                )
+            ]
+        )
 
 
 @pytest.fixture()
 def stub_collectors(monkeypatch: pytest.MonkeyPatch) -> GoogleAdsCollectorStub:
     stub = GoogleAdsCollectorStub()
     for name in (
-        "collect_account", "collect_campaigns", "collect_ad_groups", "collect_ads",
-        "collect_keywords", "collect_search_terms", "collect_metrics",
+        "collect_account",
+        "collect_campaigns",
+        "collect_ad_groups",
+        "collect_ads",
+        "collect_keywords",
+        "collect_search_terms",
+        "collect_metrics",
     ):
         monkeypatch.setattr(google_ads, name, getattr(stub, name))
     return stub
@@ -808,9 +827,7 @@ def test_durable_commit_ack_failure_does_not_create_success_and_failed_job_runs(
     assert after_commit_statements == []
 
     job_runs = session.scalars(select(JobRun)).all()
-    assert [(job.status, job.error_message) for job in job_runs] == [
-        (JobRunStatus.SUCCEEDED, None)
-    ]
+    assert [(job.status, job.error_message) for job in job_runs] == [(JobRunStatus.SUCCEEDED, None)]
 
 
 def test_failed_job_run_flush_failure_raises_persistence_error_not_uncertain_commit(
@@ -1021,6 +1038,17 @@ def test_concurrent_duplicate_ad_upserts_do_not_create_duplicate_rows(
     try:
         setup_session = local_session()
         try:
+            setup_session.add(
+                Workspace(
+                    id=1,
+                    slug="denticode",
+                    name="Denticode Ad Analyzer",
+                    client_name="Denticode",
+                    status="active",
+                    is_default=True,
+                )
+            )
+            setup_session.commit()
             repository = AdvertisingMetricsRepository(setup_session)
             account = repository.upsert_account(
                 AdvertisingAccountCreate(
@@ -1177,8 +1205,7 @@ def test_final_capability_revalidation_after_metrics_collection_prevents_success
 
     assert session.scalars(select(DailyMetric)).all() == []
     assert (
-        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
-        == []
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all() == []
     )
 
 
@@ -1208,8 +1235,7 @@ def test_final_capability_revalidation_when_metrics_skipped_prevents_success(
         sync_without_worker_for_tests(session, stop_requested=stop.is_set)
 
     assert (
-        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
-        == []
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all() == []
     )
 
 
@@ -1246,6 +1272,5 @@ def test_final_capability_revalidation_after_metrics_detects_lock_loss(
 
     assert session.scalars(select(DailyMetric)).all() == []
     assert (
-        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all()
-        == []
+        session.scalars(select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)).all() == []
     )

@@ -7,12 +7,13 @@ from secrets import token_urlsafe
 from threading import Lock
 from typing import Any
 
-from app.api.auth import require_api_token
-from app.settings import settings as app_settings
 from fastapi import HTTPException, Request, status
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token as google_id_token
+
+from app.api.auth import require_api_token
+from app.settings import settings as app_settings
 
 COOKIE_NAME = "ad_analyzer_dashboard_session"
 CSRF_NAME = "ad_analyzer_dashboard_csrf"

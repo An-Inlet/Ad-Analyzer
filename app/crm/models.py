@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.database.session import Base
-from app.workspaces.models import Workspace, WorkspaceIntegration  # noqa: F401
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database.session import Base
+from app.workspaces.models import Workspace, WorkspaceIntegration  # noqa: F401
 
 
 def utc_now() -> datetime:

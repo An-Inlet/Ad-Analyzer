@@ -1,5 +1,8 @@
 from typing import Any, cast
 
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import Session
+
 from app.ads.models import AdvertisingAccount, Campaign
 from app.workspaces.models import (
     Workspace,
@@ -7,8 +10,6 @@ from app.workspaces.models import (
     WorkspaceIntegration,
     WorkspaceMembership,
 )
-from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session
 
 
 class WorkspaceRepository:

@@ -5,11 +5,12 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Protocol
 
-from app.crm.models import CrmConnection, CrmEventRecord, LeadAttribution
-from app.crm.schemas import CrmEvent
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.crm.models import CrmConnection, CrmEventRecord, LeadAttribution
+from app.crm.schemas import CrmEvent
 
 logger = logging.getLogger(__name__)
 _ATTRIBUTION_FIELDS = (

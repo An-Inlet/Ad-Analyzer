@@ -1,17 +1,18 @@
 import logging
 
-from app.api.crm import router as crm_router
-from app.api.pubsub import router as pubsub_router
-from app.api.v1 import router as api_v1_router
-from app.dashboard.auth import COOKIE_NAME
-from app.dashboard.router import router as dashboard_router
-from app.deployment import DeploymentProcess, validate_deployment_startup
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
+
+from app.api.crm import router as crm_router
+from app.api.pubsub import router as pubsub_router
+from app.api.v1 import router as api_v1_router
+from app.dashboard.auth import COOKIE_NAME
+from app.dashboard.router import router as dashboard_router
+from app.deployment import DeploymentProcess, validate_deployment_startup
 
 
 class RootResponse(BaseModel):

@@ -18,6 +18,7 @@ from app.ads.models import (
 from app.ads.schemas import AdCreate, DailyMetricCreate, NormalizedMetricsBatch
 from app.ads.services import NormalizedMetricsService
 from app.database.session import Base
+from app.workspaces.models import Workspace
 from pydantic import ValidationError
 from sqlalchemy import create_engine, event
 from sqlalchemy.exc import IntegrityError
@@ -44,6 +45,17 @@ def session() -> Generator[Session, None, None]:
     Base.metadata.create_all(engine)
     local_session = sessionmaker(bind=engine)
     db = local_session()
+    db.add(
+        Workspace(
+            id=1,
+            slug="denticode",
+            name="Denticode Ad Analyzer",
+            client_name="Denticode",
+            status="active",
+            is_default=True,
+        )
+    )
+    db.commit()
     try:
         yield db
     finally:

@@ -1,8 +1,8 @@
-# Denticode Ads Optimizer Agent Instructions
+# Ad Analyzer Agent Instructions
 
 ## Security requirements
 
-- Treat this repository as a controlled system for Google Ads and Meta Ads optimization. Safety, auditability, and operator review take precedence over automation speed.
+- Treat this repository as the multi-workspace Ad Analyzer platform. Safety, auditability, client isolation, and operator review take precedence over automation speed.
 - Do not connect to Google Ads, Meta Ads, OpenAI APIs, or any external service unless a human explicitly requests that task in the current conversation.
 - Do not request, create, print, commit, or store credentials, API tokens, OAuth refresh tokens, client secrets, private keys, service-account files, or production database URLs.
 - Never commit `.env` files or credential material. Use `.env.example` only for non-secret variable names and safe placeholder values.

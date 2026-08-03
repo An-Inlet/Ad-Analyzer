@@ -2,11 +2,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import Select, and_, func, select
-from sqlalchemy.orm import Session, joinedload
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
+from sqlalchemy import Select, and_, func, select
+from sqlalchemy.orm import Session, joinedload
 
 
 class ReadOnlyAdsRepository:
@@ -19,9 +18,15 @@ class ReadOnlyAdsRepository:
         return items, total
 
     def list_accounts(
-        self, platform: AdvertisingPlatform | None, limit: int, offset: int
+        self,
+        platform: AdvertisingPlatform | None,
+        limit: int,
+        offset: int,
+        workspace_id: int | None = None,
     ) -> tuple[list[AdvertisingAccount], int]:
         stmt = select(AdvertisingAccount)
+        if workspace_id is not None:
+            stmt = stmt.where(AdvertisingAccount.workspace_id == workspace_id)
         if platform is not None:
             stmt = stmt.where(AdvertisingAccount.platform == platform)
         return cast(
@@ -205,8 +210,11 @@ class ReadOnlyAdsRepository:
         status: JobRunStatus | None,
         limit: int,
         offset: int,
+        workspace_id: int | None = None,
     ) -> tuple[list[JobRun], int]:
         stmt = select(JobRun)
+        if workspace_id is not None:
+            stmt = stmt.where(JobRun.workspace_id == workspace_id)
         if platform is not None:
             stmt = stmt.where(JobRun.platform == platform)
         if account_id is not None:
@@ -231,7 +239,7 @@ class ReadOnlyAdsRepository:
         ).first()
 
     def sync_status(
-        self, limit: int, offset: int
+        self, limit: int, offset: int, workspace_id: int | None = None
     ) -> tuple[list[tuple[AdvertisingAccount, JobRun | None, Any]], int]:
         latest_rank = func.row_number().over(
             partition_by=(JobRun.account_id, JobRun.platform),
@@ -281,6 +289,11 @@ class ReadOnlyAdsRepository:
             )
             .order_by(AdvertisingAccount.id.asc())
         )
-        total = self.session.scalar(select(func.count()).select_from(AdvertisingAccount)) or 0
+        if workspace_id is not None:
+            stmt = stmt.where(AdvertisingAccount.workspace_id == workspace_id)
+        total_stmt = select(func.count()).select_from(AdvertisingAccount)
+        if workspace_id is not None:
+            total_stmt = total_stmt.where(AdvertisingAccount.workspace_id == workspace_id)
+        total = self.session.scalar(total_stmt) or 0
         rows = self.session.execute(stmt.limit(limit).offset(offset)).all()
         return cast(tuple[list[tuple[AdvertisingAccount, JobRun | None, Any]], int], (rows, total))

@@ -2038,3 +2038,4 @@ def test_worker_entrypoints_do_not_log_invalid_lock_key_values(
     assert secret_value not in caplog.text
     assert "input_value" not in caplog.text
     assert "Invalid sync advisory lock key setting" not in caplog.text
+

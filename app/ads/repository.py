@@ -2,10 +2,6 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, TypeVar, cast
 
-from sqlalchemy.dialects.postgresql import insert as postgresql_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import (
     Ad,
@@ -27,6 +23,9 @@ from app.ads.schemas import (
     KeywordCreate,
     SearchTermCreate,
 )
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session
 
 ModelT = TypeVar("ModelT")
 
@@ -45,11 +44,16 @@ class AdvertisingMetricsRepository:
     def add_daily_metrics(self, metrics: Sequence[DailyMetricCreate]) -> list[DailyMetric]:
         return [self.add_daily_metric(metric) for metric in metrics]
 
-    def upsert_account(self, account: AdvertisingAccountCreate) -> AdvertisingAccount:
+    def upsert_account(
+        self, account: AdvertisingAccountCreate, *, workspace_id: int | None = None
+    ) -> AdvertisingAccount:
+        values = account.model_dump()
+        if workspace_id is not None:
+            values["workspace_id"] = workspace_id
         return self._atomic_upsert(
             AdvertisingAccount,
-            account.model_dump(),
-            ("platform", "external_account_id"),
+            values,
+            ("workspace_id", "platform", "external_account_id"),
         )
 
     def upsert_campaign(self, campaign: CampaignCreate) -> Campaign:
@@ -102,8 +106,10 @@ class AdvertisingMetricsRepository:
         job_name: str,
         status: JobRunStatus,
         account_id: int | None = None,
+        workspace_id: int = 1,
     ) -> JobRun:
         job_run = JobRun(
+            workspace_id=workspace_id,
             platform=platform,
             account_id=account_id,
             job_name=job_name,

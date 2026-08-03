@@ -13,6 +13,7 @@ from app.ads.models import AdvertisingAccount, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.database.session import Base
 from app.jobs.reliability import PostgreSQLAdvisoryLock
+from app.workspaces.models import Workspace
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -33,6 +34,19 @@ def postgres_engine() -> Generator[Engine, None, None]:
     finally:
         Base.metadata.drop_all(engine)
         engine.dispose()
+
+
+def add_default_workspace(session: Session) -> None:
+    session.add(
+        Workspace(
+            id=1,
+            slug="denticode",
+            name="Denticode Ad Analyzer",
+            client_name="Denticode",
+            is_default=True,
+        )
+    )
+    session.flush()
 
 
 def test_postgres_lock_acquisition_transaction_ends_and_lock_survives(
@@ -66,6 +80,7 @@ def test_postgres_ownership_checks_do_not_commit_session_writes(
         assert lock.try_acquire() is True
         session = sessionmaker(bind=pinned, autoflush=False, autocommit=False)()
         try:
+            add_default_workspace(session)
             account = AdvertisingAccount(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 external_account_id="uncommitted-account",
@@ -115,6 +130,7 @@ def test_postgres_session_commits_are_visible_while_lock_is_held(
         assert pinned.in_transaction() is False
         session = sessionmaker(bind=pinned, autoflush=False, autocommit=False)()
         try:
+            add_default_workspace(session)
             job_run = AdvertisingMetricsRepository(session).create_job_run(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 job_name="google_ads_read_only_sync",

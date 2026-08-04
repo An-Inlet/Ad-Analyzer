@@ -5,6 +5,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, Uniqu
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
+from app.workspaces.models import Workspace, WorkspaceIntegration  # noqa: F401
 
 
 def utc_now() -> datetime:
@@ -13,9 +14,18 @@ def utc_now() -> datetime:
 
 class CrmConnection(Base):
     __tablename__ = "crm_connections"
-    __table_args__ = (Index("ix_crm_connections_status", "status"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "name", name="uq_crm_connections_workspace_name"),
+        Index("ix_crm_connections_workspace_status", "workspace_id", "status"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+    )
+    workspace_integration_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workspace_integrations.id", ondelete="SET NULL")
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     secret_manager_reference: Mapped[str] = mapped_column(String(512), nullable=False)

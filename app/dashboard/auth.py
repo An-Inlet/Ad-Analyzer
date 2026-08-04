@@ -15,8 +15,8 @@ from google.oauth2 import id_token as google_id_token
 from app.api.auth import require_api_token
 from app.settings import settings as app_settings
 
-COOKIE_NAME = "denticode_dashboard_session"
-CSRF_NAME = "denticode_dashboard_csrf"
+COOKIE_NAME = "ad_analyzer_dashboard_session"
+CSRF_NAME = "ad_analyzer_dashboard_csrf"
 SESSION_TTL = timedelta(hours=8)
 MAX_SESSIONS = 1024
 _sessions: OrderedDict[str, tuple[datetime, str]] = OrderedDict()
@@ -54,16 +54,13 @@ def _is_loopback(request: Request) -> bool:
 
 
 def insecure_local_http(request: Request) -> bool:
-    return (
-        request.url.scheme == "http"
-        and app_settings.denticode_dashboard_allow_insecure_local_http
-    )
+    return request.url.scheme == "http" and app_settings.dashboard_allow_insecure_local_http
 
 
 def cookie_secure(request: Request) -> bool:
     if request.url.scheme != "http":
         return True
-    if not app_settings.denticode_dashboard_allow_insecure_local_http:
+    if not app_settings.dashboard_allow_insecure_local_http:
         raise HTTPException(status_code=403, detail="dashboard unavailable")
     if not _is_loopback(request):
         raise HTTPException(status_code=403, detail="dashboard unavailable")
@@ -91,9 +88,8 @@ def verify_iap_jwt(assertion: str, audience: str) -> dict[str, Any]:
 
 
 def _require_iap_identity(request: Request) -> str:
-    audience = app_settings.denticode_iap_audience.strip()
-    allowed = app_settings.dashboard_allowed_emails
-    if not audience or not allowed:
+    audience = app_settings.iap_audience.strip()
+    if not audience:
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
     assertions = [
         value
@@ -108,8 +104,8 @@ def _require_iap_identity(request: Request) -> str:
         raise _authentication_failed() from None
     claims = verify_iap_jwt(assertion, audience)
     email = claims.get("email")
-    if not isinstance(email, str) or email.casefold() not in allowed:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="access denied")
+    if not isinstance(email, str) or not email.strip():
+        raise _authentication_failed()
     return email.casefold()
 
 

@@ -1,4 +1,6 @@
-# Denticode Ads Analyzer build progress
+# Ad Analyzer build progress
+
+Denticode Ad Analyzer is the initial client workspace inside the shared Ad Analyzer platform.
 
 Branch: `codex/complete-denticode-ads-analyzer-buildout`
 

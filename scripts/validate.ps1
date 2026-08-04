@@ -57,7 +57,12 @@ function Invoke-Release {
 
 switch ($Scope) {
     'Full' {
-        if (-not [string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) { $env:DATABASE_URL = $env:DENTICODE_TEST_POSTGRES_URL } else { Write-Host 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally.' }
+        if (-not [string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) {
+            Require-DisposablePostgres
+            Invoke-Step 'python scripts/reset_disposable_postgres.py'
+        } else {
+            Write-Host 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally.'
+        }
         Invoke-Step 'alembic upgrade head'; Invoke-Step 'python -m pytest'; Invoke-Step 'ruff check .'; Invoke-Step 'mypy'
         $diffBase = if ([string]::IsNullOrWhiteSpace($env:DENTICODE_DIFF_BASE)) { 'HEAD' } else { $env:DENTICODE_DIFF_BASE }; Invoke-Step "git diff --check $diffBase"
         if (-not [string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) { Invoke-PostgreSQL; Invoke-Migrations }

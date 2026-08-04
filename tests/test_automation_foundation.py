@@ -788,13 +788,18 @@ def test_full_validation_can_run_twice_against_same_disposable_database() -> Non
     command = validate_command("Full")
     env = disposable_postgres_env({"DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
     for _ in range(2):
-        subprocess.run(
+        result = subprocess.run(
             command,
             cwd=ROOT,
-            check=True,
+            check=False,
             text=True,
             capture_output=True,
             env=env,
+        )
+        assert result.returncode == 0, (
+            "Full validation failed against the disposable PostgreSQL database.\n"
+            f"stdout:\n{result.stdout[-8000:]}\n"
+            f"stderr:\n{result.stderr[-8000:]}"
         )
 
 

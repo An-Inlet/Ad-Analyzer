@@ -23,6 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.database.session import Base
+from app.workspaces.models import Workspace  # noqa: F401
 
 
 def utc_now() -> datetime:
@@ -68,13 +69,20 @@ class AdvertisingAccount(TimestampMixin, Base):
     __tablename__ = "advertising_accounts"
     __table_args__ = (
         UniqueConstraint(
-            "platform", "external_account_id", name="uq_ad_accounts_platform_external"
+            "workspace_id",
+            "platform",
+            "external_account_id",
+            name="uq_ad_accounts_workspace_platform_external",
         ),
         UniqueConstraint("id", "platform", name="uq_ad_accounts_id_platform"),
-        Index("ix_ad_accounts_platform", "platform"),
+        UniqueConstraint("id", "workspace_id", name="uq_ad_accounts_id_workspace"),
+        Index("ix_ad_accounts_workspace_platform", "workspace_id", "platform"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+    )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_account_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -84,7 +92,16 @@ class AdvertisingAccount(TimestampMixin, Base):
     campaigns: Mapped[list["Campaign"]] = relationship(
         back_populates="account", cascade="all, delete-orphan"
     )
-    job_runs: Mapped[list["JobRun"]] = relationship(back_populates="account", passive_deletes=True)
+    job_runs: Mapped[list["JobRun"]] = relationship(
+        back_populates="account",
+        passive_deletes=True,
+        primaryjoin=(
+            "and_(AdvertisingAccount.id == JobRun.account_id, "
+            "AdvertisingAccount.platform == JobRun.platform, "
+            "AdvertisingAccount.workspace_id == JobRun.workspace_id)"
+        ),
+        foreign_keys="[JobRun.account_id, JobRun.platform, JobRun.workspace_id]",
+    )
 
 
 class Campaign(TimestampMixin, Base):
@@ -97,6 +114,7 @@ class Campaign(TimestampMixin, Base):
             name="uq_campaigns_account_platform_external",
         ),
         UniqueConstraint("id", "platform", name="uq_campaigns_id_platform"),
+        UniqueConstraint("id", "account_id", name="uq_campaigns_id_account"),
         ForeignKeyConstraint(
             ["account_id", "platform"],
             ["advertising_accounts.id", "advertising_accounts.platform"],
@@ -328,12 +346,23 @@ class ConversionEvent(TimestampMixin, Base):
     __tablename__ = "conversion_events"
     __table_args__ = (
         UniqueConstraint(
-            "platform", "external_conversion_id", name="uq_conversion_events_platform_external"
+            "workspace_id",
+            "platform",
+            "external_conversion_id",
+            name="uq_conversion_events_workspace_platform_external",
         ),
-        Index("ix_conversion_events_platform_occurred", "platform", "occurred_at"),
+        Index(
+            "ix_conversion_events_workspace_platform_occurred",
+            "workspace_id",
+            "platform",
+            "occurred_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+    )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_conversion_id: Mapped[str] = mapped_column(String(128), nullable=False)
     campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id", ondelete="SET NULL"))
@@ -354,7 +383,14 @@ class JobRun(TimestampMixin, Base):
             name="fk_job_runs_account_platform",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id"],
+            ["advertising_accounts.id", "advertising_accounts.workspace_id"],
+            name="fk_job_runs_account_workspace",
+            ondelete="RESTRICT",
+        ),
         Index("ix_job_runs_platform_started", "platform", "started_at"),
+        Index("ix_job_runs_workspace_started", "workspace_id", desc("started_at")),
         Index(
             "ix_job_runs_account_platform_started_id",
             "account_id",
@@ -374,6 +410,9 @@ class JobRun(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+    )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     account_id: Mapped[int | None] = mapped_column(Integer)
     job_name: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -387,22 +426,54 @@ class JobRun(TimestampMixin, Base):
     records_processed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text)
 
-    account: Mapped[AdvertisingAccount | None] = relationship(back_populates="job_runs")
+    account: Mapped[AdvertisingAccount | None] = relationship(
+        back_populates="job_runs",
+        primaryjoin=(
+            "and_(AdvertisingAccount.id == JobRun.account_id, "
+            "AdvertisingAccount.platform == JobRun.platform, "
+            "AdvertisingAccount.workspace_id == JobRun.workspace_id)"
+        ),
+        foreign_keys="[JobRun.account_id, JobRun.platform, JobRun.workspace_id]",
+    )
 
 
 class Recommendation(TimestampMixin, Base):
     __tablename__ = "recommendations"
     __table_args__ = (
-        Index("ix_recommendations_account_status", "account_id", "status"),
+        Index(
+            "ix_recommendations_workspace_account_status",
+            "workspace_id",
+            "account_id",
+            "status",
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id"],
+            ["workspaces.id"],
+            name="fk_recommendations_workspace",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["campaign_id", "account_id"],
+            ["campaigns.id", "campaigns.account_id"],
+            name="fk_recommendations_campaign_account",
+            ondelete="CASCADE",
+        ),
         ForeignKeyConstraint(
             ["account_id", "platform"],
             ["advertising_accounts.id", "advertising_accounts.platform"],
             name="fk_recommendations_account_platform",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id"],
+            ["advertising_accounts.id", "advertising_accounts.workspace_id"],
+            name="fk_recommendations_account_workspace",
+            ondelete="CASCADE",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     account_id: Mapped[int] = mapped_column(Integer, nullable=False)
     campaign_id: Mapped[int | None] = mapped_column(Integer)

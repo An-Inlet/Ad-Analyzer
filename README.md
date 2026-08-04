@@ -1,25 +1,55 @@
-# Denticode Ads Optimizer
+# Ad Analyzer
 
-Denticode Ads Optimizer is a Python 3.12 FastAPI service intended to support controlled Google Ads and Meta Ads optimization workflows. The initial project configuration is intentionally read-only: it does not implement advertising API collectors, write access, or campaign mutations.
+Ad Analyzer is the complete multi-workspace advertising analysis platform: dashboard, API,
+workers, database, recommendation engine, and controlled execution layer. **Denticode Ad
+Analyzer** is Denticode's client workspace inside that platform.
+
+The platform currently synchronizes advertising data, reports performance, generates
+deterministic findings and recommendations, records review decisions, and performs guarded dry
+runs. Live advertising writes remain disabled.
+
+## Account hierarchy
+
+```text
+Ad Analyzer platform
+└── Denticode Ad Analyzer workspace
+    ├── workspace configuration
+    ├── workspace memberships and roles
+    ├── workspace integrations
+    ├── workspace findings and recommendations
+    └── Google Ads / Meta Ads advertising accounts
+```
+
+Every client-owned record is reached through a workspace boundary. A workspace owns its
+configuration, permissions, integrations, findings, recommendations, CRM connection, advertising
+accounts, and operational job history. Advertising accounts are data sources within a workspace;
+they are not themselves client workspaces.
+
+The existing Denticode production records are migrated into a seeded `denticode` workspace named
+`Denticode Ad Analyzer`. Existing database, Cloud Run, secret, and environment names that begin
+with `DENTICODE_` remain supported as compatibility identifiers; they do not define the product
+name or data boundary. See [the workspace architecture](docs/workspace-architecture.md).
 
 ## Current capabilities
 
-- FastAPI application with `GET /` and `GET /health` endpoints.
-- Pydantic-based application settings.
-- SQLAlchemy database session setup for PostgreSQL.
-- Alembic migration configuration.
+- Workspace-scoped dashboard and operator API.
+- Google Ads and CRM synchronization workers with auditable job runs.
+- SQLAlchemy/PostgreSQL persistence and Alembic migrations.
+- Deterministic findings, reviewable recommendations, and guarded dry-run execution.
+- Workspace configuration, memberships, integrations, and persistent finding boundaries.
 - pytest, Ruff, and mypy development tooling.
-- Development Dockerfile.
 
 ## Safety model
 
-This project is designed for cautious, auditable ad optimization. Until explicitly implemented and reviewed, the application must not:
+This project is designed for cautious, auditable ad optimization. Unless explicitly requested,
+implemented, and reviewed, the application must not:
 
-- Connect to Google Ads, Meta Ads, OpenAI APIs, or other external services.
 - Request or create credentials.
 - Upload conversions.
 - Change campaigns, budgets, bids, assets, audiences, or targeting.
 - Run automated campaign mutations without human approval and dry-run review.
+- expose one workspace's data, configuration, integration metadata, or operational activity to
+  another workspace.
 
 ## Windows PowerShell setup
 
@@ -74,13 +104,13 @@ mypy
 Build and run the development container:
 
 ```powershell
-docker build -t denticode-ads-optimizer:dev .
-docker run --rm --env-file .env -p 8000:8000 denticode-ads-optimizer:dev
+docker build -t ad-analyzer:dev .
+docker run --rm --env-file .env -p 8000:8000 ad-analyzer:dev
 ```
 
 ## Database and migrations
 
-The default local database URL is:
+The default local database URL retains its deployed legacy database name:
 
 ```text
 postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer
@@ -101,12 +131,19 @@ Start the FastAPI application locally with:
 uvicorn app.main:app --reload
 ```
 
-Phase 5 exposes versioned read-only advertising data endpoints under `/api/v1`. These API routes read only from the local PostgreSQL database. They do not contact Google Ads, cannot trigger syncs, and cannot mutate Google Ads campaigns, bids, budgets, audiences, or conversions.
+Versioned operator endpoints are available under `/api/v1`. These routes read only from the local
+PostgreSQL database unless a hidden, explicitly gated recommendation workflow says otherwise. They
+do not trigger synchronizations or mutate advertising platforms.
 
 All `/api/v1` endpoints require an operator bearer token. `DENTICODE_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
 
 Endpoint groups:
 
+- Workspaces: `GET /api/v1/workspaces`, `GET /api/v1/workspaces/{slug}`
+- Workspace-owned resources: `GET /api/v1/workspaces/{slug}/configuration`,
+  `GET /api/v1/workspaces/{slug}/integrations`,
+  `GET /api/v1/workspaces/{slug}/memberships`, and
+  `GET /api/v1/workspaces/{slug}/advertising-accounts`
 - Accounts: `GET /api/v1/accounts`, `GET /api/v1/accounts/{account_id}`
 - Account campaigns: `GET /api/v1/accounts/{account_id}/campaigns`
 - Campaigns and child data: `GET /api/v1/campaigns/{campaign_id}`, `GET /api/v1/campaigns/{campaign_id}/ad-groups`, `GET /api/v1/campaigns/{campaign_id}/metrics`
@@ -130,7 +167,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads" -Headers $headers
 ```
 
-## Local operator dashboard (Phase 6)
+## Local operator dashboard
 
 The server-rendered local dashboard is strictly read-only. It displays already-synchronized
 local database data only; it never invokes collectors, starts a sync, contacts Google Ads, or
@@ -154,9 +191,11 @@ using the same boundary as `/api/v1`, then creates a short-lived opaque, HTTP-on
 session. The bearer token is never put into dashboard URLs, HTML, JavaScript, storage, cookies,
 or logs. Later dashboard requests use only that session.
 
-Dashboard routes are `GET /dashboard`, `GET /dashboard/accounts/{account_id}`,
-`GET /dashboard/campaigns/{campaign_id}`, and `GET /dashboard/job-runs`. All require operator
-authentication. The public `GET /` and `GET /health` routes remain unchanged.
+Dashboard routes are `GET /dashboard`, `GET /dashboard/workspaces/{workspace_slug}`,
+`GET /dashboard/accounts/{account_id}`, `GET /dashboard/campaigns/{campaign_id}`, and
+`GET /dashboard/job-runs`. Platform administrators can see all workspaces. Other authenticated IAP
+identities see only workspaces with an active membership; only workspace owners and administrators
+may approve, reject, or dry-run recommendations.
 
 ## Phase 7: separate Google Ads sync worker
 

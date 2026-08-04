@@ -17,13 +17,9 @@ ALLOWED_EMAIL = "operator@example.com"
 @pytest.fixture(autouse=True)
 def dashboard_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(settings, "app_env", "production")
-    monkeypatch.setattr(settings, "denticode_iap_audience", AUDIENCE)
-    monkeypatch.setattr(
-        settings, "denticode_dashboard_allowed_emails_csv", ALLOWED_EMAIL
-    )
-    monkeypatch.setattr(
-        settings, "denticode_dashboard_allow_insecure_local_http", False
-    )
+    monkeypatch.setattr(settings, "iap_audience", AUDIENCE)
+    monkeypatch.setattr(settings, "platform_admin_emails_csv", ALLOWED_EMAIL)
+    monkeypatch.setattr(settings, "dashboard_allow_insecure_local_http", False)
     monkeypatch.setattr(settings, "denticode_api_token", SecretStr(TOKEN))
     with auth._lock:
         auth._sessions.clear()
@@ -65,7 +61,9 @@ def test_valid_iap_jwt_allows_approved_email(monkeypatch: pytest.MonkeyPatch) ->
     assert response.json() == {"identity": ALLOWED_EMAIL}
 
 
-def test_valid_iap_jwt_rejects_unapproved_email(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_valid_iap_jwt_authenticates_identity_before_workspace_authorization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         auth,
         "verify_iap_jwt",
@@ -79,8 +77,8 @@ def test_valid_iap_jwt_rejects_unapproved_email(monkeypatch: pytest.MonkeyPatch)
         "/dashboard", headers=iap_header()
     )
 
-    assert response.status_code == 403
-    assert response.json() == {"detail": "access denied"}
+    assert response.status_code == 200
+    assert response.json() == {"identity": "unapproved@example.com"}
 
 
 @pytest.mark.parametrize("failure", ["invalid signature", "wrong audience", "expired JWT"])

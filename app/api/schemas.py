@@ -19,6 +19,7 @@ class PaginatedResponse[T](BaseModel):
 
 class AccountResponse(ApiModel):
     id: int
+    workspace_id: int
     platform: AdvertisingPlatform
     external_account_id: str
     name: str
@@ -30,6 +31,7 @@ class AccountResponse(ApiModel):
 
 class AccountRef(ApiModel):
     id: int
+    workspace_id: int
     platform: AdvertisingPlatform
     external_account_id: str
     name: str
@@ -88,6 +90,7 @@ class AccountMetricSummaryResponse(BaseModel):
 
 class JobRunResponse(ApiModel):
     id: int
+    workspace_id: int = 1
     platform: AdvertisingPlatform
     account_id: int | None
     job_name: str
@@ -103,6 +106,7 @@ class JobRunResponse(ApiModel):
 
 
 class SyncStatusResponse(BaseModel):
+    workspace_id: int
     account_id: int
     platform: AdvertisingPlatform
     external_account_id: str
@@ -156,6 +160,8 @@ class MetricWindowResponse(BaseModel):
 
 
 class FindingResponse(BaseModel):
+    workspace_id: int
+    advertising_account_id: int
     code: str
     severity: str
     message: str
@@ -164,6 +170,7 @@ class FindingResponse(BaseModel):
 
 class RecommendationResponse(ApiModel):
     id: int
+    workspace_id: int
     account_id: int
     campaign_id: int | None
     platform: AdvertisingPlatform
@@ -192,3 +199,41 @@ class ExecutionAuditResponse(ApiModel):
     validation_errors: list[object]
     rollback_instructions: str
     created_at: datetime
+
+
+class WorkspaceResponse(ApiModel):
+    id: int
+    slug: str
+    name: str
+    client_name: str
+    status: str
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkspaceConfigurationResponse(ApiModel):
+    workspace_id: int
+    analysis: dict[str, object]
+    automation: dict[str, object]
+    notifications: dict[str, object]
+    branding: dict[str, object]
+
+
+class WorkspaceMembershipResponse(ApiModel):
+    id: int
+    workspace_id: int
+    principal: str
+    role: str
+    status: str
+
+
+class WorkspaceIntegrationResponse(BaseModel):
+    id: int
+    workspace_id: int
+    integration_key: str
+    provider: str
+    display_name: str
+    status: str
+    configuration: dict[str, object]
+    credential_reference_configured: bool

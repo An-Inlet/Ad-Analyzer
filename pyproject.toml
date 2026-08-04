@@ -3,13 +3,13 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "denticode-ads-optimizer"
+name = "ad-analyzer"
 version = "0.1.0"
-description = "Controlled Google Ads and Meta Ads optimization service for Denticode."
+description = "Account-scoped advertising analysis and controlled optimization platform."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
-authors = [{ name = "Denticode" }]
+authors = [{ name = "An Inlet" }]
 dependencies = [
     "alembic>=1.13.2",
     "fastapi>=0.111.0",

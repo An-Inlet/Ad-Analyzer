@@ -66,7 +66,12 @@ release_validation() { run python -m pytest; run ruff check .; run mypy; run git
 
 case "$scope" in
   Full)
-    if [[ -n "${DENTICODE_TEST_POSTGRES_URL:-}" ]]; then export DATABASE_URL="$DENTICODE_TEST_POSTGRES_URL"; else echo "DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally."; fi
+    if [[ -n "${DENTICODE_TEST_POSTGRES_URL:-}" ]]; then
+      require_disposable_postgres
+      run python scripts/reset_disposable_postgres.py
+    else
+      echo "DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally."
+    fi
     run alembic upgrade head
     run python -m pytest
     run ruff check .

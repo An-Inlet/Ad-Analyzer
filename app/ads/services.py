@@ -174,8 +174,13 @@ class GoogleAdsSyncService:
         self._last_records_processed = records_processed
         self._check_before_collector(capability)
         resolved_account = google_ads.collect_account()
+        resolved_account = resolved_account.model_copy(
+            update={"workspace_id": job_run.workspace_id}
+        )
         self._last_resolved_account = resolved_account
-        account = self.repository.upsert_account(resolved_account)
+        account = self.repository.upsert_account(
+            resolved_account, workspace_id=job_run.workspace_id
+        )
         job_run.account_id = account.id
         records_processed += 1
         self._last_records_processed = records_processed
@@ -297,6 +302,7 @@ class GoogleAdsSyncService:
             return None
         return self.session.scalar(
             select(AdvertisingAccount.id).where(
+                AdvertisingAccount.workspace_id == account.workspace_id,
                 AdvertisingAccount.platform == account.platform,
                 AdvertisingAccount.external_account_id == account.external_account_id,
             )

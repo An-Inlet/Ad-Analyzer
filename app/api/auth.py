@@ -58,7 +58,5 @@ def require_api_token(
     presented_value = _parse_bearer_credential(authorization_headers[0])
     if presented_value is None or not _is_valid_token(presented_value):
         raise authentication_failed()
-    if not compare_digest(
-        presented_value.encode("ascii"), expected_value.encode("ascii")
-    ):
+    if not compare_digest(presented_value.encode("ascii"), expected_value.encode("ascii")):
         raise authentication_failed()

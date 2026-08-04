@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.crm import router as crm_router
 from app.api.pubsub import router as pubsub_router
 from app.api.v1 import router as api_v1_router
+from app.dashboard.auth import COOKIE_NAME
 from app.dashboard.router import router as dashboard_router
 from app.deployment import DeploymentProcess, validate_deployment_startup
 
@@ -37,8 +38,8 @@ class ReadinessResponse(BaseModel):
 
 
 app = FastAPI(
-    title="Denticode Ads Optimizer",
-    summary="Controlled optimization service for Google Ads and Meta Ads.",
+    title="Ad Analyzer",
+    summary="Account-scoped advertising analysis and controlled optimization platform.",
     version="0.1.0",
 )
 
@@ -47,7 +48,7 @@ app = FastAPI(
 def read_root() -> RootResponse:
     """Return basic service metadata without contacting external services."""
     return RootResponse(
-        name="denticode-ads-optimizer",
+        name="ad-analyzer",
         status="ready",
         write_access_enabled=False,
     )
@@ -113,7 +114,7 @@ async def dashboard_security_headers(request: Request, call_next: object) -> obj
         session_id = getattr(request.state, "dashboard_new_session", None)
         if session_id is not None:
             response.set_cookie(
-                "denticode_dashboard_session",
+                COOKIE_NAME,
                 session_id,
                 max_age=8 * 60 * 60,
                 httponly=True,

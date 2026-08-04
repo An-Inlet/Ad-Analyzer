@@ -39,12 +39,24 @@ class CrmEventProcessor:
 
     def process(self, payload: Mapping[str, object]) -> bool:
         version = payload.get("payload_version")
-        event_data = {key: value for key, value in payload.items() if key != "payload_version"}
+        workspace_id = payload.get("workspace_id", 1)
+        if isinstance(workspace_id, bool) or not isinstance(workspace_id, int) or workspace_id < 1:
+            raise ValueError("invalid workspace scope")
+        event_data = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"payload_version", "workspace_id"}
+        }
         event = CrmEvent.model_validate(event_data)
         if version != 1:
             raise ValueError("unsupported payload version")
         connection = self.session.scalar(
-            select(CrmConnection).where(CrmConnection.status == "active").order_by(CrmConnection.id)
+            select(CrmConnection)
+            .where(
+                CrmConnection.workspace_id == workspace_id,
+                CrmConnection.status == "active",
+            )
+            .order_by(CrmConnection.id)
         )
         if connection is None:
             raise RuntimeError("no active CRM connection")

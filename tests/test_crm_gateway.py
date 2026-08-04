@@ -143,4 +143,3 @@ def test_health_endpoint_remains_public_and_minimal(
 ) -> None:
     client, _ = crm_client
     assert client.get("/health").json() == {"status": "ok"}
-

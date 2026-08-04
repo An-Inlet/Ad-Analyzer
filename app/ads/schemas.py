@@ -11,6 +11,7 @@ class OrmModel(BaseModel):
 
 
 class AdvertisingAccountCreate(BaseModel):
+    workspace_id: int = Field(default=1, ge=1)
     platform: AdvertisingPlatform
     external_account_id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=255)
@@ -106,6 +107,7 @@ class DailyMetricRead(DailyMetricCreate, OrmModel):
 
 
 class ConversionEventCreate(BaseModel):
+    workspace_id: int = Field(default=1, ge=1)
     platform: AdvertisingPlatform
     external_conversion_id: str = Field(min_length=1, max_length=128)
     campaign_id: int | None = None
@@ -116,6 +118,7 @@ class ConversionEventCreate(BaseModel):
 
 
 class JobRunCreate(BaseModel):
+    workspace_id: int = Field(default=1, ge=1)
     platform: AdvertisingPlatform
     account_id: int | None = None
     job_name: str = Field(min_length=1, max_length=128)

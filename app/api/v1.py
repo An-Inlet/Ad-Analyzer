@@ -34,6 +34,8 @@ from app.api.schemas import (
 )
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
+from app.measurement.repository import MeasurementRepository
+from app.measurement.schemas import MeasurementContractResponse
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
@@ -66,6 +68,10 @@ def repo(db: Annotated[Session, Depends(get_db)]) -> ReadOnlyAdsRepository:
 
 def workspace_repo(db: Annotated[Session, Depends(get_db)]) -> WorkspaceRepository:
     return WorkspaceRepository(db)
+
+
+def measurement_repo(db: Annotated[Session, Depends(get_db)]) -> MeasurementRepository:
+    return MeasurementRepository(db)
 
 
 @router.get(
@@ -135,6 +141,24 @@ def get_workspace_configuration(
     if configuration is None:
         raise HTTPException(status_code=404, detail="workspace configuration not found")
     return configuration
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/measurement-contract",
+    response_model=MeasurementContractResponse,
+    operation_id="get_workspace_measurement_contract",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace_measurement_contract(
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    measurement_repository: Annotated[MeasurementRepository, Depends(measurement_repo)],
+) -> MeasurementContractResponse:
+    workspace = _workspace_or_404(workspace_repository, workspace_slug)
+    snapshot = measurement_repository.get_for_workspace(workspace.id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="measurement contract not found")
+    return MeasurementContractResponse.from_snapshot(snapshot)
 
 
 @router.get(

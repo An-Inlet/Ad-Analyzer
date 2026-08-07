@@ -24,6 +24,8 @@ from app.dashboard.auth import (
 from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
+from app.measurement.repository import MeasurementRepository
+from app.measurement.schemas import MeasurementContractResponse
 from app.optimizer.recommendations import generate_findings
 from app.settings import settings
 from app.workspaces.access import (
@@ -169,6 +171,7 @@ def workspace_detail(
         raise HTTPException(status_code=404, detail="workspace not found")
     role = require_workspace_view(request, db, workspace.id)
     accounts, total = workspace_repository.list_advertising_accounts(workspace.id, limit, offset)
+    measurement_snapshot = MeasurementRepository(db).get_for_workspace(workspace.id)
     return templates.TemplateResponse(
         request,
         "workspace.html",
@@ -178,6 +181,11 @@ def workspace_detail(
             workspace=workspace,
             workspace_role=role,
             configuration=workspace_repository.configuration(workspace.id),
+            measurement_contract=(
+                MeasurementContractResponse.from_snapshot(measurement_snapshot)
+                if measurement_snapshot is not None
+                else None
+            ),
             integrations=workspace_repository.integrations(workspace.id),
             memberships=workspace_repository.memberships(workspace.id),
             accounts=accounts,

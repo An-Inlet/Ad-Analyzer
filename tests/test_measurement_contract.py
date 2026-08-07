@@ -7,13 +7,6 @@ from sqlite3 import Connection as SQLiteConnection
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from fastapi.testclient import TestClient
-from pydantic import SecretStr
-from sqlalchemy import create_engine, event, select, text
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
-
 from app.crm.schemas import CrmEventType
 from app.database.session import Base, get_db
 from app.main import app
@@ -27,6 +20,12 @@ from app.measurement.schemas import MeasurementContractResponse
 from app.measurement.service import evaluate_measurement_readiness
 from app.settings import settings
 from app.workspaces.models import Workspace
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import create_engine, event, select, text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
 
 def enable_sqlite_foreign_keys(

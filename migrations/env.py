@@ -1,10 +1,12 @@
 from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
+
 from app.ads import models  # noqa: F401
 from app.database.session import Base
+from app.measurement import models as measurement_models  # noqa: F401
 from app.settings import settings
-from sqlalchemy import engine_from_config, pool
 
 config = context.config
 resolved_database_url = settings.resolved_database_url

@@ -157,4 +157,3 @@ def run_analysis_tick(
         scheduled_run_ids=scheduled_run_ids,
         invalid_policy_count=invalid_policy_count,
     )
-

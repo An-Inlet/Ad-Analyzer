@@ -59,4 +59,3 @@ class AnalysisCadencePolicy(BaseModel):
             return cls.model_validate(raw_cadences)
         except ValidationError:
             raise AnalysisCadencePolicyError() from None
-

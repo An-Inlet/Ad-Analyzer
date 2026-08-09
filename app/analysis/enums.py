@@ -15,4 +15,3 @@ class AnalysisRunStatus(StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-

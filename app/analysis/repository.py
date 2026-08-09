@@ -127,4 +127,3 @@ class AnalysisRunRepository:
         row.error_code = "analysis_failed"
         row.blocking_reasons = ["analysis_failed"]
         return row
-

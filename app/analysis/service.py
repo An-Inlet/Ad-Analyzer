@@ -215,4 +215,3 @@ class AnalysisRunService:
             unattributed_journey_count=outcome.source_coverage.unattributed_journey_count,
             blocking_reasons=tuple(dict.fromkeys(blocking_reasons)),
         )
-

@@ -1,15 +1,6 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from app.ads.enums import (
-    AdvertisingPlatform,
-    ExecutionStatus,
-    JobRunStatus,
-    MetricEntityType,
-    RecommendationStatus,
-)
-from app.database.session import Base
-from app.workspaces.models import Workspace  # noqa: F401
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -29,6 +20,16 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.ads.enums import (
+    AdvertisingPlatform,
+    ExecutionStatus,
+    JobRunStatus,
+    MetricEntityType,
+    RecommendationStatus,
+)
+from app.database.session import Base
+from app.workspaces.models import Workspace  # noqa: F401
 
 
 def utc_now() -> datetime:

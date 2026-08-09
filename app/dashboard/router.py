@@ -1,6 +1,6 @@
 """Read-only browser views backed by the existing repository layer."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,7 +25,8 @@ from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
 from app.measurement.repository import MeasurementRepository
-from app.measurement.schemas import MeasurementContractResponse
+from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
+from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.recommendations import generate_findings
 from app.settings import settings
 from app.workspaces.access import (
@@ -193,6 +194,47 @@ def workspace_detail(
             limit=limit,
             offset=offset,
             has_next=has_next(offset, limit, len(accounts), total),
+        ),
+    )
+
+
+@router.get("/workspaces/{workspace_slug}/outcomes", response_class=HTMLResponse)
+def workspace_outcomes(
+    request: Request,
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> HTMLResponse:
+    workspace = workspace_repository.get_by_slug(workspace_slug)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    require_workspace_view(request, db, workspace.id)
+    contract_snapshot = MeasurementRepository(db).get_for_workspace(workspace.id)
+    if date_from is None and date_to is None:
+        maturity_days = (
+            contract_snapshot.contract.outcome_maturity_days
+            if contract_snapshot is not None
+            else 90
+        )
+        end = datetime.now(UTC).date() - timedelta(days=maturity_days)
+        start = end - timedelta(days=29)
+    else:
+        start, end = valid_dates(date_from, date_to)
+    outcome = UnifiedOutcomeResponse.from_snapshot(
+        UnifiedOutcomeService(db).report(workspace.id, start, end)
+    )
+    return templates.TemplateResponse(
+        request,
+        "outcomes.html",
+        page_context(
+            request,
+            title=f"Outcome analysis for {workspace.name}",
+            workspace=workspace,
+            outcome=outcome,
+            date_from=start,
+            date_to=end,
         ),
     )
 

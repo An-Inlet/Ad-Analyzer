@@ -26,6 +26,12 @@ class CrmEvent(BaseModel):
     occurred_at: datetime
     crm_lead_id: str = Field(min_length=1, max_length=128)
     crm_opportunity_id: str | None = Field(default=None, max_length=128)
+    analytics_pseudonymous_id: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
     value: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     gclid: str | None = Field(default=None, max_length=256)

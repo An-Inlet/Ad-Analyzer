@@ -14,6 +14,7 @@ from app.crm.schemas import CrmEvent
 
 logger = logging.getLogger(__name__)
 _ATTRIBUTION_FIELDS = (
+    "analytics_pseudonymous_id",
     "gclid",
     "gbraid",
     "wbraid",
@@ -24,6 +25,10 @@ _ATTRIBUTION_FIELDS = (
     "utm_content",
     "landing_page",
 )
+
+
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 class AcknowledgeableMessage(Protocol):
@@ -100,7 +105,7 @@ class CrmEventProcessor:
                 attribution_data=attrs,
             )
             self.session.add(attribution)
-        elif event.occurred_at >= attribution.lifecycle_occurred_at:
+        elif _utc(event.occurred_at) >= _utc(attribution.lifecycle_occurred_at):
             attribution.lifecycle_state = event.event_type.value
             attribution.lifecycle_occurred_at = event.occurred_at
             attribution.attribution_data = {**attribution.attribution_data, **attrs}

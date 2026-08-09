@@ -20,6 +20,7 @@ The automated buildout has completed the technically implementable roadmap work 
 | Backup retention | 12.3 | Select retention period and restore-test cadence. |
 | Production release approval | 12.4 | Record final human release approval after validation and reviews. |
 | Denticode measurement contract | Improvement step 2 activation | Confirm the optimization outcome, CRM source of truth, attribution window, outcome-maturity window, customer-value horizon, and whether view-through attribution remains disabled. |
+| Unified outcome data source | Improvement step 3 activation | Approve the read-only GA4 property and BigQuery export dataset, the shared opaque `analytics_pseudonymous_id` contract, permitted aggregate dimensions and retention, and the operating owner before any production feed is configured. |
 
 ## Permanent constraints
 

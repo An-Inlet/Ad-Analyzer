@@ -52,6 +52,9 @@ src = ["app", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
 [tool.ruff.lint.per-file-ignores]
 "scripts/production_ops_audit.py" = ["E501"]
 

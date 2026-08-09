@@ -7,12 +7,6 @@ from sqlite3 import Connection as SQLiteConnection
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from fastapi.testclient import TestClient
-from pydantic import SecretStr, ValidationError
-from sqlalchemy import create_engine, event, select, text
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
-
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric
 from app.crm.models import CrmConnection
@@ -30,6 +24,11 @@ from app.measurement.models import (
 from app.measurement.unified import UnifiedOutcomeService
 from app.settings import settings
 from app.workspaces.models import Workspace
+from fastapi.testclient import TestClient
+from pydantic import SecretStr, ValidationError
+from sqlalchemy import create_engine, event, select, text
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
 
 def enable_sqlite_foreign_keys(

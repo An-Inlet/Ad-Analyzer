@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+
 from app.ads.enums import AdvertisingPlatform
 from app.collectors import google_ads as google_ads_module
 from app.collectors.google_ads import (
@@ -274,6 +275,7 @@ def test_fixed_gaql_queries_are_internal_and_approved() -> None:
     assert "FROM keyword_view" in google_ads_module._keywords_query()
     assert "2026-07-13" in google_ads_module._search_terms_query(window)
     assert "metrics.cost_micros" in google_ads_module._metrics_query(window)
+    assert "FROM ad_group" in google_ads_module._ad_group_metrics_query(window)
 
 
 def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
@@ -309,6 +311,20 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
                     ),
                 )
             ],
+            google_ads_module._ad_group_metrics_query(window): [
+                SimpleNamespace(
+                    segments=SimpleNamespace(date="2026-07-13"),
+                    campaign=SimpleNamespace(id=11),
+                    ad_group=SimpleNamespace(id=22),
+                    metrics=SimpleNamespace(
+                        impressions=80,
+                        clicks=8,
+                        cost_micros=1_000_000,
+                        conversions=2,
+                        conversions_value=40,
+                    ),
+                )
+            ],
         }
     )
     raw_client, loaded_configs = install_fake_google_ads_module(monkeypatch, service)
@@ -318,6 +334,7 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     metrics = collect_metrics(
         {"11": 55},
         GoogleAdsDateRange.YESTERDAY,
+        {"22": 66},
         today=date(2026, 7, 14),
         settings=settings,
     )
@@ -328,6 +345,9 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     assert campaigns[0].channel_type == "SEARCH"
     assert metrics.metrics[0].entity_id == 55
     assert metrics.metrics[0].conversion_value_micros == 42_000_000
+    assert metrics.metrics[1].entity_type.value == "ad_group"
+    assert metrics.metrics[1].campaign_id == 55
+    assert metrics.metrics[1].ad_group_id == 66
     assert raw_client.requested_services == [
         "GoogleAdsService",
         "GoogleAdsService",

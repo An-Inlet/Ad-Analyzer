@@ -7,8 +7,14 @@ from sqlite3 import Connection as SQLiteConnection
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from fastapi.testclient import TestClient
+from pydantic import SecretStr, ValidationError
+from sqlalchemy import create_engine, event, select, text
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
+
 from app.ads.enums import AdvertisingPlatform
-from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
+from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric
 from app.crm.models import CrmConnection
 from app.crm.schemas import CrmEvent
 from app.crm.worker import CrmEventProcessor
@@ -24,11 +30,6 @@ from app.measurement.models import (
 from app.measurement.unified import UnifiedOutcomeService
 from app.settings import settings
 from app.workspaces.models import Workspace
-from fastapi.testclient import TestClient
-from pydantic import SecretStr, ValidationError
-from sqlalchemy import create_engine, event, select, text
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
 
 def enable_sqlite_foreign_keys(
@@ -179,6 +180,7 @@ def ga4_event(
     session_id: str = "session-001",
     gclid: str = "paid-click-001",
     event_name: str = "session_start",
+    ad_group: AdGroup | None = None,
 ) -> Ga4EventCreate:
     return Ga4EventCreate(
         workspace_id=workspace.id,
@@ -191,6 +193,7 @@ def ga4_event(
         gclid=gclid,
         account_id=account.id,
         campaign_id=campaign.id,
+        ad_group_id=ad_group.id if ad_group is not None else None,
         source="Google",
         medium="CPC",
         device_category="desktop",
@@ -209,19 +212,23 @@ def add_metric(
     impressions: int = 1_000,
     clicks: int = 100,
     cost_micros: int = 10_000_000,
+    conversions: Decimal = Decimal("0"),
+    conversion_value_micros: int = 0,
+    ad_group: AdGroup | None = None,
 ) -> None:
     db.add(
         DailyMetric(
             platform=AdvertisingPlatform.GOOGLE_ADS,
             metric_date=metric_date,
-            entity_type="campaign",
-            entity_id=campaign.id,
+            entity_type="ad_group" if ad_group is not None else "campaign",
+            entity_id=ad_group.id if ad_group is not None else campaign.id,
             campaign_id=campaign.id,
+            ad_group_id=ad_group.id if ad_group is not None else None,
             impressions=impressions,
             clicks=clicks,
             cost_micros=cost_micros,
-            conversions=Decimal("0"),
-            conversion_value_micros=0,
+            conversions=conversions,
+            conversion_value_micros=conversion_value_micros,
         )
     )
     db.commit()
@@ -349,6 +356,32 @@ def test_ga4_ingestion_rejects_query_strings_phi_like_ids_and_cross_workspace_sc
     with pytest.raises(ValueError, match="outside the workspace"):
         WebAnalyticsRepository(db).record_ga4_event(cross_workspace)
 
+    other_campaign = Campaign(
+        account_id=account.id,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_campaign_id="other-campaign",
+        name="Other campaign",
+    )
+    db.add(other_campaign)
+    db.flush()
+    other_group = AdGroup(
+        campaign_id=other_campaign.id,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_ad_group_id="other-group",
+        name="Other group",
+    )
+    db.add(other_group)
+    db.flush()
+    cross_group = Ga4EventCreate.model_validate(
+        {
+            **base,
+            "external_event_id": "cross-group",
+            "ad_group_id": other_group.id,
+        }
+    )
+    with pytest.raises(ValueError, match="outside the campaign"):
+        WebAnalyticsRepository(db).record_ga4_event(cross_group)
+
 
 def test_crm_schema_accepts_only_safe_pseudonymous_correlation_id() -> None:
     valid = CrmEvent.model_validate(
@@ -407,6 +440,9 @@ def test_active_contract_correlates_google_ads_ga4_and_crm_value(db: Session) ->
 
     assert report.analysis_ready is True
     assert report.blocking_reasons == ()
+    assert report.ad_group_analysis_ready is False
+    assert "ad_group_metrics_missing" in report.ad_group_blocking_reasons
+    assert "ad_group_paid_touchpoints_missing" in report.ad_group_blocking_reasons
     assert report.mature_through == date(2026, 6, 30)
     assert report.source_coverage.advertising_metric_days == 1
     assert report.source_coverage.attributed_journey_count == 1
@@ -425,6 +461,74 @@ def test_active_contract_correlates_google_ads_ga4_and_crm_value(db: Session) ->
     assert report.totals.median_outcome_lag_days == Decimal("25.00")
     assert len(report.campaigns) == 1
     assert report.campaigns[0].campaign_id == campaign.id
+
+
+def test_ad_group_outcomes_add_scope_without_double_counting_campaign_totals(
+    db: Session,
+) -> None:
+    workspace, account, campaign = seed_workspace(db, "denticode")
+    ad_group = AdGroup(
+        campaign_id=campaign.id,
+        platform=campaign.platform,
+        external_ad_group_id="implants-exact",
+        name="Implants exact",
+        status="ENABLED",
+    )
+    db.add(ad_group)
+    db.commit()
+    WebAnalyticsRepository(db).record_ga4_event(
+        ga4_event(workspace, account, campaign, ad_group=ad_group)
+    )
+    db.commit()
+    add_metric(
+        db,
+        campaign,
+        conversions=Decimal("3"),
+        conversion_value_micros=600_000_000,
+    )
+    add_metric(
+        db,
+        campaign,
+        impressions=600,
+        clicks=60,
+        cost_micros=6_000_000,
+        conversions=Decimal("2"),
+        conversion_value_micros=400_000_000,
+        ad_group=ad_group,
+    )
+    add_complete_journey(db, workspace)
+
+    report = UnifiedOutcomeService(db).report(
+        workspace.id,
+        date(2026, 6, 1),
+        date(2026, 6, 30),
+        as_of=datetime(2026, 8, 8, tzinfo=UTC),
+    )
+
+    assert report.analysis_ready is True
+    assert report.ad_group_analysis_ready is True
+    assert report.ad_group_blocking_reasons == ()
+    assert report.source_coverage.ad_group_metric_days == 1
+    assert report.source_coverage.ad_group_attributed_journey_count == 1
+    assert report.source_coverage.ad_group_unattributed_journey_count == 0
+    assert report.source_coverage.ad_group_attribution_rate == Decimal("1.000000")
+    assert report.totals is not None
+    assert report.totals.platform_conversion_count == Decimal("3.000000")
+    assert report.totals.platform_conversion_value_micros == 600_000_000
+    assert report.totals.click_through_rate == Decimal("0.100000")
+    assert report.totals.platform_conversion_rate == Decimal("0.030000")
+    assert report.totals.click_to_paid_session_rate == Decimal("0.010000")
+    assert report.totals.paid_session_to_lead_rate == Decimal("1.000000")
+    assert report.totals.cost_per_lead_micros == 10_000_000
+    assert report.totals.observed_roas == Decimal("50.000000")
+    assert len(report.campaigns[0].ad_groups) == 1
+    scoped = report.campaigns[0].ad_groups[0]
+    assert scoped.ad_group_id == ad_group.id
+    assert scoped.metrics.clicks == 60
+    assert scoped.metrics.platform_conversion_count == Decimal("2.000000")
+    assert scoped.metrics.lead_count == 1
+    assert scoped.metrics.observed_revenue_micros == 500_000_000
+    assert scoped.metrics.cost_per_business_outcome_micros == 6_000_000
 
 
 def test_last_eligible_paid_touch_selects_latest_campaign(db: Session) -> None:

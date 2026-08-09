@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Any, cast
@@ -5,7 +6,7 @@ from typing import Any, cast
 from sqlalchemy import Select, and_, func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
 
 
@@ -145,6 +146,14 @@ class ReadOnlyAdsRepository:
         )
         return self.session.scalars(stmt).first()
 
+    def get_ad_group(self, ad_group_id: int) -> AdGroup | None:
+        stmt = (
+            select(AdGroup)
+            .options(joinedload(AdGroup.campaign).joinedload(Campaign.account))
+            .where(AdGroup.id == ad_group_id)
+        )
+        return self.session.scalars(stmt).first()
+
     def list_campaign_ad_groups(
         self, campaign_id: int, limit: int, offset: int
     ) -> tuple[list[AdGroup], int]:
@@ -202,6 +211,45 @@ class ReadOnlyAdsRepository:
             "conversions": row[3],
             "conversion_value_micros": row[4],
             "days_with_metrics": row[5],
+        }
+
+    def entity_metric_totals(
+        self,
+        entity_type: MetricEntityType,
+        entity_ids: Sequence[int],
+        date_from: date,
+        date_to: date,
+    ) -> dict[int, dict[str, Any]]:
+        if not entity_ids:
+            return {}
+        rows = self.session.execute(
+            select(
+                DailyMetric.entity_id,
+                func.coalesce(func.sum(DailyMetric.impressions), 0),
+                func.coalesce(func.sum(DailyMetric.clicks), 0),
+                func.coalesce(func.sum(DailyMetric.cost_micros), 0),
+                func.coalesce(func.sum(DailyMetric.conversions), Decimal("0")),
+                func.coalesce(func.sum(DailyMetric.conversion_value_micros), 0),
+                func.count(func.distinct(DailyMetric.metric_date)),
+            )
+            .where(
+                DailyMetric.entity_type == entity_type.value,
+                DailyMetric.entity_id.in_(entity_ids),
+                DailyMetric.metric_date >= date_from,
+                DailyMetric.metric_date <= date_to,
+            )
+            .group_by(DailyMetric.entity_id)
+        ).all()
+        return {
+            int(row[0]): {
+                "impressions": row[1],
+                "clicks": row[2],
+                "cost_micros": row[3],
+                "conversions": row[4],
+                "conversion_value_micros": row[5],
+                "days_with_metrics": row[6],
+            }
+            for row in rows
         }
 
     def list_job_runs(

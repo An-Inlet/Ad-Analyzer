@@ -15,6 +15,10 @@ from types import TracebackType
 from typing import Any
 
 import pytest
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import (
     Ad,
@@ -49,9 +53,6 @@ from app.ads.services import (
 from app.collectors import google_ads
 from app.database.session import Base
 from app.workspaces.models import Workspace
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry
 
 sync_google_ads_script = import_module("scripts.sync_google_ads")
 

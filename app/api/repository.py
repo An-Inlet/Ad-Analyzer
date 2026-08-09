@@ -3,11 +3,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import Select, and_, func, select
-from sqlalchemy.orm import Session, joinedload
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
+from sqlalchemy import Select, and_, func, select
+from sqlalchemy.orm import Session, joinedload
 
 
 class ReadOnlyAdsRepository:

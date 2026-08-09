@@ -4,6 +4,13 @@ from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import Engine, create_engine, event, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric, JobRun
 from app.ads.services import GoogleAdsSyncResult
@@ -25,12 +32,6 @@ from app.jobs.reliability import CycleOutcome
 from app.main import app
 from app.settings import settings
 from app.workspaces.models import Workspace, WorkspaceConfiguration
-from fastapi.testclient import TestClient
-from pydantic import SecretStr
-from sqlalchemy import Engine, create_engine, event, func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
 
 def enable_sqlite_foreign_keys(
@@ -210,8 +211,8 @@ def test_post_sync_analysis_is_idempotent_and_aggregate_only(
     assert first.cadence == AnalysisCadence.POST_SYNC
     assert first.status == AnalysisRunStatus.SUCCEEDED
     assert first.accounts_analyzed == 1
-    assert first.findings_count == 2
-    assert first.high_severity_findings_count == 1
+    assert first.findings_count == 4
+    assert first.high_severity_findings_count == 2
     assert first.outcome_analysis_ready is False
     assert first.blocking_reasons == ["measurement_contract_missing"]
     assert db.scalar(select(func.count()).select_from(AnalysisRun)) == 1

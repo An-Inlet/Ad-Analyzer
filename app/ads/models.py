@@ -377,6 +377,7 @@ class ConversionEvent(TimestampMixin, Base):
 class JobRun(TimestampMixin, Base):
     __tablename__ = "job_runs"
     __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_job_runs_id_workspace"),
         ForeignKeyConstraint(
             ["account_id", "platform"],
             ["advertising_accounts.id", "advertising_accounts.platform"],

@@ -27,6 +27,21 @@ resource and environment names remain in place for deployment compatibility.
 - Preserve recommendation and execution audit tables.
 - Do not retry live mutations until root cause and rollback instructions are reviewed by a human.
 
+## Step 4 analysis cadence operations
+
+- Review the latest aggregate run state on the workspace dashboard or through
+  `GET /api/v1/workspaces/{workspace_slug}/analysis-runs`.
+- Post-sync runs should reference one successful account sync. Nightly and weekly runs are
+  workspace-wide and do not require that cycle's collector attempt to succeed.
+- Treat `analysis_failed` as a separate local-analysis incident. Do not rerun Google Ads collection
+  merely because the follow-on analysis failed.
+- Validate `workspace_configurations.analysis.cadences` when a workspace has no due runs. Invalid
+  values fail closed and logs expose only a fixed configuration failure.
+- Keep the seeded Denticode measurement contract draft until its business rules and GA4 source are
+  approved. A cadence run with a contract blocker is expected and is not a failed run.
+- Never place raw source payloads, click IDs, CRM identifiers, credentials, or PHI in cadence
+  configuration, run notes, logs, or incident records.
+
 ## Final readiness checklist
 - CI green; migrations reversible; no secrets in repository; account isolation tests pass; dashboard/API authentication configured; live writes disabled by default.
 

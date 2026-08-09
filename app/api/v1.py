@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
+from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
+from app.analysis.repository import AnalysisRunRepository
+from app.analysis.schemas import AnalysisRunResponse
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
@@ -73,6 +76,10 @@ def workspace_repo(db: Annotated[Session, Depends(get_db)]) -> WorkspaceReposito
 
 def measurement_repo(db: Annotated[Session, Depends(get_db)]) -> MeasurementRepository:
     return MeasurementRepository(db)
+
+
+def analysis_repo(db: Annotated[Session, Depends(get_db)]) -> AnalysisRunRepository:
+    return AnalysisRunRepository(db)
 
 
 @router.get(
@@ -190,6 +197,32 @@ def get_workspace_outcome_analysis(
         start, end = default_dates(date_from, date_to)
     report = UnifiedOutcomeService(db).report(workspace.id, start, end)
     return UnifiedOutcomeResponse.from_snapshot(report)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/analysis-runs",
+    response_model=PaginatedResponse[AnalysisRunResponse],
+    operation_id="read_only_workspace_analysis_runs",
+    responses=RESOURCE_ERRORS,
+)
+def list_workspace_analysis_runs(
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    analysis_repository: Annotated[AnalysisRunRepository, Depends(analysis_repo)],
+    cadence: AnalysisCadence | None = None,
+    status: AnalysisRunStatus | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[AnalysisRunResponse]:
+    workspace = _workspace_or_404(workspace_repository, workspace_slug)
+    items, total = analysis_repository.list_runs(
+        workspace.id,
+        cadence=cadence,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
 
 
 @router.get(

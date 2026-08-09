@@ -4,12 +4,6 @@ from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
-from pydantic import ValidationError
-from sqlalchemy import create_engine, event
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry
-
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import (
     Ad,
@@ -25,6 +19,11 @@ from app.ads.schemas import AdCreate, DailyMetricCreate, NormalizedMetricsBatch
 from app.ads.services import NormalizedMetricsService
 from app.database.session import Base
 from app.workspaces.models import Workspace
+from pydantic import ValidationError
+from sqlalchemy import create_engine, event
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
 
 
 def enable_sqlite_foreign_keys(

@@ -4,6 +4,12 @@ from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
+from pydantic import ValidationError
+from sqlalchemy import create_engine, event
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
+
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import (
     Ad,
@@ -19,11 +25,6 @@ from app.ads.schemas import AdCreate, DailyMetricCreate, NormalizedMetricsBatch
 from app.ads.services import NormalizedMetricsService
 from app.database.session import Base
 from app.workspaces.models import Workspace
-from pydantic import ValidationError
-from sqlalchemy import create_engine, event
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry
 
 
 def enable_sqlite_foreign_keys(
@@ -101,6 +102,7 @@ def test_pydantic_validates_read_only_normalized_metrics() -> None:
         metric_date=date(2026, 7, 14),
         entity_type="campaign",
         entity_id=123,
+        campaign_id=123,
         impressions=10,
         clicks=2,
         cost_micros=1500000,
@@ -115,7 +117,27 @@ def test_pydantic_validates_read_only_normalized_metrics() -> None:
             metric_date=date(2026, 7, 14),
             entity_type="campaign",
             entity_id=123,
+            campaign_id=123,
             cost_micros=-1,
+        )
+
+    ad_group_metric = DailyMetricCreate(
+        platform="google_ads",
+        metric_date=date(2026, 7, 14),
+        entity_type="ad_group",
+        entity_id=456,
+        campaign_id=123,
+        ad_group_id=456,
+    )
+    assert ad_group_metric.ad_group_id == 456
+
+    with pytest.raises(ValidationError):
+        DailyMetricCreate(
+            platform="google_ads",
+            metric_date=date(2026, 7, 14),
+            entity_type="ad_group",
+            entity_id=456,
+            campaign_id=123,
         )
 
 

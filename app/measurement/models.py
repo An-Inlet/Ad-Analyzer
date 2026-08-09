@@ -1,18 +1,5 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import (
-    Boolean,
-    CheckConstraint,
-    DateTime,
-    ForeignKey,
-    ForeignKeyConstraint,
-    Index,
-    Integer,
-    String,
-    UniqueConstraint,
-)
-from sqlalchemy.orm import Mapped, mapped_column
-
 from app.database.session import Base
 from app.measurement.enums import (
     AttributionModel,
@@ -26,6 +13,18 @@ from app.measurement.enums import (
     WebAnalyticsSource,
 )
 from app.workspaces.models import Workspace  # noqa: F401
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 def utc_now() -> datetime:

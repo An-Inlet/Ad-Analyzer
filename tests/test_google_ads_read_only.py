@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-
 from app.ads.enums import AdvertisingPlatform
 from app.collectors import google_ads as google_ads_module
 from app.collectors.google_ads import (

@@ -4,13 +4,6 @@ from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
-from fastapi.testclient import TestClient
-from pydantic import SecretStr
-from sqlalchemy import Engine, create_engine, event, func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric, JobRun
 from app.ads.services import GoogleAdsSyncResult
@@ -32,6 +25,12 @@ from app.jobs.reliability import CycleOutcome
 from app.main import app
 from app.settings import settings
 from app.workspaces.models import Workspace, WorkspaceConfiguration
+from fastapi.testclient import TestClient
+from pydantic import SecretStr
+from sqlalchemy import Engine, create_engine, event, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
 
 def enable_sqlite_foreign_keys(

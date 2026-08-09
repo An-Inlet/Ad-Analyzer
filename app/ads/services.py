@@ -236,7 +236,11 @@ class GoogleAdsSyncService:
 
         if campaign_ids_by_external_id:
             self._check_before_collector(capability)
-            metrics = google_ads.collect_metrics(campaign_ids_by_external_id, date_range).metrics
+            metrics = google_ads.collect_metrics(
+                campaign_ids_by_external_id,
+                date_range,
+                ad_group_ids_by_external_id,
+            ).metrics
         else:
             metrics = []
         self._check_before_collector(capability)

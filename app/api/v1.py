@@ -2,6 +2,9 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
@@ -43,8 +46,6 @@ from app.optimizer.recommendations import generate_findings, recommendations_fro
 from app.settings import settings
 from app.workspaces.models import Workspace
 from app.workspaces.repository import WorkspaceRepository
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/api/v1",

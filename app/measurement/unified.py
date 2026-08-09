@@ -5,6 +5,9 @@ from decimal import ROUND_HALF_UP, Decimal
 from statistics import median
 from typing import Any
 
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import MetricEntityType
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric
 from app.crm.models import CrmConnection, CrmEventRecord
@@ -18,8 +21,6 @@ from app.measurement.identifiers import identifier_digest
 from app.measurement.models import WebAnalyticsEvent
 from app.measurement.repository import MeasurementContractSnapshot, MeasurementRepository
 from app.measurement.service import evaluate_measurement_readiness
-from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
 
 
 @dataclass(frozen=True)

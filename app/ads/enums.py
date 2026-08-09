@@ -8,6 +8,13 @@ class AdvertisingPlatform(StrEnum):
     META_ADS = "meta_ads"
 
 
+class MetricEntityType(StrEnum):
+    """Supported local metric grains for deterministic analysis."""
+
+    CAMPAIGN = "campaign"
+    AD_GROUP = "ad_group"
+
+
 class JobRunStatus(StrEnum):
     """Lifecycle states for local read-only ingestion jobs."""
 

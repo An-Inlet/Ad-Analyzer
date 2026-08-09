@@ -3,15 +3,16 @@ import json
 from datetime import UTC, datetime
 from typing import Self
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign
 from app.measurement.enums import PaidClickIdKind, WebAnalyticsSource, WebDeviceCategory
 from app.measurement.identifiers import identifier_digest
 from app.measurement.models import WebAnalyticsEvent
 from app.workspaces.models import Workspace
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 _OPAQUE_IDENTIFIER = r"^[A-Za-z0-9._:-]+$"
 

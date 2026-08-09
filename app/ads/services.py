@@ -3,6 +3,10 @@ from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 
+from sqlalchemy import select
+from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.orm import Session
+
 from app.ads.enums import JobRunStatus
 from app.ads.models import AdvertisingAccount, DailyMetric, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
@@ -13,9 +17,6 @@ from app.collectors.google_ads import (
     GoogleAdsIntegrationError,
     GoogleAdsRateLimitError,
 )
-from sqlalchemy import select
-from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import Session
 
 FAILED_JOB_RUN_PERSISTENCE_ERROR = (
     "Google Ads sync failed and the failure record could not be persisted"

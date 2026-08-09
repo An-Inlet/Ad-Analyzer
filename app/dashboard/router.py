@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.ads.enums import ExecutionStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
+from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import _windows, default_dates, ratios
 from app.dashboard.auth import (
@@ -173,6 +174,11 @@ def workspace_detail(
     role = require_workspace_view(request, db, workspace.id)
     accounts, total = workspace_repository.list_advertising_accounts(workspace.id, limit, offset)
     measurement_snapshot = MeasurementRepository(db).get_for_workspace(workspace.id)
+    analysis_runs, analysis_run_total = AnalysisRunRepository(db).list_runs(
+        workspace.id,
+        limit=10,
+        offset=0,
+    )
     return templates.TemplateResponse(
         request,
         "workspace.html",
@@ -189,6 +195,8 @@ def workspace_detail(
             ),
             integrations=workspace_repository.integrations(workspace.id),
             memberships=workspace_repository.memberships(workspace.id),
+            analysis_runs=analysis_runs,
+            analysis_run_total=analysis_run_total,
             accounts=accounts,
             total=total,
             limit=limit,

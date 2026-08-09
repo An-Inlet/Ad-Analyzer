@@ -22,6 +22,17 @@ def _load_runtime() -> tuple[Any, Any, Any]:
     return settings, engine, run_cycle
 
 
+def _run_analysis_tick(engine: Any, outcome: Any | None) -> None:
+    """Load Step 4 only for a real SQLAlchemy runtime, not lightweight unit-test doubles."""
+    from sqlalchemy import Engine
+
+    if not isinstance(engine, Engine):
+        return
+    from app.analysis.cadence import run_analysis_tick
+
+    run_analysis_tick(engine, outcome)
+
+
 def _install_signal_handlers(stop: Event) -> dict[int, Any]:
     previous: dict[int, Any] = {}
     for signum_name in ("SIGINT", "SIGTERM"):
@@ -44,7 +55,11 @@ def _restore_signal_handlers(previous: dict[int, Any]) -> None:
             continue
 
 
-def main(stop_event: Event | None = None, runtime_loader: Any = _load_runtime) -> int:
+def main(
+    stop_event: Event | None = None,
+    runtime_loader: Any = _load_runtime,
+    analysis_tick: Any = _run_analysis_tick,
+) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     stop = stop_event or Event()
     previous_handlers: dict[int, Any] = {}
@@ -77,8 +92,14 @@ def main(stop_event: Event | None = None, runtime_loader: Any = _load_runtime) -
                 if stop.is_set():
                     break
                 immediate = False
+                cycle_outcome: Any | None = None
                 try:
-                    run_cycle(settings, engine, wait=stop.wait, stop_requested=stop.is_set)
+                    cycle_outcome = run_cycle(
+                        settings,
+                        engine,
+                        wait=stop.wait,
+                        stop_requested=stop.is_set,
+                    )
                 except KeyboardInterrupt:
                     logger.error("google_ads_scheduler_cycle_interrupted")
                     stop.set()
@@ -87,6 +108,18 @@ def main(stop_event: Event | None = None, runtime_loader: Any = _load_runtime) -
                     logger.error(
                         "google_ads_scheduler_cycle_failed error_type=%s", type(exc).__name__
                     )
+                if not stop.is_set():
+                    try:
+                        analysis_tick(engine, cycle_outcome)
+                    except KeyboardInterrupt:
+                        logger.error("analysis_scheduler_tick_interrupted")
+                        stop.set()
+                        break
+                    except Exception as exc:
+                        logger.error(
+                            "analysis_scheduler_tick_failed error_type=%s",
+                            type(exc).__name__,
+                        )
                 deadline = time.monotonic() + interval_seconds
                 now = time.monotonic()
             stop.wait(max(0.0, deadline - now))

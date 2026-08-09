@@ -6,7 +6,8 @@ This phase defines deployment packaging without choosing a cloud provider or con
 
 - `web`: FastAPI application served by Uvicorn. It exposes `/health` for process health and `/ready` for startup configuration readiness.
 - `worker`: one-shot read-only Google Ads sync process for controlled job execution.
-- `scheduler`: long-running read-only scheduler that triggers sync jobs on an interval.
+- `scheduler`: long-running read-only scheduler that triggers sync jobs on an interval, runs the
+  successful job's post-sync analysis, and checks due nightly/weekly local analyses.
 - `migration`: Alembic migration process that runs `alembic upgrade head` before a release is promoted.
 
 All processes run the same container image and start with `scripts/validate_deployment_startup.py`.
@@ -80,6 +81,11 @@ mutations.
 ## Graceful shutdown and restart
 
 The Compose example uses `restart: unless-stopped` for persistent services and `stop_grace_period: 30s`. Operators should stop the scheduler before migrations, let in-flight jobs finish, run the migration process, then restart web and scheduler containers.
+
+Analysis cadences share the scheduler process but not the collector transaction or PostgreSQL
+advisory lock. A completed sync is committed and its lock is released before post-sync analysis
+starts. Scheduled analysis reads only local database rows; it does not call advertising or
+analytics providers. See [analysis cadences](analysis-cadences.md).
 
 ## Rollback and recovery
 

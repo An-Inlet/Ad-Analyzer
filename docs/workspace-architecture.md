@@ -20,6 +20,7 @@ Each workspace owns:
 - conversion events, synchronization job runs, findings, and recommendations;
 - the measurement contract, funnel-stage definitions, and source-event mappings;
 - pseudonymous web-analytics events and aggregate outcome-analysis results;
+- aggregate-only post-sync, nightly, and weekly analysis run history;
 - CRM connections and the CRM records reached through those connections.
 
 IDs remain platform-global, but all top-level queries and writes carry a `workspace_id`. Compound
@@ -72,6 +73,11 @@ Unified outcome analysis additionally enforces the contract's maturity and paid-
 windows before correlating mature Google Ads metrics, GA4 paid sessions, and authoritative CRM
 events. It emits aggregates only and reports explicit source-coverage blockers when a required
 source is absent. See [unified outcome data](unified-outcome-data.md).
+
+Analysis schedules are also workspace-owned. Invalid cadence configuration stops analysis for
+that workspace without affecting another client. Source sync jobs and advertising accounts are
+bound to post-sync run records with compound workspace foreign keys. See
+[analysis cadences](analysis-cadences.md).
 
 ## Existing Denticode deployment
 

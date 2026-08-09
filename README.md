@@ -18,6 +18,7 @@ Ad Analyzer platform
     ├── workspace integrations
     ├── workspace measurement contract
     ├── pseudonymous web-analytics events and outcome reporting
+    ├── post-sync, nightly, and weekly analysis run history
     ├── workspace findings and recommendations
     └── Google Ads / Meta Ads advertising accounts
 ```
@@ -36,6 +37,7 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 
 - Workspace-scoped dashboard and operator API.
 - Google Ads and CRM synchronization workers with auditable job runs.
+- Idempotent post-sync, nightly, and weekly analysis cadences with aggregate-only run history.
 - Privacy-safe Google Ads, GA4, and CRM outcome correlation behind an active measurement
   contract, with aggregate-only API and dashboard reporting.
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
@@ -148,6 +150,7 @@ Endpoint groups:
 - Workspace-owned resources: `GET /api/v1/workspaces/{slug}/configuration`,
   `GET /api/v1/workspaces/{slug}/measurement-contract`,
   `GET /api/v1/workspaces/{slug}/outcome-analysis`,
+  `GET /api/v1/workspaces/{slug}/analysis-runs`,
   `GET /api/v1/workspaces/{slug}/integrations`,
   `GET /api/v1/workspaces/{slug}/memberships`, and
   `GET /api/v1/workspaces/{slug}/advertising-accounts`
@@ -163,6 +166,7 @@ Examples:
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/analysis-runs?limit=25&offset=0"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
 ```
 
@@ -211,6 +215,10 @@ authoritative CRM outcomes. It returns no raw click, session, user, lead, or pra
 and remains blocked while the workspace measurement contract is missing or draft. See
 [unified outcome data](docs/unified-outcome-data.md).
 
+Workspace pages also show aggregate-only cadence history. Post-sync, nightly, and weekly runs use
+local synchronized data and never trigger collectors, recommendation generation, or advertising
+mutations. See [analysis cadences](docs/analysis-cadences.md).
+
 ## Phase 7: separate Google Ads sync worker
 
 The API/dashboard process and the sync scheduler are deliberately separate processes.  FastAPI
@@ -239,6 +247,10 @@ uses `DENTICODE_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
 `DENTICODE_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
 `DENTICODE_SYNC_ADVISORY_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
 collection. Put only local values in an uncommitted `.env`; never commit `.env` or credentials.
+
+After a successful sync, both workers run the idempotent post-sync analysis. The long-running
+scheduler also checks due nightly and weekly workspace analyses after every cycle attempt. An
+analysis failure is recorded separately and does not cause a successful collector run to repeat.
 
 Each cycle checks out one PostgreSQL connection, obtains a nonblocking session-level advisory
 lock on that exact physical connection, and binds the synchronization SQLAlchemy Session to it

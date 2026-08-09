@@ -9,15 +9,6 @@ from secrets import token_urlsafe
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
-from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
-from app.ads.schemas import AdvertisingAccountCreate
-from app.api.auth import require_api_token
-from app.collectors import google_ads
-from app.database.session import Base, get_db
-from app.main import app
-from app.settings import settings
-from app.workspaces.models import Workspace
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -28,6 +19,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 from sqlalchemy.schema import CreateIndex
 from starlette.types import Message, Scope
+
+from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric, JobRun
+from app.ads.schemas import AdvertisingAccountCreate
+from app.api.auth import require_api_token
+from app.collectors import google_ads
+from app.database.session import Base, get_db
+from app.main import app
+from app.settings import settings
+from app.workspaces.models import Workspace
 
 RawResponse = tuple[int, list[tuple[bytes, bytes]], bytes]
 

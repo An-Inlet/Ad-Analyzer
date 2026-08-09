@@ -1,8 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
-
 from app.measurement.enums import (
     AttributionModel,
     CustomerValueMode,
@@ -17,6 +15,7 @@ from app.measurement.enums import (
 from app.measurement.repository import MeasurementContractSnapshot
 from app.measurement.service import evaluate_measurement_readiness
 from app.measurement.unified import UnifiedOutcomeSnapshot
+from pydantic import BaseModel, ConfigDict
 
 
 class MeasurementApiModel(BaseModel):

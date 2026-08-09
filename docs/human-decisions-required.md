@@ -19,6 +19,7 @@ The automated buildout has completed the technically implementable roadmap work 
 | Monitoring and alert destinations | 12.3 | Select alert destinations and escalation expectations. |
 | Backup retention | 12.3 | Select retention period and restore-test cadence. |
 | Production release approval | 12.4 | Record final human release approval after validation and reviews. |
+| Denticode measurement contract | Improvement step 2 activation | Confirm the optimization outcome, CRM source of truth, attribution window, outcome-maturity window, customer-value horizon, and whether view-through attribution remains disabled. |
 
 ## Permanent constraints
 

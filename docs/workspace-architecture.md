@@ -18,6 +18,7 @@ Each workspace owns:
 - integration registrations and secret-manager references;
 - advertising accounts and their descendant campaign data;
 - conversion events, synchronization job runs, findings, and recommendations;
+- the measurement contract, funnel-stage definitions, and source-event mappings;
 - CRM connections and the CRM records reached through those connections.
 
 IDs remain platform-global, but all top-level queries and writes carry a `workspace_id`. Compound
@@ -53,6 +54,14 @@ Inbound CRM events are stamped with the configured workspace before they enter P
 selects an active CRM connection only within that workspace. Future GA4, CRM, Google Ads, Meta Ads,
 and notification connections must follow the same pattern.
 
+## Measurement boundary
+
+Each workspace owns one measurement contract. The contract identifies the authoritative business
+source, distinguishes diagnostic platform conversions from CRM-confirmed outcomes, defines the
+funnel stages and event mappings, and records attribution and customer-value windows. The contract
+is read-only through the operator API and remains fail-closed while it is a draft. See
+[the measurement contract](measurement-contract.md).
+
 ## Existing Denticode deployment
 
 Migration `20260802_0008` creates the workspace structure, seeds the `denticode` workspace as
@@ -77,7 +86,8 @@ Provisioning another client requires an explicit, audited workflow that:
 4. connects advertising accounts with the new workspace ID;
 5. configures collectors and CRM routing with that workspace ID;
 6. verifies cross-workspace denial and duplicate external-account isolation;
-7. leaves advertising writes disabled until that workspace has separately approved controls.
+7. creates and explicitly approves that client's measurement contract;
+8. leaves advertising writes disabled until that workspace has separately approved controls.
 
 No client should be added by copying Denticode credentials, memberships, global settings, or
 database rows.

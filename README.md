@@ -16,6 +16,7 @@ Ad Analyzer platform
     ├── workspace configuration
     ├── workspace memberships and roles
     ├── workspace integrations
+    ├── workspace measurement contract
     ├── workspace findings and recommendations
     └── Google Ads / Meta Ads advertising accounts
 ```
@@ -36,7 +37,8 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 - Google Ads and CRM synchronization workers with auditable job runs.
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
 - Deterministic findings, reviewable recommendations, and guarded dry-run execution.
-- Workspace configuration, memberships, integrations, and persistent finding boundaries.
+- Workspace configuration, measurement contracts, memberships, integrations, and persistent
+  finding boundaries.
 - pytest, Ruff, and mypy development tooling.
 
 ## Safety model
@@ -141,6 +143,7 @@ Endpoint groups:
 
 - Workspaces: `GET /api/v1/workspaces`, `GET /api/v1/workspaces/{slug}`
 - Workspace-owned resources: `GET /api/v1/workspaces/{slug}/configuration`,
+  `GET /api/v1/workspaces/{slug}/measurement-contract`,
   `GET /api/v1/workspaces/{slug}/integrations`,
   `GET /api/v1/workspaces/{slug}/memberships`, and
   `GET /api/v1/workspaces/{slug}/advertising-accounts`

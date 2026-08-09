@@ -22,6 +22,11 @@ contact external systems, upload conversions, or enable advertising writes.
 The API and dashboard report `analysis_ready=false` whenever the workspace contract is missing,
 structurally incomplete, or still a draft. Downstream analytics must fail closed on that signal.
 
+Step 3's unified outcome service enforces this signal. It returns no outcome metrics until the
+contract is active, and then applies the contract's click-lookback, outcome-maturity, event-mapping,
+authority, value-behavior, and currency rules. See
+[unified outcome data](unified-outcome-data.md).
+
 ## Denticode draft
 
 Migration `20260806_0009` creates a proposed version 1 contract for **Denticode Ad Analyzer**:

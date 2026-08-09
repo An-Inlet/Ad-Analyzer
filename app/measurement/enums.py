@@ -48,3 +48,21 @@ class MeasurementValueBehavior(StrEnum):
     IGNORE = "ignore"
     SET = "set"
     ADJUST = "adjust"
+
+
+class WebAnalyticsSource(StrEnum):
+    GA4 = "ga4"
+
+
+class PaidClickIdKind(StrEnum):
+    GCLID = "gclid"
+    GBRAID = "gbraid"
+    WBRAID = "wbraid"
+
+
+class WebDeviceCategory(StrEnum):
+    DESKTOP = "desktop"
+    MOBILE = "mobile"
+    TABLET = "tablet"
+    TV = "tv"
+    OTHER = "other"

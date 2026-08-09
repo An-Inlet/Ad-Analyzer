@@ -35,7 +35,8 @@ from app.api.schemas import (
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
 from app.measurement.repository import MeasurementRepository
-from app.measurement.schemas import MeasurementContractResponse
+from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
+from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
@@ -159,6 +160,36 @@ def get_workspace_measurement_contract(
     if snapshot is None:
         raise HTTPException(status_code=404, detail="measurement contract not found")
     return MeasurementContractResponse.from_snapshot(snapshot)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/outcome-analysis",
+    response_model=UnifiedOutcomeResponse,
+    operation_id="read_only_workspace_outcome_analysis",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace_outcome_analysis(
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    measurement_repository: Annotated[MeasurementRepository, Depends(measurement_repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> UnifiedOutcomeResponse:
+    workspace = _workspace_or_404(workspace_repository, workspace_slug)
+    contract_snapshot = measurement_repository.get_for_workspace(workspace.id)
+    if date_from is None and date_to is None:
+        maturity_days = (
+            contract_snapshot.contract.outcome_maturity_days
+            if contract_snapshot is not None
+            else 90
+        )
+        end = datetime.now(UTC).date() - timedelta(days=maturity_days)
+        start = end - timedelta(days=29)
+    else:
+        start, end = default_dates(date_from, date_to)
+    report = UnifiedOutcomeService(db).report(workspace.id, start, end)
+    return UnifiedOutcomeResponse.from_snapshot(report)
 
 
 @router.get(

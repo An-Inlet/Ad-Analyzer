@@ -17,12 +17,12 @@ The `development`, `staging`, and `production` environment names are abbreviated
 
 ## Event contract
 
-Send JSON with `event_id`, `event_type`, `occurred_at` (timezone required), and `crm_lead_id`. Optional allowed fields are `crm_opportunity_id`, non-negative `value`, ISO uppercase `currency`, `gclid`, `gbraid`, `wbraid`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, and HTTP(S) `landing_page`. Supported types are `lead_created`, `appointment_scheduled`, `lead_qualified`, `proposal_sent`, `sale_won`, `sale_lost`, `sale_cancelled`, and `revenue_adjusted`. Unknown fields are rejected. Never send names, email, phone, treatment, diagnosis, notes, patient data, or other PHI.
+Send JSON with `event_id`, `event_type`, `occurred_at` (timezone required), and `crm_lead_id`. Optional allowed fields are `crm_opportunity_id`, non-negative `value`, ISO uppercase `currency`, `analytics_pseudonymous_id`, `gclid`, `gbraid`, `wbraid`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, and HTTP(S) `landing_page`. Supported types are `lead_created`, `appointment_scheduled`, `lead_qualified`, `proposal_sent`, `sale_won`, `sale_lost`, `sale_cancelled`, and `revenue_adjusted`. Unknown fields are rejected. `analytics_pseudonymous_id` must be an opaque 8-128 character identifier containing only letters, digits, dots, underscores, colons, or hyphens; it must not be an email address or another direct identifier. Never send names, email, phone, treatment, diagnosis, notes, patient data, or other PHI.
 
 Fake example:
 
 ```json
-{"event_id":"evt_fake_001","event_type":"lead_created","occurred_at":"2026-07-29T12:00:00Z","crm_lead_id":"lead_fake_001","gclid":"fake-click-id","utm_source":"google","utm_campaign":"fake-campaign","landing_page":"https://example.invalid/fake"}
+{"event_id":"evt_fake_001","event_type":"lead_created","occurred_at":"2026-07-29T12:00:00Z","crm_lead_id":"lead_fake_001","analytics_pseudonymous_id":"practice-pseudo-001","gclid":"fake-click-id","utm_source":"google","utm_campaign":"fake-campaign","landing_page":"https://example.invalid/fake"}
 ```
 
 ## HMAC signing and CRM integration

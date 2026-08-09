@@ -23,6 +23,7 @@ from app.measurement.enums import (
     MeasurementSourceOfTruth,
     MeasurementValueBehavior,
     PlatformConversionRole,
+    WebAnalyticsSource,
 )
 from app.workspaces.models import Workspace  # noqa: F401
 
@@ -223,3 +224,121 @@ class MeasurementEventMapping(MeasurementTimestampMixin, Base):
     value_behavior: Mapped[str] = mapped_column(
         String(16), nullable=False, default=MeasurementValueBehavior.IGNORE.value
     )
+
+
+class WebAnalyticsEvent(MeasurementTimestampMixin, Base):
+    """An allowlisted GA4 event with only pseudonymous correlation identifiers."""
+
+    __tablename__ = "web_analytics_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "source_system",
+            "external_event_id",
+            name="uq_web_events_workspace_source_external",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id"],
+            ["advertising_accounts.id", "advertising_accounts.workspace_id"],
+            name="fk_web_events_account_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["campaign_id", "account_id"],
+            ["campaigns.id", "campaigns.account_id"],
+            name="fk_web_events_campaign_account",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "source_system = 'ga4'",
+            name="ck_web_events_source_system",
+        ),
+        CheckConstraint(
+            "event_name = lower(event_name) AND event_name NOT LIKE '% %'",
+            name="ck_web_events_name_canonical",
+        ),
+        CheckConstraint(
+            "length(event_fingerprint) = 64",
+            name="ck_web_events_fingerprint_length",
+        ),
+        CheckConstraint(
+            "length(user_pseudo_id_digest) = 64",
+            name="ck_web_events_user_digest_length",
+        ),
+        CheckConstraint(
+            "length(session_id_digest) = 64",
+            name="ck_web_events_session_digest_length",
+        ),
+        CheckConstraint(
+            "subject_id_digest IS NULL OR length(subject_id_digest) = 64",
+            name="ck_web_events_subject_digest_length",
+        ),
+        CheckConstraint(
+            "(click_id_digest IS NULL AND click_id_kind IS NULL) OR "
+            "(length(click_id_digest) = 64 AND click_id_kind IN ('gclid', 'gbraid', 'wbraid'))",
+            name="ck_web_events_click_digest_pair",
+        ),
+        CheckConstraint(
+            "campaign_id IS NULL OR account_id IS NOT NULL",
+            name="ck_web_events_campaign_requires_account",
+        ),
+        CheckConstraint(
+            "NOT is_paid_touchpoint OR "
+            "(account_id IS NOT NULL AND campaign_id IS NOT NULL)",
+            name="ck_web_events_paid_touchpoint_campaign",
+        ),
+        CheckConstraint(
+            "country_code IS NULL OR "
+            "(country_code = upper(country_code) AND length(country_code) = 2)",
+            name="ck_web_events_country_code",
+        ),
+        Index(
+            "ix_web_events_workspace_occurred",
+            "workspace_id",
+            "occurred_at",
+        ),
+        Index(
+            "ix_web_events_workspace_subject_occurred",
+            "workspace_id",
+            "subject_id_digest",
+            "occurred_at",
+        ),
+        Index(
+            "ix_web_events_workspace_click_occurred",
+            "workspace_id",
+            "click_id_digest",
+            "occurred_at",
+        ),
+        Index(
+            "ix_web_events_workspace_campaign_occurred",
+            "workspace_id",
+            "campaign_id",
+            "occurred_at",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    source_system: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=WebAnalyticsSource.GA4.value
+    )
+    external_event_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    event_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    event_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    user_pseudo_id_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    subject_id_digest: Mapped[str | None] = mapped_column(String(64))
+    session_id_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    click_id_kind: Mapped[str | None] = mapped_column(String(16))
+    click_id_digest: Mapped[str | None] = mapped_column(String(64))
+    account_id: Mapped[int | None] = mapped_column(Integer)
+    campaign_id: Mapped[int | None] = mapped_column(Integer)
+    source: Mapped[str | None] = mapped_column(String(64))
+    medium: Mapped[str | None] = mapped_column(String(64))
+    device_category: Mapped[str] = mapped_column(String(16), nullable=False, default="other")
+    country_code: Mapped[str | None] = mapped_column(String(2))
+    region_code: Mapped[str | None] = mapped_column(String(64))
+    landing_page_path: Mapped[str | None] = mapped_column(String(1024))
+    is_paid_touchpoint: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

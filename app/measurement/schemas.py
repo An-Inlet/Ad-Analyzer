@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,6 +16,7 @@ from app.measurement.enums import (
 )
 from app.measurement.repository import MeasurementContractSnapshot
 from app.measurement.service import evaluate_measurement_readiness
+from app.measurement.unified import UnifiedOutcomeSnapshot
 
 
 class MeasurementApiModel(BaseModel):
@@ -87,4 +89,85 @@ class MeasurementContractResponse(BaseModel):
                 MeasurementEventMappingResponse.model_validate(mapping)
                 for mapping in snapshot.mappings
             ],
+        )
+
+
+class UnifiedSourceCoverageResponse(MeasurementApiModel):
+    advertising_metric_days: int
+    ga4_event_count: int
+    paid_session_count: int
+    crm_event_count: int
+    mapped_crm_event_count: int
+    attributed_journey_count: int
+    unattributed_journey_count: int
+    attribution_rate: Decimal | None
+    currency_mismatch_count: int
+
+
+class OutcomeMetricsResponse(MeasurementApiModel):
+    impressions: int
+    clicks: int
+    cost_micros: int
+    ga4_event_count: int
+    paid_session_count: int
+    lead_count: int
+    optimization_outcome_count: int
+    business_outcome_count: int
+    cancelled_outcome_count: int
+    observed_revenue_micros: int
+    optimization_outcome_rate: Decimal | None
+    business_outcome_rate: Decimal | None
+    funnel_drop_off_rate: Decimal | None
+    revenue_per_click_micros: int | None
+    cost_per_optimization_outcome_micros: int | None
+    median_outcome_lag_days: Decimal | None
+
+
+class CampaignOutcomeResponse(MeasurementApiModel):
+    account_id: int
+    campaign_id: int
+    platform: str
+    campaign_name: str
+    metrics: OutcomeMetricsResponse
+
+
+class UnifiedOutcomeResponse(BaseModel):
+    workspace_id: int
+    cohort_date_from: date
+    cohort_date_to: date
+    mature_through: date | None
+    as_of: datetime
+    contract_version: int | None
+    currency_code: str | None
+    optimization_goal_stage_key: str | None
+    business_value_stage_key: str | None
+    analysis_ready: bool
+    blocking_reasons: list[str]
+    source_coverage: UnifiedSourceCoverageResponse
+    totals: OutcomeMetricsResponse | None
+    campaigns: list[CampaignOutcomeResponse]
+
+    @classmethod
+    def from_snapshot(cls, snapshot: UnifiedOutcomeSnapshot) -> "UnifiedOutcomeResponse":
+        return cls(
+            workspace_id=snapshot.workspace_id,
+            cohort_date_from=snapshot.cohort_date_from,
+            cohort_date_to=snapshot.cohort_date_to,
+            mature_through=snapshot.mature_through,
+            as_of=snapshot.as_of,
+            contract_version=snapshot.contract_version,
+            currency_code=snapshot.currency_code,
+            optimization_goal_stage_key=snapshot.optimization_goal_stage_key,
+            business_value_stage_key=snapshot.business_value_stage_key,
+            analysis_ready=snapshot.analysis_ready,
+            blocking_reasons=list(snapshot.blocking_reasons),
+            source_coverage=UnifiedSourceCoverageResponse.model_validate(
+                snapshot.source_coverage
+            ),
+            totals=(
+                OutcomeMetricsResponse.model_validate(snapshot.totals)
+                if snapshot.totals is not None
+                else None
+            ),
+            campaigns=[CampaignOutcomeResponse.model_validate(item) for item in snapshot.campaigns],
         )

@@ -19,6 +19,7 @@ Each workspace owns:
 - advertising accounts and their descendant campaign data;
 - conversion events, synchronization job runs, findings, and recommendations;
 - the measurement contract, funnel-stage definitions, and source-event mappings;
+- pseudonymous web-analytics events and aggregate outcome-analysis results;
 - CRM connections and the CRM records reached through those connections.
 
 IDs remain platform-global, but all top-level queries and writes carry a `workspace_id`. Compound
@@ -54,6 +55,11 @@ Inbound CRM events are stamped with the configured workspace before they enter P
 selects an active CRM connection only within that workspace. Future GA4, CRM, Google Ads, Meta Ads,
 and notification connections must follow the same pattern.
 
+The GA4 persistence boundary follows that pattern now: every event is stamped with a workspace,
+advertising account and campaign references are protected by compound foreign keys, and raw user,
+session, subject, and paid-click identifiers are converted to workspace-bound digests before
+persistence. A production GA4 adapter is not configured by this repository change.
+
 ## Measurement boundary
 
 Each workspace owns one measurement contract. The contract identifies the authoritative business
@@ -61,6 +67,11 @@ source, distinguishes diagnostic platform conversions from CRM-confirmed outcome
 funnel stages and event mappings, and records attribution and customer-value windows. The contract
 is read-only through the operator API and remains fail-closed while it is a draft. See
 [the measurement contract](measurement-contract.md).
+
+Unified outcome analysis additionally enforces the contract's maturity and paid-click lookback
+windows before correlating mature Google Ads metrics, GA4 paid sessions, and authoritative CRM
+events. It emits aggregates only and reports explicit source-coverage blockers when a required
+source is absent. See [unified outcome data](unified-outcome-data.md).
 
 ## Existing Denticode deployment
 

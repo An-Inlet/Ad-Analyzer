@@ -17,6 +17,7 @@ Ad Analyzer platform
     ├── workspace memberships and roles
     ├── workspace integrations
     ├── workspace measurement contract
+    ├── pseudonymous web-analytics events and outcome reporting
     ├── workspace findings and recommendations
     └── Google Ads / Meta Ads advertising accounts
 ```
@@ -35,6 +36,8 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 
 - Workspace-scoped dashboard and operator API.
 - Google Ads and CRM synchronization workers with auditable job runs.
+- Privacy-safe Google Ads, GA4, and CRM outcome correlation behind an active measurement
+  contract, with aggregate-only API and dashboard reporting.
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
 - Deterministic findings, reviewable recommendations, and guarded dry-run execution.
 - Workspace configuration, measurement contracts, memberships, integrations, and persistent
@@ -144,6 +147,7 @@ Endpoint groups:
 - Workspaces: `GET /api/v1/workspaces`, `GET /api/v1/workspaces/{slug}`
 - Workspace-owned resources: `GET /api/v1/workspaces/{slug}/configuration`,
   `GET /api/v1/workspaces/{slug}/measurement-contract`,
+  `GET /api/v1/workspaces/{slug}/outcome-analysis`,
   `GET /api/v1/workspaces/{slug}/integrations`,
   `GET /api/v1/workspaces/{slug}/memberships`, and
   `GET /api/v1/workspaces/{slug}/advertising-accounts`
@@ -158,6 +162,7 @@ Examples:
 ```bash
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
 ```
 
@@ -195,10 +200,16 @@ session. The bearer token is never put into dashboard URLs, HTML, JavaScript, st
 or logs. Later dashboard requests use only that session.
 
 Dashboard routes are `GET /dashboard`, `GET /dashboard/workspaces/{workspace_slug}`,
+`GET /dashboard/workspaces/{workspace_slug}/outcomes`,
 `GET /dashboard/accounts/{account_id}`, `GET /dashboard/campaigns/{campaign_id}`, and
 `GET /dashboard/job-runs`. Platform administrators can see all workspaces. Other authenticated IAP
 identities see only workspaces with an active membership; only workspace owners and administrators
 may approve, reject, or dry-run recommendations.
+
+The outcome view correlates mature Google Ads cohorts with pseudonymous GA4 paid sessions and
+authoritative CRM outcomes. It returns no raw click, session, user, lead, or practice identifiers
+and remains blocked while the workspace measurement contract is missing or draft. See
+[unified outcome data](docs/unified-outcome-data.md).
 
 ## Phase 7: separate Google Ads sync worker
 

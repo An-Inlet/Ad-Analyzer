@@ -1,9 +1,8 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class OrmModel(BaseModel):

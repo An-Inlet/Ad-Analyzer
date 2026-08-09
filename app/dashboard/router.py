@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.ads.enums import ExecutionStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
+from app.analysis.granular import GranularAnalysisService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import _windows, default_dates, ratios
@@ -266,7 +267,13 @@ def account_detail(
         raise HTTPException(status_code=404, detail="workspace not found")
     role = require_workspace_view(request, db, workspace.id)
     start, end = valid_dates(date_from, date_to)
-    campaigns, total = repository.list_account_campaigns(account_id, None, limit, offset)
+    campaigns, total = GranularAnalysisService(db).analyze_campaigns(
+        account_id,
+        start,
+        end,
+        limit=limit,
+        offset=offset,
+    )
     totals = repository.account_metric_totals(account_id, start, end)
     impressions, clicks, cost = (
         int(totals["impressions"]),
@@ -551,8 +558,14 @@ def campaign_detail(
         raise HTTPException(status_code=404, detail="workspace not found")
     require_workspace_view(request, db, workspace.id)
     start, end = valid_dates(date_from, date_to)
-    groups, group_total = repository.list_campaign_ad_groups(
-        campaign_id, ad_group_limit, ad_group_offset
+    granular_service = GranularAnalysisService(db)
+    campaign_analysis = granular_service.analyze_campaign(campaign_id, start, end)
+    groups, group_total = granular_service.analyze_ad_groups(
+        campaign_id,
+        start,
+        end,
+        limit=ad_group_limit,
+        offset=ad_group_offset,
     )
     metrics, metric_total = repository.list_campaign_metrics(
         campaign_id, start, end, metric_limit, metric_offset
@@ -565,6 +578,7 @@ def campaign_detail(
             title=campaign.name,
             workspace=workspace,
             campaign=campaign,
+            campaign_analysis=campaign_analysis,
             groups=groups,
             group_total=group_total,
             metrics=metrics,

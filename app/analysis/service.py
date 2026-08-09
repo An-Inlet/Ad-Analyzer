@@ -3,9 +3,6 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
 from app.ads.models import AdvertisingAccount
 from app.analysis.enums import AnalysisCadence
 from app.analysis.granular import GranularAnalysisService
@@ -16,6 +13,8 @@ from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 

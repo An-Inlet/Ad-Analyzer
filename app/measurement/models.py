@@ -249,6 +249,12 @@ class WebAnalyticsEvent(MeasurementTimestampMixin, Base):
             name="fk_web_events_campaign_account",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["ad_group_id", "campaign_id"],
+            ["ad_groups.id", "ad_groups.campaign_id"],
+            name="fk_web_events_ad_group_campaign",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint(
             "source_system = 'ga4'",
             name="ck_web_events_source_system",
@@ -283,6 +289,10 @@ class WebAnalyticsEvent(MeasurementTimestampMixin, Base):
             name="ck_web_events_campaign_requires_account",
         ),
         CheckConstraint(
+            "ad_group_id IS NULL OR campaign_id IS NOT NULL",
+            name="ck_web_events_ad_group_requires_campaign",
+        ),
+        CheckConstraint(
             "NOT is_paid_touchpoint OR "
             "(account_id IS NOT NULL AND campaign_id IS NOT NULL)",
             name="ck_web_events_paid_touchpoint_campaign",
@@ -315,6 +325,12 @@ class WebAnalyticsEvent(MeasurementTimestampMixin, Base):
             "campaign_id",
             "occurred_at",
         ),
+        Index(
+            "ix_web_events_workspace_ad_group_occurred",
+            "workspace_id",
+            "ad_group_id",
+            "occurred_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -335,6 +351,7 @@ class WebAnalyticsEvent(MeasurementTimestampMixin, Base):
     click_id_digest: Mapped[str | None] = mapped_column(String(64))
     account_id: Mapped[int | None] = mapped_column(Integer)
     campaign_id: Mapped[int | None] = mapped_column(Integer)
+    ad_group_id: Mapped[int | None] = mapped_column(Integer)
     source: Mapped[str | None] = mapped_column(String(64))
     medium: Mapped[str | None] = mapped_column(String(64))
     device_category: Mapped[str] = mapped_column(String(16), nullable=False, default="other")

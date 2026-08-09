@@ -8,7 +8,8 @@ from typing import Any
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
+from app.ads.enums import MetricEntityType
+from app.ads.models import AdGroup, AdvertisingAccount, Campaign, DailyMetric
 from app.crm.models import CrmConnection, CrmEventRecord
 from app.measurement.enums import (
     CustomerValueMode,
@@ -25,6 +26,7 @@ from app.measurement.service import evaluate_measurement_readiness
 @dataclass(frozen=True)
 class UnifiedSourceCoverage:
     advertising_metric_days: int
+    ad_group_metric_days: int
     ga4_event_count: int
     paid_session_count: int
     crm_event_count: int
@@ -32,14 +34,21 @@ class UnifiedSourceCoverage:
     attributed_journey_count: int
     unattributed_journey_count: int
     attribution_rate: Decimal | None
+    ad_group_attributed_journey_count: int
+    ad_group_unattributed_journey_count: int
+    ad_group_attribution_rate: Decimal | None
     currency_mismatch_count: int
 
 
 @dataclass(frozen=True)
 class OutcomeMetricsSnapshot:
+    advertising_metric_days: int
+    metric_coverage_ratio: Decimal
     impressions: int
     clicks: int
     cost_micros: int
+    platform_conversion_count: Decimal
+    platform_conversion_value_micros: int
     ga4_event_count: int
     paid_session_count: int
     lead_count: int
@@ -47,12 +56,32 @@ class OutcomeMetricsSnapshot:
     business_outcome_count: int
     cancelled_outcome_count: int
     observed_revenue_micros: int
+    click_through_rate: Decimal | None
+    platform_conversion_rate: Decimal | None
+    click_to_paid_session_rate: Decimal | None
+    paid_session_to_lead_rate: Decimal | None
     optimization_outcome_rate: Decimal | None
     business_outcome_rate: Decimal | None
+    lead_to_business_outcome_rate: Decimal | None
     funnel_drop_off_rate: Decimal | None
+    cancellation_rate: Decimal | None
     revenue_per_click_micros: int | None
+    revenue_per_paid_session_micros: int | None
+    revenue_per_lead_micros: int | None
+    revenue_per_optimization_outcome_micros: int | None
+    revenue_per_business_outcome_micros: int | None
+    cost_per_lead_micros: int | None
     cost_per_optimization_outcome_micros: int | None
+    cost_per_business_outcome_micros: int | None
+    observed_roas: Decimal | None
     median_outcome_lag_days: Decimal | None
+
+
+@dataclass(frozen=True)
+class AdGroupOutcomeSnapshot:
+    ad_group_id: int
+    ad_group_name: str
+    metrics: OutcomeMetricsSnapshot
 
 
 @dataclass(frozen=True)
@@ -62,6 +91,7 @@ class CampaignOutcomeSnapshot:
     platform: str
     campaign_name: str
     metrics: OutcomeMetricsSnapshot
+    ad_groups: tuple[AdGroupOutcomeSnapshot, ...]
 
 
 @dataclass(frozen=True)
@@ -77,6 +107,8 @@ class UnifiedOutcomeSnapshot:
     business_value_stage_key: str | None
     analysis_ready: bool
     blocking_reasons: tuple[str, ...]
+    ad_group_analysis_ready: bool
+    ad_group_blocking_reasons: tuple[str, ...]
     source_coverage: UnifiedSourceCoverage
     totals: OutcomeMetricsSnapshot | None
     campaigns: tuple[CampaignOutcomeSnapshot, ...]
@@ -84,9 +116,12 @@ class UnifiedOutcomeSnapshot:
 
 @dataclass
 class _MutableMetrics:
+    advertising_metric_days: int = 0
     impressions: int = 0
     clicks: int = 0
     cost_micros: int = 0
+    platform_conversions: Decimal = Decimal("0")
+    platform_conversion_value_micros: int = 0
     ga4_event_count: int = 0
     paid_sessions: set[str] = field(default_factory=set)
     leads: set[str] = field(default_factory=set)
@@ -127,6 +162,14 @@ def _ratio(numerator: int, denominator: int) -> Decimal | None:
     )
 
 
+def _decimal_ratio(numerator: Decimal, denominator: int) -> Decimal | None:
+    if denominator == 0:
+        return None
+    return (numerator / Decimal(denominator)).quantize(
+        Decimal("0.000001"), rounding=ROUND_HALF_UP
+    )
+
+
 def _micros_per(numerator: int, denominator: int) -> int | None:
     if denominator == 0:
         return None
@@ -149,7 +192,7 @@ def _money_to_micros(value: object) -> int | None:
     return int((amount * Decimal("1000000")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def _finalize(bucket: _MutableMetrics) -> OutcomeMetricsSnapshot:
+def _finalize(bucket: _MutableMetrics, window_days: int) -> OutcomeMetricsSnapshot:
     lead_count = len(bucket.leads)
     optimization_count = len(bucket.optimization_outcomes)
     business_count = len(bucket.business_outcomes)
@@ -162,10 +205,17 @@ def _finalize(bucket: _MutableMetrics) -> OutcomeMetricsSnapshot:
         else None
     )
     business_per_lead = _ratio(business_count, lead_count)
+    completed_outcomes = business_count + len(bucket.cancelled_outcomes)
     return OutcomeMetricsSnapshot(
+        advertising_metric_days=bucket.advertising_metric_days,
+        metric_coverage_ratio=(
+            Decimal(bucket.advertising_metric_days) / Decimal(window_days)
+        ).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP),
         impressions=bucket.impressions,
         clicks=bucket.clicks,
         cost_micros=bucket.cost_micros,
+        platform_conversion_count=bucket.platform_conversions,
+        platform_conversion_value_micros=bucket.platform_conversion_value_micros,
         ga4_event_count=bucket.ga4_event_count,
         paid_session_count=len(bucket.paid_sessions),
         lead_count=lead_count,
@@ -173,14 +223,29 @@ def _finalize(bucket: _MutableMetrics) -> OutcomeMetricsSnapshot:
         business_outcome_count=business_count,
         cancelled_outcome_count=len(bucket.cancelled_outcomes),
         observed_revenue_micros=revenue,
+        click_through_rate=_ratio(bucket.clicks, bucket.impressions),
+        platform_conversion_rate=_decimal_ratio(bucket.platform_conversions, bucket.clicks),
+        click_to_paid_session_rate=_ratio(len(bucket.paid_sessions), bucket.clicks),
+        paid_session_to_lead_rate=_ratio(lead_count, len(bucket.paid_sessions)),
         optimization_outcome_rate=_ratio(optimization_count, lead_count),
         business_outcome_rate=_ratio(business_count, optimization_count),
+        lead_to_business_outcome_rate=business_per_lead,
         funnel_drop_off_rate=(
             Decimal("1") - business_per_lead if business_per_lead is not None else None
         ),
+        cancellation_rate=_ratio(len(bucket.cancelled_outcomes), completed_outcomes),
         revenue_per_click_micros=_micros_per(revenue, bucket.clicks),
+        revenue_per_paid_session_micros=_micros_per(revenue, len(bucket.paid_sessions)),
+        revenue_per_lead_micros=_micros_per(revenue, lead_count),
+        revenue_per_optimization_outcome_micros=_micros_per(revenue, optimization_count),
+        revenue_per_business_outcome_micros=_micros_per(revenue, business_count),
+        cost_per_lead_micros=_micros_per(bucket.cost_micros, lead_count),
         cost_per_optimization_outcome_micros=_micros_per(
             bucket.cost_micros, optimization_count
+        ),
+        cost_per_business_outcome_micros=_micros_per(bucket.cost_micros, business_count),
+        observed_roas=(
+            _ratio(revenue, bucket.cost_micros) if bucket.cost_micros else None
         ),
         median_outcome_lag_days=lag,
     )
@@ -189,6 +254,7 @@ def _finalize(bucket: _MutableMetrics) -> OutcomeMetricsSnapshot:
 def _empty_coverage() -> UnifiedSourceCoverage:
     return UnifiedSourceCoverage(
         advertising_metric_days=0,
+        ad_group_metric_days=0,
         ga4_event_count=0,
         paid_session_count=0,
         crm_event_count=0,
@@ -196,6 +262,9 @@ def _empty_coverage() -> UnifiedSourceCoverage:
         attributed_journey_count=0,
         unattributed_journey_count=0,
         attribution_rate=None,
+        ad_group_attributed_journey_count=0,
+        ad_group_unattributed_journey_count=0,
+        ad_group_attribution_rate=None,
         currency_mismatch_count=0,
     )
 
@@ -231,6 +300,8 @@ class UnifiedOutcomeService:
                 business_value_stage_key=None,
                 analysis_ready=False,
                 blocking_reasons=("measurement_contract_missing",),
+                ad_group_analysis_ready=False,
+                ad_group_blocking_reasons=("measurement_contract_missing",),
                 source_coverage=_empty_coverage(),
                 totals=None,
                 campaigns=(),
@@ -296,6 +367,8 @@ class UnifiedOutcomeService:
             business_value_stage_key=contract.business_value_stage_key,
             analysis_ready=False,
             blocking_reasons=reasons,
+            ad_group_analysis_ready=False,
+            ad_group_blocking_reasons=reasons,
             source_coverage=_empty_coverage(),
             totals=None,
             campaigns=(),
@@ -317,14 +390,18 @@ class UnifiedOutcomeService:
             as_of,
             _day_after(mature_through + timedelta(days=contract.customer_value_horizon_days)),
         )
+        metric_window_days = (mature_through - cohort_date_from).days + 1
         campaign_metadata = self._campaign_metadata(workspace_id)
-        buckets: defaultdict[int, _MutableMetrics] = defaultdict(_MutableMetrics)
+        ad_group_metadata = self._ad_group_metadata(workspace_id)
+        campaign_buckets: defaultdict[int, _MutableMetrics] = defaultdict(_MutableMetrics)
+        ad_group_buckets: defaultdict[int, _MutableMetrics] = defaultdict(_MutableMetrics)
         total_bucket = _MutableMetrics()
-        metric_days = self._apply_ad_metrics(
+        metric_days, ad_group_metric_days = self._apply_ad_metrics(
             workspace_id,
             cohort_date_from,
             mature_through,
-            buckets,
+            campaign_buckets,
+            ad_group_buckets,
             total_bucket,
         )
         web_events = list(
@@ -338,7 +415,12 @@ class UnifiedOutcomeService:
                 .order_by(WebAnalyticsEvent.occurred_at.asc(), WebAnalyticsEvent.id.asc())
             ).all()
         )
-        touchpoints = self._apply_web_events(web_events, buckets, total_bucket)
+        touchpoints = self._apply_web_events(
+            web_events,
+            campaign_buckets,
+            ad_group_buckets,
+            total_bucket,
+        )
         crm_records = list(
             self.session.scalars(
                 select(CrmEventRecord)
@@ -361,10 +443,18 @@ class UnifiedOutcomeService:
             crm_records,
             touchpoints,
             snapshot,
-            buckets,
+            campaign_buckets,
+            ad_group_buckets,
             total_bucket,
         )
-        mapped_count, attributed_count, unattributed_count, currency_mismatches = journey_result
+        (
+            mapped_count,
+            attributed_count,
+            unattributed_count,
+            ad_group_attributed_count,
+            ad_group_unattributed_count,
+            currency_mismatches,
+        ) = journey_result
         reasons: list[str] = []
         if metric_days == 0:
             reasons.append("advertising_metrics_missing")
@@ -378,16 +468,47 @@ class UnifiedOutcomeService:
             reasons.append("crm_attribution_missing")
         if currency_mismatches:
             reasons.append("crm_currency_mismatch")
+        ad_group_reasons: list[str] = []
+        if ad_group_metric_days == 0:
+            ad_group_reasons.append("ad_group_metrics_missing")
+        if not any(item.ad_group_id is not None for item in touchpoints):
+            ad_group_reasons.append("ad_group_paid_touchpoints_missing")
+        if not crm_records:
+            ad_group_reasons.append("crm_events_missing")
+        elif mapped_count == 0:
+            ad_group_reasons.append("mapped_crm_outcomes_missing")
+        elif ad_group_attributed_count == 0:
+            ad_group_reasons.append("ad_group_crm_attribution_missing")
+        if ad_group_unattributed_count:
+            ad_group_reasons.append("ad_group_attribution_incomplete")
+        if currency_mismatches:
+            ad_group_reasons.append("crm_currency_mismatch")
         campaign_rows = tuple(
             CampaignOutcomeSnapshot(
                 account_id=campaign_metadata[campaign_id][0],
                 campaign_id=campaign_id,
                 platform=campaign_metadata[campaign_id][1],
                 campaign_name=campaign_metadata[campaign_id][2],
-                metrics=_finalize(bucket),
+                metrics=_finalize(bucket, metric_window_days),
+                ad_groups=tuple(
+                    AdGroupOutcomeSnapshot(
+                        ad_group_id=ad_group_id,
+                        ad_group_name=ad_group_metadata[ad_group_id][1],
+                        metrics=_finalize(ad_group_bucket, metric_window_days),
+                    )
+                    for ad_group_id, ad_group_bucket in sorted(
+                        ad_group_buckets.items(),
+                        key=lambda item: (
+                            ad_group_metadata.get(item[0], (0, ""))[1].lower(),
+                            item[0],
+                        ),
+                    )
+                    if ad_group_id in ad_group_metadata
+                    and ad_group_metadata[ad_group_id][0] == campaign_id
+                ),
             )
             for campaign_id, bucket in sorted(
-                buckets.items(),
+                campaign_buckets.items(),
                 key=lambda item: (
                     campaign_metadata.get(item[0], (0, "", ""))[2].lower(),
                     item[0],
@@ -398,6 +519,7 @@ class UnifiedOutcomeService:
         journey_total = attributed_count + unattributed_count
         coverage = UnifiedSourceCoverage(
             advertising_metric_days=metric_days,
+            ad_group_metric_days=ad_group_metric_days,
             ga4_event_count=len(web_events),
             paid_session_count=len(touchpoints),
             crm_event_count=len(crm_records),
@@ -405,6 +527,9 @@ class UnifiedOutcomeService:
             attributed_journey_count=attributed_count,
             unattributed_journey_count=unattributed_count,
             attribution_rate=_ratio(attributed_count, journey_total),
+            ad_group_attributed_journey_count=ad_group_attributed_count,
+            ad_group_unattributed_journey_count=ad_group_unattributed_count,
+            ad_group_attribution_rate=_ratio(ad_group_attributed_count, journey_total),
             currency_mismatch_count=currency_mismatches,
         )
         return UnifiedOutcomeSnapshot(
@@ -419,8 +544,10 @@ class UnifiedOutcomeService:
             business_value_stage_key=contract.business_value_stage_key,
             analysis_ready=not reasons,
             blocking_reasons=tuple(reasons),
+            ad_group_analysis_ready=not ad_group_reasons,
+            ad_group_blocking_reasons=tuple(ad_group_reasons),
             source_coverage=coverage,
-            totals=_finalize(total_bucket),
+            totals=_finalize(total_bucket, metric_window_days),
             campaigns=campaign_rows,
         )
 
@@ -439,20 +566,36 @@ class UnifiedOutcomeService:
             for campaign_id, account_id, platform, name in rows
         }
 
+    def _ad_group_metadata(self, workspace_id: int) -> dict[int, tuple[int, str]]:
+        rows = self.session.execute(
+            select(AdGroup.id, AdGroup.campaign_id, AdGroup.name)
+            .join(Campaign, Campaign.id == AdGroup.campaign_id)
+            .join(AdvertisingAccount, AdvertisingAccount.id == Campaign.account_id)
+            .where(AdvertisingAccount.workspace_id == workspace_id)
+        ).all()
+        return {
+            int(ad_group_id): (int(campaign_id), str(name))
+            for ad_group_id, campaign_id, name in rows
+        }
+
     def _apply_ad_metrics(
         self,
         workspace_id: int,
         date_from: date,
         date_to: date,
-        buckets: defaultdict[int, _MutableMetrics],
+        campaign_buckets: defaultdict[int, _MutableMetrics],
+        ad_group_buckets: defaultdict[int, _MutableMetrics],
         total: _MutableMetrics,
-    ) -> int:
-        rows = self.session.execute(
+    ) -> tuple[int, int]:
+        campaign_rows = self.session.execute(
             select(
                 DailyMetric.campaign_id,
+                func.count(func.distinct(DailyMetric.metric_date)),
                 func.coalesce(func.sum(DailyMetric.impressions), 0),
                 func.coalesce(func.sum(DailyMetric.clicks), 0),
                 func.coalesce(func.sum(DailyMetric.cost_micros), 0),
+                func.coalesce(func.sum(DailyMetric.conversions), 0),
+                func.coalesce(func.sum(DailyMetric.conversion_value_micros), 0),
             )
             .join(
                 Campaign,
@@ -464,24 +607,37 @@ class UnifiedOutcomeService:
             .join(AdvertisingAccount, AdvertisingAccount.id == Campaign.account_id)
             .where(
                 AdvertisingAccount.workspace_id == workspace_id,
-                DailyMetric.entity_type == "campaign",
+                DailyMetric.entity_type == MetricEntityType.CAMPAIGN.value,
                 DailyMetric.entity_id == Campaign.id,
                 DailyMetric.metric_date >= date_from,
                 DailyMetric.metric_date <= date_to,
             )
             .group_by(DailyMetric.campaign_id)
         ).all()
-        for campaign_id, impressions, clicks, cost_micros in rows:
+        for (
+            campaign_id,
+            metric_days,
+            impressions,
+            clicks,
+            cost_micros,
+            conversions,
+            conversion_value_micros,
+        ) in campaign_rows:
             if campaign_id is None:
                 continue
-            bucket = buckets[int(campaign_id)]
+            bucket = campaign_buckets[int(campaign_id)]
+            bucket.advertising_metric_days = int(metric_days)
             bucket.impressions += int(impressions)
             bucket.clicks += int(clicks)
             bucket.cost_micros += int(cost_micros)
+            bucket.platform_conversions += Decimal(str(conversions))
+            bucket.platform_conversion_value_micros += int(conversion_value_micros)
             total.impressions += int(impressions)
             total.clicks += int(clicks)
             total.cost_micros += int(cost_micros)
-        return int(
+            total.platform_conversions += Decimal(str(conversions))
+            total.platform_conversion_value_micros += int(conversion_value_micros)
+        campaign_metric_days = int(
             self.session.scalar(
                 select(func.count(func.distinct(DailyMetric.metric_date)))
                 .join(
@@ -494,7 +650,7 @@ class UnifiedOutcomeService:
                 .join(AdvertisingAccount, AdvertisingAccount.id == Campaign.account_id)
                 .where(
                     AdvertisingAccount.workspace_id == workspace_id,
-                    DailyMetric.entity_type == "campaign",
+                    DailyMetric.entity_type == MetricEntityType.CAMPAIGN.value,
                     DailyMetric.entity_id == Campaign.id,
                     DailyMetric.metric_date >= date_from,
                     DailyMetric.metric_date <= date_to,
@@ -502,18 +658,96 @@ class UnifiedOutcomeService:
             )
             or 0
         )
+        total.advertising_metric_days = campaign_metric_days
+        ad_group_rows = self.session.execute(
+            select(
+                DailyMetric.campaign_id,
+                DailyMetric.ad_group_id,
+                func.count(func.distinct(DailyMetric.metric_date)),
+                func.coalesce(func.sum(DailyMetric.impressions), 0),
+                func.coalesce(func.sum(DailyMetric.clicks), 0),
+                func.coalesce(func.sum(DailyMetric.cost_micros), 0),
+                func.coalesce(func.sum(DailyMetric.conversions), 0),
+                func.coalesce(func.sum(DailyMetric.conversion_value_micros), 0),
+            )
+            .join(
+                AdGroup,
+                and_(
+                    AdGroup.id == DailyMetric.ad_group_id,
+                    AdGroup.campaign_id == DailyMetric.campaign_id,
+                    AdGroup.platform == DailyMetric.platform,
+                ),
+            )
+            .join(Campaign, Campaign.id == AdGroup.campaign_id)
+            .join(AdvertisingAccount, AdvertisingAccount.id == Campaign.account_id)
+            .where(
+                AdvertisingAccount.workspace_id == workspace_id,
+                DailyMetric.entity_type == MetricEntityType.AD_GROUP.value,
+                DailyMetric.entity_id == AdGroup.id,
+                DailyMetric.metric_date >= date_from,
+                DailyMetric.metric_date <= date_to,
+            )
+            .group_by(DailyMetric.campaign_id, DailyMetric.ad_group_id)
+        ).all()
+        for (
+            campaign_id,
+            ad_group_id,
+            metric_days,
+            impressions,
+            clicks,
+            cost_micros,
+            conversions,
+            conversion_value_micros,
+        ) in ad_group_rows:
+            if campaign_id is None or ad_group_id is None:
+                continue
+            campaign_buckets[int(campaign_id)]
+            bucket = ad_group_buckets[int(ad_group_id)]
+            bucket.advertising_metric_days = int(metric_days)
+            bucket.impressions += int(impressions)
+            bucket.clicks += int(clicks)
+            bucket.cost_micros += int(cost_micros)
+            bucket.platform_conversions += Decimal(str(conversions))
+            bucket.platform_conversion_value_micros += int(conversion_value_micros)
+        ad_group_metric_days = int(
+            self.session.scalar(
+                select(func.count(func.distinct(DailyMetric.metric_date)))
+                .join(
+                    AdGroup,
+                    and_(
+                        AdGroup.id == DailyMetric.ad_group_id,
+                        AdGroup.campaign_id == DailyMetric.campaign_id,
+                        AdGroup.platform == DailyMetric.platform,
+                    ),
+                )
+                .join(Campaign, Campaign.id == AdGroup.campaign_id)
+                .join(AdvertisingAccount, AdvertisingAccount.id == Campaign.account_id)
+                .where(
+                    AdvertisingAccount.workspace_id == workspace_id,
+                    DailyMetric.entity_type == MetricEntityType.AD_GROUP.value,
+                    DailyMetric.entity_id == AdGroup.id,
+                    DailyMetric.metric_date >= date_from,
+                    DailyMetric.metric_date <= date_to,
+                )
+            )
+            or 0
+        )
+        return campaign_metric_days, ad_group_metric_days
 
     def _apply_web_events(
         self,
         events: list[WebAnalyticsEvent],
-        buckets: defaultdict[int, _MutableMetrics],
+        campaign_buckets: defaultdict[int, _MutableMetrics],
+        ad_group_buckets: defaultdict[int, _MutableMetrics],
         total: _MutableMetrics,
     ) -> tuple[WebAnalyticsEvent, ...]:
         session_touchpoints: dict[str, WebAnalyticsEvent] = {}
         for event in events:
             if event.campaign_id is not None:
-                buckets[event.campaign_id].ga4_event_count += 1
+                campaign_buckets[event.campaign_id].ga4_event_count += 1
                 total.ga4_event_count += 1
+            if event.ad_group_id is not None:
+                ad_group_buckets[event.ad_group_id].ga4_event_count += 1
             if not event.is_paid_touchpoint or event.campaign_id is None:
                 continue
             previous = session_touchpoints.get(event.session_id_digest)
@@ -525,8 +759,10 @@ class UnifiedOutcomeService:
         for session_digest, touchpoint in session_touchpoints.items():
             if touchpoint.campaign_id is None:
                 continue
-            buckets[touchpoint.campaign_id].paid_sessions.add(session_digest)
+            campaign_buckets[touchpoint.campaign_id].paid_sessions.add(session_digest)
             total.paid_sessions.add(session_digest)
+            if touchpoint.ad_group_id is not None:
+                ad_group_buckets[touchpoint.ad_group_id].paid_sessions.add(session_digest)
         return tuple(
             sorted(
                 session_touchpoints.values(),
@@ -540,9 +776,10 @@ class UnifiedOutcomeService:
         records: list[CrmEventRecord],
         touchpoints: tuple[WebAnalyticsEvent, ...],
         snapshot: MeasurementContractSnapshot,
-        buckets: defaultdict[int, _MutableMetrics],
+        campaign_buckets: defaultdict[int, _MutableMetrics],
+        ad_group_buckets: defaultdict[int, _MutableMetrics],
         total: _MutableMetrics,
-    ) -> tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int, int, int]:
         contract = snapshot.contract
         mappings = {
             mapping.source_event_type: mapping
@@ -571,6 +808,8 @@ class UnifiedOutcomeService:
         mapped_event_count = 0
         attributed_count = 0
         unattributed_count = 0
+        ad_group_attributed_count = 0
+        ad_group_unattributed_count = 0
         currency_mismatch_count = 0
         for (connection_id, crm_lead_id), journey_records in grouped.items():
             journey_key = identifier_digest(
@@ -619,9 +858,10 @@ class UnifiedOutcomeService:
             currency_mismatch_count += state.currency_mismatch_count
             if state.touchpoint is None or state.touchpoint.campaign_id is None:
                 unattributed_count += 1
+                ad_group_unattributed_count += 1
                 continue
             attributed_count += 1
-            bucket = buckets[state.touchpoint.campaign_id]
+            bucket = campaign_buckets[state.touchpoint.campaign_id]
             self._apply_journey_metrics(
                 bucket,
                 journey_key,
@@ -638,10 +878,24 @@ class UnifiedOutcomeService:
                 contract.optimization_goal_stage_key,
                 contract.business_value_stage_key,
             )
+            if state.touchpoint.ad_group_id is None:
+                ad_group_unattributed_count += 1
+            else:
+                ad_group_attributed_count += 1
+                self._apply_journey_metrics(
+                    ad_group_buckets[state.touchpoint.ad_group_id],
+                    journey_key,
+                    state,
+                    lead_stage_key,
+                    contract.optimization_goal_stage_key,
+                    contract.business_value_stage_key,
+                )
         return (
             mapped_event_count,
             attributed_count,
             unattributed_count,
+            ad_group_attributed_count,
+            ad_group_unattributed_count,
             currency_mismatch_count,
         )
 

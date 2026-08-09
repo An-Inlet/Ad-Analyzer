@@ -9,8 +9,9 @@ from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, Re
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
+from app.analysis.granular import GranularAnalysisService
 from app.analysis.repository import AnalysisRunRepository
-from app.analysis.schemas import AnalysisRunResponse
+from app.analysis.schemas import AnalysisRunResponse, PerformanceScopeResponse
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
@@ -393,6 +394,72 @@ def list_campaign_ad_groups(
         raise HTTPException(status_code=404, detail="campaign not found")
     items, total = repository.list_campaign_ad_groups(campaign_id, limit, offset)
     return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+@router.get(
+    "/accounts/{account_id}/campaign-performance",
+    response_model=PaginatedResponse[PerformanceScopeResponse],
+    operation_id="read_only_account_campaign_performance",
+    responses=RESOURCE_ERRORS,
+)
+def list_account_campaign_performance(
+    account_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[PerformanceScopeResponse]:
+    if repository.get_account(account_id) is None:
+        raise HTTPException(status_code=404, detail="account not found")
+    start, end = default_dates(date_from, date_to)
+    rows, total = GranularAnalysisService(db).analyze_campaigns(
+        account_id,
+        start,
+        end,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse(
+        items=[PerformanceScopeResponse.from_snapshot(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=total,
+    )
+
+
+@router.get(
+    "/campaigns/{campaign_id}/ad-group-performance",
+    response_model=PaginatedResponse[PerformanceScopeResponse],
+    operation_id="read_only_campaign_ad_group_performance",
+    responses=RESOURCE_ERRORS,
+)
+def list_campaign_ad_group_performance(
+    campaign_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[PerformanceScopeResponse]:
+    if repository.get_campaign(campaign_id) is None:
+        raise HTTPException(status_code=404, detail="campaign not found")
+    start, end = default_dates(date_from, date_to)
+    rows, total = GranularAnalysisService(db).analyze_ad_groups(
+        campaign_id,
+        start,
+        end,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse(
+        items=[PerformanceScopeResponse.from_snapshot(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=total,
+    )
 
 
 @router.get(

@@ -134,6 +134,7 @@ def seed(db: Session) -> dict[str, int]:
                 entity_type="ad_group",
                 entity_id=ag1.id,
                 campaign_id=c1.id,
+                ad_group_id=ag1.id,
                 impressions=999,
                 clicks=999,
                 cost_micros=999_000_000,
@@ -175,6 +176,7 @@ def seed(db: Session) -> dict[str, int]:
         "a2": a2.id,
         "c1": c1.id,
         "c2": c2.id,
+        "ag1": ag1.id,
     }
 
 
@@ -220,6 +222,29 @@ def test_accounts_campaigns_scoping_metrics_jobs_and_sync_status() -> None:
         assert client.get(f"/api/v1/campaigns/{ids['c1']}").json()["account"]["id"] == ids["a1"]
         ad_groups = client.get(f"/api/v1/campaigns/{ids['c1']}/ad-groups").json()
         assert ad_groups["total"] == 1 and ad_groups["items"][0]["campaign_id"] == ids["c1"]
+        campaign_performance = client.get(
+            f"/api/v1/accounts/{ids['a1']}/campaign-performance"
+            "?date_from=2026-07-01&date_to=2026-07-02"
+        ).json()
+        assert campaign_performance["total"] == 2
+        campaign_row = campaign_performance["items"][0]
+        assert campaign_row["entity_type"] == "campaign"
+        assert campaign_row["entity_id"] == ids["c1"]
+        assert campaign_row["current"]["clicks"] == 10
+        assert campaign_row["current"]["cost_micros"] == 1_000_000
+        assert campaign_row["current"]["platform_conversions"] == "2.500000"
+        assert "external_campaign_id" not in str(campaign_performance)
+        ad_group_performance = client.get(
+            f"/api/v1/campaigns/{ids['c1']}/ad-group-performance"
+            "?date_from=2026-07-01&date_to=2026-07-02"
+        ).json()
+        assert ad_group_performance["total"] == 1
+        ad_group_row = ad_group_performance["items"][0]
+        assert ad_group_row["entity_type"] == "ad_group"
+        assert ad_group_row["entity_id"] == ids["ag1"]
+        assert ad_group_row["current"]["clicks"] == 999
+        assert ad_group_row["current"]["cost_micros"] == 999_000_000
+        assert "search_term" not in str(ad_group_performance).lower()
         metrics = client.get(
             f"/api/v1/campaigns/{ids['c1']}/metrics?date_from=2026-07-01&date_to=2026-07-02"
         ).json()
@@ -883,8 +908,10 @@ def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
     expected = {
         "/api/v1/accounts/{account_id}",
         "/api/v1/accounts/{account_id}/campaigns",
+        "/api/v1/accounts/{account_id}/campaign-performance",
         "/api/v1/campaigns/{campaign_id}",
         "/api/v1/campaigns/{campaign_id}/ad-groups",
+        "/api/v1/campaigns/{campaign_id}/ad-group-performance",
         "/api/v1/campaigns/{campaign_id}/metrics",
         "/api/v1/accounts/{account_id}/metrics/summary",
         "/api/v1/job-runs/latest",

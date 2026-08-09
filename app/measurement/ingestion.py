@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform
-from app.ads.models import AdvertisingAccount, Campaign
+from app.ads.models import AdGroup, AdvertisingAccount, Campaign
 from app.measurement.enums import PaidClickIdKind, WebAnalyticsSource, WebDeviceCategory
 from app.measurement.identifiers import identifier_digest
 from app.measurement.models import WebAnalyticsEvent
@@ -49,6 +49,7 @@ class Ga4EventCreate(BaseModel):
     )
     account_id: int | None = Field(default=None, ge=1)
     campaign_id: int | None = Field(default=None, ge=1)
+    ad_group_id: int | None = Field(default=None, ge=1)
     source: str | None = Field(
         default=None,
         max_length=64,
@@ -97,6 +98,8 @@ class Ga4EventCreate(BaseModel):
             raise ValueError("only one paid click identifier is allowed")
         if self.campaign_id is not None and self.account_id is None:
             raise ValueError("campaign_id requires account_id")
+        if self.ad_group_id is not None and self.campaign_id is None:
+            raise ValueError("ad_group_id requires campaign_id")
         if self.is_paid_touchpoint and (
             self.account_id is None or self.campaign_id is None
         ):
@@ -141,6 +144,7 @@ def _event_values(event: Ga4EventCreate) -> dict[str, object]:
         ),
         "account_id": event.account_id,
         "campaign_id": event.campaign_id,
+        "ad_group_id": event.ad_group_id,
         "source": event.source,
         "medium": event.medium,
         "device_category": event.device_category.value,
@@ -149,11 +153,11 @@ def _event_values(event: Ga4EventCreate) -> dict[str, object]:
         "landing_page_path": event.landing_page_path,
         "is_paid_touchpoint": event.is_paid_touchpoint,
     }
-    fingerprint_payload = {
-        key: value.isoformat() if isinstance(value, datetime) else value
-        for key, value in values.items()
-        if key not in {"external_event_id"}
-    }
+    fingerprint_payload = {}
+    for key, value in values.items():
+        if key == "external_event_id" or (key == "ad_group_id" and value is None):
+            continue
+        fingerprint_payload[key] = value.isoformat() if isinstance(value, datetime) else value
     values["event_fingerprint"] = hashlib.sha256(
         json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -200,3 +204,8 @@ class WebAnalyticsRepository:
         campaign = self.session.get(Campaign, event.campaign_id)
         if campaign is None or campaign.account_id != account.id:
             raise ValueError("campaign is outside the advertising account")
+        if event.ad_group_id is None:
+            return
+        ad_group = self.session.get(AdGroup, event.ad_group_id)
+        if ad_group is None or ad_group.campaign_id != campaign.id:
+            raise ValueError("ad group is outside the campaign")

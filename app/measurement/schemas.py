@@ -94,6 +94,7 @@ class MeasurementContractResponse(BaseModel):
 
 class UnifiedSourceCoverageResponse(MeasurementApiModel):
     advertising_metric_days: int
+    ad_group_metric_days: int
     ga4_event_count: int
     paid_session_count: int
     crm_event_count: int
@@ -101,13 +102,20 @@ class UnifiedSourceCoverageResponse(MeasurementApiModel):
     attributed_journey_count: int
     unattributed_journey_count: int
     attribution_rate: Decimal | None
+    ad_group_attributed_journey_count: int
+    ad_group_unattributed_journey_count: int
+    ad_group_attribution_rate: Decimal | None
     currency_mismatch_count: int
 
 
 class OutcomeMetricsResponse(MeasurementApiModel):
+    advertising_metric_days: int
+    metric_coverage_ratio: Decimal
     impressions: int
     clicks: int
     cost_micros: int
+    platform_conversion_count: Decimal
+    platform_conversion_value_micros: int
     ga4_event_count: int
     paid_session_count: int
     lead_count: int
@@ -115,12 +123,31 @@ class OutcomeMetricsResponse(MeasurementApiModel):
     business_outcome_count: int
     cancelled_outcome_count: int
     observed_revenue_micros: int
+    click_through_rate: Decimal | None
+    platform_conversion_rate: Decimal | None
+    click_to_paid_session_rate: Decimal | None
+    paid_session_to_lead_rate: Decimal | None
     optimization_outcome_rate: Decimal | None
     business_outcome_rate: Decimal | None
+    lead_to_business_outcome_rate: Decimal | None
     funnel_drop_off_rate: Decimal | None
+    cancellation_rate: Decimal | None
     revenue_per_click_micros: int | None
+    revenue_per_paid_session_micros: int | None
+    revenue_per_lead_micros: int | None
+    revenue_per_optimization_outcome_micros: int | None
+    revenue_per_business_outcome_micros: int | None
+    cost_per_lead_micros: int | None
     cost_per_optimization_outcome_micros: int | None
+    cost_per_business_outcome_micros: int | None
+    observed_roas: Decimal | None
     median_outcome_lag_days: Decimal | None
+
+
+class AdGroupOutcomeResponse(MeasurementApiModel):
+    ad_group_id: int
+    ad_group_name: str
+    metrics: OutcomeMetricsResponse
 
 
 class CampaignOutcomeResponse(MeasurementApiModel):
@@ -129,6 +156,7 @@ class CampaignOutcomeResponse(MeasurementApiModel):
     platform: str
     campaign_name: str
     metrics: OutcomeMetricsResponse
+    ad_groups: list[AdGroupOutcomeResponse]
 
 
 class UnifiedOutcomeResponse(BaseModel):
@@ -143,6 +171,8 @@ class UnifiedOutcomeResponse(BaseModel):
     business_value_stage_key: str | None
     analysis_ready: bool
     blocking_reasons: list[str]
+    ad_group_analysis_ready: bool
+    ad_group_blocking_reasons: list[str]
     source_coverage: UnifiedSourceCoverageResponse
     totals: OutcomeMetricsResponse | None
     campaigns: list[CampaignOutcomeResponse]
@@ -161,6 +191,8 @@ class UnifiedOutcomeResponse(BaseModel):
             business_value_stage_key=snapshot.business_value_stage_key,
             analysis_ready=snapshot.analysis_ready,
             blocking_reasons=list(snapshot.blocking_reasons),
+            ad_group_analysis_ready=snapshot.ad_group_analysis_ready,
+            ad_group_blocking_reasons=list(snapshot.ad_group_blocking_reasons),
             source_coverage=UnifiedSourceCoverageResponse.model_validate(
                 snapshot.source_coverage
             ),

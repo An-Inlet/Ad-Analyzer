@@ -407,6 +407,7 @@ class GoogleAdsCollectorStub:
         self,
         campaign_ids_by_external_id: dict[str, int],
         date_range: google_ads.GoogleAdsDateRange,
+        ad_group_ids_by_external_id: dict[str, int] | None = None,
     ) -> NormalizedMetricsBatch:
         self._fail_if_needed("metrics")
         if self.zero_metrics:

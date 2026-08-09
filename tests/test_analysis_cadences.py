@@ -210,8 +210,8 @@ def test_post_sync_analysis_is_idempotent_and_aggregate_only(
     assert first.cadence == AnalysisCadence.POST_SYNC
     assert first.status == AnalysisRunStatus.SUCCEEDED
     assert first.accounts_analyzed == 1
-    assert first.findings_count == 2
-    assert first.high_severity_findings_count == 1
+    assert first.findings_count == 4
+    assert first.high_severity_findings_count == 2
     assert first.outcome_analysis_ready is False
     assert first.blocking_reasons == ["measurement_contract_missing"]
     assert db.scalar(select(func.count()).select_from(AnalysisRun)) == 1

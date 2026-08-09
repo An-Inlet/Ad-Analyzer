@@ -6,7 +6,7 @@ from importlib import import_module as _import_module
 from typing import Any, NoReturn
 from typing import cast as _cast
 
-from app.ads.enums import AdvertisingPlatform
+from app.ads.enums import AdvertisingPlatform, MetricEntityType
 from app.ads.schemas import (
     AdCreate,
     AdGroupCreate,
@@ -184,6 +184,23 @@ def _metrics_query(window: _ResolvedDateRange) -> str:
           metrics.conversions_value
         FROM campaign
         WHERE {_between_clause(window)}
+    """
+
+
+def _ad_group_metrics_query(window: _ResolvedDateRange) -> str:
+    return f"""
+        SELECT
+          segments.date,
+          campaign.id,
+          ad_group.id,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.conversions_value
+        FROM ad_group
+        WHERE {_between_clause(window)}
+          AND ad_group.status != 'REMOVED'
     """
 
 
@@ -522,6 +539,7 @@ def collect_search_terms(
 def collect_metrics(
     campaign_ids_by_external_id: dict[str, int],
     date_range: GoogleAdsDateRange,
+    ad_group_ids_by_external_id: dict[str, int] | None = None,
     *,
     today: date | None = None,
     settings: Settings | None = None,
@@ -531,11 +549,11 @@ def collect_metrics(
 
     try:
         rows = service.search(customer_id=customer_id, query=_metrics_query(window))
-        metrics = [
+        campaign_metrics = [
             DailyMetricCreate(
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 metric_date=date.fromisoformat(row.segments.date),
-                entity_type="campaign",
+                entity_type=MetricEntityType.CAMPAIGN,
                 entity_id=campaign_ids_by_external_id[str(row.campaign.id)],
                 campaign_id=campaign_ids_by_external_id[str(row.campaign.id)],
                 impressions=row.metrics.impressions,
@@ -549,6 +567,32 @@ def collect_metrics(
             for row in rows
             if str(row.campaign.id) in campaign_ids_by_external_id
         ]
+        ad_group_metrics: list[DailyMetricCreate] = []
+        if ad_group_ids_by_external_id:
+            ad_group_rows = service.search(
+                customer_id=customer_id,
+                query=_ad_group_metrics_query(window),
+            )
+            ad_group_metrics = [
+                DailyMetricCreate(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    metric_date=date.fromisoformat(row.segments.date),
+                    entity_type=MetricEntityType.AD_GROUP,
+                    entity_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
+                    campaign_id=campaign_ids_by_external_id[str(row.campaign.id)],
+                    ad_group_id=ad_group_ids_by_external_id[str(row.ad_group.id)],
+                    impressions=row.metrics.impressions,
+                    clicks=row.metrics.clicks,
+                    cost_micros=row.metrics.cost_micros,
+                    conversions=Decimal(str(row.metrics.conversions)),
+                    conversion_value_micros=int(
+                        Decimal(str(row.metrics.conversions_value)) * 1_000_000
+                    ),
+                )
+                for row in ad_group_rows
+                if str(row.campaign.id) in campaign_ids_by_external_id
+                and str(row.ad_group.id) in ad_group_ids_by_external_id
+            ]
     except Exception as exc:
         _raise_normalized_google_ads_error(exc)
-    return NormalizedMetricsBatch(metrics=metrics)
+    return NormalizedMetricsBatch(metrics=[*campaign_metrics, *ad_group_metrics])

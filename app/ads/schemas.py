@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 
 
 class OrmModel(BaseModel):
@@ -90,14 +90,24 @@ class SearchTermCreate(BaseModel):
 class DailyMetricCreate(BaseModel):
     platform: AdvertisingPlatform
     metric_date: date
-    entity_type: str = Field(min_length=1, max_length=64)
+    entity_type: MetricEntityType
     entity_id: int
-    campaign_id: int | None = None
+    campaign_id: int = Field(ge=1)
+    ad_group_id: int | None = Field(default=None, ge=1)
     impressions: int = Field(default=0, ge=0)
     clicks: int = Field(default=0, ge=0)
     cost_micros: int = Field(default=0, ge=0)
     conversions: Decimal = Field(default=Decimal("0"), ge=0)
     conversion_value_micros: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_entity_scope(self) -> "DailyMetricCreate":
+        if self.entity_type is MetricEntityType.CAMPAIGN:
+            if self.entity_id != self.campaign_id or self.ad_group_id is not None:
+                raise ValueError("campaign metrics require the campaign as the sole entity scope")
+        elif self.ad_group_id is None or self.entity_id != self.ad_group_id:
+            raise ValueError("ad-group metrics require matching campaign and ad-group scope")
+        return self
 
 
 class DailyMetricRead(DailyMetricCreate, OrmModel):

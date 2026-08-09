@@ -21,7 +21,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
+from app.ads.enums import (
+    AdvertisingPlatform,
+    ExecutionStatus,
+    JobRunStatus,
+    MetricEntityType,
+    RecommendationStatus,
+)
 from app.database.session import Base
 from app.workspaces.models import Workspace  # noqa: F401
 
@@ -153,6 +159,13 @@ class AdGroup(TimestampMixin, Base):
             name="uq_ad_groups_campaign_platform_external",
         ),
         UniqueConstraint("id", "platform", name="uq_ad_groups_id_platform"),
+        UniqueConstraint("id", "campaign_id", name="uq_ad_groups_id_campaign"),
+        UniqueConstraint(
+            "id",
+            "campaign_id",
+            "platform",
+            name="uq_ad_groups_id_campaign_platform",
+        ),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
             ["campaigns.id", "campaigns.platform"],
@@ -317,20 +330,39 @@ class DailyMetric(TimestampMixin, Base):
         ),
         Index("ix_daily_metrics_platform_date", "platform", "metric_date"),
         CheckConstraint("cost_micros >= 0", name="ck_daily_metrics_cost_nonnegative"),
+        CheckConstraint(
+            "(entity_type = 'campaign' AND entity_id = campaign_id AND ad_group_id IS NULL) OR "
+            "(entity_type = 'ad_group' AND entity_id = ad_group_id AND ad_group_id IS NOT NULL)",
+            name="ck_daily_metrics_entity_scope",
+        ),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
             ["campaigns.id", "campaigns.platform"],
             name="fk_daily_metrics_campaign_platform",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["ad_group_id", "campaign_id", "platform"],
+            ["ad_groups.id", "ad_groups.campaign_id", "ad_groups.platform"],
+            name="fk_daily_metrics_ad_group_campaign_platform",
+            ondelete="CASCADE",
+        ),
+        Index(
+            "ix_daily_metrics_ad_group_date",
+            "ad_group_id",
+            "metric_date",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     metric_date: Mapped[date] = mapped_column(Date, nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_type: Mapped[str] = mapped_column(
+        String(64), nullable=False, default=MetricEntityType.CAMPAIGN.value
+    )
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    campaign_id: Mapped[int | None] = mapped_column(Integer)
+    campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    ad_group_id: Mapped[int | None] = mapped_column(Integer)
     impressions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     clicks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cost_micros: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)

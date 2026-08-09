@@ -3,13 +3,14 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import Select, and_, func, select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, JobRun
 from app.api.repository import ReadOnlyAdsRepository
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import Finding, generate_findings
-from sqlalchemy import Select, and_, func, select
-from sqlalchemy.orm import Session
 
 _PAGE_SIZE = 200
 

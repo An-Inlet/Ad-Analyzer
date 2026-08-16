@@ -32,6 +32,8 @@ class AnalysisRunResponse(BaseModel):
     accounts_analyzed: int = Field(ge=0)
     findings_count: int = Field(ge=0)
     high_severity_findings_count: int = Field(ge=0)
+    recommendations_created_count: int = Field(ge=0)
+    recommendations_deduplicated_count: int = Field(ge=0)
     outcome_analysis_ready: bool
     outcome_campaign_count: int = Field(ge=0)
     attributed_journey_count: int = Field(ge=0)

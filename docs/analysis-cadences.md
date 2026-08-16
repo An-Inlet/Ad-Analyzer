@@ -5,12 +5,13 @@
 Improvement step 4 makes the existing deterministic analyzers run on a predictable schedule. It
 does not add new analysis rules. Each run reads only synchronized local database rows, executes the
 existing account-level finding rules, Step 5 campaign/ad-group finding scopes, Step 6
-keyword/masked-search-term finding scopes, and the aggregate outcome service, then stores a
-sanitized `analysis_runs` audit summary.
+keyword/masked-search-term finding scopes, and the aggregate outcome service. Step 7 then converts
+eligible findings into bounded, deduplicated proposals and stores a sanitized `analysis_runs`
+audit summary.
 
 This step does not contact Google Ads, GA4, BigQuery, Meta Ads, CRM providers, or notification
-services. It does not create recommendations, learn from operator decisions, invoke executors,
-upload conversions, or mutate campaigns. Those remain separate later roadmap units.
+services. It does not learn from operator decisions, invoke executors, upload conversions, or
+mutate campaigns. Generated recommendations are local proposals that remain pending human review.
 
 ## Default policy
 
@@ -75,7 +76,8 @@ The run registry stores only:
 - workspace/account scope and source job reference;
 - cadence, scheduled time, policy version, metric window, and mature outcome window;
 - counts of accounts, account/campaign/ad-group/keyword/masked-search-term deterministic findings,
-  high-severity findings, outcome campaigns, and attributed/unattributed journeys;
+  high-severity findings, created/deduplicated recommendations, outcome campaigns, and
+  attributed/unattributed journeys;
 - aggregate outcome-readiness state and fixed blocking reason codes; and
 - status timestamps and a fixed failure code.
 
@@ -83,6 +85,11 @@ Operators can read this history through
 `GET /api/v1/workspaces/{workspace_slug}/analysis-runs` or the authenticated workspace dashboard.
 Neither view exposes the internal run key, raw or digested click/user/session/lead identifiers,
 search-term text, or source payloads.
+
+Recommendation generation is part of the claimed analysis transaction. If it fails, the run is
+marked `analysis_failed` and no partial proposals commit. Repeating the same scheduler run key
+returns the prior run. A different cadence run evaluates current facts but stable recommendation
+keys suppress active duplicates and recently rejected proposals.
 
 The seeded Denticode measurement contract remains draft. Cadence runs therefore record the
 contract blocker and do not treat outcome analysis as ready until the separately approved Step 2

@@ -42,6 +42,18 @@ resource and environment names remain in place for deployment compatibility.
 - Never place raw source payloads, click IDs, CRM identifiers, credentials, or PHI in cadence
   configuration, run notes, logs, or incident records.
 
+## Step 7 recommendation generation operations
+
+- Compare each successful analysis run's created and deduplicated counts. A later run with zero
+  created and nonzero deduplicated is expected while equivalent proposals remain active.
+- Review generated proposals on the account dashboard. Search-term rows must use labels such as
+  `Search term #42`; treat any raw query text in a proposal as a privacy incident.
+- Generation is capped at 100 proposals per run, ordered by severity and then spend impact.
+- A rejection suppresses the equivalent proposal for 14 days. This cooldown is deterministic and
+  is not adaptive learning.
+- Keep proposals pending until a workspace owner or administrator reviews them. Approval only
+  unlocks the existing dry-run planner; it does not enable a live Google Ads mutation.
+
 ## Final readiness checklist
 - CI green; migrations reversible; no secrets in repository; account isolation tests pass; dashboard/API authentication configured; live writes disabled by default.
 

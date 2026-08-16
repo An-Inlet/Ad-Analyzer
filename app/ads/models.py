@@ -529,6 +529,29 @@ class Recommendation(TimestampMixin, Base):
             "account_id",
             "status",
         ),
+        Index(
+            "ix_recommendations_workspace_deduplication",
+            "workspace_id",
+            "deduplication_key",
+        ),
+        Index(
+            "uq_recommendations_active_deduplication",
+            "workspace_id",
+            "deduplication_key",
+            unique=True,
+            postgresql_where=text(
+                "deduplication_key IS NOT NULL AND status IN "
+                "('pending_review', 'approved', 'executed_dry_run')"
+            ),
+            sqlite_where=text(
+                "deduplication_key IS NOT NULL AND status IN "
+                "('pending_review', 'approved', 'executed_dry_run')"
+            ),
+        ),
+        Index(
+            "ix_recommendations_source_analysis_run",
+            "source_analysis_run_id",
+        ),
         ForeignKeyConstraint(
             ["workspace_id"],
             ["workspaces.id"],
@@ -560,6 +583,8 @@ class Recommendation(TimestampMixin, Base):
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     account_id: Mapped[int] = mapped_column(Integer, nullable=False)
     campaign_id: Mapped[int | None] = mapped_column(Integer)
+    source_analysis_run_id: Mapped[int | None] = mapped_column(Integer)
+    deduplication_key: Mapped[str | None] = mapped_column(String(64))
     recommendation_type: Mapped[str] = mapped_column(String(96), nullable=False)
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
     confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)

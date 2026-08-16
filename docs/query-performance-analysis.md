@@ -4,8 +4,9 @@
 
 Improvement step 6 adds deterministic, read-only keyword and search-term waste/opportunity
 analysis after campaign and ad-group analysis. It uses synchronized local metric rows only. The
-service, API, and dashboard never trigger synchronization, contact an external provider, create a
-recommendation, learn from operator decisions, or invoke an executor.
+service, API, and dashboard never trigger synchronization or contact an external provider. Step 7
+may translate its fixed findings into local, human-review-only recommendations; it does not learn
+from operator decisions or invoke an executor.
 
 The normal fixed-query Google Ads synchronization path can populate keyword and search-term daily
 metrics. It remains read-only and does not accept operator-supplied GAQL.
@@ -59,6 +60,7 @@ operators because it is advertiser-authored configuration, not a user's search q
 
 Platform conversions and value are explicitly diagnostic. They are not presented as
 CRM-confirmed leads, qualified leads, sales, or revenue. A spend-without-platform-conversions
-finding does not tell an operator to add a negative keyword and does not create an action plan.
-Negative-keyword recommendations, operator-decision learning, approvals, and advertising
-mutations remain later roadmap units and require their own safety decisions.
+finding itself does not tell an operator to add a negative keyword. Step 7 may create a
+`review_negative_keyword_candidate` proposal using only the masked local record label. That
+proposal contains no advertising mutation, requires human approval, and cannot execute a live
+write. Operator-decision learning and advertising mutations remain later roadmap units.

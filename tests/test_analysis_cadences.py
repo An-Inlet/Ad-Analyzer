@@ -5,7 +5,7 @@ from sqlite3 import Connection as SQLiteConnection
 
 import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
-from app.ads.models import AdvertisingAccount, Campaign, DailyMetric, JobRun
+from app.ads.models import AdvertisingAccount, Campaign, DailyMetric, JobRun, Recommendation
 from app.ads.services import GoogleAdsSyncResult
 from app.analysis.cadence import (
     _nightly_schedule,
@@ -23,6 +23,8 @@ from app.jobs.google_ads_sync_once import SUCCESS_EXIT_CODE
 from app.jobs.google_ads_sync_once import main as sync_once_main
 from app.jobs.reliability import CycleOutcome
 from app.main import app
+from app.optimizer.recommendations import Finding
+from app.recommendations import RecommendationCandidate, RecommendationGenerationService
 from app.settings import settings
 from app.workspaces.models import Workspace, WorkspaceConfiguration
 from fastapi.testclient import TestClient
@@ -212,9 +214,12 @@ def test_post_sync_analysis_is_idempotent_and_aggregate_only(
     assert first.accounts_analyzed == 1
     assert first.findings_count == 4
     assert first.high_severity_findings_count == 2
+    assert first.recommendations_created_count == 4
+    assert first.recommendations_deduplicated_count == 0
     assert first.outcome_analysis_ready is False
     assert first.blocking_reasons == ["measurement_contract_missing"]
     assert db.scalar(select(func.count()).select_from(AnalysisRun)) == 1
+    assert db.scalar(select(func.count()).select_from(Recommendation)) == 4
 
 
 def test_due_tick_runs_nightly_and_weekly_once_per_workspace_period(
@@ -335,6 +340,63 @@ def test_database_rejects_cross_workspace_analysis_sources(
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
+
+
+def test_recommendation_generation_rejects_cross_workspace_analysis_source(
+    database: tuple[Session, Engine],
+) -> None:
+    db, _engine = database
+    first, _first_account, _first_job = seed_workspace(
+        db,
+        slug="first-recommendations",
+        with_metrics=False,
+    )
+    _second, second_account, _second_job = seed_workspace(
+        db,
+        slug="second-recommendations",
+        with_metrics=False,
+    )
+    source_run = AnalysisRun(
+        workspace_id=first.id,
+        run_key="nightly:cross-workspace-recommendations",
+        cadence=AnalysisCadence.NIGHTLY,
+        status=AnalysisRunStatus.RUNNING,
+        schedule_policy_version="v1",
+        scheduled_for=datetime(2026, 8, 8, 2, tzinfo=UTC),
+        metric_date_from=date(2026, 8, 1),
+        metric_date_to=date(2026, 8, 7),
+        outcome_date_from=date(2026, 5, 1),
+        outcome_date_to=date(2026, 5, 7),
+        started_at=datetime(2026, 8, 8, 12, tzinfo=UTC),
+        blocking_reasons=[],
+    )
+    db.add(source_run)
+    db.commit()
+
+    candidate = RecommendationCandidate(
+        workspace_id=second_account.workspace_id,
+        platform=second_account.platform,
+        account_id=second_account.id,
+        campaign_id=None,
+        scope_type="account",
+        scope_id=second_account.id,
+        scope_label=second_account.name,
+        source_text_redacted=False,
+        finding=Finding(
+            code="low_ctr",
+            severity="medium",
+            message="CTR is below the deterministic threshold.",
+            supporting_metrics={"ctr": "0.01"},
+        ),
+        impact_micros=1_000_000,
+    )
+    with pytest.raises(ValueError, match="invalid recommendation source analysis run"):
+        RecommendationGenerationService(db).generate(
+            [candidate],
+            source_analysis_run_id=source_run.id,
+            as_of=datetime(2026, 8, 8, 12, tzinfo=UTC),
+        )
+    assert db.scalar(select(func.count()).select_from(Recommendation)) == 0
 
 
 def test_api_and_dashboard_list_only_the_requested_workspace_runs(

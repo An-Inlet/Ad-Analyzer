@@ -101,6 +101,8 @@ class AnalysisRunRepository:
         accounts_analyzed: int,
         findings_count: int,
         high_severity_findings_count: int,
+        recommendations_created_count: int,
+        recommendations_deduplicated_count: int,
         outcome_analysis_ready: bool,
         outcome_campaign_count: int,
         attributed_journey_count: int,
@@ -112,6 +114,8 @@ class AnalysisRunRepository:
         row.accounts_analyzed = accounts_analyzed
         row.findings_count = findings_count
         row.high_severity_findings_count = high_severity_findings_count
+        row.recommendations_created_count = recommendations_created_count
+        row.recommendations_deduplicated_count = recommendations_deduplicated_count
         row.outcome_analysis_ready = outcome_analysis_ready
         row.outcome_campaign_count = outcome_campaign_count
         row.attributed_journey_count = attributed_journey_count

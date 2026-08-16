@@ -62,7 +62,10 @@ class AnalysisRun(TimestampMixin, Base):
         ),
         CheckConstraint(
             "accounts_analyzed >= 0 AND findings_count >= 0 "
-            "AND high_severity_findings_count >= 0 AND outcome_campaign_count >= 0 "
+            "AND high_severity_findings_count >= 0 "
+            "AND recommendations_created_count >= 0 "
+            "AND recommendations_deduplicated_count >= 0 "
+            "AND outcome_campaign_count >= 0 "
             "AND attributed_journey_count >= 0 AND unattributed_journey_count >= 0",
             name="ck_analysis_runs_counts_nonnegative",
         ),
@@ -111,6 +114,12 @@ class AnalysisRun(TimestampMixin, Base):
     accounts_analyzed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     findings_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     high_severity_findings_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    recommendations_created_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    recommendations_deduplicated_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
     outcome_analysis_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     outcome_campaign_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     attributed_journey_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -408,10 +408,18 @@ class GoogleAdsCollectorStub:
         campaign_ids_by_external_id: dict[str, int],
         date_range: google_ads.GoogleAdsDateRange,
         ad_group_ids_by_external_id: dict[str, int] | None = None,
+        keyword_ids_by_scope: dict[tuple[int, str], int] | None = None,
+        search_term_ids_by_scope: dict[tuple[int, str], int] | None = None,
     ) -> NormalizedMetricsBatch:
         self._fail_if_needed("metrics")
         if self.zero_metrics:
             return NormalizedMetricsBatch(metrics=[])
+        assert ad_group_ids_by_external_id is not None
+        assert keyword_ids_by_scope is not None
+        assert search_term_ids_by_scope is not None
+        ad_group_id = ad_group_ids_by_external_id["ag-1"]
+        keyword_id = keyword_ids_by_scope[(ad_group_id, "kw-1")]
+        search_term_id = search_term_ids_by_scope[(ad_group_id, "best dental implants")]
         return NormalizedMetricsBatch(
             metrics=[
                 DailyMetricCreate(
@@ -425,7 +433,35 @@ class GoogleAdsCollectorStub:
                     cost_micros=1230000,
                     conversions=Decimal("2.5"),
                     conversion_value_micros=2500000,
-                )
+                ),
+                DailyMetricCreate(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    metric_date=date(2026, 7, 14),
+                    entity_type="keyword",
+                    entity_id=keyword_id,
+                    campaign_id=campaign_ids_by_external_id["camp-1"],
+                    ad_group_id=ad_group_id,
+                    keyword_id=keyword_id,
+                    impressions=80,
+                    clicks=8,
+                    cost_micros=1_000_000,
+                    conversions=Decimal("1"),
+                    conversion_value_micros=1_500_000,
+                ),
+                DailyMetricCreate(
+                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    metric_date=date(2026, 7, 14),
+                    entity_type="search_term",
+                    entity_id=search_term_id,
+                    campaign_id=campaign_ids_by_external_id["camp-1"],
+                    ad_group_id=ad_group_id,
+                    search_term_id=search_term_id,
+                    impressions=60,
+                    clicks=6,
+                    cost_micros=750_000,
+                    conversions=Decimal("0"),
+                    conversion_value_micros=0,
+                ),
             ]
         )
 
@@ -452,7 +488,7 @@ def test_first_sync_persists_google_ads_data(
     result = sync_without_worker_for_tests(session)
 
     assert result.status is JobRunStatus.SUCCEEDED
-    assert result.records_processed == 7
+    assert result.records_processed == 9
     account = session.scalar(
         select(AdvertisingAccount).where(AdvertisingAccount.external_account_id == "acct-1")
     )
@@ -466,7 +502,13 @@ def test_first_sync_persists_google_ads_data(
         select(SearchTerm).where(SearchTerm.term == "best dental implants")
     )
     assert search_term is not None
-    assert session.scalar(select(DailyMetric).where(DailyMetric.impressions == 100)) is not None
+    metrics = session.scalars(select(DailyMetric).order_by(DailyMetric.entity_type)).all()
+    assert len(metrics) == 3
+    assert {metric.entity_type for metric in metrics} == {
+        "campaign",
+        "keyword",
+        "search_term",
+    }
 
 
 def test_successful_sync_uses_captured_job_run_id_without_post_commit_refresh(
@@ -505,7 +547,7 @@ def test_successful_sync_uses_captured_job_run_id_without_post_commit_refresh(
 
     assert result.status is JobRunStatus.SUCCEEDED
     assert result.job_run_id == 1
-    assert result.records_processed == 7
+    assert result.records_processed == 9
     assert after_commit_statements == []
 
     job_runs = session.scalars(select(JobRun)).all()
@@ -522,7 +564,7 @@ def test_repeated_sync_is_idempotent(
 
     assert len(session.scalars(select(Campaign)).all()) == 1
     assert len(session.scalars(select(AdGroup)).all()) == 1
-    assert len(session.scalars(select(DailyMetric)).all()) == 1
+    assert len(session.scalars(select(DailyMetric)).all()) == 3
     succeeded_runs = session.scalars(
         select(JobRun).where(JobRun.status == JobRunStatus.SUCCEEDED)
     ).all()

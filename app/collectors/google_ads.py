@@ -204,6 +204,41 @@ def _ad_group_metrics_query(window: _ResolvedDateRange) -> str:
     """
 
 
+def _keyword_metrics_query(window: _ResolvedDateRange) -> str:
+    return f"""
+        SELECT
+          segments.date,
+          campaign.id,
+          ad_group.id,
+          ad_group_criterion.criterion_id,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.conversions_value
+        FROM keyword_view
+        WHERE {_between_clause(window)}
+          AND ad_group_criterion.status != 'REMOVED'
+    """
+
+
+def _search_term_metrics_query(window: _ResolvedDateRange) -> str:
+    return f"""
+        SELECT
+          segments.date,
+          campaign.id,
+          ad_group.id,
+          search_term_view.search_term,
+          metrics.impressions,
+          metrics.clicks,
+          metrics.cost_micros,
+          metrics.conversions,
+          metrics.conversions_value
+        FROM search_term_view
+        WHERE {_between_clause(window)}
+    """
+
+
 def _require_google_ads_module() -> Any:
     try:
         module = _import_module("google.ads.googleads.client")
@@ -540,6 +575,8 @@ def collect_metrics(
     campaign_ids_by_external_id: dict[str, int],
     date_range: GoogleAdsDateRange,
     ad_group_ids_by_external_id: dict[str, int] | None = None,
+    keyword_ids_by_scope: dict[tuple[int, str], int] | None = None,
+    search_term_ids_by_scope: dict[tuple[int, str], int] | None = None,
     *,
     today: date | None = None,
     settings: Settings | None = None,
@@ -593,6 +630,87 @@ def collect_metrics(
                 if str(row.campaign.id) in campaign_ids_by_external_id
                 and str(row.ad_group.id) in ad_group_ids_by_external_id
             ]
+        keyword_metrics: list[DailyMetricCreate] = []
+        if ad_group_ids_by_external_id and keyword_ids_by_scope:
+            keyword_rows = service.search(
+                customer_id=customer_id,
+                query=_keyword_metrics_query(window),
+            )
+            for row in keyword_rows:
+                external_campaign_id = str(row.campaign.id)
+                external_ad_group_id = str(row.ad_group.id)
+                if (
+                    external_campaign_id not in campaign_ids_by_external_id
+                    or external_ad_group_id not in ad_group_ids_by_external_id
+                ):
+                    continue
+                ad_group_id = ad_group_ids_by_external_id[external_ad_group_id]
+                scope = (ad_group_id, str(row.ad_group_criterion.criterion_id))
+                keyword_id = keyword_ids_by_scope.get(scope)
+                if keyword_id is None:
+                    continue
+                keyword_metrics.append(
+                    DailyMetricCreate(
+                        platform=AdvertisingPlatform.GOOGLE_ADS,
+                        metric_date=date.fromisoformat(row.segments.date),
+                        entity_type=MetricEntityType.KEYWORD,
+                        entity_id=keyword_id,
+                        campaign_id=campaign_ids_by_external_id[external_campaign_id],
+                        ad_group_id=ad_group_id,
+                        keyword_id=keyword_id,
+                        impressions=row.metrics.impressions,
+                        clicks=row.metrics.clicks,
+                        cost_micros=row.metrics.cost_micros,
+                        conversions=Decimal(str(row.metrics.conversions)),
+                        conversion_value_micros=int(
+                            Decimal(str(row.metrics.conversions_value)) * 1_000_000
+                        ),
+                    )
+                )
+        search_term_metrics: list[DailyMetricCreate] = []
+        if ad_group_ids_by_external_id and search_term_ids_by_scope:
+            search_term_rows = service.search(
+                customer_id=customer_id,
+                query=_search_term_metrics_query(window),
+            )
+            for row in search_term_rows:
+                external_campaign_id = str(row.campaign.id)
+                external_ad_group_id = str(row.ad_group.id)
+                if (
+                    external_campaign_id not in campaign_ids_by_external_id
+                    or external_ad_group_id not in ad_group_ids_by_external_id
+                ):
+                    continue
+                ad_group_id = ad_group_ids_by_external_id[external_ad_group_id]
+                scope = (ad_group_id, str(row.search_term_view.search_term))
+                search_term_id = search_term_ids_by_scope.get(scope)
+                if search_term_id is None:
+                    continue
+                search_term_metrics.append(
+                    DailyMetricCreate(
+                        platform=AdvertisingPlatform.GOOGLE_ADS,
+                        metric_date=date.fromisoformat(row.segments.date),
+                        entity_type=MetricEntityType.SEARCH_TERM,
+                        entity_id=search_term_id,
+                        campaign_id=campaign_ids_by_external_id[external_campaign_id],
+                        ad_group_id=ad_group_id,
+                        search_term_id=search_term_id,
+                        impressions=row.metrics.impressions,
+                        clicks=row.metrics.clicks,
+                        cost_micros=row.metrics.cost_micros,
+                        conversions=Decimal(str(row.metrics.conversions)),
+                        conversion_value_micros=int(
+                            Decimal(str(row.metrics.conversions_value)) * 1_000_000
+                        ),
+                    )
+                )
     except Exception as exc:
         _raise_normalized_google_ads_error(exc)
-    return NormalizedMetricsBatch(metrics=[*campaign_metrics, *ad_group_metrics])
+    return NormalizedMetricsBatch(
+        metrics=[
+            *campaign_metrics,
+            *ad_group_metrics,
+            *keyword_metrics,
+            *search_term_metrics,
+        ]
+    )

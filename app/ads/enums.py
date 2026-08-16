@@ -13,6 +13,8 @@ class MetricEntityType(StrEnum):
 
     CAMPAIGN = "campaign"
     AD_GROUP = "ad_group"
+    KEYWORD = "keyword"
+    SEARCH_TERM = "search_term"
 
 
 class JobRunStatus(StrEnum):

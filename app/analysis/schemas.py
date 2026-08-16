@@ -1,12 +1,12 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.ads.enums import AdvertisingPlatform, MetricEntityType
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.granular import PerformanceScopeSnapshot
+from app.analysis.query_performance import QueryPerformanceSnapshot
 from app.optimizer.analytics import MetricWindow
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalysisRunResponse(BaseModel):
@@ -113,6 +113,48 @@ class PerformanceScopeResponse(BaseModel):
             entity_type=snapshot.entity_type,
             entity_id=snapshot.entity_id,
             entity_name=snapshot.entity_name,
+            status=snapshot.status,
+            current=PerformanceWindowResponse.from_window(snapshot.current),
+            comparison=PerformanceWindowResponse.from_window(snapshot.comparison),
+            findings=[ScopedFindingResponse(**finding.__dict__) for finding in snapshot.findings],
+        )
+
+
+class QueryPerformanceResponse(BaseModel):
+    workspace_id: int
+    platform: AdvertisingPlatform
+    account_id: int
+    account_name: str
+    campaign_id: int
+    campaign_name: str
+    ad_group_id: int
+    ad_group_name: str
+    entity_type: MetricEntityType
+    entity_id: int
+    display_label: str
+    source_text_redacted: bool
+    match_type: str | None
+    status: str | None
+    current: PerformanceWindowResponse
+    comparison: PerformanceWindowResponse
+    findings: list[ScopedFindingResponse]
+
+    @classmethod
+    def from_snapshot(cls, snapshot: QueryPerformanceSnapshot) -> "QueryPerformanceResponse":
+        return cls(
+            workspace_id=snapshot.workspace_id,
+            platform=snapshot.platform,
+            account_id=snapshot.account_id,
+            account_name=snapshot.account_name,
+            campaign_id=snapshot.campaign_id,
+            campaign_name=snapshot.campaign_name,
+            ad_group_id=snapshot.ad_group_id,
+            ad_group_name=snapshot.ad_group_name,
+            entity_type=snapshot.entity_type,
+            entity_id=snapshot.entity_id,
+            display_label=snapshot.display_label,
+            source_text_redacted=snapshot.source_text_redacted,
+            match_type=snapshot.match_type,
             status=snapshot.status,
             current=PerformanceWindowResponse.from_window(snapshot.current),
             comparison=PerformanceWindowResponse.from_window(snapshot.comparison),

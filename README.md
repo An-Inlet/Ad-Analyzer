@@ -40,6 +40,10 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 - Idempotent post-sync, nightly, and weekly analysis cadences with aggregate-only run history.
 - Privacy-safe Google Ads, GA4, and CRM outcome correlation behind an active measurement
   contract, with aggregate-only API and dashboard reporting.
+- Canonical campaign and ad-group performance windows, deterministic scoped findings, and richer
+  funnel/value metrics without double-counting account or campaign totals.
+- Deterministic keyword and masked search-term waste/shift diagnostics with bounded read-only
+  pagination and no negative-keyword instructions or advertising mutations.
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
 - Deterministic findings, reviewable recommendations, and guarded dry-run execution.
 - Workspace configuration, measurement contracts, memberships, integrations, and persistent
@@ -156,7 +160,9 @@ Endpoint groups:
   `GET /api/v1/workspaces/{slug}/advertising-accounts`
 - Accounts: `GET /api/v1/accounts`, `GET /api/v1/accounts/{account_id}`
 - Account campaigns: `GET /api/v1/accounts/{account_id}/campaigns`
+- Campaign performance: `GET /api/v1/accounts/{account_id}/campaign-performance`
 - Campaigns and child data: `GET /api/v1/campaigns/{campaign_id}`, `GET /api/v1/campaigns/{campaign_id}/ad-groups`, `GET /api/v1/campaigns/{campaign_id}/metrics`
+- Ad-group performance: `GET /api/v1/campaigns/{campaign_id}/ad-group-performance`
 - Account metrics: `GET /api/v1/accounts/{account_id}/metrics/summary`
 - Sync job visibility: `GET /api/v1/job-runs`, `GET /api/v1/job-runs/latest`, `GET /api/v1/sync-status`
 
@@ -165,6 +171,8 @@ Examples:
 ```bash
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts/1/campaign-performance?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/ad-group-performance?date_from=2026-07-01&date_to=2026-07-31"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/analysis-runs?limit=25&offset=0"
 curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
@@ -205,15 +213,25 @@ or logs. Later dashboard requests use only that session.
 
 Dashboard routes are `GET /dashboard`, `GET /dashboard/workspaces/{workspace_slug}`,
 `GET /dashboard/workspaces/{workspace_slug}/outcomes`,
-`GET /dashboard/accounts/{account_id}`, `GET /dashboard/campaigns/{campaign_id}`, and
-`GET /dashboard/job-runs`. Platform administrators can see all workspaces. Other authenticated IAP
-identities see only workspaces with an active membership; only workspace owners and administrators
-may approve, reject, or dry-run recommendations.
+`GET /dashboard/accounts/{account_id}`, `GET /dashboard/campaigns/{campaign_id}`,
+`GET /dashboard/ad-groups/{ad_group_id}`, and `GET /dashboard/job-runs`. Platform administrators
+can see all workspaces. Other authenticated IAP identities see only workspaces with an active
+membership; only workspace owners and administrators may approve, reject, or dry-run
+recommendations.
 
 The outcome view correlates mature Google Ads cohorts with pseudonymous GA4 paid sessions and
 authoritative CRM outcomes. It returns no raw click, session, user, lead, or practice identifiers
 and remains blocked while the workspace measurement contract is missing or draft. See
 [unified outcome data](docs/unified-outcome-data.md).
+
+Campaign and ad-group views use canonical entity rows, expose data coverage and diagnostic
+platform metrics, and apply the existing deterministic finding rules without returning search-term
+text or private identifiers. See [granular analysis](docs/granular-analysis.md).
+
+Ad-group detail views add keyword and masked search-term performance, equal-length comparison
+windows, and deterministic waste/traffic-shift findings. Search-term text is neither selected by
+the analyzer nor returned by its API/dashboard responses. See
+[keyword and masked search-term analysis](docs/query-performance-analysis.md).
 
 Workspace pages also show aggregate-only cadence history. Post-sync, nightly, and weekly runs use
 local synchronized data and never trigger collectors, recommendation generation, or advertising

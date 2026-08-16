@@ -3,6 +3,12 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import ExecutionStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
@@ -33,11 +39,6 @@ from app.workspaces.access import (
 )
 from app.workspaces.models import Workspace
 from app.workspaces.repository import WorkspaceRepository
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_dashboard_session)])
 DASHBOARD_MAX_OFFSET = 10_000

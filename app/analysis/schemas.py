@@ -1,12 +1,13 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.ads.enums import AdvertisingPlatform, MetricEntityType
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.granular import PerformanceScopeSnapshot
 from app.analysis.query_performance import QueryPerformanceSnapshot
 from app.optimizer.analytics import MetricWindow
-from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalysisRunResponse(BaseModel):

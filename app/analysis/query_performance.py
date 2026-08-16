@@ -3,6 +3,9 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+from sqlalchemy import Select, and_, func, select
+from sqlalchemy.orm import Session
+
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 from app.ads.models import (
     AdGroup,
@@ -16,8 +19,6 @@ from app.ads.models import (
 from app.api.repository import ReadOnlyAdsRepository
 from app.optimizer.analytics import MetricWindow, inclusive_window_days, percent_delta
 from app.optimizer.recommendations import Finding
-from sqlalchemy import Select, and_, func, select
-from sqlalchemy.orm import Session
 
 MIN_COMPLETE_DAYS = 3
 MIN_IMPRESSIONS = 500

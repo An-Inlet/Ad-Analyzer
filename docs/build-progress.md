@@ -31,6 +31,14 @@ Branch: `codex/complete-denticode-ads-analyzer-buildout`
   draft pending human approval.
 - Step 3 complete: privacy-safe Google Ads, GA4, and CRM outcome correlation; production ingestion
   remains blocked pending the approved GA4/identity decision.
-- Step 4 implemented: idempotent post-sync, nightly, and weekly local analysis cadences with
+- Step 4 complete: idempotent post-sync, nightly, and weekly local analysis cadences with
   aggregate-only run history. This step adds no new finding rules, recommendations, learning, or
   advertising mutations.
+- Step 5 complete: canonical campaign and ad-group performance windows, scoped deterministic
+  findings, richer funnel/value metrics, and separately gated ad-group outcome attribution. This
+  step adds no keyword/search-term analysis, recommendations, learning, external ingestion, or
+  advertising mutations.
+- Step 6 implemented: deterministic keyword and masked search-term performance windows, fixed
+  waste/shift findings, spend-impact ordering, read-only API/dashboard views, and cadence counts.
+  Platform conversions remain diagnostic; no negative-keyword instructions, learning, or
+  advertising mutations are added.

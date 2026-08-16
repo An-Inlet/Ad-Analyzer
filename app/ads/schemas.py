@@ -94,6 +94,8 @@ class DailyMetricCreate(BaseModel):
     entity_id: int
     campaign_id: int = Field(ge=1)
     ad_group_id: int | None = Field(default=None, ge=1)
+    keyword_id: int | None = Field(default=None, ge=1)
+    search_term_id: int | None = Field(default=None, ge=1)
     impressions: int = Field(default=0, ge=0)
     clicks: int = Field(default=0, ge=0)
     cost_micros: int = Field(default=0, ge=0)
@@ -103,10 +105,38 @@ class DailyMetricCreate(BaseModel):
     @model_validator(mode="after")
     def validate_entity_scope(self) -> "DailyMetricCreate":
         if self.entity_type is MetricEntityType.CAMPAIGN:
-            if self.entity_id != self.campaign_id or self.ad_group_id is not None:
+            if (
+                self.entity_id != self.campaign_id
+                or self.ad_group_id is not None
+                or self.keyword_id is not None
+                or self.search_term_id is not None
+            ):
                 raise ValueError("campaign metrics require the campaign as the sole entity scope")
-        elif self.ad_group_id is None or self.entity_id != self.ad_group_id:
-            raise ValueError("ad-group metrics require matching campaign and ad-group scope")
+        elif self.entity_type is MetricEntityType.AD_GROUP:
+            if (
+                self.ad_group_id is None
+                or self.entity_id != self.ad_group_id
+                or self.keyword_id is not None
+                or self.search_term_id is not None
+            ):
+                raise ValueError("ad-group metrics require matching campaign and ad-group scope")
+        elif self.entity_type is MetricEntityType.KEYWORD:
+            if (
+                self.ad_group_id is None
+                or self.keyword_id is None
+                or self.entity_id != self.keyword_id
+                or self.search_term_id is not None
+            ):
+                raise ValueError("keyword metrics require matching campaign, ad-group, and keyword")
+        elif (
+            self.ad_group_id is None
+            or self.search_term_id is None
+            or self.entity_id != self.search_term_id
+            or self.keyword_id is not None
+        ):
+            raise ValueError(
+                "search-term metrics require matching campaign, ad-group, and search term"
+            )
         return self
 
 

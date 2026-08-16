@@ -216,23 +216,34 @@ class GoogleAdsSyncService:
         self._last_records_processed = records_processed
 
         self._check_before_collector(capability)
-        keywords = [
-            self.repository.upsert_keyword(keyword)
-            for keyword in google_ads.collect_keywords(ad_group_ids_by_external_id)
-        ]
+        normalized_keywords = google_ads.collect_keywords(ad_group_ids_by_external_id)
+        keywords = [self.repository.upsert_keyword(keyword) for keyword in normalized_keywords]
         records_processed += len(keywords)
         self._last_records_processed = records_processed
+        keyword_ids_by_scope = {
+            (normalized.ad_group_id, normalized.external_keyword_id): keyword.id
+            for normalized, keyword in zip(normalized_keywords, keywords, strict=True)
+        }
 
         self._check_before_collector(capability)
+        normalized_search_terms = google_ads.collect_search_terms(
+            ad_group_ids_by_external_id,
+            date_range,
+        )
         search_terms = [
             self.repository.upsert_search_term(search_term)
-            for search_term in google_ads.collect_search_terms(
-                ad_group_ids_by_external_id,
-                date_range,
-            )
+            for search_term in normalized_search_terms
         ]
         records_processed += len(search_terms)
         self._last_records_processed = records_processed
+        search_term_ids_by_scope = {
+            (normalized.ad_group_id, normalized.term): search_term.id
+            for normalized, search_term in zip(
+                normalized_search_terms,
+                search_terms,
+                strict=True,
+            )
+        }
 
         if campaign_ids_by_external_id:
             self._check_before_collector(capability)
@@ -240,6 +251,8 @@ class GoogleAdsSyncService:
                 campaign_ids_by_external_id,
                 date_range,
                 ad_group_ids_by_external_id,
+                keyword_ids_by_scope,
+                search_term_ids_by_scope,
             ).metrics
         else:
             metrics = []

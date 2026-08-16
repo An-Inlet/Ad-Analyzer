@@ -13,6 +13,7 @@ from app.ads.enums import ExecutionStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.analysis.granular import GranularAnalysisService
+from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import _windows, default_dates, ratios
@@ -587,8 +588,88 @@ def campaign_detail(
             ad_group_offset=ad_group_offset,
             metric_limit=metric_limit,
             metric_offset=metric_offset,
-            has_next_ad_groups=has_next(ad_group_offset, ad_group_limit, len(groups), group_total),
-            has_next_metrics=has_next(metric_offset, metric_limit, len(metrics), metric_total),
+            has_next_ad_groups=has_next(
+                ad_group_offset,
+                ad_group_limit,
+                len(groups),
+                group_total,
+            ),
+            has_next_metrics=has_next(
+                metric_offset,
+                metric_limit,
+                len(metrics),
+                metric_total,
+            ),
+            date_from=start,
+            date_to=end,
+        ),
+    )
+
+
+@router.get("/ad-groups/{ad_group_id}", response_class=HTMLResponse)
+def ad_group_detail(
+    request: Request,
+    ad_group_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    keyword_limit: int = Query(25, ge=1, le=100),
+    keyword_offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+    search_term_limit: int = Query(25, ge=1, le=100),
+    search_term_offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
+) -> HTMLResponse:
+    ad_group = repository.get_ad_group(ad_group_id)
+    if ad_group is None:
+        raise HTTPException(status_code=404, detail="ad group not found")
+    workspace = WorkspaceRepository(db).get_by_id(ad_group.campaign.account.workspace_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    require_workspace_view(request, db, workspace.id)
+    start, end = valid_dates(date_from, date_to)
+    query_service = QueryPerformanceService(db)
+    keywords, keyword_total = query_service.analyze_keywords(
+        ad_group_id,
+        start,
+        end,
+        limit=keyword_limit,
+        offset=keyword_offset,
+    )
+    search_terms, search_term_total = query_service.analyze_search_terms(
+        ad_group_id,
+        start,
+        end,
+        limit=search_term_limit,
+        offset=search_term_offset,
+    )
+    return templates.TemplateResponse(
+        request,
+        "ad_group.html",
+        page_context(
+            request,
+            title=ad_group.name,
+            workspace=workspace,
+            ad_group=ad_group,
+            keywords=keywords,
+            keyword_total=keyword_total,
+            keyword_limit=keyword_limit,
+            keyword_offset=keyword_offset,
+            search_terms=search_terms,
+            search_term_total=search_term_total,
+            search_term_limit=search_term_limit,
+            search_term_offset=search_term_offset,
+            has_next_keywords=has_next(
+                keyword_offset,
+                keyword_limit,
+                len(keywords),
+                keyword_total,
+            ),
+            has_next_search_terms=has_next(
+                search_term_offset,
+                search_term_limit,
+                len(search_terms),
+                search_term_total,
+            ),
             date_from=start,
             date_to=end,
         ),

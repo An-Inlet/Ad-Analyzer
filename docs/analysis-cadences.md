@@ -4,8 +4,9 @@
 
 Improvement step 4 makes the existing deterministic analyzers run on a predictable schedule. It
 does not add new analysis rules. Each run reads only synchronized local database rows, executes the
-existing account-level finding rules and Step 3 aggregate outcome service, then stores a sanitized
-`analysis_runs` audit summary.
+existing account-level finding rules, Step 5 campaign/ad-group finding scopes, Step 6
+keyword/masked-search-term finding scopes, and the aggregate outcome service, then stores a
+sanitized `analysis_runs` audit summary.
 
 This step does not contact Google Ads, GA4, BigQuery, Meta Ads, CRM providers, or notification
 services. It does not create recommendations, learn from operator decisions, invoke executors,
@@ -73,8 +74,8 @@ The run registry stores only:
 
 - workspace/account scope and source job reference;
 - cadence, scheduled time, policy version, metric window, and mature outcome window;
-- counts of accounts, deterministic findings, high-severity findings, outcome campaigns, and
-  attributed/unattributed journeys;
+- counts of accounts, account/campaign/ad-group/keyword/masked-search-term deterministic findings,
+  high-severity findings, outcome campaigns, and attributed/unattributed journeys;
 - aggregate outcome-readiness state and fixed blocking reason codes; and
 - status timestamps and a fixed failure code.
 

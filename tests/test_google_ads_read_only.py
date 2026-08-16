@@ -275,6 +275,8 @@ def test_fixed_gaql_queries_are_internal_and_approved() -> None:
     assert "2026-07-13" in google_ads_module._search_terms_query(window)
     assert "metrics.cost_micros" in google_ads_module._metrics_query(window)
     assert "FROM ad_group" in google_ads_module._ad_group_metrics_query(window)
+    assert "FROM keyword_view" in google_ads_module._keyword_metrics_query(window)
+    assert "FROM search_term_view" in google_ads_module._search_term_metrics_query(window)
 
 
 def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
@@ -324,6 +326,49 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
                     ),
                 )
             ],
+            google_ads_module._keyword_metrics_query(window): [
+                SimpleNamespace(
+                    segments=SimpleNamespace(date="2026-07-13"),
+                    campaign=SimpleNamespace(id=11),
+                    ad_group=SimpleNamespace(id=22),
+                    ad_group_criterion=SimpleNamespace(criterion_id=44),
+                    metrics=SimpleNamespace(
+                        impressions=60,
+                        clicks=6,
+                        cost_micros=800_000,
+                        conversions=1,
+                        conversions_value=20,
+                    ),
+                ),
+                SimpleNamespace(
+                    segments=SimpleNamespace(date="2026-07-13"),
+                    campaign=SimpleNamespace(id=11),
+                    ad_group=SimpleNamespace(id=23),
+                    ad_group_criterion=SimpleNamespace(criterion_id=44),
+                    metrics=SimpleNamespace(
+                        impressions=30,
+                        clicks=3,
+                        cost_micros=400_000,
+                        conversions=0,
+                        conversions_value=0,
+                    ),
+                ),
+            ],
+            google_ads_module._search_term_metrics_query(window): [
+                SimpleNamespace(
+                    segments=SimpleNamespace(date="2026-07-13"),
+                    campaign=SimpleNamespace(id=11),
+                    ad_group=SimpleNamespace(id=22),
+                    search_term_view=SimpleNamespace(search_term="sensitive query"),
+                    metrics=SimpleNamespace(
+                        impressions=40,
+                        clicks=4,
+                        cost_micros=500_000,
+                        conversions=0,
+                        conversions_value=0,
+                    ),
+                )
+            ],
         }
     )
     raw_client, loaded_configs = install_fake_google_ads_module(monkeypatch, service)
@@ -333,7 +378,9 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     metrics = collect_metrics(
         {"11": 55},
         GoogleAdsDateRange.YESTERDAY,
-        {"22": 66},
+        {"22": 66, "23": 67},
+        {(66, "44"): 77, (67, "44"): 78},
+        {(66, "sensitive query"): 88},
         today=date(2026, 7, 14),
         settings=settings,
     )
@@ -347,6 +394,14 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     assert metrics.metrics[1].entity_type.value == "ad_group"
     assert metrics.metrics[1].campaign_id == 55
     assert metrics.metrics[1].ad_group_id == 66
+    assert metrics.metrics[2].entity_type.value == "keyword"
+    assert metrics.metrics[2].keyword_id == 77
+    assert metrics.metrics[3].entity_type.value == "keyword"
+    assert metrics.metrics[3].ad_group_id == 67
+    assert metrics.metrics[3].keyword_id == 78
+    assert metrics.metrics[4].entity_type.value == "search_term"
+    assert metrics.metrics[4].search_term_id == 88
+    assert metrics.metrics[4].cost_micros == 500_000
     assert raw_client.requested_services == [
         "GoogleAdsService",
         "GoogleAdsService",

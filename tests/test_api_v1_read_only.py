@@ -339,7 +339,11 @@ def test_api_v1_requires_bearer_authentication_for_every_route(
         if isinstance(route, APIRoute) and route.path.startswith("/api/v1")
     ]
     for route in protected_routes:
-        path = route.path.replace("{account_id}", "1").replace("{campaign_id}", "1")
+        path = (
+            route.path.replace("{account_id}", "1")
+            .replace("{campaign_id}", "1")
+            .replace("{ad_group_id}", "1")
+        )
         response = client.get(path)
         assert response.status_code == 401
         assert response.headers["WWW-Authenticate"] == "Bearer"

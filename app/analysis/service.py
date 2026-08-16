@@ -10,6 +10,7 @@ from app.ads.models import AdvertisingAccount
 from app.analysis.enums import AnalysisCadence
 from app.analysis.granular import GranularAnalysisService
 from app.analysis.models import AnalysisRun
+from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.measurement.repository import MeasurementRepository
@@ -206,6 +207,16 @@ class AnalysisRunService:
         )
         findings_count += granular_counts.findings_count
         high_severity_count += granular_counts.high_severity_findings_count
+
+        query_counts = QueryPerformanceService(self.session).count_workspace_findings(
+            workspace_id,
+            metric_start,
+            metric_end,
+            account_id=account_id,
+            now=as_of,
+        )
+        findings_count += query_counts.findings_count
+        high_severity_count += query_counts.high_severity_findings_count
 
         outcome = UnifiedOutcomeService(self.session).report(
             workspace_id,

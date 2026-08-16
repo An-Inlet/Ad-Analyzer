@@ -10,8 +10,13 @@ from app.ads.models import ExecutionAudit, JobRun, Recommendation, Recommendatio
 from app.ads.operations import public_failure_summary, sync_health
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.granular import GranularAnalysisService
+from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
-from app.analysis.schemas import AnalysisRunResponse, PerformanceScopeResponse
+from app.analysis.schemas import (
+    AnalysisRunResponse,
+    PerformanceScopeResponse,
+    QueryPerformanceResponse,
+)
 from app.api.auth import require_api_token
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.schemas import (
@@ -456,6 +461,72 @@ def list_campaign_ad_group_performance(
     )
     return PaginatedResponse(
         items=[PerformanceScopeResponse.from_snapshot(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=total,
+    )
+
+
+@router.get(
+    "/ad-groups/{ad_group_id}/keyword-performance",
+    response_model=PaginatedResponse[QueryPerformanceResponse],
+    operation_id="read_only_ad_group_keyword_performance",
+    responses=RESOURCE_ERRORS,
+)
+def list_ad_group_keyword_performance(
+    ad_group_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[QueryPerformanceResponse]:
+    if repository.get_ad_group(ad_group_id) is None:
+        raise HTTPException(status_code=404, detail="ad group not found")
+    start, end = default_dates(date_from, date_to)
+    rows, total = QueryPerformanceService(db).analyze_keywords(
+        ad_group_id,
+        start,
+        end,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse(
+        items=[QueryPerformanceResponse.from_snapshot(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=total,
+    )
+
+
+@router.get(
+    "/ad-groups/{ad_group_id}/search-term-performance",
+    response_model=PaginatedResponse[QueryPerformanceResponse],
+    operation_id="read_only_ad_group_search_term_performance",
+    responses=RESOURCE_ERRORS,
+)
+def list_ad_group_search_term_performance(
+    ad_group_id: int,
+    repository: Annotated[ReadOnlyAdsRepository, Depends(repo)],
+    db: Annotated[Session, Depends(get_db)],
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: Limit = 25,
+    offset: Offset = 0,
+) -> PaginatedResponse[QueryPerformanceResponse]:
+    if repository.get_ad_group(ad_group_id) is None:
+        raise HTTPException(status_code=404, detail="ad group not found")
+    start, end = default_dates(date_from, date_to)
+    rows, total = QueryPerformanceService(db).analyze_search_terms(
+        ad_group_id,
+        start,
+        end,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedResponse(
+        items=[QueryPerformanceResponse.from_snapshot(row) for row in rows],
         limit=limit,
         offset=offset,
         total=total,

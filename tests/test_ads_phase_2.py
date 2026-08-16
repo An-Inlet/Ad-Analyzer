@@ -130,6 +130,28 @@ def test_pydantic_validates_read_only_normalized_metrics() -> None:
     )
     assert ad_group_metric.ad_group_id == 456
 
+    keyword_metric = DailyMetricCreate(
+        platform="google_ads",
+        metric_date=date(2026, 7, 14),
+        entity_type="keyword",
+        entity_id=789,
+        campaign_id=123,
+        ad_group_id=456,
+        keyword_id=789,
+    )
+    assert keyword_metric.keyword_id == 789
+
+    search_term_metric = DailyMetricCreate(
+        platform="google_ads",
+        metric_date=date(2026, 7, 14),
+        entity_type="search_term",
+        entity_id=987,
+        campaign_id=123,
+        ad_group_id=456,
+        search_term_id=987,
+    )
+    assert search_term_metric.search_term_id == 987
+
     with pytest.raises(ValidationError):
         DailyMetricCreate(
             platform="google_ads",
@@ -137,6 +159,17 @@ def test_pydantic_validates_read_only_normalized_metrics() -> None:
             entity_type="ad_group",
             entity_id=456,
             campaign_id=123,
+        )
+
+    with pytest.raises(ValidationError):
+        DailyMetricCreate(
+            platform="google_ads",
+            metric_date=date(2026, 7, 14),
+            entity_type="keyword",
+            entity_id=789,
+            campaign_id=123,
+            ad_group_id=456,
+            search_term_id=789,
         )
 
 
@@ -409,3 +442,70 @@ def test_normalized_metrics_service_stores_metrics_and_enforces_uniqueness(
     NormalizedMetricsService(session).store_batch(batch)
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+def test_lower_level_metrics_require_matching_parent_scope(session: Session) -> None:
+    account = AdvertisingAccount(
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_account_id="google-lower-level-scope",
+        name="Denticode Search",
+        currency_code="USD",
+    )
+    campaign = Campaign(
+        account=account,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_campaign_id="campaign-lower-level-scope",
+        name="Implants",
+    )
+    first_group = AdGroup(
+        campaign=campaign,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_ad_group_id="group-lower-level-one",
+        name="Exact",
+    )
+    second_group = AdGroup(
+        campaign=campaign,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_ad_group_id="group-lower-level-two",
+        name="Phrase",
+    )
+    keyword = Keyword(
+        ad_group=first_group,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        external_keyword_id="keyword-lower-level",
+        text="dental implants",
+    )
+    search_term = SearchTerm(
+        ad_group=first_group,
+        platform=AdvertisingPlatform.GOOGLE_ADS,
+        term="private search query",
+    )
+    session.add_all([keyword, search_term, second_group])
+    session.commit()
+
+    session.add(
+        DailyMetric(
+            platform=AdvertisingPlatform.GOOGLE_ADS,
+            metric_date=date(2026, 7, 14),
+            entity_type="keyword",
+            entity_id=keyword.id,
+            campaign_id=campaign.id,
+            ad_group_id=second_group.id,
+            keyword_id=keyword.id,
+        )
+    )
+    assert_integrity_error(session)
+
+    session.add(
+        DailyMetric(
+            platform=AdvertisingPlatform.GOOGLE_ADS,
+            metric_date=date(2026, 7, 14),
+            entity_type="search_term",
+            entity_id=search_term.id,
+            campaign_id=campaign.id,
+            ad_group_id=first_group.id,
+            keyword_id=keyword.id,
+            search_term_id=search_term.id,
+        )
+    )
+    assert_integrity_error(session)

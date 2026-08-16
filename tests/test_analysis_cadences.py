@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
 
 import pytest
-from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.enums import AdvertisingPlatform, JobRunStatus, RecommendationStatus
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric, JobRun, Recommendation
 from app.ads.services import GoogleAdsSyncResult
 from app.analysis.cadence import (
@@ -397,6 +397,87 @@ def test_recommendation_generation_rejects_cross_workspace_analysis_source(
             as_of=datetime(2026, 8, 8, 12, tzinfo=UTC),
         )
     assert db.scalar(select(func.count()).select_from(Recommendation)) == 0
+
+
+def test_rejection_cooldown_starts_when_the_operator_rejects(
+    database: tuple[Session, Engine],
+) -> None:
+    db, _engine = database
+    workspace, account, _job = seed_workspace(
+        db,
+        slug="rejection-cooldown",
+        with_metrics=False,
+    )
+    first_as_of = datetime(2026, 1, 1, 12, tzinfo=UTC)
+    first_source = AnalysisRun(
+        workspace_id=workspace.id,
+        run_key="nightly:rejection-cooldown:first",
+        cadence=AnalysisCadence.NIGHTLY,
+        status=AnalysisRunStatus.RUNNING,
+        schedule_policy_version="v1",
+        scheduled_for=datetime(2026, 1, 1, 2, tzinfo=UTC),
+        metric_date_from=date(2025, 12, 1),
+        metric_date_to=date(2025, 12, 31),
+        outcome_date_from=date(2025, 9, 1),
+        outcome_date_to=date(2025, 10, 1),
+        started_at=first_as_of,
+        blocking_reasons=[],
+    )
+    db.add(first_source)
+    db.commit()
+    candidate = RecommendationCandidate(
+        workspace_id=workspace.id,
+        platform=account.platform,
+        account_id=account.id,
+        campaign_id=None,
+        scope_type="account",
+        scope_id=account.id,
+        scope_label=account.name,
+        source_text_redacted=False,
+        finding=Finding(
+            code="low_ctr",
+            severity="medium",
+            message="CTR is below the deterministic threshold.",
+            supporting_metrics={"ctr": "0.01"},
+        ),
+        impact_micros=1_000_000,
+    )
+    first_result = RecommendationGenerationService(db).generate(
+        [candidate],
+        source_analysis_run_id=first_source.id,
+        as_of=first_as_of,
+    )
+    db.commit()
+    assert first_result.created_count == 1
+
+    rejected_at = datetime(2026, 1, 20, 12, tzinfo=UTC)
+    first_result.recommendations[0].status = RecommendationStatus.REJECTED
+    first_result.recommendations[0].updated_at = rejected_at
+    second_source = AnalysisRun(
+        workspace_id=workspace.id,
+        run_key="nightly:rejection-cooldown:second",
+        cadence=AnalysisCadence.NIGHTLY,
+        status=AnalysisRunStatus.RUNNING,
+        schedule_policy_version="v1",
+        scheduled_for=datetime(2026, 1, 21, 2, tzinfo=UTC),
+        metric_date_from=date(2025, 12, 21),
+        metric_date_to=date(2026, 1, 20),
+        outcome_date_from=date(2025, 9, 21),
+        outcome_date_to=date(2025, 10, 21),
+        started_at=datetime(2026, 1, 21, 12, tzinfo=UTC),
+        blocking_reasons=[],
+    )
+    db.add(second_source)
+    db.commit()
+
+    second_result = RecommendationGenerationService(db).generate(
+        [candidate],
+        source_analysis_run_id=second_source.id,
+        as_of=datetime(2026, 1, 21, 12, tzinfo=UTC),
+    )
+    assert second_result.created_count == 0
+    assert second_result.deduplicated_count == 1
+    assert db.scalar(select(func.count()).select_from(Recommendation)) == 1
 
 
 def test_api_and_dashboard_list_only_the_requested_workspace_runs(

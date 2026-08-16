@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, RecommendationStatus
 from app.ads.models import Recommendation, RecommendationAudit
+from app.analysis.enums import AnalysisRunStatus
 from app.analysis.models import AnalysisRun
 from app.optimizer.recommendations import Finding
 
@@ -141,8 +142,13 @@ class RecommendationGenerationService:
         if limit < 1 or limit > MAX_RECOMMENDATIONS_PER_RUN:
             raise ValueError("recommendation generation limit must be between 1 and 100")
         source_run = self.session.get(AnalysisRun, source_analysis_run_id)
-        if source_run is None or any(
-            candidate.workspace_id != source_run.workspace_id for candidate in candidates
+        if (
+            source_run is None
+            or source_run.status != AnalysisRunStatus.RUNNING
+            or any(
+                candidate.workspace_id != source_run.workspace_id
+                for candidate in candidates
+            )
         ):
             raise ValueError("invalid recommendation source analysis run")
 
@@ -274,7 +280,7 @@ class RecommendationGenerationService:
                 continue
             if (
                 row.status == RecommendationStatus.REJECTED
-                and _as_utc(row.generated_at) > as_of - REJECTION_COOLDOWN
+                and _as_utc(row.updated_at) > as_of - REJECTION_COOLDOWN
             ):
                 return True
         return False

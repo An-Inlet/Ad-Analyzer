@@ -10,8 +10,9 @@ eligible findings into bounded, deduplicated proposals and stores a sanitized `a
 audit summary.
 
 This step does not contact Google Ads, GA4, BigQuery, Meta Ads, CRM providers, or notification
-services. It does not learn from operator decisions, invoke executors, upload conversions, or
-mutate campaigns. Generated recommendations are local proposals that remain pending human review.
+services. Step 8 may attach a local, aggregate decision-learning snapshot to a proposal, but it
+does not change finding thresholds or eligibility. Cadences do not invoke executors, upload
+conversions, or mutate campaigns. Generated recommendations remain pending human review.
 
 ## Default policy
 

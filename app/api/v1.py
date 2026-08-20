@@ -43,8 +43,11 @@ from app.api.schemas import (
 )
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
-from app.learning import DecisionLearningService
-from app.learning.schemas import DecisionLearningSnapshotResponse
+from app.learning import DecisionLearningService, WeeklyLearningReportService
+from app.learning.schemas import (
+    DecisionLearningSnapshotResponse,
+    WeeklyLearningReportResponse,
+)
 from app.measurement.repository import MeasurementRepository
 from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
 from app.measurement.unified import UnifiedOutcomeService
@@ -247,6 +250,28 @@ def get_workspace_decision_learning(
     workspace = _workspace_or_404(workspace_repository, workspace_slug)
     snapshot = DecisionLearningService(db).snapshot(workspace.id)
     return DecisionLearningSnapshotResponse.from_snapshot(snapshot)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/weekly-learning-report",
+    response_model=WeeklyLearningReportResponse,
+    operation_id="read_only_workspace_weekly_learning_report",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace_weekly_learning_report(
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    db: Annotated[Session, Depends(get_db)],
+    as_of: Annotated[
+        date | None,
+        Query(
+            description="UTC date used to resolve the latest fully completed Monday-Sunday week."
+        ),
+    ] = None,
+) -> WeeklyLearningReportResponse:
+    workspace = _workspace_or_404(workspace_repository, workspace_slug)
+    report = WeeklyLearningReportService(db).build(workspace.id, as_of=as_of)
+    return WeeklyLearningReportResponse.from_report(report)
 
 
 @router.get(

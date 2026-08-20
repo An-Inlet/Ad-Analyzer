@@ -27,7 +27,7 @@ from app.dashboard.auth import (
 from app.dashboard.formatting import money_from_micros, ratio_percent
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
-from app.learning import DecisionLearningService
+from app.learning import DecisionLearningService, WeeklyLearningReportService
 from app.measurement.repository import MeasurementRepository
 from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
 from app.measurement.unified import UnifiedOutcomeService
@@ -183,6 +183,7 @@ def workspace_detail(
         offset=0,
     )
     decision_learning = DecisionLearningService(db).snapshot(workspace.id)
+    weekly_learning_report = WeeklyLearningReportService(db).build(workspace.id)
     return templates.TemplateResponse(
         request,
         "workspace.html",
@@ -202,6 +203,7 @@ def workspace_detail(
             analysis_runs=analysis_runs,
             analysis_run_total=analysis_run_total,
             decision_learning=decision_learning,
+            weekly_learning_report=weekly_learning_report,
             accounts=accounts,
             total=total,
             limit=limit,

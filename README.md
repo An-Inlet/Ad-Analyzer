@@ -50,6 +50,8 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
   search-term scopes, with human review and guarded dry-run execution.
 - Workspace-scoped decision learning from approve/reject audit actions, with transparent evidence
   counts and no use of actor identities or free-text reasons.
+- Deterministic weekly learning reports that compare completed-week analysis and review activity,
+  then propose bounded analyzer improvements without applying changes.
 - Workspace configuration, measurement contracts, memberships, integrations, and persistent
   finding boundaries.
 - pytest, Ruff, and mypy development tooling.
@@ -159,6 +161,8 @@ Endpoint groups:
   `GET /api/v1/workspaces/{slug}/measurement-contract`,
   `GET /api/v1/workspaces/{slug}/outcome-analysis`,
   `GET /api/v1/workspaces/{slug}/analysis-runs`,
+  `GET /api/v1/workspaces/{slug}/decision-learning`,
+  `GET /api/v1/workspaces/{slug}/weekly-learning-report`,
   `GET /api/v1/workspaces/{slug}/integrations`,
   `GET /api/v1/workspaces/{slug}/memberships`, and
   `GET /api/v1/workspaces/{slug}/advertising-accounts`
@@ -247,6 +251,11 @@ Workspace pages also expose decision-learning profiles derived from immutable ap
 actions. New proposals receive a transparent learning snapshot, which can break otherwise equal
 severity-and-spend ties but cannot change finding thresholds, severity, spend priority, human
 approval, or advertising state. See [decision learning](docs/decision-learning.md).
+
+The weekly learning report compares the latest completed Monday-Sunday UTC week with the prior
+week and emits deterministic, evidence-backed suggestions for improving analyzer diagnostics or
+review context. It uses only local aggregate records, excludes identities, reasons, and search-term
+text, and applies no changes. See [weekly learning reports](docs/weekly-learning-report.md).
 
 ## Phase 7: separate Google Ads sync worker
 

@@ -43,4 +43,5 @@ Decision learning does not:
 Operators can inspect the aggregate through
 `GET /api/v1/workspaces/{workspace_slug}/decision-learning` and the authenticated workspace
 dashboard. The next roadmap step can consume the same transparent evidence when producing the
-weekly learning report without changing this safety boundary.
+weekly learning report without changing this safety boundary. Step 9 now does so through the
+[deterministic weekly learning report](weekly-learning-report.md).

@@ -68,6 +68,22 @@ resource and environment names remain in place for deployment compatibility.
 - Preserve recommendation and recommendation-audit rows. Profiles are derived from those local
   audit facts, so no separate opaque model state needs backup or manual editing.
 
+## Step 9 weekly-learning-report operations
+
+- Review the latest completed Monday-Sunday UTC comparison on the workspace dashboard or through
+  `GET /api/v1/workspaces/{workspace_slug}/weekly-learning-report`.
+- Use `?as_of=YYYY-MM-DD` to reproduce an earlier completed week. Decisions recorded after that
+  week's close must not appear in the historical report.
+- Treat suggestions as evidence for a separately scoped product change. The report must never edit
+  analyzer rules, thresholds, configuration, recommendations, approvals, or advertising state.
+- Investigate missing analysis coverage before interpreting week-over-week changes. A lack of
+  successful local runs produces a fixed attention suggestion rather than an inferred diagnosis.
+- Treat actor identity, free-text reason, raw search-term text, or cross-workspace content in a
+  report as a privacy incident. Version 1 queries select only fixed decision action/timestamp and
+  aggregate analysis evidence.
+- Preserve analysis, recommendation, and audit history. Reports are reproducible read-only views;
+  no separate report table, model training state, or backup procedure is required.
+
 ## Final readiness checklist
 - CI green; migrations reversible; no secrets in repository; account isolation tests pass; dashboard/API authentication configured; live writes disabled by default.
 

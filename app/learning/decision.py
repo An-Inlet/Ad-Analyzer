@@ -146,8 +146,11 @@ def _signal_code(value: object, fallback: str) -> str:
     return fallback
 
 
-def _profile_key(recommendation: Recommendation) -> tuple[str, str, str]:
-    planned_action = recommendation.planned_action
+def _profile_key(
+    recommendation_type_value: object,
+    planned_action_value: object,
+) -> tuple[str, str, str]:
+    planned_action = planned_action_value
     if not isinstance(planned_action, dict):
         planned_action = {}
     scope = planned_action.get("scope")
@@ -157,7 +160,7 @@ def _profile_key(recommendation: Recommendation) -> tuple[str, str, str]:
         if isinstance(scope_type_value, str) and scope_type_value in _SCOPE_TYPES
         else "account"
     )
-    recommendation_type = _signal_code(recommendation.recommendation_type, "unknown_signal")
+    recommendation_type = _signal_code(recommendation_type_value, "unknown_signal")
     review_action = _signal_code(
         planned_action.get("review_action"),
         recommendation_type,
@@ -171,9 +174,20 @@ class DecisionLearningService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def snapshot(self, workspace_id: int) -> DecisionLearningSnapshot:
-        rows = self.session.execute(
-            select(Recommendation, RecommendationAudit)
+    def snapshot(
+        self,
+        workspace_id: int,
+        *,
+        through: datetime | None = None,
+    ) -> DecisionLearningSnapshot:
+        statement = (
+            select(
+                Recommendation.id,
+                Recommendation.recommendation_type,
+                Recommendation.planned_action,
+                RecommendationAudit.action,
+                RecommendationAudit.created_at,
+            )
             .join(
                 RecommendationAudit,
                 RecommendationAudit.recommendation_id == Recommendation.id,
@@ -183,20 +197,23 @@ class DecisionLearningService:
                 RecommendationAudit.action.in_(_DECISION_ACTIONS),
             )
             .order_by(RecommendationAudit.created_at.asc(), RecommendationAudit.id.asc())
-        ).all()
+        )
+        if through is not None:
+            statement = statement.where(RecommendationAudit.created_at < through)
+        rows = self.session.execute(statement).tuples().all()
         accumulators: dict[tuple[str, str, str], _ProfileAccumulator] = {}
         decided_recommendations: set[int] = set()
-        for recommendation, audit in rows:
-            if recommendation.id in decided_recommendations:
+        for recommendation_id, recommendation_type, planned_action, action, created_at in rows:
+            if recommendation_id in decided_recommendations:
                 continue
-            decided_recommendations.add(recommendation.id)
-            key = _profile_key(recommendation)
+            decided_recommendations.add(recommendation_id)
+            key = _profile_key(recommendation_type, planned_action)
             accumulator = accumulators.setdefault(key, _ProfileAccumulator())
-            if audit.action == "approved":
+            if action == "approved":
                 accumulator.approved_count += 1
             else:
                 accumulator.rejected_count += 1
-            accumulator.last_decision_at = audit.created_at
+            accumulator.last_decision_at = created_at
 
         profiles: list[DecisionLearningProfile] = []
         for key, accumulator in accumulators.items():

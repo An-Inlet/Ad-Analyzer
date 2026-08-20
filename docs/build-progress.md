@@ -51,3 +51,9 @@ Branch: `codex/complete-denticode-ads-analyzer-buildout`
   evidence available at generation time and use its smoothed acceptance rate only after severity
   and spend impact as a stable tie-break. Actor identities and free-text reasons are excluded;
   thresholds, eligibility, severity, approval requirements, and advertising state never adapt.
+- Step 9 implemented: a deterministic weekly learning report compares the latest completed UTC
+  week with the prior week across aggregate analysis, proposal, deduplication, and operator-decision
+  activity. It produces bounded, evidence-backed suggestions for separately reviewed improvements
+  to analyzer diagnostics and review context. It selects no actor identities, reasons, or
+  search-term text; calls no external service; creates no hidden model state; and applies no rule or
+  advertising change.

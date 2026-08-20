@@ -8,6 +8,16 @@ from app.learning.decision import (
     DecisionLearningService,
     DecisionLearningSnapshot,
 )
+from app.learning.report import (
+    WEEKLY_LEARNING_REPORT_POLICY_VERSION,
+    WeeklyLearningActivity,
+    WeeklyLearningChanges,
+    WeeklyLearningReport,
+    WeeklyLearningReportService,
+    WeeklyLearningSafety,
+    WeeklyLearningSuggestion,
+    WeeklyLearningWindow,
+)
 
 __all__ = [
     "DECISION_LEARNING_EFFECT",
@@ -16,4 +26,12 @@ __all__ = [
     "DecisionLearningProfile",
     "DecisionLearningService",
     "DecisionLearningSnapshot",
+    "WEEKLY_LEARNING_REPORT_POLICY_VERSION",
+    "WeeklyLearningActivity",
+    "WeeklyLearningChanges",
+    "WeeklyLearningReport",
+    "WeeklyLearningReportService",
+    "WeeklyLearningSafety",
+    "WeeklyLearningSuggestion",
+    "WeeklyLearningWindow",
 ]

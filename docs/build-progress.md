@@ -46,3 +46,8 @@ Branch: `codex/complete-denticode-ads-analyzer-buildout`
   spend-prioritized review proposals. Stable keys suppress active duplicates and recently rejected
   proposals, every generated row links to its source analysis run, and search-term text remains
   unselected and unstored. Human approval is still required and advertising writes remain disabled.
+- Step 8 implemented: workspace-scoped learning profiles aggregate immutable approve/reject audit
+  actions by deterministic signal, scope, and review action. New proposals store the exact learning
+  evidence available at generation time and use its smoothed acceptance rate only after severity
+  and spend impact as a stable tie-break. Actor identities and free-text reasons are excluded;
+  thresholds, eligibility, severity, approval requirements, and advertising state never adapt.

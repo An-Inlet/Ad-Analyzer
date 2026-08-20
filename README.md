@@ -48,6 +48,8 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
 - Automatic deterministic recommendations across account, campaign, ad-group, keyword, and masked
   search-term scopes, with human review and guarded dry-run execution.
+- Workspace-scoped decision learning from approve/reject audit actions, with transparent evidence
+  counts and no use of actor identities or free-text reasons.
 - Workspace configuration, measurement contracts, memberships, integrations, and persistent
   finding boundaries.
 - pytest, Ruff, and mypy development tooling.
@@ -240,6 +242,11 @@ synchronized data and create at most 100 deduplicated, human-review-only proposa
 trigger collectors, executors, or advertising mutations. See
 [analysis cadences](docs/analysis-cadences.md) and
 [automated recommendations](docs/automated-recommendations.md).
+
+Workspace pages also expose decision-learning profiles derived from immutable approve/reject audit
+actions. New proposals receive a transparent learning snapshot, which can break otherwise equal
+severity-and-spend ties but cannot change finding thresholds, severity, spend priority, human
+approval, or advertising state. See [decision learning](docs/decision-learning.md).
 
 ## Phase 7: separate Google Ads sync worker
 

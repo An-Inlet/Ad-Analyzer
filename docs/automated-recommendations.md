@@ -23,6 +23,12 @@ The version 1 policy:
 - expires proposals after 14 days; and
 - suppresses an equivalent proposal for 14 days after rejection.
 
+Step 8 adds workspace-owned decision evidence after severity and spend impact in the ordering key.
+It can therefore break a tie between otherwise equal-impact candidates. It cannot suppress a
+finding, override spend priority, change analytical confidence or severity, or make a proposal
+executable. Each generated proposal stores the counts and smoothed rate used for its tie-break so
+the result remains explainable and reproducible.
+
 Review actions are fixed categories such as relevance/creative review, efficiency-regression
 review, spend-shift review, keyword status/match-type review, and negative-keyword-candidate review.
 They are operator prompts, not executable mutation payloads.

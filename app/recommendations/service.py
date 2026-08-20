@@ -14,6 +14,7 @@ from app.ads.enums import AdvertisingPlatform, RecommendationStatus
 from app.ads.models import Recommendation, RecommendationAudit
 from app.analysis.enums import AnalysisRunStatus
 from app.analysis.models import AnalysisRun
+from app.learning import DecisionLearningContext, DecisionLearningService
 from app.optimizer.recommendations import Finding
 
 RecommendationScopeType = Literal[
@@ -66,6 +67,13 @@ class RecommendationGenerationResult:
     capped_count: int
 
 
+@dataclass(frozen=True)
+class _PreparedCandidate:
+    candidate: RecommendationCandidate
+    review_action: str
+    learning: DecisionLearningContext
+
+
 def _as_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
@@ -77,10 +85,7 @@ def _review_action(candidate: RecommendationCandidate) -> str:
         and finding_code == "spend_without_platform_conversions"
     ):
         return "review_negative_keyword_candidate"
-    if (
-        candidate.scope_type == "keyword"
-        and finding_code == "spend_without_platform_conversions"
-    ):
+    if candidate.scope_type == "keyword" and finding_code == "spend_without_platform_conversions":
         return "review_keyword_status_or_match_type"
     if finding_code in {
         "spend_without_conversions",
@@ -113,10 +118,13 @@ def _deduplication_key(candidate: RecommendationCandidate, review_action: str) -
     return sha256("\x1f".join(components).encode()).hexdigest()
 
 
-def _candidate_order(candidate: RecommendationCandidate) -> tuple[object, ...]:
+def _candidate_order(prepared: _PreparedCandidate) -> tuple[object, ...]:
+    candidate = prepared.candidate
     return (
         _SEVERITY_PRIORITY.get(candidate.finding.severity, 99),
         -candidate.impact_micros,
+        # Learning can change only an otherwise equal severity-and-impact order.
+        -prepared.learning.smoothed_acceptance_rate,
         candidate.account_id,
         candidate.campaign_id or 0,
         candidate.scope_type,
@@ -145,10 +153,7 @@ class RecommendationGenerationService:
         if (
             source_run is None
             or source_run.status != AnalysisRunStatus.RUNNING
-            or any(
-                candidate.workspace_id != source_run.workspace_id
-                for candidate in candidates
-            )
+            or any(candidate.workspace_id != source_run.workspace_id for candidate in candidates)
         ):
             raise ValueError("invalid recommendation source analysis run")
 
@@ -158,7 +163,22 @@ class RecommendationGenerationService:
             if candidate.finding.code not in NON_ACTIONABLE_FINDINGS
         ]
         non_actionable_count = len(candidates) - len(actionable)
-        ordered = sorted(actionable, key=_candidate_order)
+        learning_snapshot = DecisionLearningService(self.session).snapshot(source_run.workspace_id)
+        prepared = []
+        for candidate in actionable:
+            review_action = _review_action(candidate)
+            prepared.append(
+                _PreparedCandidate(
+                    candidate=candidate,
+                    review_action=review_action,
+                    learning=learning_snapshot.context_for(
+                        candidate.finding.code,
+                        candidate.scope_type,
+                        review_action,
+                    ),
+                )
+            )
+        ordered = sorted(prepared, key=_candidate_order)
         selected = ordered[:limit]
         capped_count = len(ordered) - len(selected)
         resolved_as_of = _as_utc(as_of)
@@ -166,8 +186,9 @@ class RecommendationGenerationService:
         deduplicated_count = 0
         keys_seen: set[tuple[int, str]] = set()
 
-        for candidate in selected:
-            review_action = _review_action(candidate)
+        for prepared_candidate in selected:
+            candidate = prepared_candidate.candidate
+            review_action = prepared_candidate.review_action
             deduplication_key = _deduplication_key(candidate, review_action)
             scoped_key = (candidate.workspace_id, deduplication_key)
             if scoped_key in keys_seen:
@@ -194,6 +215,7 @@ class RecommendationGenerationService:
                     "label": candidate.scope_label,
                 },
                 "source_text_redacted": candidate.source_text_redacted,
+                "decision_learning": prepared_candidate.learning.as_payload(),
             }
             supporting_metrics: dict[str, object] = {
                 **candidate.finding.supporting_metrics,

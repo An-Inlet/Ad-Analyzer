@@ -54,6 +54,20 @@ resource and environment names remain in place for deployment compatibility.
 - Keep proposals pending until a workspace owner or administrator reviews them. Approval only
   unlocks the existing dry-run planner; it does not enable a live Google Ads mutation.
 
+## Step 8 decision-learning operations
+
+- Review workspace decision evidence on the workspace dashboard or through
+  `GET /api/v1/workspaces/{workspace_slug}/decision-learning`.
+- Treat fewer than five decisions for one signal/scope/review-action profile as limited evidence.
+  The displayed raw rate and the add-one-smoothed rate remain available for audit.
+- Confirm newly generated proposals contain `decision_learning.policy_version=v1` and
+  `reason_text_used=false`. Actor identities and free-text reasons must never enter learning
+  profiles or generated learning payloads.
+- Learning can break only an equal-severity, equal-spend tie. Investigate any behavior that changes
+  finding thresholds, severity, eligibility, approval requirements, or advertising state.
+- Preserve recommendation and recommendation-audit rows. Profiles are derived from those local
+  audit facts, so no separate opaque model state needs backup or manual editing.
+
 ## Final readiness checklist
 - CI green; migrations reversible; no secrets in repository; account isolation tests pass; dashboard/API authentication configured; live writes disabled by default.
 

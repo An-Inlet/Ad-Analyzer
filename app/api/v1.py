@@ -43,6 +43,8 @@ from app.api.schemas import (
 )
 from app.database.session import get_db
 from app.executors.planner import plan_dry_run
+from app.learning import DecisionLearningService
+from app.learning.schemas import DecisionLearningSnapshotResponse
 from app.measurement.repository import MeasurementRepository
 from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
 from app.measurement.unified import UnifiedOutcomeService
@@ -229,6 +231,22 @@ def list_workspace_analysis_runs(
         offset=offset,
     )
     return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+
+
+@router.get(
+    "/workspaces/{workspace_slug}/decision-learning",
+    response_model=DecisionLearningSnapshotResponse,
+    operation_id="read_only_workspace_decision_learning",
+    responses=RESOURCE_ERRORS,
+)
+def get_workspace_decision_learning(
+    workspace_slug: str,
+    workspace_repository: Annotated[WorkspaceRepository, Depends(workspace_repo)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DecisionLearningSnapshotResponse:
+    workspace = _workspace_or_404(workspace_repository, workspace_slug)
+    snapshot = DecisionLearningService(db).snapshot(workspace.id)
+    return DecisionLearningSnapshotResponse.from_snapshot(snapshot)
 
 
 @router.get(

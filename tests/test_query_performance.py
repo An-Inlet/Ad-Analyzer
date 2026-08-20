@@ -2,9 +2,15 @@ from collections.abc import Generator
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from sqlite3 import Connection as SQLiteConnection
+from typing import cast
 
 import pytest
-from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
+from app.ads.enums import (
+    AdvertisingPlatform,
+    JobRunStatus,
+    MetricEntityType,
+    RecommendationStatus,
+)
 from app.ads.models import (
     AdGroup,
     AdvertisingAccount,
@@ -12,12 +18,16 @@ from app.ads.models import (
     DailyMetric,
     JobRun,
     Keyword,
+    Recommendation,
+    RecommendationAudit,
     SearchTerm,
 )
+from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.query_performance import (
     QueryPerformanceService,
     generate_query_findings,
 )
+from app.analysis.service import AnalysisRunService
 from app.api.auth import require_api_token
 from app.collectors import google_ads
 from app.dashboard.auth import require_dashboard_session
@@ -27,7 +37,7 @@ from app.optimizer.analytics import MetricWindow
 from app.settings import settings
 from app.workspaces.models import Workspace
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
 
@@ -507,3 +517,78 @@ def test_query_analysis_source_never_selects_raw_search_term_text() -> None:
     assert "SearchTerm.term" not in source
     assert "term: str" not in schema
     assert "negative_keyword" not in source
+
+
+def test_cadence_generates_masked_deduplicated_search_term_recommendations(
+    database: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ids = seed(database)
+    sensitive_text = str(ids["sensitive_text"])
+    monkeypatch.setattr(
+        "app.collectors.google_ads.collect_account",
+        lambda *_args, **_kwargs: pytest.fail("recommendations must not call collectors"),
+    )
+    monkeypatch.setattr(
+        "app.executors.google_executor.live_google_ads_mutation_boundary",
+        lambda *_args, **_kwargs: pytest.fail("recommendations must not call executors"),
+    )
+    as_of = datetime(2026, 8, 8, 12, tzinfo=UTC)
+
+    first = AnalysisRunService(database).execute(
+        workspace_id=int(ids["workspace_id"]),
+        cadence=AnalysisCadence.NIGHTLY,
+        run_key="nightly:2026-08-08",
+        scheduled_for=datetime(2026, 8, 8, 2, tzinfo=UTC),
+        window_days=3,
+        as_of=as_of,
+    )
+    assert first.status == AnalysisRunStatus.SUCCEEDED
+    assert first.recommendations_created_count > 0
+
+    recommendations = list(
+        database.scalars(
+            select(Recommendation).where(
+                Recommendation.source_analysis_run_id == first.id
+            )
+        ).all()
+    )
+    recommendation_scopes = {
+        row.id: cast(dict[str, object], row.planned_action["scope"])
+        for row in recommendations
+    }
+    search_term_recommendations = [
+        row
+        for row in recommendations
+        if recommendation_scopes[row.id]["type"] == "search_term"
+    ]
+    assert search_term_recommendations
+    search_term_recommendations[0].status = RecommendationStatus.REJECTED
+    database.commit()
+
+    second = AnalysisRunService(database).execute(
+        workspace_id=int(ids["workspace_id"]),
+        cadence=AnalysisCadence.NIGHTLY,
+        run_key="nightly:2026-08-08:recheck",
+        scheduled_for=datetime(2026, 8, 8, 3, tzinfo=UTC),
+        window_days=3,
+        as_of=as_of + timedelta(hours=1),
+    )
+    assert second.status == AnalysisRunStatus.SUCCEEDED
+    assert second.recommendations_created_count == 0
+    assert second.recommendations_deduplicated_count == first.recommendations_created_count
+
+    rendered = str(search_term_recommendations)
+    assert sensitive_text not in rendered
+    assert all(
+        recommendation_scopes[row.id]["label"]
+        == f"Search term #{ids['search_term_id']}"
+        for row in search_term_recommendations
+    )
+    assert all(
+        row.planned_action["mutation"] == "none_without_human_approval"
+        for row in recommendations
+    )
+    assert database.scalar(
+        select(RecommendationAudit).where(RecommendationAudit.action == "generated").limit(1)
+    )

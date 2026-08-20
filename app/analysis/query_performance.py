@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -300,6 +301,38 @@ class QueryPerformanceService:
         high_count = 0
         keyword_count = 0
         search_term_count = 0
+        for row in self.iter_workspace_snapshots(
+            workspace_id,
+            date_from,
+            date_to,
+            account_id=account_id,
+            now=now,
+        ):
+            scoped_count = len(row.findings)
+            total_count += scoped_count
+            high_count += sum(finding.severity == "high" for finding in row.findings)
+            if row.entity_type is MetricEntityType.KEYWORD:
+                keyword_count += scoped_count
+            else:
+                search_term_count += scoped_count
+        return QueryFindingCounts(
+            findings_count=total_count,
+            high_severity_findings_count=high_count,
+            keyword_findings_count=keyword_count,
+            search_term_findings_count=search_term_count,
+        )
+
+    def iter_workspace_snapshots(
+        self,
+        workspace_id: int,
+        date_from: date,
+        date_to: date,
+        *,
+        account_id: int | None = None,
+        now: datetime | None = None,
+    ) -> Iterator[QueryPerformanceSnapshot]:
+        """Yield keyword and masked search-term snapshots in bounded pages."""
+        resolved_now = now or datetime.now(UTC)
         for entity_type in (MetricEntityType.KEYWORD, MetricEntityType.SEARCH_TERM):
             offset = 0
             while True:
@@ -314,25 +347,15 @@ class QueryPerformanceService:
                 )
                 if not scopes:
                     break
-                rows = self._analyze_scopes(scopes, date_from, date_to, now=now)
-                scoped_count = sum(len(row.findings) for row in rows)
-                total_count += scoped_count
-                high_count += sum(
-                    finding.severity == "high" for row in rows for finding in row.findings
+                yield from self._analyze_scopes(
+                    scopes,
+                    date_from,
+                    date_to,
+                    now=resolved_now,
                 )
-                if entity_type is MetricEntityType.KEYWORD:
-                    keyword_count += scoped_count
-                else:
-                    search_term_count += scoped_count
                 if len(scopes) < _PAGE_SIZE:
                     break
                 offset += _PAGE_SIZE
-        return QueryFindingCounts(
-            findings_count=total_count,
-            high_severity_findings_count=high_count,
-            keyword_findings_count=keyword_count,
-            search_term_findings_count=search_term_count,
-        )
 
     def _analyze_scopes(
         self,

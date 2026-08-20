@@ -37,15 +37,17 @@ name or data boundary. See [the workspace architecture](docs/workspace-architect
 
 - Workspace-scoped dashboard and operator API.
 - Google Ads and CRM synchronization workers with auditable job runs.
-- Idempotent post-sync, nightly, and weekly analysis cadences with aggregate-only run history.
+- Idempotent post-sync, nightly, and weekly analysis cadences with aggregate run history and
+  bounded, deduplicated recommendation counts.
 - Privacy-safe Google Ads, GA4, and CRM outcome correlation behind an active measurement
   contract, with aggregate-only API and dashboard reporting.
 - Canonical campaign and ad-group performance windows, deterministic scoped findings, and richer
   funnel/value metrics without double-counting account or campaign totals.
 - Deterministic keyword and masked search-term waste/shift diagnostics with bounded read-only
-  pagination and no negative-keyword instructions or advertising mutations.
+  pagination and privacy-safe review proposals.
 - SQLAlchemy/PostgreSQL persistence and Alembic migrations.
-- Deterministic findings, reviewable recommendations, and guarded dry-run execution.
+- Automatic deterministic recommendations across account, campaign, ad-group, keyword, and masked
+  search-term scopes, with human review and guarded dry-run execution.
 - Workspace configuration, measurement contracts, memberships, integrations, and persistent
   finding boundaries.
 - pytest, Ruff, and mypy development tooling.
@@ -233,9 +235,11 @@ windows, and deterministic waste/traffic-shift findings. Search-term text is nei
 the analyzer nor returned by its API/dashboard responses. See
 [keyword and masked search-term analysis](docs/query-performance-analysis.md).
 
-Workspace pages also show aggregate-only cadence history. Post-sync, nightly, and weekly runs use
-local synchronized data and never trigger collectors, recommendation generation, or advertising
-mutations. See [analysis cadences](docs/analysis-cadences.md).
+Workspace pages also show aggregate cadence history. Post-sync, nightly, and weekly runs use local
+synchronized data and create at most 100 deduplicated, human-review-only proposals. They never
+trigger collectors, executors, or advertising mutations. See
+[analysis cadences](docs/analysis-cadences.md) and
+[automated recommendations](docs/automated-recommendations.md).
 
 ## Phase 7: separate Google Ads sync worker
 

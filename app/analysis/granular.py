@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -198,6 +199,38 @@ class GranularAnalysisService:
         high_count = 0
         campaign_count = 0
         ad_group_count = 0
+        for row in self.iter_workspace_snapshots(
+            workspace_id,
+            date_from,
+            date_to,
+            account_id=account_id,
+            now=now,
+        ):
+            scoped_count = len(row.findings)
+            total_count += scoped_count
+            high_count += sum(finding.severity == "high" for finding in row.findings)
+            if row.entity_type is MetricEntityType.CAMPAIGN:
+                campaign_count += scoped_count
+            else:
+                ad_group_count += scoped_count
+        return GranularFindingCounts(
+            findings_count=total_count,
+            high_severity_findings_count=high_count,
+            campaign_findings_count=campaign_count,
+            ad_group_findings_count=ad_group_count,
+        )
+
+    def iter_workspace_snapshots(
+        self,
+        workspace_id: int,
+        date_from: date,
+        date_to: date,
+        *,
+        account_id: int | None = None,
+        now: datetime | None = None,
+    ) -> Iterator[PerformanceScopeSnapshot]:
+        """Yield every workspace-owned campaign and ad-group analysis page."""
+        resolved_now = now or datetime.now(UTC)
         for entity_type in (MetricEntityType.CAMPAIGN, MetricEntityType.AD_GROUP):
             offset = 0
             while True:
@@ -210,25 +243,15 @@ class GranularAnalysisService:
                 )
                 if not scopes:
                     break
-                rows = self._analyze_scopes(scopes, date_from, date_to, now=now)
-                scoped_count = sum(len(row.findings) for row in rows)
-                total_count += scoped_count
-                high_count += sum(
-                    finding.severity == "high" for row in rows for finding in row.findings
+                yield from self._analyze_scopes(
+                    scopes,
+                    date_from,
+                    date_to,
+                    now=resolved_now,
                 )
-                if entity_type is MetricEntityType.CAMPAIGN:
-                    campaign_count += scoped_count
-                else:
-                    ad_group_count += scoped_count
                 if len(scopes) < _PAGE_SIZE:
                     break
                 offset += _PAGE_SIZE
-        return GranularFindingCounts(
-            findings_count=total_count,
-            high_severity_findings_count=high_count,
-            campaign_findings_count=campaign_count,
-            ad_group_findings_count=ad_group_count,
-        )
 
     def _analyze_scopes(
         self,

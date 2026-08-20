@@ -17,6 +17,11 @@ from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings
+from app.recommendations import (
+    RecommendationCandidate,
+    RecommendationGenerationService,
+    RecommendationScopeType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +43,7 @@ class AnalysisSummary:
     attributed_journey_count: int
     unattributed_journey_count: int
     blocking_reasons: tuple[str, ...]
+    recommendation_candidates: tuple[RecommendationCandidate, ...]
 
 
 def _utc(value: datetime) -> datetime:
@@ -69,7 +75,7 @@ def _metric_window(
 
 
 class AnalysisRunService:
-    """Execute existing local analyzers and persist only aggregate run metadata."""
+    """Execute local analyzers, persist aggregate metadata, and queue safe proposals."""
 
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -125,12 +131,19 @@ class AnalysisRunService:
                 outcome_end=outcome_end,
                 as_of=resolved_as_of,
             )
+            generation = RecommendationGenerationService(self.session).generate(
+                summary.recommendation_candidates,
+                source_analysis_run_id=row.id,
+                as_of=resolved_as_of,
+            )
             row = self.repository.finish_succeeded(
                 row,
                 finished_at=resolved_as_of,
                 accounts_analyzed=summary.accounts_analyzed,
                 findings_count=summary.findings_count,
                 high_severity_findings_count=summary.high_severity_findings_count,
+                recommendations_created_count=generation.created_count,
+                recommendations_deduplicated_count=generation.deduplicated_count,
                 outcome_analysis_ready=summary.outcome_analysis_ready,
                 outcome_campaign_count=summary.outcome_campaign_count,
                 attributed_journey_count=summary.attributed_journey_count,
@@ -177,6 +190,7 @@ class AnalysisRunService:
         ads_repository = ReadOnlyAdsRepository(self.session)
         findings_count = 0
         high_severity_count = 0
+        recommendation_candidates: list[RecommendationCandidate] = []
         span = inclusive_window_days(metric_start, metric_end)
         comparison_end = metric_start - timedelta(days=1)
         comparison_start = comparison_end - timedelta(days=span - 1)
@@ -197,26 +211,87 @@ class AnalysisRunService:
             )
             findings_count += len(findings)
             high_severity_count += sum(finding.severity == "high" for finding in findings)
+            recommendation_candidates.extend(
+                RecommendationCandidate(
+                    workspace_id=workspace_id,
+                    platform=account.platform,
+                    account_id=account.id,
+                    campaign_id=None,
+                    scope_type="account",
+                    scope_id=account.id,
+                    scope_label=account.name,
+                    source_text_redacted=False,
+                    finding=finding,
+                    impact_micros=current.cost_micros,
+                )
+                for finding in findings
+            )
 
-        granular_counts = GranularAnalysisService(self.session).count_workspace_findings(
+        granular_service = GranularAnalysisService(self.session)
+        for granular_snapshot in granular_service.iter_workspace_snapshots(
             workspace_id,
             metric_start,
             metric_end,
             account_id=account_id,
             now=as_of,
-        )
-        findings_count += granular_counts.findings_count
-        high_severity_count += granular_counts.high_severity_findings_count
+        ):
+            findings_count += len(granular_snapshot.findings)
+            high_severity_count += sum(
+                finding.severity == "high" for finding in granular_snapshot.findings
+            )
+            granular_scope_type: RecommendationScopeType = (
+                "campaign"
+                if granular_snapshot.entity_type.value == "campaign"
+                else "ad_group"
+            )
+            recommendation_candidates.extend(
+                RecommendationCandidate(
+                    workspace_id=granular_snapshot.workspace_id,
+                    platform=granular_snapshot.platform,
+                    account_id=granular_snapshot.account_id,
+                    campaign_id=granular_snapshot.campaign_id,
+                    scope_type=granular_scope_type,
+                    scope_id=granular_snapshot.entity_id,
+                    scope_label=granular_snapshot.entity_name,
+                    source_text_redacted=False,
+                    finding=finding,
+                    impact_micros=granular_snapshot.current.cost_micros,
+                )
+                for finding in granular_snapshot.findings
+            )
 
-        query_counts = QueryPerformanceService(self.session).count_workspace_findings(
+        query_service = QueryPerformanceService(self.session)
+        for query_snapshot in query_service.iter_workspace_snapshots(
             workspace_id,
             metric_start,
             metric_end,
             account_id=account_id,
             now=as_of,
-        )
-        findings_count += query_counts.findings_count
-        high_severity_count += query_counts.high_severity_findings_count
+        ):
+            findings_count += len(query_snapshot.findings)
+            high_severity_count += sum(
+                finding.severity == "high" for finding in query_snapshot.findings
+            )
+            query_scope_type: RecommendationScopeType = (
+                "keyword"
+                if query_snapshot.entity_type.value == "keyword"
+                else "search_term"
+            )
+            recommendation_candidates.extend(
+                RecommendationCandidate(
+                    workspace_id=query_snapshot.workspace_id,
+                    platform=query_snapshot.platform,
+                    account_id=query_snapshot.account_id,
+                    campaign_id=query_snapshot.campaign_id,
+                    scope_type=query_scope_type,
+                    scope_id=query_snapshot.entity_id,
+                    scope_label=query_snapshot.display_label,
+                    source_text_redacted=query_snapshot.source_text_redacted,
+                    finding=finding,
+                    impact_micros=query_snapshot.current.cost_micros,
+                )
+                for finding in query_snapshot.findings
+            )
 
         outcome = UnifiedOutcomeService(self.session).report(
             workspace_id,
@@ -236,4 +311,5 @@ class AnalysisRunService:
             attributed_journey_count=outcome.source_coverage.attributed_journey_count,
             unattributed_journey_count=outcome.source_coverage.unattributed_journey_count,
             blocking_reasons=tuple(dict.fromkeys(blocking_reasons)),
+            recommendation_candidates=tuple(recommendation_candidates),
         )

@@ -173,6 +173,7 @@ class RecommendationResponse(ApiModel):
     workspace_id: int
     account_id: int
     campaign_id: int | None
+    source_analysis_run_id: int | None
     platform: AdvertisingPlatform
     recommendation_type: str
     severity: str

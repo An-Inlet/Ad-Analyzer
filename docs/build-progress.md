@@ -40,5 +40,9 @@ Branch: `codex/complete-denticode-ads-analyzer-buildout`
   advertising mutations.
 - Step 6 implemented: deterministic keyword and masked search-term performance windows, fixed
   waste/shift findings, spend-impact ordering, read-only API/dashboard views, and cadence counts.
-  Platform conversions remain diagnostic; no negative-keyword instructions, learning, or
-  advertising mutations are added.
+  Platform conversions remain diagnostic; no learning or advertising mutations are added.
+- Step 7 implemented: post-sync, nightly, and weekly analysis runs automatically translate
+  actionable account, campaign, ad-group, keyword, and masked search-term findings into bounded,
+  spend-prioritized review proposals. Stable keys suppress active duplicates and recently rejected
+  proposals, every generated row links to its source analysis run, and search-term text remains
+  unselected and unstored. Human approval is still required and advertising writes remain disabled.

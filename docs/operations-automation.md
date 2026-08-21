@@ -1,6 +1,12 @@
 # Production operations automation
 
-This automation performs a read-only audit of the Denticode production deployment every hour and can also be run manually from GitHub Actions.
+This automation can perform a read-only audit of the Denticode production deployment every hour and can also be run manually from GitHub Actions. The scheduled audit is disabled by default; manual `workflow_dispatch` runs remain available.
+
+## Dashboard control
+
+The platform administrator dashboard exposes **GitHub hourly production audit** as a master toggle. It synchronizes the repository variable `PRODUCTION_OPERATIONS_AUDIT_ENABLED`; only the literal value `true` allows scheduled audit jobs to run. Missing or false values fail closed, and manual audit runs are unaffected.
+
+Configure `AD_ANALYZER_GITHUB_CONTROL_TOKEN` from an external secret and scope it only to this repository with repository **Variables: write** permission. `AD_ANALYZER_GITHUB_CONTROL_REPOSITORY` defaults to `Konner-An-Inlet/Denticode-Ads-Optimizer`. The application never stores the token in the database or logs GitHub response bodies. If the external update fails, the dashboard does not record the requested state change.
 
 ## Controls checked
 

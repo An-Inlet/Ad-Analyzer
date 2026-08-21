@@ -12,6 +12,7 @@ from app.analysis.enums import AnalysisCadence
 from app.analysis.models import AnalysisRun
 from app.analysis.policy import AnalysisCadencePolicy, AnalysisCadencePolicyError
 from app.analysis.service import AnalysisRunRequestError, AnalysisRunService
+from app.automation import AutomationControlKey, AutomationControlService
 from app.workspaces.models import Workspace, WorkspaceConfiguration
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,11 @@ def run_post_sync_analysis(
         ):
             raise AnalysisRunRequestError()
         policy = _policy(session, source_job.workspace_id)
-        if not policy.post_sync.enabled:
+        controls = AutomationControlService(session)
+        if not policy.post_sync.enabled or not controls.effective_enabled(
+            source_job.workspace_id,
+            AutomationControlKey.POST_SYNC_ANALYSIS,
+        ):
             return None
         resolved_as_of = _utc(as_of or datetime.now(UTC))
         return AnalysisRunService(session).execute(
@@ -107,16 +112,31 @@ def run_due_analyses(
                 invalid_policy_count += 1
                 logger.error("analysis_policy_invalid workspace_scope=redacted")
                 continue
+            controls = AutomationControlService(session)
             scheduled: list[tuple[AnalysisCadence, datetime, int]] = []
             nightly_at = _nightly_schedule(resolved_as_of, policy.nightly.hour_utc)
-            if policy.nightly.enabled and nightly_at is not None:
+            if (
+                policy.nightly.enabled
+                and controls.effective_enabled(
+                    workspace_id,
+                    AutomationControlKey.NIGHTLY_ANALYSIS,
+                )
+                and nightly_at is not None
+            ):
                 scheduled.append((AnalysisCadence.NIGHTLY, nightly_at, policy.nightly.window_days))
             weekly_at = _weekly_schedule(
                 resolved_as_of,
                 policy.weekly.weekday_utc,
                 policy.weekly.hour_utc,
             )
-            if policy.weekly.enabled and weekly_at is not None:
+            if (
+                policy.weekly.enabled
+                and controls.effective_enabled(
+                    workspace_id,
+                    AutomationControlKey.WEEKLY_ANALYSIS,
+                )
+                and weekly_at is not None
+            ):
                 scheduled.append((AnalysisCadence.WEEKLY, weekly_at, policy.weekly.window_days))
             for cadence, scheduled_for, window_days in scheduled:
                 row = AnalysisRunService(session).execute(

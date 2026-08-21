@@ -260,6 +260,15 @@ class Settings(BaseSettings):
             "AD_ANALYZER_PLATFORM_ADMIN_EMAILS", "DENTICODE_DASHBOARD_ALLOWED_EMAILS"
         ),
     )
+    github_control_token: SecretStr | None = Field(
+        default=None,
+        validation_alias="AD_ANALYZER_GITHUB_CONTROL_TOKEN",
+    )
+    github_control_repository: str = Field(
+        default="Konner-An-Inlet/Denticode-Ads-Optimizer",
+        pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+        validation_alias="AD_ANALYZER_GITHUB_CONTROL_REPOSITORY",
+    )
     google_ads_developer_token: str | None = Field(
         default=None, validation_alias="GOOGLE_ADS_DEVELOPER_TOKEN"
     )

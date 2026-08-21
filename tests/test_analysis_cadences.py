@@ -18,6 +18,7 @@ from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.models import AnalysisRun
 from app.analysis.policy import AnalysisCadencePolicy, AnalysisCadencePolicyError
 from app.analysis.service import AnalysisRunService
+from app.automation import AutomationControlKey, AutomationControlService
 from app.database.session import Base, get_db
 from app.jobs.google_ads_sync_once import SUCCESS_EXIT_CODE
 from app.jobs.google_ads_sync_once import main as sync_once_main
@@ -276,6 +277,79 @@ def test_disabled_cadences_and_invalid_workspace_policy_are_not_run(
     assert invalid_count == 1
     assert invalid_workspace.id is not None
     assert db.scalar(select(func.count()).select_from(AnalysisRun)) == 0
+
+
+def test_master_and_workspace_controls_gate_scheduled_cadences(
+    database: tuple[Session, Engine],
+) -> None:
+    db, engine = database
+    first, _first_account, _first_job = seed_workspace(db, slug="first", with_metrics=False)
+    second, _second_account, _second_job = seed_workspace(db, slug="second", with_metrics=False)
+    controls = AutomationControlService(db)
+    controls.set_master(
+        AutomationControlKey.NIGHTLY_ANALYSIS,
+        enabled=False,
+        actor="platform@example.com",
+    )
+    controls.set_workspace(
+        first.id,
+        AutomationControlKey.WEEKLY_ANALYSIS,
+        enabled=False,
+        actor="first@example.com",
+    )
+    db.commit()
+
+    run_ids, invalid_count = run_due_analyses(
+        engine,
+        as_of=datetime(2026, 8, 10, 4, tzinfo=UTC),
+    )
+    rows = list(db.scalars(select(AnalysisRun).order_by(AnalysisRun.workspace_id.asc())).all())
+
+    assert invalid_count == 0
+    assert len(run_ids) == 1
+    assert [(row.workspace_id, row.cadence) for row in rows] == [
+        (second.id, AnalysisCadence.WEEKLY)
+    ]
+
+
+def test_post_sync_and_recommendation_controls_are_enforced_at_runtime(
+    database: tuple[Session, Engine],
+) -> None:
+    db, engine = database
+    first, _first_account, first_job = seed_workspace(db, slug="first")
+    second, _second_account, second_job = seed_workspace(db, slug="second")
+    controls = AutomationControlService(db)
+    controls.set_workspace(
+        first.id,
+        AutomationControlKey.POST_SYNC_ANALYSIS,
+        enabled=False,
+        actor="first@example.com",
+    )
+    controls.set_workspace(
+        second.id,
+        AutomationControlKey.AUTOMATIC_RECOMMENDATION_DRAFTS,
+        enabled=False,
+        actor="second@example.com",
+    )
+    db.commit()
+
+    first_run = run_post_sync_analysis(
+        engine,
+        first_job.id,
+        as_of=datetime(2026, 8, 8, 12, tzinfo=UTC),
+    )
+    second_run = run_post_sync_analysis(
+        engine,
+        second_job.id,
+        as_of=datetime(2026, 8, 8, 12, tzinfo=UTC),
+    )
+
+    assert first_run is None
+    assert second_run is not None
+    assert second_run.findings_count > 0
+    assert second_run.recommendations_created_count == 0
+    assert second_run.recommendations_deduplicated_count == 0
+    assert db.scalar(select(func.count()).select_from(Recommendation)) == 0
 
 
 def test_analysis_failure_is_sanitized_and_does_not_call_external_boundaries(

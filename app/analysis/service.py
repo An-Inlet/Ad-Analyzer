@@ -13,6 +13,7 @@ from app.analysis.models import AnalysisRun
 from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
+from app.automation import AutomationControlKey, AutomationControlService
 from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
@@ -131,19 +132,27 @@ class AnalysisRunService:
                 outcome_end=outcome_end,
                 as_of=resolved_as_of,
             )
-            generation = RecommendationGenerationService(self.session).generate(
-                summary.recommendation_candidates,
-                source_analysis_run_id=row.id,
-                as_of=resolved_as_of,
-            )
+            recommendations_created_count = 0
+            recommendations_deduplicated_count = 0
+            if AutomationControlService(self.session).effective_enabled(
+                workspace_id,
+                AutomationControlKey.AUTOMATIC_RECOMMENDATION_DRAFTS,
+            ):
+                generation = RecommendationGenerationService(self.session).generate(
+                    summary.recommendation_candidates,
+                    source_analysis_run_id=row.id,
+                    as_of=resolved_as_of,
+                )
+                recommendations_created_count = generation.created_count
+                recommendations_deduplicated_count = generation.deduplicated_count
             row = self.repository.finish_succeeded(
                 row,
                 finished_at=resolved_as_of,
                 accounts_analyzed=summary.accounts_analyzed,
                 findings_count=summary.findings_count,
                 high_severity_findings_count=summary.high_severity_findings_count,
-                recommendations_created_count=generation.created_count,
-                recommendations_deduplicated_count=generation.deduplicated_count,
+                recommendations_created_count=recommendations_created_count,
+                recommendations_deduplicated_count=recommendations_deduplicated_count,
                 outcome_analysis_ready=summary.outcome_analysis_ready,
                 outcome_campaign_count=summary.outcome_campaign_count,
                 attributed_journey_count=summary.attributed_journey_count,

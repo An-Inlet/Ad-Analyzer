@@ -65,6 +65,9 @@ def main(
             return FAILURE_EXIT_CODE
         outcome = run_cycle(settings, engine, wait=stop.wait, stop_requested=stop.is_set)
         if outcome.skipped:
+            if getattr(outcome, "skip_reason", None) == "disabled":
+                logger.info("google_ads_sync_worker_skipped_disabled")
+                return SUCCESS_EXIT_CODE
             logger.info("google_ads_sync_worker_skipped_overlap")
             return OVERLAP_EXIT_CODE
         if outcome.result is not None and outcome.result.status is job_run_status.SUCCEEDED:

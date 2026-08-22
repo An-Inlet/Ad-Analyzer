@@ -8,6 +8,7 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import Engine, text
@@ -26,6 +27,7 @@ from app.ads.services import (
     Phase7SyncCapability,
     SyncFailureClassification,
 )
+from app.automation import AutomationControlKey, master_control_enabled
 from app.collectors.google_ads import GoogleAdsRateLimitError
 from app.settings import Settings
 
@@ -225,11 +227,17 @@ def retry_delay(
     return min(float(settings.sync_retry_max_seconds), max(0.0, delay))
 
 
+class CycleSkipReason(StrEnum):
+    OVERLAP = "overlap"
+    DISABLED = "disabled"
+
+
 @dataclass(frozen=True)
 class CycleOutcome:
     skipped: bool
     result: GoogleAdsSyncResult | None
     attempts: int
+    skip_reason: CycleSkipReason | None = None
 
 
 def _create_authoritative_job_run(session: Session) -> JobRun:
@@ -360,6 +368,14 @@ def run_cycle(
     random_value: Callable[[], Any] = random.random,
 ) -> CycleOutcome:
     """Run one locked cycle; all retries retain the same advisory-lock connection."""
+    if not master_control_enabled(engine, AutomationControlKey.ALL_DATA_SYNCS):
+        logger.info("google_ads_sync_disabled_by_master_control")
+        return CycleOutcome(
+            skipped=True,
+            result=None,
+            attempts=0,
+            skip_reason=CycleSkipReason.DISABLED,
+        )
     connection = engine.connect()
     lock = PostgreSQLAdvisoryLock(connection, settings.sync_lock_key)
     session: Session | None = None
@@ -496,7 +512,12 @@ def run_cycle(
         _raise_if_stop_requested(stop_requested)
         if not lock.try_acquire():
             logger.info("google_ads_sync_overlap_skipped")
-            return CycleOutcome(skipped=True, result=None, attempts=0)
+            return CycleOutcome(
+                skipped=True,
+                result=None,
+                attempts=0,
+                skip_reason=CycleSkipReason.OVERLAP,
+            )
         if connection.in_transaction():
             raise RuntimeError("advisory-lock acquisition transaction is still active")
         session_factory = sessionmaker(

@@ -104,6 +104,7 @@ def test_master_controls_override_workspace_controls_and_are_audited(
     second = seed_workspace(database, slug="second")
     controls = AutomationControlService(database)
 
+    assert controls.master_enabled(AutomationControlKey.ALL_DATA_SYNCS) is True
     assert controls.master_enabled(AutomationControlKey.GITHUB_HOURLY_PRODUCTION_AUDIT) is False
     assert controls.effective_enabled(first.id, AutomationControlKey.NIGHTLY_ANALYSIS) is True
     assert controls.effective_enabled(second.id, AutomationControlKey.NIGHTLY_ANALYSIS) is True
@@ -128,13 +129,17 @@ def test_master_controls_override_workspace_controls_and_are_audited(
     assert controls.effective_enabled(second.id, AutomationControlKey.WEEKLY_ANALYSIS) is False
     assert database.scalar(select(func.count()).select_from(AutomationControlAudit)) == 2
 
-    with pytest.raises(UnknownAutomationControlError):
-        controls.set_workspace(
-            first.id,
-            AutomationControlKey.GITHUB_HOURLY_PRODUCTION_AUDIT,
-            enabled=True,
-            actor="first-owner@example.com",
-        )
+    for platform_only_key in (
+        AutomationControlKey.ALL_DATA_SYNCS,
+        AutomationControlKey.GITHUB_HOURLY_PRODUCTION_AUDIT,
+    ):
+        with pytest.raises(UnknownAutomationControlError):
+            controls.set_workspace(
+                first.id,
+                platform_only_key,
+                enabled=True,
+                actor="first-owner@example.com",
+            )
 
 
 def dashboard_client(
@@ -185,6 +190,11 @@ def test_dashboard_renders_and_updates_master_and_workspace_controls(
             data={"csrf_token": "test", "enabled": "false"},
             follow_redirects=False,
         )
+        sync_update = client.post(
+            "/dashboard/automation-controls/all_data_syncs",
+            data={"csrf_token": "test", "enabled": "false"},
+            follow_redirects=False,
+        )
         workspace_update = client.post(
             f"/dashboard/workspaces/{workspace.slug}/automation-controls/weekly_analysis",
             data={"csrf_token": "test", "enabled": "false"},
@@ -201,15 +211,18 @@ def test_dashboard_renders_and_updates_master_and_workspace_controls(
 
     assert overview.status_code == 200
     assert "Master automation toggles" in overview.text
+    assert "All Ad Analyzer data syncs" in overview.text
     assert "GitHub hourly production audit" in overview.text
     assert workspace_page.status_code == 200
     assert "Individual Ad Analyzer toggles" in workspace_page.text
     assert "live-write safeguards are not toggleable here" in workspace_page.text
     assert master_update.status_code == 303
+    assert sync_update.status_code == 303
     assert workspace_update.status_code == 303
     assert github_update.status_code == 303
     assert synced == [True]
     nightly_control = database.get(PlatformAutomationControl, "nightly_analysis")
+    sync_control = database.get(PlatformAutomationControl, "all_data_syncs")
     weekly_control = database.get(
         WorkspaceAutomationControl,
         (workspace.id, "weekly_analysis"),
@@ -219,9 +232,10 @@ def test_dashboard_renders_and_updates_master_and_workspace_controls(
         "github_hourly_production_audit",
     )
     assert nightly_control is not None and nightly_control.enabled is False
+    assert sync_control is not None and sync_control.enabled is False
     assert weekly_control is not None and weekly_control.enabled is False
     assert github_control is not None and github_control.enabled is True
-    assert database.scalar(select(func.count()).select_from(AutomationControlAudit)) == 3
+    assert database.scalar(select(func.count()).select_from(AutomationControlAudit)) == 4
 
 
 def test_viewer_cannot_see_or_change_platform_and_workspace_controls(
@@ -377,4 +391,42 @@ def test_automation_control_migration_seeds_defaults_and_reverses() -> None:
         migration.downgrade()
         reversed_tables = set(inspect(connection).get_table_names())
         assert reversed_tables == {"workspaces"}
+    engine.dispose()
+
+
+def test_all_data_syncs_migration_seeds_enabled_and_reverses() -> None:
+    engine = create_engine("sqlite://")
+    controls_migration = import_module(
+        "migrations.versions.20260820_0015_automation_controls"
+    )
+    sync_migration = import_module(
+        "migrations.versions.20260821_0016_all_data_syncs_control"
+    )
+    with engine.begin() as connection:
+        Workspace.metadata.create_all(
+            connection,
+            tables=[Workspace.metadata.tables["workspaces"]],
+        )
+        operations = Operations(MigrationContext.configure(connection))
+        controls_migration.__dict__["op"] = operations
+        sync_migration.__dict__["op"] = operations
+        controls_migration.upgrade()
+        sync_migration.upgrade()
+
+        assert connection.scalar(
+            text(
+                "SELECT enabled FROM platform_automation_controls "
+                "WHERE key = 'all_data_syncs'"
+            )
+        ) == 1
+
+        sync_migration.downgrade()
+        assert connection.scalar(
+            text(
+                "SELECT COUNT(*) FROM platform_automation_controls "
+                "WHERE key = 'all_data_syncs'"
+            )
+        ) == 0
+        controls_migration.downgrade()
+        assert set(inspect(connection).get_table_names()) == {"workspaces"}
     engine.dispose()

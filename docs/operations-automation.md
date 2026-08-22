@@ -8,6 +8,8 @@ The platform administrator dashboard exposes **GitHub hourly production audit** 
 
 Configure `AD_ANALYZER_GITHUB_CONTROL_TOKEN` from an external secret and scope it only to this repository with repository **Variables: write** permission. `AD_ANALYZER_GITHUB_CONTROL_REPOSITORY` defaults to `Konner-An-Inlet/Denticode-Ads-Optimizer`. The application never stores the token in the database or logs GitHub response bodies. If the external update fails, the dashboard does not record the requested state change.
 
+The platform administrator dashboard also exposes **All Ad Analyzer data syncs** as a database-backed master toggle. Turning it off makes every new scheduled, one-shot, or manually invoked Google Ads sync cycle exit successfully before acquiring the sync lock, creating a job run, or contacting Google Ads. Existing synchronized data remains available, and nightly or weekly analysis can continue according to their own controls. A sync that was already running when the control changed is allowed to finish safely; the next cycle observes the new state.
+
 ## Controls checked
 
 The audit verifies, without reading secret payloads or changing cloud resources:

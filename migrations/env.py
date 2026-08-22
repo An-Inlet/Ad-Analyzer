@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from app.ads import models  # noqa: F401
 from app.analysis import models as analysis_models  # noqa: F401
+from app.automation import models as automation_models  # noqa: F401
 from app.database.session import Base
 from app.measurement import models as measurement_models  # noqa: F401
 from app.settings import settings

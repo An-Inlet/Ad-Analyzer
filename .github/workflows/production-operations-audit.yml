@@ -29,6 +29,7 @@ env:
 jobs:
   audit:
     name: Read-only production audit
+    if: github.event_name == 'workflow_dispatch' || vars.PRODUCTION_OPERATIONS_AUDIT_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

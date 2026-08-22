@@ -17,6 +17,13 @@ from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.api.v1 import _windows, default_dates, ratios
+from app.automation import AutomationControlKey, AutomationControlService
+from app.automation.github import GitHubActionsVariableClient, GitHubAutomationControlError
+from app.automation.service import (
+    UnknownAutomationControlError,
+    control_definition,
+    control_key,
+)
 from app.dashboard.auth import (
     COOKIE_NAME,
     cookie_secure,
@@ -35,6 +42,7 @@ from app.optimizer.recommendations import generate_findings
 from app.settings import settings
 from app.workspaces.access import (
     accessible_workspace_ids,
+    is_platform_admin,
     require_workspace_review,
     require_workspace_view,
 )
@@ -131,6 +139,20 @@ def valid_dates(date_from: date | None, date_to: date | None) -> tuple[date, dat
         raise HTTPException(status_code=422, detail="invalid date range") from exc
 
 
+def dashboard_actor(request: Request) -> str:
+    identity = getattr(request.state, "dashboard_identity", None)
+    return identity.casefold() if isinstance(identity, str) and identity else "local_operator"
+
+
+def requested_enabled(form: object) -> bool:
+    value = form.get("enabled") if hasattr(form, "get") else None
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    raise HTTPException(status_code=422, detail="invalid automation control state")
+
+
 @router.get("", response_class=HTMLResponse)
 def overview(
     request: Request,
@@ -140,6 +162,7 @@ def overview(
     offset: int = Query(0, ge=0, le=DASHBOARD_MAX_OFFSET),
 ) -> HTMLResponse:
     allowed_ids = accessible_workspace_ids(request, db)
+    can_manage_master = is_platform_admin(request)
     workspaces, total = workspace_repository.dashboard_rows(allowed_ids, limit, offset)
     jobs, job_total = accessible_jobs(db, allowed_ids, 10, 0)
     health = sync_health(db, settings, workspace_ids=allowed_ids)
@@ -154,6 +177,11 @@ def overview(
             job_total=job_total,
             workspace_names=job_workspace_names(db, jobs),
             health=health,
+            can_manage_master=can_manage_master,
+            master_controls=(
+                AutomationControlService(db).master_states() if can_manage_master else ()
+            ),
+            github_control_configured=settings.github_control_token is not None,
             title="Workspaces",
             limit=limit,
             offset=offset,
@@ -184,6 +212,7 @@ def workspace_detail(
     )
     decision_learning = DecisionLearningService(db).snapshot(workspace.id)
     weekly_learning_report = WeeklyLearningReportService(db).build(workspace.id)
+    can_manage_controls = role in {"platform_admin", "owner", "admin"}
     return templates.TemplateResponse(
         request,
         "workspace.html",
@@ -192,6 +221,8 @@ def workspace_detail(
             title=workspace.name,
             workspace=workspace,
             workspace_role=role,
+            can_manage_controls=can_manage_controls,
+            workspace_controls=AutomationControlService(db).workspace_states(workspace.id),
             configuration=workspace_repository.configuration(workspace.id),
             measurement_contract=(
                 MeasurementContractResponse.from_snapshot(measurement_snapshot)
@@ -210,6 +241,82 @@ def workspace_detail(
             offset=offset,
             has_next=has_next(offset, limit, len(accounts), total),
         ),
+    )
+
+
+@router.post("/automation-controls/{control_name}")
+async def update_master_automation_control(
+    request: Request,
+    control_name: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> RedirectResponse:
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    if not is_platform_admin(request):
+        raise HTTPException(status_code=403, detail="access denied")
+    try:
+        key = control_key(control_name)
+        definition = control_definition(key)
+    except UnknownAutomationControlError:
+        raise HTTPException(status_code=404, detail="automation control not found") from None
+    enabled = requested_enabled(form)
+    if definition.external:
+        token = settings.github_control_token
+        if token is None:
+            raise HTTPException(
+                status_code=503,
+                detail="GitHub automation control is not configured",
+            )
+        try:
+            GitHubActionsVariableClient(
+                token=token,
+                repository=settings.github_control_repository,
+            ).set_hourly_production_audit_enabled(enabled)
+        except GitHubAutomationControlError:
+            raise HTTPException(
+                status_code=503,
+                detail="GitHub automation control is temporarily unavailable",
+            ) from None
+    AutomationControlService(db).set_master(
+        key,
+        enabled=enabled,
+        actor=dashboard_actor(request),
+    )
+    db.commit()
+    return RedirectResponse(url="/dashboard", status_code=303)
+
+
+@router.post("/workspaces/{workspace_slug}/automation-controls/{control_name}")
+async def update_workspace_automation_control(
+    request: Request,
+    workspace_slug: str,
+    control_name: str,
+    db: Annotated[Session, Depends(get_db)],
+) -> RedirectResponse:
+    form = await request.form()
+    request.scope["_form"] = dict(form)
+    validate_csrf(request)
+    workspace = WorkspaceRepository(db).get_by_slug(workspace_slug)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    require_workspace_review(request, db, workspace.id)
+    try:
+        key = control_key(control_name)
+        if key == AutomationControlKey.GITHUB_HOURLY_PRODUCTION_AUDIT:
+            raise UnknownAutomationControlError()
+        AutomationControlService(db).set_workspace(
+            workspace.id,
+            key,
+            enabled=requested_enabled(form),
+            actor=dashboard_actor(request),
+        )
+    except UnknownAutomationControlError:
+        raise HTTPException(status_code=404, detail="automation control not found") from None
+    db.commit()
+    return RedirectResponse(
+        url=f"/dashboard/workspaces/{workspace.slug}",
+        status_code=303,
     )
 
 

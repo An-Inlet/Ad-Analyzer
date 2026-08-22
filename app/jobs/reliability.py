@@ -8,12 +8,8 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
-
-from sqlalchemy import Engine, text
-from sqlalchemy.engine import Connection
-from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import Session, sessionmaker
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
@@ -26,8 +22,13 @@ from app.ads.services import (
     Phase7SyncCapability,
     SyncFailureClassification,
 )
+from app.automation import AutomationControlKey, master_control_enabled
 from app.collectors.google_ads import GoogleAdsRateLimitError
 from app.settings import Settings
+from sqlalchemy import Engine, text
+from sqlalchemy.engine import Connection
+from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,6 @@ class AdvisoryLockLostError(RuntimeError):
     """Raised when the physical backend that owned the advisory lock is lost."""
 
 
-
 def _advisory_lock_key_parts(key: int) -> tuple[int, int]:
     if key < -(2**63) or key > 2**63 - 1:
         raise ValueError("PostgreSQL advisory lock key must be a signed 64-bit integer")
@@ -72,6 +72,7 @@ def _owns_advisory_lock_sql() -> str:
         "AND mode = 'ExclusiveLock' "
         "AND granted)"
     )
+
 
 class PostgreSQLAdvisoryLock:
     """A session-level lock held by exactly one pinned physical connection."""
@@ -95,9 +96,7 @@ class PostgreSQLAdvisoryLock:
             raise RuntimeError("Google Ads scheduler requires PostgreSQL advisory locks")
         try:
             self.acquired = bool(
-                self.connection.scalar(
-                    text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key}
-                )
+                self.connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key})
             )
             if self.acquired:
                 self.backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
@@ -148,9 +147,7 @@ class PostgreSQLAdvisoryLock:
             return
         try:
             unlocked = bool(
-                self.connection.scalar(
-                    text("SELECT pg_advisory_unlock(:key)"), {"key": self.key}
-                )
+                self.connection.scalar(text("SELECT pg_advisory_unlock(:key)"), {"key": self.key})
             )
             if not unlocked:
                 raise RuntimeError("PostgreSQL advisory lock release failed")
@@ -225,16 +222,23 @@ def retry_delay(
     return min(float(settings.sync_retry_max_seconds), max(0.0, delay))
 
 
+class CycleSkipReason(StrEnum):
+    OVERLAP = "overlap"
+    DISABLED = "disabled"
+
+
 @dataclass(frozen=True)
 class CycleOutcome:
     skipped: bool
     result: GoogleAdsSyncResult | None
     attempts: int
+    skip_reason: CycleSkipReason | None = None
 
 
 def _create_authoritative_job_run(session: Session) -> JobRun:
     repository = AdvertisingMetricsRepository(session)
     job_run = repository.create_job_run(
+        workspace_id=int(session.info.get("workspace_id", 1)),
         platform=AdvertisingPlatform.GOOGLE_ADS,
         job_name=GoogleAdsSyncService.job_name,
         status=JobRunStatus.RUNNING,
@@ -298,7 +302,6 @@ def _finalize_failed_job_run(
         raise
 
 
-
 def _finalize_failed_job_run_on_engine(
     engine: Engine, job_run_id: int, exc: BaseException, attempts: int
 ) -> None:
@@ -315,6 +318,7 @@ def _finalize_failed_job_run_on_engine(
                 _finalize_failed_job_run(session, job_run, exc, attempts)
         finally:
             session.close()
+
 
 def _wait_for_retry(delay: float, wait: Callable[[float], bool | None]) -> None:
     if wait(delay):
@@ -360,6 +364,14 @@ def run_cycle(
     random_value: Callable[[], Any] = random.random,
 ) -> CycleOutcome:
     """Run one locked cycle; all retries retain the same advisory-lock connection."""
+    if not master_control_enabled(engine, AutomationControlKey.ALL_DATA_SYNCS):
+        logger.info("google_ads_sync_disabled_by_master_control")
+        return CycleOutcome(
+            skipped=True,
+            result=None,
+            attempts=0,
+            skip_reason=CycleSkipReason.DISABLED,
+        )
     connection = engine.connect()
     lock = PostgreSQLAdvisoryLock(connection, settings.sync_lock_key)
     session: Session | None = None
@@ -369,6 +381,7 @@ def run_cycle(
     finalization_outcome_unknown = False
     primary_error: BaseException | None = None
     capability: Phase7SyncCapability | None = None
+
     class _CyclePhase7SyncCapability(Phase7SyncCapability):
         """Function-local capability bound to this run_cycle invocation."""
 
@@ -450,6 +463,7 @@ def run_cycle(
 
     retry_wait: Callable[[float], bool | None]
     if wait is None:
+
         def retry_wait(delay: float) -> bool:
             sleep(delay)
             return False
@@ -496,7 +510,12 @@ def run_cycle(
         _raise_if_stop_requested(stop_requested)
         if not lock.try_acquire():
             logger.info("google_ads_sync_overlap_skipped")
-            return CycleOutcome(skipped=True, result=None, attempts=0)
+            return CycleOutcome(
+                skipped=True,
+                result=None,
+                attempts=0,
+                skip_reason=CycleSkipReason.OVERLAP,
+            )
         if connection.in_transaction():
             raise RuntimeError("advisory-lock acquisition transaction is still active")
         session_factory = sessionmaker(
@@ -506,6 +525,7 @@ def run_cycle(
             expire_on_commit=False,
         )
         session = session_factory()
+        session.info["workspace_id"] = settings.workspace_id
         job_run = _create_authoritative_job_run(session)
         try:
             _raise_if_stop_requested(stop_requested)

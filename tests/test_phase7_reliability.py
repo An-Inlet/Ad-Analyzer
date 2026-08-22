@@ -16,12 +16,14 @@ from app.ads.services import (
     GoogleAdsSyncService,
     SyncFailureClassification,
 )
+from app.automation import AutomationControlKey, AutomationControlService
 from app.database.session import Base
 from app.jobs import google_ads_scheduler, google_ads_sync_once
 from app.jobs.reliability import (
     LOCK_LOST_SYNC_ERROR,
     AdvisoryLockLostError,
     CycleOutcome,
+    CycleSkipReason,
     PostgreSQLAdvisoryLock,
     retry_delay,
     run_cycle,
@@ -101,6 +103,21 @@ def test_one_shot_overlap_skip_returns_documented_exit_code(
     )
 
 
+def test_one_shot_master_disabled_is_a_successful_no_op() -> None:
+    def run_cycle(*_args: object, **_kwargs: object) -> CycleOutcome:
+        return CycleOutcome(
+            skipped=True,
+            result=None,
+            attempts=0,
+            skip_reason=CycleSkipReason.DISABLED,
+        )
+
+    assert google_ads_sync_once.main(
+        lambda: (Settings(), object(), run_cycle, JobRunStatus),
+        lambda *_args: pytest.fail("a disabled sync must not start post-sync analysis"),
+    ) == google_ads_sync_once.SUCCESS_EXIT_CODE
+
+
 def test_one_shot_success_returns_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     def run_cycle(*_args: object, **_kwargs: object) -> CycleOutcome:
         return CycleOutcome(
@@ -168,6 +185,66 @@ def test_scheduler_runs_immediately_when_enabled(monkeypatch: pytest.MonkeyPatch
 
     assert google_ads_scheduler.main(StopAfterCycle(), lambda: (settings, object(), run_once)) == 0
     assert calls == 1
+
+
+def test_scheduler_disabled_cycle_still_runs_local_analysis_tick(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(DENTICODE_SYNC_RUN_IMMEDIATELY=True, DENTICODE_SYNC_INTERVAL_MINUTES=5)
+    monkeypatch.setattr("app.jobs.google_ads_scheduler.time.monotonic", lambda: 100.0)
+    disabled = CycleOutcome(
+        skipped=True,
+        result=None,
+        attempts=0,
+        skip_reason=CycleSkipReason.DISABLED,
+    )
+    analysis_outcomes: list[CycleOutcome | None] = []
+
+    def run_once(*_args: object, **_kwargs: object) -> CycleOutcome:
+        return disabled
+
+    class StopAfterCycle(Event):
+        def wait(self, timeout: float | None = None) -> bool:
+            assert timeout == 300.0
+            self.set()
+            return True
+
+    assert google_ads_scheduler.main(
+        StopAfterCycle(),
+        lambda: (settings, object(), run_once),
+        lambda _engine, outcome: analysis_outcomes.append(outcome),
+    ) == google_ads_scheduler.SUCCESS_EXIT_CODE
+    assert analysis_outcomes == [disabled]
+
+
+def test_master_sync_control_blocks_cycle_before_lock_or_job_run(
+    sqlite_engine: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(sqlite_engine) as session:
+        AutomationControlService(session).set_master(
+            AutomationControlKey.ALL_DATA_SYNCS,
+            enabled=False,
+            actor="platform@example.com",
+        )
+        session.commit()
+
+    monkeypatch.setattr(
+        PostgreSQLAdvisoryLock,
+        "try_acquire",
+        lambda _lock: pytest.fail("disabled sync must not acquire its worker lock"),
+    )
+
+    outcome = run_cycle(Settings(), sqlite_engine)
+
+    assert outcome == CycleOutcome(
+        skipped=True,
+        result=None,
+        attempts=0,
+        skip_reason=CycleSkipReason.DISABLED,
+    )
+    with Session(sqlite_engine) as session:
+        assert session.scalars(select(JobRun)).all() == []
 
 
 def test_run_cycle_uses_one_authoritative_job_run_across_retry(

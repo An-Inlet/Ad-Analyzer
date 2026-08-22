@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.automation.catalog import (
@@ -179,3 +180,12 @@ class AutomationControlService:
                 actor=actor,
             )
         )
+
+
+def master_control_enabled(
+    engine: Engine,
+    value: str | AutomationControlKey,
+) -> bool:
+    """Read a platform control at a worker boundary using a short-lived session."""
+    with Session(engine) as session:
+        return AutomationControlService(session).master_enabled(value)

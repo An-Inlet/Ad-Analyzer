@@ -3,7 +3,11 @@ from app.automation.catalog import (
     AutomationControlDefinition,
     AutomationControlKey,
 )
-from app.automation.service import AutomationControlService, AutomationControlState
+from app.automation.service import (
+    AutomationControlService,
+    AutomationControlState,
+    master_control_enabled,
+)
 
 __all__ = [
     "AUTOMATION_CONTROL_DEFINITIONS",
@@ -11,4 +15,5 @@ __all__ = [
     "AutomationControlKey",
     "AutomationControlService",
     "AutomationControlState",
+    "master_control_enabled",
 ]

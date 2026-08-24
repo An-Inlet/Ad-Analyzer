@@ -67,7 +67,10 @@ def relaxed_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_retry_delay_clamps_untrusted_jitter_values() -> None:
-    settings = Settings(AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5, AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20)
+    settings = Settings(
+        AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5,
+        AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20,
+    )
     values: list[Any] = [0, 1, -5, 100, True, math.nan, math.inf, -math.inf, "bad"]
 
     def jitter_source(value: Any) -> Callable[[], Any]:
@@ -83,7 +86,10 @@ def test_retry_delay_clamps_untrusted_jitter_values() -> None:
 
 
 def test_retry_delay_caps_exponential_without_unbounded_intermediate() -> None:
-    settings = Settings(AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5, AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20)
+    settings = Settings(
+        AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5,
+        AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20,
+    )
 
     assert retry_delay(1, settings, lambda: 0) == 5.0
     assert retry_delay(2, settings, lambda: 0) == 10.0

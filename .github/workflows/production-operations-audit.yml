@@ -18,13 +18,13 @@ env:
   GCP_PROJECT_ID: totemic-alchemy-502420-p4
   GCP_PROJECT_NUMBER: '89443799388'
   GCP_REGION: us-west1
-  GCP_WEB_SERVICE: denticode-web
-  GCP_SYNC_JOB: denticode-sync
-  GCP_MIGRATION_JOB: denticode-migration
-  GCP_SQL_INSTANCE: denticode-analyzer-postgres
-  GCP_SCHEDULER_JOB: denticode-sync-hourly
-  DENTICODE_EXPECTED_DASHBOARD_EMAIL: konner@aninlet.com
-  DENTICODE_MAX_SYNC_AGE_MINUTES: '150'
+  GCP_WEB_SERVICE: ad-analyzer-web
+  GCP_SYNC_JOB: ad-analyzer-sync
+  GCP_MIGRATION_JOB: ad-analyzer-migration
+  GCP_SQL_INSTANCE: ad-analyzer-postgres
+  GCP_SCHEDULER_JOB: ad-analyzer-sync-hourly
+  AD_ANALYZER_EXPECTED_DASHBOARD_EMAIL: konner@aninlet.com
+  AD_ANALYZER_MAX_SYNC_AGE_MINUTES: '150'
 
 jobs:
   audit:

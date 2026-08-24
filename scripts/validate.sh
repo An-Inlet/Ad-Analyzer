@@ -10,12 +10,12 @@ esac
 run() { echo "+ $*"; "$@"; }
 
 require_disposable_postgres() {
-  if [[ -z "${DENTICODE_TEST_POSTGRES_URL:-}" ]]; then
-    echo "DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run." >&2
+  if [[ -z "${AD_ANALYZER_TEST_POSTGRES_URL:-}" ]]; then
+    echo "AD_ANALYZER_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run." >&2
     return 1
   fi
-  if [[ "${DENTICODE_CI_DISPOSABLE_POSTGRES:-}" != "true" ]]; then
-    echo "Refusing migration validation: DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true." >&2
+  if [[ "${AD_ANALYZER_CI_DISPOSABLE_POSTGRES:-}" != "true" ]]; then
+    echo "Refusing migration validation: AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true." >&2
     return 1
   fi
   python - <<'PY_VALIDATE_POSTGRES'
@@ -23,15 +23,15 @@ import os
 import sys
 from urllib.parse import unquote, urlparse
 
-url = os.environ.get("DENTICODE_TEST_POSTGRES_URL", "")
+url = os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL", "")
 try:
     parsed = urlparse(url)
 except ValueError as exc:
-    print(f"Refusing migration validation: malformed DENTICODE_TEST_POSTGRES_URL ({exc}).", file=sys.stderr)
+    print(f"Refusing migration validation: malformed AD_ANALYZER_TEST_POSTGRES_URL ({exc}).", file=sys.stderr)
     sys.exit(1)
 
 if parsed.scheme not in {"postgresql", "postgresql+psycopg"} or not parsed.path or parsed.path == "/":
-    print("Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must be a PostgreSQL URL with a database name.", file=sys.stderr)
+    print("Refusing migration validation: AD_ANALYZER_TEST_POSTGRES_URL must be a PostgreSQL URL with a database name.", file=sys.stderr)
     sys.exit(1)
 
 database_name = unquote(parsed.path.rsplit("/", 1)[-1]).lower()
@@ -45,7 +45,7 @@ if not (database_name.endswith("_ci") or database_name.endswith("_test") or "_ci
     print("Refusing migration validation: database name must use a controlled _ci or _test naming convention.", file=sys.stderr)
     sys.exit(1)
 PY_VALIDATE_POSTGRES
-  export DATABASE_URL="$DENTICODE_TEST_POSTGRES_URL"
+  export DATABASE_URL="$AD_ANALYZER_TEST_POSTGRES_URL"
 }
 
 focused_validation() { run python -m pytest tests/test_automation_foundation.py tests/test_api_v1_read_only.py -k "automation_foundation or scoping or account_scoped or no_writes"; }
@@ -62,22 +62,22 @@ assert settings.google_ads_write_enabled is False
 assert settings.google_ads_execution_kill_switch is True
 PY_CONTROLLED_WRITES
 }
-release_validation() { run python -m pytest; run ruff check .; run mypy; run git diff --check "${DENTICODE_DIFF_BASE:-HEAD}"; }
+release_validation() { run python -m pytest; run ruff check .; run mypy; run git diff --check "${AD_ANALYZER_DIFF_BASE:-HEAD}"; }
 
 case "$scope" in
   Full)
-    if [[ -n "${DENTICODE_TEST_POSTGRES_URL:-}" ]]; then
+    if [[ -n "${AD_ANALYZER_TEST_POSTGRES_URL:-}" ]]; then
       require_disposable_postgres
       run python scripts/reset_disposable_postgres.py
     else
-      echo "DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally."
+      echo "AD_ANALYZER_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally."
     fi
     run alembic upgrade head
     run python -m pytest
     run ruff check .
     run mypy
-    run git diff --check "${DENTICODE_DIFF_BASE:-HEAD}"
-    if [[ -n "${DENTICODE_TEST_POSTGRES_URL:-}" ]]; then postgres_validation; migration_validation; fi
+    run git diff --check "${AD_ANALYZER_DIFF_BASE:-HEAD}"
+    if [[ -n "${AD_ANALYZER_TEST_POSTGRES_URL:-}" ]]; then postgres_validation; migration_validation; fi
     readonly_validation; security_validation; privacy_validation; focused_validation
     ;;
   Focused) focused_validation ;;

@@ -1,11 +1,11 @@
 locals {
-  prefix = "denticode-${var.environment}-crm"
+  prefix = "ad-analyzer-${var.environment}-crm"
   service_account_environment = lookup({
     development = "dev"
     production  = "prod"
     staging     = "stg"
   }, var.environment, var.environment)
-  service_account_prefix = "denti-${local.service_account_environment}-crm"
+  service_account_prefix = "aa-${local.service_account_environment}-crm"
   service_account_ids = {
     api_gateway = "${local.service_account_prefix}-api-gw"
     gateway     = "${local.service_account_prefix}-gateway"
@@ -97,15 +97,15 @@ resource "google_cloud_run_v2_service" "gateway" {
         value = var.environment
       }
       env {
-        name  = "DENTICODE_CRM_PUBSUB_PROJECT_ID"
+        name  = "AD_ANALYZER_CRM_PUBSUB_PROJECT_ID"
         value = var.project_id
       }
       env {
-        name  = "DENTICODE_CRM_PUBSUB_TOPIC_ID"
+        name  = "AD_ANALYZER_CRM_PUBSUB_TOPIC_ID"
         value = google_pubsub_topic.events.name
       }
       env {
-        name = "DENTICODE_CRM_WEBHOOK_SECRET"
+        name = "AD_ANALYZER_CRM_WEBHOOK_SECRET"
         value_source {
           secret_key_ref {
             secret  = data.google_secret_manager_secret.webhook.secret_id
@@ -159,7 +159,7 @@ resource "google_cloud_run_v2_service" "worker" {
         }
       }
       env {
-        name  = "DENTICODE_REQUIRED_SECRET_NAMES"
+        name  = "AD_ANALYZER_REQUIRED_SECRET_NAMES"
         value = "DATABASE_PASSWORD"
       }
       volume_mounts {

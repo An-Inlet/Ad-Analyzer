@@ -4,21 +4,21 @@ import pytest
 from app.deployment import DeploymentProcess, validate_deployment_startup
 from app.settings import Settings
 
-CONNECTION_NAME = "totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres"
+CONNECTION_NAME = "totemic-alchemy-502420-p4:us-west1:ad-analyzer-postgres"
 
 
 def _cloud_settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "APP_ENV": "production",
         "CLOUD_SQL_CONNECTION_NAME": CONNECTION_NAME,
-        "DATABASE_USER": "denticode_app",
+        "DATABASE_USER": "ad_analyzer_app",
         "DATABASE_PASSWORD": "p@ss:/?#[]!$&'()*+,;=word",
-        "DATABASE_NAME": "denticode_ads_optimizer",
-        "DENTICODE_API_TOKEN": "safe-token",
-        "DENTICODE_GOOGLE_ADS_WRITE_ENABLED": False,
-        "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH": True,
-        "DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS": "",
-        "DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS": "",
+        "DATABASE_NAME": "ad_analyzer",
+        "AD_ANALYZER_API_TOKEN": "safe-token",
+        "AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED": False,
+        "AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH": True,
+        "AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS": "",
+        "AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS": "",
     }
     values.update(overrides)
     return Settings(**values)

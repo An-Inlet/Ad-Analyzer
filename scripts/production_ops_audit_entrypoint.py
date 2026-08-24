@@ -124,7 +124,7 @@ def audit_scheduler() -> None:
         target.get("httpMethod"),
     )
     scheduler_email = (
-        f"denticode-scheduler@{audit.PROJECT_ID}.iam.gserviceaccount.com"
+        f"ad-analyzer-scheduler@{audit.PROJECT_ID}.iam.gserviceaccount.com"
     )
     audit.record(
         "Sync scheduler uses OAuth service account",

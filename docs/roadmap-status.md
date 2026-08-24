@@ -50,7 +50,7 @@ All approved non-production buildout work is complete. Phase 12.4 production rel
 
 ## Safety confirmation
 
-This audit and Phase 12.2 provider-neutral managed infrastructure configuration did not connect to Google Ads, Meta Ads, OpenAI APIs, or other advertising services, did not request or store credentials, did not perform live Google Ads activity, and preserves `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` with `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` as the safe defaults.
+This audit and Phase 12.2 provider-neutral managed infrastructure configuration did not connect to Google Ads, Meta Ads, OpenAI APIs, or other advertising services, did not request or store credentials, did not perform live Google Ads activity, and preserves `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false` with `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` as the safe defaults.
 
 ## Phase 12.1 status
 

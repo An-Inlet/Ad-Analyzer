@@ -1,6 +1,6 @@
 """PostgreSQL advisory-lock transaction visibility checks for Phase 7.
 
-These tests require a PostgreSQL test database URL in DENTICODE_TEST_POSTGRES_URL.
+These tests require a PostgreSQL test database URL in AD_ANALYZER_TEST_POSTGRES_URL.
 They intentionally use separate connections for lock competition and visibility.
 """
 
@@ -21,14 +21,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 @pytest.fixture()
 def postgres_engine() -> Generator[Engine, None, None]:
-    url = os.environ.get("DENTICODE_TEST_POSTGRES_URL")
+    url = os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
     if not url:
-        pytest.skip("DENTICODE_TEST_POSTGRES_URL is required for PostgreSQL lock tests")
+        pytest.skip("AD_ANALYZER_TEST_POSTGRES_URL is required for PostgreSQL lock tests")
     engine = create_engine(url)
     try:
         with engine.connect() as connection:
             if connection.dialect.name != "postgresql":
-                pytest.skip("DENTICODE_TEST_POSTGRES_URL must point to PostgreSQL")
+                pytest.skip("AD_ANALYZER_TEST_POSTGRES_URL must point to PostgreSQL")
         Base.metadata.create_all(engine)
         yield engine
     finally:

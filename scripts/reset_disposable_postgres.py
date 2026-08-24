@@ -17,20 +17,20 @@ def fail(message: str) -> NoReturn:
 
 
 def validate_disposable_url() -> str:
-    if os.environ.get("DENTICODE_CI_DISPOSABLE_POSTGRES") != "true":
-        fail("DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true.")
+    if os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true":
+        fail("AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true.")
 
-    url = os.environ.get("DENTICODE_TEST_POSTGRES_URL")
+    url = os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
     if not url:
-        fail("DENTICODE_TEST_POSTGRES_URL is not configured.")
+        fail("AD_ANALYZER_TEST_POSTGRES_URL is not configured.")
 
     try:
         parsed = urlparse(url)
     except ValueError:
-        fail("malformed DENTICODE_TEST_POSTGRES_URL.")
+        fail("malformed AD_ANALYZER_TEST_POSTGRES_URL.")
 
     if parsed.scheme not in SAFE_SCHEME_NAMES:
-        fail("DENTICODE_TEST_POSTGRES_URL must use a PostgreSQL scheme.")
+        fail("AD_ANALYZER_TEST_POSTGRES_URL must use a PostgreSQL scheme.")
     if not parsed.path or parsed.path == "/":
         fail("PostgreSQL database name is empty.")
 

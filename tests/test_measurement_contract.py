@@ -250,7 +250,7 @@ def test_operator_api_and_dashboard_show_only_workspace_measurement_contract(
     add_contract(db, denticode, currency_code="USD")
     add_contract(db, second, currency_code="CAD")
     db.commit()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     monkeypatch.setattr(settings, "app_env", "development")
 
     def override_db() -> Generator[Session, None, None]:

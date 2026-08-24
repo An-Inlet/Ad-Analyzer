@@ -132,17 +132,17 @@ def _api_token_check(settings: Settings, process: DeploymentProcess) -> Deployme
             detail="API token is not required for this process/environment.",
         )
     secret = (
-        settings.denticode_api_token.get_secret_value() if settings.denticode_api_token else None
+        settings.api_token.get_secret_value() if settings.api_token else None
     )
     ok = not _is_placeholder(secret)
     return DeploymentCheck(
         name="api_token",
         ok=ok,
-        detail="DENTICODE_API_TOKEN configured for production web process."
+        detail="AD_ANALYZER_API_TOKEN configured for production web process."
         if ok
         else (
             "Production web process requires a non-placeholder external secret "
-            "for DENTICODE_API_TOKEN."
+            "for AD_ANALYZER_API_TOKEN."
         ),
     )
 

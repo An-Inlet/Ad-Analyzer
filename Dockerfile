@@ -7,8 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN addgroup --system denticode \
-    && adduser --system --ingroup denticode --home /app denticode \
+RUN addgroup --system ad-analyzer \
+    && adduser --system --ingroup ad-analyzer --home /app ad-analyzer \
     && python -m venv /venv
 
 COPY pyproject.toml README.md alembic.ini ./
@@ -18,8 +18,8 @@ COPY scripts/validate_deployment_startup.py ./scripts/validate_deployment_startu
 RUN python -m pip install --upgrade pip \
     && python -m pip install .
 
-RUN chown -R denticode:denticode /app
-USER denticode
+RUN chown -R ad-analyzer:ad-analyzer /app
+USER ad-analyzer
 
 EXPOSE 8000
 

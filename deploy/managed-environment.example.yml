@@ -3,35 +3,35 @@
 processes:
   web:
     command: "python scripts/validate_deployment_startup.py --process web && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"
-    concurrency_env: DENTICODE_WEB_CONCURRENCY
-    timeout_env: DENTICODE_WEB_TIMEOUT_SECONDS
+    concurrency_env: AD_ANALYZER_WEB_CONCURRENCY
+    timeout_env: AD_ANALYZER_WEB_TIMEOUT_SECONDS
     restart: on-failure
   worker:
     command: "python scripts/validate_deployment_startup.py --process worker && python -m app.jobs.google_ads_sync_once"
-    concurrency_env: DENTICODE_WORKER_CONCURRENCY
-    timeout_env: DENTICODE_WORKER_TIMEOUT_SECONDS
+    concurrency_env: AD_ANALYZER_WORKER_CONCURRENCY
+    timeout_env: AD_ANALYZER_WORKER_TIMEOUT_SECONDS
     restart: no
   scheduler:
     command: "python scripts/validate_deployment_startup.py --process scheduler && python -m app.jobs.google_ads_scheduler"
-    concurrency_env: DENTICODE_SCHEDULER_CONCURRENCY
-    timeout_env: DENTICODE_SCHEDULER_TIMEOUT_SECONDS
+    concurrency_env: AD_ANALYZER_SCHEDULER_CONCURRENCY
+    timeout_env: AD_ANALYZER_SCHEDULER_TIMEOUT_SECONDS
     restart: on-failure
   migration:
     command: "python scripts/validate_deployment_startup.py --process migration && alembic upgrade head"
     concurrency: 1
-    timeout_env: DENTICODE_MIGRATION_TIMEOUT_SECONDS
+    timeout_env: AD_ANALYZER_MIGRATION_TIMEOUT_SECONDS
     restart: no
 environment:
   APP_ENV: production
-  CLOUD_SQL_CONNECTION_NAME: "totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres"
-  DATABASE_USER: "denticode_app"
+  CLOUD_SQL_CONNECTION_NAME: "totemic-alchemy-502420-p4:us-west1:ad-analyzer-postgres"
+  DATABASE_USER: "ad_analyzer_app"
   DATABASE_PASSWORD: "${EXTERNAL_SECRET_DATABASE_PASSWORD}"
-  DATABASE_NAME: "denticode_ads_optimizer"
-  DENTICODE_API_TOKEN: "${EXTERNAL_SECRET_DENTICODE_API_TOKEN}"
-  DENTICODE_IAP_AUDIENCE: "/projects/PROJECT_NUMBER/locations/REGION/services/SERVICE_NAME"
-  DENTICODE_DASHBOARD_ALLOWED_EMAILS: "operator@example.com"
-  DENTICODE_REQUIRED_SECRET_NAMES: "DENTICODE_API_TOKEN,DATABASE_PASSWORD"
-  DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"
-  DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
-  DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS: ""
-  DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS: ""
+  DATABASE_NAME: "ad_analyzer"
+  AD_ANALYZER_API_TOKEN: "${EXTERNAL_SECRET_AD_ANALYZER_API_TOKEN}"
+  AD_ANALYZER_IAP_AUDIENCE: "/projects/PROJECT_NUMBER/locations/REGION/services/SERVICE_NAME"
+  AD_ANALYZER_PLATFORM_ADMIN_EMAILS: "operator@example.com"
+  AD_ANALYZER_REQUIRED_SECRET_NAMES: "AD_ANALYZER_API_TOKEN,DATABASE_PASSWORD"
+  AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED: "false"
+  AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH: "true"
+  AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS: ""
+  AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS: ""

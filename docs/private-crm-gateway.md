@@ -8,10 +8,10 @@ The four service accounts are intentionally separate. API Gateway can invoke onl
 
 Service accounts use a shorter prefix than the other resources so their IDs always fit Google's 30-character limit. For the default `production` environment, Terraform generates these exact, stable account IDs:
 
-- `denti-prod-crm-gateway`
-- `denti-prod-crm-worker`
-- `denti-prod-crm-push`
-- `denti-prod-crm-api-gw`
+- `aa-prod-crm-gateway`
+- `aa-prod-crm-worker`
+- `aa-prod-crm-push`
+- `aa-prod-crm-api-gw`
 
 The `development`, `staging`, and `production` environment names are abbreviated to `dev`, `stg`, and `prod` respectively. Other valid environment names remain unchanged; the environment validation reserves those abbreviations to avoid collisions between, for example, `production` and `prod`.
 
@@ -39,9 +39,9 @@ Keep clocks synchronized; requests more than five minutes from gateway time are 
 
 Install Python 3.12 dependencies and run `pytest`, `ruff check .`, and `mypy`. Tests use fake publishers and no network or credentials. Required runtime variables are:
 
-- `DENTICODE_CRM_WEBHOOK_SECRET` (Secret Manager injection only)
-- `DENTICODE_CRM_PUBSUB_PROJECT_ID`
-- `DENTICODE_CRM_PUBSUB_TOPIC_ID`
+- `AD_ANALYZER_CRM_WEBHOOK_SECRET` (Secret Manager injection only)
+- `AD_ANALYZER_CRM_PUBSUB_PROJECT_ID`
+- `AD_ANALYZER_CRM_PUBSUB_TOPIC_ID`
 - `CLOUD_SQL_CONNECTION_NAME`, `DATABASE_USER`, and `DATABASE_NAME` for the worker
 - `DATABASE_PASSWORD` for the worker (existing Secret Manager secret injection only)
 
@@ -49,13 +49,13 @@ For local manual calls only, place a disposable secret in an untracked `.env`, s
 
 ## Infrastructure and secrets
 
-Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4`. Cloud Run, Cloud SQL, and the other existing regional resources remain in `us-west1`. API Gateway is deployed separately in `us-west3` because API Gateway does not support `us-west1`; the `us-west3` gateway may proxy requests to the existing Cloud Run gateway backend in `us-west1`. Its partial GCS backend must be initialized by an operator with bucket `totemic-alchemy-502420-p4-terraform-state` and prefix `denticode/crm-production`; the backend credentials are not stored in this configuration. Both `DATABASE_PASSWORD` and `denticode-production-crm-webhook-hmac` are existing Secret Manager containers. Secret versions are created through an approved out-of-band process. Terraform neither creates secret versions nor reads or stores secret payloads in its state. The worker connects to the existing Cloud SQL instance through its `/cloudsql` Unix-socket mount; the public gateway has no database configuration or Cloud SQL permission.
+Terraform in `infra/gcp` targets project `totemic-alchemy-502420-p4`. Cloud Run, Cloud SQL, and the other existing regional resources remain in `us-west1`. API Gateway is deployed separately in `us-west3` because API Gateway does not support `us-west1`; the `us-west3` gateway may proxy requests to the existing Cloud Run gateway backend in `us-west1`. Its partial GCS backend must be initialized by an operator with bucket `totemic-alchemy-502420-p4-terraform-state` and prefix `ad-analyzer/crm-production`; the backend credentials are not stored in this configuration. Both `DATABASE_PASSWORD` and `ad-analyzer-production-crm-webhook-hmac` are existing Secret Manager containers. Secret versions are created through an approved out-of-band process. Terraform neither creates secret versions nor reads or stores secret payloads in its state. The worker connects to the existing Cloud SQL instance through its `/cloudsql` Unix-socket mount; the public gateway has no database configuration or Cloud SQL permission.
 
 Review-only command sequence (do not run `apply` from automation):
 
 ```sh
 cd infra/gcp
-terraform init -backend-config='bucket=totemic-alchemy-502420-p4-terraform-state' -backend-config='prefix=denticode/crm-production'
+terraform init -backend-config='bucket=totemic-alchemy-502420-p4-terraform-state' -backend-config='prefix=ad-analyzer/crm-production'
 terraform fmt -check -recursive
 terraform validate
 terraform plan -var='gateway_image=us-west1-docker.pkg.dev/PROJECT/REPOSITORY/GATEWAY@sha256:DIGEST' -var='worker_image=us-west1-docker.pkg.dev/PROJECT/REPOSITORY/WORKER@sha256:DIGEST' -out=review.tfplan

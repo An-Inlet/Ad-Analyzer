@@ -748,7 +748,7 @@ def test_read_only_api_and_dashboard_expose_aggregates_not_identifiers(
     add_metric(db, campaign)
     add_complete_journey(db, workspace)
     token = "u" * 48
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     monkeypatch.setattr(settings, "app_env", "development")
 
     def override_db() -> Generator[Session, None, None]:

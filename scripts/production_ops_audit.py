@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a read-only audit of the Denticode Google Cloud deployment."""
+"""Run a read-only audit of the Ad Analyzer Google Cloud deployment."""
 
 from __future__ import annotations
 
@@ -16,29 +16,29 @@ from typing import Any
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "totemic-alchemy-502420-p4")
 PROJECT_NUMBER = os.getenv("GCP_PROJECT_NUMBER", "89443799388")
 REGION = os.getenv("GCP_REGION", "us-west1")
-WEB_SERVICE = os.getenv("GCP_WEB_SERVICE", "denticode-web")
-SYNC_JOB = os.getenv("GCP_SYNC_JOB", "denticode-sync")
-MIGRATION_JOB = os.getenv("GCP_MIGRATION_JOB", "denticode-migration")
-SQL_INSTANCE = os.getenv("GCP_SQL_INSTANCE", "denticode-analyzer-postgres")
-SCHEDULER_JOB = os.getenv("GCP_SCHEDULER_JOB", "denticode-sync-hourly")
+WEB_SERVICE = os.getenv("GCP_WEB_SERVICE", "ad-analyzer-web")
+SYNC_JOB = os.getenv("GCP_SYNC_JOB", "ad-analyzer-sync")
+MIGRATION_JOB = os.getenv("GCP_MIGRATION_JOB", "ad-analyzer-migration")
+SQL_INSTANCE = os.getenv("GCP_SQL_INSTANCE", "ad-analyzer-postgres")
+SCHEDULER_JOB = os.getenv("GCP_SCHEDULER_JOB", "ad-analyzer-sync-hourly")
 DASHBOARD_EMAIL = os.getenv(
-    "DENTICODE_EXPECTED_DASHBOARD_EMAIL", "konner@aninlet.com"
+    "AD_ANALYZER_EXPECTED_DASHBOARD_EMAIL", "konner@aninlet.com"
 )
-REPORT_PATH = Path(os.getenv("DENTICODE_AUDIT_REPORT", "production-audit.json"))
+REPORT_PATH = Path(os.getenv("AD_ANALYZER_AUDIT_REPORT", "production-audit.json"))
 MAX_SYNC_AGE = timedelta(
-    minutes=int(os.getenv("DENTICODE_MAX_SYNC_AGE_MINUTES", "150"))
+    minutes=int(os.getenv("AD_ANALYZER_MAX_SYNC_AGE_MINUTES", "150"))
 )
 
-WEB_ACCOUNT = f"serviceAccount:denticode-web@{PROJECT_ID}.iam.gserviceaccount.com"
-SYNC_ACCOUNT = f"serviceAccount:denticode-sync@{PROJECT_ID}.iam.gserviceaccount.com"
+WEB_ACCOUNT = f"serviceAccount:ad-analyzer-web@{PROJECT_ID}.iam.gserviceaccount.com"
+SYNC_ACCOUNT = f"serviceAccount:ad-analyzer-sync@{PROJECT_ID}.iam.gserviceaccount.com"
 MIGRATION_ACCOUNT = (
-    f"serviceAccount:denticode-migration@{PROJECT_ID}.iam.gserviceaccount.com"
+    f"serviceAccount:ad-analyzer-migration@{PROJECT_ID}.iam.gserviceaccount.com"
 )
 SCHEDULER_ACCOUNT = (
-    f"serviceAccount:denticode-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
+    f"serviceAccount:ad-analyzer-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
 )
 DEPLOYER_ACCOUNT = (
-    f"serviceAccount:denticode-deployer@{PROJECT_ID}.iam.gserviceaccount.com"
+    f"serviceAccount:ad-analyzer-deployer@{PROJECT_ID}.iam.gserviceaccount.com"
 )
 IAP_AGENT = (
     f"serviceAccount:service-{PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com"
@@ -46,14 +46,14 @@ IAP_AGENT = (
 
 EXPECTED_SECRET_ACCESS: dict[str, set[str]] = {
     "DATABASE_PASSWORD": {WEB_ACCOUNT, SYNC_ACCOUNT, MIGRATION_ACCOUNT},
-    "DENTICODE_API_TOKEN": {WEB_ACCOUNT},
+    "AD_ANALYZER_API_TOKEN": {WEB_ACCOUNT},
     "GOOGLE_ADS_CLIENT_ID": {SYNC_ACCOUNT},
     "GOOGLE_ADS_CLIENT_SECRET": {SYNC_ACCOUNT},
     "GOOGLE_ADS_REFRESH_TOKEN": {SYNC_ACCOUNT},
     "GOOGLE_ADS_DEVELOPER_TOKEN": {SYNC_ACCOUNT},
 }
 EXPECTED_SECRET_REFERENCES: dict[str, set[str]] = {
-    WEB_SERVICE: {"DATABASE_PASSWORD", "DENTICODE_API_TOKEN"},
+    WEB_SERVICE: {"DATABASE_PASSWORD", "AD_ANALYZER_API_TOKEN"},
     SYNC_JOB: {
         "DATABASE_PASSWORD",
         "GOOGLE_ADS_CLIENT_ID",
@@ -64,10 +64,10 @@ EXPECTED_SECRET_REFERENCES: dict[str, set[str]] = {
     MIGRATION_JOB: {"DATABASE_PASSWORD"},
 }
 RUNTIME_ACCOUNTS = {
-    f"denticode-web@{PROJECT_ID}.iam.gserviceaccount.com",
-    f"denticode-sync@{PROJECT_ID}.iam.gserviceaccount.com",
-    f"denticode-migration@{PROJECT_ID}.iam.gserviceaccount.com",
-    f"denticode-scheduler@{PROJECT_ID}.iam.gserviceaccount.com",
+    f"ad-analyzer-web@{PROJECT_ID}.iam.gserviceaccount.com",
+    f"ad-analyzer-sync@{PROJECT_ID}.iam.gserviceaccount.com",
+    f"ad-analyzer-migration@{PROJECT_ID}.iam.gserviceaccount.com",
+    f"ad-analyzer-scheduler@{PROJECT_ID}.iam.gserviceaccount.com",
 }
 
 
@@ -262,24 +262,24 @@ def audit_cloud_run(access_token: str) -> None:
     )
     record(
         "Google Ads writes disabled",
-        sync_plain.get("DENTICODE_GOOGLE_ADS_WRITE_ENABLED", "").casefold()
+        sync_plain.get("AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED", "").casefold()
         == "false",
-        sync_plain.get("DENTICODE_GOOGLE_ADS_WRITE_ENABLED"),
+        sync_plain.get("AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED"),
     )
     record(
         "Google Ads execution kill switch enabled",
-        sync_plain.get("DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH", "").casefold()
+        sync_plain.get("AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH", "").casefold()
         == "true",
-        sync_plain.get("DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH"),
+        sync_plain.get("AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH"),
     )
     record(
         "Google Ads account allowlist empty",
-        not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_ACCOUNTS", "").strip(),
+        not sync_plain.get("AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS", "").strip(),
         "empty or absent",
     )
     record(
         "Google Ads mutation allowlist empty",
-        not sync_plain.get("DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS", "").strip(),
+        not sync_plain.get("AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS", "").strip(),
         "empty or absent",
     )
 
@@ -288,12 +288,12 @@ def audit_cloud_run(access_token: str) -> None:
     )
     record(
         "Dashboard IAP audience exact",
-        web_plain.get("DENTICODE_IAP_AUDIENCE") == expected_audience,
-        web_plain.get("DENTICODE_IAP_AUDIENCE"),
+        web_plain.get("AD_ANALYZER_IAP_AUDIENCE") == expected_audience,
+        web_plain.get("AD_ANALYZER_IAP_AUDIENCE"),
     )
     allowed_emails = {
         item.strip().casefold()
-        for item in web_plain.get("DENTICODE_DASHBOARD_ALLOWED_EMAILS", "").split(",")
+        for item in web_plain.get("AD_ANALYZER_PLATFORM_ADMIN_EMAILS", "").split(",")
         if item.strip()
     }
     record(
@@ -426,7 +426,7 @@ def audit_scheduler() -> None:
         target.get("httpMethod") == "POST",
         target.get("httpMethod"),
     )
-    scheduler_email = f"denticode-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
+    scheduler_email = f"ad-analyzer-scheduler@{PROJECT_ID}.iam.gserviceaccount.com"
     record(
         "Sync scheduler uses OAuth service account",
         oauth.get("serviceAccountEmail") == scheduler_email
@@ -678,7 +678,7 @@ def write_report() -> None:
     )
 
     lines = [
-        "# Denticode production operations audit",
+        "# Ad Analyzer production operations audit",
         "",
         f"Generated: `{generated_at}`",
         "",

@@ -39,10 +39,10 @@ def make_recommendation(**overrides: Any) -> Recommendation:
 
 def safe_settings(**overrides: Any) -> Settings:
     values: dict[str, Any] = {
-        "DENTICODE_GOOGLE_ADS_WRITE_ENABLED": True,
-        "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH": False,
-        "DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS": "123",
-        "DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS": "pause_campaign",
+        "AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED": True,
+        "AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH": False,
+        "AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS": "123",
+        "AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS": "pause_campaign",
     }
     values.update(overrides)
     return Settings(**values)

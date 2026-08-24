@@ -68,8 +68,8 @@ variable "database_password_secret_id" {
   }
 }
 variable "webhook_secret_id" {
-  type    = string
-  default = "denticode-production-crm-webhook-hmac"
+  type        = string
+  description = "Existing Secret Manager secret ID containing the CRM webhook HMAC."
 
   validation {
     condition     = can(regex("^[A-Za-z0-9_-]{1,255}$", var.webhook_secret_id))
@@ -77,14 +77,14 @@ variable "webhook_secret_id" {
   }
 }
 variable "cloud_sql_connection_name" {
-  type    = string
-  default = "totemic-alchemy-502420-p4:us-west1:denticode-analyzer-postgres"
+  type        = string
+  description = "Existing Cloud SQL connection name supplied outside the repository."
 }
 variable "database_user" {
-  type    = string
-  default = "denticode_app"
+  type        = string
+  description = "Database user supplied outside the repository."
 }
 variable "database_name" {
-  type    = string
-  default = "denticode_ads_optimizer"
+  type        = string
+  description = "Database name supplied outside the repository."
 }

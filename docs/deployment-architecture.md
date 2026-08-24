@@ -20,10 +20,10 @@ Use environment variables or an external secret manager. Never commit populated 
 
 Phase 12.1 preserves safety defaults:
 
-- `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false`
-- `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`
-- `DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS=`
-- `DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS=`
+- `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false`
+- `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`
+- `AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS=`
+- `AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS=`
 
 ## Ingress and TLS
 
@@ -34,10 +34,10 @@ Phase 12.1 preserves safety defaults:
 Direct Cloud Run IAP is the selected dashboard ingress architecture. It protects the service's
 `run.app` endpoint directly; no external Application Load Balancer or backend service is required.
 Production `/dashboard` requests require a signed Google Cloud IAP assertion. Configure
-`DENTICODE_IAP_AUDIENCE` with the Cloud Run service audience:
+`AD_ANALYZER_IAP_AUDIENCE` with the Cloud Run service audience:
 `/projects/PROJECT_NUMBER/locations/REGION/services/SERVICE_NAME`. Configure
-`DENTICODE_DASHBOARD_ALLOWED_EMAILS` as a comma-separated, least-privilege list of operator
-email addresses. Keep `DENTICODE_API_TOKEN` configured: every `/api/v1` route continues to use
+`AD_ANALYZER_PLATFORM_ADMIN_EMAILS` as a comma-separated, least-privilege list of operator
+email addresses. Keep `AD_ANALYZER_API_TOKEN` configured: every `/api/v1` route continues to use
 its existing bearer-token authentication, independently of IAP. Do not use
 `x-goog-authenticated-user-email` as an authorization input.
 
@@ -60,9 +60,9 @@ Deployment sequence:
 
 3. Grant the IAP-secured Web App User role only to intended operators.
 4. Set `APP_ENV=production`, the exact IAP audience, and the allowed-email list in the managed
-   runtime configuration; inject `DENTICODE_API_TOKEN` from the secret manager.
-5. Confirm `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` and
-   `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` before promotion.
+   runtime configuration; inject `AD_ANALYZER_API_TOKEN` from the secret manager.
+5. Confirm `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false` and
+   `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` before promotion.
 6. Run migrations, start the web process, and verify `/health` and `/ready` through the IAP-protected
    `run.app` endpoint. Verify an allowed and a denied IAP identity before starting read-only workers.
 

@@ -2,7 +2,7 @@
 
 Denticode Ad Analyzer is the initial client workspace inside the shared Ad Analyzer platform.
 
-Branch: `codex/complete-denticode-ads-analyzer-buildout`
+Branch: `codex/complete-ad-analyzer-buildout`
 
 ## Completed implementation units
 - Phase 8: read-only account analytics windows, comparison periods, deterministic findings, authenticated API responses, coverage indicators, and no search-term exposure.

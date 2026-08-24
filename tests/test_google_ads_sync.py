@@ -74,13 +74,13 @@ SECRET_FAILURE_MESSAGE = (
 PERSISTENCE_FAILURE_MESSAGE = (
     "sqlalchemy.exc.OperationalError: could not persist failed job_run "
     f"params={{'client_secret': '{SECRET_VALUES[0]}', 'refresh_token': '{SECRET_VALUES[1]}'}} "
-    "dsn='postgresql://user:db-password@example.invalid/denticode' "
+    "dsn='postgresql://user:db-password@example.invalid/ad_analyzer' "
     "sql='INSERT INTO job_runs (...) VALUES (...)'"
 )
 COMMIT_FAILURE_MESSAGE = (
     "psycopg.OperationalError: connection closed during COMMIT "
     f"params={{'developer_token': '{SECRET_VALUES[2]}'}} "
-    "dsn='postgresql://user:db-password@example.invalid/denticode' "
+    "dsn='postgresql://user:db-password@example.invalid/ad_analyzer' "
     "sql='COMMIT'"
 )
 SANITIZED_SYNC_ERROR = "Google Ads read-only sync failed (RuntimeError)"

@@ -116,17 +116,17 @@ def reset_helper_command() -> list[str]:
 
 
 def disposable_postgres_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-    url = os.environ.get("DENTICODE_TEST_POSTGRES_URL")
-    marker = os.environ.get("DENTICODE_CI_DISPOSABLE_POSTGRES")
+    url = os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
+    marker = os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES")
     if not url or marker != "true":
         pytest.skip(
-            "DENTICODE_TEST_POSTGRES_URL and DENTICODE_CI_DISPOSABLE_POSTGRES=true "
+            "AD_ANALYZER_TEST_POSTGRES_URL and AD_ANALYZER_CI_DISPOSABLE_POSTGRES=true "
             "are required for disposable PostgreSQL integration tests"
         )
     env = minimal_subprocess_env(
         {
-            "DENTICODE_TEST_POSTGRES_URL": url,
-            "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
+            "AD_ANALYZER_TEST_POSTGRES_URL": url,
+            "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
         }
     )
     if extra:
@@ -179,7 +179,7 @@ def test_phase8_only_document_is_not_complete_project_roadmap() -> None:
 def test_automation_policy_is_project_wide_and_requires_human_gates() -> None:
     policy = read(POLICY)
     for requirement in (
-        "governs every remaining Denticode Ads Optimizer phase",
+        "governs every remaining Ad Analyzer phase",
         "Every branch starts from latest `main`",
         "Never write directly to `main`",
         "one dependent product PR open at a time",
@@ -292,8 +292,8 @@ def test_roadmap_controller_status_tracks_phase8_through_phase12() -> None:
     assert "must never recreate equivalent implemented capabilities" in controller
     assert "Phase 11.3 production mutation enablement" in decisions
     assert "Production release approval" in decisions
-    assert "DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false" in decisions
-    assert "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true" in decisions
+    assert "AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false" in decisions
+    assert "AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true" in decisions
 
 
 def test_roadmap_status_records_phase_12_1_completion_and_next_safe_unit() -> None:
@@ -392,7 +392,7 @@ def test_destructive_migration_validation_rejects_unsafe_database_targets() -> N
         capture_output=True,
         env=minimal_subprocess_env(
             {
-                "DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/denticode_ads_optimizer",
+                "AD_ANALYZER_TEST_POSTGRES_URL": "postgresql+psycopg://localhost/ad_analyzer",
             }
         ),
     )
@@ -404,17 +404,17 @@ def test_disposable_postgres_validation_requires_marker_and_database_name() -> N
     shell = read(VALIDATE_SH)
     powershell = read(VALIDATE_PS1)
     for contents in (shell, powershell):
-        assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in contents
+        assert "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true" in contents
         assert "database name must use a controlled _ci or _test naming convention" in contents
         assert "staging/production database names are never disposable" in contents
         assert "DATABASE_URL" in contents
-        assert "DENTICODE_TEST_POSTGRES_URL" in contents
+        assert "AD_ANALYZER_TEST_POSTGRES_URL" in contents
     assert "urlparse" in shell
     assert "System.Uri" in powershell
 
 
 def test_bash_disposable_postgres_validation_accepts_ci_database_until_connection() -> None:
-    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/denticode_ads_optimizer_ci"
+    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/ad_analyzer_ci"
     result = subprocess.run(
         bash_validate_command("Migrations"),
         cwd=ROOT,
@@ -423,8 +423,8 @@ def test_bash_disposable_postgres_validation_accepts_ci_database_until_connectio
         capture_output=True,
         env=minimal_subprocess_env(
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": raw_url,
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": raw_url,
             }
         ),
     )
@@ -440,9 +440,9 @@ def test_bash_disposable_postgres_validation_accepts_ci_database_until_connectio
 def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database() -> None:
     env = minimal_subprocess_env(
         {
-            "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-            "DENTICODE_TEST_POSTGRES_URL": (
-                "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer"
+            "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+            "AD_ANALYZER_TEST_POSTGRES_URL": (
+                "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer"
             ),
         }
     )
@@ -461,8 +461,8 @@ def test_bash_disposable_postgres_validation_rejects_marker_without_ci_database(
 def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() -> None:
     env = minimal_subprocess_env(
         {
-            "DENTICODE_TEST_POSTGRES_URL": (
-                "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer_ci"
+            "AD_ANALYZER_TEST_POSTGRES_URL": (
+                "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_ci"
             ),
         }
     )
@@ -475,7 +475,7 @@ def test_bash_disposable_postgres_validation_rejects_ci_name_without_marker() ->
         env=env,
     )
     assert result.returncode != 0
-    assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
+    assert "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
 
 
 def test_powershell_controlled_writes_and_release_are_validation_only() -> None:
@@ -544,41 +544,41 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
     (
         (
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": (
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": (
                     "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "denticode_ads_optimizer_prod"
+                    "ad_analyzer_prod"
                 ),
             },
             "staging/production database names are never disposable",
         ),
         (
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": (
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": (
                     "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "denticode_ads_optimizer_staging"
+                    "ad_analyzer_staging"
                 ),
             },
             "staging/production database names are never disposable",
         ),
         (
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer"
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": (
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer"
                 ),
             },
             "controlled _ci or _test naming convention",
         ),
         (
             {
-                "DENTICODE_TEST_POSTGRES_URL": (
+                "AD_ANALYZER_TEST_POSTGRES_URL": (
                     "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "denticode_ads_optimizer_ci"
+                    "ad_analyzer_ci"
                 ),
             },
-            "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true",
+            "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true",
         ),
     ),
 )
@@ -597,7 +597,7 @@ def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
     normalized_stderr = normalize_powershell_output(result.stderr)
     assert result.returncode != 0
     assert expected_error in normalized_stderr
-    raw_url = env_overrides.get("DENTICODE_TEST_POSTGRES_URL", "")
+    raw_url = env_overrides.get("AD_ANALYZER_TEST_POSTGRES_URL", "")
     for output in (result.stdout, result.stderr, normalized_stdout, normalized_stderr):
         assert "postgres:postgres" not in output
         if raw_url:
@@ -605,7 +605,7 @@ def test_powershell_disposable_postgres_guard_rejects_unsafe_targets(
 
 
 def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connection() -> None:
-    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/denticode_ads_optimizer_ci"
+    raw_url = "postgresql+psycopg://postgres:postgres@127.0.0.1:1/ad_analyzer_ci"
     result = subprocess.run(
         powershell_validate_command("Migrations"),
         cwd=ROOT,
@@ -614,8 +614,8 @@ def test_powershell_disposable_postgres_guard_accepts_ci_database_until_connecti
         capture_output=True,
         env=minimal_subprocess_env(
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": raw_url,
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": raw_url,
             }
         ),
     )
@@ -660,11 +660,11 @@ def test_reset_disposable_postgres_rejects_missing_marker() -> None:
         text=True,
         capture_output=True,
         env=minimal_subprocess_env(
-            {"DENTICODE_TEST_POSTGRES_URL": "postgresql+psycopg://user:secret@localhost/db_ci"}
+            {"AD_ANALYZER_TEST_POSTGRES_URL": "postgresql+psycopg://user:secret@localhost/db_ci"}
         ),
     )
     assert result.returncode != 0
-    assert "DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
+    assert "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true" in result.stderr
     assert "secret" not in result.stderr
     assert "postgresql+psycopg://" not in result.stderr
 
@@ -673,21 +673,21 @@ def test_reset_disposable_postgres_rejects_missing_marker() -> None:
     ("url", "expected_error"),
     (
         (
-            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer",
+            "postgresql+psycopg://user:secret@localhost/ad_analyzer",
             "controlled _ci or _test naming convention",
         ),
         (
-            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer_staging_ci",
+            "postgresql+psycopg://user:secret@localhost/ad_analyzer_staging_ci",
             "staging/production database names are never disposable",
         ),
         (
-            "postgresql+psycopg://user:secret@localhost/denticode_ads_optimizer_prod_test",
+            "postgresql+psycopg://user:secret@localhost/ad_analyzer_prod_test",
             "staging/production database names are never disposable",
         ),
-        ("not a url", "DENTICODE_TEST_POSTGRES_URL must use a PostgreSQL scheme"),
-        ("postgresql+psycopg://[bad", "malformed DENTICODE_TEST_POSTGRES_URL"),
+        ("not a url", "AD_ANALYZER_TEST_POSTGRES_URL must use a PostgreSQL scheme"),
+        ("postgresql+psycopg://[bad", "malformed AD_ANALYZER_TEST_POSTGRES_URL"),
         ("postgresql+psycopg://localhost/", "PostgreSQL database name is empty"),
-        ("sqlite:///denticode_ads_optimizer_ci", "must use a PostgreSQL scheme"),
+        ("sqlite:///ad_analyzer_ci", "must use a PostgreSQL scheme"),
     ),
 )
 def test_reset_disposable_postgres_rejects_unsafe_urls_without_exposing_credentials(
@@ -701,8 +701,8 @@ def test_reset_disposable_postgres_rejects_unsafe_urls_without_exposing_credenti
         capture_output=True,
         env=minimal_subprocess_env(
             {
-                "DENTICODE_CI_DISPOSABLE_POSTGRES": "true",
-                "DENTICODE_TEST_POSTGRES_URL": url,
+                "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
+                "AD_ANALYZER_TEST_POSTGRES_URL": url,
             }
         ),
     )
@@ -718,7 +718,7 @@ def test_validation_scripts_invoke_reset_before_migration_upgrade() -> None:
         upgrade_index = script.index("alembic upgrade head")
         assert reset_index < upgrade_index
         assert "DATABASE_URL" in script
-        assert "DENTICODE_TEST_POSTGRES_URL" in script
+        assert "AD_ANALYZER_TEST_POSTGRES_URL" in script
 
 
 def test_migration_validation_repairs_head_state_with_missing_application_tables() -> None:
@@ -739,7 +739,7 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
         capture_output=True,
         env=env,
     )
-    engine = create_engine(env["DENTICODE_TEST_POSTGRES_URL"])
+    engine = create_engine(env["AD_ANALYZER_TEST_POSTGRES_URL"])
     try:
         Base.metadata.drop_all(engine)
         with engine.connect() as connection:
@@ -783,10 +783,10 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
 
 
 def test_full_validation_can_run_twice_against_same_disposable_database() -> None:
-    if os.environ.get("DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
+    if os.environ.get("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
         pytest.skip("nested Full validation regression test is disabled")
     command = validate_command("Full")
-    env = disposable_postgres_env({"DENTICODE_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
+    env = disposable_postgres_env({"AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
     for _ in range(2):
         result = subprocess.run(
             command,
@@ -806,9 +806,9 @@ def test_full_validation_can_run_twice_against_same_disposable_database() -> Non
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
     workflow = read(CI)
     assert "postgres:16" in workflow
-    assert "POSTGRES_DB: denticode_ads_optimizer_ci" in workflow
-    assert 'DENTICODE_CI_DISPOSABLE_POSTGRES: "true"' in workflow
-    assert "DENTICODE_TEST_POSTGRES_URL:" in workflow
+    assert "POSTGRES_DB: ad_analyzer_ci" in workflow
+    assert 'AD_ANALYZER_CI_DISPOSABLE_POSTGRES: "true"' in workflow
+    assert "AD_ANALYZER_TEST_POSTGRES_URL:" in workflow
     assert "./scripts/validate.sh PostgreSQL" in workflow
     assert "./scripts/validate.sh Migrations" in workflow
     assert "./scripts/validate.sh ReadOnly" in workflow
@@ -829,7 +829,7 @@ def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:
 def test_read_only_boundary_can_evolve_for_phase11_controlled_writes() -> None:
     shell = read(VALIDATE_SH)
     workflow = read(CI)
-    assert "DENTICODE_PROJECT_PHASE: pre-controlled-writes" in workflow
+    assert "AD_ANALYZER_PROJECT_PHASE: pre-controlled-writes" in workflow
     assert "ControlledWrites gates are intentionally not implemented before Phase 11" in shell
     assert "settings.google_ads_write_enabled is False" in shell
     assert "ReadOnly" in shell
@@ -863,7 +863,7 @@ def test_workflow_uses_official_actions_without_token_bearing_checkout() -> None
 
 
 def resolve_product_diff_base() -> str:
-    configured = os.environ.get("DENTICODE_DIFF_BASE")
+    configured = os.environ.get("AD_ANALYZER_DIFF_BASE")
     if configured:
         return configured
     origin_main = subprocess.run(

@@ -2,10 +2,10 @@
 param(
     [string]$ProjectId = "totemic-alchemy-502420-p4",
     [string]$ProjectNumber = "89443799388",
-    [string]$Repository = "Konner-An-Inlet/Denticode-Ads-Optimizer",
+    [string]$Repository = "Konner-An-Inlet/Ad-Analyzer",
     [string]$PoolId = "github-actions",
-    [string]$ProviderId = "denticode-operations",
-    [string]$ServiceAccountId = "denticode-github-ops"
+    [string]$ProviderId = "ad-analyzer-operations",
+    [string]$ServiceAccountId = "ad-analyzer-github-ops"
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,7 +96,7 @@ if (-not $providerExists) {
         --project=$ProjectId `
         --location=global `
         --workload-identity-pool=$PoolId `
-        --display-name="Denticode production operations" `
+        --display-name="Ad Analyzer production operations" `
         --issuer-uri="https://token.actions.githubusercontent.com" `
         --attribute-mapping=$attributeMapping `
         --attribute-condition=$attributeCondition
@@ -117,7 +117,7 @@ $serviceAccountExists = Test-Native gcloud iam service-accounts describe $servic
 if (-not $serviceAccountExists) {
     Invoke-Native gcloud iam service-accounts create $ServiceAccountId `
         --project=$ProjectId `
-        --display-name="Denticode GitHub operations auditor"
+        --display-name="Ad Analyzer GitHub operations auditor"
 }
 
 $projectRoles = @(

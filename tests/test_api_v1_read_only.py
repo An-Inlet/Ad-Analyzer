@@ -331,7 +331,7 @@ def test_api_v1_requires_bearer_authentication_for_every_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     client = TestClient(app, raise_server_exceptions=False)
     protected_routes = [
         route
@@ -376,7 +376,7 @@ def test_invalid_raw_bearer_headers_return_generic_401(
     monkeypatch: pytest.MonkeyPatch, credential: bytes
 ) -> None:
     token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     messages: list[Message] = []
     scope: Scope = {
         "type": "http",
@@ -446,7 +446,7 @@ def raw_api_response(headers: list[tuple[bytes, bytes]]) -> RawResponse:
 def test_duplicate_authorization_headers_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     token = operator_token()
     other_token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     valid = b"Bearer " + token.encode()
     invalid = b"Bearer invalid"
     duplicate_cases: tuple[list[tuple[bytes, bytes]], ...] = (
@@ -470,7 +470,7 @@ def test_duplicate_non_authorization_headers_do_not_change_authentication(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     status, _headers, body = raw_api_response(
         [
             (b"authorization", b"Bearer " + token.encode()),
@@ -486,7 +486,7 @@ def test_raw_authorization_header_name_casing_authenticates_consistently(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     with make_client(bypass_auth=False) as (_client, _db, _ids):
         for header_name in (b"authorization", b"AUTHORIZATION", b"aUtHoRiZaTiOn"):
             status, _headers, _body = raw_api_response([(header_name, b"bEaReR " + token.encode())])
@@ -513,7 +513,7 @@ def test_raw_authorization_header_name_casing_authenticates_consistently(
 def test_malformed_raw_bearer_format_returns_generic_401(
     monkeypatch: pytest.MonkeyPatch, authorization_value: bytes
 ) -> None:
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(operator_token()))
+    monkeypatch.setattr(settings, "api_token", SecretStr(operator_token()))
     status, response_headers, body = raw_api_response([(b"aUtHoRiZaTiOn", authorization_value)])
     assert status == 401
     assert (b"www-authenticate", b"Bearer") in response_headers
@@ -524,11 +524,11 @@ def test_api_v1_valid_auth_and_invalid_configuration_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     token = operator_token()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     with make_client(bypass_auth=False) as (client, _db, _ids):
         response = client.get("/api/v1/accounts", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
-    monkeypatch.setattr(settings, "denticode_api_token", None)
+    monkeypatch.setattr(settings, "api_token", None)
     unavailable = TestClient(app, raise_server_exceptions=False).get("/api/v1/accounts")
     assert unavailable.status_code == 503
     assert unavailable.json() == {"detail": "service temporarily unavailable"}
@@ -542,7 +542,7 @@ def test_api_v1_valid_auth_and_invalid_configuration_fail_closed(
         "a" * 42 + ".",
         "a" * 42 + "\u00e9",
     ):
-        monkeypatch.setattr(settings, "denticode_api_token", SecretStr(invalid_token))
+        monkeypatch.setattr(settings, "api_token", SecretStr(invalid_token))
         invalid_configuration = TestClient(app, raise_server_exceptions=False).get(
             "/api/v1/accounts"
         )

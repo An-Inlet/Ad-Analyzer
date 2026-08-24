@@ -29,9 +29,7 @@ accounts, and operational job history. Advertising accounts are data sources wit
 they are not themselves client workspaces.
 
 The existing Denticode production records are migrated into a seeded `denticode` workspace named
-`Denticode Ad Analyzer`. Existing database, Cloud Run, secret, and environment names that begin
-with `DENTICODE_` remain supported as compatibility identifiers; they do not define the product
-name or data boundary. See [the workspace architecture](docs/workspace-architecture.md).
+`Denticode Ad Analyzer`. Platform infrastructure and environment identifiers use the `AD_ANALYZER_` namespace. See [the workspace architecture](docs/workspace-architecture.md) and [the platform naming cutover](docs/platform-name-cutover.md).
 
 ## Current capabilities
 
@@ -74,7 +72,7 @@ From a PowerShell terminal:
 
 ```powershell
 git clone <repository-url>
-cd Denticode-Ads-Optimizer
+cd Ad-Analyzer
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -127,10 +125,10 @@ docker run --rm --env-file .env -p 8000:8000 ad-analyzer:dev
 
 ## Database and migrations
 
-The default local database URL retains its deployed legacy database name:
+The default local database URL uses a platform-neutral local database name:
 
 ```text
-postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer
+postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer
 ```
 
 Override it with the `DATABASE_URL` environment variable when running against a local PostgreSQL instance. Use Alembic for schema changes:
@@ -152,7 +150,7 @@ Versioned operator endpoints are available under `/api/v1`. These routes read on
 PostgreSQL database unless a hidden, explicitly gated recommendation workflow says otherwise. They
 do not trigger synchronizations or mutate advertising platforms.
 
-All `/api/v1` endpoints require an operator bearer token. `DENTICODE_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
+All `/api/v1` endpoints require an operator bearer token. `AD_ANALYZER_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
 
 Endpoint groups:
 
@@ -177,19 +175,19 @@ Endpoint groups:
 Examples:
 
 ```bash
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts/1/campaign-performance?date_from=2026-07-01&date_to=2026-07-31"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/ad-group-performance?date_from=2026-07-01&date_to=2026-07-31"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/analysis-runs?limit=25&offset=0"
-curl -H "Authorization: Bearer $DENTICODE_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts/1/campaign-performance?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/ad-group-performance?date_from=2026-07-01&date_to=2026-07-31"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/analysis-runs?limit=25&offset=0"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
 ```
 
 PowerShell:
 
 ```powershell
-$headers = @{ Authorization = "Bearer $env:DENTICODE_API_TOKEN" }
+$headers = @{ Authorization = "Bearer $env:AD_ANALYZER_API_TOKEN" }
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts?platform=google_ads&limit=25&offset=0" -Headers $headers
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_from=2026-07-01&date_to=2026-07-31" -Headers $headers
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads" -Headers $headers
@@ -201,14 +199,14 @@ The server-rendered local dashboard is strictly read-only. It displays already-s
 local database data only; it never invokes collectors, starts a sync, contacts Google Ads, or
 changes advertising accounts, campaigns, budgets, bids, audiences, or conversions.
 
-Set a locally generated `DENTICODE_API_TOKEN` before startup (never commit the value), then run:
+Set a locally generated `AD_ANALYZER_API_TOKEN` before startup (never commit the value), then run:
 
 ```powershell
-$env:DENTICODE_API_TOKEN = "<your locally generated opaque token>"
+$env:AD_ANALYZER_API_TOKEN = "<your locally generated opaque token>"
 uvicorn app.main:app --reload
 ```
 
-For local loopback HTTP only, also set `DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP=true`.
+For local loopback HTTP only, also set `AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP=true`.
 This development-only opt-in is rejected for non-loopback hosts; deployed dashboard cookies always
 use the `Secure` attribute. Dashboard sessions are process-local, bounded, and therefore require
 a single worker (or future shared session storage) for reliable multi-worker navigation.
@@ -278,12 +276,12 @@ codes are `0` for an actual successful sync, `2` when another worker already hol
 advisory lock and the cycle is skipped, and `1` for configuration or synchronization failure.
 Cron jobs and supervisors can use that contract to distinguish success, overlap skips, and
 failures. The worker
-uses `DENTICODE_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
-`DENTICODE_SYNC_RUN_IMMEDIATELY` (default true), `DENTICODE_SYNC_MAX_ATTEMPTS` (1--5, default 3),
-`DENTICODE_SYNC_RETRY_BASE_SECONDS` (1--300, default 5),
-`DENTICODE_SYNC_RETRY_MAX_SECONDS` (1--900, default 60),
-`DENTICODE_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
-`DENTICODE_SYNC_ADVISORY_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
+uses `AD_ANALYZER_SYNC_INTERVAL_MINUTES` (5--1440, default 60),
+`AD_ANALYZER_SYNC_RUN_IMMEDIATELY` (default true), `AD_ANALYZER_SYNC_MAX_ATTEMPTS` (1--5, default 3),
+`AD_ANALYZER_SYNC_RETRY_BASE_SECONDS` (1--300, default 5),
+`AD_ANALYZER_SYNC_RETRY_MAX_SECONDS` (1--900, default 60),
+`AD_ANALYZER_SYNC_STALE_AFTER_MINUTES` (1--10080, default 180), and
+`AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY` (a signed PostgreSQL bigint). Invalid settings stop the worker before
 collection. Put only local values in an uncommitted `.env`; never commit `.env` or credentials.
 
 After a successful sync, both workers run the idempotent post-sync analysis. The long-running
@@ -302,7 +300,7 @@ Retry is conservative: only recognized transient network/database/service
 failures retry with capped exponential backoff and bounded jitter; authentication, configuration,
 authorization, unknown commit outcomes, and unknown failures do not retry. The recurring
 scheduler uses fixed-delay cadence: after each completed, failed, or skipped cycle, it waits the
-full configured interval before the next attempt. If `DENTICODE_SYNC_RUN_IMMEDIATELY=false`, the
+full configured interval before the next attempt. If `AD_ANALYZER_SYNC_RUN_IMMEDIATELY=false`, the
 first cycle is delayed until the first interval elapses. Retry backoff is shutdown-aware in both the scheduler and one-shot worker: Ctrl+C, SIGINT,
 and SIGTERM request shutdown, stop waiting, avoid another collector attempt, finalize the
 authoritative JobRun with a bounded interruption summary when the transaction outcome is known,

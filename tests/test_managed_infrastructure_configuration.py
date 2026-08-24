@@ -14,14 +14,14 @@ from pytest import MonkeyPatch
 def _settings(**overrides: object) -> Settings:
     defaults: dict[str, object] = {
         "APP_ENV": "production",
-        "DATABASE_URL": "postgresql+psycopg://denticode:safe-secret@db.example.invalid:5432/denticode?sslmode=require",
+        "DATABASE_URL": "postgresql+psycopg://ad_analyzer:safe-secret@db.example.invalid:5432/ad_analyzer?sslmode=require",
         "DATABASE_SSL_MODE": "require",
-        "DENTICODE_API_TOKEN": "safe-secret-token",
-        "DENTICODE_REQUIRED_SECRET_NAMES": "DENTICODE_API_TOKEN,DATABASE_URL",
-        "DENTICODE_GOOGLE_ADS_WRITE_ENABLED": False,
-        "DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH": True,
-        "DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS": "",
-        "DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS": "",
+        "AD_ANALYZER_API_TOKEN": "safe-secret-token",
+        "AD_ANALYZER_REQUIRED_SECRET_NAMES": "AD_ANALYZER_API_TOKEN,DATABASE_URL",
+        "AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED": False,
+        "AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH": True,
+        "AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS": "",
+        "AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS": "",
     }
     defaults.update(overrides)
     return Settings(**defaults)
@@ -56,7 +56,7 @@ def test_tls_configuration_requires_production_tls_mode() -> None:
     result = validate_deployment_startup(
         DeploymentProcess.WEB,
         _settings(
-            DATABASE_URL="postgresql+psycopg://denticode:safe-secret@db/denticode",
+            DATABASE_URL="postgresql+psycopg://ad_analyzer:safe-secret@db/ad_analyzer",
             DATABASE_SSL_MODE="disable",
         ),
     )
@@ -84,8 +84,8 @@ def test_missing_and_placeholder_production_secrets_are_redacted() -> None:
     result = validate_deployment_startup(
         DeploymentProcess.WEB,
         _settings(
-            DATABASE_URL="postgresql+psycopg://denticode:replace-with-external-secret@db/denticode?sslmode=require",
-            DENTICODE_API_TOKEN="replace-with-external-secret",
+            DATABASE_URL="postgresql+psycopg://ad_analyzer:replace-with-external-secret@db/ad_analyzer?sslmode=require",
+            AD_ANALYZER_API_TOKEN="replace-with-external-secret",
         ),
     )
 
@@ -97,7 +97,7 @@ def test_missing_and_placeholder_production_secrets_are_redacted() -> None:
 
 
 def test_process_specific_runtime_configuration_is_provider_neutral() -> None:
-    settings = _settings(DENTICODE_WEB_CONCURRENCY=3, DENTICODE_GRACEFUL_SHUTDOWN_SECONDS=45)
+    settings = _settings(AD_ANALYZER_WEB_CONCURRENCY=3, AD_ANALYZER_GRACEFUL_SHUTDOWN_SECONDS=45)
 
     configs = {process: runtime_process_config(process, settings) for process in DeploymentProcess}
 
@@ -115,10 +115,10 @@ def test_process_specific_runtime_configuration_is_provider_neutral() -> None:
 
 def test_write_disabled_kill_switch_enabled_and_empty_allowlists_are_required() -> None:
     unsafe = [
-        _settings(DENTICODE_GOOGLE_ADS_WRITE_ENABLED=True),
-        _settings(DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=False),
-        _settings(DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS="123"),
-        _settings(DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS="budget_update"),
+        _settings(AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=True),
+        _settings(AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=False),
+        _settings(AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS="123"),
+        _settings(AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS="budget_update"),
     ]
 
     results = [
@@ -155,4 +155,4 @@ def test_provider_neutral_examples_and_roadmap_status_are_updated() -> None:
     assert "94% (16 of 17 units complete or superseded)" in roadmap
     assert "Phase 12.4 production release approval remains blocked" in roadmap
     assert "AWS" not in managed and "Azure" not in managed and "Google Cloud" not in managed
-    assert 'DENTICODE_GOOGLE_ADS_WRITE_ENABLED: "false"' in managed
+    assert 'AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED: "false"' in managed

@@ -1,12 +1,12 @@
 # Production operations automation
 
-This automation can perform a read-only audit of the Denticode production deployment every hour and can also be run manually from GitHub Actions. The scheduled audit is disabled by default; manual `workflow_dispatch` runs remain available.
+This automation can perform a read-only audit of the Ad Analyzer production deployment every hour and can also be run manually from GitHub Actions. The scheduled audit is disabled by default; manual `workflow_dispatch` runs remain available.
 
 ## Dashboard control
 
 The platform administrator dashboard exposes **GitHub hourly production audit** as a master toggle. It synchronizes the repository variable `PRODUCTION_OPERATIONS_AUDIT_ENABLED`; only the literal value `true` allows scheduled audit jobs to run. Missing or false values fail closed, and manual audit runs are unaffected.
 
-Configure `AD_ANALYZER_GITHUB_CONTROL_TOKEN` from an external secret and scope it only to this repository with repository **Variables: write** permission. `AD_ANALYZER_GITHUB_CONTROL_REPOSITORY` defaults to `Konner-An-Inlet/Denticode-Ads-Optimizer`. The application never stores the token in the database or logs GitHub response bodies. If the external update fails, the dashboard does not record the requested state change.
+Configure `AD_ANALYZER_GITHUB_CONTROL_TOKEN` from an external secret and scope it only to this repository with repository **Variables: write** permission. `AD_ANALYZER_GITHUB_CONTROL_REPOSITORY` defaults to `Konner-An-Inlet/Ad-Analyzer`. The application never stores the token in the database or logs GitHub response bodies. If the external update fails, the dashboard does not record the requested state change.
 
 The platform administrator dashboard also exposes **All Ad Analyzer data syncs** as a database-backed master toggle. Turning it off makes every new scheduled, one-shot, or manually invoked Google Ads sync cycle exit successfully before acquiring the sync lock, creating a job run, or contacting Google Ads. Existing synchronized data remains available, and nightly or weekly analysis can continue according to their own controls. A sync that was already running when the control changed is allowed to finish safely; the next cycle observes the new state.
 
@@ -42,7 +42,7 @@ The script:
 
 1. Enables the IAM Credentials, Security Token Service, and IAM APIs.
 2. Creates or updates a repository-restricted workload identity pool and provider.
-3. Creates `denticode-github-ops` with read-only audit roles.
+3. Creates `ad-analyzer-github-ops` with read-only audit roles.
 4. Allows only this repository's `main` branch to impersonate that account.
 5. Creates the required GitHub repository variables automatically with `gh variable set`.
 

@@ -11,19 +11,19 @@ function Invoke-Step {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 function Require-DisposablePostgres {
-    if ([string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) {
-        Write-Error 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run.'
+    if ([string]::IsNullOrWhiteSpace($env:AD_ANALYZER_TEST_POSTGRES_URL)) {
+        Write-Error 'AD_ANALYZER_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run.'
     }
-    if ($env:DENTICODE_CI_DISPOSABLE_POSTGRES -ne 'true') {
-        Write-Error 'Refusing migration validation: DENTICODE_CI_DISPOSABLE_POSTGRES must exactly equal true.'
+    if ($env:AD_ANALYZER_CI_DISPOSABLE_POSTGRES -ne 'true') {
+        Write-Error 'Refusing migration validation: AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true.'
     }
     try {
-        $uri = [System.Uri]::new($env:DENTICODE_TEST_POSTGRES_URL)
+        $uri = [System.Uri]::new($env:AD_ANALYZER_TEST_POSTGRES_URL)
     } catch {
-        Write-Error 'Refusing migration validation: malformed DENTICODE_TEST_POSTGRES_URL.'
+        Write-Error 'Refusing migration validation: malformed AD_ANALYZER_TEST_POSTGRES_URL.'
     }
     if ($uri.Scheme -ne 'postgresql' -and $uri.Scheme -ne 'postgresql+psycopg') {
-        Write-Error 'Refusing migration validation: DENTICODE_TEST_POSTGRES_URL must use a PostgreSQL scheme.'
+        Write-Error 'Refusing migration validation: AD_ANALYZER_TEST_POSTGRES_URL must use a PostgreSQL scheme.'
     }
     $databaseName = [System.Uri]::UnescapeDataString(($uri.AbsolutePath.Trim('/') -split '/')[-1]).ToLowerInvariant()
     if ([string]::IsNullOrWhiteSpace($databaseName)) {
@@ -35,7 +35,7 @@ function Require-DisposablePostgres {
     if (-not ($databaseName.EndsWith('_ci') -or $databaseName.EndsWith('_test') -or $databaseName.Contains('_ci_') -or $databaseName.Contains('_test_'))) {
         Write-Error 'Refusing migration validation: database name must use a controlled _ci or _test naming convention.'
     }
-    $env:DATABASE_URL = $env:DENTICODE_TEST_POSTGRES_URL
+    $env:DATABASE_URL = $env:AD_ANALYZER_TEST_POSTGRES_URL
 }
 function Invoke-Focused { Invoke-Step 'python -m pytest tests/test_automation_foundation.py tests/test_api_v1_read_only.py -k "automation_foundation or scoping or account_scoped or no_writes"' }
 function Invoke-PostgreSQL { Require-DisposablePostgres; Invoke-Step 'python -m pytest tests/test_phase7_postgres_transactions.py' }
@@ -51,21 +51,21 @@ function Invoke-Release {
     Invoke-Step 'python -m pytest'
     Invoke-Step 'ruff check .'
     Invoke-Step 'mypy'
-    $diffBase = if ([string]::IsNullOrWhiteSpace($env:DENTICODE_DIFF_BASE)) { 'HEAD' } else { $env:DENTICODE_DIFF_BASE }
+    $diffBase = if ([string]::IsNullOrWhiteSpace($env:AD_ANALYZER_DIFF_BASE)) { 'HEAD' } else { $env:AD_ANALYZER_DIFF_BASE }
     Invoke-Step "git diff --check $diffBase"
 }
 
 switch ($Scope) {
     'Full' {
-        if (-not [string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:AD_ANALYZER_TEST_POSTGRES_URL)) {
             Require-DisposablePostgres
             Invoke-Step 'python scripts/reset_disposable_postgres.py'
         } else {
-            Write-Host 'DENTICODE_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally.'
+            Write-Host 'AD_ANALYZER_TEST_POSTGRES_URL is not configured; PostgreSQL integration testing cannot run locally.'
         }
         Invoke-Step 'alembic upgrade head'; Invoke-Step 'python -m pytest'; Invoke-Step 'ruff check .'; Invoke-Step 'mypy'
-        $diffBase = if ([string]::IsNullOrWhiteSpace($env:DENTICODE_DIFF_BASE)) { 'HEAD' } else { $env:DENTICODE_DIFF_BASE }; Invoke-Step "git diff --check $diffBase"
-        if (-not [string]::IsNullOrWhiteSpace($env:DENTICODE_TEST_POSTGRES_URL)) { Invoke-PostgreSQL; Invoke-Migrations }
+        $diffBase = if ([string]::IsNullOrWhiteSpace($env:AD_ANALYZER_DIFF_BASE)) { 'HEAD' } else { $env:AD_ANALYZER_DIFF_BASE }; Invoke-Step "git diff --check $diffBase"
+        if (-not [string]::IsNullOrWhiteSpace($env:AD_ANALYZER_TEST_POSTGRES_URL)) { Invoke-PostgreSQL; Invoke-Migrations }
         Invoke-ReadOnly; Invoke-Security; Invoke-Privacy; Invoke-Focused
     }
     'Focused' { Invoke-Focused }

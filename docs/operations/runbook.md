@@ -1,12 +1,12 @@
 # Ad Analyzer operator runbook
 
-The current production deployment serves the Denticode Ad Analyzer workspace. Legacy Denticode
-resource and environment names remain in place for deployment compatibility.
+The current production deployment serves the Denticode Ad Analyzer workspace inside the shared
+Ad Analyzer platform. New platform resources and environment names use Ad Analyzer naming.
 
 ## Launch prerequisites
 1. Provision PostgreSQL and configure `DATABASE_URL` through an external secret manager.
 2. Configure read-only Google Ads credentials externally; never commit secrets.
-3. Keep `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` and `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` until a human approves non-production execution testing.
+3. Keep `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false` and `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` until a human approves non-production execution testing.
 4. Run migrations, validation scripts, and backup verification before production traffic.
 
 ## Backup and restore
@@ -94,12 +94,12 @@ resource and environment names remain in place for deployment compatibility.
 - Run `python scripts/validate_deployment_startup.py --process migration` before `alembic upgrade head`.
 - Verify `GET /health` and `GET /ready` after every restart.
 - Roll back by stopping `scheduler`, restoring the previous image tag and environment set, verifying `web`, and then restarting `scheduler`.
-- Keep `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false`, `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`, and production allowlists empty.
+- Keep `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false`, `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true`, and production allowlists empty.
 
 ## Phase 12.2 managed configuration runbook
 
 1. Confirm `APP_ENV=production` only in managed environments that have completed human release review.
-2. Inject `DATABASE_URL` and `DENTICODE_API_TOKEN` from external secret references or mounted secret files mapped to environment variables; never commit values.
+2. Inject `DATABASE_URL` and `AD_ANALYZER_API_TOKEN` from external secret references or mounted secret files mapped to environment variables; never commit values.
 3. Require PostgreSQL TLS (`require`, `verify-ca`, or `verify-full`) and bounded pool/timeout settings.
 4. Run `python scripts/validate_deployment_startup.py --process migration`, then `alembic upgrade head`, then validate and start web, worker, and scheduler.
 5. For rotation, create a new secret version, point runtime references to it, validate, restart safely, verify readiness, then revoke the old version.

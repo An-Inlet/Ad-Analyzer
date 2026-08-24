@@ -44,7 +44,7 @@ def require_api_token(
     _credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
 ) -> None:
     """Require the configured bearer token without exposing authentication details."""
-    expected_token = settings.denticode_api_token
+    expected_token = settings.api_token
     if expected_token is None:
         raise HTTPException(status_code=503, detail="service temporarily unavailable")
     expected_value = expected_token.get_secret_value()

@@ -20,7 +20,7 @@ def dashboard_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setattr(settings, "iap_audience", AUDIENCE)
     monkeypatch.setattr(settings, "platform_admin_emails_csv", ALLOWED_EMAIL)
     monkeypatch.setattr(settings, "dashboard_allow_insecure_local_http", False)
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(TOKEN))
+    monkeypatch.setattr(settings, "api_token", SecretStr(TOKEN))
     with auth._lock:
         auth._sessions.clear()
     yield

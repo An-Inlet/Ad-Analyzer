@@ -11,7 +11,7 @@ The automated buildout has completed the technically implementable roadmap work 
 | Phase 11.3 production mutation enablement | 11.3, 11.4 | Decide whether live Google Ads mutations are permitted at all. |
 | Google Ads mutation allowlist | 11.3, 11.4 | Select exact mutation types, if any, that may be implemented. |
 | Live account allowlists | 11.3, 11.4 | Provide approved production account allowlists through external configuration, not this repository. |
-| Execution kill switch disablement | 11.3, 11.4 | Approve any production process for setting `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=false`. |
+| Execution kill switch disablement | 11.3, 11.4 | Approve any production process for setting `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=false`. |
 | Stale recommendation and rollback policies | 11.3, 11.4 | Finalize expiration windows and compensating-action expectations before live execution. |
 | Hosting platform | 12.1, 12.2 | Select the production hosting platform. |
 | Managed PostgreSQL provider | 12.2 | Select the managed PostgreSQL provider and backup responsibility. |
@@ -26,5 +26,5 @@ The automated buildout has completed the technically implementable roadmap work 
 
 - Do not commit credentials, `.env` files, OAuth tokens, private keys, service-account files, or production database URLs.
 - Do not perform live Google Ads writes or campaign changes without explicit approval.
-- Keep `DENTICODE_GOOGLE_ADS_WRITE_ENABLED=false` and `DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` unless a human-approved controlled execution process changes them outside Git.
+- Keep `AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false` and `AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true` unless a human-approved controlled execution process changes them outside Git.
 - Do not deploy production infrastructure or spend advertising/infrastructure funds from automation.

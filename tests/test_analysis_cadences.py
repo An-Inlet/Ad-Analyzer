@@ -579,7 +579,7 @@ def test_api_and_dashboard_list_only_the_requested_workspace_runs(
         as_of=as_of,
     )
     token = "a" * 48
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     monkeypatch.setattr(settings, "app_env", "development")
 
     def override_db() -> Generator[Session, None, None]:

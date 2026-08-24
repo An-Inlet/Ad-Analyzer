@@ -317,7 +317,7 @@ def test_github_variable_client_creates_missing_variable_without_exposing_token(
     monkeypatch.setattr(github_module, "urlopen", fake_urlopen)
     client = GitHubActionsVariableClient(
         token=SecretStr("private-test-token"),
-        repository="Konner-An-Inlet/Denticode-Ads-Optimizer",
+        repository="Konner-An-Inlet/Ad-Analyzer",
     )
     client.set_hourly_production_audit_enabled(False)
 
@@ -338,7 +338,7 @@ def test_github_variable_client_failure_is_sanitized(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(github_module, "urlopen", fail_urlopen)
     client = GitHubActionsVariableClient(
         token=SecretStr("private-test-token"),
-        repository="Konner-An-Inlet/Denticode-Ads-Optimizer",
+        repository="Konner-An-Inlet/Ad-Analyzer",
     )
     with pytest.raises(GitHubAutomationControlError) as exc_info:
         client.set_hourly_production_audit_enabled(True)
@@ -351,7 +351,7 @@ def test_hourly_github_audit_fails_closed_but_manual_dispatch_remains_available(
     assert "cron: '17 * * * *'" in workflow
     assert "github.event_name == 'workflow_dispatch'" in workflow
     assert "vars.PRODUCTION_OPERATIONS_AUDIT_ENABLED == 'true'" in workflow
-    assert "GCP_SYNC_JOB: denticode-sync" in workflow
+    assert "GCP_SYNC_JOB: ad-analyzer-sync" in workflow
     assert "google_ads_write_enabled" not in workflow
 
 

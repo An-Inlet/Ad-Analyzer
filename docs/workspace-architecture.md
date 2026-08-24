@@ -85,8 +85,8 @@ Migration `20260802_0008` creates the workspace structure, seeds the `denticode`
 **Denticode Ad Analyzer**, and backfills all existing client-owned records into it. It also creates
 initial integration registrations from existing advertising and CRM connections.
 
-Legacy resource names, the repository name, the database name `denticode_ads_optimizer`, and
-existing `DENTICODE_*` environment aliases remain supported to avoid an unnecessary production
+Legacy resource names, the repository name, the database name `ad_analyzer`, and
+existing `AD_ANALYZER_*` environment aliases remain supported to avoid an unnecessary production
 cutover. New platform settings use `AD_ANALYZER_*` names where a compatibility-safe alias is
 available.
 

@@ -365,13 +365,13 @@ def test_sync_health_isolated_to_accessible_workspaces(db: Session) -> None:
 
     scoped = sync_health(
         db,
-        Settings(DENTICODE_SYNC_STALE_AFTER_MINUTES=60),
+        Settings(AD_ANALYZER_SYNC_STALE_AFTER_MINUTES=60),
         now,
         workspace_ids={denticode.id},
     )
     other = sync_health(
         db,
-        Settings(DENTICODE_SYNC_STALE_AFTER_MINUTES=60),
+        Settings(AD_ANALYZER_SYNC_STALE_AFTER_MINUTES=60),
         now,
         workspace_ids={second.id},
     )
@@ -454,7 +454,7 @@ def test_workspace_operator_api_uses_platform_and_workspace_names(
         )
     )
     db.commit()
-    monkeypatch.setattr(settings, "denticode_api_token", SecretStr(token))
+    monkeypatch.setattr(settings, "api_token", SecretStr(token))
     monkeypatch.setattr(settings, "app_env", "development")
 
     def override_db() -> Generator[Session, None, None]:

@@ -11,8 +11,8 @@ from pydantic_settings import (
 from sqlalchemy import URL, make_url
 
 _SYNC_LOCK_FIELD = "sync_lock_key"
-_SYNC_LOCK_CANONICAL = "DENTICODE_SYNC_ADVISORY_LOCK_KEY"
-_SYNC_LOCK_LEGACY = "DENTICODE_SYNC_LOCK_KEY"
+_SYNC_LOCK_CANONICAL = "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY"
+_SYNC_LOCK_LEGACY = "AD_ANALYZER_SYNC_LOCK_KEY"
 _SYNC_LOCK_KEY_NAMES = {
     _SYNC_LOCK_FIELD.lower(),
     _SYNC_LOCK_CANONICAL.lower(),
@@ -205,10 +205,10 @@ class Settings(BaseSettings):
     workspace_id: int = Field(
         default=1,
         ge=1,
-        validation_alias=AliasChoices("AD_ANALYZER_WORKSPACE_ID", "DENTICODE_WORKSPACE_ID"),
+        validation_alias="AD_ANALYZER_WORKSPACE_ID",
     )
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/denticode_ads_optimizer",
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer",
         validation_alias="DATABASE_URL",
     )
     cloud_sql_connection_name: str | None = Field(
@@ -228,44 +228,39 @@ class Settings(BaseSettings):
     database_pool_recycle_seconds: int = Field(
         default=1800, ge=60, le=86400, validation_alias="DATABASE_POOL_RECYCLE_SECONDS"
     )
-    denticode_api_token: SecretStr | None = Field(
-        default=None, validation_alias="DENTICODE_API_TOKEN"
+    api_token: SecretStr | None = Field(
+        default=None, validation_alias="AD_ANALYZER_API_TOKEN"
     )
     crm_webhook_secret: SecretStr | None = Field(
-        default=None, validation_alias="DENTICODE_CRM_WEBHOOK_SECRET"
+        default=None, validation_alias="AD_ANALYZER_CRM_WEBHOOK_SECRET"
     )
     crm_pubsub_project_id: str = Field(
-        default="", validation_alias="DENTICODE_CRM_PUBSUB_PROJECT_ID"
+        default="", validation_alias="AD_ANALYZER_CRM_PUBSUB_PROJECT_ID"
     )
     crm_pubsub_topic_id: str = Field(
-        default="crm-events", validation_alias="DENTICODE_CRM_PUBSUB_TOPIC_ID"
+        default="crm-events", validation_alias="AD_ANALYZER_CRM_PUBSUB_TOPIC_ID"
     )
     crm_pubsub_subscription_id: str = Field(
-        default="", validation_alias="DENTICODE_CRM_PUBSUB_SUBSCRIPTION_ID"
+        default="", validation_alias="AD_ANALYZER_CRM_PUBSUB_SUBSCRIPTION_ID"
     )
     dashboard_allow_insecure_local_http: bool = Field(
         default=False,
-        validation_alias=AliasChoices(
-            "AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
-            "DENTICODE_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
-        ),
+        validation_alias="AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
     )
     iap_audience: str = Field(
         default="",
-        validation_alias=AliasChoices("AD_ANALYZER_IAP_AUDIENCE", "DENTICODE_IAP_AUDIENCE"),
+        validation_alias="AD_ANALYZER_IAP_AUDIENCE",
     )
     platform_admin_emails_csv: str = Field(
         default="",
-        validation_alias=AliasChoices(
-            "AD_ANALYZER_PLATFORM_ADMIN_EMAILS", "DENTICODE_DASHBOARD_ALLOWED_EMAILS"
-        ),
+        validation_alias="AD_ANALYZER_PLATFORM_ADMIN_EMAILS",
     )
     github_control_token: SecretStr | None = Field(
         default=None,
         validation_alias="AD_ANALYZER_GITHUB_CONTROL_TOKEN",
     )
     github_control_repository: str = Field(
-        default="Konner-An-Inlet/Denticode-Ads-Optimizer",
+        default="Konner-An-Inlet/Ad-Analyzer",
         pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
         validation_alias="AD_ANALYZER_GITHUB_CONTROL_REPOSITORY",
     )
@@ -286,22 +281,22 @@ class Settings(BaseSettings):
         default=None, validation_alias="GOOGLE_ADS_REFRESH_TOKEN"
     )
     sync_interval_minutes: int = Field(
-        default=60, ge=5, le=1440, validation_alias="DENTICODE_SYNC_INTERVAL_MINUTES"
+        default=60, ge=5, le=1440, validation_alias="AD_ANALYZER_SYNC_INTERVAL_MINUTES"
     )
     sync_run_immediately: bool = Field(
-        default=True, validation_alias="DENTICODE_SYNC_RUN_IMMEDIATELY"
+        default=True, validation_alias="AD_ANALYZER_SYNC_RUN_IMMEDIATELY"
     )
     sync_max_attempts: int = Field(
-        default=3, ge=1, le=5, validation_alias="DENTICODE_SYNC_MAX_ATTEMPTS"
+        default=3, ge=1, le=5, validation_alias="AD_ANALYZER_SYNC_MAX_ATTEMPTS"
     )
     sync_retry_base_seconds: float = Field(
-        default=5, ge=1, le=300, validation_alias="DENTICODE_SYNC_RETRY_BASE_SECONDS"
+        default=5, ge=1, le=300, validation_alias="AD_ANALYZER_SYNC_RETRY_BASE_SECONDS"
     )
     sync_retry_max_seconds: float = Field(
-        default=60, ge=1, le=900, validation_alias="DENTICODE_SYNC_RETRY_MAX_SECONDS"
+        default=60, ge=1, le=900, validation_alias="AD_ANALYZER_SYNC_RETRY_MAX_SECONDS"
     )
     sync_stale_after_minutes: int = Field(
-        default=180, ge=1, le=10080, validation_alias="DENTICODE_SYNC_STALE_AFTER_MINUTES"
+        default=180, ge=1, le=10080, validation_alias="AD_ANALYZER_SYNC_STALE_AFTER_MINUTES"
     )
     sync_lock_key: int = Field(
         default=719_042_711,
@@ -310,47 +305,47 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(_SYNC_LOCK_FIELD, _SYNC_LOCK_CANONICAL, _SYNC_LOCK_LEGACY),
     )
     google_ads_write_enabled: bool = Field(
-        default=False, validation_alias="DENTICODE_GOOGLE_ADS_WRITE_ENABLED"
+        default=False, validation_alias="AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED"
     )
     google_ads_execution_kill_switch: bool = Field(
-        default=True, validation_alias="DENTICODE_GOOGLE_ADS_EXECUTION_KILL_SWITCH"
+        default=True, validation_alias="AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH"
     )
     allowed_execution_account_ids_csv: str = Field(
-        default="", validation_alias="DENTICODE_ALLOWED_EXECUTION_ACCOUNT_IDS"
+        default="", validation_alias="AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS"
     )
     allowed_google_ads_mutations_csv: str = Field(
-        default="", validation_alias="DENTICODE_ALLOWED_GOOGLE_ADS_MUTATIONS"
+        default="", validation_alias="AD_ANALYZER_ALLOWED_GOOGLE_ADS_MUTATIONS"
     )
     required_secret_names_csv: str = Field(
-        default="DENTICODE_API_TOKEN,DATABASE_URL",
-        validation_alias="DENTICODE_REQUIRED_SECRET_NAMES",
+        default="AD_ANALYZER_API_TOKEN,DATABASE_URL",
+        validation_alias="AD_ANALYZER_REQUIRED_SECRET_NAMES",
     )
     secret_reference_prefix: str = Field(
-        default="", validation_alias="DENTICODE_SECRET_REFERENCE_PREFIX"
+        default="", validation_alias="AD_ANALYZER_SECRET_REFERENCE_PREFIX"
     )
     web_concurrency: int = Field(
-        default=2, ge=1, le=16, validation_alias="DENTICODE_WEB_CONCURRENCY"
+        default=2, ge=1, le=16, validation_alias="AD_ANALYZER_WEB_CONCURRENCY"
     )
     worker_concurrency: int = Field(
-        default=1, ge=1, le=8, validation_alias="DENTICODE_WORKER_CONCURRENCY"
+        default=1, ge=1, le=8, validation_alias="AD_ANALYZER_WORKER_CONCURRENCY"
     )
     scheduler_concurrency: int = Field(
-        default=1, ge=1, le=1, validation_alias="DENTICODE_SCHEDULER_CONCURRENCY"
+        default=1, ge=1, le=1, validation_alias="AD_ANALYZER_SCHEDULER_CONCURRENCY"
     )
     web_timeout_seconds: int = Field(
-        default=60, ge=5, le=600, validation_alias="DENTICODE_WEB_TIMEOUT_SECONDS"
+        default=60, ge=5, le=600, validation_alias="AD_ANALYZER_WEB_TIMEOUT_SECONDS"
     )
     worker_timeout_seconds: int = Field(
-        default=900, ge=30, le=86400, validation_alias="DENTICODE_WORKER_TIMEOUT_SECONDS"
+        default=900, ge=30, le=86400, validation_alias="AD_ANALYZER_WORKER_TIMEOUT_SECONDS"
     )
     scheduler_timeout_seconds: int = Field(
-        default=300, ge=30, le=3600, validation_alias="DENTICODE_SCHEDULER_TIMEOUT_SECONDS"
+        default=300, ge=30, le=3600, validation_alias="AD_ANALYZER_SCHEDULER_TIMEOUT_SECONDS"
     )
     migration_timeout_seconds: int = Field(
-        default=900, ge=30, le=3600, validation_alias="DENTICODE_MIGRATION_TIMEOUT_SECONDS"
+        default=900, ge=30, le=3600, validation_alias="AD_ANALYZER_MIGRATION_TIMEOUT_SECONDS"
     )
     graceful_shutdown_seconds: int = Field(
-        default=30, ge=5, le=300, validation_alias="DENTICODE_GRACEFUL_SHUTDOWN_SECONDS"
+        default=30, ge=5, le=300, validation_alias="AD_ANALYZER_GRACEFUL_SHUTDOWN_SECONDS"
     )
 
     @property
@@ -362,8 +357,8 @@ class Settings(BaseSettings):
     def secret_reference_for(self, name: str) -> str | None:
         if name == "DATABASE_URL":
             return self.database_url if self.database_url.strip() else None
-        if name == "DENTICODE_API_TOKEN":
-            return self.denticode_api_token.get_secret_value() if self.denticode_api_token else None
+        if name == "AD_ANALYZER_API_TOKEN":
+            return self.api_token.get_secret_value() if self.api_token else None
         if name == "DATABASE_PASSWORD":
             return self.database_password.get_secret_value() if self.database_password else None
         return self.secret_reference_prefix or None
@@ -398,7 +393,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_database_url(self) -> URL:
-        """Resolve the legacy URL or build a safely escaped Cloud SQL socket URL."""
+        """Resolve a direct URL or build a safely escaped Cloud SQL socket URL."""
         if not self.uses_cloud_sql_socket:
             return make_url(self.database_url)
         return URL.create(

@@ -67,7 +67,10 @@ def relaxed_lock(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_retry_delay_clamps_untrusted_jitter_values() -> None:
-    settings = Settings(DENTICODE_SYNC_RETRY_BASE_SECONDS=5, DENTICODE_SYNC_RETRY_MAX_SECONDS=20)
+    settings = Settings(
+        AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5,
+        AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20,
+    )
     values: list[Any] = [0, 1, -5, 100, True, math.nan, math.inf, -math.inf, "bad"]
 
     def jitter_source(value: Any) -> Callable[[], Any]:
@@ -83,7 +86,10 @@ def test_retry_delay_clamps_untrusted_jitter_values() -> None:
 
 
 def test_retry_delay_caps_exponential_without_unbounded_intermediate() -> None:
-    settings = Settings(DENTICODE_SYNC_RETRY_BASE_SECONDS=5, DENTICODE_SYNC_RETRY_MAX_SECONDS=20)
+    settings = Settings(
+        AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=5,
+        AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=20,
+    )
 
     assert retry_delay(1, settings, lambda: 0) == 5.0
     assert retry_delay(2, settings, lambda: 0) == 10.0
@@ -146,7 +152,7 @@ def test_scheduler_delays_first_cycle_when_immediate_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls = 0
-    settings = Settings(DENTICODE_SYNC_RUN_IMMEDIATELY=False, DENTICODE_SYNC_INTERVAL_MINUTES=5)
+    settings = Settings(AD_ANALYZER_SYNC_RUN_IMMEDIATELY=False, AD_ANALYZER_SYNC_INTERVAL_MINUTES=5)
     monkeypatch.setattr("app.jobs.google_ads_scheduler.time.monotonic", lambda: 100.0)
 
     def run_cycle(*_args: object, **_kwargs: object) -> CycleOutcome:
@@ -169,7 +175,7 @@ def test_scheduler_delays_first_cycle_when_immediate_disabled(
 
 def test_scheduler_runs_immediately_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
-    settings = Settings(DENTICODE_SYNC_RUN_IMMEDIATELY=True, DENTICODE_SYNC_INTERVAL_MINUTES=5)
+    settings = Settings(AD_ANALYZER_SYNC_RUN_IMMEDIATELY=True, AD_ANALYZER_SYNC_INTERVAL_MINUTES=5)
     monkeypatch.setattr("app.jobs.google_ads_scheduler.time.monotonic", lambda: 100.0)
 
     def run_once(*_args: object, **_kwargs: object) -> CycleOutcome:
@@ -190,7 +196,7 @@ def test_scheduler_runs_immediately_when_enabled(monkeypatch: pytest.MonkeyPatch
 def test_scheduler_disabled_cycle_still_runs_local_analysis_tick(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings(DENTICODE_SYNC_RUN_IMMEDIATELY=True, DENTICODE_SYNC_INTERVAL_MINUTES=5)
+    settings = Settings(AD_ANALYZER_SYNC_RUN_IMMEDIATELY=True, AD_ANALYZER_SYNC_INTERVAL_MINUTES=5)
     monkeypatch.setattr("app.jobs.google_ads_scheduler.time.monotonic", lambda: 100.0)
     disabled = CycleOutcome(
         skipped=True,
@@ -277,9 +283,9 @@ def test_run_cycle_uses_one_authoritative_job_run_across_retry(
 
     outcome = run_cycle(
         Settings(
-            DENTICODE_SYNC_MAX_ATTEMPTS=3,
-            DENTICODE_SYNC_RETRY_BASE_SECONDS=1,
-            DENTICODE_SYNC_RETRY_MAX_SECONDS=1,
+            AD_ANALYZER_SYNC_MAX_ATTEMPTS=3,
+            AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=1,
+            AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=1,
         ),
         sqlite_engine,
         sleep=lambda _delay: None,
@@ -313,9 +319,9 @@ def test_run_cycle_retry_exhaustion_finalizes_one_failed_job_run(
     with pytest.raises(GoogleAdsSyncError):
         run_cycle(
             Settings(
-                DENTICODE_SYNC_MAX_ATTEMPTS=2,
-                DENTICODE_SYNC_RETRY_BASE_SECONDS=1,
-                DENTICODE_SYNC_RETRY_MAX_SECONDS=1,
+                AD_ANALYZER_SYNC_MAX_ATTEMPTS=2,
+                AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=1,
+                AD_ANALYZER_SYNC_RETRY_MAX_SECONDS=1,
             ),
             sqlite_engine,
             sleep=lambda _delay: None,
@@ -386,7 +392,7 @@ def test_unknown_commit_outcome_does_not_retry_or_create_contradictory_failure(
 
     with pytest.raises(GoogleAdsSyncError):
         run_cycle(
-            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            Settings(AD_ANALYZER_SYNC_MAX_ATTEMPTS=3),
             sqlite_engine,
             sleep=lambda _delay: pytest.fail("unknown commit must not retry"),
         )
@@ -420,7 +426,7 @@ def test_stop_event_during_backoff_finalizes_and_prevents_next_attempt(
 
     with pytest.raises(Exception, match="interrupted"):
         run_cycle(
-            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            Settings(AD_ANALYZER_SYNC_MAX_ATTEMPTS=3),
             sqlite_engine,
             wait=lambda _delay: True,
             random_value=lambda: 0,
@@ -479,8 +485,8 @@ def test_one_shot_startup_failure_is_sanitized() -> None:
     import sys
 
     env = os.environ.copy()
-    env["DENTICODE_SYNC_INTERVAL_MINUTES"] = "1"
-    env["DENTICODE_API_TOKEN"] = "super-secret-token-value"
+    env["AD_ANALYZER_SYNC_INTERVAL_MINUTES"] = "1"
+    env["AD_ANALYZER_API_TOKEN"] = "super-secret-token-value"
 
     completed = subprocess.run(
         [sys.executable, "-m", "app.jobs.google_ads_sync_once"],
@@ -533,7 +539,7 @@ def test_unknown_commit_with_lock_loss_does_not_replacement_finalize(
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
         run_cycle(
-            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            Settings(AD_ANALYZER_SYNC_MAX_ATTEMPTS=3),
             sqlite_engine,
             sleep=lambda _delay: pytest.fail("unknown commit must not retry"),
         )
@@ -614,7 +620,7 @@ def test_stop_requested_after_retry_wait_prevents_later_collector(
 
     with pytest.raises(Exception, match="interrupted"):
         run_cycle(
-            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=3),
+            Settings(AD_ANALYZER_SYNC_MAX_ATTEMPTS=3),
             sqlite_engine,
             wait=wait,
             stop_requested=lambda: stopped,
@@ -703,7 +709,7 @@ def test_run_cycle_preserves_collector_normalization_attempt_counts(
 
     with pytest.raises(GoogleAdsSyncError) as exc_info:
         run_cycle(
-            Settings(DENTICODE_SYNC_MAX_ATTEMPTS=2, DENTICODE_SYNC_RETRY_BASE_SECONDS=1),
+            Settings(AD_ANALYZER_SYNC_MAX_ATTEMPTS=2, AD_ANALYZER_SYNC_RETRY_BASE_SECONDS=1),
             sqlite_engine,
             sleep=lambda _delay: None,
             random_value=lambda: 0,
@@ -1456,20 +1462,20 @@ def test_legacy_sync_script_delegates_to_one_shot_worker() -> None:
 @pytest.mark.parametrize(
     ("env", "expected"),
     [
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "0"}, 0),
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "42"}, 42),
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "-42"}, -42),
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(2**63 - 1)}, 2**63 - 1),
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(-(2**63))}, -(2**63)),
-        ({"DENTICODE_SYNC_LOCK_KEY": "99"}, 99),
-        ({"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "123", "DENTICODE_SYNC_LOCK_KEY": "123"}, 123),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "0"}, 0),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "42"}, 42),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "-42"}, -42),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": str(2**63 - 1)}, 2**63 - 1),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": str(-(2**63))}, -(2**63)),
+        ({"AD_ANALYZER_SYNC_LOCK_KEY": "99"}, 99),
+        ({"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "123", "AD_ANALYZER_SYNC_LOCK_KEY": "123"}, 123),
     ],
 )
 def test_sync_advisory_lock_key_environment_aliases(
     monkeypatch: pytest.MonkeyPatch, env: dict[str, str], expected: int
 ) -> None:
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
@@ -1479,18 +1485,18 @@ def test_sync_advisory_lock_key_environment_aliases(
 @pytest.mark.parametrize(
     "env",
     [
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(2**63)},
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": str(-(2**63) - 1)},
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "not-an-int"},
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": ""},
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "1", "DENTICODE_SYNC_LOCK_KEY": "2"},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": str(2**63)},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": str(-(2**63) - 1)},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "not-an-int"},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": ""},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "1", "AD_ANALYZER_SYNC_LOCK_KEY": "2"},
     ],
 )
 def test_sync_advisory_lock_key_invalid_environment_fails_closed(
     monkeypatch: pytest.MonkeyPatch, env: dict[str, str]
 ) -> None:
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
@@ -1501,8 +1507,8 @@ def test_sync_advisory_lock_key_invalid_environment_fails_closed(
 def test_default_sync_advisory_lock_key_is_documented_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
 
     assert Settings().sync_lock_key == 719_042_711
 
@@ -1510,22 +1516,22 @@ def test_default_sync_advisory_lock_key_is_documented_default(
 @pytest.mark.parametrize(
     ("env_key", "expected"),
     [
-        ("denticode_sync_advisory_lock_key", 901),
-        ("DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY", 902),
-        ("denticode_sync_lock_key", 903),
-        ("DeNtIcOdE_SyNc_LoCk_KeY", 904),
+        ("ad_analyzer_sync_advisory_lock_key", 901),
+        ("Ad_AnAlYzEr_SyNc_AdViSoRy_LoCk_KeY", 902),
+        ("ad_analyzer_sync_lock_key", 903),
+        ("Ad_AnAlYzEr_SyNc_LoCk_KeY", 904),
     ],
 )
 def test_sync_advisory_lock_key_accepts_case_insensitive_environment_forms(
     monkeypatch: pytest.MonkeyPatch, env_key: str, expected: int
 ) -> None:
     for key in (
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
-        "denticode_sync_advisory_lock_key",
-        "DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY",
-        "DENTICODE_SYNC_LOCK_KEY",
-        "denticode_sync_lock_key",
-        "DeNtIcOdE_SyNc_LoCk_KeY",
+        "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
+        "ad_analyzer_sync_advisory_lock_key",
+        "Ad_AnAlYzEr_SyNc_AdViSoRy_LoCk_KeY",
+        "AD_ANALYZER_SYNC_LOCK_KEY",
+        "ad_analyzer_sync_lock_key",
+        "Ad_AnAlYzEr_SyNc_LoCk_KeY",
         "sync_lock_key",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -1537,18 +1543,18 @@ def test_sync_advisory_lock_key_accepts_case_insensitive_environment_forms(
 @pytest.mark.parametrize(
     ("dotenv_text", "expected"),
     [
-        ("denticode_sync_advisory_lock_key=905\n", 905),
-        ("DeNtIcOdE_SyNc_AdViSoRy_LoCk_KeY=906\n", 906),
-        ("denticode_sync_lock_key=907\n", 907),
-        ("DeNtIcOdE_SyNc_LoCk_KeY=908\n", 908),
+        ("ad_analyzer_sync_advisory_lock_key=905\n", 905),
+        ("Ad_AnAlYzEr_SyNc_AdViSoRy_LoCk_KeY=906\n", 906),
+        ("ad_analyzer_sync_lock_key=907\n", 907),
+        ("Ad_AnAlYzEr_SyNc_LoCk_KeY=908\n", 908),
     ],
 )
 def test_sync_advisory_lock_key_accepts_case_insensitive_dotenv_forms(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dotenv_text: str, expected: int
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     (tmp_path / ".env").write_text(dotenv_text)
 
     assert Settings().sync_lock_key == expected
@@ -1558,8 +1564,8 @@ def test_sync_advisory_lock_key_accepts_case_insensitive_dotenv_forms(
     "kwargs",
     [
         {"sync_lock_key": "909"},
-        {"DENTICODE_SYNC_ADVISORY_LOCK_KEY": "909"},
-        {"DENTICODE_SYNC_LOCK_KEY": "909"},
+        {"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY": "909"},
+        {"AD_ANALYZER_SYNC_LOCK_KEY": "909"},
     ],
 )
 def test_sync_advisory_lock_key_accepts_direct_pydantic_forms(kwargs: dict[str, str]) -> None:
@@ -1570,24 +1576,24 @@ def test_sync_advisory_lock_key_accepts_direct_pydantic_forms(kwargs: dict[str, 
     ("key", "value"),
     [
         ("sync_lock_key", "secret-lock-not-an-int"),
-        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "secret-lock-not-an-int"),
-        ("DENTICODE_SYNC_LOCK_KEY", "secret-lock-not-an-int"),
-        ("denticode_sync_advisory_lock_key", "secret-lock-not-an-int"),
-        ("denticode_sync_lock_key", "secret-lock-not-an-int"),
-        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", ""),
-        ("DENTICODE_SYNC_LOCK_KEY", ""),
-        ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", str(-(2**63) - 1)),
-        ("DENTICODE_SYNC_LOCK_KEY", str(2**63)),
+        ("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "secret-lock-not-an-int"),
+        ("AD_ANALYZER_SYNC_LOCK_KEY", "secret-lock-not-an-int"),
+        ("ad_analyzer_sync_advisory_lock_key", "secret-lock-not-an-int"),
+        ("ad_analyzer_sync_lock_key", "secret-lock-not-an-int"),
+        ("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", ""),
+        ("AD_ANALYZER_SYNC_LOCK_KEY", ""),
+        ("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", str(-(2**63) - 1)),
+        ("AD_ANALYZER_SYNC_LOCK_KEY", str(2**63)),
     ],
 )
 def test_sync_advisory_lock_key_malformed_accepted_forms_are_sanitized(
     monkeypatch: pytest.MonkeyPatch, key: str, value: str
 ) -> None:
     for env_key in (
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
-        "denticode_sync_advisory_lock_key",
-        "DENTICODE_SYNC_LOCK_KEY",
-        "denticode_sync_lock_key",
+        "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
+        "ad_analyzer_sync_advisory_lock_key",
+        "AD_ANALYZER_SYNC_LOCK_KEY",
+        "ad_analyzer_sync_lock_key",
         "sync_lock_key",
     ):
         monkeypatch.delenv(env_key, raising=False)
@@ -1613,8 +1619,8 @@ def test_sync_advisory_lock_key_malformed_accepted_forms_are_sanitized(
 def test_sync_advisory_lock_key_detects_case_variant_conflicts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("denticode_sync_advisory_lock_key", "910")
-    monkeypatch.setenv("DeNtIcOdE_SyNc_LoCk_KeY", "911")
+    monkeypatch.setenv("ad_analyzer_sync_advisory_lock_key", "910")
+    monkeypatch.setenv("Ad_AnAlYzEr_SyNc_LoCk_KeY", "911")
 
     with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings(_env_file=None)
@@ -1627,7 +1633,7 @@ def test_sync_advisory_lock_key_detects_case_variant_conflicts(
 def test_sync_advisory_lock_key_direct_field_conflicts_with_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "912")
+    monkeypatch.setenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "912")
 
     with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings(_env_file=None, sync_lock_key="913")
@@ -1639,37 +1645,37 @@ def test_sync_advisory_lock_key_direct_field_conflicts_with_environment(
     ("first_key", "first_value", "second_key", "second_value", "error_type"),
     [
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "123",
-            "denticode_sync_advisory_lock_key",
+            "ad_analyzer_sync_advisory_lock_key",
             "secret-case-bad",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "secret-case-bad",
-            "denticode_sync_advisory_lock_key",
+            "ad_analyzer_sync_advisory_lock_key",
             "123",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "123",
-            "denticode_sync_advisory_lock_key",
+            "ad_analyzer_sync_advisory_lock_key",
             "124",
             SyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_LOCK_KEY",
+            "AD_ANALYZER_SYNC_LOCK_KEY",
             "125",
-            "denticode_sync_lock_key",
+            "ad_analyzer_sync_lock_key",
             "secret-case-bad",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_LOCK_KEY",
+            "AD_ANALYZER_SYNC_LOCK_KEY",
             "125",
-            "denticode_sync_lock_key",
+            "ad_analyzer_sync_lock_key",
             "126",
             SyncAdvisoryLockConfigError,
         ),
@@ -1706,9 +1712,9 @@ def test_sync_advisory_lock_key_synthetic_matching_case_variants_are_allowed() -
     values: list[object] = [
         value
         for key, value in (
-            ("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "127"),
-            ("denticode_sync_advisory_lock_key", "127"),
-            ("Denticode_Sync_Advisory_Lock_Key", "127"),
+            ("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "127"),
+            ("ad_analyzer_sync_advisory_lock_key", "127"),
+            ("Ad_Analyzer_Sync_Advisory_Lock_Key", "127"),
         )
         if _is_sync_lock_key_name(key)
     ]
@@ -1723,8 +1729,8 @@ def test_sync_advisory_lock_key_synthetic_matching_case_variants_are_allowed() -
 def test_sync_advisory_lock_key_process_environment_case_collisions_are_not_hidden(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "123")
-    monkeypatch.setenv("denticode_sync_advisory_lock_key", "secret-case-bad")
+    monkeypatch.setenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "123")
+    monkeypatch.setenv("ad_analyzer_sync_advisory_lock_key", "secret-case-bad")
 
     with pytest.raises(InvalidSyncAdvisoryLockConfigError) as exc_info:
         Settings(_env_file=None)
@@ -1742,9 +1748,9 @@ def test_sync_advisory_lock_key_process_environment_case_collisions_are_not_hidd
 def test_sync_advisory_lock_key_matching_environment_case_variants_are_allowed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "127")
-    monkeypatch.setenv("denticode_sync_advisory_lock_key", "127")
-    monkeypatch.setenv("Denticode_Sync_Advisory_Lock_Key", "127")
+    monkeypatch.setenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "127")
+    monkeypatch.setenv("ad_analyzer_sync_advisory_lock_key", "127")
+    monkeypatch.setenv("Ad_Analyzer_Sync_Advisory_Lock_Key", "127")
 
     assert Settings(_env_file=None).sync_lock_key == 127
 
@@ -1753,21 +1759,21 @@ def test_sync_advisory_lock_key_matching_environment_case_variants_are_allowed(
     ("dotenv_text", "error_type"),
     [
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=128\n"
-            "denticode_sync_advisory_lock_key=secret-dotenv-bad\n",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=128\n"
+            "ad_analyzer_sync_advisory_lock_key=secret-dotenv-bad\n",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=secret-dotenv-bad\n"
-            "denticode_sync_advisory_lock_key=128\n",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=secret-dotenv-bad\n"
+            "ad_analyzer_sync_advisory_lock_key=128\n",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=128\ndenticode_sync_advisory_lock_key=129\n",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=128\nad_analyzer_sync_advisory_lock_key=129\n",
             SyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_LOCK_KEY=130\ndenticode_sync_lock_key=131\n",
+            "AD_ANALYZER_SYNC_LOCK_KEY=130\nad_analyzer_sync_lock_key=131\n",
             SyncAdvisoryLockConfigError,
         ),
     ],
@@ -1779,10 +1785,10 @@ def test_sync_advisory_lock_key_dotenv_case_collisions_are_not_hidden(
     error_type: type[Exception],
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("denticode_sync_advisory_lock_key", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
-    monkeypatch.delenv("denticode_sync_lock_key", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("ad_analyzer_sync_advisory_lock_key", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("ad_analyzer_sync_lock_key", raising=False)
     (tmp_path / ".env").write_text(dotenv_text)
 
     with pytest.raises(error_type) as exc_info:
@@ -1801,12 +1807,12 @@ def test_sync_advisory_lock_key_matching_dotenv_case_variants_are_allowed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("denticode_sync_advisory_lock_key", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("ad_analyzer_sync_advisory_lock_key", raising=False)
     (tmp_path / ".env").write_text(
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=132\n"
-        "denticode_sync_advisory_lock_key=132\n"
-        "Denticode_Sync_Advisory_Lock_Key=132\n"
+        "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=132\n"
+        "ad_analyzer_sync_advisory_lock_key=132\n"
+        "Ad_Analyzer_Sync_Advisory_Lock_Key=132\n"
     )
 
     assert Settings().sync_lock_key == 132
@@ -1816,15 +1822,15 @@ def test_sync_advisory_lock_key_matching_dotenv_case_variants_are_allowed(
     ("env_key", "env_value", "dotenv_text", "error_type"),
     [
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "133",
-            "denticode_sync_advisory_lock_key=secret-mixed-bad\n",
+            "ad_analyzer_sync_advisory_lock_key=secret-mixed-bad\n",
             InvalidSyncAdvisoryLockConfigError,
         ),
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "133",
-            "denticode_sync_advisory_lock_key=134\n",
+            "ad_analyzer_sync_advisory_lock_key=134\n",
             SyncAdvisoryLockConfigError,
         ),
     ],
@@ -1852,7 +1858,7 @@ def test_sync_advisory_lock_key_environment_dotenv_case_collisions(
 def test_sync_advisory_lock_key_direct_case_collision_is_not_hidden(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
 
     with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
         Settings(_env_file=None, **{"sync_lock_key": "135", "SYNC_LOCK_KEY": "136"})
@@ -1868,8 +1874,8 @@ def test_sync_advisory_lock_key_direct_case_collision_is_not_hidden(
 def test_sync_advisory_lock_key_case_collision_accepts_signed_bounds(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", value)
-    monkeypatch.setenv("denticode_sync_advisory_lock_key", value)
+    monkeypatch.setenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", value)
+    monkeypatch.setenv("ad_analyzer_sync_advisory_lock_key", value)
 
     assert Settings(_env_file=None).sync_lock_key == int(value)
 
@@ -1947,10 +1953,10 @@ def test_sync_advisory_lock_key_conflict_inside_dotenv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     (tmp_path / ".env").write_text(
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=1\nDENTICODE_SYNC_LOCK_KEY=2\n"
+        "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=1\nAD_ANALYZER_SYNC_LOCK_KEY=2\n"
     )
 
     with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
@@ -1962,10 +1968,10 @@ def test_sync_advisory_lock_key_matching_dotenv_values(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     (tmp_path / ".env").write_text(
-        "DENTICODE_SYNC_ADVISORY_LOCK_KEY=123\nDENTICODE_SYNC_LOCK_KEY=123\n"
+        "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=123\nAD_ANALYZER_SYNC_LOCK_KEY=123\n"
     )
 
     assert Settings().sync_lock_key == 123
@@ -1975,14 +1981,14 @@ def test_sync_advisory_lock_key_matching_dotenv_values(
     ("env_key", "env_value", "dotenv_text"),
     [
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY",
             "10",
-            "DENTICODE_SYNC_LOCK_KEY=11\n",
+            "AD_ANALYZER_SYNC_LOCK_KEY=11\n",
         ),
         (
-            "DENTICODE_SYNC_LOCK_KEY",
+            "AD_ANALYZER_SYNC_LOCK_KEY",
             "10",
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=11\n",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=11\n",
         ),
     ],
 )
@@ -1994,8 +2000,8 @@ def test_sync_advisory_lock_key_mixed_source_conflicts(
     dotenv_text: str,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     monkeypatch.setenv(env_key, env_value)
     (tmp_path / ".env").write_text(dotenv_text)
 
@@ -2008,17 +2014,17 @@ def test_sync_advisory_lock_key_matching_mixed_sources(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
-    monkeypatch.setenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", "77")
-    (tmp_path / ".env").write_text("DENTICODE_SYNC_LOCK_KEY=77\n")
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.setenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", "77")
+    (tmp_path / ".env").write_text("AD_ANALYZER_SYNC_LOCK_KEY=77\n")
 
     assert Settings().sync_lock_key == 77
 
 
 def test_sync_advisory_lock_key_direct_construction_conflict() -> None:
     with pytest.raises(SyncAdvisoryLockConfigError) as exc_info:
-        Settings(DENTICODE_SYNC_ADVISORY_LOCK_KEY="1", DENTICODE_SYNC_LOCK_KEY="2")
+        Settings(AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY="1", AD_ANALYZER_SYNC_LOCK_KEY="2")
     assert str(exc_info.value) == "Conflicting sync advisory lock key settings."
 
 
@@ -2062,12 +2068,12 @@ def test_worker_entrypoints_do_not_log_lock_conflict_values(
     ("dotenv_text", "expected_error"),
     [
         (
-            "DENTICODE_SYNC_ADVISORY_LOCK_KEY=lock-secret-bad\n",
+            "AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY=lock-secret-bad\n",
             InvalidSyncAdvisoryLockConfigError,
         ),
-        ("DENTICODE_SYNC_LOCK_KEY=\n", InvalidSyncAdvisoryLockConfigError),
+        ("AD_ANALYZER_SYNC_LOCK_KEY=\n", InvalidSyncAdvisoryLockConfigError),
         (
-            f"DENTICODE_SYNC_ADVISORY_LOCK_KEY={2**63}\n",
+            f"AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY={2**63}\n",
             InvalidSyncAdvisoryLockConfigError,
         ),
     ],
@@ -2079,8 +2085,8 @@ def test_sync_advisory_lock_key_invalid_dotenv_values_are_sanitized(
     expected_error: type[Exception],
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DENTICODE_SYNC_ADVISORY_LOCK_KEY", raising=False)
-    monkeypatch.delenv("DENTICODE_SYNC_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY", raising=False)
+    monkeypatch.delenv("AD_ANALYZER_SYNC_LOCK_KEY", raising=False)
     (tmp_path / ".env").write_text(dotenv_text)
 
     with pytest.raises(expected_error) as exc_info:
@@ -2093,7 +2099,7 @@ def test_sync_advisory_lock_key_invalid_dotenv_values_are_sanitized(
 
 def test_sync_advisory_lock_key_malformed_direct_construction_is_sanitized() -> None:
     with pytest.raises(InvalidSyncAdvisoryLockConfigError) as exc_info:
-        Settings(DENTICODE_SYNC_ADVISORY_LOCK_KEY="direct-secret-bad")
+        Settings(AD_ANALYZER_SYNC_ADVISORY_LOCK_KEY="direct-secret-bad")
 
     assert str(exc_info.value) == "Invalid sync advisory lock key setting."
     assert "direct-secret-bad" not in str(exc_info.value)

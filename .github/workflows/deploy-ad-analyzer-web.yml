@@ -1,0 +1,368 @@
+name: Deploy Ad Analyzer web
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - deploy/ad-analyzer-web-cutover-request.json
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: deploy-ad-analyzer-web
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: totemic-alchemy-502420-p4
+  GCP_PROJECT_NUMBER: '89443799388'
+  GCP_REGION: us-west1
+  GCP_WEB_SERVICE: ad-analyzer-web
+
+jobs:
+  preflight:
+    name: Verify existing keyless deployment access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      deployer_account: ${{ steps.preflight.outputs.deployer_account }}
+      source_service: ${{ steps.preflight.outputs.source_service }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with the read-only operations identity
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_OPERATIONS_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Verify the existing resources and deployment identity
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          failure_file="${RUNNER_TEMP}/deployment-preflight-error.txt"
+          fail() {
+            printf '%s\n' "$1" > "$failure_file"
+            exit 1
+          }
+
+          mapfile -t service_names < <(
+            gcloud run services list \
+              --project="$GCP_PROJECT_ID" \
+              --region="$GCP_REGION" \
+              --platform=managed \
+              --format='value(metadata.name)'
+          )
+          source_services=()
+          for service_name in "${service_names[@]}"; do
+            candidate="${RUNNER_TEMP}/candidate-service.json"
+            gcloud run services describe "$service_name" \
+              --project="$GCP_PROJECT_ID" \
+              --region="$GCP_REGION" \
+              --platform=managed \
+              --format=json > "$candidate"
+            if python scripts/prepare_cloud_run_cutover.py is-source \
+              --input "$candidate" \
+              --target-service "$GCP_WEB_SERVICE"; then
+              source_services+=("$service_name")
+            fi
+          done
+          if [[ "${#source_services[@]}" -ne 1 ]]; then
+            fail "Expected exactly one existing Ad Analyzer web service; found ${#source_services[@]}. No cloud resources were changed."
+          fi
+          source_service="${source_services[0]}"
+          source_json="${RUNNER_TEMP}/source-service.json"
+          gcloud run services describe "$source_service" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format=json > "$source_json"
+          runtime_account="$(jq -r '.spec.template.spec.serviceAccountName // .spec.template.serviceAccount // empty' "$source_json")"
+          [[ -n "$runtime_account" ]] || fail "The existing web service has no reusable service identity. No cloud resources were changed."
+
+          mapfile -t candidates < <(
+            gcloud iam service-accounts list \
+              --project="$GCP_PROJECT_ID" \
+              --filter='displayName~deployer' \
+              --format='value(email)'
+          )
+          deployers=()
+          for candidate in "${candidates[@]}"; do
+            policy="${RUNNER_TEMP}/deployer-policy.json"
+            gcloud iam service-accounts get-iam-policy "$candidate" \
+              --project="$GCP_PROJECT_ID" \
+              --format=json > "$policy"
+            if jq -e --arg repository "$GITHUB_REPOSITORY" '
+              any(
+                .bindings[]?;
+                .role == "roles/iam.workloadIdentityUser" and
+                any(.members[]?; endswith("/attribute.repository/" + $repository))
+              )
+            ' "$policy" >/dev/null; then
+              deployers+=("$candidate")
+            fi
+          done
+          if [[ "${#deployers[@]}" -ne 1 ]]; then
+            fail "No single existing deployer identity is authorized for this repository through Workload Identity. No cloud resources were changed."
+          fi
+          deployer_account="${deployers[0]}"
+
+          project_policy="${RUNNER_TEMP}/project-policy.json"
+          gcloud projects get-iam-policy "$GCP_PROJECT_ID" --format=json > "$project_policy"
+          has_project_role() {
+            local role="$1"
+            jq -e --arg member "serviceAccount:${deployer_account}" --arg role "$role" '
+              any(.bindings[]?; .role == $role and any(.members[]?; . == $member))
+            ' "$project_policy" >/dev/null
+          }
+          has_any_project_role() {
+            local role
+            for role in "$@"; do
+              if has_project_role "$role"; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          missing_roles=()
+          has_any_project_role roles/run.admin roles/owner \
+            || missing_roles+=(roles/run.admin)
+          has_any_project_role roles/iap.admin roles/owner \
+            || missing_roles+=(roles/iap.admin)
+          has_any_project_role roles/artifactregistry.writer roles/artifactregistry.admin roles/owner \
+            || missing_roles+=(roles/artifactregistry.writer)
+
+          runtime_policy="${RUNNER_TEMP}/runtime-policy.json"
+          gcloud iam service-accounts get-iam-policy "$runtime_account" \
+            --project="$GCP_PROJECT_ID" \
+            --format=json > "$runtime_policy"
+          if ! has_any_project_role roles/iam.serviceAccountUser roles/owner && \
+            ! jq -e --arg member "serviceAccount:${deployer_account}" '
+              any(
+                .bindings[]?;
+                .role == "roles/iam.serviceAccountUser" and any(.members[]?; . == $member)
+              )
+            ' "$runtime_policy" >/dev/null; then
+            missing_roles+=(roles/iam.serviceAccountUser)
+          fi
+          if [[ "${#missing_roles[@]}" -gt 0 ]]; then
+            joined="$(IFS=', '; printf '%s' "${missing_roles[*]}")"
+            fail "The existing keyless deployer is missing required permissions: ${joined}. No cloud resources were changed."
+          fi
+
+          printf 'source_service=%s\n' "$source_service" >> "$GITHUB_OUTPUT"
+          printf 'deployer_account=%s\n' "$deployer_account" >> "$GITHUB_OUTPUT"
+
+      - name: Report a blocked preflight
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILURE_FILE: ${{ runner.temp }}/deployment-preflight-error.txt
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          detail="Preflight failed before any cloud resource was changed."
+          if [[ -f "$FAILURE_FILE" ]]; then
+            detail="$(<"$FAILURE_FILE")"
+          fi
+          title='Ad Analyzer web deployment blocked'
+          body="${detail}\n\nRun: ${RUN_URL}"
+          issue_number="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
+          if [[ -n "$issue_number" ]]; then
+            gh issue comment "$issue_number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+  deploy:
+    name: Deploy the cost-capped web service
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate with the existing keyless deployer
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ needs.preflight.outputs.deployer_account }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and push one immutable image
+        id: image
+        shell: bash
+        env:
+          SOURCE_SERVICE: ${{ needs.preflight.outputs.source_service }}
+        run: |
+          set -euo pipefail
+          source_json="${RUNNER_TEMP}/source-service.json"
+          gcloud run services describe "$SOURCE_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format=json > "$source_json"
+          source_image="$(jq -r '.spec.template.spec.containers[0].image // .spec.template.containers[0].image // empty' "$source_json")"
+          [[ -n "$source_image" ]] || { echo 'Existing service has no container image.' >&2; exit 1; }
+          image_without_digest="${source_image%%@*}"
+          image_without_tag="${image_without_digest%:*}"
+          image_directory="${image_without_tag%/*}"
+          image_host="${source_image%%/*}"
+          target_image="${image_directory}/${GCP_WEB_SERVICE}:${GITHUB_SHA}"
+          gcloud auth configure-docker "$image_host" --quiet
+          docker build --tag "$target_image" .
+          docker push "$target_image"
+          printf 'target_image=%s\n' "$target_image" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update the neutral web service
+        shell: bash
+        env:
+          SOURCE_SERVICE: ${{ needs.preflight.outputs.source_service }}
+          TARGET_IMAGE: ${{ steps.image.outputs.target_image }}
+        run: |
+          set -euo pipefail
+          source_json="${RUNNER_TEMP}/source-service.json"
+          target_json="${RUNNER_TEMP}/target-service.yaml"
+          gcloud run services describe "$SOURCE_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format=json > "$source_json"
+          python scripts/prepare_cloud_run_cutover.py prepare \
+            --input "$source_json" \
+            --output "$target_json" \
+            --target-service "$GCP_WEB_SERVICE" \
+            --project-id "$GCP_PROJECT_ID" \
+            --project-number "$GCP_PROJECT_NUMBER" \
+            --region "$GCP_REGION" \
+            --repository "$GITHUB_REPOSITORY" \
+            --image "$TARGET_IMAGE"
+          gcloud run services replace "$target_json" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --quiet
+          gcloud run services update "$GCP_WEB_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --iap \
+            --no-allow-unauthenticated \
+            --min=0 \
+            --max=1 \
+            --cpu=1 \
+            --memory=512Mi \
+            --cpu-throttling \
+            --no-startup-cpu-boost \
+            --quiet
+          gcloud run services add-iam-policy-binding "$GCP_WEB_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --member="serviceAccount:service-${GCP_PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com" \
+            --role=roles/run.invoker \
+            --quiet >/dev/null
+
+      - name: Copy the existing IAP operator access policy
+        shell: bash
+        env:
+          SOURCE_SERVICE: ${{ needs.preflight.outputs.source_service }}
+        run: |
+          set -euo pipefail
+          policy="${RUNNER_TEMP}/source-iap-policy.json"
+          gcloud iap web get-iam-policy \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --resource-type=cloud-run \
+            --service="$SOURCE_SERVICE" \
+            --format=json > "$policy"
+          mapfile -t members < <(
+            jq -r '.bindings[]? | select(.role == "roles/iap.httpsResourceAccessor") | .members[]?' "$policy"
+          )
+          [[ "${#members[@]}" -gt 0 ]] || { echo 'Existing IAP policy has no operator access.' >&2; exit 1; }
+          for member in "${members[@]}"; do
+            gcloud iap web add-iam-policy-binding \
+              --project="$GCP_PROJECT_ID" \
+              --region="$GCP_REGION" \
+              --resource-type=cloud-run \
+              --service="$GCP_WEB_SERVICE" \
+              --member="$member" \
+              --role=roles/iap.httpsResourceAccessor \
+              --quiet >/dev/null
+          done
+
+      - name: Verify readiness, IAP, scaling, and public exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          service="${RUNNER_TEMP}/deployed-service.json"
+          policy="${RUNNER_TEMP}/deployed-policy.json"
+          gcloud run services describe "$GCP_WEB_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format=json > "$service"
+          gcloud run services get-iam-policy "$GCP_WEB_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format=json > "$policy"
+          jq -e '
+            any(.status.conditions[]?; .type == "Ready" and .status == "True") and
+            ((.spec.template.metadata.annotations["autoscaling.knative.dev/minScale"] // "0") == "0") and
+            (.spec.template.metadata.annotations["autoscaling.knative.dev/maxScale"] == "1")
+          ' "$service" >/dev/null
+          if jq -e 'any(.bindings[]?.members[]?; . == "allUsers" or . == "allAuthenticatedUsers")' "$policy" >/dev/null; then
+            echo 'Public Cloud Run access is forbidden.' >&2
+            exit 1
+          fi
+          iap_enabled="$(gcloud run services describe "$GCP_WEB_SERVICE" \
+            --project="$GCP_PROJECT_ID" \
+            --region="$GCP_REGION" \
+            --platform=managed \
+            --format='value(iapEnabled)')"
+          [[ "$iap_enabled" == "True" || "$iap_enabled" == "true" ]] \
+            || { echo 'IAP is not enabled.' >&2; exit 1; }
+
+      - name: Report deployment success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Ad Analyzer web deployment blocked'
+          issue_number="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
+          body="Deployment succeeded with request-based scaling capped at one instance. The existing database, secrets, service identity, IAP policy, and previous web service were preserved.\n\nRun: ${RUN_URL}"
+          if [[ -n "$issue_number" ]]; then
+            gh issue comment "$issue_number" --body "$body"
+            gh issue close "$issue_number" --reason completed
+          fi
+
+      - name: Report deployment failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title='Ad Analyzer web deployment blocked'
+          body="Deployment failed. The previous web service was not changed. Review the failed step without posting secret values.\n\nRun: ${RUN_URL}"
+          issue_number="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
+          if [[ -n "$issue_number" ]]; then
+            gh issue comment "$issue_number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

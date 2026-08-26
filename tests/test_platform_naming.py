@@ -4,6 +4,7 @@ from pathlib import Path
 PLATFORM_SURFACES = (
     ".env.example",
     ".github/workflows/ci.yml",
+    ".github/workflows/deploy-ad-analyzer-web.yml",
     ".github/workflows/production-operations-audit.yml",
     "Dockerfile",
     "alembic.ini",
@@ -19,6 +20,8 @@ PLATFORM_SURFACES = (
     "docs/platform-name-cutover.md",
     "infra/gcp/main.tf",
     "scripts/bootstrap_github_operations.ps1",
+    "scripts/cloud_run_web_start.py",
+    "scripts/prepare_cloud_run_cutover.py",
     "scripts/production_ops_audit.py",
     "scripts/production_ops_audit_entrypoint.py",
 )

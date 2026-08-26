@@ -18,11 +18,10 @@ concurrency:
 
 env:
   GCP_PROJECT_ID: totemic-alchemy-502420-p4
-  GCP_PROJECT_NUMBER: '89443799388'
   GCP_REGION: us-west1
   GCP_WEB_SERVICE: ad-analyzer-web
-  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/89443799388/locations/global/workloadIdentityPools/github-actions/providers/ad-analyzer-operations
-  GCP_OPERATIONS_SERVICE_ACCOUNT: ad-analyzer-github-ops@totemic-alchemy-502420-p4.iam.gserviceaccount.com
+  GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  GCP_OPERATIONS_SERVICE_ACCOUNT: ${{ vars.GCP_OPERATIONS_SERVICE_ACCOUNT }}
 
 jobs:
   preflight:
@@ -31,10 +30,25 @@ jobs:
     timeout-minutes: 10
     outputs:
       deployer_account: ${{ steps.preflight.outputs.deployer_account }}
+      project_number: ${{ steps.preflight.outputs.project_number }}
       source_service: ${{ steps.preflight.outputs.source_service }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Validate bootstrap-provided identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GCP_WORKLOAD_IDENTITY_PROVIDER" =~ ^projects/[0-9]+/locations/global/workloadIdentityPools/github-actions/providers/ad-analyzer-operations$ ]] || {
+            echo 'The neutral Workload Identity provider variable is missing or malformed.' >&2
+            exit 1
+          }
+          expected_account="ad-analyzer-github-ops@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+          [[ "$GCP_OPERATIONS_SERVICE_ACCOUNT" == "$expected_account" ]] || {
+            echo 'The neutral operations service-account variable is missing or malformed.' >&2
+            exit 1
+          }
 
       - name: Authenticate with the read-only operations identity
         uses: google-github-actions/auth@v3
@@ -55,6 +69,11 @@ jobs:
             printf '%s\n' "$1" > "$failure_file"
             exit 1
           }
+
+          project_number="$(gcloud projects describe "$GCP_PROJECT_ID" --format='value(projectNumber)')"
+          provider_project_number="$(cut -d/ -f2 <<< "$GCP_WORKLOAD_IDENTITY_PROVIDER")"
+          [[ "$provider_project_number" == "$project_number" ]] || \
+            fail "The bootstrap-provided identity belongs to a different Google Cloud project. No cloud resources were changed."
 
           mapfile -t service_names < <(
             gcloud run services list \
@@ -163,6 +182,7 @@ jobs:
 
           printf 'source_service=%s\n' "$source_service" >> "$GITHUB_OUTPUT"
           printf 'deployer_account=%s\n' "$deployer_account" >> "$GITHUB_OUTPUT"
+          printf 'project_number=%s\n' "$project_number" >> "$GITHUB_OUTPUT"
 
       - name: Report a blocked preflight
         if: failure()
@@ -190,6 +210,8 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GCP_PROJECT_NUMBER: ${{ needs.preflight.outputs.project_number }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

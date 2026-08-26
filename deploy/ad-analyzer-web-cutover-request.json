@@ -1,0 +1,7 @@
+{
+  "request_version": 1,
+  "target_service": "ad-analyzer-web",
+  "approved_cost_profile": "Cloud Run request-based billing with min 0, max 1; reuse the existing database, secrets, IAP policy, and runtime identity; create no database, scheduler, or sync job.",
+  "approval_date": "2026-08-26",
+  "status": "approved"
+}

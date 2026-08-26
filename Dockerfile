@@ -15,6 +15,7 @@ COPY pyproject.toml README.md alembic.ini ./
 COPY app ./app
 COPY migrations ./migrations
 COPY scripts/validate_deployment_startup.py ./scripts/validate_deployment_startup.py
+COPY scripts/cloud_run_web_start.py ./scripts/cloud_run_web_start.py
 RUN python -m pip install --upgrade pip \
     && python -m pip install .
 

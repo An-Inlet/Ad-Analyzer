@@ -23,6 +23,8 @@ env:
   GCP_MIGRATION_JOB: ad-analyzer-migration
   GCP_SQL_INSTANCE: ad-analyzer-postgres
   GCP_SCHEDULER_JOB: ad-analyzer-sync-hourly
+  GCP_WORKLOAD_IDENTITY_PROVIDER: projects/89443799388/locations/global/workloadIdentityPools/github-actions/providers/ad-analyzer-operations
+  GCP_OPERATIONS_SERVICE_ACCOUNT: ad-analyzer-github-ops@totemic-alchemy-502420-p4.iam.gserviceaccount.com
   AD_ANALYZER_EXPECTED_DASHBOARD_EMAIL: konner@aninlet.com
   AD_ANALYZER_MAX_SYNC_AGE_MINUTES: '150'
 
@@ -40,8 +42,8 @@ jobs:
       - name: Authenticate to Google Cloud without a service-account key
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_OPERATIONS_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_OPERATIONS_SERVICE_ACCOUNT }}
 
       - name: Set up Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v3

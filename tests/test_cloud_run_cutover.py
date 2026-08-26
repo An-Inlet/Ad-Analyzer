@@ -127,8 +127,11 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "google-github-actions/auth@v3" in workflow
     assert "providers/ad-analyzer-operations" in workflow
     assert "ad-analyzer-github-ops@" in workflow
-    assert "vars.GCP_WORKLOAD_IDENTITY_PROVIDER" not in workflow
-    assert "vars.GCP_OPERATIONS_SERVICE_ACCOUNT" not in workflow
+    assert "vars.GCP_WORKLOAD_IDENTITY_PROVIDER" in workflow
+    assert "vars.GCP_OPERATIONS_SERVICE_ACCOUNT" in workflow
+    assert "GCP_PROJECT_NUMBER: '89443799388'" not in workflow
+    assert "gcloud projects describe" in workflow
+    assert "needs.preflight.outputs.project_number" in workflow
     assert "service-account-key" not in workflow.lower()
     assert "gcloud sql instances create" not in workflow
     assert "gcloud scheduler" not in workflow

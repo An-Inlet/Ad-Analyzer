@@ -346,19 +346,13 @@ jobs:
           jq -e '
             any(.status.conditions[]?; .type == "Ready" and .status == "True") and
             ((.spec.template.metadata.annotations["autoscaling.knative.dev/minScale"] // "0") == "0") and
-            (.spec.template.metadata.annotations["autoscaling.knative.dev/maxScale"] == "1")
+            (.spec.template.metadata.annotations["autoscaling.knative.dev/maxScale"] == "1") and
+            ((.metadata.annotations["run.googleapis.com/iap-enabled"] // "false") == "true")
           ' "$service" >/dev/null
           if jq -e 'any(.bindings[]?.members[]?; . == "allUsers" or . == "allAuthenticatedUsers")' "$policy" >/dev/null; then
             echo 'Public Cloud Run access is forbidden.' >&2
             exit 1
           fi
-          iap_enabled="$(gcloud run services describe "$GCP_WEB_SERVICE" \
-            --project="$GCP_PROJECT_ID" \
-            --region="$GCP_REGION" \
-            --platform=managed \
-            --format='value(iapEnabled)')"
-          [[ "$iap_enabled" == "True" || "$iap_enabled" == "true" ]] \
-            || { echo 'IAP is not enabled.' >&2; exit 1; }
 
       - name: Report deployment success
         if: success()

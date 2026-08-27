@@ -124,6 +124,8 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "--no-cpu-boost" in workflow
     assert "--iap" in workflow
     assert "--invoker-iam-check" in workflow
+    assert "run.googleapis.com/iap-enabled" in workflow
+    assert "value(iapEnabled)" not in workflow
     assert "google-github-actions/auth@v3" in workflow
     assert "providers/ad-analyzer-operations" in workflow
     assert "ad-analyzer-github-ops@" in workflow

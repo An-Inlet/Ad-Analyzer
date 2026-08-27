@@ -121,7 +121,7 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "--min=0" in workflow
     assert "--max=1" in workflow
     assert "--cpu-throttling" in workflow
-    assert "--no-startup-cpu-boost" in workflow
+    assert "--no-cpu-boost" in workflow
     assert "--iap" in workflow
     assert "--no-allow-unauthenticated" in workflow
     assert "google-github-actions/auth@v3" in workflow

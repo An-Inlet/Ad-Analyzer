@@ -289,7 +289,7 @@ jobs:
             --cpu=1 \
             --memory=512Mi \
             --cpu-throttling \
-            --no-startup-cpu-boost \
+            --no-cpu-boost \
             --quiet
           gcloud run services add-iam-policy-binding "$GCP_WEB_SERVICE" \
             --project="$GCP_PROJECT_ID" \

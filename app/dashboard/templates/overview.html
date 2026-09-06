@@ -1,11 +1,79 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Client workspaces</h1>
-<p>{{ total }} Ad Analyzer workspace{{ '' if total == 1 else 's' }}. Each workspace owns its configurations, permissions, integrations, findings, and advertising accounts.</p>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Workspace overview</p>
+    <h1>Client workspaces</h1>
+    <p>{{ total }} Ad Analyzer workspace{{ '' if total == 1 else 's' }}. Review connected accounts, explore performance, and find your next decision.</p>
+  </div>
+  <div class="button-row"><a class="button secondary" href="/dashboard/portfolio">View portfolio</a></div>
+</div>
+
+<section class="panel sync-health" aria-labelledby="sync-health-heading">
+  <div class="section-heading">
+    <h2 id="sync-health-heading">Accessible sync health</h2>
+    <span class="status {{ health.status }}">{{ health.status }}</span>
+  </div>
+  <dl class="compact-metrics">
+    <div><dt>Latest attempt</dt><dd>{{ health.last_attempt_at or 'None' }}</dd></div>
+    <div><dt>Latest success</dt><dd>{{ health.last_success_at or 'None' }}</dd></div>
+    <div><dt>Stale after</dt><dd>{{ health.stale_after_seconds }} seconds</dd></div>
+  </dl>
+  {% if health.last_failure_summary %}<p class="empty"><strong>Latest failure:</strong> {{ health.last_failure_summary }}</p>{% endif %}
+</section>
+
+{% if not workspaces %}
+<p class="empty">No accessible client workspaces are available.</p>
+{% else %}
+<div class="cards workspace-grid">
+  {% for workspace, account_count, campaign_count, integration_count in workspaces %}
+  <article>
+    <div class="card-heading">
+      <div><p class="eyebrow">{{ workspace.client_name }}</p><h2><a href="/dashboard/workspaces/{{ workspace.slug }}">{{ workspace.name }}</a></h2></div>
+      <span class="status {{ workspace.status }}">{{ workspace.status }}</span>
+    </div>
+    <dl class="compact-metrics">
+      <div><dt>Advertising accounts</dt><dd>{{ account_count }}</dd></div>
+      <div><dt>Campaigns</dt><dd>{{ campaign_count }}</dd></div>
+      <div><dt>Configured integrations</dt><dd>{{ integration_count }}</dd></div>
+    </dl>
+    <div class="button-row">
+      <a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a>
+      <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}">View workspace</a>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if offset > 0 or has_next %}
+<nav class="pagination" aria-label="Workspace pages">
+  {% if offset > 0 %}<a href="?limit={{ limit }}&offset={{ [offset - limit, 0]|max }}">Previous</a>{% endif %}
+  {% if has_next %}<a href="?limit={{ limit }}&offset={{ offset + limit }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+
+<section class="panel" aria-labelledby="recent-jobs-heading">
+  <div class="section-heading"><h2 id="recent-jobs-heading">Recent accessible job runs</h2><a href="/dashboard/job-runs">View all job runs</a></div>
+  {% if jobs %}
+  <div class="table-scroll" role="region" aria-label="Recent accessible job runs" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Workspace</th><th scope="col">Job</th><th scope="col">Status</th><th scope="col">Started</th><th scope="col">Records</th></tr></thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr><td>{{ workspace_names.get(job.workspace_id, job.workspace_id) }}</td><td>{{ job.job_name }}</td><td><span class="status {{ job.status.value }}">{{ job.status.value }}</span></td><td>{{ job.started_at }}</td><td>{{ job.records_processed }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No job runs are available.</p>
+  {% endif %}
+</section>
 
 {% if can_manage_master %}
-<section class="panel" aria-labelledby="master-automation-heading">
-  <h2 id="master-automation-heading">Master automation toggles</h2>
+<details class="panel settings-disclosure">
+  <summary><span>Master automation toggles</span><span class="muted">Platform-wide settings · {{ master_controls|selectattr('master_enabled')|list|length }} of {{ master_controls|length }} on</span></summary>
   <p>These platform controls override every Ad Analyzer. Turning a master control off blocks that automation everywhere without changing the individual account settings.</p>
   <div class="toggle-grid">
     {% for control in master_controls %}
@@ -26,51 +94,6 @@
     </article>
     {% endfor %}
   </div>
-</section>
-{% endif %}
-
-<section class="sync-health">
-  <h2>Accessible sync health: {{ health.status }}</h2>
-  <dl>
-    <dt>Latest attempt</dt><dd>{{ health.last_attempt_at or 'None' }}</dd>
-    <dt>Latest success</dt><dd>{{ health.last_success_at or 'None' }}</dd>
-    <dt>Stale after</dt><dd>{{ health.stale_after_seconds }} seconds</dd>
-    {% if health.last_failure_summary %}<dt>Latest failure</dt><dd>{{ health.last_failure_summary }}</dd>{% endif %}
-  </dl>
-</section>
-
-{% if not workspaces %}
-<p class="empty">No accessible client workspaces are available.</p>
-{% else %}
-<div class="cards">
-  {% for workspace, account_count, campaign_count, integration_count in workspaces %}
-  <article>
-    <h2><a href="/dashboard/workspaces/{{ workspace.slug }}">{{ workspace.name }}</a></h2>
-    <p><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a></p>
-    <dl>
-      <dt>Client</dt><dd>{{ workspace.client_name }}</dd>
-      <dt>Status</dt><dd>{{ workspace.status }}</dd>
-      <dt>Advertising accounts</dt><dd>{{ account_count }}</dd>
-      <dt>Campaigns</dt><dd>{{ campaign_count }}</dd>
-      <dt>Configured integrations</dt><dd>{{ integration_count }}</dd>
-    </dl>
-  </article>
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if offset > 0 %}<a href="?limit={{ limit }}&offset={{ [offset - limit, 0]|max }}">Previous</a>{% endif %}
-{% if has_next %}<a href="?limit={{ limit }}&offset={{ offset + limit }}">Next</a>{% endif %}
-
-<h2>Recent accessible job runs</h2>
-{% if jobs %}
-<table>
-  <tr><th>Workspace</th><th>Job</th><th>Status</th><th>Started</th><th>Records</th></tr>
-  {% for job in jobs %}
-  <tr><td>{{ workspace_names.get(job.workspace_id, job.workspace_id) }}</td><td>{{ job.job_name }}</td><td>{{ job.status.value }}</td><td>{{ job.started_at }}</td><td>{{ job.records_processed }}</td></tr>
-  {% endfor %}
-</table>
-{% else %}
-<p class="empty">No job runs are available.</p>
+</details>
 {% endif %}
 {% endblock %}

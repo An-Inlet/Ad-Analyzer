@@ -1,5 +1,49 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ title }} | Ad Analyzer</title><link rel="stylesheet" href="/dashboard/assets/dashboard.css"><link rel="stylesheet" href="/dashboard/assets/intelligence.css"></head>
-<body><header><a href="/dashboard">Ad Analyzer</a><nav aria-label="Main navigation"><a href="/dashboard/portfolio">Portfolio</a><a href="/dashboard">Workspaces</a><a href="/dashboard/job-runs">Job runs</a></nav><form method="post" action="/dashboard/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">Log out</button></form><strong>Ads read-only</strong></header>
-<main>{% block content %}{% endblock %}</main><footer>Ad Analyzer operator dashboard. Advertising data is read-only.</footer></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163b32">
+  <title>{{ title }} | Ad Analyzer</title>
+  <link rel="stylesheet" href="/dashboard/assets/dashboard.css?v=20260906">
+  <link rel="stylesheet" href="/dashboard/assets/intelligence.css?v=20260906">
+</head>
+<body>
+{% set current_path = request.url.path %}
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="app-shell">
+  <header class="app-sidebar">
+    <a class="brand" href="/dashboard" aria-label="Ad Analyzer home">
+      <span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 17V12M12 17V6M19 17V9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span>
+      <span>Ad Analyzer<small>Performance, understood.</small></span>
+    </a>
+    <nav class="primary-nav" aria-label="Main navigation">
+      <span class="nav-label">Your business</span>
+      <a href="/dashboard/portfolio"{% if current_path == '/dashboard/portfolio' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg>Portfolio</a>
+      <a href="/dashboard"{% if current_path == '/dashboard' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v11H3zM3 7V4h7l2 3"/></svg>Workspaces</a>
+      <a href="/dashboard/job-runs"{% if current_path == '/dashboard/job-runs' %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h4l3-7 3 14 3-7h3"/></svg>Job runs</a>
+    </nav>
+    {% if workspace is defined and workspace %}
+    {% set workspace_root = '/dashboard/workspaces/' ~ workspace.slug %}
+    <nav class="workspace-nav" aria-label="Workspace navigation">
+      <span class="nav-label">Current workspace</span>
+      <span class="workspace-name">{{ workspace.name }}</span>
+      <a href="{{ workspace_root }}/intelligence"{% if '/intelligence' in current_path %} aria-current="{{ 'page' if current_path == workspace_root ~ '/intelligence' else 'location' }}"{% endif %}>Decision center</a>
+      <a href="{{ workspace_root }}/shopify"{% if '/shopify' in current_path %} aria-current="page"{% endif %}>Shopify sales</a>
+      <a href="{{ workspace_root }}/outcomes"{% if '/outcomes' in current_path %} aria-current="page"{% endif %}>Business outcomes</a>
+      <a href="{{ workspace_root }}"{% if current_path == workspace_root %} aria-current="page"{% endif %}>Workspace overview</a>
+    </nav>
+    {% endif %}
+    <div class="sidebar-bottom">
+      <span class="read-only-badge"><span aria-hidden="true"></span>Ads read-only</span>
+      <form method="post" action="/dashboard/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="logout-button" type="submit">Log out <span aria-hidden="true">↗</span></button></form>
+    </div>
+  </header>
+  <div class="app-content">
+    <div class="app-topbar"><span>{% if workspace is defined and workspace %}{{ workspace.client_name }}<span class="breadcrumb-divider" aria-hidden="true">/</span>{% endif %}{{ title }}</span><span class="topbar-note">A clearer view of performance</span></div>
+    <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+    <footer class="app-footer"><a href="/dashboard">Ad Analyzer</a><span>Advertising data is read-only.</span></footer>
+  </div>
+</div>
+</body>
+</html>

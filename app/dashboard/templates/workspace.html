@@ -1,43 +1,190 @@
-{% extends "base.html" %}{% block content %}
-<p><a href="/dashboard">← Workspaces</a></p>
-<h1>{{ workspace.name }}</h1>
-<section class="decision-welcome"><div><p class="eyebrow">Business performance and planning</p><h2>Turn this workspace's data into your next decision.</h2><p>Company goals, budget pacing, upcoming events, experiments, and an evidence-based action queue.</p></div><a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a></section>
-<p>{{ workspace.client_name }} · {{ workspace.status }} · Access: {{ workspace_role|replace('_', ' ') }}</p>
-<section class="panel"><h2>Workspace boundary</h2><p>All configurations, permissions, integrations, findings, recommendations, and advertising accounts below belong only to this workspace.</p></section>
-<section class="panel" aria-labelledby="workspace-automation-heading">
-  <h2 id="workspace-automation-heading">Individual Ad Analyzer toggles</h2>
-  <p>These settings affect only {{ workspace.name }}. A master setting that is off always wins; advertising approvals, the execution kill switch, and live-write safeguards are not toggleable here.</p>
-  <div class="toggle-grid">
-    {% for control in workspace_controls %}
-    <article class="toggle-card">
-      <div>
-        <h3>{{ control.label }}</h3>
-        <p>{{ control.description }}</p>
-      </div>
-      <dl class="toggle-state">
-        <dt>Master</dt><dd>{{ 'On' if control.master_enabled else 'Off' }}</dd>
-        <dt>This Ad Analyzer</dt><dd>{{ 'On' if control.workspace_enabled else 'Off' }}</dd>
-        <dt>Effective</dt><dd><span class="status {{ 'enabled' if control.effective_enabled else 'disabled' }}">{{ 'On' if control.effective_enabled else 'Off' }}</span></dd>
+{% extends "base.html" %}
+{% block content %}
+<p class="breadcrumb"><a href="/dashboard">← Workspaces</a></p>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">{{ workspace.client_name }} · Workspace</p>
+    <h1>{{ workspace.name }}</h1>
+    <p><span class="status {{ workspace.status }}">{{ workspace.status }}</span> · Access: {{ workspace_role|replace('_', ' ') }}</p>
+  </div>
+  <div class="button-row">
+    <a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a>
+    <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">Outcome analysis</a>
+    <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Shopify connection and sales</a>
+  </div>
+</div>
+<p class="muted">Company goals, budget pacing, upcoming events, experiments, and an evidence-based action queue help turn this workspace's data into your next decision.</p>
+<nav class="section-nav" aria-label="Workspace sections">
+  <a href="#advertising-accounts">Accounts</a>
+  <a href="#integrations">Integrations</a>
+  <a href="#analysis-history">Analysis history</a>
+  <a href="#measurement">Measurement</a>
+  <a href="#workspace-settings">Settings</a>
+</nav>
+
+{% if measurement_contract and not measurement_contract.analysis_ready %}
+<p class="empty"><strong>Measurement contract: {{ measurement_contract.status.value }}.</strong> Outcome analysis remains blocked until this draft is approved. <a href="#measurement">Review measurement details</a></p>
+{% elif not measurement_contract %}
+<p class="empty">No measurement contract is available. Business-outcome analysis must remain disabled.</p>
+{% endif %}
+
+<section id="advertising-accounts" aria-labelledby="accounts-heading">
+  <div class="section-heading"><h2 id="accounts-heading">Advertising accounts</h2><span class="muted">{{ total }} synchronized account{{ '' if total == 1 else 's' }}</span></div>
+  {% if accounts %}
+  <div class="cards workspace-grid">
+    {% for account in accounts %}
+    <article>
+      <div class="card-heading"><h3><a href="/dashboard/accounts/{{ account.id }}">{{ account.name }}</a></h3><span class="status">{{ account.platform.value }}</span></div>
+      <dl class="compact-metrics">
+        <div><dt>Currency</dt><dd>{{ account.currency_code }}</dd></div>
+        <div><dt>Time zone</dt><dd>{{ account.time_zone or 'Not provided' }}</dd></div>
       </dl>
-      {% if can_manage_controls %}
-      <form method="post" action="/dashboard/workspaces/{{ workspace.slug }}/automation-controls/{{ control.key }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="enabled" value="{{ 'false' if control.workspace_enabled else 'true' }}">
-        <button type="submit">Turn {{ 'off' if control.workspace_enabled else 'on' }} for this Ad Analyzer</button>
-      </form>
-      {% endif %}
+      <a href="/dashboard/accounts/{{ account.id }}">View account →</a>
     </article>
     {% endfor %}
   </div>
+  {% else %}
+  <p class="empty">No synchronized advertising accounts are available.</p>
+  {% endif %}
+  {% if offset > 0 or has_next %}
+  <nav class="pagination" aria-label="Advertising account pages">
+    {% if offset > 0 %}<a href="?limit={{ limit }}&offset={{ [offset - limit, 0]|max }}">Previous</a>{% endif %}
+    {% if has_next %}<a href="?limit={{ limit }}&offset={{ offset + limit }}">Next</a>{% endif %}
+  </nav>
+  {% endif %}
 </section>
-<section class="panel"><h2>Measurement contract</h2>{% if measurement_contract %}<p>Status: <strong>{{ measurement_contract.status.value }}</strong>{% if not measurement_contract.analysis_ready %} · Outcome analysis remains blocked until this draft is approved.{% endif %}</p><dl><dt>Optimization goal</dt><dd>{{ measurement_contract.optimization_goal_stage_key|replace('_', ' ') }}</dd><dt>Business-value outcome</dt><dd>{{ measurement_contract.business_value_stage_key|replace('_', ' ') }}</dd><dt>Source of truth</dt><dd>{{ measurement_contract.source_of_truth.value|upper }}</dd><dt>Ad-platform conversions</dt><dd>{{ measurement_contract.platform_conversion_role.value|replace('_', ' ') }}</dd><dt>Attribution</dt><dd>{{ measurement_contract.attribution_model.value|replace('_', ' ') }} · {{ measurement_contract.click_lookback_days }}-day click window · {{ measurement_contract.engaged_view_lookback_days }}-day engaged-view window</dd><dt>Customer value</dt><dd>{{ measurement_contract.customer_value_mode.value|replace('_', ' ') }} over {{ measurement_contract.customer_value_horizon_days }} days</dd></dl><p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">View unified Google Ads + GA4 + CRM outcome analysis</a></p><h3>Funnel definitions</h3><table><tr><th>Stage</th><th>Role</th><th>CRM event</th><th>Value</th></tr>{% for stage in measurement_contract.stages %}<tr><td>{{ stage.display_name }}</td><td>{{ stage.category.value|replace('_', ' ') }}</td><td>{% set matches = measurement_contract.event_mappings|selectattr('stage_key', 'equalto', stage.stage_key)|list %}{{ matches|map(attribute='source_event_type')|join(', ') if matches else 'Not mapped' }}</td><td>{{ 'Observed value' if stage.accepts_monetary_value else 'None' }}</td></tr>{% endfor %}</table>{% else %}<p class="empty">No measurement contract is available. Business-outcome analysis must remain disabled.</p>{% endif %}</section>
-<section class="panel"><h2>Configuration</h2>{% if configuration %}<dl><dt>Analysis</dt><dd><code>{{ configuration.analysis }}</code></dd><dt>Automation</dt><dd><code>{{ configuration.automation }}</code></dd><dt>Notifications</dt><dd><code>{{ configuration.notifications }}</code></dd><dt>Branding</dt><dd><code>{{ configuration.branding }}</code></dd></dl>{% else %}<p class="empty">No workspace configuration is available.</p>{% endif %}</section>
-<section class="panel"><h2>Analysis cadence history</h2><p>{{ analysis_run_total }} aggregate-only run{{ '' if analysis_run_total == 1 else 's' }} recorded. Finding totals include account, campaign, ad-group, keyword, and masked search-term scopes; post-sync, nightly, and weekly runs use local synchronized data only. Actionable findings create bounded, deduplicated proposals for human review only.</p>{% if analysis_runs %}<table><tr><th>Cadence</th><th>Status</th><th>Scheduled</th><th>Metric window</th><th>Accounts</th><th>Findings</th><th>Recommendations</th><th>Outcome state</th></tr>{% for run in analysis_runs %}<tr><td>{{ run.cadence.value|replace('_', ' ') }}</td><td><span class="status {{ run.status.value }}">{{ run.status.value }}</span></td><td>{{ run.scheduled_for }}</td><td>{{ run.metric_date_from }} to {{ run.metric_date_to }}</td><td>{{ run.accounts_analyzed }}</td><td>{{ run.findings_count }} total · {{ run.high_severity_findings_count }} high</td><td>{{ run.recommendations_created_count }} created · {{ run.recommendations_deduplicated_count }} deduplicated</td><td>{{ 'Ready' if run.outcome_analysis_ready else (run.blocking_reasons|join(', ')|replace('_', ' ')) }}</td></tr>{% endfor %}</table>{% else %}<p class="empty">No cadence runs have been recorded yet.</p>{% endif %}</section>
-<section class="panel"><h2>Decision learning</h2><p>{{ decision_learning.decision_count }} approve/reject decision{{ '' if decision_learning.decision_count == 1 else 's' }} learned inside this workspace. Learning uses decision actions only—not actor identities or reason text—and adds context plus an equal-impact tie-break. It never changes finding thresholds, severity, spend priority, approval requirements, or advertising state.</p>{% if decision_learning.profiles %}<table><tr><th>Signal</th><th>Scope</th><th>Review action</th><th>Approved</th><th>Rejected</th><th>Acceptance</th><th>Evidence</th><th>Latest decision</th></tr>{% for profile in decision_learning.profiles %}<tr><td>{{ profile.recommendation_type|replace('_', ' ') }}</td><td>{{ profile.scope_type|replace('_', ' ') }}</td><td>{{ profile.review_action|replace('_', ' ') }}</td><td>{{ profile.approved_count }}</td><td>{{ profile.rejected_count }}</td><td>{{ profile.acceptance_rate|percent }}</td><td>{{ profile.evidence_state }}</td><td>{{ profile.last_decision_at }}</td></tr>{% endfor %}</table>{% else %}<p class="empty">No operator decisions are available yet. New proposals use a neutral learning score.</p>{% endif %}</section>
-<section class="panel"><h2>Weekly learning report</h2><p><span class="status {{ weekly_learning_report.summary_state }}">{{ weekly_learning_report.summary_state|replace('_', ' ') }}</span> · {{ weekly_learning_report.current_period.date_from }} to {{ weekly_learning_report.current_period.date_to }}, compared with {{ weekly_learning_report.comparison_period.date_from }} to {{ weekly_learning_report.comparison_period.date_to }}. This deterministic report uses local aggregate evidence only and proposes analyzer improvements for separate review; it never changes rules or advertising state.</p><table><tr><th>Period</th><th>Successful runs</th><th>Findings</th><th>High severity</th><th>Proposals</th><th>Deduplicated</th><th>Decisions</th><th>Acceptance</th></tr><tr><td>Current</td><td>{{ weekly_learning_report.current.analysis_run_count }}</td><td>{{ weekly_learning_report.current.findings_count }}</td><td>{{ weekly_learning_report.current.high_severity_findings_count }}</td><td>{{ weekly_learning_report.current.proposals_generated_count }}</td><td>{{ weekly_learning_report.current.proposals_deduplicated_count }}</td><td>{{ weekly_learning_report.current.decision_count }}</td><td>{{ weekly_learning_report.current.acceptance_rate|percent if weekly_learning_report.current.acceptance_rate is not none else 'No decisions' }}</td></tr><tr><td>Previous</td><td>{{ weekly_learning_report.previous.analysis_run_count }}</td><td>{{ weekly_learning_report.previous.findings_count }}</td><td>{{ weekly_learning_report.previous.high_severity_findings_count }}</td><td>{{ weekly_learning_report.previous.proposals_generated_count }}</td><td>{{ weekly_learning_report.previous.proposals_deduplicated_count }}</td><td>{{ weekly_learning_report.previous.decision_count }}</td><td>{{ weekly_learning_report.previous.acceptance_rate|percent if weekly_learning_report.previous.acceptance_rate is not none else 'No decisions' }}</td></tr></table><h3>Suggested analyzer improvements</h3><table><tr><th>Priority</th><th>Area</th><th>Evidence</th><th>Suggested improvement</th></tr>{% for suggestion in weekly_learning_report.suggestions %}<tr><td>{{ suggestion.priority }}</td><td>{{ suggestion.title }}</td><td>{{ suggestion.evidence }}</td><td>{{ suggestion.suggested_improvement }}</td></tr>{% endfor %}</table><p class="empty">Actor identities, free-text reasons, and search-term text are excluded. Automatic changes applied: no.</p></section>
-<section class="panel"><h2>Integrations</h2><p><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Shopify connection and sales</a></p>{% if integrations %}<table><tr><th>Name</th><th>Provider</th><th>Status</th><th>Credential reference</th></tr>{% for integration in integrations %}<tr><td>{{ integration.display_name }}</td><td>{{ integration.provider }}</td><td>{{ integration.status }}</td><td>{{ 'Configured' if integration.secret_manager_reference else 'Not stored in workspace' }}</td></tr>{% endfor %}</table>{% else %}<p class="empty">No integrations are configured.</p>{% endif %}</section>
-<section class="panel"><h2>Permissions</h2>{% if memberships %}<table><tr><th>Principal</th><th>Role</th><th>Status</th></tr>{% for membership in memberships %}<tr><td>{{ membership.principal }}</td><td>{{ membership.role }}</td><td>{{ membership.status }}</td></tr>{% endfor %}</table>{% else %}<p class="empty">No workspace-specific members. Platform administrators retain access.</p>{% endif %}</section>
-<h2>Advertising accounts</h2><p>{{ total }} synchronized account{{ '' if total == 1 else 's' }} inside this workspace.</p>
-{% if accounts %}<div class="cards">{% for account in accounts %}<article><h3><a href="/dashboard/accounts/{{ account.id }}">{{ account.name }}</a></h3><dl><dt>Platform</dt><dd>{{ account.platform.value }}</dd><dt>Currency</dt><dd>{{ account.currency_code }}</dd><dt>Time zone</dt><dd>{{ account.time_zone or 'Not provided' }}</dd></dl></article>{% endfor %}</div>{% else %}<p class="empty">No synchronized advertising accounts are available.</p>{% endif %}
-{% if offset > 0 %}<a href="?limit={{ limit }}&offset={{ [offset - limit, 0]|max }}">Previous</a>{% endif %}{% if has_next %}<a href="?limit={{ limit }}&offset={{ offset + limit }}">Next</a>{% endif %}
+
+<section class="panel" id="integrations" aria-labelledby="integrations-heading">
+  <div class="section-heading"><h2 id="integrations-heading">Integrations</h2><a href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Manage Shopify</a></div>
+  {% if integrations %}
+  <div class="table-scroll" role="region" aria-label="Workspace integrations" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Name</th><th scope="col">Provider</th><th scope="col">Status</th><th scope="col">Credential reference</th></tr></thead>
+      <tbody>{% for integration in integrations %}<tr><td>{{ integration.display_name }}</td><td>{{ integration.provider }}</td><td><span class="status {{ integration.status }}">{{ integration.status }}</span></td><td>{{ 'Configured' if integration.secret_manager_reference else 'Not stored in workspace' }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty">No integrations are configured.</p>{% endif %}
+</section>
+
+<section class="panel" id="analysis-history" aria-labelledby="analysis-history-heading">
+  <div class="section-heading"><h2 id="analysis-history-heading">Analysis cadence history</h2><span class="muted">{{ analysis_run_total }} aggregate-only run{{ '' if analysis_run_total == 1 else 's' }} recorded</span></div>
+  <p>Finding totals include account, campaign, ad-group, keyword, and masked search-term scopes; post-sync, nightly, and weekly runs use local synchronized data only. Actionable findings create bounded, deduplicated proposals for human review only.</p>
+  {% if analysis_runs %}
+  <div class="table-scroll" role="region" aria-label="Analysis cadence history" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Cadence</th><th scope="col">Status</th><th scope="col">Scheduled</th><th scope="col">Metric window</th><th scope="col">Accounts</th><th scope="col">Findings</th><th scope="col">Recommendations</th><th scope="col">Outcome state</th></tr></thead>
+      <tbody>{% for run in analysis_runs %}<tr><td>{{ run.cadence.value|replace('_', ' ') }}</td><td><span class="status {{ run.status.value }}">{{ run.status.value }}</span></td><td>{{ run.scheduled_for }}</td><td>{{ run.metric_date_from }} to {{ run.metric_date_to }}</td><td>{{ run.accounts_analyzed }}</td><td>{{ run.findings_count }} total · {{ run.high_severity_findings_count }} high</td><td>{{ run.recommendations_created_count }} created · {{ run.recommendations_deduplicated_count }} deduplicated</td><td>{{ 'Ready' if run.outcome_analysis_ready else (run.blocking_reasons|join(', ')|replace('_', ' ')) }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty">No cadence runs have been recorded yet.</p>{% endif %}
+</section>
+
+<details class="panel settings-disclosure">
+  <summary><span>Weekly learning report</span><span class="status {{ weekly_learning_report.summary_state }}">{{ weekly_learning_report.summary_state|replace('_', ' ') }}</span></summary>
+  <p>{{ weekly_learning_report.current_period.date_from }} to {{ weekly_learning_report.current_period.date_to }}, compared with {{ weekly_learning_report.comparison_period.date_from }} to {{ weekly_learning_report.comparison_period.date_to }}. This deterministic report uses local aggregate evidence only and proposes analyzer improvements for separate review; it never changes rules or advertising state.</p>
+  <div class="table-scroll" role="region" aria-label="Weekly learning report" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Period</th><th scope="col">Successful runs</th><th scope="col">Findings</th><th scope="col">High severity</th><th scope="col">Proposals</th><th scope="col">Deduplicated</th><th scope="col">Decisions</th><th scope="col">Acceptance</th></tr></thead>
+      <tbody>
+        <tr><td>Current</td><td>{{ weekly_learning_report.current.analysis_run_count }}</td><td>{{ weekly_learning_report.current.findings_count }}</td><td>{{ weekly_learning_report.current.high_severity_findings_count }}</td><td>{{ weekly_learning_report.current.proposals_generated_count }}</td><td>{{ weekly_learning_report.current.proposals_deduplicated_count }}</td><td>{{ weekly_learning_report.current.decision_count }}</td><td>{{ weekly_learning_report.current.acceptance_rate|percent if weekly_learning_report.current.acceptance_rate is not none else 'No decisions' }}</td></tr>
+        <tr><td>Previous</td><td>{{ weekly_learning_report.previous.analysis_run_count }}</td><td>{{ weekly_learning_report.previous.findings_count }}</td><td>{{ weekly_learning_report.previous.high_severity_findings_count }}</td><td>{{ weekly_learning_report.previous.proposals_generated_count }}</td><td>{{ weekly_learning_report.previous.proposals_deduplicated_count }}</td><td>{{ weekly_learning_report.previous.decision_count }}</td><td>{{ weekly_learning_report.previous.acceptance_rate|percent if weekly_learning_report.previous.acceptance_rate is not none else 'No decisions' }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Suggested analyzer improvements</h3>
+  <div class="table-scroll" role="region" aria-label="Suggested analyzer improvements" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Priority</th><th scope="col">Area</th><th scope="col">Evidence</th><th scope="col">Suggested improvement</th></tr></thead>
+      <tbody>{% for suggestion in weekly_learning_report.suggestions %}<tr><td>{{ suggestion.priority }}</td><td>{{ suggestion.title }}</td><td>{{ suggestion.evidence }}</td><td>{{ suggestion.suggested_improvement }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <p class="empty">Actor identities, free-text reasons, and search-term text are excluded. Automatic changes applied: no.</p>
+</details>
+
+<details class="panel settings-disclosure">
+  <summary><span>Decision learning</span><span class="muted">{{ decision_learning.decision_count }} approve/reject decision{{ '' if decision_learning.decision_count == 1 else 's' }}</span></summary>
+  <p>Decisions are learned inside this workspace. Learning uses decision actions only—not actor identities or reason text—and adds context plus an equal-impact tie-break. It never changes finding thresholds, severity, spend priority, approval requirements, or advertising state.</p>
+  {% if decision_learning.profiles %}
+  <div class="table-scroll" role="region" aria-label="Decision learning" tabindex="0">
+    <table>
+      <thead><tr><th scope="col">Signal</th><th scope="col">Scope</th><th scope="col">Review action</th><th scope="col">Approved</th><th scope="col">Rejected</th><th scope="col">Acceptance</th><th scope="col">Evidence</th><th scope="col">Latest decision</th></tr></thead>
+      <tbody>{% for profile in decision_learning.profiles %}<tr><td>{{ profile.recommendation_type|replace('_', ' ') }}</td><td>{{ profile.scope_type|replace('_', ' ') }}</td><td>{{ profile.review_action|replace('_', ' ') }}</td><td>{{ profile.approved_count }}</td><td>{{ profile.rejected_count }}</td><td>{{ profile.acceptance_rate|percent }}</td><td>{{ profile.evidence_state }}</td><td>{{ profile.last_decision_at }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty">No operator decisions are available yet. New proposals use a neutral learning score.</p>{% endif %}
+</details>
+
+<section class="panel" id="measurement" aria-labelledby="measurement-heading">
+  <div class="section-heading"><h2 id="measurement-heading">Measurement contract</h2>{% if measurement_contract %}<span class="status {{ measurement_contract.status.value }}">{{ measurement_contract.status.value }}</span>{% endif %}</div>
+  {% if measurement_contract %}
+  {% if not measurement_contract.analysis_ready %}<p class="empty">Outcome analysis remains blocked until this draft is approved.</p>{% endif %}
+  <dl class="compact-metrics">
+    <div><dt>Optimization goal</dt><dd>{{ measurement_contract.optimization_goal_stage_key|replace('_', ' ') }}</dd></div>
+    <div><dt>Business-value outcome</dt><dd>{{ measurement_contract.business_value_stage_key|replace('_', ' ') }}</dd></div>
+    <div><dt>Source of truth</dt><dd>{{ measurement_contract.source_of_truth.value|upper }}</dd></div>
+  </dl>
+  <p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">View unified Google Ads + GA4 + CRM outcome analysis</a></p>
+  <details class="settings-disclosure">
+    <summary><span>Attribution and funnel definitions</span></summary>
+    <dl>
+      <dt>Ad-platform conversions</dt><dd>{{ measurement_contract.platform_conversion_role.value|replace('_', ' ') }}</dd>
+      <dt>Attribution</dt><dd>{{ measurement_contract.attribution_model.value|replace('_', ' ') }} · {{ measurement_contract.click_lookback_days }}-day click window · {{ measurement_contract.engaged_view_lookback_days }}-day engaged-view window</dd>
+      <dt>Customer value</dt><dd>{{ measurement_contract.customer_value_mode.value|replace('_', ' ') }} over {{ measurement_contract.customer_value_horizon_days }} days</dd>
+    </dl>
+    <h3>Funnel definitions</h3>
+    <div class="table-scroll" role="region" aria-label="Funnel definitions" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">Stage</th><th scope="col">Role</th><th scope="col">CRM event</th><th scope="col">Value</th></tr></thead>
+        <tbody>{% for stage in measurement_contract.stages %}<tr><td>{{ stage.display_name }}</td><td>{{ stage.category.value|replace('_', ' ') }}</td><td>{% set matches = measurement_contract.event_mappings|selectattr('stage_key', 'equalto', stage.stage_key)|list %}{{ matches|map(attribute='source_event_type')|join(', ') if matches else 'Not mapped' }}</td><td>{{ 'Observed value' if stage.accepts_monetary_value else 'None' }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </details>
+  {% else %}<p class="empty">No measurement contract is available. Business-outcome analysis must remain disabled.</p>{% endif %}
+</section>
+
+<section id="workspace-settings" aria-labelledby="workspace-settings-heading">
+  <div class="section-heading"><h2 id="workspace-settings-heading">Workspace settings</h2><span class="muted">Configuration and access</span></div>
+  <details class="panel settings-disclosure">
+    <summary><span>Individual Ad Analyzer toggles</span><span class="muted">{{ workspace_controls|selectattr('effective_enabled')|list|length }} of {{ workspace_controls|length }} effective controls on</span></summary>
+    <p>These settings affect only {{ workspace.name }}. A master setting that is off always wins; advertising approvals, the execution kill switch, and live-write safeguards are not toggleable here.</p>
+    <div class="toggle-grid">
+      {% for control in workspace_controls %}
+      <article class="toggle-card">
+        <div><h3>{{ control.label }}</h3><p>{{ control.description }}</p></div>
+        <dl class="toggle-state">
+          <dt>Master</dt><dd>{{ 'On' if control.master_enabled else 'Off' }}</dd>
+          <dt>This Ad Analyzer</dt><dd>{{ 'On' if control.workspace_enabled else 'Off' }}</dd>
+          <dt>Effective</dt><dd><span class="status {{ 'enabled' if control.effective_enabled else 'disabled' }}">{{ 'On' if control.effective_enabled else 'Off' }}</span></dd>
+        </dl>
+        {% if can_manage_controls %}
+        <form method="post" action="/dashboard/workspaces/{{ workspace.slug }}/automation-controls/{{ control.key }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="enabled" value="{{ 'false' if control.workspace_enabled else 'true' }}">
+          <button type="submit">Turn {{ 'off' if control.workspace_enabled else 'on' }} for this Ad Analyzer</button>
+        </form>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </details>
+  <details class="panel settings-disclosure">
+    <summary><span>Configuration</span><span class="muted">Analysis, automation, notifications, and branding</span></summary>
+    {% if configuration %}
+    <dl><dt>Analysis</dt><dd><code>{{ configuration.analysis }}</code></dd><dt>Automation</dt><dd><code>{{ configuration.automation }}</code></dd><dt>Notifications</dt><dd><code>{{ configuration.notifications }}</code></dd><dt>Branding</dt><dd><code>{{ configuration.branding }}</code></dd></dl>
+    {% else %}<p class="empty">No workspace configuration is available.</p>{% endif %}
+  </details>
+  <details class="panel settings-disclosure">
+    <summary><span>Permissions</span><span class="muted">Workspace membership and boundary</span></summary>
+    <h3>Workspace boundary</h3>
+    <p>All configurations, permissions, integrations, findings, recommendations, and advertising accounts shown here belong only to this workspace.</p>
+    {% if memberships %}
+    <div class="table-scroll" role="region" aria-label="Workspace permissions" tabindex="0">
+      <table>
+        <thead><tr><th scope="col">Principal</th><th scope="col">Role</th><th scope="col">Status</th></tr></thead>
+        <tbody>{% for membership in memberships %}<tr><td>{{ membership.principal }}</td><td>{{ membership.role }}</td><td>{{ membership.status }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}<p class="empty">No workspace-specific members. Platform administrators retain access.</p>{% endif %}
+  </details>
+</section>
 {% endblock %}

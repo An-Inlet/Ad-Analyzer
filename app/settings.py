@@ -228,9 +228,7 @@ class Settings(BaseSettings):
     database_pool_recycle_seconds: int = Field(
         default=1800, ge=60, le=86400, validation_alias="DATABASE_POOL_RECYCLE_SECONDS"
     )
-    api_token: SecretStr | None = Field(
-        default=None, validation_alias="AD_ANALYZER_API_TOKEN"
-    )
+    api_token: SecretStr | None = Field(default=None, validation_alias="AD_ANALYZER_API_TOKEN")
     crm_webhook_secret: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_CRM_WEBHOOK_SECRET"
     )
@@ -258,6 +256,25 @@ class Settings(BaseSettings):
     github_control_token: SecretStr | None = Field(
         default=None,
         validation_alias="AD_ANALYZER_GITHUB_CONTROL_TOKEN",
+    )
+    shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
+    shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")
+    shopify_client_secret: SecretStr | None = Field(
+        default=None, validation_alias="SHOPIFY_CLIENT_SECRET"
+    )
+    shopify_token_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="SHOPIFY_TOKEN_ENCRYPTION_KEY"
+    )
+    shopify_identifier_hash_key: SecretStr | None = Field(
+        default=None, validation_alias="SHOPIFY_IDENTIFIER_HASH_KEY"
+    )
+    shopify_redirect_uri: str = Field(default="", validation_alias="SHOPIFY_REDIRECT_URI")
+    shopify_webhook_subscription: str = Field(
+        default="", validation_alias="SHOPIFY_WEBHOOK_SUBSCRIPTION"
+    )
+    shopify_sync_pages: int = Field(default=10, ge=1, le=10, validation_alias="SHOPIFY_SYNC_PAGES")
+    shopify_sync_interval_minutes: int = Field(
+        default=60, ge=15, le=1440, validation_alias="SHOPIFY_SYNC_INTERVAL_MINUTES"
     )
     github_control_repository: str = Field(
         default="Konner-An-Inlet/Ad-Analyzer",

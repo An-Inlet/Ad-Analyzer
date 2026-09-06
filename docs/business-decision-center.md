@@ -64,3 +64,5 @@ Run pytest, Ruff, mypy, diff checks and the repository's PostgreSQL migration, p
 Release remains subject to the human gate in `docs/automation-policy.md`. Apply the additive migration before serving the new application image and verify an authorized workspace, a viewer, a portfolio page and an enabled scheduled analysis. No secrets or new external subscriptions are needed. A rollback should restore the prior application image while retaining the additive schema; do not downgrade a production database to undo this feature.
 
 Live conversion feedback, additional advertising-platform collectors, individual-ad metrics and billing integrations remain dependent on separately configured and approved integrations. The decision center surfaces those evidence limits rather than simulating successful connections or changing paid services.
+
+Shopify store sales can now be connected per workspace and reviewed alongside the decision center. See [Shopify sales setup and measurement definitions](shopify-sales.md). Commerce totals remain separate from CRM goal progress.

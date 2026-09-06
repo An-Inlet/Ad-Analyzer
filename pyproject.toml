@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = { text = "Proprietary" }
 authors = [{ name = "An Inlet" }]
 dependencies = [
+    "cryptography>=44.0.0",
     "alembic>=1.13.2",
     "fastapi>=0.111.0",
     "jinja2>=3.1.4",

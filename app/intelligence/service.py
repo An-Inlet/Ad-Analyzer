@@ -302,6 +302,9 @@ class IntelligenceService:
                 ],
                 ready=current.analysis_ready and not health["blocking"],
             )
+        from app.shopify.reporting import sales_report
+
+        report["commerce"] = sales_report(self.session, workspace_id, now=now)
         return report
 
     @staticmethod
@@ -989,6 +992,36 @@ class IntelligenceService:
 
     def answer(self, report: dict[str, Any], question: str) -> dict[str, Any]:
         text = question.casefold()
+        if any(
+            word in text
+            for word in ("shopify", "sales", "selling", "refund", "returning", "product")
+        ):
+            commerce = report["commerce"]
+            sales_facts = commerce["suggestions"]
+            if commerce["connected"]:
+                metrics = commerce["current"]
+                sales_facts = [
+                    f"{commerce['currency_code']} "
+                    f"{metrics['net_collected_micros'] / 1_000_000:,.2f} net collected "
+                    f"across {metrics['paid_orders']} paid orders.",
+                    *sales_facts,
+                ]
+            return {
+                "topic": "sales",
+                "answer": commerce.get(
+                    "basis", "Connect Shopify to bring store sales into this workspace."
+                ),
+                "facts": sales_facts,
+                "evidence": commerce,
+                "as_of": report["as_of"],
+                "window": commerce.get("window", report["window"]),
+                "limitations": commerce["warnings"]
+                + [
+                    "Store sales are separate from CRM outcomes and do not prove "
+                    "advertising causation."
+                ],
+            }
+
         topics = {
             "budget": ("budget", "spend", "money", "cost", "afford"),
             "events": ("event", "launch", "promotion", "calendar", "upcoming"),

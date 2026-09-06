@@ -29,7 +29,14 @@ def _run_analysis_tick(engine: Any, outcome: Any | None) -> None:
     if not isinstance(engine, Engine):
         return
     from app.analysis.cadence import run_analysis_tick
+    from app.shopify.privacy import purge_expired_facts, run_privacy_tick
+    from app.shopify.sync import run_shopify_tick
 
+    for operation in (purge_expired_facts, run_privacy_tick, run_shopify_tick):
+        try:
+            operation(engine)
+        except Exception:
+            logger.warning("shopify_scheduler_operation_failed")
     run_analysis_tick(engine, outcome)
 
 

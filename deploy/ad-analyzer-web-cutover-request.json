@@ -1,8 +1,8 @@
 {
-  "request_version": 8,
+  "request_version": 9,
   "target_service": "ad-analyzer-web",
   "approved_cost_profile": "Cloud Run request-based billing with min 0, max 1; reuse the existing database, secrets, IAP policy, and runtime identity; create no database, scheduler, or sync job.",
   "approval_date": "2026-09-06",
   "status": "approved",
-  "retry_reason": "Production has no named migration job. Discover existing application jobs by entrypoint and database; retain built-in web startup migrations when no migration job exists. Create no new resources."
+  "retry_reason": "Existing legacy migration job was found but failed with the new image. Normalize legacy application setting names while retaining secret references, job resources, database and entrypoint."
 }

@@ -140,7 +140,7 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "gcloud sql instances create" not in workflow
     assert "gcloud scheduler" not in workflow
     assert "gcloud run jobs create" not in workflow
-    assert 'gcloud run jobs update "$SYNC_JOB"' in workflow
+    assert "python scripts/prepare_release_job.py" in workflow
     assert 'gcloud run jobs execute "$job"' in workflow
     assert workflow.index("gcloud run jobs execute") < workflow.index("gcloud run services replace")
 
@@ -231,3 +231,37 @@ def test_release_jobs_require_matching_database_and_entrypoint(
             item["value"] = database_name
     job = {"spec": {"template": {"spec": {"template": {"spec": {"containers": [container]}}}}}}
     assert module.select_role(job, source) == expected
+
+
+def test_release_job_normalizes_legacy_names_without_exposing_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.syspath_prepend("scripts")
+    prepare_release_job = __import__("prepare_release_job")
+
+    source = source_service()
+    job = {
+        "metadata": {"name": "existing-job"},
+        "spec": {"template": {"spec": {"template": source["spec"]["template"]}}},
+    }
+    prepared = prepare_release_job.prepare_job(job, "registry/new:sha")
+    container = prepared["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]
+    env = {item["name"]: item for item in container["env"]}
+    assert "valueFrom" in env["AD_ANALYZER_API_TOKEN"]
+    assert env["AD_ANALYZER_REQUIRED_SECRET_NAMES"]["value"] == "DATABASE_PASSWORD"
+    assert container["image"] == "registry/new:sha"
+    assert container["env"] != source["spec"]["template"]["spec"]["containers"][0]["env"]
+
+
+def test_release_diagnostics_only_emit_allowlisted_categories(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.syspath_prepend("scripts")
+    summarize_release_failure = __import__("summarize_release_failure")
+
+    assert summarize_release_failure.summarize(
+        [
+            {"textPayload": "private payload required_secrets: failed private identifiers"},
+            {"textPayload": "OperationalError confidential database URL"},
+        ]
+    ) == ["OperationalError", "required_secrets: failed"]

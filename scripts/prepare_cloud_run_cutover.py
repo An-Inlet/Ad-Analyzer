@@ -196,8 +196,6 @@ def _neutral_environment(
 
 def is_source_service(service: dict[str, Any], target_service: str) -> bool:
     """Return whether a service looks like the existing Ad Analyzer web deployment."""
-    if service.get("metadata", {}).get("name") == target_service:
-        return False
     names = {
         entry.get("name") for entry in _env_entries(service) if isinstance(entry.get("name"), str)
     }
@@ -245,6 +243,7 @@ def prepare_service(
     template = _template(service)
     template_metadata = template.setdefault("metadata", {})
     _clean_metadata(template_metadata)
+    template_metadata.pop("name", None)
     annotations = template_metadata.setdefault("annotations", {})
     annotations["autoscaling.knative.dev/minScale"] = "0"
     annotations["autoscaling.knative.dev/maxScale"] = "1"

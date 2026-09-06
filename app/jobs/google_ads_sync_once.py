@@ -64,6 +64,13 @@ def main(
             logger.error("google_ads_sync_worker_interrupted")
             return FAILURE_EXIT_CODE
         outcome = run_cycle(settings, engine, wait=stop.wait, stop_requested=stop.is_set)
+        # Run independent Shopify maintenance and due analyses even when Ads is disabled.
+        try:
+            from app.jobs.google_ads_scheduler import _run_analysis_tick
+
+            _run_analysis_tick(engine, None)
+        except Exception as exc:
+            logger.error("independent_analysis_tick_failed error_type=%s", type(exc).__name__)
         if outcome.skipped:
             if getattr(outcome, "skip_reason", None) == "disabled":
                 logger.info("google_ads_sync_worker_skipped_disabled")

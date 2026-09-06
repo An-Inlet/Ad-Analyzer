@@ -140,8 +140,8 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "gcloud sql instances create" not in workflow
     assert "gcloud scheduler" not in workflow
     assert "gcloud run jobs create" not in workflow
-    assert "gcloud run jobs update ad-analyzer-sync" in workflow
-    assert "gcloud run jobs execute ad-analyzer-migration" in workflow
+    assert 'gcloud run jobs update "$SYNC_JOB"' in workflow
+    assert 'gcloud run jobs execute "$job"' in workflow
     assert workflow.index("gcloud run jobs execute") < workflow.index("gcloud run services replace")
 
 
@@ -199,3 +199,35 @@ def test_hourly_worker_runs_independent_tick_when_ads_is_skipped(
     )
     assert called == [runtime_engine]
     assert result == (0 if disabled else 2)
+
+
+@pytest.mark.parametrize(
+    ("command", "database_name", "expected"),
+    [
+        (["python", "-m", "app.jobs.google_ads_sync_once"], "existing_db", "sync"),
+        (["sh", "-c", "alembic upgrade head"], "existing_db", "migration"),
+        (["python", "-m", "app.jobs.google_ads_sync_once"], "another_db", None),
+        (["python", "unrelated.py"], "existing_db", None),
+    ],
+)
+def test_release_jobs_require_matching_database_and_entrypoint(
+    command: list[str],
+    database_name: str,
+    expected: str | None,
+) -> None:
+    import copy
+
+    spec = importlib.util.spec_from_file_location(
+        "select_release_jobs", "scripts/select_release_jobs.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    source = source_service()
+    container = copy.deepcopy(source["spec"]["template"]["spec"]["containers"][0])
+    container["command"] = command
+    for item in container["env"]:
+        if item["name"] == "DATABASE_NAME":
+            item["value"] = database_name
+    job = {"spec": {"template": {"spec": {"template": {"spec": {"containers": [container]}}}}}}
+    assert module.select_role(job, source) == expected

@@ -257,18 +257,41 @@ jobs:
           docker push "$target_image"
           printf 'target_image=%s\n' "$target_image" >> "$GITHUB_OUTPUT"
 
-      - name: Migrate using the existing job before serving the new application
+      - name: Discover existing application jobs and migrate when a job exists
+        id: jobs
         shell: bash
         env:
           TARGET_IMAGE: ${{ steps.image.outputs.target_image }}
         run: |
           set -euo pipefail
-          # Require both jobs to exist; update only their image, preserving runtime settings.
-          for job in ad-analyzer-migration ad-analyzer-sync; do
-            gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(metadata.name)' >/dev/null
+          names="${RUNNER_TEMP}/job-names.txt"
+          gcloud run jobs list --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(metadata.name)' > "$names"
+          migration_jobs=()
+          sync_jobs=()
+          while IFS= read -r job; do
+            [[ -n "$job" ]] || continue
+            job_json="${RUNNER_TEMP}/candidate-job.json"
+            gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$job_json"
+            role="$(python scripts/select_release_jobs.py "$job_json" "${RUNNER_TEMP}/source-service.json")"
+            case "$role" in
+              migration) migration_jobs+=("$job") ;;
+              sync) sync_jobs+=("$job") ;;
+            esac
+          done < "$names"
+          [[ "${#migration_jobs[@]}" -le 1 && "${#sync_jobs[@]}" -le 1 ]] || { echo 'Multiple matching application jobs require review.' >&2; exit 1; }
+          for job in "${migration_jobs[@]}"; do
+            gcloud run jobs update "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
+            gcloud run jobs execute "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --wait --quiet
           done
-          gcloud run jobs update ad-analyzer-migration --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
-          gcloud run jobs execute ad-analyzer-migration --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --wait --quiet
+          printf 'migration_job=%s\n' "${migration_jobs[0]:-}" >> "$GITHUB_OUTPUT"
+          printf 'sync_job=%s\n' "${sync_jobs[0]:-}" >> "$GITHUB_OUTPUT"
+          printf 'Detected migration jobs: %s; sync jobs: %s\n' "${#migration_jobs[@]}" "${#sync_jobs[@]}" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${#migration_jobs[@]}" -eq 0 ]]; then
+            echo 'No migration job exists; the existing web startup runs alembic upgrade head before readiness.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ "${#sync_jobs[@]}" -eq 0 ]]; then
+            echo 'No matching hourly worker exists. Background imports require separate infrastructure setup; none was created.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Create or update the neutral web service
         shell: bash
@@ -375,22 +398,27 @@ jobs:
             exit 1
           fi
 
-      - name: Release the existing hourly worker and verify image parity
+      - name: Release detected worker and verify image parity
         shell: bash
         env:
           TARGET_IMAGE: ${{ steps.image.outputs.target_image }}
+          SYNC_JOB: ${{ steps.jobs.outputs.sync_job }}
+          MIGRATION_JOB: ${{ steps.jobs.outputs.migration_job }}
         run: |
           set -euo pipefail
-          gcloud run jobs update ad-analyzer-sync --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
-          for job in ad-analyzer-migration ad-analyzer-sync; do
-            job_json="${RUNNER_TEMP}/${job}.json"
+          if [[ -n "$SYNC_JOB" ]]; then
+            gcloud run jobs update "$SYNC_JOB" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
+          fi
+          for job in "$MIGRATION_JOB" "$SYNC_JOB"; do
+            [[ -n "$job" ]] || continue
+            job_json="${RUNNER_TEMP}/deployed-job.json"
             gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$job_json"
             jq -e --arg image "$TARGET_IMAGE" '.spec.template.spec.template.spec.containers[0].image == $image' "$job_json" >/dev/null
           done
           service_json="${RUNNER_TEMP}/release-service.json"
           gcloud run services describe "$GCP_WEB_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$service_json"
           jq -e --arg image "$TARGET_IMAGE" '.spec.template.spec.containers[0].image == $image and .status.latestReadyRevisionName == .status.latestCreatedRevisionName' "$service_json" >/dev/null
-          printf 'Released web, migration, and sync image: %s\n' "$TARGET_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Released web and detected existing jobs with image: %s\n' "$TARGET_IMAGE" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report deployment success
         if: success()

@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block content %}
+<p class="eyebrow">An Inlet / Ad Analyzer</p><h1>Your client portfolio</h1><p>See which clients need a decision, a planning update, or better measurement.</p>
+<div class="portfolio-grid">{% for card in cards %}{% set report = card.report %}
+<article><div class="section-heading"><h2><a href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">{{ card.workspace.name }}</a></h2><span class="status">{{ 'Measurement needs attention' if report.health.blocking else 'Evidence available' }}</span></div>
+<p>{{ report.strategy.data.title if report.strategy else 'Company strategy not yet set' }}</p>
+{% if report.goal and report.goal.observed is not none %}<p><strong>{{ '%g'|format(report.goal.observed) }}</strong> / {{ '%g'|format(report.goal.target) }} {{ report.goal.metric|replace('_', ' ') }}</p>{% endif %}
+{% if report.budget %}<p>{{ report.budget.spend_micros|money(report.budget.currency_code) if report.budget.spend_micros is not none else 'Unknown spending' }} spent · {{ report.budget.available_micros|money(report.budget.currency_code) if report.budget.available_micros is not none else 'Unknown funds' }} available</p>{% endif %}
+<h3>Next decision</h3><p>{{ report.recommendations[0].title }}</p><a class="button" href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">Open decision center</a>
+</article>{% else %}<p class="empty">No accessible workspaces are available.</p>{% endfor %}</div>
+<div class="button-row">{% if offset > 0 %}<a href="?offset={{ [0, offset - 10]|max }}">Previous clients</a>{% endif %}{% if offset + 10 < total %}<a href="?offset={{ offset + 10 }}">Next clients</a>{% endif %}</div>
+{% endblock %}

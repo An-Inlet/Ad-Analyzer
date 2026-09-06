@@ -46,6 +46,7 @@
   {% for workspace, account_count, campaign_count, integration_count in workspaces %}
   <article>
     <h2><a href="/dashboard/workspaces/{{ workspace.slug }}">{{ workspace.name }}</a></h2>
+    <p><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a></p>
     <dl>
       <dt>Client</dt><dd>{{ workspace.client_name }}</dd>
       <dt>Status</dt><dd>{{ workspace.status }}</dd>

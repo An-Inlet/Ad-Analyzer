@@ -1,5 +1,5 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ title }} | Ad Analyzer</title><link rel="stylesheet" href="/dashboard/assets/dashboard.css"></head>
-<body><header><a href="/dashboard">Ad Analyzer</a><nav aria-label="Main navigation"><a href="/dashboard">Workspaces</a><a href="/dashboard/job-runs">Job runs</a></nav><form method="post" action="/dashboard/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">Log out</button></form><strong>Ads read-only</strong></header>
+<title>{{ title }} | Ad Analyzer</title><link rel="stylesheet" href="/dashboard/assets/dashboard.css"><link rel="stylesheet" href="/dashboard/assets/intelligence.css"></head>
+<body><header><a href="/dashboard">Ad Analyzer</a><nav aria-label="Main navigation"><a href="/dashboard/portfolio">Portfolio</a><a href="/dashboard">Workspaces</a><a href="/dashboard/job-runs">Job runs</a></nav><form method="post" action="/dashboard/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">Log out</button></form><strong>Ads read-only</strong></header>
 <main>{% block content %}{% endblock %}</main><footer>Ad Analyzer operator dashboard. Advertising data is read-only.</footer></body></html>

@@ -5,7 +5,10 @@ import logging
 
 class OAuthAccessFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/dashboard/shopify/callback" not in record.getMessage()
+        message = record.getMessage()
+        return not any(
+            path in message for path in ("/dashboard/shopify/callback", "/dashboard/meta/callback")
+        )
 
 
 def install_access_filter() -> None:

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <p class="eyebrow">{{ workspace.name }} / Meta</p>
+  <h1>Authorize read-only Meta access</h1>
+  <p>Continue to Meta to review access to your advertising accounts and performance. After authorization, choose the account for this client portfolio.</p>
+  <div class="button-row"><a id="meta-authorization" class="button" href="{{ authorization_url }}" rel="noreferrer">Continue to Meta</a><a href="/dashboard/workspaces/{{ workspace.slug }}/meta">Back to Meta connection</a></div>
+  <p class="muted">The link expires in ten minutes. Complete authorization in this browser with the same signed-in Ad Analyzer account.</p>
+</section>
+{% endblock %}

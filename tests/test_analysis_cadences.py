@@ -24,6 +24,7 @@ from app.jobs.google_ads_sync_once import SUCCESS_EXIT_CODE
 from app.jobs.google_ads_sync_once import main as sync_once_main
 from app.jobs.reliability import CycleOutcome
 from app.main import app
+from app.meta.models import MetaConnection
 from app.optimizer.recommendations import Finding
 from app.recommendations import RecommendationCandidate, RecommendationGenerationService
 from app.settings import settings
@@ -67,6 +68,7 @@ def seed_workspace(
     slug: str = "denticode",
     analysis: dict[str, object] | None = None,
     with_metrics: bool = True,
+    platform: AdvertisingPlatform = AdvertisingPlatform.GOOGLE_ADS,
     as_of: datetime = datetime(2026, 8, 8, 12, tzinfo=UTC),
 ) -> tuple[Workspace, AdvertisingAccount, JobRun]:
     workspace = Workspace(
@@ -89,7 +91,7 @@ def seed_workspace(
     )
     account = AdvertisingAccount(
         workspace_id=workspace.id,
-        platform=AdvertisingPlatform.GOOGLE_ADS,
+        platform=platform,
         external_account_id=f"{slug}-account",
         name=f"{slug.title()} Google Ads",
         currency_code="USD",
@@ -99,7 +101,7 @@ def seed_workspace(
     db.flush()
     campaign = Campaign(
         account_id=account.id,
-        platform=AdvertisingPlatform.GOOGLE_ADS,
+        platform=platform,
         external_campaign_id=f"{slug}-campaign",
         name=f"{slug.title()} Search",
         status="ENABLED",
@@ -113,7 +115,7 @@ def seed_workspace(
             metric_date = metric_end - timedelta(days=day_offset)
             db.add(
                 DailyMetric(
-                    platform=AdvertisingPlatform.GOOGLE_ADS,
+                    platform=platform,
                     metric_date=metric_date,
                     entity_type="campaign",
                     entity_id=campaign.id,
@@ -127,9 +129,13 @@ def seed_workspace(
             )
     job = JobRun(
         workspace_id=workspace.id,
-        platform=AdvertisingPlatform.GOOGLE_ADS,
+        platform=platform,
         account_id=account.id,
-        job_name="google_ads_read_only_sync",
+        job_name=(
+            "meta_ads_sync"
+            if platform == AdvertisingPlatform.META_ADS
+            else "google_ads_read_only_sync"
+        ),
         status=JobRunStatus.SUCCEEDED,
         started_at=as_of - timedelta(minutes=2),
         finished_at=as_of - timedelta(minutes=1),
@@ -650,3 +656,164 @@ def test_analysis_tick_runs_due_cadences_even_without_a_successful_sync(
     assert result.post_sync_run_id is None
     assert len(result.scheduled_run_ids) == 2
     assert result.invalid_policy_count == 0
+
+
+def test_meta_only_analysis_and_brief_work_without_optional_sources(
+    database: tuple[Session, Engine],
+) -> None:
+    db, _engine = database
+    workspace, account, _job = seed_workspace(db, platform=AdvertisingPlatform.META_ADS)
+    now = datetime(2026, 8, 8, 12, tzinfo=UTC)
+    row = AnalysisRunService(db).execute(
+        workspace_id=workspace.id,
+        cadence=AnalysisCadence.NIGHTLY,
+        run_key="nightly:meta-only",
+        scheduled_for=now,
+        window_days=7,
+        as_of=now,
+    )
+    assert row.status == AnalysisRunStatus.SUCCEEDED
+    assert row.accounts_analyzed == 1
+    assert row.decision_brief is not None
+    assert row.outcome_analysis_ready is False
+    assert row.blocking_reasons == ["measurement_contract_missing"]
+    recommendations = db.scalars(
+        select(Recommendation).where(Recommendation.account_id == account.id)
+    ).all()
+    assert recommendations
+    assert {r.recommendation_type for r in recommendations} == {"low_ctr"}
+    assert all(r.platform == AdvertisingPlatform.META_ADS for r in recommendations)
+
+
+def test_independent_source_failure_does_not_stop_meta_or_due_analysis(
+    database: tuple[Session, Engine], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.jobs.google_ads_scheduler import _run_analysis_tick
+
+    _db, engine = database
+    calls: list[str] = []
+    monkeypatch.setattr("app.shopify.privacy.purge_expired_facts", lambda _: calls.append("purge"))
+    monkeypatch.setattr("app.shopify.privacy.run_privacy_tick", lambda _: calls.append("privacy"))
+
+    def unavailable_source(_: Engine) -> None:
+        calls.append("shopify")
+        raise RuntimeError("optional source unavailable")
+
+    monkeypatch.setattr("app.shopify.sync.run_shopify_tick", unavailable_source)
+    monkeypatch.setattr("app.meta.sync.run_meta_tick", lambda _: calls.append("meta"))
+    monkeypatch.setattr(
+        "app.analysis.cadence.run_analysis_tick", lambda *_: calls.append("analysis")
+    )
+    _run_analysis_tick(engine, None)
+    assert calls == ["purge", "privacy", "shopify", "meta", "analysis"]
+
+
+def test_meta_conversion_findings_require_completed_selected_event_coverage(
+    database: tuple[Session, Engine],
+) -> None:
+    from app.analysis.granular import GranularAnalysisService
+    from app.analysis.platform_evidence import has_platform_conversion_metrics
+    from app.analysis.schemas import PerformanceScopeResponse
+    from app.api.repository import ReadOnlyAdsRepository
+    from app.api.v1 import account_analytics_window, account_metric_summary, list_campaign_metrics
+
+    db, _engine = database
+    workspace, account, _job = seed_workspace(db, platform=AdvertisingPlatform.META_ADS)
+    now = datetime(2026, 8, 8, 12, tzinfo=UTC)
+    connection = MetaConnection(
+        workspace_id=workspace.id,
+        account_id=account.id,
+        external_account_id="test-meta-account",
+        encrypted_credentials="redacted-test-envelope",
+        conversion_action_type="purchase",
+    )
+    db.add(connection)
+    db.commit()
+    service = GranularAnalysisService(db)
+    args = (account.id, date(2026, 8, 1), date(2026, 8, 7))
+    snapshots, _ = service.analyze_campaigns(*args, limit=25, offset=0, now=now)
+    before = PerformanceScopeResponse.from_snapshot(snapshots[0])
+    assert before.current.platform_conversions is None
+    assert before.current.platform_roas is None
+    assert before.current.clicks == 35
+    assert {f.code for f in snapshots[0].findings} == {"low_ctr"}
+    repository = ReadOnlyAdsRepository(db)
+    for response in (
+        account_metric_summary(account.id, repository, args[1], args[2]),
+        account_analytics_window(account.id, repository, args[1], args[2]),
+    ):
+        assert response.clicks == 35
+        assert response.conversions is None
+        assert response.cost_per_conversion_micros is None
+    daily = list_campaign_metrics(
+        snapshots[0].campaign_id, repository, args[1], args[2], limit=25, offset=0
+    )
+    assert daily.items
+    assert all(row.conversions is None for row in daily.items)
+    assert all(row.conversion_value_micros is None for row in daily.items)
+
+    connection.last_sync_at = now
+    connection.covered_from = date(2026, 8, 1)
+    connection.covered_through = date(2026, 8, 7)
+    db.commit()
+    snapshots, _ = service.analyze_campaigns(*args, limit=25, offset=0, now=now)
+    after = PerformanceScopeResponse.from_snapshot(snapshots[0])
+    assert after.current.platform_conversions == 0
+    assert after.comparison.platform_conversions is None
+    assert "spend_without_conversions" in {f.code for f in snapshots[0].findings}
+    assert not has_platform_conversion_metrics(
+        db,
+        account.id,
+        account.platform,
+        date_from=date(2026, 7, 31),
+        date_to=date(2026, 8, 7),
+    )
+
+
+def test_meta_lead_event_supports_cpa_without_inventing_monetary_value(
+    database: tuple[Session, Engine],
+) -> None:
+    from app.analysis.granular import GranularAnalysisService
+    from app.analysis.schemas import PerformanceScopeResponse
+    from app.api.repository import ReadOnlyAdsRepository
+    from app.api.v1 import account_metric_summary, list_campaign_metrics
+
+    db, _engine = database
+    workspace, account, _job = seed_workspace(db, platform=AdvertisingPlatform.META_ADS)
+    now = datetime(2026, 8, 8, 12, tzinfo=UTC)
+    start, end = date(2026, 8, 1), date(2026, 8, 7)
+    db.add(
+        MetaConnection(
+            workspace_id=workspace.id,
+            account_id=account.id,
+            external_account_id="test-meta-account",
+            encrypted_credentials="redacted-test-envelope",
+            conversion_action_type="lead",
+            last_sync_at=now,
+            covered_from=start,
+            covered_through=end,
+        )
+    )
+    for metric in db.scalars(select(DailyMetric)):
+        metric.conversions = Decimal(1)
+    db.commit()
+    snapshots, _ = GranularAnalysisService(db).analyze_campaigns(
+        account.id, start, end, limit=25, offset=0, now=now
+    )
+    response = PerformanceScopeResponse.from_snapshot(snapshots[0])
+    assert response.current.platform_conversions == 7
+    assert response.current.cost_per_platform_conversion_micros == 2_000_000
+    assert response.current.platform_conversion_value_micros is None
+    assert response.current.platform_roas is None
+    assert snapshots[0].conversion_metrics_available is True
+    assert snapshots[0].conversion_value_metrics_available is False
+    repository = ReadOnlyAdsRepository(db)
+    summary = account_metric_summary(account.id, repository, start, end)
+    assert summary.conversions == 7
+    assert summary.cost_per_conversion_micros == 2_000_000
+    assert summary.conversion_value_micros is None
+    daily = list_campaign_metrics(
+        snapshots[0].campaign_id, repository, start, end, limit=25, offset=0
+    )
+    assert all(row.conversions == 1 for row in daily.items)
+    assert all(row.conversion_value_micros is None for row in daily.items)

@@ -9,11 +9,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.crm import router as crm_router
 from app.api.intelligence import router as intelligence_api_router
+from app.api.meta import router as meta_api_router
 from app.api.pubsub import router as pubsub_router
 from app.api.shopify import router as shopify_api_router
 from app.api.v1 import router as api_v1_router
 from app.dashboard.auth import COOKIE_NAME
 from app.dashboard.intelligence import router as intelligence_dashboard_router
+from app.dashboard.meta import router as meta_dashboard_router
 from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.deployment import DeploymentProcess, validate_deployment_startup
@@ -94,7 +96,9 @@ def validation_error_handler(_request: Request, _exc: RequestValidationError) ->
 
 install_access_filter()
 app.include_router(shopify_api_router)
+app.include_router(meta_api_router)
 app.include_router(shopify_dashboard_router)
+app.include_router(meta_dashboard_router)
 app.include_router(api_v1_router)
 app.include_router(intelligence_api_router)
 app.include_router(crm_router)

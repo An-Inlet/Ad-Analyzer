@@ -52,16 +52,22 @@ class PerformanceWindowResponse(BaseModel):
     impressions: int = Field(ge=0)
     clicks: int = Field(ge=0)
     cost_micros: int = Field(ge=0)
-    platform_conversions: Decimal = Field(ge=0)
-    platform_conversion_value_micros: int = Field(ge=0)
+    platform_conversions: Decimal | None = Field(ge=0)
+    platform_conversion_value_micros: int | None = Field(ge=0)
     click_through_rate: Decimal = Field(ge=0)
     average_cpc_micros: Decimal = Field(ge=0)
-    platform_conversion_rate: Decimal = Field(ge=0)
-    cost_per_platform_conversion_micros: Decimal = Field(ge=0)
-    platform_roas: Decimal = Field(ge=0)
+    platform_conversion_rate: Decimal | None = Field(ge=0)
+    cost_per_platform_conversion_micros: Decimal | None = Field(ge=0)
+    platform_roas: Decimal | None = Field(ge=0)
 
     @classmethod
-    def from_window(cls, window: MetricWindow) -> "PerformanceWindowResponse":
+    def from_window(
+        cls,
+        window: MetricWindow,
+        *,
+        conversion_metrics_available: bool = True,
+        conversion_value_metrics_available: bool = True,
+    ) -> "PerformanceWindowResponse":
         return cls(
             date_from=window.date_from,
             date_to=window.date_to,
@@ -72,13 +78,21 @@ class PerformanceWindowResponse(BaseModel):
             impressions=window.impressions,
             clicks=window.clicks,
             cost_micros=window.cost_micros,
-            platform_conversions=window.conversions,
-            platform_conversion_value_micros=window.conversion_value_micros,
+            platform_conversions=window.conversions if conversion_metrics_available else None,
+            platform_conversion_value_micros=window.conversion_value_micros
+            if conversion_metrics_available and conversion_value_metrics_available
+            else None,
             click_through_rate=window.ctr,
             average_cpc_micros=window.average_cpc_micros,
-            platform_conversion_rate=window.conversion_rate,
-            cost_per_platform_conversion_micros=window.cost_per_conversion_micros,
-            platform_roas=window.roas,
+            platform_conversion_rate=window.conversion_rate
+            if conversion_metrics_available
+            else None,
+            cost_per_platform_conversion_micros=window.cost_per_conversion_micros
+            if conversion_metrics_available
+            else None,
+            platform_roas=window.roas
+            if conversion_metrics_available and conversion_value_metrics_available
+            else None,
         )
 
 
@@ -117,8 +131,16 @@ class PerformanceScopeResponse(BaseModel):
             entity_id=snapshot.entity_id,
             entity_name=snapshot.entity_name,
             status=snapshot.status,
-            current=PerformanceWindowResponse.from_window(snapshot.current),
-            comparison=PerformanceWindowResponse.from_window(snapshot.comparison),
+            current=PerformanceWindowResponse.from_window(
+                snapshot.current,
+                conversion_metrics_available=snapshot.conversion_metrics_available,
+                conversion_value_metrics_available=snapshot.conversion_value_metrics_available,
+            ),
+            comparison=PerformanceWindowResponse.from_window(
+                snapshot.comparison,
+                conversion_metrics_available=snapshot.comparison_conversion_metrics_available,
+                conversion_value_metrics_available=snapshot.comparison_conversion_value_metrics_available,
+            ),
             findings=[ScopedFindingResponse(**finding.__dict__) for finding in snapshot.findings],
         )
 

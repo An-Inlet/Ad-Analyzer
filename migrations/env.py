@@ -7,6 +7,7 @@ from app.automation import models as automation_models  # noqa: F401
 from app.database.session import Base
 from app.intelligence import models as intelligence_models  # noqa: F401
 from app.measurement import models as measurement_models  # noqa: F401
+from app.meta import models as meta_models  # noqa: F401
 from app.settings import settings
 from app.shopify import models as shopify_models  # noqa: F401
 from sqlalchemy import engine_from_config, pool

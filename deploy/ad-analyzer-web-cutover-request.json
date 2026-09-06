@@ -1,8 +1,8 @@
 {
-  "request_version": 11,
+  "request_version": 12,
   "target_service": "ad-analyzer-web",
   "approved_cost_profile": "Cloud Run request-based billing with min 0, max 1; reuse the existing database, secrets, IAP policy, and runtime identity; create no database, scheduler, or sync job.",
   "approval_date": "2026-09-06",
   "status": "approved",
-  "retry_reason": "Release the requested dashboard visual refinement: responsive navigation, space-efficient workspace layouts, accessible tables, and consistent typography. Existing production resources and cost caps are preserved."
+  "retry_reason": "Release independent workspace capabilities, partial-data platform analysis, and optional read-only Meta connection support. Reuse the existing web service, database and worker with the additive Meta migration; preserve production resources, IAP, cost caps and disabled advertising writes. Meta authorization remains unavailable until its app credentials are configured."
 }

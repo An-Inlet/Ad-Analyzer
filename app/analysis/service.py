@@ -10,11 +10,11 @@ from app.ads.models import AdvertisingAccount
 from app.analysis.enums import AnalysisCadence
 from app.analysis.granular import GranularAnalysisService
 from app.analysis.models import AnalysisRun
+from app.analysis.platform_evidence import has_platform_conversion_metrics
 from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.automation import AutomationControlKey, AutomationControlService
-from app.intelligence.repository import IntelligenceRepository
 from app.intelligence.service import IntelligenceService
 from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import UnifiedOutcomeService
@@ -147,9 +147,7 @@ class AnalysisRunService:
                 )
                 recommendations_created_count = generation.created_count
                 recommendations_deduplicated_count = generation.deduplicated_count
-            if cadence in {AnalysisCadence.NIGHTLY, AnalysisCadence.WEEKLY} and (
-                IntelligenceRepository(self.session).strategy(workspace_id) is not None
-            ):
+            if cadence in {AnalysisCadence.NIGHTLY, AnalysisCadence.WEEKLY}:
                 service = IntelligenceService(self.session)
                 row.decision_brief = service.brief(
                     service.report(workspace_id, as_of=resolved_as_of)
@@ -226,6 +224,20 @@ class AnalysisRunService:
                 comparison,
                 last_success_at=last_success_at,
                 now=as_of,
+                conversion_metrics_available=has_platform_conversion_metrics(
+                    self.session,
+                    account.id,
+                    account.platform,
+                    date_from=metric_start,
+                    date_to=metric_end,
+                ),
+                comparison_conversion_metrics_available=has_platform_conversion_metrics(
+                    self.session,
+                    account.id,
+                    account.platform,
+                    date_from=comparison_start,
+                    date_to=comparison_end,
+                ),
             )
             findings_count += len(findings)
             high_severity_count += sum(finding.severity == "high" for finding in findings)

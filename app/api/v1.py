@@ -10,6 +10,10 @@ from app.ads.models import ExecutionAudit, JobRun, Recommendation, Recommendatio
 from app.ads.operations import public_failure_summary, sync_health
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.granular import GranularAnalysisService
+from app.analysis.platform_evidence import (
+    has_platform_conversion_metrics,
+    has_platform_conversion_value_metrics,
+)
 from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.analysis.schemas import (
@@ -590,11 +594,32 @@ def list_campaign_metrics(
     limit: Limit = 25,
     offset: Offset = 0,
 ) -> PaginatedResponse[DailyMetricResponse]:
-    if repository.get_campaign(campaign_id) is None:
+    campaign = repository.get_campaign(campaign_id)
+    if campaign is None:
         raise HTTPException(status_code=404, detail="campaign not found")
     start, end = default_dates(date_from, date_to)
     items, total = repository.list_campaign_metrics(campaign_id, start, end, limit, offset)
-    return PaginatedResponse(items=items, limit=limit, offset=offset, total=total)
+    responses = []
+    for metric in items:
+        response = DailyMetricResponse.model_validate(metric)
+        if not has_platform_conversion_metrics(
+            repository.session,
+            campaign.account_id,
+            campaign.platform,
+            date_from=metric.metric_date,
+            date_to=metric.metric_date,
+        ):
+            response.conversions = None
+        if not has_platform_conversion_value_metrics(
+            repository.session,
+            campaign.account_id,
+            campaign.platform,
+            date_from=metric.metric_date,
+            date_to=metric.metric_date,
+        ):
+            response.conversion_value_micros = None
+        responses.append(response)
+    return PaginatedResponse(items=responses, limit=limit, offset=offset, total=total)
 
 
 @router.get(
@@ -609,7 +634,8 @@ def account_metric_summary(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> AccountMetricSummaryResponse:
-    if repository.get_account(account_id) is None:
+    account = repository.get_account(account_id)
+    if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     start, end = default_dates(date_from, date_to)
     totals = repository.account_metric_totals(account_id, start, end)
@@ -619,6 +645,12 @@ def account_metric_summary(
     conversions = Decimal(totals["conversions"] or 0)
     value = int(totals["conversion_value_micros"] or 0)
     ctr, avg_cpc, conv_rate, cpa = ratios(clicks, impressions, cost, conversions)
+    conversions_available = has_platform_conversion_metrics(
+        repository.session, account_id, account.platform, date_from=start, date_to=end
+    )
+    value_available = has_platform_conversion_value_metrics(
+        repository.session, account_id, account.platform, date_from=start, date_to=end
+    )
     return AccountMetricSummaryResponse(
         account_id=account_id,
         date_from=start,
@@ -626,12 +658,12 @@ def account_metric_summary(
         impressions=impressions,
         clicks=clicks,
         cost_micros=cost,
-        conversions=conversions,
-        conversion_value_micros=value,
+        conversions=conversions if conversions_available else None,
+        conversion_value_micros=value if value_available else None,
         ctr=ctr,
         average_cpc_micros=avg_cpc,
-        conversion_rate=conv_rate,
-        cost_per_conversion_micros=cpa,
+        conversion_rate=conv_rate if conversions_available else None,
+        cost_per_conversion_micros=cpa if conversions_available else None,
     )
 
 
@@ -748,10 +780,14 @@ def account_analytics_window(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> MetricWindowResponse:
-    if repository.get_account(account_id) is None:
+    account = repository.get_account(account_id)
+    if account is None:
         raise HTTPException(status_code=404, detail="account not found")
     start, end = default_dates(date_from, date_to)
     current, comparison = _windows(repository, account_id, start, end)
+    conversions_available = has_platform_conversion_metrics(
+        repository.session, account_id, account.platform, date_from=start, date_to=end
+    )
     return MetricWindowResponse(
         account_id=account_id,
         date_from=start,
@@ -767,11 +803,13 @@ def account_analytics_window(
         impressions=current.impressions,
         clicks=current.clicks,
         cost_micros=current.cost_micros,
-        conversions=current.conversions,
+        conversions=current.conversions if conversions_available else None,
         ctr=current.ctr,
         average_cpc_micros=current.average_cpc_micros,
-        conversion_rate=current.conversion_rate,
-        cost_per_conversion_micros=current.cost_per_conversion_micros,
+        conversion_rate=current.conversion_rate if conversions_available else None,
+        cost_per_conversion_micros=(
+            current.cost_per_conversion_micros if conversions_available else None
+        ),
         data_coverage=current.coverage_status,
         comparison_data_coverage=comparison.coverage_status,
     )
@@ -796,7 +834,21 @@ def account_findings(
     latest, success_at = repository.account_sync_status(account_id)
     del latest
     current, comparison = _windows(repository, account_id, start, end)
-    findings = generate_findings(current, comparison, last_success_at=success_at)
+    findings = generate_findings(
+        current,
+        comparison,
+        last_success_at=success_at,
+        conversion_metrics_available=has_platform_conversion_metrics(
+            repository.session, account_id, account.platform, date_from=start, date_to=end
+        ),
+        comparison_conversion_metrics_available=has_platform_conversion_metrics(
+            repository.session,
+            account_id,
+            account.platform,
+            date_from=comparison.date_from,
+            date_to=comparison.date_to,
+        ),
+    )
     return [
         FindingResponse(
             workspace_id=account.workspace_id,
@@ -827,7 +879,21 @@ def generate_account_recommendations(
     start, end = default_dates(date_from, date_to)
     _, success_at = repository.account_sync_status(account_id)
     current, comparison = _windows(repository, account_id, start, end)
-    findings = generate_findings(current, comparison, last_success_at=success_at)
+    findings = generate_findings(
+        current,
+        comparison,
+        last_success_at=success_at,
+        conversion_metrics_available=has_platform_conversion_metrics(
+            repository.session, account_id, account.platform, date_from=start, date_to=end
+        ),
+        comparison_conversion_metrics_available=has_platform_conversion_metrics(
+            repository.session,
+            account_id,
+            account.platform,
+            date_from=comparison.date_from,
+            date_to=comparison.date_to,
+        ),
+    )
     drafts = recommendations_from_findings(
         findings, expires_at=datetime.now(UTC) + timedelta(days=14)
     )

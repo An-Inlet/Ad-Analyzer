@@ -257,6 +257,19 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="AD_ANALYZER_GITHUB_CONTROL_TOKEN",
     )
+    meta_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_META_ENABLED")
+    meta_client_id: str = Field(default="", validation_alias="META_CLIENT_ID")
+    meta_client_secret: SecretStr | None = Field(
+        default=None, validation_alias="META_CLIENT_SECRET"
+    )
+    meta_token_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="META_TOKEN_ENCRYPTION_KEY"
+    )
+    meta_redirect_uri: str = Field(default="", validation_alias="META_REDIRECT_URI")
+    meta_sync_pages: int = Field(default=3, ge=1, le=10, validation_alias="META_SYNC_PAGES")
+    meta_sync_interval_minutes: int = Field(
+        default=60, ge=15, le=1440, validation_alias="META_SYNC_INTERVAL_MINUTES"
+    )
     shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
     shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")
     shopify_client_secret: SecretStr | None = Field(

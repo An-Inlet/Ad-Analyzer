@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#163b32">
   <title>{{ title }} | Ad Analyzer</title>
   <link rel="stylesheet" href="/dashboard/assets/dashboard.css?v=20260906">
-  <link rel="stylesheet" href="/dashboard/assets/intelligence.css?v=20260906">
+  <link rel="stylesheet" href="/dashboard/assets/intelligence.css?v=20260906-partial">
 </head>
 <body>
 {% set current_path = request.url.path %}
@@ -28,9 +28,10 @@
     <nav class="workspace-nav" aria-label="Workspace navigation">
       <span class="nav-label">Current workspace</span>
       <span class="workspace-name">{{ workspace.name }}</span>
-      <a href="{{ workspace_root }}/intelligence"{% if '/intelligence' in current_path %} aria-current="{{ 'page' if current_path == workspace_root ~ '/intelligence' else 'location' }}"{% endif %}>Decision center</a>
-      <a href="{{ workspace_root }}/shopify"{% if '/shopify' in current_path %} aria-current="page"{% endif %}>Shopify sales</a>
-      <a href="{{ workspace_root }}/outcomes"{% if '/outcomes' in current_path %} aria-current="page"{% endif %}>Business outcomes</a>
+      <a href="{{ workspace_root }}/intelligence"{% if current_path == workspace_root ~ '/intelligence' or current_path.startswith(workspace_root ~ '/intelligence/') %} aria-current="{{ 'page' if current_path == workspace_root ~ '/intelligence' else 'location' }}"{% endif %}>Decision center</a>
+      <a href="{{ workspace_root }}/meta"{% if current_path == workspace_root ~ '/meta' or current_path.startswith(workspace_root ~ '/meta/') %} aria-current="page"{% endif %}>Meta connection</a>
+      <a href="{{ workspace_root }}/shopify"{% if current_path == workspace_root ~ '/shopify' or current_path.startswith(workspace_root ~ '/shopify/') %} aria-current="page"{% endif %}>Shopify sales</a>
+      <a href="{{ workspace_root }}/outcomes"{% if current_path == workspace_root ~ '/outcomes' or current_path.startswith(workspace_root ~ '/outcomes/') %} aria-current="page"{% endif %}>Business outcomes</a>
       <a href="{{ workspace_root }}"{% if current_path == workspace_root %} aria-current="page"{% endif %}>Workspace overview</a>
     </nav>
     {% endif %}

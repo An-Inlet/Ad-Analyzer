@@ -7,7 +7,7 @@
   <div class="button-row"><a class="button secondary" href="{{ root }}/brief.csv">Export action brief</a><a href="/dashboard/workspaces/{{ workspace.slug }}">Workspace settings</a></div>
 </div>
 <nav class="section-links" aria-label="Decision center sections">
-  <a href="#actions">Next actions</a><a href="#goals">Goals</a><a href="#budget">Budget</a><a href="#events">Calendar</a><a href="#funnel">Funnel</a><a href="#creative">Creative</a><a href="#experiments">Experiments</a><a href="#learning">Learning</a><a href="#measurement">Measurement</a>
+  <a href="#actions">Next actions</a><a href="#goals">Goals</a><a href="#budget">Budget</a><a href="#events">Calendar</a><a href="#sales">Shopify sales</a><a href="#funnel">Funnel</a><a href="#creative">Creative</a><a href="#experiments">Experiments</a><a href="#learning">Learning</a><a href="#measurement">Measurement</a>
 </nav>
 
 {% if report.health.blocking %}
@@ -45,6 +45,8 @@
   </div>
   <p class="muted">Decisions recorded here do not execute advertising changes. Live edits still require a reviewed plan and approval.</p>
 </section>
+
+<section id="sales" class="panel"><div class="section-heading"><h2>Shopify sales</h2><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/shopify">{{ 'Review sales' if report.commerce.connected else 'Connect Shopify' }}</a></div>{% if report.commerce.connected %}<p>{{ report.commerce.shop_name }} · {{ report.commerce.window.start }} to {{ report.commerce.window.end }}</p><p><strong>{{ report.commerce.current.net_collected_micros|money(report.commerce.currency_code) }}</strong> net collected · {{ report.commerce.current.paid_orders }} paid orders · {{ report.commerce.current.refunded_micros|money(report.commerce.currency_code) }} refunded</p><p>{{ 'Import complete and fresh.' if report.commerce.ready else 'Import needs attention before making sales decisions.' }} Store totals include all channels and remain separate from CRM goal progress.</p><ul>{% for suggestion in report.commerce.suggestions %}<li>{{ suggestion }}</li>{% endfor %}</ul>{% else %}<p>Connect your store to compare product demand, refunds, and first versus returning orders with advertising performance.</p>{% endif %}</section>
 
 <section id="goals" class="panel">
   <div class="section-heading"><h2>Company goal and strategy</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/strategy">{{ 'Edit strategy' if report.strategy else 'Set company strategy' }}</a>{% endif %}</div>

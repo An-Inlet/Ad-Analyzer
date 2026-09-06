@@ -320,6 +320,7 @@ jobs:
             --quiet >/dev/null
 
       - name: Copy the existing IAP operator access policy
+        if: needs.preflight.outputs.source_service != env.GCP_WEB_SERVICE
         shell: bash
         env:
           SOURCE_SERVICE: ${{ needs.preflight.outputs.source_service }}

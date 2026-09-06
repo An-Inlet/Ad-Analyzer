@@ -98,7 +98,7 @@ def overview(
 @router.post("/workspaces/{workspace_slug}/shopify/connect")
 async def connect(
     request: Request, workspace_slug: str, db: Annotated[Session, Depends(get_db)]
-) -> RedirectResponse:
+) -> HTMLResponse:
     workspace, _role = _workspace(request, db, workspace_slug, edit=True)
     values = await _form(request)
     try:
@@ -110,7 +110,15 @@ async def connect(
             422,
             "Unable to start Shopify authorization. Check the store domain and integration setup.",
         ) from None
-    return RedirectResponse(location, status_code=303)
+    # A form redirect to another origin can be blocked by form-action 'self'.
+    # Use a normal navigation link while keeping the dashboard CSP intact.
+    return templates.TemplateResponse(
+        request,
+        "shopify_authorize.html",
+        page_context(
+            request, title="Authorize Shopify", workspace=workspace, authorization_url=location
+        ),
+    )
 
 
 @router.get("/shopify/callback")

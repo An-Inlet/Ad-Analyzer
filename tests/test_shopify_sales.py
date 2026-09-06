@@ -519,8 +519,17 @@ def test_dashboard_callback_is_authenticated_and_bound(
         data={"shop": SHOP, "csrf_token": csrf(html.text)},
         follow_redirects=False,
     )
-    assert response.status_code == 303
-    state = parse_qs(urlsplit(response.headers["location"]).query)["state"][0]
+    import re
+    from html import unescape
+
+    assert response.status_code == 200
+    assert "form-action 'self'" in response.headers["content-security-policy"]
+    assert "no-store" in response.headers["cache-control"]
+    match = re.search(r'id="shopify-authorization"[^>]*href="([^"]+)"', response.text)
+    assert match
+    location = unescape(match.group(1))
+    assert urlsplit(location).hostname == SHOP
+    state = parse_qs(urlsplit(location).query)["state"][0]
     assert configuration.shopify_client_secret
     values = callback_values(
         configuration.shopify_client_secret.get_secret_value(),

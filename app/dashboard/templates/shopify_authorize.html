@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <p class="eyebrow">{{ workspace.name }} / Shopify</p>
+  <h1>Authorize your store in Shopify</h1>
+  <p>Continue to Shopify to review read-only access to orders and products. Shopify will return you to this workspace when authorization is complete.</p>
+  <div class="button-row"><a id="shopify-authorization" class="button" href="{{ authorization_url }}" rel="noreferrer">Continue to Shopify</a><a href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Back to sales</a></div>
+  <p class="muted">This authorization link expires in ten minutes. Keep using the same signed-in Ad Analyzer account to complete the connection.</p>
+</section>
+{% endblock %}

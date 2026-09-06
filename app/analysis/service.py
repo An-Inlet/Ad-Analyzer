@@ -14,6 +14,8 @@ from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
 from app.automation import AutomationControlKey, AutomationControlService
+from app.intelligence.repository import IntelligenceRepository
+from app.intelligence.service import IntelligenceService
 from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import UnifiedOutcomeService
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
@@ -145,6 +147,13 @@ class AnalysisRunService:
                 )
                 recommendations_created_count = generation.created_count
                 recommendations_deduplicated_count = generation.deduplicated_count
+            if cadence in {AnalysisCadence.NIGHTLY, AnalysisCadence.WEEKLY} and (
+                IntelligenceRepository(self.session).strategy(workspace_id) is not None
+            ):
+                service = IntelligenceService(self.session)
+                row.decision_brief = service.brief(
+                    service.report(workspace_id, as_of=resolved_as_of)
+                )
             row = self.repository.finish_succeeded(
                 row,
                 finished_at=resolved_as_of,
@@ -249,9 +258,7 @@ class AnalysisRunService:
                 finding.severity == "high" for finding in granular_snapshot.findings
             )
             granular_scope_type: RecommendationScopeType = (
-                "campaign"
-                if granular_snapshot.entity_type.value == "campaign"
-                else "ad_group"
+                "campaign" if granular_snapshot.entity_type.value == "campaign" else "ad_group"
             )
             recommendation_candidates.extend(
                 RecommendationCandidate(
@@ -282,9 +289,7 @@ class AnalysisRunService:
                 finding.severity == "high" for finding in query_snapshot.findings
             )
             query_scope_type: RecommendationScopeType = (
-                "keyword"
-                if query_snapshot.entity_type.value == "keyword"
-                else "search_term"
+                "keyword" if query_snapshot.entity_type.value == "keyword" else "search_term"
             )
             recommendation_candidates.extend(
                 RecommendationCandidate(

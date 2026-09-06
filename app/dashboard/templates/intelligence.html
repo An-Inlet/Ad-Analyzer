@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+{% set root = '/dashboard/workspaces/' ~ workspace.slug ~ '/intelligence' %}
+<div class="decision-heading">
+  <div><p class="eyebrow">{{ workspace.client_name }} / Decision center</p><h1>What should change next?</h1>
+    <p class="muted">Goals, performance, and the next decision in one place. Updated {{ report.as_of[:16]|replace('T', ' ') }} UTC.</p></div>
+  <div class="button-row"><a class="button secondary" href="{{ root }}/brief.csv">Export action brief</a><a href="/dashboard/workspaces/{{ workspace.slug }}">Workspace settings</a></div>
+</div>
+<nav class="section-links" aria-label="Decision center sections">
+  <a href="#actions">Next actions</a><a href="#goals">Goals</a><a href="#budget">Budget</a><a href="#events">Calendar</a><a href="#funnel">Funnel</a><a href="#creative">Creative</a><a href="#experiments">Experiments</a><a href="#learning">Learning</a><a href="#measurement">Measurement</a>
+</nav>
+
+{% if report.health.blocking %}
+<aside class="notice warning"><strong>Some decisions need better evidence.</strong> Tracking, freshness, or measurement issues are limiting this report. <a href="#measurement">Review the missing information</a>.</aside>
+{% endif %}
+
+<section class="decision-kpis" aria-label="Business performance overview">
+  <article><span class="eyebrow">Goal progress</span><strong class="kpi-value">{% if report.goal and report.goal.observed is not none %}{{ '%g'|format(report.goal.observed) }} <small>/ {{ '%g'|format(report.goal.target) }}</small>{% else %}Awaiting data{% endif %}</strong><p>{{ report.goal.metric|replace('_', ' ') if report.goal else 'Set your company objective' }}</p></article>
+  <article><span class="eyebrow">Advertising spend</span><strong class="kpi-value">{{ report.budget.spend_micros|money(report.budget.currency_code) if report.budget and report.budget.spend_micros is not none else 'Awaiting data' }}</strong><p>{{ report.budget.currency_code if report.budget else '' }} · completed days in the plan period</p></article>
+  <article><span class="eyebrow">Customer acquisition cost</span><strong class="kpi-value">{{ report.current.cost_per_business_outcome_micros|money(report.currency_code or 'USD') if report.current and report.current.cost_per_business_outcome_micros is not none else 'Awaiting outcomes' }}</strong><p>Mature advertising cohorts</p></article>
+  <article><span class="eyebrow">Available to allocate</span><strong class="kpi-value">{{ report.budget.available_micros|money(report.budget.currency_code) if report.budget and report.budget.available_micros is not none else 'Set a budget' }}</strong><p>After spending and planned reservations</p></article>
+</section>
+
+<section class="panel analyst-panel" aria-labelledby="analyst-heading">
+  <h2 id="analyst-heading">Ask about this workspace</h2>
+  <form action="{{ root }}/ask" method="post" class="analyst-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="sr-only" for="analyst-question">Your question</label><input id="analyst-question" name="question" maxlength="500" required placeholder="Why did conversions change? What can we afford next month?">
+    <button type="submit">Explain the evidence</button>
+  </form>
+  {% if answer %}<div class="analyst-answer" role="status"><strong>{{ answer.topic|capitalize }}</strong><p>{{ answer.answer }}</p><ul>{% for fact in answer.facts %}<li>{{ fact }}</li>{% endfor %}</ul><p class="muted">Based on {{ answer.window.start }} through {{ answer.window.end }}. {% if answer.limitations %}{{ answer.limitations|join(' ') }}{% endif %}</p><a href="#{{ 'goals' if answer.topic == 'goals' else answer.topic }}">Review the supporting figures below</a></div>{% endif %}
+</section>
+
+<section id="actions" class="decision-section">
+  <div class="section-heading"><div><p class="eyebrow">Decide</p><h2>Your next actions</h2></div><p>Ranked by urgency and available evidence.</p></div>
+  <div class="action-grid">
+  {% for item in report.recommendations %}
+    <article class="action-card">
+      <div class="button-row"><span class="priority">Priority {{ item.priority }}</span><span class="muted">{{ item.confidence|replace('_', ' ') }}</span></div>
+      <h3>{{ item.title }}</h3><p>{{ item.evidence }}</p><p class="action-next">{{ item.action }}</p>
+      <details><summary>Goal, expected result, and review</summary><dl><dt>Company goal</dt><dd>{{ item.goal }}</dd><dt>Expected result</dt><dd>{{ item.expected_result }}</dd><dt>Budget implication</dt><dd>{{ item.cost_change_micros|money(report.currency_code or 'USD') if item.cost_change_micros is not none else 'Estimate required before approval' }}</dd><dt>Review on</dt><dd>{{ item.review_on }}</dd></dl></details>
+      {% if can_edit %}<a class="button secondary" href="{{ root }}/edit/decision?{% if item.decision_id %}record_id={{ item.decision_id }}{% else %}recommendation={{ item.key }}{% endif %}">{{ "Update decision" if item.decision_id else "Record a decision" }}</a>{% endif %}
+    </article>
+  {% endfor %}
+  </div>
+  <p class="muted">Decisions recorded here do not execute advertising changes. Live edits still require a reviewed plan and approval.</p>
+</section>
+
+<section id="goals" class="panel">
+  <div class="section-heading"><h2>Company goal and strategy</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/strategy">{{ 'Edit strategy' if report.strategy else 'Set company strategy' }}</a>{% endif %}</div>
+  {% if report.strategy %}{% set strategy = report.strategy.data %}
+    <h3>{{ strategy.title }}</h3><p>{{ strategy.period_start }} to {{ strategy.period_end }} · {{ strategy.primary_metric|replace('_', ' ') }} · target {{ strategy.target }}</p>
+    {% if report.goal and report.goal.progress_ratio is not none %}<label for="goal-progress">{{ (report.goal.progress_ratio * 100)|round(1) }}% of the period target</label><progress id="goal-progress" max="1" value="{{ [0, [1, report.goal.progress_ratio]|min]|max }}"></progress><p>{{ 'On pace for the mature portion of this period.' if report.goal.on_pace else 'Below pace for the mature portion of this period.' }}</p>{% endif %}
+    {% if report.goal %}<p class="muted">{{ report.goal.basis }} {{ report.goal.value_basis }}{% if report.goal.mature_through %} Mature through {{ report.goal.mature_through }}.{% endif %}</p>{% endif %}
+    <div class="context-grid"><div><h4>Priority audiences</h4><p class="preserve-lines">{{ strategy.priority_audiences or 'Not yet defined' }}</p></div><div><h4>Positioning</h4><p class="preserve-lines">{{ strategy.positioning or 'Not yet defined' }}</p></div><div><h4>Current offer</h4><p class="preserve-lines">{{ strategy.offer or 'Not yet defined' }}</p></div><div><h4>Constraints</h4><p class="preserve-lines">{{ strategy.constraints or 'Not yet defined' }}</p></div></div>
+  {% else %}<p class="empty">Set the business outcome, target, deadline, and approved budget. Your strategy will guide the action queue and forecasts.</p>{% endif %}
+</section>
+
+<section id="budget" class="panel">
+  <h2>Budget and scenarios</h2>
+  {% if report.budget %}{% set budget = report.budget %}
+    <div class="context-grid"><dl><dt>Approved budget</dt><dd>{{ budget.budget_micros|money(budget.currency_code) }} {{ budget.currency_code }}</dd><dt>Spent</dt><dd>{{ budget.spend_micros|money(budget.currency_code) if budget.spend_micros is not none else 'Currency reconciliation needed' }}</dd><dt>Reserved for events and tests</dt><dd>{{ budget.reserved_micros|money(budget.currency_code) }}</dd></dl><dl><dt>Projected period spending</dt><dd>{{ budget.projected_spend_micros|money(budget.currency_code) if budget.projected_spend_micros is not none else 'More complete spending data required' }}</dd><dt>Suggested daily ceiling</dt><dd>{{ budget.suggested_daily_ceiling_micros|money(budget.currency_code) if budget.suggested_daily_ceiling_micros is not none else 'No remaining days or spending data' }}</dd><dt>Remaining days</dt><dd>{{ budget.remaining_days }}</dd></dl></div>
+    {% if budget.reserve_shortfall_micros %}<p class="notice warning">Reservations exceed the remaining budget by {{ budget.reserve_shortfall_micros|money(budget.currency_code) }}. Resolve this before allocating more spend.</p>{% endif %}
+    <p class="muted">{{ budget.basis }} {{ budget.projection_basis }}</p>
+    <div class="table-scroll"><table><caption>What the remaining budget might produce</caption><thead><tr><th>Scenario</th><th>Total period budget</th><th>Future outcomes / value</th><th>Sensitivity range</th><th>Decision</th></tr></thead><tbody>
+    {% for scenario in report.scenarios %}<tr><td>{{ scenario.label }}</td><td>{{ scenario.proposed_budget_micros|money(scenario.currency_code) }}</td><td>{{ scenario.expected if scenario.expected is not none else 'Not estimated' }}</td><td>{% if scenario.low is not none %}{{ scenario.low }}–{{ scenario.high }}{% else %}{{ scenario.status|replace('_', ' ') }}{% endif %}</td><td>{{ 'Financial approval required' if scenario.requires_financial_approval else 'Planning only' }}</td></tr>{% endfor %}
+    </tbody></table></div><p class="muted">Forecasts use mature historical outcomes, an assumed diminishing response to budget changes, and a ±30% sensitivity range. The range is not a statistical confidence interval. Event and experiment reserves are excluded from forecast outcomes.</p>
+  {% else %}<p class="empty">Add the approved budget and planning period to see pacing and scenarios.</p>{% endif %}
+  {% if report.budget %}
+  <form method="post" action="{{ root }}/scenario" class="context-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div><label for="proposed-budget">Model a total period budget ({{ report.budget.currency_code }})</label><input id="proposed-budget" name="proposed_budget" type="number" min="0" step="0.01" required value="{{ report.budget.budget_micros / 1000000 }}"></div>
+    <div><label for="response-elasticity">Assumed response to spending (0 to 1)</label><input id="response-elasticity" name="response_elasticity" type="number" min="0" max="1" step="0.05" value="0.7" required><small>Lower values assume stronger diminishing returns. This assumption is not fitted to your data.</small></div>
+    <div><button type="submit">Preview budget scenario</button></div>
+  </form>
+  {% if report.allocation %}<details><summary>Preview a shift between campaigns</summary><p>{{ report.allocation.basis }}</p><p><strong>{{ report.allocation.status|replace('_', ' ')|capitalize }}</strong></p>
+    {% if report.allocation.rows %}<div class="table-scroll"><table><thead><tr><th>Campaign</th><th>Modeled baseline</th><th>Proposed allocation</th><th>Difference</th></tr></thead><tbody>{% for row in report.allocation.rows %}<tr><td>{{ row.name }}</td><td>{{ row.baseline_micros|money(report.budget.currency_code) }}</td><td>{{ row.proposed_micros|money(report.budget.currency_code) }}</td><td>{{ (row.proposed_micros - row.baseline_micros)|money(report.budget.currency_code) }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}<p>Review capacity, audience differences, and current campaign budgets before testing this proposal. Total planned spending does not increase.</p>
+  </details>{% endif %}{% endif %}
+  <details><summary>Ad Analyzer operating costs</summary>
+    <p>{{ report.costs.basis }}</p>{% if can_edit %}<p><a class="button secondary" href="{{ root }}/edit/cost">Record a cost or estimate</a></p>{% endif %}
+    {% for currency, totals in report.costs.totals.items() %}<p>{{ currency }} · recorded {{ totals.observed_micros|money(currency) }} · estimated {{ totals.estimate_micros|money(currency) }}</p>{% endfor %}
+    {% for cost in report.costs.records %}<p>{{ cost.data.title }} · {{ cost.data.amount_micros|money(cost.data.currency_code) }} {{ cost.data.currency_code }} · {{ cost.data.basis }} · {{ cost.data.period_start }}–{{ cost.data.period_end }} {% if can_edit %}<a href="{{ root }}/edit/cost?record_id={{ cost.id }}">Edit</a>{% endif %}</p>{% else %}<p>No billing records entered. Operating costs are unknown.</p>{% endfor %}
+  </details>
+</section>
+
+<section id="events" class="panel">
+  <div class="section-heading"><h2>Upcoming events and business changes</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/event">Plan an event</a>{% endif %}</div>
+  {% if report.events %}<div class="event-list">{% for event in report.events %}<article class="event-card"><div class="button-row"><span class="status {{ event.phase }}">{{ event.phase|replace('_', ' ') }}</span><span class="muted">{{ event.data.category }} · {{ event.data.status }}</span></div><h3>{{ event.data.title }}</h3><p>{{ event.data.starts_on }}–{{ event.data.ends_on }} · {{ event.data.audience }}</p><dl><dt>Prepare from</dt><dd>{{ event.preparation_on }}</dd><dt>Follow up through</dt><dd>{{ event.follow_up_end }}</dd><dt>Remaining reserve</dt><dd>{{ event.data.remaining_reserve_micros|money(event.data.currency_code) }} {{ event.data.currency_code }}</dd></dl><p>{{ event.data.message }}</p>{% if can_edit %}<a href="{{ root }}/edit/event?record_id={{ event.id }}">Update dates or plan</a>{% endif %}</article>{% endfor %}</div>{% else %}<p class="empty">Add a launch, promotion, conference, inventory arrival, or capacity change. The plan will show when preparation and follow-up are due.</p>{% endif %}
+</section>
+
+<section id="funnel" class="panel">
+  <h2>Where performance changed</h2><p class="muted">Configured optimization outcome: {{ report.stage_labels.optimization or "Not configured" }}. Configured customer outcome: {{ report.stage_labels.business or "Not configured" }}.</p><p>{{ report.window.start }}–{{ report.window.end }} compared with {{ report.window.previous_start }}–{{ report.window.previous_end }}. {{ report.window.comparison_basis }}</p>
+  {% if report.funnel %}<div class="table-scroll"><table><thead><tr><th>Funnel stage</th><th>Entered</th><th>Progressed</th><th>Current rate</th><th>Previous rate</th><th>Assessment</th></tr></thead><tbody>{% for stage in report.funnel %}<tr><th scope="row">{{ stage.stage }}</th><td>{{ stage.entered }}</td><td>{{ stage.progressed }}</td><td>{{ stage.rate|percent }}</td><td>{{ stage.previous_rate|percent }}</td><td>{{ stage.status|replace('_', ' ') }}{% if stage.status == 'investigate' %}: {{ stage.investigate }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty">Funnel comparisons appear after the measurement contract and linked outcome data are ready.</p>{% endif %}
+  {% if report.campaigns %}<details><summary>Compare campaign customer outcomes</summary><div class="table-scroll"><table><thead><tr><th>Campaign</th><th>Spend</th><th>Leads</th><th>Qualified outcomes</th><th>Customers</th><th>Observed revenue</th><th>Customer acquisition cost</th></tr></thead><tbody>{% for campaign in report.campaigns %}<tr><td><a href="/dashboard/campaigns/{{ campaign.id }}">{{ campaign.name }}</a></td><td>{{ campaign.metrics.cost_micros|money(report.currency_code or 'USD') }}</td><td>{{ campaign.metrics.lead_count }}</td><td>{{ campaign.metrics.optimization_outcome_count }}</td><td>{{ campaign.metrics.business_outcome_count }}</td><td>{{ campaign.metrics.observed_revenue_micros|money(report.currency_code or 'USD') }}</td><td>{{ campaign.metrics.cost_per_business_outcome_micros|money(report.currency_code or 'USD') }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+</section>
+
+<section id="creative" class="panel">
+  <div class="section-heading"><h2>Creative, audiences, and offers</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/creative">Describe a creative concept</a>{% endif %}</div>
+  {% if report.creatives %}<div class="context-grid">{% for creative in report.creatives %}<article><h3>{{ creative.data.title }}</h3><p>{{ creative.data.audience }} · {{ creative.data.format }} · {{ creative.campaign_name }}</p><blockquote>{{ creative.data.hook }}</blockquote><p>{{ creative.data.promise }}</p><p><strong>Next test:</strong> {{ creative.brief }}</p>{% if creative.possible_fatigue %}<p class="notice warning">Possible fatigue: investigate the campaign's engagement decline.</p>{% endif %}{% if creative.metrics %}<p>{{ creative.metrics.business_outcome_count }} observed customers · {{ creative.metrics.observed_revenue_micros|money(report.currency_code or 'USD') }} observed revenue</p>{% else %}<p>{{ creative.evidence_state|replace('_', ' ') }}</p>{% endif %}<p class="muted">{{ creative.limitation }}</p>{% if can_edit %}<a href="{{ root }}/edit/creative?record_id={{ creative.id }}">Update concept</a>{% endif %}</article>{% endfor %}</div>{% else %}<p class="empty">Add the audience, hook, visual direction, offer, and campaign for each concept. Comparisons will use the available business outcomes.</p>{% endif %}
+</section>
+
+<section id="experiments" class="panel">
+  <div class="section-heading"><h2>Experiments</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/experiment">Plan an experiment</a>{% endif %}</div>
+  {% for experiment in report.experiments %}<article class="experiment-card"><div class="section-heading"><h3>{{ experiment.data.title }}</h3><span class="status">{{ experiment.result.status|replace('_', ' ') }}</span></div><p>{{ experiment.data.hypothesis }}</p><p>{{ experiment.data.starts_on }}–{{ experiment.data.ends_on }} · review from {{ experiment.result.review_on }} · {{ experiment.data.primary_metric|replace('_', ' ') }}</p><div class="context-grid"><div><h4>Control</h4><p>{{ experiment.data.control_description }}</p><strong>{{ experiment.data.control_outcomes }} / {{ experiment.data.control_units }}</strong><p>{{ experiment.result.control_rate|percent }}</p></div><div><h4>Treatment</h4><p>{{ experiment.data.treatment_description }}</p><strong>{{ experiment.data.treatment_outcomes }} / {{ experiment.data.treatment_units }}</strong><p>{{ experiment.result.treatment_rate|percent }}</p></div></div>{% if experiment.result.interval_low is not none %}<p>Absolute rate difference: {{ (experiment.result.absolute_lift * 100)|round(2) }} percentage points. 95% interval: {{ (experiment.result.interval_low * 100)|round(2) }} to {{ (experiment.result.interval_high * 100)|round(2) }} percentage points.</p>{% endif %}<p class="muted">{{ experiment.result.evidence_basis }} {{ experiment.result.causal_status }}</p>{% if can_edit %}<a href="{{ root }}/edit/experiment?record_id={{ experiment.id }}">Update status or aggregate results</a>{% endif %}</article>{% else %}<p class="empty">Define a hypothesis, two treatments, a success metric, budget, and evaluation period before starting a test.</p>{% endfor %}
+</section>
+
+<section id="learning" class="panel">
+  <div class="section-heading"><h2>Decisions, changes, and learning</h2>{% if can_edit %}<a class="button" href="{{ root }}/edit/change">Record a business change</a>{% endif %}</div>
+  <p>Track expectations and observed results. Accepted suggestions reflect your preferences; measured outcomes provide separate evidence.</p>
+  {% for decision in report.decisions %}<article class="decision-entry"><h3>{{ decision.data.title }}</h3><p>{{ decision.data.status }} · review {{ decision.data.review_on }}</p><p>{{ decision.data.reason }}</p><p><strong>Expected:</strong> {{ decision.data.expected_result or 'Not recorded' }}</p><p><strong>Observed:</strong> {{ decision.data.observed_result or 'Awaiting follow-up' }}</p>{% if can_edit %}<a href="{{ root }}/edit/decision?record_id={{ decision.id }}">Record review or outcome</a>{% endif %}</article>{% endfor %}
+  {% for change in report.changes %}<article class="decision-entry"><h3>{{ change.data.title }}</h3><p>{{ change.data.effective_on }} · {{ change.data.category }} · review {{ change.data.review_on }}</p><p>{{ change.data.hypothesis }}</p><p>{{ change.data.success_metric }}: baseline {{ change.data.baseline_value if change.data.baseline_value is not none else 'Not recorded' }} · expected {{ change.data.expected_value if change.data.expected_value is not none else 'Not recorded' }} · observed {{ change.data.observed_value if change.data.observed_value is not none else 'Awaiting follow-up' }}</p><p>{{ change.data.outcome_notes }}</p>{% if can_edit %}<a href="{{ root }}/edit/change?record_id={{ change.id }}">Update observation</a>{% endif %}</article>{% endfor %}
+  {% for change in report.due_reviews %}<p class="notice">Review due: {{ change.data.title }} {% if can_edit %}<a href="{{ root }}/edit/change?record_id={{ change.id }}">Record what happened</a>{% endif %}</p>{% endfor %}
+  <details><summary>Saved nightly and weekly briefs</summary><p>Existing enabled analysis jobs save a brief when a company strategy is present. The eight most recent briefs are shown.</p>{% for brief in report.saved_briefs %}<article><h3>{{ brief.cadence|capitalize }} · {{ brief.as_of[:16]|replace('T', ' ') }}</h3><p>Strategy version {{ brief.data.strategy_version }}</p><ul>{% for item in brief.data.recommendations %}<li><strong>{{ item.title }}</strong>: {{ item.evidence }} {{ item.action }}</li>{% endfor %}</ul></article>{% else %}<p>No strategy briefs have been saved by scheduled analysis yet.</p>{% endfor %}</details>
+  <details><summary>Weekly learning and review patterns</summary><p>{{ report.learning.decision_count }} advertising recommendation reviews recorded.</p>{% for suggestion in report.weekly_learning.suggestions %}<article><h4>{{ suggestion.title }}</h4><p>{{ suggestion.evidence }}</p><p>{{ suggestion.suggested_improvement }}</p></article>{% endfor %}</details>
+  <details><summary>Business context history</summary><div class="table-scroll"><table><thead><tr><th>Date</th><th>Record</th><th>Change</th><th>Version</th><th>Action</th></tr></thead><tbody>{% for revision in report.timeline %}<tr><td>{{ revision.created_at[:16]|replace('T', ' ') }}</td><td>{{ revision.title }}</td><td>{{ revision.kind }} · {{ revision.action }}</td><td>{{ revision.version }}</td><td>{% if can_edit and revision.kind == 'strategy' and report.strategy and revision.version != report.strategy.version %}<form method="post" action="{{ root }}/restore/{{ revision.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="expected_version" value="{{ report.strategy.version }}"><button type="submit">Restore this strategy version</button></form>{% else %}Recorded{% endif %}</td></tr>{% endfor %}</tbody></table></div><p class="muted">Restoring strategy creates a new version. It does not reverse advertising spend or change live campaigns.</p></details>
+</section>
+
+<section id="measurement" class="panel">
+  <h2>Measurement health and controls</h2>
+  <div class="context-grid"><dl><dt>Advertising sync</dt><dd>{{ report.health.sync_status }}</dd><dt>Last advertising sync</dt><dd>{{ report.health.last_ads_sync or 'No successful sync' }}</dd><dt>Last web event</dt><dd>{{ report.health.last_web_event or 'No events' }}</dd><dt>Last CRM event</dt><dd>{{ report.health.last_crm_event or 'No events' }}</dd></dl><dl><dt>Attributable journeys</dt><dd>{{ report.coverage.attributed_journey_count }}</dd><dt>Unattributed journeys</dt><dd>{{ report.coverage.unattributed_journey_count }}</dd><dt>Attribution coverage</dt><dd>{{ report.coverage.attribution_rate|percent }}</dd><dt>Currency mismatches</dt><dd>{{ report.coverage.currency_mismatch_count }}</dd></dl></div>
+  {% for issue in report.health.issues %}<p class="notice {{ 'warning' if issue.severity == 'blocking' else '' }}">{{ issue.message }}</p>{% endfor %}
+  <p>{{ report.health.attribution_note }}</p><p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">Inspect the outcome report</a> · <a href="/dashboard/workspaces/{{ workspace.slug }}">Review source configuration and automation controls</a></p>
+  <details><summary>Automation and live change controls</summary><ul>{% for control in report.controls %}<li>{{ control.label }}: <strong>{{ 'On' if control.effective_enabled else 'Off' }}</strong></li>{% endfor %}</ul><p>Advertising execution and conversion uploads remain disabled. Reviewing a business plan does not enable either. Any financial change requires approval.</p></details>
+</section>
+{% endblock %}

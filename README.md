@@ -1,5 +1,7 @@
 # Ad Analyzer
 
+The workspace **Decision center** connects company strategy, customer outcomes, budget scenarios, events, experiments, and reviewed actions. See [the feature and operating guide](docs/business-decision-center.md).
+
 Ad Analyzer is the complete multi-workspace advertising analysis platform: dashboard, API,
 workers, database, recommendation engine, and controlled execution layer. **Denticode Ad
 Analyzer** is Denticode's client workspace inside that platform.

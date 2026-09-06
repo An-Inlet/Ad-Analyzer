@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -114,9 +115,7 @@ class AnalysisRun(TimestampMixin, Base):
     accounts_analyzed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     findings_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     high_severity_findings_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    recommendations_created_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    recommendations_created_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     recommendations_deduplicated_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )
@@ -126,3 +125,4 @@ class AnalysisRun(TimestampMixin, Base):
     unattributed_journey_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     blocking_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     error_code: Mapped[str | None] = mapped_column(String(64))
+    decision_brief: Mapped[dict[str, Any] | None] = mapped_column(JSON)

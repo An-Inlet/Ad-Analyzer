@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block content %}
+{% set root = '/dashboard/workspaces/' ~ workspace.slug ~ '/intelligence' %}
+<p><a href="{{ root }}">← Decision center</a></p><p class="eyebrow">{{ workspace.client_name }}</p><h1>{{ 'Edit' if record else 'Add' }} {{ kind|replace('_', ' ') }}</h1><p>{{ description }}</p>
+{% if error %}<p class="notice warning" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="{{ root }}/save/{{ kind }}" class="business-form panel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="expected_version" value="{{ record.version if record else 0 }}">
+  {% if record %}<input type="hidden" name="record_id" value="{{ record.id }}">{% endif %}
+  {% if kind == 'decision' %}<input type="hidden" name="recommendation_key" value="{{ data.recommendation_key }}"><input type="hidden" name="evidence_fingerprint" value="{{ data.evidence_fingerprint }}">{% endif %}
+  <div class="form-grid">
+  {% for field in fields %}
+    <div class="form-field {{ 'full-width' if field.textarea else '' }}">
+      <label for="field-{{ field.name }}">{{ field.label }}{% if field.required %}<span aria-label="required"> *</span>{% endif %}</label>
+      {% if field.name == 'campaign_id' %}
+        <select id="field-{{ field.name }}" name="{{ field.name }}" required><option value="">Choose a campaign</option>{% for campaign in campaigns %}<option value="{{ campaign.id }}"{% if campaign.id|string == field.value|string %} selected{% endif %}>{{ campaign.name }}</option>{% endfor %}</select>
+      {% elif field.options %}
+        <select id="field-{{ field.name }}" name="{{ field.name }}"{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option }}"{% if option|string == field.value|string %} selected{% endif %}>{{ option|replace('_', ' ')|capitalize }}</option>{% endfor %}</select>
+      {% elif field.textarea %}
+        <textarea id="field-{{ field.name }}" name="{{ field.name }}" rows="4" maxlength="{{ field.max_length }}"{% if field.required %} required{% endif %}>{{ field.value }}</textarea>
+      {% else %}
+        <input id="field-{{ field.name }}" type="{{ field.type }}" name="{{ field.name }}" value="{{ field.value }}"{% if field.type == 'number' %} step="{{ field.step }}"{% endif %}{% if field.type == 'text' %} maxlength="{{ field.max_length }}"{% endif %}{% if field.required %} required{% endif %}>
+      {% endif %}
+      {% if field.name.endswith('_micros') %}<small>Enter an amount in the selected currency, for example 1500.00.</small>{% endif %}
+      {% if field.name == 'contribution_margin_bps' %}<small>Revenue remaining after variable costs, before advertising. This is a planning assumption.</small>{% endif %}
+      {% if field.name == 'observed_through' %}<small>Final results must include the full test and its measurement delay.</small>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  <div class="button-row form-actions"><button type="submit">Save {{ kind }}</button><a href="{{ root }}">Cancel</a></div>
+</form>
+{% endblock %}

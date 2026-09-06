@@ -931,4 +931,6 @@ def test_sync_status_indexes_and_openapi_error_schemas_are_documented() -> None:
         assert {"401", "422", "503"} <= set(responses)
     for path, operations in schema["paths"].items():
         if path.startswith("/api/v1"):
-            assert operations["get"]["security"] == [{"BearerAuth": []}]
+            for method, operation in operations.items():
+                if method in {"get", "post", "put", "patch", "delete"}:
+                    assert operation["security"] == [{"BearerAuth": []}]

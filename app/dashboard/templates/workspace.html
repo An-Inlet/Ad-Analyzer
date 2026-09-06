@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block content %}
 <p><a href="/dashboard">← Workspaces</a></p>
 <h1>{{ workspace.name }}</h1>
+<section class="decision-welcome"><div><p class="eyebrow">Business performance and planning</p><h2>Turn this workspace's data into your next decision.</h2><p>Company goals, budget pacing, upcoming events, experiments, and an evidence-based action queue.</p></div><a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a></section>
 <p>{{ workspace.client_name }} · {{ workspace.status }} · Access: {{ workspace_role|replace('_', ' ') }}</p>
 <section class="panel"><h2>Workspace boundary</h2><p>All configurations, permissions, integrations, findings, recommendations, and advertising accounts below belong only to this workspace.</p></section>
 <section class="panel" aria-labelledby="workspace-automation-heading">

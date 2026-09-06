@@ -25,7 +25,8 @@ def prepare_job(source: dict[str, Any], image: str) -> dict[str, Any]:
     outer = job["spec"]["template"]
     _clean_metadata(outer.setdefault("metadata", {}))
     template = outer["spec"]["template"]
-    _clean_metadata(template.setdefault("metadata", {}))
+    # Cloud Run v1 TaskTemplate has no metadata field.
+    template.pop("metadata", None)
     containers = template["spec"]["containers"]
     if len(containers) != 1:
         raise ValueError("Expected one application job container")

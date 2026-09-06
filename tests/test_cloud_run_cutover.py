@@ -245,6 +245,7 @@ def test_release_job_normalizes_legacy_names_without_exposing_secrets(
         "spec": {"template": {"spec": {"template": source["spec"]["template"]}}},
     }
     prepared = prepare_release_job.prepare_job(job, "registry/new:sha")
+    assert "metadata" not in prepared["spec"]["template"]["spec"]["template"]
     container = prepared["spec"]["template"]["spec"]["template"]["spec"]["containers"][0]
     env = {item["name"]: item for item in container["env"]}
     assert "valueFrom" in env["AD_ANALYZER_API_TOKEN"]

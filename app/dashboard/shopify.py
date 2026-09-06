@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.dashboard.auth import require_dashboard_session, validate_csrf
 from app.dashboard.intelligence import _csv_cell, _workspace
@@ -155,7 +156,9 @@ async def sync(
     workspace, _role = _workspace(request, db, workspace_slug, edit=True)
     await _form(request)
     # One bounded page keeps this operator action within the web request deadline.
-    result = ShopifySyncService(db, settings).page(workspace.id, manual=True)
+    result = await run_in_threadpool(
+        ShopifySyncService(db, settings).page, workspace.id, manual=True
+    )
     status = result["status"]
     if status not in MESSAGES:
         raise HTTPException(

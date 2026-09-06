@@ -749,3 +749,33 @@ def test_shopify_migration_matches_models_and_composite_isolation(db: Session) -
             key["constrained_columns"] == ["connection_id", "workspace_id"] for key in foreign_keys
         )
     engine.dispose()
+
+
+def test_slow_manual_sync_does_not_block_other_dashboard_requests(
+    client: TestClient, db: Session, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    connected(db, configuration)
+    root = "/dashboard/workspaces/alpha/shopify"
+    token = csrf(client.get(root).text)
+    entered, release = Event(), Event()
+
+    def slow_page(self: Any, workspace_id: int, **kwargs: Any) -> dict[str, Any]:
+        entered.set()
+        assert release.wait(10)
+        return {"status": "complete", "imported": 0}
+
+    monkeypatch.setattr(ShopifySyncService, "page", slow_page)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        refresh = pool.submit(
+            client.post, root + "/sync", data={"csrf_token": token}, follow_redirects=False
+        )
+        try:
+            assert entered.wait(5)
+            health = pool.submit(client.get, "/health")
+            assert health.result(timeout=5).status_code == 200
+        finally:
+            release.set()
+        assert refresh.result(timeout=5).status_code == 303

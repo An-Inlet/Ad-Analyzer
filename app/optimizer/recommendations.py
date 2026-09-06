@@ -32,6 +32,8 @@ def generate_findings(
     *,
     last_success_at: datetime | None,
     now: datetime | None = None,
+    conversion_metrics_available: bool = True,
+    comparison_conversion_metrics_available: bool = True,
 ) -> list[Finding]:
     now = now or datetime.now(UTC)
     findings: list[Finding] = []
@@ -60,8 +62,10 @@ def generate_findings(
             )
         )
         return findings
-    if current.clicks >= 20 and (
-        current.conversions == 0 or current.cost_per_conversion_micros > Decimal("2000000")
+    if (
+        conversion_metrics_available
+        and current.clicks >= 20
+        and (current.conversions == 0 or current.cost_per_conversion_micros > Decimal("2000000"))
     ):
         findings.append(
             Finding(
@@ -71,7 +75,12 @@ def generate_findings(
                 {"clicks": str(current.clicks), "cost_micros": str(current.cost_micros)},
             )
         )
-    if comparison and comparison.has_minimum_coverage:
+    if (
+        conversion_metrics_available
+        and comparison_conversion_metrics_available
+        and comparison
+        and comparison.has_minimum_coverage
+    ):
         delta = percent_delta(
             current.cost_per_conversion_micros, comparison.cost_per_conversion_micros
         )

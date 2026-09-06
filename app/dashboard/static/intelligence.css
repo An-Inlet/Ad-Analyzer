@@ -46,8 +46,27 @@ progress::-moz-progress-bar { background: var(--accent); }
 .portfolio-grid h3 { margin-top: 16px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 .portfolio-grid .button { align-self: flex-start; margin-top: auto; }
 .portfolio-grid .section-heading { align-items: flex-start; }
+.capability-panel { background: #f2f6f0; border-color: #d3dfcf; }
+.capability-panel > p { font-size: 13px; color: var(--muted); }
+.capability-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.capability-item { min-width: 0; border-top: 1px solid #d3dfcf; padding-top: 12px; }
+.capability-item > div { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.capability-item a { font-size: 12px; font-weight: 650; }
+.capability-item p { margin-top: 8px; font-size: 11px; color: var(--muted); }
+.platform-account { margin: 14px 0; padding: 20px; }
+.platform-account h3 { margin: 0 0 5px; }
+.platform-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin: 20px 0 14px; }
+.platform-kpis > div { min-width: 0; }
+.platform-kpis dt { font-size: 11px; color: var(--muted); }
+.platform-kpis dd { margin: 6px 0 0; font-size: clamp(20px, 1.6vw, 28px); line-height: 1.25; font-weight: 650; letter-spacing: -.03em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.platform-kpis small { font-size: 11px; font-weight: 450; letter-spacing: 0; }
+.platform-detail { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.portfolio-capabilities { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+.connection-intro > p { max-width: 960px; }
 @media (min-width: 1680px) { .portfolio-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .context-grid, .event-list { gap: 24px; } }
 @media (max-width: 1200px) { .decision-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .analyst-panel { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .context-grid, .event-list, .portfolio-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .platform-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; } .capability-grid { grid-template-columns: 1fr; gap: 10px; } .platform-account { padding: 16px; } }
 @media (max-width: 600px) { .action-grid, .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: auto; } .decision-kpis { gap: 10px; } .decision-kpis article { padding: 14px; } .kpi-value { font-size: 24px; margin: 10px 0 6px; } .decision-kpis .eyebrow { font-size: 9px; } .analyst-form, .decision-welcome { flex-direction: column; align-items: stretch; } .decision-welcome { padding: 18px; gap: 16px; } .analyst-form button { align-self: flex-start; } }
 @media print { .analyst-panel, .business-form { display: none; } .action-grid, .context-grid, .event-list, .decision-kpis { display: block; } .action-card, .decision-kpis article { margin: 16px 0; } }

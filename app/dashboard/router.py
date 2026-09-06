@@ -13,6 +13,10 @@ from app.ads.enums import ExecutionStatus, RecommendationStatus
 from app.ads.models import ExecutionAudit, JobRun, Recommendation, RecommendationAudit
 from app.ads.operations import public_failure_summary, sync_health
 from app.analysis.granular import GranularAnalysisService
+from app.analysis.platform_evidence import (
+    has_platform_conversion_metrics,
+    has_platform_conversion_value_metrics,
+)
 from app.analysis.query_performance import QueryPerformanceService
 from app.analysis.repository import AnalysisRunRepository
 from app.api.repository import ReadOnlyAdsRepository
@@ -397,7 +401,37 @@ def account_detail(
     ctr, _cpc, _rate, cpa = ratios(clicks, impressions, cost, conversions)
     sync = repository.account_sync_status(account_id)
     current_window, comparison_window = _windows(repository, account_id, start, end)
-    findings = generate_findings(current_window, comparison_window, last_success_at=sync[1])
+    conversion_metrics_available = has_platform_conversion_metrics(
+        db, account.id, account.platform, date_from=start, date_to=end
+    )
+    conversion_value_metrics_available = has_platform_conversion_value_metrics(
+        db, account.id, account.platform, date_from=start, date_to=end
+    )
+    comparison_conversion_value_metrics_available = has_platform_conversion_value_metrics(
+        db,
+        account.id,
+        account.platform,
+        date_from=comparison_window.date_from,
+        date_to=comparison_window.date_to,
+    )
+    comparison_conversion_metrics_available = has_platform_conversion_metrics(
+        db,
+        account.id,
+        account.platform,
+        date_from=comparison_window.date_from,
+        date_to=comparison_window.date_to,
+    )
+    findings = generate_findings(
+        current_window,
+        comparison_window,
+        last_success_at=sync[1],
+        conversion_metrics_available=conversion_metrics_available,
+        comparison_conversion_metrics_available=comparison_conversion_metrics_available,
+    )
+    if not conversion_metrics_available:
+        totals["conversions"] = None
+    if not conversion_value_metrics_available:
+        totals["conversion_value_micros"] = None
     recommendations = list(
         db.scalars(
             select(Recommendation)
@@ -441,7 +475,11 @@ def account_detail(
             date_to=end,
             totals=totals,
             ctr=ctr,
-            cpa=cpa,
+            cpa=cpa if conversion_metrics_available else None,
+            conversion_metrics_available=conversion_metrics_available,
+            conversion_value_metrics_available=conversion_value_metrics_available,
+            comparison_conversion_value_metrics_available=comparison_conversion_value_metrics_available,
+            comparison_conversion_metrics_available=comparison_conversion_metrics_available,
             sync=sync,
             current_window=current_window,
             comparison_window=comparison_window,

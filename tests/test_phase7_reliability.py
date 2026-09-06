@@ -118,10 +118,13 @@ def test_one_shot_master_disabled_is_a_successful_no_op() -> None:
             skip_reason=CycleSkipReason.DISABLED,
         )
 
-    assert google_ads_sync_once.main(
-        lambda: (Settings(), object(), run_cycle, JobRunStatus),
-        lambda *_args: pytest.fail("a disabled sync must not start post-sync analysis"),
-    ) == google_ads_sync_once.SUCCESS_EXIT_CODE
+    assert (
+        google_ads_sync_once.main(
+            lambda: (Settings(), object(), run_cycle, JobRunStatus),
+            lambda *_args: pytest.fail("a disabled sync must not start post-sync analysis"),
+        )
+        == google_ads_sync_once.SUCCESS_EXIT_CODE
+    )
 
 
 def test_one_shot_success_returns_zero(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -146,6 +149,23 @@ def test_one_shot_failure_returns_one(monkeypatch: pytest.MonkeyPatch) -> None:
         google_ads_sync_once.main(lambda: (Settings(), object(), fail, JobRunStatus))
         == google_ads_sync_once.FAILURE_EXIT_CODE
     )
+
+
+def test_failed_google_cycle_still_runs_independent_source_and_analysis_tick(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = object()
+    ticks: list[object] = []
+
+    def fail(*_args: object, **_kwargs: object) -> CycleOutcome:
+        raise RuntimeError("source unavailable")
+
+    monkeypatch.setattr(
+        google_ads_scheduler, "_run_analysis_tick", lambda value, _: ticks.append(value)
+    )
+    result = google_ads_sync_once.main(lambda: (Settings(), engine, fail, JobRunStatus))
+    assert result == google_ads_sync_once.FAILURE_EXIT_CODE
+    assert ticks == [engine]
 
 
 def test_scheduler_delays_first_cycle_when_immediate_disabled(
@@ -215,11 +235,14 @@ def test_scheduler_disabled_cycle_still_runs_local_analysis_tick(
             self.set()
             return True
 
-    assert google_ads_scheduler.main(
-        StopAfterCycle(),
-        lambda: (settings, object(), run_once),
-        lambda _engine, outcome: analysis_outcomes.append(outcome),
-    ) == google_ads_scheduler.SUCCESS_EXIT_CODE
+    assert (
+        google_ads_scheduler.main(
+            StopAfterCycle(),
+            lambda: (settings, object(), run_once),
+            lambda _engine, outcome: analysis_outcomes.append(outcome),
+        )
+        == google_ads_scheduler.SUCCESS_EXIT_CODE
+    )
     assert analysis_outcomes == [disabled]
 
 

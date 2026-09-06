@@ -14,6 +14,7 @@ from app.analysis.models import AnalysisRun
 from app.api.repository import ReadOnlyAdsRepository
 from app.automation import AutomationControlService
 from app.crm.models import CrmConnection, CrmEventRecord
+from app.intelligence.availability import build_available_evidence
 from app.intelligence.calculations import (
     allocation_preview,
     budget_pacing,
@@ -36,6 +37,7 @@ from app.learning import DecisionLearningService, WeeklyLearningReportService
 from app.measurement.models import WebAnalyticsEvent
 from app.measurement.repository import MeasurementRepository
 from app.measurement.unified import OutcomeMetricsSnapshot, UnifiedOutcomeService
+from app.meta.models import MetaConnection
 from app.settings import settings
 
 
@@ -238,11 +240,61 @@ class IntelligenceService:
                 ),
             },
         }
+        available = build_available_evidence(self.session, workspace_id, now)
+        report["commerce"] = available["commerce"]
+        available["capabilities"]["attributed_outcomes"].update(
+            ready=current.analysis_ready and not health["blocking"],
+            status="ready" if current.analysis_ready and not health["blocking"] else "unavailable",
+            reason=(
+                "Approved, mature business-outcome evidence is available."
+                if current.analysis_ready and not health["blocking"]
+                else "Business-outcome analysis needs its own approved measurement and source "
+                "evidence. Platform performance, sales, and planning remain independent."
+            ),
+        )
+        available["capabilities"]["commerce"].update(
+            ready=report["commerce"]["ready"],
+            status="ready"
+            if report["commerce"]["ready"]
+            else ("limited" if report["commerce"]["connected"] else "unavailable"),
+            reason=(
+                "Recent store sales are available independently of advertising attribution."
+                if report["commerce"]["ready"]
+                else (
+                    "Imported sales remain visible; refresh the complete period for comparisons."
+                    if report["commerce"]["connected"]
+                    else "Connect Shopify only if this client needs store-sales analysis."
+                )
+            ),
+        )
+        report["available_evidence"] = available
+        available["analysis_ready"] = any(
+            capability["ready"]
+            for key, capability in available["capabilities"].items()
+            if key != "planning"
+        )
+        report["available_analysis_ready"] = available["analysis_ready"]
+        business_capability = available["capabilities"]["attributed_outcomes"]
+        report["business_outcome_analysis_ready"] = business_capability["ready"]
+        report["readiness_label"] = (
+            "Business outcomes available"
+            if available["capabilities"]["attributed_outcomes"]["ready"]
+            else "Platform insights available"
+            if available["capabilities"]["platform_performance"]["ready"]
+            else "Sales insights available"
+            if report["commerce"]["ready"]
+            else "Imported evidence available"
+            if any(account["current"] is not None for account in available["accounts"])
+            else "Planning ready"
+        )
         recommendations = self._recommendations(report, strategy, current, previous, today)
         fingerprint_data = {
             "strategy": report["strategy"],
             "window": report["window"],
             "metrics": report["current"],
+            "available_evidence": {
+                key: value for key, value in available.items() if key != "as_of"
+            },
             "budget": report["budget"],
             "health": report["health"],
             "events": report["events"],
@@ -302,9 +354,6 @@ class IntelligenceService:
                 ],
                 ready=current.analysis_ready and not health["blocking"],
             )
-        from app.shopify.reporting import sales_report
-
-        report["commerce"] = sales_report(self.session, workspace_id, now=now)
         return report
 
     @staticmethod
@@ -317,6 +366,8 @@ class IntelligenceService:
             "goal": report["goal"],
             "budget": report["budget"],
             "health_issues": report["health"]["issues"],
+            "readiness_label": report["readiness_label"],
+            "capabilities": report["available_evidence"]["capabilities"],
             "recommendations": report["recommendations"][:10],
         }
         return dict(json.loads(json.dumps(snapshot, default=str)))
@@ -382,12 +433,24 @@ class IntelligenceService:
                 select(AdvertisingAccount.id).where(AdvertisingAccount.workspace_id == workspace_id)
             )
         )
-        complete = bool(account_ids) and {r[0] for r in rows} == account_ids
-        complete = complete and all(int(r[2]) >= expected for r in rows)
+        certified_meta_accounts = set(
+            self.session.scalars(
+                select(MetaConnection.account_id).where(
+                    MetaConnection.workspace_id == workspace_id,
+                    MetaConnection.last_sync_at.is_not(None),
+                    MetaConnection.covered_from <= strategy.period_start,
+                    MetaConnection.covered_through >= cutoff,
+                )
+            )
+        )
+        observed_complete = {r[0] for r in rows if int(r[2]) >= expected}
+        complete = bool(account_ids) and account_ids <= (
+            observed_complete | certified_meta_accounts
+        )
         return (
             sum(int(r[1] or 0) for r in rows),
             complete,
-            max((r[3] for r in rows if r[3]), default=None),
+            cutoff if complete else max((r[3] for r in rows if r[3]), default=None),
         )
 
     def _health(
@@ -451,16 +514,18 @@ class IntelligenceService:
             issues.append(
                 {
                     "code": "analytics_missing",
-                    "severity": "blocking",
-                    "message": "No web analytics events have been received.",
+                    "severity": "optional",
+                    "message": "Web analytics is not available. Journey and funnel analysis "
+                    "needs this source; platform performance does not.",
                 }
             )
         if crm_last is None:
             issues.append(
                 {
                     "code": "crm_missing",
-                    "severity": "blocking",
-                    "message": "No CRM outcomes have been received.",
+                    "severity": "optional",
+                    "message": "CRM outcomes are not available. Verified customer outcomes "
+                    "need an appropriate source; platform performance does not.",
                 }
             )
         for name, last_event in (("web analytics", web_last), ("CRM", crm_last)):
@@ -503,6 +568,7 @@ class IntelligenceService:
                 )
                 break
         return {
+            "scope": "business_outcomes",
             "sync_status": sync.status,
             "last_ads_sync": _iso(sync.last_success_at),
             "last_web_event": _iso(web_last),
@@ -782,7 +848,9 @@ class IntelligenceService:
         previous: Any,
         today: date,
     ) -> list[dict[str, Any]]:
-        items: list[dict[str, Any]] = []
+        items: list[dict[str, Any]] = [
+            dict(item) for item in report["available_evidence"]["recommendations"]
+        ]
 
         def add(
             key: str,
@@ -802,7 +870,7 @@ class IntelligenceService:
                     "priority": priority,
                     "title": title,
                     "evidence": evidence,
-                    "goal": strategy.title if strategy else "Set a company goal",
+                    "goal": strategy.title if strategy else "Understand available performance",
                     "action": action,
                     "cost_change_micros": cost,
                     "confidence": confidence,
@@ -813,24 +881,26 @@ class IntelligenceService:
                 }
             )
 
-        if report["health"]["blocking"]:
+        if report["health"]["blocking"] and not any(
+            issue["code"] == "measurement_contract_missing" for issue in report["health"]["issues"]
+        ):
             add(
                 "repair_measurement",
-                1,
-                "Restore reliable measurement",
+                4,
+                "Review business-outcome measurement",
                 "; ".join(
                     i["message"] for i in report["health"]["issues"] if i["severity"] == "blocking"
                 ),
                 (
-                    "Inspect tracking, source freshness, and measurement mappings "
-                    "before changing spend."
+                    "Inspect the sources needed for verified business outcomes. "
+                    "Continue using available platform or store evidence in their own sections."
                 ),
                 expected="Fresh, reconciled sources and an unblocked outcome report.",
             )
         if strategy is None:
             add(
                 "set_strategy",
-                2,
+                6,
                 "Set the company's objective and budget",
                 "No strategy profile is saved.",
                 (
@@ -992,6 +1062,48 @@ class IntelligenceService:
 
     def answer(self, report: dict[str, Any], question: str) -> dict[str, Any]:
         text = question.casefold()
+        platform_words = ("meta", "facebook", "instagram", "click", "ctr", "cpc", "impression")
+        platform_fallback = (
+            not report["analysis_ready"]
+            and any(word in text for word in ("performance", "campaign", "conversion", "why"))
+        ) or (not report["budget"] and any(word in text for word in ("spend", "cost")))
+        if any(word in text for word in platform_words) or platform_fallback:
+            available = report["available_evidence"]
+            platform_facts = []
+            for account in available["accounts"]:
+                metrics = account["current"]
+                if metrics is None:
+                    continue
+                platform_facts.append(
+                    f"{account['name']} ({account['platform']}, {account['time_zone']}): "
+                    f"{account['currency_code']} {metrics['cost_micros'] / 1_000_000:,.2f} "
+                    f"recorded spend, {metrics['impressions']:,} impressions and "
+                    f"{metrics['clicks']:,} clicks across {metrics['observed_days']} observed days."
+                )
+            platform_facts.extend(
+                f"{item['title']}: {item['evidence']} Next: {item['action']}"
+                for item in available["recommendations"][:3]
+            )
+            return {
+                "topic": "platform",
+                "answer": "Platform performance uses each connected account's own evidence. "
+                "CRM, Shopify, and web analytics are optional for these insights.",
+                "facts": platform_facts
+                or [
+                    "Import one advertising account to see its performance. "
+                    "Goals and event planning are already available."
+                ],
+                "evidence": available["accounts"],
+                "as_of": report["as_of"],
+                "window": available["window"],
+                "limitations": available["limitations"]
+                + [
+                    limitation
+                    for account in available["accounts"]
+                    for limitation in account["limitations"]
+                ],
+                "method": "Deterministic evidence lookup from imported account metrics.",
+            }
         if any(
             word in text
             for word in ("shopify", "sales", "selling", "refund", "returning", "product")

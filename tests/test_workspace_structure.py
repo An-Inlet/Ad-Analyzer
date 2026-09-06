@@ -381,6 +381,55 @@ def test_sync_health_isolated_to_accessible_workspaces(db: Session) -> None:
     assert other.status == "Failed"
 
 
+def test_meta_only_sync_health_remains_workspace_scoped(db: Session) -> None:
+    meta = add_workspace(
+        db,
+        slug="meta-client",
+        name="Meta Client",
+        client_name="Meta Client",
+        member="meta@example.com",
+    )
+    other = add_workspace(
+        db,
+        slug="other-client",
+        name="Other Client",
+        client_name="Other Client",
+        member="other@example.com",
+    )
+    now = datetime(2026, 8, 2, 12, tzinfo=UTC)
+    db.add_all(
+        [
+            JobRun(
+                workspace_id=meta.id,
+                platform=AdvertisingPlatform.META_ADS,
+                job_name="meta_ads_sync",
+                status=JobRunStatus.SUCCEEDED,
+                started_at=now - timedelta(minutes=2),
+                finished_at=now - timedelta(minutes=1),
+            ),
+            JobRun(
+                workspace_id=other.id,
+                platform=AdvertisingPlatform.META_ADS,
+                job_name="meta_ads_sync",
+                status=JobRunStatus.FAILED,
+                started_at=now - timedelta(minutes=1),
+                finished_at=now,
+                error_message="private source detail",
+            ),
+        ]
+    )
+    db.commit()
+    healthy = sync_health(db, Settings(), now, workspace_ids={meta.id})
+    failed = sync_health(db, Settings(), now, workspace_ids={other.id})
+    empty = sync_health(db, Settings(), now, workspace_ids=set())
+    assert healthy.status == "Healthy"
+    assert healthy.last_failure_at is None
+    assert failed.status == "Failed"
+    assert failed.last_failure_summary == "Meta Ads synchronization failed."
+    assert empty.status == "Never Synced"
+    assert empty.last_success_at is None
+
+
 def test_crm_worker_routes_events_to_the_selected_workspace_integration(db: Session) -> None:
     denticode = add_workspace(
         db,

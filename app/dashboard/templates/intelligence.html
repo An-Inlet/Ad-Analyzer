@@ -1,25 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
 {% set root = '/dashboard/workspaces/' ~ workspace.slug ~ '/intelligence' %}
+{% set evidence = report.available_evidence|default({}) %}
 <div class="decision-heading">
   <div><p class="eyebrow">{{ workspace.client_name }} / Decision center</p><h1>What should change next?</h1>
     <p class="muted">Goals, performance, and the next decision in one place. Updated {{ report.as_of[:16]|replace('T', ' ') }} UTC.</p></div>
   <div class="button-row"><a class="button secondary" href="{{ root }}/brief.csv">Export action brief</a><a href="/dashboard/workspaces/{{ workspace.slug }}">Workspace settings</a></div>
 </div>
 <nav class="section-links" aria-label="Decision center sections">
-  <a href="#actions">Next actions</a><a href="#goals">Goals</a><a href="#budget">Budget</a><a href="#events">Calendar</a><a href="#sales">Shopify sales</a><a href="#funnel">Funnel</a><a href="#creative">Creative</a><a href="#experiments">Experiments</a><a href="#learning">Learning</a><a href="#measurement">Measurement</a>
+  <a href="#actions">Next actions</a><a href="#platform-performance">Ad performance</a><a href="#goals">Goals</a><a href="#budget">Budget</a><a href="#events">Calendar</a><a href="#sales">Shopify sales</a><a href="#funnel">Funnel</a><a href="#creative">Creative</a><a href="#experiments">Experiments</a><a href="#learning">Learning</a><a href="#measurement">Measurement</a>
 </nav>
 
-{% if report.health.blocking %}
-<aside class="notice warning"><strong>Some decisions need better evidence.</strong> Tracking, freshness, or measurement issues are limiting this report. <a href="#measurement">Review the missing information</a>.</aside>
-{% endif %}
+<section id="available-analysis" class="panel capability-panel" aria-labelledby="capability-heading">
+  <div class="section-heading"><div><p class="eyebrow">Your available evidence</p><h2 id="capability-heading">{{ report.readiness_label|default('Planning ready') }}</h2></div><a href="/dashboard/workspaces/{{ workspace.slug }}#integrations">Manage connections</a></div>
+  <p>Recommendations use this workspace's available data. Optional connections extend the analysis; they do not hold up the capabilities you already have.</p>
+  {% if evidence.capabilities %}<div class="capability-grid">
+    {% for key, label, anchor in [('planning', 'Planning', 'goals'), ('platform_performance', 'Ad performance', 'platform-performance'), ('commerce', 'Store sales', 'sales'), ('attributed_outcomes', 'Business outcomes', 'measurement')] %}
+    {% set capability = evidence.capabilities[key] %}
+    <div class="capability-item"><div><a href="#{{ anchor }}">{{ label }}</a><span class="status {{ 'enabled' if capability.ready else '' }}">{{ 'Available' if capability.ready else capability.status|replace('_', ' ')|capitalize }}</span></div><p>{{ capability.reason }}</p></div>
+    {% endfor %}
+  </div>{% endif %}
+</section>
 
+<section id="platform-performance" class="decision-section" aria-labelledby="platform-heading">
+  <div class="section-heading"><div><p class="eyebrow">Measure</p><h2 id="platform-heading">Advertising performance</h2></div><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/meta">Manage Meta</a></div>
+  {% for account in evidence.accounts|default([]) %}
+  <article class="platform-account">
+    <div class="section-heading"><div><h3><a href="/dashboard/accounts/{{ account.id }}?date_from={{ account.window.start }}&date_to={{ account.window.end }}">{{ account.name }}</a></h3><p class="muted">{{ account.platform|replace('_', ' ')|title }} · {{ account.currency_code }} · {{ account.time_zone }}{% if account.time_zone_known is defined and not account.time_zone_known %} estimate · account time zone unavailable{% endif %}</p></div><span class="status {{ 'enabled' if account.status == 'ready' else '' }}">{{ account.status|replace('_', ' ')|capitalize }}</span></div>
+    <p class="muted">{{ account.window.start }}–{{ account.window.end }} · {{ 'UTC calendar estimate; account time zone is unavailable' if account.time_zone_known is defined and not account.time_zone_known else 'completed days in the account time zone' }}</p>
+    {% if account.current %}
+    <dl class="platform-kpis">
+      <div><dt>Observed spend</dt><dd>{{ account.current.cost_micros|money(account.currency_code) }} <small>{{ account.currency_code }}</small></dd></div>
+      <div><dt>Impressions</dt><dd>{{ '{:,}'.format(account.current.impressions) }}</dd></div>
+      <div><dt>Clicks</dt><dd>{{ '{:,}'.format(account.current.clicks) }}</dd></div>
+      <div><dt>Click-through rate</dt><dd>{{ account.current.ctr|percent if account.current.ctr is not none else 'Unavailable' }}</dd></div>
+    </dl>
+    <p class="muted">{{ account.current.covered_days|default(account.current.observed_days) }} of 28 days covered · {{ account.current.observed_days }} days with delivery records · average cost per click {{ account.current.cpc_micros|money(account.currency_code) if account.current.cpc_micros is not none else 'unavailable' }} · data covered through {{ account.current.last_covered_date|default(account.current.last_metric_date) or 'unavailable' }}. {{ 'Full window covered.' if account.current.complete else 'The window is incomplete; observed totals are not a full-period estimate.' }}{% if account.current.coverage_basis == 'completed_meta_import' %} Completed Meta import includes zero-delivery days.{% endif %}</p>
+    {% if account.status == 'stale' %}<p class="notice warning">These imported metrics are stale. Refresh this account before acting on its performance; other available sources remain usable.</p>{% endif %}
+    <details class="platform-detail"><summary>Campaigns and period comparison</summary>
+      <p>{{ account.window.start }}–{{ account.window.end }} compared with {{ account.window.previous_start }}–{{ account.window.previous_end }}. {{ account.comparison.reason }}</p>
+      {% if account.comparison.ready %}<p>Change in observed spend: {{ account.comparison.spend_change_ratio|percent if account.comparison.spend_change_ratio is not none else 'Unavailable' }} · click-through rate: {{ account.comparison.ctr_change_ratio|percent if account.comparison.ctr_change_ratio is not none else 'Unavailable' }} · cost per click: {{ account.comparison.cpc_change_ratio|percent if account.comparison.cpc_change_ratio is not none else 'Unavailable' }}.</p>{% endif %}
+      <div class="table-scroll" role="region" aria-label="{{ account.name }} platform campaign performance" tabindex="0"><table><caption>Platform-reported delivery · {{ account.currency_code }}</caption><thead><tr><th scope="col">Campaign</th><th scope="col">Spend</th><th scope="col">Impressions</th><th scope="col">Clicks</th><th scope="col">CTR</th><th scope="col">Cost / click</th><th scope="col">Platform conversions</th></tr></thead><tbody>
+      {% for campaign in account.campaigns %}<tr><th scope="row"><a href="/dashboard/campaigns/{{ campaign.id }}?date_from={{ account.window.start }}&date_to={{ account.window.end }}">{{ campaign.name }}</a></th><td>{{ campaign.current.cost_micros|money(account.currency_code) if campaign.current else 'Unavailable' }}</td><td>{{ '{:,}'.format(campaign.current.impressions) if campaign.current else 'Unavailable' }}</td><td>{{ '{:,}'.format(campaign.current.clicks) if campaign.current else 'Unavailable' }}</td><td>{{ campaign.current.ctr|percent if campaign.current and campaign.current.ctr is not none else 'Unavailable' }}</td><td>{{ campaign.current.cpc_micros|money(account.currency_code) if campaign.current and campaign.current.cpc_micros is not none else 'Unavailable' }}</td><td>{{ campaign.current.platform_conversions if campaign.current and campaign.current.platform_conversions is not none else 'Unavailable' }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      <p class="muted">{% if account.conversion_action_type %}Selected Meta conversion event: {{ account.conversion_action_type|replace('_', ' ') }}. {% endif %}Platform conversion definitions and attribution differ. Delivery metrics do not establish customers, business revenue, or profit. Unavailable measurements are not treated as zero.</p>
+    </details>
+    {% else %}<p class="empty">This account has no imported metrics for this window. Import its data to start performance analysis; no CRM or web analytics connection is required.</p>{% endif %}
+    {% if account.limitations %}<details><summary>Evidence details</summary><ul>{% for limitation in account.limitations %}<li>{{ limitation }}</li>{% endfor %}</ul></details>{% endif %}
+  </article>
+  {% else %}<div class="panel"><h3>Start with one advertising account</h3><p>Connect a client's Meta account to analyze its imported campaign performance. Goals, events, experiments, and decisions are available now.</p><div class="button-row"><a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/meta">Connect Meta</a><a href="#goals">Plan company goals</a></div></div>{% endfor %}
+</section>
+
+{% if report.strategy or report.analysis_ready %}
 <section class="decision-kpis" aria-label="Business performance overview">
   <article><span class="eyebrow">Goal progress</span><strong class="kpi-value">{% if report.goal and report.goal.observed is not none %}{{ '%g'|format(report.goal.observed) }} <small>/ {{ '%g'|format(report.goal.target) }}</small>{% else %}Awaiting data{% endif %}</strong><p>{{ report.goal.metric|replace('_', ' ') if report.goal else 'Set your company objective' }}</p></article>
   <article><span class="eyebrow">Advertising spend</span><strong class="kpi-value">{{ report.budget.spend_micros|money(report.budget.currency_code) if report.budget and report.budget.spend_micros is not none else 'Awaiting data' }}</strong><p>{{ report.budget.currency_code if report.budget else '' }} · completed days in the plan period</p></article>
   <article><span class="eyebrow">Customer acquisition cost</span><strong class="kpi-value">{{ report.current.cost_per_business_outcome_micros|money(report.currency_code or 'USD') if report.current and report.current.cost_per_business_outcome_micros is not none else 'Awaiting outcomes' }}</strong><p>Mature advertising cohorts</p></article>
   <article><span class="eyebrow">Available to allocate</span><strong class="kpi-value">{{ report.budget.available_micros|money(report.budget.currency_code) if report.budget and report.budget.available_micros is not none else 'Set a budget' }}</strong><p>After spending and planned reservations</p></article>
 </section>
+{% endif %}
 
 <section class="panel analyst-panel" aria-labelledby="analyst-heading">
   <h2 id="analyst-heading">Ask about this workspace</h2>
@@ -38,7 +77,7 @@
     <article class="action-card">
       <div class="button-row"><span class="priority">Priority {{ item.priority }}</span><span class="muted">{{ item.confidence|replace('_', ' ') }}</span></div>
       <h3>{{ item.title }}</h3><p>{{ item.evidence }}</p><p class="action-next">{{ item.action }}</p>
-      <details><summary>Goal, expected result, and review</summary><dl><dt>Company goal</dt><dd>{{ item.goal }}</dd><dt>Expected result</dt><dd>{{ item.expected_result }}</dd><dt>Budget implication</dt><dd>{{ item.cost_change_micros|money(report.currency_code or 'USD') if item.cost_change_micros is not none else 'Estimate required before approval' }}</dd><dt>Review on</dt><dd>{{ item.review_on }}</dd></dl></details>
+      <details><summary>Goal, expected result, and review</summary><dl><dt>Company goal</dt><dd>{{ item.goal }}</dd><dt>Expected result</dt><dd>{{ item.expected_result }}</dd><dt>Budget implication</dt><dd>{{ item.cost_change_micros|money(item.currency_code|default(report.currency_code or 'USD')) if item.cost_change_micros is not none else 'Estimate required before approval' }}</dd><dt>Review on</dt><dd>{{ item.review_on }}</dd>{% if item.evidence_basis %}<dt>Evidence basis</dt><dd>{{ item.evidence_basis }}</dd>{% endif %}</dl>{% if item.limitations %}<ul>{% for limitation in item.limitations %}<li>{{ limitation }}</li>{% endfor %}</ul>{% endif %}</details>
       {% if can_edit %}<a class="button secondary" href="{{ root }}/edit/decision?{% if item.decision_id %}record_id={{ item.decision_id }}{% else %}recommendation={{ item.key }}{% endif %}">{{ "Update decision" if item.decision_id else "Record a decision" }}</a>{% endif %}
     </article>
   {% endfor %}
@@ -55,7 +94,7 @@
     {% if report.goal and report.goal.progress_ratio is not none %}<label for="goal-progress">{{ (report.goal.progress_ratio * 100)|round(1) }}% of the period target</label><progress id="goal-progress" max="1" value="{{ [0, [1, report.goal.progress_ratio]|min]|max }}"></progress><p>{{ 'On pace for the mature portion of this period.' if report.goal.on_pace else 'Below pace for the mature portion of this period.' }}</p>{% endif %}
     {% if report.goal %}<p class="muted">{{ report.goal.basis }} {{ report.goal.value_basis }}{% if report.goal.mature_through %} Mature through {{ report.goal.mature_through }}.{% endif %}</p>{% endif %}
     <div class="context-grid"><div><h4>Priority audiences</h4><p class="preserve-lines">{{ strategy.priority_audiences or 'Not yet defined' }}</p></div><div><h4>Positioning</h4><p class="preserve-lines">{{ strategy.positioning or 'Not yet defined' }}</p></div><div><h4>Current offer</h4><p class="preserve-lines">{{ strategy.offer or 'Not yet defined' }}</p></div><div><h4>Constraints</h4><p class="preserve-lines">{{ strategy.constraints or 'Not yet defined' }}</p></div></div>
-  {% else %}<p class="empty">Set the business outcome, target, deadline, and approved budget. Your strategy will guide the action queue and forecasts.</p>{% endif %}
+  {% else %}<p class="empty">Add a business outcome, target, deadline, and approved budget when you want recommendations aligned to a company plan. Available platform and store insights work without a strategy.</p>{% endif %}
 </section>
 
 <section id="budget" class="panel">
@@ -112,15 +151,15 @@
   {% for decision in report.decisions %}<article class="decision-entry"><h3>{{ decision.data.title }}</h3><p>{{ decision.data.status }} · review {{ decision.data.review_on }}</p><p>{{ decision.data.reason }}</p><p><strong>Expected:</strong> {{ decision.data.expected_result or 'Not recorded' }}</p><p><strong>Observed:</strong> {{ decision.data.observed_result or 'Awaiting follow-up' }}</p>{% if can_edit %}<a href="{{ root }}/edit/decision?record_id={{ decision.id }}">Record review or outcome</a>{% endif %}</article>{% endfor %}
   {% for change in report.changes %}<article class="decision-entry"><h3>{{ change.data.title }}</h3><p>{{ change.data.effective_on }} · {{ change.data.category }} · review {{ change.data.review_on }}</p><p>{{ change.data.hypothesis }}</p><p>{{ change.data.success_metric }}: baseline {{ change.data.baseline_value if change.data.baseline_value is not none else 'Not recorded' }} · expected {{ change.data.expected_value if change.data.expected_value is not none else 'Not recorded' }} · observed {{ change.data.observed_value if change.data.observed_value is not none else 'Awaiting follow-up' }}</p><p>{{ change.data.outcome_notes }}</p>{% if can_edit %}<a href="{{ root }}/edit/change?record_id={{ change.id }}">Update observation</a>{% endif %}</article>{% endfor %}
   {% for change in report.due_reviews %}<p class="notice">Review due: {{ change.data.title }} {% if can_edit %}<a href="{{ root }}/edit/change?record_id={{ change.id }}">Record what happened</a>{% endif %}</p>{% endfor %}
-  <details><summary>Saved nightly and weekly briefs</summary><p>Existing enabled analysis jobs save a brief when a company strategy is present. The eight most recent briefs are shown.</p>{% for brief in report.saved_briefs %}<article><h3>{{ brief.cadence|capitalize }} · {{ brief.as_of[:16]|replace('T', ' ') }}</h3><p>Strategy version {{ brief.data.strategy_version }}</p><ul>{% for item in brief.data.recommendations %}<li><strong>{{ item.title }}</strong>: {{ item.evidence }} {{ item.action }}</li>{% endfor %}</ul></article>{% else %}<p>No strategy briefs have been saved by scheduled analysis yet.</p>{% endfor %}</details>
+  <details><summary>Saved nightly and weekly briefs</summary><p>Enabled analysis jobs save briefs using the evidence available in this workspace. The eight most recent briefs are shown.</p>{% for brief in report.saved_briefs %}<article><h3>{{ brief.cadence|capitalize }} · {{ brief.as_of[:16]|replace('T', ' ') }}</h3><p>{{ "Strategy version " ~ brief.data.strategy_version if brief.data.strategy_version else "Based on available workspace evidence" }}</p><ul>{% for item in brief.data.recommendations %}<li><strong>{{ item.title }}</strong>: {{ item.evidence }} {{ item.action }}</li>{% endfor %}</ul></article>{% else %}<p>No briefs have been saved by scheduled analysis yet.</p>{% endfor %}</details>
   <details><summary>Weekly learning and review patterns</summary><p>{{ report.learning.decision_count }} advertising recommendation reviews recorded.</p>{% for suggestion in report.weekly_learning.suggestions %}<article><h4>{{ suggestion.title }}</h4><p>{{ suggestion.evidence }}</p><p>{{ suggestion.suggested_improvement }}</p></article>{% endfor %}</details>
   <details><summary>Business context history</summary><div class="table-scroll" role="region" aria-label="Business context history" tabindex="0"><table><thead><tr><th>Date</th><th>Record</th><th>Change</th><th>Version</th><th>Action</th></tr></thead><tbody>{% for revision in report.timeline %}<tr><td>{{ revision.created_at[:16]|replace('T', ' ') }}</td><td>{{ revision.title }}</td><td>{{ revision.kind }} · {{ revision.action }}</td><td>{{ revision.version }}</td><td>{% if can_edit and revision.kind == 'strategy' and report.strategy and revision.version != report.strategy.version %}<form method="post" action="{{ root }}/restore/{{ revision.id }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="expected_version" value="{{ report.strategy.version }}"><button type="submit">Restore this strategy version</button></form>{% else %}Recorded{% endif %}</td></tr>{% endfor %}</tbody></table></div><p class="muted">Restoring strategy creates a new version. It does not reverse advertising spend or change live campaigns.</p></details>
 </section>
 
 <section id="measurement" class="panel">
-  <h2>Measurement health and controls</h2>
+  <h2>Business outcome measurement and controls</h2><p>These checks apply to attributed business outcomes and the forecasts that use them. Platform performance, store sales, and planning have their own evidence requirements.</p>
   <div class="context-grid"><dl><dt>Advertising sync</dt><dd>{{ report.health.sync_status }}</dd><dt>Last advertising sync</dt><dd>{{ report.health.last_ads_sync or 'No successful sync' }}</dd><dt>Last web event</dt><dd>{{ report.health.last_web_event or 'No events' }}</dd><dt>Last CRM event</dt><dd>{{ report.health.last_crm_event or 'No events' }}</dd></dl><dl><dt>Attributable journeys</dt><dd>{{ report.coverage.attributed_journey_count }}</dd><dt>Unattributed journeys</dt><dd>{{ report.coverage.unattributed_journey_count }}</dd><dt>Attribution coverage</dt><dd>{{ report.coverage.attribution_rate|percent }}</dd><dt>Currency mismatches</dt><dd>{{ report.coverage.currency_mismatch_count }}</dd></dl></div>
-  {% for issue in report.health.issues %}<p class="notice {{ 'warning' if issue.severity == 'blocking' else '' }}">{{ issue.message }}</p>{% endfor %}
+  {% for issue in report.health.issues %}<p class="notice {{ 'warning' if issue.severity == 'blocking' else '' }}"><strong>Business outcomes:</strong> {{ issue.message }}</p>{% endfor %}
   <p>{{ report.health.attribution_note }}</p><p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">Inspect the outcome report</a> · <a href="/dashboard/workspaces/{{ workspace.slug }}">Review source configuration and automation controls</a></p>
   <details><summary>Automation and live change controls</summary><ul>{% for control in report.controls %}<li>{{ control.label }}: <strong>{{ 'On' if control.effective_enabled else 'Off' }}</strong></li>{% endfor %}</ul><p>Advertising execution and conversion uploads remain disabled. Reviewing a business plan does not enable either. Any financial change requires approval.</p></details>
 </section>

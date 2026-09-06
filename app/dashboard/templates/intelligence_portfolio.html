@@ -1,11 +1,13 @@
 {% extends "base.html" %}{% block content %}
-<p class="eyebrow">An Inlet / Ad Analyzer</p><h1>Your client portfolio</h1><p>See which clients need a decision, a planning update, or better measurement.</p>
+<p class="eyebrow">An Inlet / Ad Analyzer</p><h1>Your client portfolio</h1><p>Each client works with its available connections. See the next useful decision across your portfolio.</p>
 <div class="portfolio-grid">{% for card in cards %}{% set report = card.report %}
-<article><div class="section-heading"><h2><a href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">{{ card.workspace.name }}</a></h2><span class="status">{{ 'Measurement needs attention' if report.health.blocking else 'Evidence available' }}</span></div>
-<p>{{ report.strategy.data.title if report.strategy else 'Company strategy not yet set' }}</p>
+<article><div class="section-heading"><h2><a href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">{{ card.workspace.name }}</a></h2><span class="status">{{ report.readiness_label|default('Planning ready') }}</span></div>
+<p>{{ report.strategy.data.title if report.strategy else 'Planning available · company goals optional' }}</p>
 {% if report.goal and report.goal.observed is not none %}<p><strong>{{ '%g'|format(report.goal.observed) }}</strong> / {{ '%g'|format(report.goal.target) }} {{ report.goal.metric|replace('_', ' ') }}</p>{% endif %}
 {% if report.budget %}<p>{{ report.budget.spend_micros|money(report.budget.currency_code) if report.budget.spend_micros is not none else 'Unknown spending' }} spent · {{ report.budget.available_micros|money(report.budget.currency_code) if report.budget.available_micros is not none else 'Unknown funds' }} available</p>{% endif %}
-<h3>Next decision</h3><p>{{ report.recommendations[0].title }}</p><a class="button" href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">Open decision center</a>
+{% if report.available_evidence %}<div class="portfolio-capabilities">{% for key, label in [('platform_performance', 'Ad performance'), ('commerce', 'Store sales'), ('attributed_outcomes', 'Business outcomes')] %}{% if report.available_evidence.capabilities[key].ready %}<span class="status enabled">{{ label }}</span>{% endif %}{% endfor %}</div>{% endif %}
+{% if not report.budget and report.available_evidence %}{% for account in report.available_evidence.accounts %}{% if account.current %}<p class="muted">{{ account.name }} · {{ account.current.cost_micros|money(account.currency_code) }} {{ account.currency_code }} observed spend{% if not account.current.complete %} · partial window{% endif %}</p>{% endif %}{% endfor %}{% endif %}
+<h3>Next decision</h3><p>{{ report.recommendations[0].title if report.recommendations else 'Review the available evidence or plan your next campaign.' }}</p><a class="button" href="/dashboard/workspaces/{{ card.workspace.slug }}/intelligence">Open decision center</a>
 </article>{% else %}<p class="empty">No accessible workspaces are available.</p>{% endfor %}</div>
 <div class="button-row">{% if offset > 0 %}<a href="?offset={{ [0, offset - 10]|max }}">Previous clients</a>{% endif %}{% if offset + 10 < total %}<a href="?offset={{ offset + 10 }}">Next clients</a>{% endif %}</div>
 {% endblock %}

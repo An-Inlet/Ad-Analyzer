@@ -69,8 +69,8 @@ class DailyMetricResponse(ApiModel):
     impressions: int
     clicks: int
     cost_micros: int
-    conversions: Decimal
-    conversion_value_micros: int
+    conversions: Decimal | None
+    conversion_value_micros: int | None
 
 
 class AccountMetricSummaryResponse(BaseModel):
@@ -80,12 +80,12 @@ class AccountMetricSummaryResponse(BaseModel):
     impressions: int
     clicks: int
     cost_micros: int
-    conversions: Decimal
-    conversion_value_micros: int
+    conversions: Decimal | None
+    conversion_value_micros: int | None
     ctr: Decimal
     average_cpc_micros: Decimal
-    conversion_rate: Decimal
-    cost_per_conversion_micros: Decimal
+    conversion_rate: Decimal | None
+    cost_per_conversion_micros: Decimal | None
 
 
 class JobRunResponse(ApiModel):
@@ -150,11 +150,11 @@ class MetricWindowResponse(BaseModel):
     impressions: int
     clicks: int
     cost_micros: int
-    conversions: Decimal
+    conversions: Decimal | None
     ctr: Decimal
     average_cpc_micros: Decimal
-    conversion_rate: Decimal
-    cost_per_conversion_micros: Decimal
+    conversion_rate: Decimal | None
+    cost_per_conversion_micros: Decimal | None
     data_coverage: str
     comparison_data_coverage: str
 

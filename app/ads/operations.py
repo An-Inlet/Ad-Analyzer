@@ -1,9 +1,9 @@
-"""Read-only, bounded operational status for the Google Ads sync worker."""
+"""Read-only, bounded operational status for advertising sync workers."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -50,8 +50,16 @@ def sync_health(
     """Use three indexed scalar queries, never collectors or mutations."""
     current = now or datetime.now(UTC)
     base = select(JobRun).where(
-        JobRun.platform == AdvertisingPlatform.GOOGLE_ADS,
-        JobRun.job_name == "google_ads_read_only_sync",
+        or_(
+            and_(
+                JobRun.platform == AdvertisingPlatform.GOOGLE_ADS,
+                JobRun.job_name == "google_ads_read_only_sync",
+            ),
+            and_(
+                JobRun.platform == AdvertisingPlatform.META_ADS,
+                JobRun.job_name == "meta_ads_sync",
+            ),
+        )
     )
     if workspace_ids is not None:
         if not workspace_ids:
@@ -87,6 +95,8 @@ def sync_health(
     else:
         status = "Healthy"
     summary = public_failure_summary(failure.error_message if failure else None)
+    if summary and failure is not None and failure.platform == AdvertisingPlatform.META_ADS:
+        summary = "Meta Ads synchronization failed."
     return SyncHealth(
         status,
         stale,

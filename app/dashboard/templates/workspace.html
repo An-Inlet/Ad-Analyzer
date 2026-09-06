@@ -10,10 +10,10 @@
   <div class="button-row">
     <a class="button" href="/dashboard/workspaces/{{ workspace.slug }}/intelligence">Open decision center</a>
     <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">Outcome analysis</a>
-    <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Shopify connection and sales</a>
+    <a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/meta">Connect Meta</a>
   </div>
 </div>
-<p class="muted">Company goals, budget pacing, upcoming events, experiments, and an evidence-based action queue help turn this workspace's data into your next decision.</p>
+<p class="muted">Use the data this client has. A single advertising account can support performance analysis; sales, CRM, and web analytics add their own capabilities when you need them.</p>
 <nav class="section-nav" aria-label="Workspace sections">
   <a href="#advertising-accounts">Accounts</a>
   <a href="#integrations">Integrations</a>
@@ -22,11 +22,11 @@
   <a href="#workspace-settings">Settings</a>
 </nav>
 
-{% if measurement_contract and not measurement_contract.analysis_ready %}
-<p class="empty"><strong>Measurement contract: {{ measurement_contract.status.value }}.</strong> Outcome analysis remains blocked until this draft is approved. <a href="#measurement">Review measurement details</a></p>
-{% elif not measurement_contract %}
-<p class="empty">No measurement contract is available. Business-outcome analysis must remain disabled.</p>
-{% endif %}
+<section class="panel connection-intro" aria-labelledby="available-analysis-heading">
+  <div class="section-heading"><div><p class="eyebrow">Built around this client</p><h2 id="available-analysis-heading">Start with the connections you have</h2></div><a href="/dashboard/workspaces/{{ workspace.slug }}/intelligence#available-analysis">See available analysis</a></div>
+  <p>Meta or Google Ads enables delivery and spending insights. Shopify enables store sales analysis. Goals, events, and decisions can be planned at any time. Each capability works independently of optional connections.</p>
+  <div class="button-row"><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/meta">Manage Meta</a><a class="button secondary" href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Manage Shopify</a><a href="#measurement">Business outcome measurement</a></div>
+</section>
 
 <section id="advertising-accounts" aria-labelledby="accounts-heading">
   <div class="section-heading"><h2 id="accounts-heading">Advertising accounts</h2><span class="muted">{{ total }} synchronized account{{ '' if total == 1 else 's' }}</span></div>
@@ -44,7 +44,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="empty">No synchronized advertising accounts are available.</p>
+  <p class="empty">Connect an advertising account to see its performance. You can already plan goals, events, and decisions in the decision center.</p>
   {% endif %}
   {% if offset > 0 or has_next %}
   <nav class="pagination" aria-label="Advertising account pages">
@@ -55,7 +55,8 @@
 </section>
 
 <section class="panel" id="integrations" aria-labelledby="integrations-heading">
-  <div class="section-heading"><h2 id="integrations-heading">Integrations</h2><a href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Manage Shopify</a></div>
+  <div class="section-heading"><h2 id="integrations-heading">Data connections</h2><div class="button-row"><a href="/dashboard/workspaces/{{ workspace.slug }}/meta">Meta</a><a href="/dashboard/workspaces/{{ workspace.slug }}/shopify">Shopify</a></div></div>
+  <p class="muted">Choose sources that support this client's decisions. There is no requirement to connect every provider.</p>
   {% if integrations %}
   <div class="table-scroll" role="region" aria-label="Workspace integrations" tabindex="0">
     <table>
@@ -117,13 +118,13 @@
 <section class="panel" id="measurement" aria-labelledby="measurement-heading">
   <div class="section-heading"><h2 id="measurement-heading">Measurement contract</h2>{% if measurement_contract %}<span class="status {{ measurement_contract.status.value }}">{{ measurement_contract.status.value }}</span>{% endif %}</div>
   {% if measurement_contract %}
-  {% if not measurement_contract.analysis_ready %}<p class="empty">Outcome analysis remains blocked until this draft is approved.</p>{% endif %}
+  {% if not measurement_contract.analysis_ready %}<p class="empty">Outcome analysis remains blocked until this draft is approved. Available platform performance, Shopify sales, and planning remain usable.</p>{% endif %}
   <dl class="compact-metrics">
     <div><dt>Optimization goal</dt><dd>{{ measurement_contract.optimization_goal_stage_key|replace('_', ' ') }}</dd></div>
     <div><dt>Business-value outcome</dt><dd>{{ measurement_contract.business_value_stage_key|replace('_', ' ') }}</dd></div>
     <div><dt>Source of truth</dt><dd>{{ measurement_contract.source_of_truth.value|upper }}</dd></div>
   </dl>
-  <p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">View unified Google Ads + GA4 + CRM outcome analysis</a></p>
+  <p><a href="/dashboard/workspaces/{{ workspace.slug }}/outcomes">View attributed business outcomes</a></p>
   <details class="settings-disclosure">
     <summary><span>Attribution and funnel definitions</span></summary>
     <dl>
@@ -139,7 +140,7 @@
       </table>
     </div>
   </details>
-  {% else %}<p class="empty">No measurement contract is available. Business-outcome analysis must remain disabled.</p>{% endif %}
+  {% else %}<p class="empty">Business outcome measurement is optional. Add an approved measurement definition and linked outcome data when you want verified customer acquisition and revenue analysis. Available platform insights and planning continue without them.</p>{% endif %}
 </section>
 
 <section id="workspace-settings" aria-labelledby="workspace-settings-heading">

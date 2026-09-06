@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
 from app.ads.models import AdGroup, AdvertisingAccount, Campaign, JobRun
+from app.analysis.platform_evidence import (
+    has_platform_conversion_metrics,
+    has_platform_conversion_value_metrics,
+)
 from app.api.repository import ReadOnlyAdsRepository
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import Finding, generate_findings
@@ -31,6 +35,10 @@ class PerformanceScopeSnapshot:
     current: MetricWindow
     comparison: MetricWindow
     findings: tuple[Finding, ...]
+    conversion_metrics_available: bool = True
+    comparison_conversion_metrics_available: bool = True
+    conversion_value_metrics_available: bool = True
+    comparison_conversion_value_metrics_available: bool = True
 
 
 @dataclass(frozen=True)
@@ -281,7 +289,37 @@ class GranularAnalysisService:
         last_success = self._last_success_by_account({scope.account_id for scope in scopes})
         resolved_now = now or datetime.now(UTC)
         rows: list[PerformanceScopeSnapshot] = []
+        conversion_availability = {}
+        for account_id, platform in {(s.account_id, s.platform) for s in scopes}:
+            conversion_availability[(account_id, platform)] = (
+                has_platform_conversion_metrics(
+                    self.session, account_id, platform, date_from=date_from, date_to=date_to
+                ),
+                has_platform_conversion_metrics(
+                    self.session,
+                    account_id,
+                    platform,
+                    date_from=comparison_from,
+                    date_to=comparison_to,
+                ),
+                has_platform_conversion_value_metrics(
+                    self.session, account_id, platform, date_from=date_from, date_to=date_to
+                ),
+                has_platform_conversion_value_metrics(
+                    self.session,
+                    account_id,
+                    platform,
+                    date_from=comparison_from,
+                    date_to=comparison_to,
+                ),
+            )
         for scope in scopes:
+            (
+                conversions_available,
+                comparison_available,
+                value_available,
+                comparison_value_available,
+            ) = conversion_availability[(scope.account_id, scope.platform)]
             current = _window(date_from, date_to, current_totals.get(scope.entity_id))
             comparison = _window(
                 comparison_from,
@@ -294,6 +332,8 @@ class GranularAnalysisService:
                     comparison,
                     last_success_at=last_success.get(scope.account_id),
                     now=resolved_now,
+                    conversion_metrics_available=conversions_available,
+                    comparison_conversion_metrics_available=comparison_available,
                 )
             )
             rows.append(
@@ -311,6 +351,10 @@ class GranularAnalysisService:
                     current=current,
                     comparison=comparison,
                     findings=findings,
+                    conversion_metrics_available=conversions_available,
+                    comparison_conversion_metrics_available=comparison_available,
+                    conversion_value_metrics_available=value_available,
+                    comparison_conversion_value_metrics_available=comparison_value_available,
                 )
             )
         return rows

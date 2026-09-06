@@ -6,6 +6,7 @@ class AutomationControlKey(StrEnum):
     ALL_DATA_SYNCS = "all_data_syncs"
     GITHUB_HOURLY_PRODUCTION_AUDIT = "github_hourly_production_audit"
     SHOPIFY_SALES_SYNC = "shopify_sales_sync"
+    META_ADS_SYNC = "meta_ads_sync"
     POST_SYNC_ANALYSIS = "post_sync_analysis"
     NIGHTLY_ANALYSIS = "nightly_analysis"
     WEEKLY_ANALYSIS = "weekly_analysis"
@@ -27,7 +28,7 @@ AUTOMATION_CONTROL_DEFINITIONS = (
         key=AutomationControlKey.ALL_DATA_SYNCS,
         label="All Ad Analyzer data syncs",
         description=(
-            "Allows new Google Ads and Shopify data-sync cycles across every "
+            "Allows new Google Ads, Meta, and Shopify data-sync cycles across every "
             "Ad Analyzer. Turning this off "
             "also blocks one-shot or manually invoked sync workers; existing synchronized data "
             "and analysis controls remain available."
@@ -45,6 +46,14 @@ AUTOMATION_CONTROL_DEFINITIONS = (
         supports_workspace=False,
         default_enabled=False,
         external=True,
+    ),
+    AutomationControlDefinition(
+        key=AutomationControlKey.META_ADS_SYNC,
+        label="Meta advertising sync",
+        description="Imports performance from the Meta ad account selected for this workspace. "
+        "Existing analysis remains available when sync is off. No ads or budgets are changed.",
+        supports_workspace=True,
+        default_enabled=True,
     ),
     AutomationControlDefinition(
         key=AutomationControlKey.SHOPIFY_SALES_SYNC,

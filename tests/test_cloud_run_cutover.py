@@ -139,10 +139,63 @@ def test_workflow_is_one_time_cost_guarded_and_keyless() -> None:
     assert "service-account-key" not in workflow.lower()
     assert "gcloud sql instances create" not in workflow
     assert "gcloud scheduler" not in workflow
-    assert "gcloud run jobs" not in workflow
+    assert "gcloud run jobs create" not in workflow
+    assert "gcloud run jobs update ad-analyzer-sync" in workflow
+    assert "gcloud run jobs execute ad-analyzer-migration" in workflow
+    assert workflow.index("gcloud run jobs execute") < workflow.index("gcloud run services replace")
 
 
 def test_cutover_request_matches_the_approved_target() -> None:
     request = json.loads(Path("deploy/ad-analyzer-web-cutover-request.json").read_text())
     assert request["target_service"] == "ad-analyzer-web"
     assert "min 0, max 1" in request["approved_cost_profile"]
+
+
+def test_routine_release_preserves_current_service_configuration() -> None:
+    module = load_script()
+    source = source_service()
+    source["metadata"]["name"] = "ad-analyzer-web"
+    source["spec"]["template"]["metadata"]["name"] = "old-revision"
+    source["spec"]["template"]["spec"]["containers"][0]["env"].append(
+        {"name": "AD_ANALYZER_SHOPIFY_ENABLED", "value": "false"}
+    )
+    prepared = module.prepare_service(
+        source,
+        target_service="ad-analyzer-web",
+        project_id="project",
+        project_number="123",
+        region="us-west1",
+        repository="owner/repository",
+        image="registry/project/repo/ad-analyzer-web:new",
+    )
+    template = prepared["spec"]["template"]
+    assert "name" not in template["metadata"]
+    assert {"name": "AD_ANALYZER_SHOPIFY_ENABLED", "value": "false"} in template["spec"][
+        "containers"
+    ][0]["env"]
+    assert source["spec"]["template"]["metadata"]["name"] == "old-revision"
+
+
+@pytest.mark.parametrize("disabled", [True, False])
+def test_hourly_worker_runs_independent_tick_when_ads_is_skipped(
+    monkeypatch: pytest.MonkeyPatch,
+    disabled: bool,
+) -> None:
+    from types import SimpleNamespace
+
+    from app.ads.enums import JobRunStatus
+    from app.jobs import google_ads_scheduler, google_ads_sync_once
+
+    called: list[object] = []
+    runtime_engine = object()
+    monkeypatch.setattr(
+        google_ads_scheduler,
+        "_run_analysis_tick",
+        lambda engine, outcome: called.append(engine),
+    )
+    outcome = SimpleNamespace(skipped=True, skip_reason="disabled" if disabled else "overlap")
+    result = google_ads_sync_once.main(
+        lambda: (object(), runtime_engine, lambda *a, **kw: outcome, JobRunStatus)
+    )
+    assert called == [runtime_engine]
+    assert result == (0 if disabled else 2)

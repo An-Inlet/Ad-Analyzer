@@ -1,8 +1,8 @@
 {
-  "request_version": 6,
+  "request_version": 7,
   "target_service": "ad-analyzer-web",
   "approved_cost_profile": "Cloud Run request-based billing with min 0, max 1; reuse the existing database, secrets, IAP policy, and runtime identity; create no database, scheduler, or sync job.",
-  "approval_date": "2026-08-26",
+  "approval_date": "2026-09-06",
   "status": "approved",
-  "retry_reason": "Validate the enabled IAP state through Cloud Run's canonical v1 service annotation after the service update and IAP policy copy succeed."
+  "retry_reason": "User approved deployment of all merged dashboard and Shopify updates. Release the existing web, migration, and sync runtimes with unchanged resource caps and opt-in controls."
 }

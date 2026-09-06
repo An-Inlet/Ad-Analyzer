@@ -96,6 +96,13 @@ jobs:
               source_services+=("$service_name")
             fi
           done
+          # Prefer the live neutral service so routine releases preserve its configuration.
+          for service_name in "${source_services[@]}"; do
+            if [[ "$service_name" == "$GCP_WEB_SERVICE" ]]; then
+              source_services=("$service_name")
+              break
+            fi
+          done
           if [[ "${#source_services[@]}" -ne 1 ]]; then
             fail "Expected exactly one existing Ad Analyzer web service; found ${#source_services[@]}. No cloud resources were changed."
           fi
@@ -250,6 +257,19 @@ jobs:
           docker push "$target_image"
           printf 'target_image=%s\n' "$target_image" >> "$GITHUB_OUTPUT"
 
+      - name: Migrate using the existing job before serving the new application
+        shell: bash
+        env:
+          TARGET_IMAGE: ${{ steps.image.outputs.target_image }}
+        run: |
+          set -euo pipefail
+          # Require both jobs to exist; update only their image, preserving runtime settings.
+          for job in ad-analyzer-migration ad-analyzer-sync; do
+            gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format='value(metadata.name)' >/dev/null
+          done
+          gcloud run jobs update ad-analyzer-migration --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
+          gcloud run jobs execute ad-analyzer-migration --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --wait --quiet
+
       - name: Create or update the neutral web service
         shell: bash
         env:
@@ -354,6 +374,23 @@ jobs:
             exit 1
           fi
 
+      - name: Release the existing hourly worker and verify image parity
+        shell: bash
+        env:
+          TARGET_IMAGE: ${{ steps.image.outputs.target_image }}
+        run: |
+          set -euo pipefail
+          gcloud run jobs update ad-analyzer-sync --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
+          for job in ad-analyzer-migration ad-analyzer-sync; do
+            job_json="${RUNNER_TEMP}/${job}.json"
+            gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$job_json"
+            jq -e --arg image "$TARGET_IMAGE" '.spec.template.spec.template.spec.containers[0].image == $image' "$job_json" >/dev/null
+          done
+          service_json="${RUNNER_TEMP}/release-service.json"
+          gcloud run services describe "$GCP_WEB_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "$service_json"
+          jq -e --arg image "$TARGET_IMAGE" '.spec.template.spec.containers[0].image == $image and .status.latestReadyRevisionName == .status.latestCreatedRevisionName' "$service_json" >/dev/null
+          printf 'Released web, migration, and sync image: %s\n' "$TARGET_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report deployment success
         if: success()
         env:
@@ -377,7 +414,7 @@ jobs:
         run: |
           set -euo pipefail
           title='Ad Analyzer web deployment blocked'
-          body="Deployment failed. The previous web service was not changed. Review the failed step without posting secret values.\n\nRun: ${RUN_URL}"
+          body="Deployment failed. Some release steps may have completed; inspect resource image versions before retrying. Review the failed step without posting secret values.\n\nRun: ${RUN_URL}"
           issue_number="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')"
           if [[ -n "$issue_number" ]]; then
             gh issue comment "$issue_number" --body "$body"

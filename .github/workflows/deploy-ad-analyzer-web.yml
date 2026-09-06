@@ -280,8 +280,14 @@ jobs:
           done < "$names"
           [[ "${#migration_jobs[@]}" -le 1 && "${#sync_jobs[@]}" -le 1 ]] || { echo 'Multiple matching application jobs require review.' >&2; exit 1; }
           for job in "${migration_jobs[@]}"; do
-            gcloud run jobs update "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
-            gcloud run jobs execute "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --wait --quiet
+            gcloud run jobs describe "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "${RUNNER_TEMP}/job-before.json"
+            python scripts/prepare_release_job.py "${RUNNER_TEMP}/job-before.json" "${RUNNER_TEMP}/job-release.json" "$TARGET_IMAGE"
+            gcloud run jobs replace "${RUNNER_TEMP}/job-release.json" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet
+            if ! gcloud run jobs execute "$job" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --wait --quiet; then
+              gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=$job" --project="$GCP_PROJECT_ID" --freshness=10m --limit=100 --format=json > "${RUNNER_TEMP}/private-job-logs.json"
+              python scripts/summarize_release_failure.py "${RUNNER_TEMP}/private-job-logs.json"
+              exit 1
+            fi
           done
           printf 'migration_job=%s\n' "${migration_jobs[0]:-}" >> "$GITHUB_OUTPUT"
           printf 'sync_job=%s\n' "${sync_jobs[0]:-}" >> "$GITHUB_OUTPUT"
@@ -407,7 +413,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -n "$SYNC_JOB" ]]; then
-            gcloud run jobs update "$SYNC_JOB" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --image="$TARGET_IMAGE" --quiet
+            gcloud run jobs describe "$SYNC_JOB" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json > "${RUNNER_TEMP}/job-before.json"
+            python scripts/prepare_release_job.py "${RUNNER_TEMP}/job-before.json" "${RUNNER_TEMP}/job-release.json" "$TARGET_IMAGE"
+            gcloud run jobs replace "${RUNNER_TEMP}/job-release.json" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --quiet
           fi
           for job in "$MIGRATION_JOB" "$SYNC_JOB"; do
             [[ -n "$job" ]] || continue

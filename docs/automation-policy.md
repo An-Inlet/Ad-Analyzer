@@ -61,3 +61,22 @@ baselines, versioned confirmation and usage limits, extending PR64 through B06.
 Interpretation remains manual/mock-first with external model calls disabled and zero
 authorized model spend. No B07 implementation, live provider setup, credentials,
 merge/deployment, website work or CRM gateway decision is authorized by this extension.
+
+## User-approved remaining offline Inlet MVP exception (2026-10-05)
+
+At 23:33:14 UTC the owner approved finishing the remaining offline MVP backlog without
+package-by-package approvals. This supersedes the package-number limits above for
+this Inlet assignment only. Coherent dependent branches and draft PRs may proceed
+from predecessor heads before merge; shared interfaces must be stabilized first.
+Continue engineering, fixtures, tests, customer portal, billing-adapter/webhook/
+entitlement preparation and other approved backlog work in dependency order. Preserve
+newer working functionality and maintain package/PR/check/blocker evidence.
+
+Human review and merge gates remain. No deployment, live provider/model calls,
+credentials/grants/IAM, customer advertising changes, purchases or spending are
+approved. Website work remains owner-managed. Pricing/charges and consequential new
+architecture/privacy/commercial decisions require concrete owner decisions when not
+settled; prepare proposals and continue independent offline work. The CRM gateway
+proposal is not authorization for persistent access. Offline completion is not live
+verification or a purchasable production release. Routine in-scope engineering choices
+and moving to the next package do not require another approval.

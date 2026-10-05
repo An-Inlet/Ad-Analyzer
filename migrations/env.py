@@ -9,6 +9,7 @@ from app.database.session import Base
 from app.goals import models as goal_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401
 from app.intelligence import models as intelligence_models  # noqa: F401
+from app.mandates import models as mandate_models  # noqa: F401
 from app.measurement import models as measurement_models  # noqa: F401
 from app.meta import models as meta_models  # noqa: F401
 from app.settings import settings

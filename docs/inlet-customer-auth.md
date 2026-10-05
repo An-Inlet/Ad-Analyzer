@@ -79,3 +79,23 @@ proves a single winner for simultaneous exchange of one token. The identity
 provider is injected; SDK adapter checks are mocked and no third-party credentials
 or network are needed. Real Identity Platform login, workload identity and browser
 signup remain unverified until separately approved staging setup exists.
+
+## B03 Workspace Signup
+
+`POST /api/customer/v1/workspaces` requires the authenticated session, exact Origin,
+CSRF header and an `Idempotency-Key` of 16–128 URL-safe characters. JSON contains
+only `name` (1–255 characters) and a canonical lowercase `slug` (3–64 characters).
+The authenticated internal user is the owner; clients cannot supply an owner ID.
+
+The transaction creates the workspace, default configuration, active owner
+membership and owner-bound request receipt together. It returns 201 on creation
+and 200 with the same workspace on replay. Reusing a key with different input or
+claiming an occupied slug returns 409. Suspended users/memberships/workspaces are
+never reactivated by a replay. PostgreSQL serializes provisioning for the same
+internal user with a row lock; uniqueness protects slugs and receipt keys across
+replicas. A failed transaction leaves no partial workspace and the same key can
+be retried after the cause is resolved. Defaults keep live advertising writes off.
+
+Migration `20261005_0021` adds only signup receipts. Acceptance includes injected
+owner-insertion failure, two users reusing the same request key, slug conflict,
+concurrent identical requests and attempts to supply a different owner.

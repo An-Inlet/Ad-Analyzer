@@ -25,6 +25,7 @@ from app.customers.access import (
 )
 from app.customers.identity import denied
 from app.customers.models import CustomerSession, CustomerTokenExchange, CustomerUser
+from app.customers.provisioning import WorkspaceSignupRequest, provision_workspace
 
 router = APIRouter(prefix="/api/customer/v1", tags=["customer"])
 
@@ -152,3 +153,21 @@ def list_workspaces(principal: Principal, db: Database) -> list[WorkspaceRespons
 def get_workspace(workspace_id: int, principal: Principal, db: Database) -> WorkspaceResponse:
     workspace, role = customer_workspace(db, principal.user.id, workspace_id)
     return WorkspaceResponse(id=workspace.id, slug=workspace.slug, name=workspace.name, role=role)
+
+
+@router.post("/workspaces", response_model=WorkspaceResponse, status_code=201)
+def signup_workspace(
+    body: WorkspaceSignupRequest,
+    request: Request,
+    response: Response,
+    principal: MutationPrincipal,
+    db: Database,
+) -> WorkspaceResponse:
+    keys = request.headers.getlist("idempotency-key")
+    if len(keys) != 1:
+        raise HTTPException(422, "invalid idempotency key")
+    workspace, created = provision_workspace(db, principal, keys[0], body)
+    response.status_code = 201 if created else 200
+    return WorkspaceResponse(
+        id=workspace.id, slug=workspace.slug, name=workspace.name, role="owner"
+    )

@@ -145,3 +145,19 @@ ReadOnly 75 passed, Security 98 passed/1 PowerShell skip, Privacy 14 passed,
 Focused 38 passed/6 PowerShell skips. Log: `/tmp/inlet-b02-full.log`.
 Remote exact-head CI will be recorded in PR #64 after push.
 Provider calls in acceptance use a fake; no live identity setup or login verified.
+
+## B03 — Atomic Customer Workspace Provisioning
+
+Implementation adds authenticated `POST /api/customer/v1/workspaces`, requiring
+CSRF/origin checks and an owner-scoped idempotency key. Workspace/configuration/
+owner/receipt commit atomically, with PostgreSQL user-row serialization. Replays
+return the original active owner workspace, conflicting input/slug fails, and
+suspended ownership cannot be restored through signup. Client owner IDs are
+rejected. Migration `20261005_0021` introduces signup receipts only.
+
+Focused identity/provisioning acceptance initially **41 passed**; final validation
+adds two backend cases rejecting missing keys and injected owner IDs. Ruff and
+mypy pass (167 files). Full required validation (`scripts/validate.sh Full`) completed with exit 0:
+**643 passed, 6 PowerShell skips**; PostgreSQL/migrations, lint/type checks and
+all required safety gates passed. Log: `/tmp/inlet-b03-full.log`. Provider, UI and
+live customer signup remain unverified; no external configuration changed.

@@ -54,3 +54,15 @@ class CustomerMembership(Base):
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+
+
+class WorkspaceSignup(Base):
+    __tablename__ = "customer_workspace_signups"
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("customer_users.id", ondelete="CASCADE"), primary_key=True
+    )
+    key_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    request_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, unique=True
+    )

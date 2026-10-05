@@ -90,6 +90,10 @@ def measurement(
         is not None
     ):
         reasons.append("privacy_suppressed_source")
+    from app.shopify.privacy_identity import markers
+
+    if markers(session, store) and "privacy_suppressed_source" not in reasons:
+        reasons.append("privacy_suppressed_source")
     entries = list(
         session.scalars(
             select(CommerceEntry).where(

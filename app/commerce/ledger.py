@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.commerce.models import (
@@ -22,7 +22,7 @@ from app.commerce.models import (
 )
 from app.commerce.source import gid
 from app.settings import Settings
-from app.shopify.models import ShopifyConnection, ShopifyOrder
+from app.shopify.models import ShopifyConnection
 from app.shopify.normalize import money, order_key, resource_id
 from app.shopify.security import ShopifyError, Vault, utc
 from app.workspaces.models import Workspace, WorkspaceIntegration
@@ -74,9 +74,31 @@ def lock_store(session: Session, store_id: str, workspace_id: int) -> CommerceSt
 
 
 def legacy_store(session: Session, row: ShopifyConnection) -> CommerceStore | None:
+    from app.shopify.models import ShopifyPrivacyIdentity
+
+    if (
+        session.scalar(
+            select(ShopifyPrivacyIdentity.object_key)
+            .where(
+                ShopifyPrivacyIdentity.workspace_id == row.workspace_id,
+                ShopifyPrivacyIdentity.shop_domain == row.shop_domain,
+                or_(
+                    ShopifyPrivacyIdentity.pending_legacy.is_(True),
+                    ShopifyPrivacyIdentity.kind.in_(["customer", "unresolved"]),
+                ),
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        raise ShopifyError("shopify_privacy_reconciliation_required")
     if row.commerce_store_id is None:
         return None
     store = lock_store(session, row.commerce_store_id, row.workspace_id)
+    from app.shopify.privacy_identity import markers
+
+    if markers(session, store):
+        raise ShopifyError("shopify_privacy_reconciliation_required")
     if store.connection_id != row.workspace_integration_id:
         raise ShopifyError("commerce_ownership_unavailable")
     if (
@@ -103,6 +125,9 @@ def bind_store(
     configuration: Settings,
     now: datetime,
 ) -> CommerceStore:
+    from app.shopify.privacy_identity import preserve
+
+    preserve(session, row)
     vault = Vault(configuration)
     key = vault.digest("commerce_shop", resource_id(shop_id, "Shop"))
     store = session.scalar(
@@ -161,16 +186,29 @@ def normalized_entries(
     entries: dict[str, dict[str, Any]] = {}
     quality = "complete" if agreements else "unavailable"
     excluded = {"SHIPPING", "DUTY", "FEE", "ADDITIONAL_FEE", "TIP", "GIFT_CARD"}
+    supported = {
+        "OrderAgreement": ("ORDER", {"ORDER"}),
+        "OrderEditAgreement": ("ORDER_EDIT", {"ORDER", "UPDATE"}),
+        "RefundAgreement": ("REFUND", {"RETURN"}),
+    }
     for agreement in agreements:
-        happened = timestamp(agreement["happenedAt"])
+        basis = supported.get(str(agreement.get("__typename")))
+        if basis is None or agreement.get("reason") != basis[0]:
+            # Return/exchange intent can reverse sales before refund processing.
+            quality = "unreconciled"
+            continue
+        if agreement["__typename"] == "RefundAgreement":
+            processed = (agreement.get("refund") or {}).get("processedAt")
+            if not processed:
+                quality = "unreconciled"
+                continue
+            happened = timestamp(processed)
+        else:
+            happened = timestamp(agreement["happenedAt"])
         for sale in agreement["sales"]:
             if sale["lineType"] in excluded:
                 continue
-            if sale["lineType"] != "PRODUCT" or sale["actionType"] not in {
-                "ORDER",
-                "RETURN",
-                "UPDATE",
-            }:
+            if sale["lineType"] != "PRODUCT" or sale["actionType"] not in basis[1]:
                 quality = "unreconciled"
                 continue
             gross = money(sale["totalAmount"], store.currency, signed=True)
@@ -237,11 +275,34 @@ def apply_order(
     key = identity_key(vault, store, "order", source["id"])
     customer = source.get("customer")
     customer_key = identity_key(vault, store, "customer", customer["id"]) if customer else None
+    from app.commerce.privacy import process_measurement_event
+    from app.shopify.privacy_identity import prepare_source
+
+    erased, unresolved = prepare_source(session, row, store, source, key, configuration)
     for kind, object_key in [("order", key), ("customer", customer_key)]:
         if object_key and session.get(
             CommerceSuppression, (store.workspace_id, store.shop_key, kind, object_key)
         ):
-            return False
+            erased = True
+    if erased:
+        process_measurement_event(
+            session, store, "orders/delete", {"id": source["id"]}, configuration, now
+        )
+        return False
+    if unresolved or (
+        customer_key is None
+        and session.scalar(
+            select(CommerceSuppression.object_key)
+            .where(
+                CommerceSuppression.workspace_id == store.workspace_id,
+                CommerceSuppression.shop_key == store.shop_key,
+                CommerceSuppression.kind == "customer",
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        return False
     if source.get("test") is not False:
         raise ShopifyError("commerce_test_order")
     created, updated = timestamp(source["createdAt"]), timestamp(source["updatedAt"])
@@ -259,14 +320,6 @@ def apply_order(
         ).encode()
     ).hexdigest()
     entries = {k: v for k, v in entries.items() if floor <= v["happened_at"]}
-    session.execute(
-        update(ShopifyOrder)
-        .where(
-            ShopifyOrder.connection_id == row.id,
-            ShopifyOrder.order_key == order_key(vault, row, source["id"]),
-        )
-        .values(commerce_order_key=key)
-    )
     order = session.get(CommerceOrder, (store.id, key))
     if order is not None:
         if utc(order.source_updated_at) > updated:

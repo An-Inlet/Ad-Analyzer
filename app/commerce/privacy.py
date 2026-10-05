@@ -87,7 +87,11 @@ def event_keys(
     vault = Vault(configuration)
     keys = {identity_key(vault, store, "order", value) for value in ids}
     customer = payload.get("customer")
-    customer_key = identity_key(vault, store, "customer", customer["id"]) if customer else None
+    customer_key = (
+        identity_key(vault, store, "customer", customer["id"])
+        if customer and customer.get("id") is not None
+        else None
+    )
     if customer_key:
         keys.update(
             session.scalars(

@@ -358,3 +358,29 @@ zero. Expiry now requires both creation and latest source update to predate the
 retention floor. A focused regression verifies unavailable stays unavailable and
 that the minimal marker eventually expires. This is a B05 correctness repair;
 current-head Full/CI evidence remains in PR64.
+
+### B05 Independent Review Repairs
+
+Review of `22a9aa0` reproduced four defects on SQLite and PostgreSQL: an open return
+could be counted before refund processing; pre-enable erasure could replay after
+binding measurement; ten paused/revoked stores could starve an eligible eleventh;
+and a customer-only privacy request could be reported complete while unclassified
+legacy facts remained. These are B05 acceptance repairs, with no B06 work.
+
+Refund normalization now requires agreement type/reason and uses refund.processedAt;
+unsupported return/exchange workflows remain unavailable rather than double-counted.
+Pagination retains that metadata. Durable workspace/domain HMAC erasure guards
+survive pre-enable requests, disconnect and reconnect. Migration 0025 copies available
+legacy tombstones and marks open requests pending where retained facts cannot yet
+be classified. Missing old identity cannot be invented or recovered retroactively.
+Canonical backfill bridges legacy facts before suppression; customer exports and
+delivery return 409 until identity reconciliation completes, without deleting
+unrelated facts. Legacy imports pause when customer identity is required. Scheduler
+eligibility is filtered before the batch limit, preserving pause/revocation semantics.
+
+Combined focused suite: **93 passed**, including populated PostgreSQL 0025 migration
+and both database dialects. Ruff, mypy (**192 files**) and whitespace pass. An added
+export/delivery 409 assertion is separately rerun before commit. Prior-head hosted
+CI 37345161957 succeeded at `22a9aa0`; it does not cover these repairs. Corrective
+head Full and hosted CI are pending; exact SHA and terminal evidence belong in
+PR64 to avoid a documentation-only commit invalidating the checked head.

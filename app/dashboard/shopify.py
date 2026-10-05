@@ -227,6 +227,8 @@ def privacy_export(
     )
     if item is None:
         raise HTTPException(404, "request not found")
+    if item.resolution_pending:
+        raise HTTPException(409, "privacy identity reconciliation pending")
     orders: list[ShopifyOrder] = []
     for offset in range(0, len(item.order_keys), 500):
         orders.extend(
@@ -306,6 +308,8 @@ async def privacy_delivered(
     )
     if item is None:
         raise HTTPException(404, "request not found")
+    if item.resolution_pending:
+        raise HTTPException(409, "privacy identity reconciliation pending")
     if item.completed_at is None:
         item.completed_at = datetime.now(UTC)
         db.add(ShopifyAudit(workspace_id=workspace.id, action="privacy_delivered", actor_role=role))

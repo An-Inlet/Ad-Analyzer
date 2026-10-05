@@ -5,6 +5,8 @@ from typing import Any
 from sqlalchemy import Engine, or_, select
 from sqlalchemy.orm import Session
 
+from app.automation import AutomationControlKey, AutomationControlService
+from app.automation.models import WorkspaceAutomationControl
 from app.commerce.ledger import MEASUREMENT_SCOPES, apply_order, lock_store, retention_floor
 from app.commerce.models import CommerceStore
 from app.commerce.source import MeasurementClient
@@ -15,6 +17,7 @@ from app.shopify.models import ShopifyAudit, ShopifyConnection
 from app.shopify.security import ShopifyError, Vault, configuration_ready, utc
 from app.shopify.service import ConnectionService
 from app.shopify.sync import syncing_allowed
+from app.workspaces.models import Workspace, WorkspaceIntegration
 
 
 class CommerceSyncService:
@@ -87,6 +90,10 @@ class CommerceSyncService:
                     count += apply_order(
                         self.session, store, row, source, agreements, self.settings, now
                     )
+                from app.shopify.privacy_identity import finish_reconciliation
+
+                self.session.flush()
+                finish_reconciliation(self.session, row)
                 store.cursor, store.error_code, store.next_attempt_at = after, None, None
                 status = "syncing" if after else "complete"
                 if after is None:
@@ -121,19 +128,51 @@ def run_commerce_tick(engine: Engine, configuration: Settings) -> None:
     if not configuration.shopify_measurement_enabled:
         return
     with Session(engine) as db:
+        controls = AutomationControlService(db)
+        if not configuration_ready(configuration) or not all(
+            controls.master_enabled(key)
+            for key in (
+                AutomationControlKey.ALL_DATA_SYNCS,
+                AutomationControlKey.SHOPIFY_SALES_SYNC,
+            )
+        ):
+            return
+        now = datetime.now(UTC)
+        paused = select(WorkspaceAutomationControl.workspace_id).where(
+            WorkspaceAutomationControl.key == AutomationControlKey.SHOPIFY_SALES_SYNC.value,
+            WorkspaceAutomationControl.enabled.is_(False),
+        )
         ids = list(
             db.scalars(
                 select(ShopifyConnection.workspace_id)
                 .join(CommerceStore, CommerceStore.id == ShopifyConnection.commerce_store_id)
+                .join(Workspace, Workspace.id == ShopifyConnection.workspace_id)
+                .join(
+                    WorkspaceIntegration,
+                    WorkspaceIntegration.id == ShopifyConnection.workspace_integration_id,
+                )
                 .where(
                     ShopifyConnection.commerce_store_id.is_not(None),
                     ShopifyConnection.status == "connected",
+                    CommerceStore.status == "active",
+                    Workspace.status == "active",
+                    WorkspaceIntegration.status == "active",
+                    WorkspaceIntegration.provider == "shopify",
+                    WorkspaceIntegration.workspace_id == ShopifyConnection.workspace_id,
+                    CommerceStore.connection_id == WorkspaceIntegration.id,
+                    ~ShopifyConnection.workspace_id.in_(paused),
+                    or_(
+                        CommerceStore.window_end.is_not(None),
+                        CommerceStore.last_sync_at.is_(None),
+                        CommerceStore.last_sync_at
+                        <= now - timedelta(minutes=configuration.shopify_sync_interval_minutes),
+                    ),
                     or_(
                         CommerceStore.next_attempt_at.is_(None),
-                        CommerceStore.next_attempt_at <= datetime.now(UTC),
+                        CommerceStore.next_attempt_at <= now,
                     ),
                 )
-                .order_by(CommerceStore.last_attempt_at.asc().nullsfirst())
+                .order_by(CommerceStore.last_attempt_at.asc().nullsfirst(), CommerceStore.id)
                 .limit(10)
             )
         )

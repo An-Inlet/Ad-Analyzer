@@ -57,6 +57,15 @@ def agreement(
 ) -> dict[str, Any]:
     return {
         "id": f"gid://shopify/OrderAgreement/{number}",
+        "__typename": {
+            "ORDER": "OrderAgreement",
+            "RETURN": "RefundAgreement",
+            "UPDATE": "OrderEditAgreement",
+        }.get(action, "OrderAgreement"),
+        "reason": {"ORDER": "ORDER", "RETURN": "REFUND", "UPDATE": "ORDER_EDIT"}.get(
+            action, "ORDER"
+        ),
+        "refund": {"processedAt": when.isoformat()} if action == "RETURN" else None,
         "happenedAt": when.isoformat(),
         "sales": [
             {
@@ -565,13 +574,18 @@ def test_source_paginates_sales_in_exact_agreement_and_bounds_cycles(
     ) -> dict[str, Any]:
         return {"nodes": nodes, "pageInfo": {"hasNextPage": more, "endCursor": cursor}}
 
-    first, second = agreement(), agreement(2)
+    first, second = agreement(action="RETURN"), agreement(2, action="RETURN")
+    first["refund"] = {"processedAt": "2026-10-02T00:00:00Z"}
     initial = {**first, "sales": page(first["sales"], True, "sales-2")}
     extra = {"id": first["id"], "sales": page(second["sales"])}
     client = Client(
         [{"order": {"agreements": page([initial])}}, {"order": {"agreements": {"nodes": [extra]}}}]
     )
-    assert len(client.agreements("unused", "unused", source()["id"])[0]["sales"]) == 2
+    imported = client.agreements("unused", "unused", source()["id"])[0]
+    assert len(imported["sales"]) == 2
+    assert imported["__typename"] == "RefundAgreement"
+    assert imported["reason"] == "REFUND"
+    assert imported["refund"] == first["refund"]
     assert client.variables[1]["agreementBefore"] is None
     mismatch = Client(
         [

@@ -15,6 +15,7 @@ from app.shopify.models import (
     ShopifyConnection,
     ShopifyOAuthState,
     ShopifyOrder,
+    ShopifyPrivacyIdentity,
     ShopifyPrivacyRequest,
     ShopifyTombstone,
 )
@@ -77,6 +78,28 @@ def process_event(
             .with_for_update()
         )
     )
+    from app.shopify.privacy_identity import (
+        finish_reconciliation,
+        legacy_key,
+        preserve,
+        record_erasure,
+        unclassified,
+    )
+
+    owners = {s.workspace_id for s in stores}
+    owners.update(
+        session.scalars(
+            select(ShopifyPrivacyIdentity.workspace_id).where(
+                ShopifyPrivacyIdentity.shop_domain == shop,
+            )
+        )
+    )
+    if row is not None:
+        owners.add(row.workspace_id)
+        preserve(session, row)
+    erasure_markers = [
+        record_erasure(session, configuration, owner, shop, topic, payload) for owner in owners
+    ]
     for store in stores:
         keys_for_store = process_measurement_event(
             session, store, topic, payload, configuration, published_at
@@ -129,11 +152,30 @@ def process_event(
                 f"privacy:{shop}", resource_id(payload["data_request"]["id"], "DataRequest")
             )
             existing = session.scalar(
-                select(ShopifyPrivacyRequest.id).where(
+                select(ShopifyPrivacyRequest).where(
                     ShopifyPrivacyRequest.connection_id == row.id,
                     ShopifyPrivacyRequest.request_key == request_key,
                 )
             )
+            requested_customer = payload.get("customer")
+            has_customer_identity = bool(
+                requested_customer and requested_customer.get("id") is not None
+            )
+            requested_key = (
+                legacy_key(
+                    vault,
+                    row.workspace_id,
+                    row.shop_domain,
+                    "customer",
+                    (requested_customer or {})["id"],
+                )
+                if has_customer_identity
+                else None
+            )
+            unresolved = unclassified(session, row) and (has_customer_identity or not raw_ids)
+            if existing is not None:
+                existing.customer_key = requested_key or existing.customer_key
+                existing.resolution_pending = unresolved
             if existing is None:
                 session.add(
                     ShopifyPrivacyRequest(
@@ -142,6 +184,8 @@ def process_event(
                         request_key=request_key,
                         order_keys=keys,
                         commerce_keys=commerce_keys,
+                        customer_key=requested_key,
+                        resolution_pending=unresolved,
                         requested_at=utc(published_at),
                     )
                 )
@@ -168,14 +212,28 @@ def process_event(
                                 connection_id=row.id, workspace_id=row.workspace_id, order_key=key
                             )
                         )
+            unresolved = bool((payload.get("customer") or {}).get("id")) and unclassified(
+                session, row
+            )
+            for marker in erasure_markers:
+                if marker is not None and marker.workspace_id == row.workspace_id:
+                    marker.pending_legacy = unresolved
+            if unresolved:
+                row.error_code, row.last_sync_at, row.covered_from = (
+                    "shopify_privacy_reconciliation_required",
+                    None,
+                    None,
+                )
             session.add(
                 ShopifyAudit(
                     workspace_id=row.workspace_id,
-                    action="orders_erased",
+                    action="privacy_reconciliation_pending" if unresolved else "orders_erased",
                     actor_role="shopify",
                     record_count=len(keys),
                 )
             )
+    if row is not None and topic not in {"shop/redact", "app/uninstalled"}:
+        finish_reconciliation(session, row)
     session.commit()  # Acknowledge the event only after the database commit succeeds.
 
 

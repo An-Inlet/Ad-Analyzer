@@ -83,9 +83,7 @@ class MeasurementClient(ShopifyClient):
                     extra, sale_cursor = connection_page(matches[0].get("sales"))
                     sales.extend(extra)
                     requests += 1
-                result.append(
-                    {"id": agreement_id, "happenedAt": agreement["happenedAt"], "sales": sales}
-                )
+                result.append({**agreement, "id": agreement_id, "sales": sales})
             if after is None:
                 return result
             if requests >= 50 or after in seen:

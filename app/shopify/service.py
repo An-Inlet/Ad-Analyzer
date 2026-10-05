@@ -174,21 +174,8 @@ class ConnectionService:
         try:
             bind_shopify(self.session, row, reconnect=True)
             from app.commerce.ledger import bind_store
-            from app.commerce.models import CommerceStore
-            from app.shopify.normalize import resource_id
 
-            known_store = None
-            if details.get("id") is not None:
-                shop_key = Vault(self.settings).digest(
-                    "commerce_shop", resource_id(details["id"], "Shop")
-                )
-                known_store = self.session.scalar(
-                    select(CommerceStore.id).where(
-                        CommerceStore.workspace_id == workspace_id,
-                        CommerceStore.shop_key == shop_key,
-                    )
-                )
-            if self.settings.shopify_measurement_enabled or known_store is not None:
+            if self.settings.shopify_measurement_enabled or details.get("id") is not None:
                 # Disabling imports cannot discard a previously verified privacy identity.
                 bind_store(self.session, row, details["id"], self.settings, now)
             self.session.commit()
@@ -212,6 +199,9 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.shopify.privacy_identity import preserve
+
+            preserve(self.session, row)
             from app.commerce.privacy import remove_store
 
             remove_store(self.session, row.commerce_store_id)

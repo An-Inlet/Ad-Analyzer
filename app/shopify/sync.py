@@ -108,7 +108,13 @@ class ShopifySyncService:
                         )
                     )
                     tombstone = self.session.get(ShopifyTombstone, (row.id, key))
-                    if source.get("test") is True or tombstone:
+                    from app.shopify.privacy_identity import legacy_erased
+
+                    if (
+                        source.get("test") is True
+                        or tombstone
+                        or legacy_erased(self.session, row, key)
+                    ):
                         if existing:
                             self.session.delete(existing)
                         continue

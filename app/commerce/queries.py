@@ -11,7 +11,9 @@ AGREEMENTS = """
 query InletAgreements($id: ID!, $after: String) {
  order(id: $id) { agreements(first: 1, after: $after) {
   pageInfo { hasNextPage endCursor }
-  nodes { id happenedAt sales(first: 50) {
+  nodes { id __typename reason happenedAt
+   ... on RefundAgreement { refund { processedAt } }
+   sales(first: 50) {
    pageInfo { hasNextPage endCursor }
    nodes { id actionType lineType totalAmount { shopMoney { amount currencyCode } }
     totalTaxAmount { shopMoney { amount currencyCode } } }

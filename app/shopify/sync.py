@@ -6,6 +6,8 @@ from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.automation import AutomationControlKey, AutomationControlService
+from app.imports.native import bind_shopify
+from app.imports.scope import ImportScopeError
 from app.settings import Settings, settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOrder, ShopifyTombstone
@@ -43,6 +45,11 @@ class ShopifySyncService:
         )
         if row is None or row.status != "connected":
             return {"status": "not_connected_or_busy", "imported": 0}
+        try:
+            bind_shopify(self.session, row)
+        except ImportScopeError:
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         if row.next_attempt_at and utc(row.next_attempt_at) > now:
             return {"status": "retry_later", "imported": 0}
         if (

@@ -27,10 +27,17 @@ def utc_now() -> datetime:
 class ShopifyConnection(Base):
     __tablename__ = "shopify_connections"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_integration_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_shopifyconnection_integration_scope",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("id", "workspace_id", name="uq_shopify_connection_workspace"),
         CheckConstraint("status IN ('connected','reconnect_required')", name="ck_shopify_status"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_integration_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), unique=True
     )

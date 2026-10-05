@@ -11,6 +11,7 @@ from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
+from app.imports.native import bind_meta, revoke_native_integration
 from app.meta.client import MetaClient, unpack_page
 from app.meta.models import (
     MetaAudit,
@@ -264,6 +265,7 @@ class ConnectionService:
             )
             .values(conversions=0, conversion_value_micros=0)
         )
+        bind_meta(self.session, existing, reconnect=True)
         self.session.delete(grant)
         self.session.add(MetaAudit(workspace_id=workspace_id, action="connected", actor_role=role))
         try:
@@ -287,6 +289,7 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)
         for model in (MetaOAuthState, MetaPendingGrant):
             self.session.execute(delete(model).where(model.workspace_id == workspace_id))

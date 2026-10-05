@@ -11,8 +11,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.orm import Session
 
-from app.crm.worker import CrmEventProcessor
+from app.crm.worker import CrmEventProcessor, record_scope_rejection
 from app.database.session import get_db
+from app.imports.scope import ImportScopeError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/internal/pubsub", include_in_schema=False)
@@ -56,6 +57,9 @@ def receive_crm_event(
 
     try:
         CrmEventProcessor(db).process(payload)
+    except ImportScopeError:
+        record_scope_rejection(db, decoded)
+        return JSONResponse(status_code=400, content={"detail": "scope_rejected"})
     except (ValidationError, ValueError):
         db.rollback()
         logger.warning("CRM push delivery failed event validation (payload omitted)")

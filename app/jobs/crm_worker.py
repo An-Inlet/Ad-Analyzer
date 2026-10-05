@@ -2,7 +2,7 @@
 
 import logging
 
-from google.cloud import pubsub_v1  # type: ignore[import-untyped]
+import google.cloud.pubsub_v1 as pubsub_v1  # type: ignore[import-untyped]
 
 from app.crm.worker import handle_message
 from app.database.session import SessionLocal

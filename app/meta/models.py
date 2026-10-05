@@ -29,6 +29,12 @@ class MetaConnection(Base):
     __tablename__ = "meta_connections"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["workspace_integration_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_metaconnection_integration_scope",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["account_id", "workspace_id"],
             ["advertising_accounts.id", "advertising_accounts.workspace_id"],
             ondelete="CASCADE",
@@ -38,6 +44,7 @@ class MetaConnection(Base):
         CheckConstraint("phase IN ('campaigns','adsets','insights')", name="ck_meta_sync_phase"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
+    workspace_integration_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), unique=True)
     account_id: Mapped[int] = mapped_column(Integer, unique=True)
     external_account_id: Mapped[str] = mapped_column(String(32), unique=True)

@@ -131,7 +131,7 @@ def run_privacy_tick(engine: Engine) -> None:
     # Privacy handling continues when imports or integration enablement are switched off.
     if not settings.shopify_webhook_subscription or not settings.shopify_identifier_hash_key:
         return
-    from google.cloud import pubsub_v1  # type: ignore[import-untyped]
+    import google.cloud.pubsub_v1 as pubsub_v1  # type: ignore[import-untyped]
 
     with pubsub_v1.SubscriberClient() as subscriber:
         response = subscriber.pull(

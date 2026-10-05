@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.imports.native import bind_shopify, revoke_native_integration
 from app.settings import Settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOAuthState
@@ -161,6 +162,7 @@ class ConnectionService:
         self.session.add(
             ShopifyAudit(workspace_id=workspace_id, action="connected", actor_role=role)
         )
+        bind_shopify(self.session, row)
         try:
             self.session.commit()
         except IntegrityError:
@@ -183,6 +185,7 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)  # Cascades imported facts and encrypted authorization.
         self.session.execute(
             delete(ShopifyOAuthState)

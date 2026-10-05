@@ -102,3 +102,12 @@ review, merge and deployment remain separate. The following records the rational
 
 Provider setup and customer signup are not live-verified. Public early-access
 email links and the illustrative demonstration remain separate from these APIs.
+
+## B04 Implemented Contract
+
+Canonical connections reuse `WorkspaceIntegration`; advertising imports carry the
+explicit workspace/connection/account/platform tuple. CRM version 2 messages carry
+workspace/connection/provider and use connection-scoped signatures and deduplication.
+Native Meta/Shopify ownership is preserved and bound to the same registry. Historical
+unbound rows remain readable, but unscoped new imports fail closed. See
+[inlet-import-ownership.md](inlet-import-ownership.md) for migration and rollout gates.

@@ -161,3 +161,44 @@ mypy pass (167 files). Full required validation (`scripts/validate.sh Full`) com
 **643 passed, 6 PowerShell skips**; PostgreSQL/migrations, lint/type checks and
 all required safety gates passed. Log: `/tmp/inlet-b03-full.log`. Provider, UI and
 live customer signup remain unverified; no external configuration changed.
+
+## B02/B03 Hosted Verification
+
+B02 commit `bebe01a6946839824ff3798c63b3db8435241c6d`: hosted workflow
+[37285028501](https://github.com/Konner-An-Inlet/Ad-Analyzer/actions/runs/37285028501)
+completed successfully. B03 commit `ba27903ffa04010e8b3909a7b1aa86df7f574645`:
+[37285937918](https://github.com/Konner-An-Inlet/Ad-Analyzer/actions/runs/37285937918)
+completed successfully. These verify repository checks, not live provider behavior.
+
+## B04 — Explicit Import Ownership
+
+Implemented the shared canonical connection registry, scoped Google account/jobs,
+Meta/Shopify native bindings, version 2 CRM ingress and worker ownership, scoped
+signatures/deduplication, and sanitized rejection records. Removed implicit workspace
+1 defaults from import models and job creation. Migration 0022 preserves historical
+unbound Google rows; native backfill replay preserves connection identity/revocation.
+See [rollout requirements](inlet-import-ownership.md). Legacy unscoped CRM ingress and
+messages fail closed. Missing Google ownership blocks before collection.
+
+Focused new acceptance: **34 passed**, including PostgreSQL, actual CRM ingress/push
+worker, Google worker boundaries and migration downgrade/re-upgrade. No external
+provider calls, customer ad changes or deployment occurred. Full validation results
+will be appended before committing this package.
+
+Next package is B05 Shopify identity/metrics. The owner-approved sequential-commit
+exception ends at B04. Prepare B05 acceptance/review independently; starting its
+next dependent implementation PR awaits normal predecessor review/merge or an
+explicit extension. Do not infer merge/deployment authority from development approval.
+Website delivery is now the owner's responsibility and is outside this work package.
+
+B04 full-suite rerun: **678 passed, 6 PowerShell skips**; Ruff and mypy passed
+(176 files), whitespace clean, PostgreSQL checks **3 passed**, migration
+upgrade/downgrade/upgrade passed. ReadOnly **75 passed**, Security **98 passed/1
+PowerShell skip**, Privacy **14 passed**. The initial run caught fixture whitespace
+in nested validation; it was corrected before this successful suite rerun.
+Final Focused validation and exact-head hosted CI are recorded in PR #64 when complete.
+Local log: `/tmp/inlet-b04-full.log` (ephemeral); this ledger and PR retain results.
+
+Full B04 validation finished with **exit 0**. Final Focused gate: **38 passed,
+6 PowerShell skips**. B04 is ready for its separate commit and hosted verification
+on `codex/inlet-b01-conversion-diagnostics`, draft PR #64. No merge or deployment.

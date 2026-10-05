@@ -102,7 +102,7 @@ def add_comparison_window_metrics(db: Any, c1: int) -> None:
 
 def add_successful_sync(db: Any, account_id: int) -> None:
     db.add(
-        JobRun(
+        JobRun(workspace_id=1,
             platform="google_ads",
             account_id=account_id,
             job_name="sync",

@@ -11,7 +11,7 @@ class GooglePubSubPublisher:
     """Publish normalized JSON; event ID is an idempotency attribute for consumers."""
 
     def __init__(self, project_id: str, topic_id: str) -> None:
-        from google.cloud import pubsub_v1  # type: ignore[import-untyped]
+        import google.cloud.pubsub_v1 as pubsub_v1  # type: ignore[import-untyped]
 
         self._client = pubsub_v1.PublisherClient()
         self._topic = self._client.topic_path(project_id, topic_id)

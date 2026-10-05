@@ -431,7 +431,9 @@ def _raise_normalized_google_ads_error(
     raise GoogleAdsIntegrationError("Google Ads read-only request failed") from exc
 
 
-def collect_account(*, settings: Settings | None = None) -> AdvertisingAccountCreate:
+def collect_account(
+    *, workspace_id: int, settings: Settings | None = None
+) -> AdvertisingAccountCreate:
     service, customer_id = _google_ads_service(settings)
 
     try:
@@ -440,6 +442,7 @@ def collect_account(*, settings: Settings | None = None) -> AdvertisingAccountCr
     except Exception as exc:
         _raise_normalized_google_ads_error(exc)
     return AdvertisingAccountCreate(
+        workspace_id=workspace_id,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id=str(row.customer.id),
         name=row.customer.descriptive_name or str(row.customer.id),

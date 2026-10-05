@@ -90,7 +90,7 @@ class AccountMetricSummaryResponse(BaseModel):
 
 class JobRunResponse(ApiModel):
     id: int
-    workspace_id: int = 1
+    workspace_id: int
     platform: AdvertisingPlatform
     account_id: int | None
     job_name: str

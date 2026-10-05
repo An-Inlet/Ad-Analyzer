@@ -351,3 +351,10 @@ Corrective focused acceptance: **73 passed**, including the populated PostgreSQL
 whitespace pass. Final corrective Full and hosted results are pending at this commit;
 PR64 records the exact corrective SHA and terminal results. No live provider or
 infrastructure action occurred. This remains B05 acceptance repair, not B06 work.
+
+B05 retention rereview reproduced an old order with a recent unallocated adjustment
+losing its `unreconciled` marker during cleanup, making a report incorrectly return
+zero. Expiry now requires both creation and latest source update to predate the
+retention floor. A focused regression verifies unavailable stays unavailable and
+that the minimal marker eventually expires. This is a B05 correctness repair;
+current-head Full/CI evidence remains in PR64.

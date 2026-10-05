@@ -190,6 +190,7 @@ def purge_measurements(session: Session, now: datetime) -> None:
                 select(CommerceOrder.order_key).where(
                     CommerceOrder.store_id == store.id,
                     CommerceOrder.created_at < floor,
+                    CommerceOrder.source_updated_at < floor,
                     ~select(CommerceEntry.entry_key)
                     .where(
                         CommerceEntry.store_id == CommerceOrder.store_id,

@@ -836,3 +836,20 @@ def test_privacy_migration_backfills_existing_measurement_identity(
         restored_legacy = db.get(ShopifyOrder, legacy_id)
         assert restored_legacy is not None and restored_legacy.commerce_order_key == expected_key
         assert db.get(CommerceShopAlias, (domain, sid)) is not None
+
+
+def test_retention_preserves_recent_unreconciled_old_order(
+    customer_engine: Engine, configuration: Settings
+) -> None:
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        old = source(updated=NOW)
+        old["createdAt"] = "2024-01-01T00:00:00Z"
+        apply_order(db, store, row, old, [agreement(line="ADJUSTMENT")], configuration, NOW)
+        db.commit()
+        purge_measurements(db, NOW)
+        result = measurement(db, row.workspace_id, store.id, window(), now=NOW)
+        assert result["net_sales_micros"] is None
+        assert "unreconciled_source" in result["reasons"]
+        purge_measurements(db, NOW + timedelta(days=410))
+        assert db.scalar(select(func.count()).select_from(CommerceOrder)) == 0

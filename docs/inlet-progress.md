@@ -124,3 +124,24 @@ B14 media/review; B15 Google publication; B16 Meta/TikTok actions/publication;
 B17 measured feedback; B18 onboarding/portal plus existing page reuse;
 B19 operations; B20 unrelated pilot businesses. Track implementation tests
 separately from provider approval and live pilot evidence throughout.
+
+## Approved Foundation Continuation — 2026-10-05
+
+The owner explicitly approved Google Cloud Identity Platform with PostgreSQL-backed
+revocable sessions and the B02–B04 sequential-commit exception in existing draft
+PR #64. Main remains `ea3591c`; B01 remains preserved. The scoped exception is
+recorded in `docs/automation-policy.md`. No merge, deployment, provider setup,
+credential creation, IAM expansion or advertising mutation is authorized. Website
+work is now left entirely to the owner; earlier website-next-step notes are stale.
+
+B02 implementation adds a distinct customer API, immutable provider identities,
+shared eight-hour revocable sessions, one-time token exchange, CSRF/origin checks,
+and active customer-only membership enforcement. See `inlet-customer-auth.md`.
+Focused acceptance: **33 passed**, including real PostgreSQL, cross-user and
+cross-replica revocation, concurrent replay, provider/project changes and suspended
+memberships. Ruff and mypy passed (165 files). Full validation (`scripts/validate.sh Full`) completed with exit 0: **633 passed,
+6 PowerShell skips**; PostgreSQL/migration upgrade-downgrade-upgrade passed;
+ReadOnly 75 passed, Security 98 passed/1 PowerShell skip, Privacy 14 passed,
+Focused 38 passed/6 PowerShell skips. Log: `/tmp/inlet-b02-full.log`.
+Remote exact-head CI will be recorded in PR #64 after push.
+Provider calls in acceptance use a fake; no live identity setup or login verified.

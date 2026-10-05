@@ -1,7 +1,8 @@
 # Inlet Customer Foundation Contract
 
-Status: implementation proposal for B02–B04, prepared 2026-10-05. This is not
-implemented customer authentication or evidence of SaaS readiness. The baseline
+Status: approved B02–B04 contract, updated 2026-10-05. B02 backend implementation
+and acceptance are recorded in `inlet-customer-auth.md`; B03/B04 follow. This is
+not evidence of live SaaS readiness. The baseline
 is the Inlet MVP Audit and Build Plan and main `ea3591c5086fbf2cee8038bf9208ac7f0050de75`.
 
 ## Existing Boundaries To Preserve
@@ -77,9 +78,13 @@ partial import retry. Successful import must not repeat because downstream
 analysis failed. Shopify plus Klaviyo, HubSpot and Omnisend remain distinct sources;
 Shopify supplies canonical order/refund history.
 
-## Concrete Owner Decisions
+## Approved Owner Decisions — 2026-10-05
 
-1. **Customer identity provider:** approve Google Cloud Identity Platform under
+The owner explicitly approved both decisions. Implementation may proceed on the
+existing B01 branch/PR through sequential B02–B04 commits before its merge; human
+review, merge and deployment remain separate. The following records the rationale.
+
+1. **Customer identity provider:** Google Cloud Identity Platform under
    An Inlet's cloud ownership, subject to account setup and billing review. This
    recommendation follows the repository's existing Google Cloud deployment;
    [Google documents its OIDC sign-in support](https://docs.cloud.google.com/identity-platform/docs/web/oidc).

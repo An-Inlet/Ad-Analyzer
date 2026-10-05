@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.crm import router as crm_router
+from app.api.customer import router as customer_router
 from app.api.intelligence import router as intelligence_api_router
 from app.api.meta import router as meta_api_router
 from app.api.pubsub import router as pubsub_router
@@ -102,6 +103,7 @@ app.include_router(meta_dashboard_router)
 app.include_router(api_v1_router)
 app.include_router(intelligence_api_router)
 app.include_router(crm_router)
+app.include_router(customer_router)
 app.include_router(pubsub_router)
 app.include_router(dashboard_router)
 app.include_router(intelligence_dashboard_router)
@@ -113,6 +115,9 @@ app.mount(
 @app.middleware("http")
 async def dashboard_security_headers(request: Request, call_next: object) -> object:
     response = await call_next(request)  # type: ignore[operator]
+    if request.url.path.startswith("/api/customer/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
     if request.url.path.startswith("/dashboard"):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'none'; object-src 'none'; base-uri 'self'; "

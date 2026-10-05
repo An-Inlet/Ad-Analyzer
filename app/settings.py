@@ -245,6 +245,10 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
     )
+    customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
+    customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
+    customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")
+
     iap_audience: str = Field(
         default="",
         validation_alias="AD_ANALYZER_IAP_AUDIENCE",

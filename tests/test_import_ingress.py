@@ -7,7 +7,7 @@ from collections.abc import Generator
 
 from app.api.crm import router as crm_router
 from app.api.pubsub import router as push_router
-from app.crm.dependencies import get_publisher, get_replay_guard
+from app.crm.dependencies import get_ingress_db, get_publisher, get_replay_guard
 from app.crm.models import CrmEventRecord
 from app.crm.ownership import get_secret_reader
 from app.crm.publisher import FakeEventPublisher
@@ -69,6 +69,7 @@ def test_signed_ingress_to_worker_preserves_connection_and_workspace(owned_engin
             return TEST_SECRET
 
     app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_ingress_db] = database
     app.dependency_overrides[get_publisher] = lambda: publisher
     app.dependency_overrides[get_replay_guard] = lambda: guard
     app.dependency_overrides[get_secret_reader] = FakeSecretReader

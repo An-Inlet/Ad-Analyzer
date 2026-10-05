@@ -202,3 +202,44 @@ Local log: `/tmp/inlet-b04-full.log` (ephemeral); this ledger and PR retain resu
 Full B04 validation finished with **exit 0**. Final Focused gate: **38 passed,
 6 PowerShell skips**. B04 is ready for its separate commit and hosted verification
 on `codex/inlet-b01-conversion-diagnostics`, draft PR #64. No merge or deployment.
+
+## Independent Review Repairs — B01–B04 Scope
+
+Review of `c670f508` reproduced a B02 replay defect with locally generated RSA JWTs
+and the actual Firebase/Google verifier: alternate signature padding was accepted,
+and exchange after logout returned 200. Canonical unpadded Base64url validation now
+rejects padding and nonzero unused pad bits before verification. Receipt hashes for
+valid tokens stay unchanged. Regression covers actual signatures, logout/replay,
+fresh tokens and distinct users on SQLite and PostgreSQL; only external certificate
+and user transports are replaced. No provider credentials or network calls.
+
+Nine failures against the original native-import code reproduced Shopify reconnect,
+uninstall/shop-redact registry state, failed Meta job provenance, and concurrent
+canonical revocation defects. Repairs allow only verified reconnect to restore the
+same owned registry record, revoke on verified removal, include connection IDs on
+failed Meta jobs, and refresh/lock native ownership in native→workspace→connection
+order through the existing bounded page transaction. PostgreSQL verifies an
+in-flight import serializes with revocation and later imports are rejected.
+
+Focused review acceptance: **44 passed**, including migration of an existing
+`reconnect_required` Shopify installation followed by synthetic verified OAuth.
+Ruff, mypy (179 files), and whitespace pass. Full/hosted verification follows.
+
+CRM OpenAPI now exposes the actual scoped v2 path. Missing explicit database
+configuration returns a clear 503; the former development-default SQL fallback is
+not used by ingress. **CRM deployment remains blocked:** the original Terraform
+is publish-only and lacks ownership SQL access/per-connection secret grants.
+No IAM or live infrastructure was changed. Prepared least-privilege alternatives
+are in `inlet-import-ownership.md`; an owner security decision precedes provisioning.
+This is an acceptance repair within B02–B04, not an extension to B05 implementation.
+
+Repair reproduction used installed `firebase-admin 7.7.0` and `google-auth 2.59.1`.
+The full-suite rerun passed **690 tests, 6 PowerShell skips**; lint, mypy (179 files),
+whitespace, PostgreSQL (3), reversible migrations, ReadOnly (75), Security (98/1
+PowerShell skip), and Privacy (14) passed. The first full run identified the old
+public-route allowlist expectation; it now requires scoped ingress while still
+excluding internal push endpoints. Final Focused/hosted results follow below/in PR64.
+
+Full repair validation completed with **exit 0**; final Focused gate **38 passed,
+6 PowerShell skips**. Log: `/tmp/inlet-review-full.log`. All current B01–B04 tests
+pass; the CRM permission/lookup architecture is still explicitly decision-gated.

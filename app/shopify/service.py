@@ -162,7 +162,7 @@ class ConnectionService:
         self.session.add(
             ShopifyAudit(workspace_id=workspace_id, action="connected", actor_role=role)
         )
-        bind_shopify(self.session, row)
+        bind_shopify(self.session, row, reconnect=True)
         try:
             self.session.commit()
         except IntegrityError:

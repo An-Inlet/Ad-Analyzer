@@ -58,3 +58,42 @@ duplicates, concurrent PostgreSQL claims, revoke-after-enqueue, missing/mismatch
 scope, successful imports followed by failed analysis, and migration replay preserving
 revocation. SQLite and disposable PostgreSQL tests use synthetic collectors and
 secret readers. Provider APIs and production queues remain unverified.
+
+## Review Repairs And Remaining CRM Infrastructure Decision
+
+B04's original gateway infrastructure was publish-only. Updating producer URLs
+alone is insufficient: the scoped gateway now needs authoritative ownership and
+per-connection secret lookup. The OpenAPI template now declares the scoped v2
+route; absent explicit database configuration returns
+`crm_ownership_database_not_configured` (503), and unavailable SQL returns a
+sanitized 503. Existing Terraform still grants no gateway database access and
+still wires only the legacy HMAC secret. **This deployment is blocked pending a
+security decision; the route/configuration repair is not a deployable CRM rollout.**
+
+Prepared alternatives (neither provisioned nor authorized here):
+
+1. Recommended smallest change: a dedicated gateway database identity restricted
+   to the ownership tables and necessary connection-secret references, Cloud SQL
+   connectivity, and explicit per-secret access. Current ingress uses locking reads;
+   make ingress a read-only validated lookup before assigning a SELECT-only role,
+   while retaining locked worker revalidation before persistence. Never reuse the
+   worker's broad processing database identity. Prepare an exact SQL/IAM plan for
+   review before any grant. Metadata lookup and publication need not be atomic:
+   revocation after publication must still be rejected by the worker.
+2. Keep the gateway without database access: add an authenticated private ownership
+   lookup service with the restricted SQL identity, returning only the scoped
+   verification material/result. This preserves the original gateway boundary but
+   adds a service and availability dependency; authorize its design before building.
+
+The existing production release and permission-expansion gates apply. No IAM,
+Terraform apply, secret provisioning, live ingress or deployment was performed.
+
+Native ownership reads now lock and refresh workspace then canonical connection,
+while callers already hold the native connection lock. Keep that lock order for
+sync and verified reconnect. The transaction spans the existing bounded provider
+page request; concurrent canonical revocation serializes behind an in-flight
+import and blocks subsequent imports. Do not add a path that locks canonical rows
+then requests the native lock. Verified Shopify reauthorization may restore the
+same canonical row only after ownership/provider validation; ordinary sync cannot.
+Shop removal/uninstall events revoke canonical rows before native deletion, with
+old-installation timestamps still ignored. Failed Meta jobs retain connection ID.

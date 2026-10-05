@@ -355,6 +355,9 @@ def test_connection_failures_and_controls_are_independent(
         service.page(row.workspace_id, now=NOW, manual=True)["status"] == "meta_reconnect_required"
     )
     assert row.status == "reconnect_required"
+    failed = db.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
+    assert failed and failed.connection_id == row.workspace_integration_id
+    assert failed.connection_id is not None
 
 
 def test_reconnect_resets_event_coverage_and_disconnect_keeps_history(

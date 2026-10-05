@@ -1,6 +1,9 @@
 """Google Cloud Identity Platform adapter; no provider calls until explicitly enabled."""
 
+import base64
+import binascii
 import os
+import re
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -71,6 +74,23 @@ def _admin_app(project: str) -> Any:
     )
 
 
+def require_canonical_token(token: str) -> None:
+    # The SDK accepts alternate signature encodings (padding and unused pad bits).
+    # One-time receipts hash token text, so accept exactly one spelling of each JWT.
+    segments = token.split(".")
+    if len(segments) != 3:
+        raise denied()
+    for segment in segments:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", segment):
+            raise denied()
+        try:
+            decoded = base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+        except (ValueError, binascii.Error):
+            raise denied() from None
+        if base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii") != segment:
+            raise denied()
+
+
 class GoogleIdentityProvider:
     def __init__(self, project: str) -> None:
         self.project = project
@@ -80,6 +100,7 @@ class GoogleIdentityProvider:
         return f"https://securetoken.google.com/{self.project}"
 
     def verify(self, token: str) -> VerifiedIdentity:
+        require_canonical_token(token)
         try:
             claims = auth.verify_id_token(token, app=_admin_app(self.project), check_revoked=True)
         except auth.CertificateFetchError:

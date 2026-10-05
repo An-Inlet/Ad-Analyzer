@@ -328,6 +328,7 @@ class MetaSyncService:
             self.session.add(
                 JobRun(
                     workspace_id=workspace_id,
+                    connection_id=row.workspace_integration_id,
                     account_id=row.account_id,
                     platform=PLATFORM,
                     job_name="meta_ads_sync",

@@ -20,21 +20,13 @@ def bind_meta(session: Session, row: MetaConnection, *, reconnect: bool = False)
     ):
         raise ImportScopeError("import ownership unavailable")
     connection_id = row.workspace_integration_id or account.connection_id
-    if reconnect and connection_id is not None:
-        connection = session.get(WorkspaceIntegration, connection_id)
-        if (
-            connection is None
-            or connection.workspace_id != row.workspace_id
-            or connection.provider != "meta_ads"
-        ):
-            raise ImportScopeError("import ownership unavailable")
-        connection.status = "active"
     connection = ensure_native_integration(
         session,
         workspace_id=row.workspace_id,
         provider="meta_ads",
         source_key="meta-" + uuid4().hex,
         connection_id=connection_id,
+        reauthorize=reconnect,
     )
     if account.connection_id not in (None, connection.id):
         raise ImportScopeError("import ownership unavailable")
@@ -42,13 +34,16 @@ def bind_meta(session: Session, row: MetaConnection, *, reconnect: bool = False)
     session.flush()
 
 
-def bind_shopify(session: Session, row: ShopifyConnection) -> None:
+def bind_shopify(
+    session: Session, row: ShopifyConnection, *, reconnect: bool = False
+) -> None:
     connection = ensure_native_integration(
         session,
         workspace_id=row.workspace_id,
         provider="shopify",
         source_key="shopify-" + uuid4().hex,
         connection_id=row.workspace_integration_id,
+        reauthorize=reconnect,
     )
     row.workspace_integration_id = connection.id
     session.flush()

@@ -5,12 +5,12 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from app.crm.dependencies import get_publisher, get_replay_guard
+from app.crm.dependencies import get_ingress_db, get_publisher, get_replay_guard
 from app.crm.models import CrmConnection
 from app.crm.ownership import get_secret_reader
 from app.crm.publisher import FakeEventPublisher
 from app.crm.replay import InMemoryReplayGuard
-from app.database.session import Base, get_db
+from app.database.session import Base
 from app.main import app
 from app.workspaces.models import Workspace, WorkspaceIntegration
 from fastapi.testclient import TestClient
@@ -76,7 +76,7 @@ def crm_client() -> Generator[tuple[TestClient, FakeEventPublisher]]:
             assert reference == "projects/fake/secrets/crm/versions/1"
             return SECRET
 
-    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_ingress_db] = lambda: db
     app.dependency_overrides[get_secret_reader] = FakeSecretReader
     try:
         yield TestClient(app, raise_server_exceptions=False), publisher

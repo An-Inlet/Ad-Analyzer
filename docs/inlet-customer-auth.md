@@ -99,3 +99,16 @@ be retried after the cause is resolved. Defaults keep live advertising writes of
 Migration `20261005_0021` adds only signup receipts. Acceptance includes injected
 owner-insertion failure, two users reusing the same request key, slug conflict,
 concurrent identical requests and attempts to supply a different owner.
+
+## Signed-Token Replay Review
+
+The installed Firebase/Google verifier accepts equivalent RSA signature encodings
+with appended Base64 padding or altered unused pad bits. Since exchange receipts
+hash token text, Inlet now requires all three JWT segments to use canonical,
+unpadded Base64url encoding before SDK verification. This preserves receipt keys
+for valid tokens and prevents alternate spelling from bypassing one-time exchange.
+Actual SDK signature verification is still mandatory. Offline tests generate an
+in-memory RSA key, replace only certificate/user transports, and exercise genuine
+verification plus API logout/replay on SQLite and PostgreSQL. No real credentials
+or provider requests are used. These tests also accept a fresh distinct token and
+a second user while rejecting an invalid RSA signature.

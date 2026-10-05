@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
+from app.imports.native import revoke_native_integration
 from app.settings import Settings, settings
 from app.shopify.models import (
     ShopifyAudit,
@@ -61,6 +62,7 @@ def process_event(
                 workspace_id=row.workspace_id, action="store_removed", actor_role="shopify"
             )
         )
+        revoke_native_integration(session, row.workspace_integration_id)
         session.delete(row)
     else:
         vault = Vault(configuration)

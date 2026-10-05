@@ -11,19 +11,18 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.crm.dependencies import get_publisher, get_replay_guard
+from app.crm.dependencies import get_ingress_db, get_publisher, get_replay_guard
 from app.crm.ownership import SecretReader, connection_for_scope, get_secret_reader
 from app.crm.publisher import EventPublisher
 from app.crm.replay import ReplayGuard
 from app.crm.schemas import CrmEvent, CrmReceipt
-from app.database.session import get_db
 from app.imports.scope import ImportScopeError
 from app.workspaces.models import WorkspaceIntegration
 
 router = APIRouter(prefix="/v1/crm", tags=["crm"])
 logger = logging.getLogger(__name__)
 PUBLISHER_DEPENDENCY = Depends(get_publisher)
-DATABASE_DEPENDENCY = Depends(get_db)
+DATABASE_DEPENDENCY = Depends(get_ingress_db)
 SECRET_READER_DEPENDENCY = Depends(get_secret_reader)
 REPLAY_GUARD_DEPENDENCY = Depends(get_replay_guard)
 _EVENT_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")

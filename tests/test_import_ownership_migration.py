@@ -6,12 +6,19 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from app.settings import settings
+from app.settings import Settings, settings
+from app.shopify.models import ShopifyConnection
+from app.workspaces.models import WorkspaceIntegration
 from sqlalchemy import create_engine, make_url, text
+from sqlalchemy.orm import Session
+
+from tests.test_review_native_ownership import reauthorize
+from tests.test_shopify_sales import configuration as configuration
 
 
 def test_native_ownership_backfill_and_legacy_google_history(
     monkeypatch: pytest.MonkeyPatch,
+    configuration: Settings,
 ) -> None:
     url = os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
     if not url or os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true":
@@ -64,7 +71,25 @@ def test_native_ownership_backfill_and_legacy_google_history(
                         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """)
             )
+        with engine.begin() as db:
+            db.execute(
+                text("""INSERT INTO shopify_connections
+                (id, workspace_id, shop_domain, shop_name, currency_code, time_zone,
+                 status, encrypted_credentials, connected_at)
+                VALUES (71, 1, 'example-test.myshopify.com', 'Fixture', 'USD', 'UTC',
+                        'reconnect_required', 'synthetic-fixture', CURRENT_TIMESTAMP)""")
+            )
         command.upgrade(config, "20261005_0022")
+        with Session(engine) as db:
+            row = db.get(ShopifyConnection, 71)
+            assert row
+            registry = db.get(WorkspaceIntegration, row.workspace_integration_id)
+            assert registry and registry.status == "revoked"
+            registry_id = registry.id
+            restored = reauthorize(db, configuration, 1)
+            assert restored.workspace_integration_id == registry_id
+            db.refresh(registry)
+            assert registry.status == "active"
         with engine.connect() as db:
             meta = db.execute(
                 text("SELECT workspace_integration_id FROM meta_connections WHERE id=41")

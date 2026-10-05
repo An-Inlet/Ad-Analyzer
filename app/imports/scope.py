@@ -91,24 +91,37 @@ def ensure_native_integration(
     provider: str,
     source_key: str,
     connection_id: int | None,
+    reauthorize: bool = False,
 ) -> WorkspaceIntegration:
     """Bind an already-owned native connection, never pick an arbitrary active connection.
 
     Native callers hold their connection row lock. Migration handles existing rows;
     this path also supports freshly authorized connections in the same transaction.
     """
-    workspace = session.get(Workspace, workspace_id)
+    workspace = session.scalar(
+        select(Workspace)
+        .where(Workspace.id == workspace_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if workspace is None or workspace.status != "active":
         raise ImportScopeError("import ownership unavailable")
     if connection_id is not None:
-        connection = session.get(WorkspaceIntegration, connection_id)
+        connection = session.scalar(
+            select(WorkspaceIntegration)
+            .where(WorkspaceIntegration.id == connection_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if (
             connection is None
             or connection.workspace_id != workspace_id
             or connection.provider != provider
-            or connection.status != "active"
+            or (connection.status != "active" and not reauthorize)
         ):
             raise ImportScopeError("import ownership unavailable")
+        if reauthorize:
+            connection.status = "active"
         return connection
     connection = WorkspaceIntegration(
         workspace_id=workspace_id,

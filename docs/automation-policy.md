@@ -53,3 +53,11 @@ refunds, excluding tax/shipping; refunds on processing date; store-local calenda
 months explicitly confirmed in goals; 13 months of minimal measurement history
 with deletion requirements preserved. This does not authorize B06 implementation,
 merge/deployment/live access, or the unanswered CRM gateway architecture proposal.
+
+## User-approved B06 extension (2026-10-05)
+
+At 22:20:59 UTC the owner approved editable Shopify sales goals, complete historical
+baselines, versioned confirmation and usage limits, extending PR64 through B06.
+Interpretation remains manual/mock-first with external model calls disabled and zero
+authorized model spend. No B07 implementation, live provider setup, credentials,
+merge/deployment, website work or CRM gateway decision is authorized by this extension.

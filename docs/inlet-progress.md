@@ -401,3 +401,42 @@ coverage checks pending export rejection, verified backfill, repeated authentica
 replay, and exact legacy/canonical export counts for both history layouts. No B06
 implementation or external provider action is included. Current-head Full/CI evidence
 will be recorded in PR64; prior CI at `4885645` does not cover this follow-up.
+
+## B06 — Editable Goals And Offline Interpretation
+
+Owner approval at 2026-10-05 22:20:59 UTC extends the existing PR64 exception through
+B06 only. Rechecked remote main (`ea3591c`) and PR branch (`f8b1c203`), clean and
+unchanged from B05; PR64 remains an unmerged draft. Website, live providers, IAM,
+credentials, advertising changes and CRM gateway configuration remain outside scope.
+
+Implemented scoped customer goal APIs, immutable numbered definitions, exact preview/
+revision confirmation and confirming customer/time. Historical baselines reference B05
+snapshots without copied financial facts; stale/partial/changed/revoked/privacy-erased
+sources cannot produce a valid confirmation. Future target windows remain separate
+from completed baseline windows. Editing clears current confirmation. Monthly versus
+cumulative dates, source/currency/timezone, deadline and budget period stay explicit.
+Budget/aggressiveness are intent only and cannot authorize any advertising spend.
+
+Added an injected offline interpreter interface and strict output schemas. The default
+adapter asks for structured clarification rather than claiming natural-language
+understanding. No provider SDK or network adapter was added. Durable zero-cost usage
+reservations enforce workspace/global/day and user/hour limits across replicas, reject
+duplicate calls and keep uncertain outcomes reserved. Manual editing works when
+interpretation is unavailable, including retained goals for disconnected sources.
+Database constraints reject nonzero model spending. Migration 0026 adds only B06 tables
+and seeds the offline global cap; generated unrelated schema differences were removed
+before any migration was executed.
+
+Acceptance covers CSRF/roles/revoked identity, source/preview isolation, immutable edits,
+confirmation idempotency/concurrency, stale/future/changed/deleted baselines, strict
+schema and unsupported output, global/workspace quota and duplicate reservation races,
+uncertain/timeout handling, external/paid rejection and populated PostgreSQL migration.
+Combined foundation/commerce run: 131 passed. Latest B06 tests and required Full/CI
+results are recorded at the package head in PR64. Ruff and mypy (199 files) pass.
+Contract and release limits: `docs/inlet-goals-contract.md`.
+
+B06 is API/persistence plus offline acceptance, not a live model service or customer
+portal and not a purchasable SaaS release. B07 mandate/action state is next, subject to
+predecessor review/merge or a further explicit exception. Live model/data-processing/
+cost approval, Shopify live reconciliation, deployment and CRM gateway architecture
+remain separate unresolved gates. No such approval is inferred from B06 authorization.

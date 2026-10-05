@@ -8,20 +8,21 @@ from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.commerce.models import (
     CommerceDailyRevision,
     CommerceEntry,
     CommerceOrder,
+    CommerceShopAlias,
     CommerceSourceLink,
     CommerceStore,
     CommerceSuppression,
 )
 from app.commerce.source import gid
 from app.settings import Settings
-from app.shopify.models import ShopifyConnection
+from app.shopify.models import ShopifyConnection, ShopifyOrder
 from app.shopify.normalize import money, order_key, resource_id
 from app.shopify.security import ShopifyError, Vault, utc
 from app.workspaces.models import Workspace, WorkspaceIntegration
@@ -72,6 +73,29 @@ def lock_store(session: Session, store_id: str, workspace_id: int) -> CommerceSt
     return store
 
 
+def legacy_store(session: Session, row: ShopifyConnection) -> CommerceStore | None:
+    if row.commerce_store_id is None:
+        return None
+    store = lock_store(session, row.commerce_store_id, row.workspace_id)
+    if store.connection_id != row.workspace_integration_id:
+        raise ShopifyError("commerce_ownership_unavailable")
+    if (
+        session.scalar(
+            select(CommerceSuppression.object_key)
+            .where(
+                CommerceSuppression.workspace_id == store.workspace_id,
+                CommerceSuppression.shop_key == store.shop_key,
+            )
+            .limit(1)
+        )
+        is not None
+    ):
+        # The legacy query has no customer identity, so cannot safely reconcile
+        # customer erasure on its own. Never replay suppressed data through it.
+        raise ShopifyError("shopify_privacy_reconciliation_required")
+    return store
+
+
 def bind_store(
     session: Session,
     row: ShopifyConnection,
@@ -107,6 +131,9 @@ def bind_store(
     elif store.currency != row.currency_code or store.time_zone != row.time_zone:
         # Never silently reinterpret historical amounts or local calendar boundaries.
         raise ShopifyError("commerce_measurement_basis_changed")
+    for domain in {store.shop_domain, row.shop_domain}:
+        if session.get(CommerceShopAlias, (domain, store.id)) is None:
+            session.add(CommerceShopAlias(shop_domain=domain, store_id=store.id))
     store.shop_domain, store.connection_id = row.shop_domain, row.workspace_integration_id
     store.status, store.connected_at = "active", now
     store.window_start, store.window_end, store.cursor = None, None, None
@@ -232,6 +259,14 @@ def apply_order(
         ).encode()
     ).hexdigest()
     entries = {k: v for k, v in entries.items() if floor <= v["happened_at"]}
+    session.execute(
+        update(ShopifyOrder)
+        .where(
+            ShopifyOrder.connection_id == row.id,
+            ShopifyOrder.order_key == order_key(vault, row, source["id"]),
+        )
+        .values(commerce_order_key=key)
+    )
     order = session.get(CommerceOrder, (store.id, key))
     if order is not None:
         if utc(order.source_updated_at) > updated:

@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.commerce.ledger import identity_key, retention_floor, revise_days
@@ -18,6 +18,7 @@ from app.commerce.models import (
     CommerceSuppression,
 )
 from app.settings import Settings
+from app.shopify.models import ShopifyConnection, ShopifyOrder
 from app.shopify.security import ShopifyError, Vault, utc
 
 
@@ -122,6 +123,35 @@ def process_measurement_event(
         suppress(session, store, "order", key)
     if customer_key:
         suppress(session, store, "customer", customer_key)
+    for offset in range(0, len(keys), 500):
+        batch = keys[offset : offset + 500]
+        old_keys = list(
+            session.scalars(
+                select(CommerceOrder.privacy_key).where(
+                    CommerceOrder.store_id == store.id,
+                    CommerceOrder.order_key.in_(batch),
+                )
+            )
+        )
+        session.execute(
+            delete(ShopifyOrder).where(
+                ShopifyOrder.workspace_id == store.workspace_id,
+                or_(
+                    ShopifyOrder.commerce_order_key.in_(batch), ShopifyOrder.order_key.in_(old_keys)
+                ),
+            )
+        )
+    session.execute(
+        update(ShopifyConnection)
+        .where(
+            ShopifyConnection.commerce_store_id == store.id,
+        )
+        .values(
+            error_code="shopify_privacy_reconciliation_required",
+            last_sync_at=None,
+            covered_from=None,
+        )
+    )
     delete_orders(session, store, keys)
     # As-of artifacts cannot retain erased individuals, even indirectly in aggregates.
     session.execute(delete(CommerceSnapshot).where(CommerceSnapshot.store_id == store.id))

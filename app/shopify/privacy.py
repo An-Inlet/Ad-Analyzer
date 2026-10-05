@@ -5,7 +5,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Engine, delete, select
+from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.imports.native import revoke_native_integration
@@ -47,23 +47,42 @@ def process_event(
     )
     if payload.get("shop_domain") and shop_domain(str(payload["shop_domain"])) != shop:
         raise ShopifyError("shopify_event_shop_mismatch")
-    from app.commerce.models import CommerceStore
+    from app.commerce.models import CommerceShopAlias, CommerceStore
     from app.commerce.privacy import process_measurement_event
 
+    matching_stores = select(CommerceStore.id).where(
+        or_(
+            CommerceStore.shop_domain == shop,
+            CommerceStore.id.in_(
+                select(CommerceShopAlias.store_id).where(CommerceShopAlias.shop_domain == shop)
+            ),
+        )
+    )
+    if row is None:
+        # Keep native -> store lock order when a delayed event uses a verified old domain.
+        row = session.scalar(
+            select(ShopifyConnection)
+            .where(
+                ShopifyConnection.commerce_store_id.in_(matching_stores),
+            )
+            .with_for_update()
+        )
     commerce_keys = []
     stores = list(
         session.scalars(
             select(CommerceStore)
             .where(
-                CommerceStore.shop_domain == shop,
+                CommerceStore.id.in_(matching_stores),
             )
             .with_for_update()
         )
     )
     for store in stores:
-        commerce_keys.extend(
-            process_measurement_event(session, store, topic, payload, configuration, published_at)
+        keys_for_store = process_measurement_event(
+            session, store, topic, payload, configuration, published_at
         )
+        if row is not None and row.commerce_store_id == store.id:
+            commerce_keys.extend(keys_for_store)
     if row is None:
         session.commit()
         return
@@ -94,6 +113,18 @@ def process_event(
             raise ShopifyError("shopify_invalid_event")
         keys = sorted({order_key(vault, row, value) for value in raw_ids})
         if topic == "customers/data_request":
+            for offset in range(0, len(commerce_keys), 500):
+                keys.extend(
+                    session.scalars(
+                        select(ShopifyOrder.order_key).where(
+                            ShopifyOrder.connection_id == row.id,
+                            ShopifyOrder.commerce_order_key.in_(
+                                commerce_keys[offset : offset + 500]
+                            ),
+                        )
+                    )
+                )
+            keys = sorted(set(keys))
             request_key = vault.digest(
                 f"privacy:{shop}", resource_id(payload["data_request"]["id"], "DataRequest")
             )

@@ -68,6 +68,9 @@ class ShopifySyncService:
             )
         row.last_attempt_at = now
         try:
+            from app.commerce.ledger import identity_key, legacy_store
+
+            store = legacy_store(self.session, row)
             token = ConnectionService(self.session, self.settings, self.client).access_token(
                 row, now
             )
@@ -110,6 +113,10 @@ class ShopifySyncService:
                             self.session.delete(existing)
                         continue
                     values = normalized_order(self.session, row, source, vault)
+                    if store is not None:
+                        values["commerce_order_key"] = identity_key(
+                            vault, store, "order", source["id"]
+                        )
                     if existing and utc(existing.source_updated_at) > values["source_updated_at"]:
                         continue
                     if existing is None:

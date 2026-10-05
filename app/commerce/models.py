@@ -147,3 +147,13 @@ class CommerceSuppression(Base):
     shop_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     kind: Mapped[str] = mapped_column(String(16), primary_key=True)
     object_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
+class CommerceShopAlias(Base):
+    """Verified merchant-domain history for delayed privacy events after reconnect."""
+
+    __tablename__ = "commerce_shop_aliases"
+    shop_domain: Mapped[str] = mapped_column(String(253), primary_key=True)
+    store_id: Mapped[str] = mapped_column(
+        ForeignKey("commerce_stores.id", ondelete="CASCADE"), primary_key=True
+    )

@@ -642,3 +642,197 @@ def test_failed_page_does_not_publish_partial_revision(
         assert db.scalar(select(func.count()).select_from(CommerceEntry)) == 0
         assert db.scalar(select(func.count()).select_from(CommerceOrder)) == 0
         assert store.revision == 0 and store.last_sync_at is None
+
+
+def test_late_old_domain_erasure_reaches_reconnected_store(
+    customer_engine: Engine, configuration: Settings
+) -> None:
+    from app.shopify.models import ShopifyTombstone
+    from app.shopify.normalize import order_key
+
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        old_domain, workspace_id = row.shop_domain, row.workspace_id
+        apply_order(db, store, row, source(), [agreement()], configuration, NOW)
+        db.commit()
+        ConnectionService(db, configuration).disconnect(workspace_id, "owner")
+        replacement = ShopifyConnection(
+            workspace_id=workspace_id,
+            shop_domain="renamed.myshopify.com",
+            shop_name="Renamed",
+            currency_code="USD",
+            time_zone="UTC",
+            encrypted_credentials="unused",
+            connected_at=NOW,
+        )
+        db.add(replacement)
+        bind_shopify(db, replacement, reconnect=True)
+        rebound = bind_store(db, replacement, "gid://shopify/Shop/123", configuration, NOW)
+        apply_order(db, rebound, replacement, source(), [agreement()], configuration, NOW)
+        db.commit()
+        process_event(db, configuration, "orders/delete", old_domain, {"id": 1}, NOW)
+        assert db.scalar(select(func.count()).select_from(CommerceEntry)) == 0
+        assert (
+            db.get(
+                ShopifyTombstone, (replacement.id, order_key(Vault(configuration), replacement, 1))
+            )
+            is not None
+        )
+        assert not apply_order(
+            db, rebound, replacement, source(), [agreement()], configuration, NOW
+        )
+        process_event(
+            db, configuration, "app/uninstalled", old_domain, {}, NOW - timedelta(seconds=1)
+        )
+        assert db.get(ShopifyConnection, replacement.id) is not None
+
+
+def test_customer_erasure_covers_legacy_facts_and_reconnect_replay(
+    customer_engine: Engine, configuration: Settings
+) -> None:
+    from app.shopify.models import ShopifyOrder
+    from app.shopify.sync import ShopifySyncService
+
+    from tests.test_shopify_sales import order as legacy_order
+    from tests.test_shopify_sales import page
+
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        apply_order(db, store, row, source(), [agreement()], configuration, NOW)
+        db.commit()
+        client = FakeShopify(
+            configuration,
+            [page(legacy_order(1, createdAt=CREATED.isoformat(), updatedAt=NOW.isoformat()))],
+        )
+        assert (
+            ShopifySyncService(db, configuration, client).page(row.workspace_id, now=NOW)["status"]
+            == "complete"
+        )
+        assert db.scalar(select(func.count()).select_from(ShopifyOrder)) == 1
+        process_event(
+            db,
+            configuration,
+            "customers/data_request",
+            row.shop_domain,
+            {"customer": {"id": 100}, "orders_requested": [], "data_request": {"id": 98}},
+            NOW,
+        )
+        request = db.scalar(select(ShopifyPrivacyRequest))
+        assert request is not None and len(request.order_keys) == 1
+        process_event(
+            db,
+            configuration,
+            "customers/redact",
+            row.shop_domain,
+            {"customer": {"id": 100}, "orders_to_redact": []},
+            NOW,
+        )
+        assert db.scalar(select(func.count()).select_from(ShopifyOrder)) == 0
+        workspace_id, domain, authorization = (
+            row.workspace_id,
+            row.shop_domain,
+            row.encrypted_credentials,
+        )
+        ConnectionService(db, configuration).disconnect(workspace_id, "owner")
+        replacement = ShopifyConnection(
+            workspace_id=workspace_id,
+            shop_domain=domain,
+            shop_name="Reauthorized",
+            currency_code="USD",
+            time_zone="UTC",
+            encrypted_credentials=authorization,
+            connected_at=NOW,
+        )
+        db.add(replacement)
+        bind_shopify(db, replacement, reconnect=True)
+        bind_store(db, replacement, "gid://shopify/Shop/123", configuration, NOW)
+        db.commit()
+        replay = FakeShopify(configuration, [page(legacy_order(1))])
+        assert (
+            ShopifySyncService(db, configuration, replay).page(workspace_id, now=NOW)["status"]
+            == "shopify_privacy_reconciliation_required"
+        )
+        assert replay.requests == []
+        assert db.scalar(select(func.count()).select_from(ShopifyOrder)) == 0
+
+
+def test_disabling_measurement_does_not_bypass_erasure_on_oauth_reconnect(
+    customer_engine: Engine, configuration: Settings
+) -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    from app.shopify.sync import ShopifySyncService
+
+    class LegacyOAuth(FakeShopify):
+        def shop(self, shop: str, token: str) -> dict[str, Any]:
+            value = super().shop(shop, token)
+            value["shop"]["id"] = "gid://shopify/Shop/123"
+            return value
+
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        apply_order(db, store, row, source(), [agreement()], configuration, NOW)
+        db.commit()
+        workspace_id, store_id = row.workspace_id, store.id
+        process_event(
+            db,
+            configuration,
+            "customers/redact",
+            row.shop_domain,
+            {"customer": {"id": 100}, "orders_to_redact": [1]},
+            NOW,
+        )
+        ConnectionService(db, configuration).disconnect(workspace_id, "owner")
+        configuration.shopify_measurement_enabled = False
+        client = LegacyOAuth(configuration)
+        service = ConnectionService(db, configuration, client)
+        url = service.begin(workspace_id, "renamed.myshopify.com", "owner", NOW)
+        query = parse_qs(urlsplit(url).query)
+        assert set(query["scope"][0].split(",")) == {"read_orders", "read_products"}
+        state = service.pending(
+            {"state": query["state"][0], "shop": "renamed.myshopify.com"}, "owner", NOW
+        )
+        restored = service.finish(state, "offline-code", "owner", NOW)
+        assert restored.commerce_store_id == store_id
+        result = ShopifySyncService(db, configuration, client).page(workspace_id, now=NOW)
+        assert result["status"] == "shopify_privacy_reconciliation_required"
+        assert client.requests == []
+
+
+def test_privacy_migration_backfills_existing_measurement_identity(
+    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from alembic import command
+    from alembic.config import Config
+    from app.commerce.models import CommerceShopAlias
+    from app.settings import settings
+    from app.shopify.models import ShopifyOrder
+    from app.shopify.normalize import normalized_order
+    from sqlalchemy import text
+
+    from tests.test_shopify_sales import order as legacy_order
+
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        apply_order(db, store, row, source(), [agreement()], configuration, NOW)
+        values = normalized_order(db, row, legacy_order(1), Vault(configuration))
+        legacy = ShopifyOrder(connection_id=row.id, workspace_id=row.workspace_id, **values)
+        db.add(legacy)
+        db.commit()
+        sid, domain, legacy_id = store.id, row.shop_domain, legacy.id
+        expected_key = identity_key(Vault(configuration), store, "order", 1)
+        assert db.get(CommerceShopAlias, (domain, sid)) is not None
+    if customer_engine.dialect.name != "postgresql":
+        return  # Schema migration target is PostgreSQL; both dialects verify binding above.
+    with customer_engine.connect() as connection:
+        schema = connection.scalar(text("SELECT current_schema()"))
+    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
+    config = Config("alembic.ini")
+    command.stamp(config, "head")
+    command.downgrade(config, "20261005_0023")
+    command.upgrade(config, "head")
+    with Session(customer_engine) as db:
+        restored_legacy = db.get(ShopifyOrder, legacy_id)
+        assert restored_legacy is not None and restored_legacy.commerce_order_key == expected_key
+        assert db.get(CommerceShopAlias, (domain, sid)) is not None

@@ -320,3 +320,34 @@ publication or increase a spending mandate. B06 implementation follows predecess
 review/merge or a new explicit extension under `docs/automation-policy.md`; the
 approved integration exception currently ends at B05. CRM gateway architecture
 remains a separate unresolved owner decision.
+
+### B05 Delayed Privacy Delivery Review
+
+After initial B05 commit `929e747`, a review found that delayed erasure addressed to
+an old domain could miss a reconnected canonical store. The new regression failed
+on both SQLite and PostgreSQL before the repair. Verified merchant-domain aliases
+now resolve privacy delivery to retained measurement data and the current native
+connection. Migration 0024 backfills current domains; reconnect preserves prior
+verified domains. Stale uninstall events still cannot erase newer authorization.
+The focused commerce/legacy Shopify/migration suite passes after correction. A new
+Full run and corrective-head hosted CI are required; the earlier CI run covers only
+`929e747` and is not evidence for this follow-up.
+
+Initial B05 hosted CI **37341160941** passed at `929e747acaa0fa87abcc0111f7582a65fee1af94`:
+**734 passed, zero skips**, all gates succeeded. The alias-only local Full run also
+exited 0 (730 passed/6 PowerShell skips), but does not cover the later fixes below.
+
+Further privacy regressions reproduced on SQLite and PostgreSQL: customer-level
+export omitted linked legacy facts, erasure could leave/replay the legacy copy,
+and reconnect with measurement disabled discarded the canonical privacy binding.
+The correction adds a minimal canonical key to legacy facts, backfills known links,
+applies export/erasure across both layers, and retains verified privacy identity
+on baseline-scope reconnect. Legacy imports pause before provider reads when source
+suppression prevents safe reconciliation; reports cannot mark the remaining data
+complete. Verified-domain aliases preserve delivery across domain changes.
+
+Corrective focused acceptance: **73 passed**, including the populated PostgreSQL
+0024 downgrade/upgrade and all existing Shopify tests. Ruff, mypy (190 files) and
+whitespace pass. Final corrective Full and hosted results are pending at this commit;
+PR64 records the exact corrective SHA and terminal results. No live provider or
+infrastructure action occurred. This remains B05 acceptance repair, not B06 work.

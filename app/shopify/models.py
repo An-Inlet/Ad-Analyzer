@@ -91,6 +91,7 @@ class ShopifyOrder(Base):
     connection_id: Mapped[int] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(Integer)
     order_key: Mapped[str] = mapped_column(String(64))
+    commerce_order_key: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     source_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     currency_code: Mapped[str] = mapped_column(String(3))

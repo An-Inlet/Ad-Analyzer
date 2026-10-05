@@ -71,3 +71,20 @@ connector validator does not prove compatibility with the application's pinned
 history/customer access, pinned-version execution in an authorized test shop, and
 reconciliation of sale/return/edit/adjustment fixtures against that shop's reports.
 No live shop, advertising account, credentials, IAM, deployment or spending changed.
+
+Verified merchant-domain aliases are retained with the canonical store identity.
+This lets delayed authenticated privacy events reach the current connection after
+a domain-changing reconnect, including legacy 59-day facts. Aliases contain merchant
+domains and a store reference, no customer attributes. Old uninstall events still
+respect the latest authorization timestamp. Migration 0024 backfills current domains;
+future verified reconnects preserve both previous and new domains.
+
+The legacy 59-day report carries the same canonical HMAC order identity when bound
+to measurement. Customer-level export/erasure therefore also reaches matching legacy
+facts even when the event's explicit order list is empty. Migration 0024 backfills
+known links without retaining raw identifiers. Once a store has suppression keys,
+the legacy importer returns `shopify_privacy_reconciliation_required` before reading
+orders: its older query has no customer identity and cannot safely reconcile that
+erasure independently. Remaining legacy data is marked incomplete. OAuth reconnect
+retains known privacy identity even with measurement disabled and baseline scopes;
+turning off the feature cannot authorize replay of erased facts.

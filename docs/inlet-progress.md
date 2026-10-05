@@ -384,3 +384,20 @@ export/delivery 409 assertion is separately rerun before commit. Prior-head host
 CI 37345161957 succeeded at `22a9aa0`; it does not cover these repairs. Corrective
 head Full and hosted CI are pending; exact SHA and terminal evidence belong in
 PR64 to avoid a documentation-only commit invalidating the checked head.
+
+### B05 Migrated Privacy Export Replay
+
+Bounded rereview of `4885645` found two remaining migrated-request gaps. Both were
+reproduced on the unchanged commit using populated disposable PostgreSQL 0024/0025
+round trips: authenticated request replay returned an empty measurement export after
+identity reconciliation, and canonical-only unknown-customer history did not set
+pending during migration. The first fixture initially hit timestamp validation;
+a corrected clock then reproduced the actual empty-export defect.
+
+Authenticated replay now unions newly resolved legacy/canonical order keys into the
+existing request before clearing pending. Migration 0025 checks unknown customer
+identity in retained canonical facts even when no 59-day raw copy remains. Regression
+coverage checks pending export rejection, verified backfill, repeated authenticated
+replay, and exact legacy/canonical export counts for both history layouts. No B06
+implementation or external provider action is included. Current-head Full/CI evidence
+will be recorded in PR64; prior CI at `4885645` does not cover this follow-up.

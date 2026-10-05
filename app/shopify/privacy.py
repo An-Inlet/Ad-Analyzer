@@ -174,6 +174,11 @@ def process_event(
             )
             unresolved = unclassified(session, row) and (has_customer_identity or not raw_ids)
             if existing is not None:
+                # Authenticated replay can supply identity missing from older requests.
+                # Resolve its facts before making the export available, retaining all
+                # previously identified orders across idempotent deliveries.
+                existing.order_keys = sorted(set(existing.order_keys) | set(keys))
+                existing.commerce_keys = sorted(set(existing.commerce_keys) | set(commerce_keys))
                 existing.customer_key = requested_key or existing.customer_key
                 existing.resolution_pending = unresolved
             if existing is None:

@@ -120,3 +120,8 @@ The legacy query cannot perform that reconciliation and pauses after erasure.
 Scheduler eligibility (active ownership, workspace controls, freshness and backoff)
 is applied before the ten-store batch limit. Paused/revoked stores do not starve
 eligible stores or receive fabricated attempt/freshness updates.
+
+Existing privacy requests also remain pending when only canonical unknown-customer
+history survives raw retention. Authenticated replay merges all newly resolved order
+references before making an export available; it cannot turn pending into a false
+empty export. Repeated delivery preserves previously identified references.

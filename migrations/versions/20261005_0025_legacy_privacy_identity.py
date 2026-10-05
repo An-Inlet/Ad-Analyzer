@@ -42,17 +42,22 @@ def upgrade() -> None:
     )
 
     # Older requests did not retain customer identity. Do not assert a complete
-    # export while legacy facts on that connection still lack a customer bridge.
+    # export while retained legacy or canonical facts lack a customer bridge.
     op.execute(
         sa.text("""UPDATE shopify_privacy_requests SET resolution_pending=true
-        WHERE completed_at IS NULL AND EXISTS (
+        WHERE completed_at IS NULL AND (EXISTS (
             SELECT 1 FROM shopify_orders o
             JOIN shopify_connections c ON c.id=o.connection_id
             LEFT JOIN commerce_orders co ON co.store_id=c.commerce_store_id
                 AND co.order_key=o.commerce_order_key
             WHERE o.connection_id=shopify_privacy_requests.connection_id
                 AND (co.order_key IS NULL OR co.customer_key IS NULL)
-        )""")
+        ) OR EXISTS (
+            SELECT 1 FROM commerce_orders co
+            JOIN shopify_connections c ON c.commerce_store_id=co.store_id
+            WHERE c.id=shopify_privacy_requests.connection_id
+                AND co.customer_key IS NULL
+        ))""")
     )
 
 

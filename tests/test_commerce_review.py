@@ -382,3 +382,104 @@ def test_migration_preserves_pre_enable_tombstones(
         bind_shopify(db, restored)
         store = bind_store(db, restored, "gid://shopify/Shop/123", configuration, NOW)
         assert not apply_order(db, store, restored, source(), [agreement()], configuration, NOW)
+
+
+@pytest.mark.parametrize("canonical_only", [False, True])
+def test_migrated_export_stays_pending_then_replay_includes_resolved_facts(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    canonical_only: bool,
+) -> None:
+    import json
+
+    from alembic import command
+    from alembic.config import Config
+    from app.commerce.models import CommerceStore
+    from app.dashboard import shopify as dashboard
+    from app.settings import settings
+    from app.shopify.models import ShopifyConnection, ShopifyOrder, ShopifyPrivacyRequest
+    from app.shopify.normalize import normalized_order
+    from app.shopify.privacy_identity import finish_reconciliation
+    from app.shopify.security import Vault
+    from app.workspaces.models import Workspace
+    from fastapi import HTTPException
+    from sqlalchemy import text
+    from starlette.requests import Request
+
+    from tests.test_shopify_sales import order as legacy_order
+
+    if customer_engine.dialect.name != "postgresql":
+        return  # This regression exercises the populated production migration.
+    with Session(customer_engine) as db:
+        row, store = setup(db, configuration)
+        values = source(1, None, NOW) if canonical_only else source(1, 100, NOW)
+        if canonical_only:
+            values["createdAt"] = "2026-07-01T00:00:00Z"
+            apply_order(db, store, row, values, [agreement()], configuration, NOW)
+        else:
+            normalized = normalized_order(db, row, legacy_order(1), Vault(configuration))
+            db.add(ShopifyOrder(connection_id=row.id, workspace_id=row.workspace_id, **normalized))
+        # The pre-0025 request did not retain the customer ID/key or know any order.
+        item = ShopifyPrivacyRequest(
+            connection_id=row.id,
+            workspace_id=row.workspace_id,
+            request_key=Vault(configuration).digest(f"privacy:{row.shop_domain}", "555"),
+            order_keys=[],
+            commerce_keys=[],
+            requested_at=NOW,
+        )
+        db.add(item)
+        db.commit()
+        rid, sid, qid = row.id, store.id, item.id
+    with customer_engine.connect() as connection:
+        schema = connection.scalar(text("SELECT current_schema()"))
+    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
+    config = Config("alembic.ini")
+    command.stamp(config, "head")
+    command.downgrade(config, "20261005_0024")
+    command.upgrade(config, "head")
+    with Session(customer_engine) as db:
+        restored_row, restored_store = db.get(ShopifyConnection, rid), db.get(CommerceStore, sid)
+        request_item = db.get(ShopifyPrivacyRequest, qid)
+        assert restored_row is not None and restored_store is not None and request_item is not None
+        assert request_item.resolution_pending
+        assert request_item.customer_key is None
+        workspace = db.get(Workspace, restored_row.workspace_id)
+        assert workspace is not None
+        monkeypatch.setattr(dashboard, "_workspace", lambda *args, **kwargs: (workspace, "owner"))
+        request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+        with pytest.raises(HTTPException) as denied:
+            dashboard.privacy_export(request, workspace.slug, qid, db)
+        assert denied.value.status_code == 409
+        from datetime import timedelta
+
+        resolved = {
+            **values,
+            "customer": {"id": "gid://shopify/Customer/100"},
+            "updatedAt": (NOW + timedelta(seconds=1)).isoformat(),
+        }
+        apply_order(
+            db,
+            restored_store,
+            restored_row,
+            resolved,
+            [agreement()],
+            configuration,
+            NOW + timedelta(seconds=1),
+        )
+        db.flush()
+        finish_reconciliation(db, restored_row)
+        db.commit()
+        assert request_item.resolution_pending  # No customer key until authenticated replay.
+        payload = {"customer": {"id": 100}, "orders_requested": [], "data_request": {"id": 555}}
+        for _ in range(2):
+            process_event(
+                db, configuration, "customers/data_request", restored_row.shop_domain, payload, NOW
+            )
+            db.refresh(request_item)
+            assert not request_item.resolution_pending
+            result = json.loads(dashboard.privacy_export(request, workspace.slug, qid, db).body)
+            assert len(result["measurement_records"]) == 1
+            assert len(result["records"]) == (0 if canonical_only else 1)

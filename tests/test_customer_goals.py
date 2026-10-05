@@ -69,6 +69,8 @@ def test_confirm_edit_and_privacy_invalidation(
         db.commit()
         service.confirm(db, g, body, NOW, actor_id="offline-user")
         assert service.serialize(db, g, NOW)["assessment"] == "confirmed"
+        assert service.serialize(db, g, NOW)["baseline_snapshot_id"] == p.snapshot_id
+        assert service.serialize(db, g, NOW)["confirmed_by"] == "offline-user"
         assert service.serialize(db, g, NOW)["spending_authorized"] is False
         row = db.scalar(
             select(ShopifyConnection).where(ShopifyConnection.workspace_id == g.workspace_id)
@@ -84,6 +86,7 @@ def test_confirm_edit_and_privacy_invalidation(
         )
         db.expire_all()
         assert service.serialize(db, g, NOW)["assessment"] == "baseline_unavailable"
+        assert service.serialize(db, g, NOW)["baseline_snapshot_id"] is None
         assert db.scalar(select(func.count()).select_from(CommerceSnapshot)) == 0
         service.revise(db, g, None, "offline-user", NOW)
         db.commit()

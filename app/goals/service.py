@@ -177,8 +177,16 @@ def confirm(db: Session, goal: Goal, body: ConfirmInput, now: datetime, *, actor
 
 def serialize(db: Session, goal: Goal, now: datetime | None = None) -> dict[str, Any]:
     revision = current(db, goal)
+    preview = db.get(GoalPreview, goal.confirmed_preview_id) if goal.confirmed_preview_id else None
+    snapshot = (
+        db.get(CommerceSnapshot, preview.snapshot_id) if preview and preview.snapshot_id else None
+    )
     return {
         "id": goal.id,
+        "confirmed_preview_id": goal.confirmed_preview_id,
+        "baseline_snapshot_id": snapshot.id if snapshot else None,
+        "confirmed_at": revision.confirmed_at,
+        "confirmed_by": revision.confirmed_by,
         "workspace_id": goal.workspace_id,
         "revision": goal.revision,
         "definition": revision.definition,

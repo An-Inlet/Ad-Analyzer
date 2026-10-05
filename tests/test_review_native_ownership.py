@@ -15,7 +15,7 @@ from app.shopify.privacy import process_event
 from app.shopify.security import ShopifyError, verify_callback
 from app.shopify.service import ConnectionService
 from app.shopify.sync import ShopifySyncService
-from app.workspaces.models import WorkspaceIntegration
+from app.workspaces.models import Workspace, WorkspaceIntegration
 from sqlalchemy import Engine, select, text, update
 from sqlalchemy.orm import Session
 
@@ -95,9 +95,11 @@ def test_shopify_removal_revokes_registry_but_old_events_do_not(
         assert db.get(WorkspaceIntegration, connection_id) is registry
 
 
+@pytest.mark.parametrize("target", ["connection", "workspace"])
 def test_postgres_revocation_serializes_with_inflight_shopify_import(
     customer_engine: Engine,
     configuration: Settings,
+    target: str,
 ) -> None:
     if customer_engine.dialect.name != "postgresql":
         return
@@ -124,11 +126,16 @@ def test_postgres_revocation_serializes_with_inflight_shopify_import(
         with Session(customer_engine) as db:
             db.execute(text("SET LOCAL lock_timeout = '8s'"))
             revoking.set()
-            db.execute(
-                update(WorkspaceIntegration)
-                .where(WorkspaceIntegration.id == connection_id)
-                .values(status="revoked")
-            )
+            if target == "connection":
+                db.execute(
+                    update(WorkspaceIntegration)
+                    .where(WorkspaceIntegration.id == connection_id)
+                    .values(status="revoked")
+                )
+            else:
+                db.execute(
+                    update(Workspace).where(Workspace.id == workspace_id).values(status="suspended")
+                )
             db.commit()
             revoked.set()
 

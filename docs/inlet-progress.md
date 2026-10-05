@@ -243,3 +243,26 @@ excluding internal push endpoints. Final Focused/hosted results follow below/in 
 Full repair validation completed with **exit 0**; final Focused gate **38 passed,
 6 PowerShell skips**. Log: `/tmp/inlet-review-full.log`. All current B01–B04 tests
 pass; the CRM permission/lookup architecture is still explicitly decision-gated.
+
+## B04 Rereview — Concurrent First Meta Connections
+
+At head `9fd19c568`, a real PostgreSQL test synchronized two actors with separate
+pending grants after distinct advertising-account inserts. It reproduced
+`psycopg.errors.DeadlockDetected` during the workspace/native uniqueness lock cycle.
+The workspace lock now uses `FOR NO KEY UPDATE`, preserving suspension protection
+while remaining compatible with FK `KEY SHARE` locks. Integrity handling now spans
+account creation through binding/commit, so a losing request returns the existing
+connection-conflict error and rolls back all partial records.
+
+Focused acceptance: **30 passed**, including synchronized first connection,
+PostgreSQL suspension/revocation during an import, migrated Shopify reauthorization,
+privacy lifecycle and Meta import regressions. One complete connection/account/
+registry and one unconsumed losing grant remain after the concurrent test. Ruff,
+mypy (180 files), and whitespace pass. Full validation follows. No gateway
+architecture/configuration, IAM, website, or live provider change was made.
+
+Deadlock-correction Full validation completed with **exit 0**: **694 passed,
+6 PowerShell skips**; Ruff, mypy (180 files), whitespace, PostgreSQL (3), reversible
+migrations, ReadOnly (75), Security (98/1 PowerShell skip), Privacy (14), and Focused
+(38/6 PowerShell skips) all passed. Log: `/tmp/inlet-meta-lock-full.log`.
+Exact corrective-head CI is recorded in PR #64 after push.

@@ -98,10 +98,12 @@ def ensure_native_integration(
     Native callers hold their connection row lock. Migration handles existing rows;
     this path also supports freshly authorized connections in the same transaction.
     """
+    # PostgreSQL NO KEY UPDATE blocks status changes while remaining compatible
+    # with KEY SHARE locks acquired by concurrent native/account FK inserts.
     workspace = session.scalar(
         select(Workspace)
         .where(Workspace.id == workspace_id)
-        .with_for_update()
+        .with_for_update(key_share=True)
         .execution_options(populate_existing=True)
     )
     if workspace is None or workspace.status != "active":

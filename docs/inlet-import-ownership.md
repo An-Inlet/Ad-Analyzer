@@ -97,3 +97,19 @@ then requests the native lock. Verified Shopify reauthorization may restore the
 same canonical row only after ownership/provider validation; ordinary sync cannot.
 Shop removal/uninstall events revoke canonical rows before native deletion, with
 old-installation timestamps still ignored. Failed Meta jobs retain connection ID.
+
+### Concurrent First Meta Connections
+
+A synchronized PostgreSQL regression demonstrated that two first connections can
+hold workspace foreign-key `KEY SHARE` locks after inserting different advertising
+accounts, then deadlock when the winner upgrades the workspace lock to `FOR UPDATE`
+while the loser waits on native-connection uniqueness. The workspace ownership read
+now uses `FOR NO KEY UPDATE`: it still conflicts with status updates/suspension and
+deletion, but is compatible with foreign-key `KEY SHARE`. Canonical connection locks
+remain `FOR UPDATE`. Native→workspace→canonical ordering remains unchanged.
+
+Account/native creation, bind and commit are covered by the same integrity-error
+rollback handler, including implicit ORM flushes. The losing concurrent request
+returns `meta_account_already_connected` and leaves no orphan advertising account
+or integration; its unconsumed grant remains. Regression acceptance also verifies
+both workspace suspension and canonical revocation serialize with a running import.

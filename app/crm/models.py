@@ -1,7 +1,16 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
@@ -15,13 +24,20 @@ def utc_now() -> datetime:
 class CrmConnection(Base):
     __tablename__ = "crm_connections"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_integration_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_crm_integration_scope",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("workspace_integration_id", name="uq_crm_integration"),
         UniqueConstraint("workspace_id", "name", name="uq_crm_connections_workspace_name"),
         Index("ix_crm_connections_workspace_status", "workspace_id", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     workspace_integration_id: Mapped[int | None] = mapped_column(
         ForeignKey("workspace_integrations.id", ondelete="SET NULL")

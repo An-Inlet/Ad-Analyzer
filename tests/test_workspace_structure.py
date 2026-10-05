@@ -29,7 +29,7 @@ from app.workspaces.repository import WorkspaceRepository
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry, StaticPool
@@ -463,10 +463,28 @@ def test_crm_worker_routes_events_to_the_selected_workspace_integration(db: Sess
     )
     db.commit()
 
+    scoped_connection = db.scalar(
+        select(CrmConnection).where(CrmConnection.workspace_id == second.id)
+    )
+    assert scoped_connection is not None
+    integration = WorkspaceIntegration(
+        workspace_id=second.id,
+        integration_key="crm-explicit",
+        provider="hubspot",
+        display_name="CRM",
+        status="active",
+        configuration={},
+    )
+    db.add(integration)
+    db.flush()
+    scoped_connection.workspace_integration_id = integration.id
+    db.commit()
     processed = CrmEventProcessor(db).process(
         {
             "workspace_id": second.id,
-            "payload_version": 1,
+            "payload_version": 2,
+            "connection_id": integration.id,
+            "provider": "hubspot",
             "event_id": "evt-second-client",
             "event_type": "lead_created",
             "occurred_at": datetime.now(UTC).isoformat(),

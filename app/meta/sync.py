@@ -11,6 +11,8 @@ from app.ads.models import AdSet, AdvertisingAccount, Campaign, DailyMetric, Job
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import CampaignCreate
 from app.automation import AutomationControlKey, AutomationControlService
+from app.imports.native import bind_meta
+from app.imports.scope import ImportScopeError
 from app.meta.client import MetaClient, unpack_page
 from app.meta.models import (
     MetaAudit,
@@ -209,6 +211,7 @@ class MetaSyncService:
         self.session.add(
             JobRun(
                 workspace_id=row.workspace_id,
+                connection_id=row.workspace_integration_id,
                 platform=PLATFORM,
                 account_id=row.account_id,
                 job_name="meta_ads_sync",
@@ -257,6 +260,11 @@ class MetaSyncService:
         )
         if account is None:
             return {"status": "meta_account_mismatch", "imported": 0}
+        try:
+            bind_meta(self.session, row)
+        except ImportScopeError:
+            self.session.rollback()
+            return {"status": "meta_ownership_unavailable", "imported": 0}
         row.last_attempt_at = now
         try:
             with self.session.begin_nested():
@@ -320,6 +328,7 @@ class MetaSyncService:
             self.session.add(
                 JobRun(
                     workspace_id=workspace_id,
+                    connection_id=row.workspace_integration_id,
                     account_id=row.account_id,
                     platform=PLATFORM,
                     job_name="meta_ads_sync",

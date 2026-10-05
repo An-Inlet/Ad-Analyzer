@@ -1,0 +1,458 @@
+# Inlet Build Progress
+
+Last updated: 2026-10-05. Product: **Inlet**. Company: **An Inlet**.
+
+## Baseline And Working Rules
+
+- Fetched current `origin/main`: `ea3591c5086fbf2cee8038bf9208ac7f0050de75`.
+  It exactly matches the audit baseline; no newer main functionality to reconcile.
+- Read `AGENTS.md`, automation policy, definition of done, PR template, CI and
+  deployment workflow. No additional local skill instructions were found.
+- Preserve architecture and independent-source behavior. Launch scope remains
+  Shopify ecommerce with Google, Meta and TikTok Ads; planned customer-data
+  integrations are Klaviyo, HubSpot and Omnisend.
+- No production deployment, merge, advertising spend or customer-account changes
+  are authorized by this development assignment. No such actions were performed.
+- Only one dependent product PR at a time under the current repository policy.
+
+## B01 — Conversion Diagnostics
+
+Branch: `codex/inlet-b01-conversion-diagnostics`.
+
+Draft PR: [#64](https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/64).
+Implementation commits: `91fe009` (diagnostics), `afe2cd9` (required-check fixes).
+
+Reproduced before editing the rule: 100 clicks, 10 conversions and 100,000,000
+cost micros incorrectly generated `spend_without_conversions`. Fractional positive
+conversions also reproduced the error. A zero-spend input exposed another false
+positive. Initial focused regression run: **3 failed, 5 passed**, as expected.
+
+Implemented: require available conversions, sufficient coverage, at least 20
+clicks, positive spend and exactly zero conversions. Include actual conversion
+count in supporting metrics. Preserve separate comparison-based CPA regression;
+do not invent an absolute CPA goal. Correct two old API/dashboard expectations
+that mislabeled a fixture containing 2.5 conversions. No historical production
+findings have been rewritten; the fix applies when diagnostics are recomputed.
+
+Focused regressions cover the required 100/10/$100 case, fractional conversions,
+true zero conversions, positive-spend boundary, zero spend, low clicks, missing
+metrics, insufficient coverage and generated recommendations. Existing API and
+dashboard tests verify presentation and preserved CPA regression. Campaign scope
+is prepared for owner review in [the proposed matrix](inlet-campaign-scope.md);
+live action eligibility is still empty.
+
+### Validation
+
+Python 3.12.14; isolated virtual environment at `/workspace/inlet-venv`; PostgreSQL
+16 in disposable local container `inlet-b01-postgres`, database `inlet_ci`.
+
+Before baseline maintenance, reproduced **four mypy errors on untouched main**
+with SQLAlchemy 2.1.3, and the Shopify rolling-window test also failed on untouched
+main because its September fixture aged out of the real clock's current window.
+Constrained SQLAlchemy to `>=2.0.32,<2.1` (resolved 2.0.54), and injected the fixture
+clock into the test's report calls. These changes address actual required-check
+failures without changing customer reporting behavior.
+
+- `python -m pytest tests/test_analyzer_v1.py tests/test_analysis_cadences.py`:
+  **38 passed** after the diagnostic fix.
+- `scripts/validate.sh Full` with guarded disposable PostgreSQL: **exit 0**;
+  primary pytest result **600 passed, 6 skipped**. The six skips require
+  PowerShell, which is unavailable on this Linux environment.
+- Ruff: passed. Mypy: passed, 159 source files. Whitespace diff check: passed.
+- PostgreSQL integration tests and migration upgrade/downgrade/upgrade: passed.
+- ReadOnly: **75 passed**. Security: **98 passed, 1 skipped** (PowerShell).
+- Privacy: **14 passed**. Final Focused gate: **38 passed, 6 skipped**, including
+  successful repeated-full validation on the same disposable database.
+- Full log: `/tmp/inlet-validation-full.log` in this execution environment.
+
+Remote CI pending at PR creation; local required validation is complete. Nothing
+is live-verified or deployed. No new migration is introduced by B01. Git fetch
+and push work; GitHub CLI API requests returned Forbidden, so the authorized
+GitHub connector was used to create the draft PR.
+
+## B02–B04 — Customer Foundation
+
+Investigation confirms audit findings still apply:
+
+- `app/dashboard/auth.py`: process-local session map.
+- `app/api/auth.py`: global operator bearer authentication.
+- `app/workspaces/access.py`: email membership and development admin shortcut.
+- `app/ads/repository.py`: job creation defaults workspace to 1.
+- `app/crm/worker.py`: defaults workspace to 1 and selects first active connection.
+
+Prepared [shared interfaces and acceptance plan](inlet-foundation-contract.md) for
+verified identity, revocable database sessions, customer-scoped access, atomic
+idempotent signup, explicit connections and job ownership. This is design work,
+not an implemented customer foundation.
+
+Next package: B02 implementation and two-user/two-replica PostgreSQL acceptance,
+then B03 provisioning and B04 ownership. Provider-specific security architecture
+and subsequent dependent PR are gated as described in the contract. Recommended
+owner decisions: Google Cloud Identity Platform plus PostgreSQL-backed sessions;
+review B01, then approve one foundation integration branch with sequential
+B02–B04 commits. Do not self-approve or merge.
+
+## Public Webpage — Separate Delivery
+
+Resolved source files:
+
+- `Inlet-One-Page-Package-v2.zip` — Library ID
+  `libfile_c7511cbe70a8819186e74f5ad8cc5b19`.
+- `Inlet-MVP-Audit-and-Build-Plan.docx` — Library ID
+  `libfile_284a9e8240288191afc99820dc4bc6b8`.
+
+The complete audit was read through Library. Materialization of both attachments
+to this executor failed, including the single bounded retry. No webpage source
+bytes were available for safe reuse or visual inspection. Needed: make the
+existing ZIP accessible to this executor through the supported Library flow, or
+provide its two original source files. Do not recreate the established design
+from memory. Next edit is Salesforce to Omnisend and associated accurate copy,
+preserving Squarespace compatibility, logo, typography, green palette, Title Case,
+graphics, illustrative demo, FAQs and email early-access buttons.
+
+The owner will publish on Aninlet.com. Do not publish on their behalf. The source
+reports the page unpublished; current live publication has not been verified.
+Signup, billing, connections and advertising functionality remain separate from
+the public demonstration and must not be described as working SaaS capabilities.
+
+## Remaining Backlog
+
+Follow audit dependencies after B02–B04: B05 Shopify identity/metrics; B06 editable
+goals and usage; B07 mandate/action state; B08 Google connection; B09 Google actions;
+B10 granular Meta data; B11 TikTok; B12 Klaviyo/HubSpot/Omnisend; B13 subscriptions;
+B14 media/review; B15 Google publication; B16 Meta/TikTok actions/publication;
+B17 measured feedback; B18 onboarding/portal plus existing page reuse;
+B19 operations; B20 unrelated pilot businesses. Track implementation tests
+separately from provider approval and live pilot evidence throughout.
+
+## Approved Foundation Continuation — 2026-10-05
+
+The owner explicitly approved Google Cloud Identity Platform with PostgreSQL-backed
+revocable sessions and the B02–B04 sequential-commit exception in existing draft
+PR #64. Main remains `ea3591c`; B01 remains preserved. The scoped exception is
+recorded in `docs/automation-policy.md`. No merge, deployment, provider setup,
+credential creation, IAM expansion or advertising mutation is authorized. Website
+work is now left entirely to the owner; earlier website-next-step notes are stale.
+
+B02 implementation adds a distinct customer API, immutable provider identities,
+shared eight-hour revocable sessions, one-time token exchange, CSRF/origin checks,
+and active customer-only membership enforcement. See `inlet-customer-auth.md`.
+Focused acceptance: **33 passed**, including real PostgreSQL, cross-user and
+cross-replica revocation, concurrent replay, provider/project changes and suspended
+memberships. Ruff and mypy passed (165 files). Full validation (`scripts/validate.sh Full`) completed with exit 0: **633 passed,
+6 PowerShell skips**; PostgreSQL/migration upgrade-downgrade-upgrade passed;
+ReadOnly 75 passed, Security 98 passed/1 PowerShell skip, Privacy 14 passed,
+Focused 38 passed/6 PowerShell skips. Log: `/tmp/inlet-b02-full.log`.
+Remote exact-head CI will be recorded in PR #64 after push.
+Provider calls in acceptance use a fake; no live identity setup or login verified.
+
+## B03 — Atomic Customer Workspace Provisioning
+
+Implementation adds authenticated `POST /api/customer/v1/workspaces`, requiring
+CSRF/origin checks and an owner-scoped idempotency key. Workspace/configuration/
+owner/receipt commit atomically, with PostgreSQL user-row serialization. Replays
+return the original active owner workspace, conflicting input/slug fails, and
+suspended ownership cannot be restored through signup. Client owner IDs are
+rejected. Migration `20261005_0021` introduces signup receipts only.
+
+Focused identity/provisioning acceptance initially **41 passed**; final validation
+adds two backend cases rejecting missing keys and injected owner IDs. Ruff and
+mypy pass (167 files). Full required validation (`scripts/validate.sh Full`) completed with exit 0:
+**643 passed, 6 PowerShell skips**; PostgreSQL/migrations, lint/type checks and
+all required safety gates passed. Log: `/tmp/inlet-b03-full.log`. Provider, UI and
+live customer signup remain unverified; no external configuration changed.
+
+## B02/B03 Hosted Verification
+
+B02 commit `bebe01a6946839824ff3798c63b3db8435241c6d`: hosted workflow
+[37285028501](https://github.com/Konner-An-Inlet/Ad-Analyzer/actions/runs/37285028501)
+completed successfully. B03 commit `ba27903ffa04010e8b3909a7b1aa86df7f574645`:
+[37285937918](https://github.com/Konner-An-Inlet/Ad-Analyzer/actions/runs/37285937918)
+completed successfully. These verify repository checks, not live provider behavior.
+
+## B04 — Explicit Import Ownership
+
+Implemented the shared canonical connection registry, scoped Google account/jobs,
+Meta/Shopify native bindings, version 2 CRM ingress and worker ownership, scoped
+signatures/deduplication, and sanitized rejection records. Removed implicit workspace
+1 defaults from import models and job creation. Migration 0022 preserves historical
+unbound Google rows; native backfill replay preserves connection identity/revocation.
+See [rollout requirements](inlet-import-ownership.md). Legacy unscoped CRM ingress and
+messages fail closed. Missing Google ownership blocks before collection.
+
+Focused new acceptance: **34 passed**, including PostgreSQL, actual CRM ingress/push
+worker, Google worker boundaries and migration downgrade/re-upgrade. No external
+provider calls, customer ad changes or deployment occurred. Full validation results
+will be appended before committing this package.
+
+Next package is B05 Shopify identity/metrics. The owner-approved sequential-commit
+exception ends at B04. Prepare B05 acceptance/review independently; starting its
+next dependent implementation PR awaits normal predecessor review/merge or an
+explicit extension. Do not infer merge/deployment authority from development approval.
+Website delivery is now the owner's responsibility and is outside this work package.
+
+B04 full-suite rerun: **678 passed, 6 PowerShell skips**; Ruff and mypy passed
+(176 files), whitespace clean, PostgreSQL checks **3 passed**, migration
+upgrade/downgrade/upgrade passed. ReadOnly **75 passed**, Security **98 passed/1
+PowerShell skip**, Privacy **14 passed**. The initial run caught fixture whitespace
+in nested validation; it was corrected before this successful suite rerun.
+Final Focused validation and exact-head hosted CI are recorded in PR #64 when complete.
+Local log: `/tmp/inlet-b04-full.log` (ephemeral); this ledger and PR retain results.
+
+Full B04 validation finished with **exit 0**. Final Focused gate: **38 passed,
+6 PowerShell skips**. B04 is ready for its separate commit and hosted verification
+on `codex/inlet-b01-conversion-diagnostics`, draft PR #64. No merge or deployment.
+
+## Independent Review Repairs — B01–B04 Scope
+
+Review of `c670f508` reproduced a B02 replay defect with locally generated RSA JWTs
+and the actual Firebase/Google verifier: alternate signature padding was accepted,
+and exchange after logout returned 200. Canonical unpadded Base64url validation now
+rejects padding and nonzero unused pad bits before verification. Receipt hashes for
+valid tokens stay unchanged. Regression covers actual signatures, logout/replay,
+fresh tokens and distinct users on SQLite and PostgreSQL; only external certificate
+and user transports are replaced. No provider credentials or network calls.
+
+Nine failures against the original native-import code reproduced Shopify reconnect,
+uninstall/shop-redact registry state, failed Meta job provenance, and concurrent
+canonical revocation defects. Repairs allow only verified reconnect to restore the
+same owned registry record, revoke on verified removal, include connection IDs on
+failed Meta jobs, and refresh/lock native ownership in native→workspace→connection
+order through the existing bounded page transaction. PostgreSQL verifies an
+in-flight import serializes with revocation and later imports are rejected.
+
+Focused review acceptance: **44 passed**, including migration of an existing
+`reconnect_required` Shopify installation followed by synthetic verified OAuth.
+Ruff, mypy (179 files), and whitespace pass. Full/hosted verification follows.
+
+CRM OpenAPI now exposes the actual scoped v2 path. Missing explicit database
+configuration returns a clear 503; the former development-default SQL fallback is
+not used by ingress. **CRM deployment remains blocked:** the original Terraform
+is publish-only and lacks ownership SQL access/per-connection secret grants.
+No IAM or live infrastructure was changed. Prepared least-privilege alternatives
+are in `inlet-import-ownership.md`; an owner security decision precedes provisioning.
+This is an acceptance repair within B02–B04, not an extension to B05 implementation.
+
+Repair reproduction used installed `firebase-admin 7.7.0` and `google-auth 2.59.1`.
+The full-suite rerun passed **690 tests, 6 PowerShell skips**; lint, mypy (179 files),
+whitespace, PostgreSQL (3), reversible migrations, ReadOnly (75), Security (98/1
+PowerShell skip), and Privacy (14) passed. The first full run identified the old
+public-route allowlist expectation; it now requires scoped ingress while still
+excluding internal push endpoints. Final Focused/hosted results follow below/in PR64.
+
+Full repair validation completed with **exit 0**; final Focused gate **38 passed,
+6 PowerShell skips**. Log: `/tmp/inlet-review-full.log`. All current B01–B04 tests
+pass; the CRM permission/lookup architecture is still explicitly decision-gated.
+
+## B04 Rereview — Concurrent First Meta Connections
+
+At head `9fd19c568`, a real PostgreSQL test synchronized two actors with separate
+pending grants after distinct advertising-account inserts. It reproduced
+`psycopg.errors.DeadlockDetected` during the workspace/native uniqueness lock cycle.
+The workspace lock now uses `FOR NO KEY UPDATE`, preserving suspension protection
+while remaining compatible with FK `KEY SHARE` locks. Integrity handling now spans
+account creation through binding/commit, so a losing request returns the existing
+connection-conflict error and rolls back all partial records.
+
+Focused acceptance: **30 passed**, including synchronized first connection,
+PostgreSQL suspension/revocation during an import, migrated Shopify reauthorization,
+privacy lifecycle and Meta import regressions. One complete connection/account/
+registry and one unconsumed losing grant remain after the concurrent test. Ruff,
+mypy (180 files), and whitespace pass. Full validation follows. No gateway
+architecture/configuration, IAM, website, or live provider change was made.
+
+Deadlock-correction Full validation completed with **exit 0**: **694 passed,
+6 PowerShell skips**; Ruff, mypy (180 files), whitespace, PostgreSQL (3), reversible
+migrations, ReadOnly (75), Security (98/1 PowerShell skip), Privacy (14), and Focused
+(38/6 PowerShell skips) all passed. Log: `/tmp/inlet-meta-lock-full.log`.
+Exact corrective-head CI is recorded in PR #64 after push.
+
+## B05 — Canonical Commerce Measurement (Implementation)
+
+Owner approval received 2026-10-05 15:46:40 UTC extends the PR64 exception through
+B05 only and confirms merchandise sales net discounts/refunds excluding tax and
+shipping, refund processing dates, store-local calendar months, and 13 months of
+minimal measurement history. The earlier CRM gateway architecture decision remains
+open. Main remains audit baseline `ea3591c`; previous PR head `f1793d99` passed hosted
+CI run 37296556343 with 700 tests and no skips.
+
+Implemented the versioned contract in `inlet-commerce-contract.md`: stable scoped
+HMAC identities, Shopify-authoritative merchandise events, verified-source linkage,
+distinct known customers, explicit calendar/cumulative windows, revisioned daily
+facts and immutable ordinary snapshots. Added customer-scoped preview/snapshot
+endpoints, optional default-off history importer, migration 0023, extended privacy
+exports, 13-month retention and persistent erasure suppression across reconnects.
+Privacy deletion removes snapshots/history and prevents reporting remaining facts
+as complete zero. Existing raw 59-day cash-collected functionality is preserved.
+
+Initial focused run: 60 cases passed for commerce plus existing Shopify. Additional
+OAuth and transaction rollback regressions added afterward. Mypy currently covers
+190 files; required Full validation and exact-head CI results will be recorded below.
+Schema-only Shopify validation passed all three queries; no live provider calls.
+Standalone documentation helper unavailable; pinned-version/live reconciliation
+and Shopify history/customer access approval remain release gates. B06 goal editing,
+B12 real customer-data adapters and CRM deployment are not implemented by this package.
+
+B05 focused acceptance now passes **35 cases** including populated PostgreSQL
+upgrade/downgrade/re-upgrade, optional OAuth scopes, retry backoff and atomic failed
+pages. The first Full attempt found the older migration test loading today's ORM
+at schema 0022; it now migrates through head while preserving its B04 backfill and
+revocation assertions, and verifies existing Shopify connections remain unbound.
+That attempt reported 726 passed, 6 skips, and the migration failure plus its nested
+Full-run failure. Ruff and mypy (190 files) pass after correction.
+An extra SQLite migration experiment stops at pre-existing migration 0002's unsupported
+constraint alteration; the required migration acceptance target is PostgreSQL.
+
+B05 final local `scripts/validate.sh Full` completed with **exit 0**: **728 passed,
+6 PowerShell skips**. Ruff, mypy (190 files), whitespace, PostgreSQL (3), reversible
+migrations, ReadOnly (75), Security (98/1 PowerShell skip), Privacy (14), and Focused
+(38/6 PowerShell skips) all passed. Full log: `/tmp/inlet-b05-full.log`. The final
+Focused gate also verifies repeated validation on the same disposable database.
+The earlier standalone SQLite experiment is not a supported full migration result.
+
+B05 is implemented and fixture/PostgreSQL-verified, not live-verified. Exact pushed
+commit and hosted CI evidence are recorded in draft PR64. No merge, deployment,
+provider grant, live import, advertising change, gateway configuration or website
+edit occurred. B06 is the next package: persist an editable, customer-confirmed goal
+with an explicit metric/source, currency, timezone, calendar-versus-cumulative
+window and baseline snapshot. Goal confirmation must not authorize campaign
+publication or increase a spending mandate. B06 implementation follows predecessor
+review/merge or a new explicit extension under `docs/automation-policy.md`; the
+approved integration exception currently ends at B05. CRM gateway architecture
+remains a separate unresolved owner decision.
+
+### B05 Delayed Privacy Delivery Review
+
+After initial B05 commit `929e747`, a review found that delayed erasure addressed to
+an old domain could miss a reconnected canonical store. The new regression failed
+on both SQLite and PostgreSQL before the repair. Verified merchant-domain aliases
+now resolve privacy delivery to retained measurement data and the current native
+connection. Migration 0024 backfills current domains; reconnect preserves prior
+verified domains. Stale uninstall events still cannot erase newer authorization.
+The focused commerce/legacy Shopify/migration suite passes after correction. A new
+Full run and corrective-head hosted CI are required; the earlier CI run covers only
+`929e747` and is not evidence for this follow-up.
+
+Initial B05 hosted CI **37341160941** passed at `929e747acaa0fa87abcc0111f7582a65fee1af94`:
+**734 passed, zero skips**, all gates succeeded. The alias-only local Full run also
+exited 0 (730 passed/6 PowerShell skips), but does not cover the later fixes below.
+
+Further privacy regressions reproduced on SQLite and PostgreSQL: customer-level
+export omitted linked legacy facts, erasure could leave/replay the legacy copy,
+and reconnect with measurement disabled discarded the canonical privacy binding.
+The correction adds a minimal canonical key to legacy facts, backfills known links,
+applies export/erasure across both layers, and retains verified privacy identity
+on baseline-scope reconnect. Legacy imports pause before provider reads when source
+suppression prevents safe reconciliation; reports cannot mark the remaining data
+complete. Verified-domain aliases preserve delivery across domain changes.
+
+Corrective focused acceptance: **73 passed**, including the populated PostgreSQL
+0024 downgrade/upgrade and all existing Shopify tests. Ruff, mypy (190 files) and
+whitespace pass. Final corrective Full and hosted results are pending at this commit;
+PR64 records the exact corrective SHA and terminal results. No live provider or
+infrastructure action occurred. This remains B05 acceptance repair, not B06 work.
+
+B05 retention rereview reproduced an old order with a recent unallocated adjustment
+losing its `unreconciled` marker during cleanup, making a report incorrectly return
+zero. Expiry now requires both creation and latest source update to predate the
+retention floor. A focused regression verifies unavailable stays unavailable and
+that the minimal marker eventually expires. This is a B05 correctness repair;
+current-head Full/CI evidence remains in PR64.
+
+### B05 Independent Review Repairs
+
+Review of `22a9aa0` reproduced four defects on SQLite and PostgreSQL: an open return
+could be counted before refund processing; pre-enable erasure could replay after
+binding measurement; ten paused/revoked stores could starve an eligible eleventh;
+and a customer-only privacy request could be reported complete while unclassified
+legacy facts remained. These are B05 acceptance repairs, with no B06 work.
+
+Refund normalization now requires agreement type/reason and uses refund.processedAt;
+unsupported return/exchange workflows remain unavailable rather than double-counted.
+Pagination retains that metadata. Durable workspace/domain HMAC erasure guards
+survive pre-enable requests, disconnect and reconnect. Migration 0025 copies available
+legacy tombstones and marks open requests pending where retained facts cannot yet
+be classified. Missing old identity cannot be invented or recovered retroactively.
+Canonical backfill bridges legacy facts before suppression; customer exports and
+delivery return 409 until identity reconciliation completes, without deleting
+unrelated facts. Legacy imports pause when customer identity is required. Scheduler
+eligibility is filtered before the batch limit, preserving pause/revocation semantics.
+
+Combined focused suite: **93 passed**, including populated PostgreSQL 0025 migration
+and both database dialects. Ruff, mypy (**192 files**) and whitespace pass. An added
+export/delivery 409 assertion is separately rerun before commit. Prior-head hosted
+CI 37345161957 succeeded at `22a9aa0`; it does not cover these repairs. Corrective
+head Full and hosted CI are pending; exact SHA and terminal evidence belong in
+PR64 to avoid a documentation-only commit invalidating the checked head.
+
+### B05 Migrated Privacy Export Replay
+
+Bounded rereview of `4885645` found two remaining migrated-request gaps. Both were
+reproduced on the unchanged commit using populated disposable PostgreSQL 0024/0025
+round trips: authenticated request replay returned an empty measurement export after
+identity reconciliation, and canonical-only unknown-customer history did not set
+pending during migration. The first fixture initially hit timestamp validation;
+a corrected clock then reproduced the actual empty-export defect.
+
+Authenticated replay now unions newly resolved legacy/canonical order keys into the
+existing request before clearing pending. Migration 0025 checks unknown customer
+identity in retained canonical facts even when no 59-day raw copy remains. Regression
+coverage checks pending export rejection, verified backfill, repeated authenticated
+replay, and exact legacy/canonical export counts for both history layouts. No B06
+implementation or external provider action is included. Current-head Full/CI evidence
+will be recorded in PR64; prior CI at `4885645` does not cover this follow-up.
+
+## B06 — Editable Goals And Offline Interpretation
+
+Owner approval at 2026-10-05 22:20:59 UTC extends the existing PR64 exception through
+B06 only. Rechecked remote main (`ea3591c`) and PR branch (`f8b1c203`), clean and
+unchanged from B05; PR64 remains an unmerged draft. Website, live providers, IAM,
+credentials, advertising changes and CRM gateway configuration remain outside scope.
+
+Implemented scoped customer goal APIs, immutable numbered definitions, exact preview/
+revision confirmation and confirming customer/time. Historical baselines reference B05
+snapshots without copied financial facts; stale/partial/changed/revoked/privacy-erased
+sources cannot produce a valid confirmation. Future target windows remain separate
+from completed baseline windows. Editing clears current confirmation. Monthly versus
+cumulative dates, source/currency/timezone, deadline and budget period stay explicit.
+Budget/aggressiveness are intent only and cannot authorize any advertising spend.
+
+Added an injected offline interpreter interface and strict output schemas. The default
+adapter asks for structured clarification rather than claiming natural-language
+understanding. No provider SDK or network adapter was added. Durable zero-cost usage
+reservations enforce workspace/global/day and user/hour limits across replicas, reject
+duplicate calls and keep uncertain outcomes reserved. Manual editing works when
+interpretation is unavailable, including retained goals for disconnected sources.
+Database constraints reject nonzero model spending. Migration 0026 adds only B06 tables
+and seeds the offline global cap; generated unrelated schema differences were removed
+before any migration was executed.
+
+Acceptance covers CSRF/roles/revoked identity, source/preview isolation, immutable edits,
+confirmation idempotency/concurrency, stale/future/changed/deleted baselines, strict
+schema and unsupported output, global/workspace quota and duplicate reservation races,
+uncertain/timeout handling, external/paid rejection and populated PostgreSQL migration.
+Combined foundation/commerce run: 131 passed. Latest B06 tests and required Full/CI
+results are recorded at the package head in PR64. Ruff and mypy (199 files) pass.
+Contract and release limits: `docs/inlet-goals-contract.md`.
+
+B06 is API/persistence plus offline acceptance, not a live model service or customer
+portal and not a purchasable SaaS release. B07 mandate/action state is next, subject to
+predecessor review/merge or a further explicit exception. Live model/data-processing/
+cost approval, Shopify live reconciliation, deployment and CRM gateway architecture
+remain separate unresolved gates. No such approval is inferred from B06 authorization.
+
+### B06 Independent Review Repairs
+
+Review of `9628c1fa` found two defects, reproduced on both SQLite and PostgreSQL:
+a new idempotency key for an already confirmed preview overwrote the original
+confirming customer/time, and the usage endpoint omitted prior-day outstanding
+reservations while the interpreter correctly continued blocking them. The regression
+run failed all four affected cases before correction.
+
+Reconfirming the same preview now only records another replay receipt; the original
+revision's customer/time remain immutable. PostgreSQL races cover different actors
+using both shared and different request keys. Daily usage and all-age outstanding
+counts are separate; reserved and uncertain requests remain visible across UTC-day
+rollover and continue blocking unsafe retries. No reservations are reset/released by
+this display correction. Required checks and exact-head CI evidence are recorded in
+PR64. These are B06 acceptance repairs, not B07 implementation.

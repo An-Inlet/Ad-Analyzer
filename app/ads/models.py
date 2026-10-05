@@ -74,6 +74,13 @@ execution_status_enum = Enum(
 class AdvertisingAccount(TimestampMixin, Base):
     __tablename__ = "advertising_accounts"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_account_connection_workspace",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "workspace_id", "connection_id", name="uq_account_connection_scope"),
         UniqueConstraint(
             "workspace_id",
             "platform",
@@ -86,8 +93,9 @@ class AdvertisingAccount(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_account_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -443,7 +451,7 @@ class ConversionEvent(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_conversion_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -459,6 +467,22 @@ class ConversionEvent(TimestampMixin, Base):
 class JobRun(TimestampMixin, Base):
     __tablename__ = "job_runs"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_job_connection_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id", "connection_id"],
+            [
+                "advertising_accounts.id",
+                "advertising_accounts.workspace_id",
+                "advertising_accounts.connection_id",
+            ],
+            name="fk_job_account_connection",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("id", "workspace_id", name="uq_job_runs_id_workspace"),
         ForeignKeyConstraint(
             ["account_id", "platform"],
@@ -493,8 +517,9 @@ class JobRun(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     account_id: Mapped[int | None] = mapped_column(Integer)

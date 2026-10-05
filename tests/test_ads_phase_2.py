@@ -64,7 +64,7 @@ def session() -> Generator[Session, None, None]:
 
 
 def test_account_campaign_relationship_and_unique_account_constraint(session: Session) -> None:
-    account = AdvertisingAccount(
+    account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="acct-1",
         name="Denticode Search",
@@ -84,7 +84,7 @@ def test_account_campaign_relationship_and_unique_account_constraint(session: Se
     assert account.campaigns[0].account_id == account.id
 
     session.add(
-        AdvertisingAccount(
+        AdvertisingAccount(workspace_id=1,
             platform=AdvertisingPlatform.GOOGLE_ADS,
             external_account_id="acct-1",
             name="Duplicate",
@@ -191,7 +191,7 @@ def test_ad_schema_requires_exactly_one_parent() -> None:
 
 
 def test_database_requires_ads_to_have_exactly_one_parent(session: Session) -> None:
-    google_account = AdvertisingAccount(
+    google_account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="google-acct-ads-xor",
         name="Denticode Search",
@@ -209,7 +209,7 @@ def test_database_requires_ads_to_have_exactly_one_parent(session: Session) -> N
         external_ad_group_id="google-ad-group-ads-xor",
         name="Implants Exact",
     )
-    meta_account = AdvertisingAccount(
+    meta_account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.META_ADS,
         external_account_id="meta-acct-ads-xor",
         name="Denticode Social",
@@ -272,13 +272,13 @@ def test_database_requires_ads_to_have_exactly_one_parent(session: Session) -> N
 def test_database_enforces_platform_aware_parent_child_constraints(
     session: Session,
 ) -> None:
-    google_account = AdvertisingAccount(
+    google_account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="google-acct-platform",
         name="Denticode Search",
         currency_code="USD",
     )
-    meta_account = AdvertisingAccount(
+    meta_account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.META_ADS,
         external_account_id="meta-acct-platform",
         name="Denticode Social",
@@ -401,7 +401,7 @@ def test_database_enforces_platform_aware_parent_child_constraints(
 def test_normalized_metrics_service_stores_metrics_and_enforces_uniqueness(
     session: Session,
 ) -> None:
-    account = AdvertisingAccount(
+    account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.META_ADS,
         external_account_id="meta-acct-1",
         name="Denticode Social",
@@ -445,7 +445,7 @@ def test_normalized_metrics_service_stores_metrics_and_enforces_uniqueness(
 
 
 def test_lower_level_metrics_require_matching_parent_scope(session: Session) -> None:
-    account = AdvertisingAccount(
+    account = AdvertisingAccount(workspace_id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         external_account_id="google-lower-level-scope",
         name="Denticode Search",

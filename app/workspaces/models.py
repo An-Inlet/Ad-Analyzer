@@ -93,6 +93,7 @@ class WorkspaceMembership(WorkspaceTimestampMixin, Base):
 class WorkspaceIntegration(WorkspaceTimestampMixin, Base):
     __tablename__ = "workspace_integrations"
     __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_workspace_integrations_id_workspace"),
         UniqueConstraint("workspace_id", "integration_key", name="uq_workspace_integrations_key"),
         Index("ix_workspace_integrations_provider_status", "provider", "status"),
     )

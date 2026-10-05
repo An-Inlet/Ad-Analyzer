@@ -40,6 +40,20 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
+from tests.import_scope_helpers import seed_google_scope
+
+
+@pytest.fixture(autouse=True)
+def configured_import_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, value in {
+        "INLET_GOOGLE_ADS_WORKSPACE_ID": "1",
+        "INLET_GOOGLE_ADS_CONNECTION_ID": "1",
+        "INLET_GOOGLE_ADS_ACCOUNT_ID": "1",
+        "INLET_GOOGLE_ADS_CREDENTIALS_REFERENCE": "fixture-google-v1",
+        "GOOGLE_ADS_CUSTOMER_ID": "acct-1",
+    }.items():
+        monkeypatch.setenv(name, value)
+
 
 @pytest.fixture()
 def sqlite_engine() -> Generator[Any, None, None]:
@@ -49,6 +63,8 @@ def sqlite_engine() -> Generator[Any, None, None]:
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_google_scope(session)
     try:
         yield engine
     finally:
@@ -365,6 +381,8 @@ def test_run_cycle_aborts_without_retry_after_lock_connection_loss(
 ) -> None:
     engine = create_engine(f"sqlite:///{(tmp_path / 'lock-loss.db').as_posix()}")
     Base.metadata.create_all(engine)
+    with Session(engine) as scoped_session:
+        seed_google_scope(scoped_session)
     calls = 0
 
     def lose_lock(self: Any, _job_run: JobRun, **_kwargs: object) -> GoogleAdsSyncResult:
@@ -486,6 +504,7 @@ def test_operational_health_resanitizes_legacy_failure_text(
     with Session(sqlite_engine) as session:
         session.add(
             JobRun(
+                workspace_id=1,
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 job_name="google_ads_read_only_sync",
                 status=JobRunStatus.FAILED,
@@ -534,6 +553,8 @@ def test_unknown_commit_with_lock_loss_does_not_replacement_finalize(
 ) -> None:
     sqlite_engine = create_engine(f"sqlite:///{(tmp_path / 'unknown-lock-loss.db').as_posix()}")
     Base.metadata.create_all(sqlite_engine)
+    with Session(sqlite_engine) as scoped_session:
+        seed_google_scope(scoped_session)
     calls = 0
     fresh_finalize_calls = 0
 
@@ -753,7 +774,7 @@ def test_initial_running_commit_unknown_is_primary_and_not_unlocked(
 ) -> None:
     unlock_calls = 0
 
-    def unknown_create(_session: Session) -> JobRun:
+    def unknown_create(_session: Session, _scope: object) -> JobRun:
         raise GoogleAdsSyncError(
             "Google Ads sync commit outcome is unknown; verify the latest job run before retrying",
             classification=SyncFailureClassification.UNKNOWN_COMMIT_OUTCOME,
@@ -839,6 +860,7 @@ def test_stop_after_account_collector_prevents_campaign_collector(
         nonlocal account_calls
         account_calls += 1
         return AdvertisingAccountCreate(
+            workspace_id=1,
             platform=AdvertisingPlatform.GOOGLE_ADS,
             external_account_id="acct-1",
             name="Acct",
@@ -872,6 +894,8 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
 ) -> None:
     sqlite_engine = create_engine(f"sqlite:///{(tmp_path / 'collector-lock-loss.db').as_posix()}")
     Base.metadata.create_all(sqlite_engine)
+    with Session(sqlite_engine) as scoped_session:
+        seed_google_scope(scoped_session)
     from app.ads.enums import AdvertisingPlatform
     from app.ads.schemas import AdvertisingAccountCreate
     from app.collectors import google_ads
@@ -884,6 +908,7 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
         nonlocal account_calls
         account_calls += 1
         return AdvertisingAccountCreate(
+            workspace_id=1,
             platform=AdvertisingPlatform.GOOGLE_ADS,
             external_account_id="acct-1",
             name="Acct",
@@ -917,6 +942,8 @@ def test_lock_loss_after_account_collector_prevents_campaign_collector(
 def sqlite_file_engine(tmp_path: Path) -> Generator[Any, None, None]:
     engine = create_engine(f"sqlite:///{tmp_path / 'phase7.db'}")
     Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        seed_google_scope(session)
     try:
         yield engine
     finally:
@@ -1084,6 +1111,7 @@ def test_job_run_response_schema_accepts_generic_public_failure_message() -> Non
     from app.api.schemas import JobRunResponse
 
     response = JobRunResponse(
+        workspace_id=1,
         id=1,
         platform="google_ads",
         account_id=None,
@@ -1098,6 +1126,7 @@ def test_job_run_response_schema_accepts_generic_public_failure_message() -> Non
     assert response.error_message == "Google Ads synchronization failed."
     with pytest.raises(ValidationError):
         JobRunResponse(
+            workspace_id=1,
             id=1,
             platform="google_ads",
             account_id=None,
@@ -1118,6 +1147,7 @@ def test_job_run_response_uses_shared_public_failure_summary() -> None:
     from app.api.v1 import job_run_response
 
     job_run = JobRun(
+        workspace_id=1,
         id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
         account_id=None,
@@ -1918,6 +1948,7 @@ def test_authoritative_sync_rejects_missing_or_arbitrary_capability_before_colle
     )
     with Session(sqlite_engine) as session:
         job_run = JobRun(
+            workspace_id=1,
             platform="google_ads",
             job_name="google_ads_read_only_sync",
             status=JobRunStatus.RUNNING,
@@ -1963,6 +1994,7 @@ def test_fabricated_phase7_capability_cannot_reach_collectors(
     fabricated = object.__new__(Phase7SyncCapability)
     with Session(sqlite_engine) as session:
         job_run = JobRun(
+            workspace_id=1,
             platform="google_ads",
             job_name="google_ads_read_only_sync",
             status=JobRunStatus.RUNNING,

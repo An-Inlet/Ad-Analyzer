@@ -27,6 +27,7 @@ from app.ads.schemas import (
     KeywordCreate,
     SearchTermCreate,
 )
+from app.imports.scope import AdvertisingImportScope, ImportScopeError
 
 ModelT = TypeVar("ModelT")
 
@@ -36,6 +37,7 @@ class AdvertisingMetricsRepository:
 
     def __init__(self, session: Session) -> None:
         self.session = session
+        self.scope: AdvertisingImportScope | None = None
 
     def add_daily_metric(self, metric: DailyMetricCreate) -> DailyMetric:
         db_metric = DailyMetric(**metric.model_dump())
@@ -48,6 +50,16 @@ class AdvertisingMetricsRepository:
     def upsert_account(
         self, account: AdvertisingAccountCreate, *, workspace_id: int | None = None
     ) -> AdvertisingAccount:
+        if self.scope is not None:
+            owned = self.session.get(AdvertisingAccount, self.scope.account_id)
+            if (
+                owned is None
+                or account.workspace_id != self.scope.workspace_id
+                or account.platform != self.scope.platform
+                or account.external_account_id != owned.external_account_id
+                or workspace_id not in (None, self.scope.workspace_id)
+            ):
+                raise ImportScopeError("collector account does not match import scope")
         values = account.model_dump()
         if workspace_id is not None:
             values["workspace_id"] = workspace_id
@@ -58,6 +70,10 @@ class AdvertisingMetricsRepository:
         )
 
     def upsert_campaign(self, campaign: CampaignCreate) -> Campaign:
+        if self.scope is not None and (
+            campaign.account_id != self.scope.account_id or campaign.platform != self.scope.platform
+        ):
+            raise ImportScopeError("campaign does not match import scope")
         return self._atomic_upsert(
             Campaign,
             campaign.model_dump(),
@@ -65,6 +81,7 @@ class AdvertisingMetricsRepository:
         )
 
     def upsert_ad_group(self, ad_group: AdGroupCreate) -> AdGroup:
+        self._require_campaign(ad_group.campaign_id)
         return self._atomic_upsert(
             AdGroup,
             ad_group.model_dump(),
@@ -72,6 +89,8 @@ class AdvertisingMetricsRepository:
         )
 
     def upsert_ad(self, ad: AdCreate) -> Ad:
+        if self.scope is not None:
+            self._require_ad_group(ad.ad_group_id or 0)
         conflict_columns = (
             ("ad_group_id", "platform", "external_ad_id")
             if ad.ad_group_id is not None
@@ -80,6 +99,7 @@ class AdvertisingMetricsRepository:
         return self._atomic_upsert(Ad, ad.model_dump(), conflict_columns)
 
     def upsert_keyword(self, keyword: KeywordCreate) -> Keyword:
+        self._require_ad_group(keyword.ad_group_id)
         return self._atomic_upsert(
             Keyword,
             keyword.model_dump(),
@@ -87,6 +107,7 @@ class AdvertisingMetricsRepository:
         )
 
     def upsert_search_term(self, search_term: SearchTermCreate) -> SearchTerm:
+        self._require_ad_group(search_term.ad_group_id)
         return self._atomic_upsert(
             SearchTerm,
             search_term.model_dump(),
@@ -94,6 +115,7 @@ class AdvertisingMetricsRepository:
         )
 
     def upsert_daily_metric(self, metric: DailyMetricCreate) -> DailyMetric:
+        self._require_campaign(metric.campaign_id)
         return self._atomic_upsert(
             DailyMetric,
             metric.model_dump(),
@@ -107,9 +129,11 @@ class AdvertisingMetricsRepository:
         job_name: str,
         status: JobRunStatus,
         account_id: int | None = None,
-        workspace_id: int = 1,
+        workspace_id: int,
+        connection_id: int | None = None,
     ) -> JobRun:
         job_run = JobRun(
+            connection_id=connection_id,
             workspace_id=workspace_id,
             platform=platform,
             account_id=account_id,
@@ -133,6 +157,25 @@ class AdvertisingMetricsRepository:
         job_run.records_processed = records_processed
         job_run.error_message = error_message
         return job_run
+
+    def _require_campaign(self, campaign_id: int) -> None:
+        if self.scope is None:
+            return
+        campaign = self.session.get(Campaign, campaign_id)
+        if (
+            campaign is None
+            or campaign.account_id != self.scope.account_id
+            or campaign.platform != self.scope.platform
+        ):
+            raise ImportScopeError("campaign does not match import scope")
+
+    def _require_ad_group(self, ad_group_id: int) -> None:
+        if self.scope is None:
+            return
+        parent = self.session.get(AdGroup, ad_group_id)
+        if parent is None:
+            raise ImportScopeError("ad group does not match import scope")
+        self._require_campaign(parent.campaign_id)
 
     def _atomic_upsert(
         self,

@@ -332,7 +332,7 @@ def job_run_response(job_run: JobRun) -> JobRunResponse:
     """Expose only the bounded public error message, never stored job diagnostics."""
     return JobRunResponse(
         id=job_run.id,
-        workspace_id=job_run.workspace_id or 1,
+        workspace_id=job_run.workspace_id,
         platform=job_run.platform,
         account_id=job_run.account_id,
         job_name=job_run.job_name,

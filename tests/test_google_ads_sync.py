@@ -48,10 +48,13 @@ from app.ads.services import (
 )
 from app.collectors import google_ads
 from app.database.session import Base
+from app.settings import Settings
 from app.workspaces.models import Workspace
 from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import ConnectionPoolEntry
+
+from tests.import_scope_helpers import seed_google_scope
 
 sync_google_ads_script = import_module("scripts.sync_google_ads")
 
@@ -161,12 +164,21 @@ def sync_without_worker_for_tests(
     lock: Any | None = None,
     stop_requested: Callable[[], bool] | None = None,
 ) -> GoogleAdsSyncResult:
-    service = GoogleAdsSyncService(session)
+    service = GoogleAdsSyncService(
+        session,
+        Settings(
+            INLET_GOOGLE_ADS_CREDENTIALS_REFERENCE="fixture-google-v1",
+            GOOGLE_ADS_CUSTOMER_ID="acct-1",
+        ),
+    )
     repository = service.repository
     job_run = repository.create_job_run(
+        workspace_id=1,
         platform=AdvertisingPlatform.GOOGLE_ADS,
+        connection_id=1,
         job_name=service.job_name,
         status=JobRunStatus.RUNNING,
+        account_id=1,
     )
     success_commit_started = False
     captured_exc: Exception | None = None
@@ -202,6 +214,7 @@ def sync_without_worker_for_tests(
         session.rollback()
         failed_account_id = service._resolve_durable_failed_run_account_id(resolved_account)
         failed_job_run = repository.create_job_run(
+            workspace_id=1,
             platform=AdvertisingPlatform.GOOGLE_ADS,
             job_name=service.job_name,
             status=JobRunStatus.FAILED,
@@ -253,6 +266,7 @@ def session() -> Generator[Session, None, None]:
         )
     )
     db.commit()
+    seed_google_scope(db)
     try:
         yield db
     finally:
@@ -286,9 +300,10 @@ class GoogleAdsCollectorStub:
         if self.fail_at == name:
             raise RuntimeError(self.failure_message)
 
-    def collect_account(self) -> AdvertisingAccountCreate:
+    def collect_account(self, **_context: object) -> AdvertisingAccountCreate:
         self._fail_if_needed("account")
         return AdvertisingAccountCreate(
+            workspace_id=1,
             platform=AdvertisingPlatform.GOOGLE_ADS,
             external_account_id=self.account_external_id,
             name=self.account_name,
@@ -296,7 +311,7 @@ class GoogleAdsCollectorStub:
             time_zone="America/New_York",
         )
 
-    def collect_campaigns(self, account_id: int) -> list[CampaignCreate]:
+    def collect_campaigns(self, account_id: int, **_context: object) -> list[CampaignCreate]:
         self._fail_if_needed("campaigns")
         if self.zero:
             return []
@@ -311,7 +326,9 @@ class GoogleAdsCollectorStub:
             )
         ]
 
-    def collect_ad_groups(self, campaign_ids_by_external_id: dict[str, int]) -> list[AdGroupCreate]:
+    def collect_ad_groups(
+        self, campaign_ids_by_external_id: dict[str, int], **_context: object
+    ) -> list[AdGroupCreate]:
         self._fail_if_needed("ad_groups")
         if not campaign_ids_by_external_id:
             return []
@@ -336,7 +353,9 @@ class GoogleAdsCollectorStub:
             )
         return ad_groups
 
-    def collect_ads(self, ad_group_ids_by_external_id: dict[str, int]) -> list[AdCreate]:
+    def collect_ads(
+        self, ad_group_ids_by_external_id: dict[str, int], **_context: object
+    ) -> list[AdCreate]:
         self._fail_if_needed("ads")
         if not ad_group_ids_by_external_id:
             return []
@@ -367,7 +386,9 @@ class GoogleAdsCollectorStub:
             )
         ]
 
-    def collect_keywords(self, ad_group_ids_by_external_id: dict[str, int]) -> list[KeywordCreate]:
+    def collect_keywords(
+        self, ad_group_ids_by_external_id: dict[str, int], **_context: object
+    ) -> list[KeywordCreate]:
         self._fail_if_needed("keywords")
         return (
             [
@@ -388,6 +409,7 @@ class GoogleAdsCollectorStub:
         self,
         ad_group_ids_by_external_id: dict[str, int],
         date_range: google_ads.GoogleAdsDateRange,
+        **_context: object,
     ) -> list[SearchTermCreate]:
         self._fail_if_needed("search_terms")
         return (
@@ -410,6 +432,7 @@ class GoogleAdsCollectorStub:
         ad_group_ids_by_external_id: dict[str, int] | None = None,
         keyword_ids_by_scope: dict[tuple[int, str], int] | None = None,
         search_term_ids_by_scope: dict[tuple[int, str], int] | None = None,
+        **_context: object,
     ) -> NormalizedMetricsBatch:
         self._fail_if_needed("metrics")
         if self.zero_metrics:
@@ -693,7 +716,7 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
     assert failed is not None
     assert failed.records_processed == 6
-    assert failed.account_id is None
+    assert failed.account_id == 1
     assert failed.error_message is not None
     assert failed.error_message == SANITIZED_SYNC_ERROR
     assert len(failed.error_message) <= 120
@@ -703,22 +726,18 @@ def test_rollback_after_failure(session: Session, monkeypatch: pytest.MonkeyPatc
     assert "db-password" not in failed.error_message
     job_runs = session.scalars(select(JobRun)).all()
     assert [(job.id, job.status) for job in job_runs] == [(failed.id, JobRunStatus.FAILED)]
-    assert session.scalars(select(AdvertisingAccount)).all() == []
+    assert (
+        len(session.scalars(select(AdvertisingAccount)).all()) == 1
+    )  # Pre-provisioned scope survives.
 
 
 def test_failed_sync_links_existing_durable_account_without_persisting_rename(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    durable_account = AdvertisingAccount(
-        platform=AdvertisingPlatform.GOOGLE_ADS,
-        external_account_id="acct-1",
-        name="Durable Account Name",
-        currency_code="USD",
-        time_zone="America/New_York",
-    )
-    session.add(durable_account)
-    session.flush()
+    durable_account = session.get(AdvertisingAccount, 1)
+    assert durable_account is not None
+    durable_account.name = "Durable Account Name"
     durable_account_id = durable_account.id
     session.commit()
     stub = GoogleAdsCollectorStub(
@@ -751,7 +770,7 @@ def test_failed_sync_links_existing_durable_account_without_persisting_rename(
     assert account.name == "Durable Account Name"
 
 
-def test_failed_sync_with_new_account_does_not_create_account_for_audit_link(
+def test_scoped_sync_rejects_unexpected_provider_account_without_creating_it(
     session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -775,13 +794,15 @@ def test_failed_sync_with_new_account_does_not_create_account_for_audit_link(
     with pytest.raises(GoogleAdsSyncError) as exc_info:
         sync_without_worker_for_tests(session)
 
-    assert str(exc_info.value) == SANITIZED_SYNC_ERROR
+    assert str(exc_info.value) == "Google Ads read-only sync failed (ImportScopeError)"
     assert exc_info.value.__cause__ is None
     assert exc_info.value.__context__ is None
     failed = session.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
     assert failed is not None
     assert failed.account_id is None
-    assert session.scalars(select(AdvertisingAccount)).all() == []
+    assert (
+        len(session.scalars(select(AdvertisingAccount)).all()) == 1
+    )  # Pre-provisioned scope survives.
 
 
 def test_success_commit_exception_creates_no_failed_job_run(
@@ -1095,6 +1116,7 @@ def test_concurrent_duplicate_ad_upserts_do_not_create_duplicate_rows(
             repository = AdvertisingMetricsRepository(setup_session)
             account = repository.upsert_account(
                 AdvertisingAccountCreate(
+                    workspace_id=1,
                     platform=AdvertisingPlatform.GOOGLE_ADS,
                     external_account_id="acct-concurrent",
                     name="Denticode Search",

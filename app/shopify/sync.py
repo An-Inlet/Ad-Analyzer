@@ -6,6 +6,8 @@ from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.automation import AutomationControlKey, AutomationControlService
+from app.imports.native import bind_shopify
+from app.imports.scope import ImportScopeError
 from app.settings import Settings, settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOrder, ShopifyTombstone
@@ -43,6 +45,11 @@ class ShopifySyncService:
         )
         if row is None or row.status != "connected":
             return {"status": "not_connected_or_busy", "imported": 0}
+        try:
+            bind_shopify(self.session, row)
+        except ImportScopeError:
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         if row.next_attempt_at and utc(row.next_attempt_at) > now:
             return {"status": "retry_later", "imported": 0}
         if (
@@ -61,6 +68,9 @@ class ShopifySyncService:
             )
         row.last_attempt_at = now
         try:
+            from app.commerce.ledger import identity_key, legacy_store
+
+            store = legacy_store(self.session, row)
             token = ConnectionService(self.session, self.settings, self.client).access_token(
                 row, now
             )
@@ -98,11 +108,21 @@ class ShopifySyncService:
                         )
                     )
                     tombstone = self.session.get(ShopifyTombstone, (row.id, key))
-                    if source.get("test") is True or tombstone:
+                    from app.shopify.privacy_identity import legacy_erased
+
+                    if (
+                        source.get("test") is True
+                        or tombstone
+                        or legacy_erased(self.session, row, key)
+                    ):
                         if existing:
                             self.session.delete(existing)
                         continue
                     values = normalized_order(self.session, row, source, vault)
+                    if store is not None:
+                        values["commerce_order_key"] = identity_key(
+                            vault, store, "order", source["id"]
+                        )
                     if existing and utc(existing.source_updated_at) > values["source_updated_at"]:
                         continue
                     if existing is None:
@@ -191,3 +211,7 @@ def run_shopify_tick(engine: Engine) -> None:
                     break
             if result["status"] != "syncing":
                 break
+
+    from app.commerce.sync import run_commerce_tick
+
+    run_commerce_tick(engine, settings)

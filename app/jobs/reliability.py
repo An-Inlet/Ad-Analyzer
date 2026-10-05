@@ -29,6 +29,7 @@ from app.ads.services import (
 )
 from app.automation import AutomationControlKey, master_control_enabled
 from app.collectors.google_ads import GoogleAdsRateLimitError
+from app.imports.scope import AdvertisingImportScope, google_scope, validate_advertising_scope
 from app.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,6 @@ class AdvisoryLockLostError(RuntimeError):
     """Raised when the physical backend that owned the advisory lock is lost."""
 
 
-
 def _advisory_lock_key_parts(key: int) -> tuple[int, int]:
     if key < -(2**63) or key > 2**63 - 1:
         raise ValueError("PostgreSQL advisory lock key must be a signed 64-bit integer")
@@ -74,6 +74,7 @@ def _owns_advisory_lock_sql() -> str:
         "AND mode = 'ExclusiveLock' "
         "AND granted)"
     )
+
 
 class PostgreSQLAdvisoryLock:
     """A session-level lock held by exactly one pinned physical connection."""
@@ -97,9 +98,7 @@ class PostgreSQLAdvisoryLock:
             raise RuntimeError("Google Ads scheduler requires PostgreSQL advisory locks")
         try:
             self.acquired = bool(
-                self.connection.scalar(
-                    text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key}
-                )
+                self.connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": self.key})
             )
             if self.acquired:
                 self.backend_pid = int(self.connection.scalar(text("SELECT pg_backend_pid()")))
@@ -150,9 +149,7 @@ class PostgreSQLAdvisoryLock:
             return
         try:
             unlocked = bool(
-                self.connection.scalar(
-                    text("SELECT pg_advisory_unlock(:key)"), {"key": self.key}
-                )
+                self.connection.scalar(text("SELECT pg_advisory_unlock(:key)"), {"key": self.key})
             )
             if not unlocked:
                 raise RuntimeError("PostgreSQL advisory lock release failed")
@@ -240,12 +237,16 @@ class CycleOutcome:
     skip_reason: CycleSkipReason | None = None
 
 
-def _create_authoritative_job_run(session: Session) -> JobRun:
+def _create_authoritative_job_run(session: Session, scope: AdvertisingImportScope) -> JobRun:
+    validate_advertising_scope(session, scope)
     repository = AdvertisingMetricsRepository(session)
     job_run = repository.create_job_run(
         platform=AdvertisingPlatform.GOOGLE_ADS,
         job_name=GoogleAdsSyncService.job_name,
         status=JobRunStatus.RUNNING,
+        workspace_id=scope.workspace_id,
+        connection_id=scope.connection_id,
+        account_id=scope.account_id,
     )
     commit_started = False
     try:
@@ -306,7 +307,6 @@ def _finalize_failed_job_run(
         raise
 
 
-
 def _finalize_failed_job_run_on_engine(
     engine: Engine, job_run_id: int, exc: BaseException, attempts: int
 ) -> None:
@@ -323,6 +323,7 @@ def _finalize_failed_job_run_on_engine(
                 _finalize_failed_job_run(session, job_run, exc, attempts)
         finally:
             session.close()
+
 
 def _wait_for_retry(delay: float, wait: Callable[[float], bool | None]) -> None:
     if wait(delay):
@@ -376,8 +377,10 @@ def run_cycle(
             attempts=0,
             skip_reason=CycleSkipReason.DISABLED,
         )
+    scope = google_scope(settings)
+    scoped_lock_key = scope.lock_key(settings.sync_lock_key)
     connection = engine.connect()
-    lock = PostgreSQLAdvisoryLock(connection, settings.sync_lock_key)
+    lock = PostgreSQLAdvisoryLock(connection, scoped_lock_key)
     session: Session | None = None
     job_run: JobRun | None = None
     last_attempt = 0
@@ -385,6 +388,7 @@ def run_cycle(
     finalization_outcome_unknown = False
     primary_error: BaseException | None = None
     capability: Phase7SyncCapability | None = None
+
     class _CyclePhase7SyncCapability(Phase7SyncCapability):
         """Function-local capability bound to this run_cycle invocation."""
 
@@ -466,6 +470,7 @@ def run_cycle(
 
     retry_wait: Callable[[float], bool | None]
     if wait is None:
+
         def retry_wait(delay: float) -> bool:
             sleep(delay)
             return False
@@ -527,7 +532,7 @@ def run_cycle(
             expire_on_commit=False,
         )
         session = session_factory()
-        job_run = _create_authoritative_job_run(session)
+        job_run = _create_authoritative_job_run(session, scope)
         try:
             _raise_if_stop_requested(stop_requested)
         except BaseException as stop_exc:
@@ -545,11 +550,11 @@ def run_cycle(
                     lock=lock,
                     connection=connection,
                     session=session,
-                    lock_key=settings.sync_lock_key,
+                    lock_key=scoped_lock_key,
                     backend_pid=lock.backend_pid,
                     stop_requested=stop_requested or (lambda: False),
                 )
-                result = GoogleAdsSyncService(session).sync_authoritative_job_run(
+                result = GoogleAdsSyncService(session, settings).sync_authoritative_job_run(
                     job_run,
                     capability=capability,
                 )

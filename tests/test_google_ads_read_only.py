@@ -162,7 +162,7 @@ def test_collectors_require_all_google_ads_credentials() -> None:
     settings = Settings(_env_file=None)
 
     with pytest.raises(GoogleAdsMissingCredentialsError) as exc_info:
-        collect_account(settings=settings)
+        collect_account(workspace_id=1, settings=settings)
 
     assert "developer_token" in str(exc_info.value)
     assert "client_id" in str(exc_info.value)
@@ -373,7 +373,7 @@ def test_collectors_normalize_google_ads_rows_to_phase_2_schemas(
     )
     raw_client, loaded_configs = install_fake_google_ads_module(monkeypatch, service)
 
-    account = collect_account(settings=settings)
+    account = collect_account(workspace_id=1, settings=settings)
     campaigns = collect_campaigns(account_id=1, settings=settings)
     metrics = collect_metrics(
         {"11": 55},

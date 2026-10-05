@@ -27,6 +27,43 @@ def test_deterministic_findings_and_recommendation_drafts() -> None:
     assert drafts[0].planned_action["mode"] == "dry_run_only"
 
 
+@pytest.mark.parametrize("conversions", [Decimal("10"), Decimal("0.5")])
+def test_positive_conversions_never_produce_no_conversions_finding(conversions: Decimal) -> None:
+    window = MetricWindow(
+        date(2026, 7, 1), date(2026, 7, 7), 7, 7, 2000, 100, 100_000_000, conversions, 0
+    )
+    now = datetime(2026, 7, 8, tzinfo=UTC)
+    findings = generate_findings(window, None, last_success_at=now, now=now)
+    assert "spend_without_conversions" not in {finding.code for finding in findings}
+    drafts = recommendations_from_findings(findings, expires_at=now)
+    assert "spend_without_conversions" not in {draft.recommendation_type for draft in drafts}
+
+
+@pytest.mark.parametrize(
+    ("cost_micros", "clicks", "available", "days_with_rows", "expected"),
+    [
+        (100_000_000, 100, True, 7, True),
+        (1, 20, True, 7, True),
+        (0, 100, True, 7, False),
+        (100_000_000, 19, True, 7, False),
+        (100_000_000, 100, False, 7, False),
+        (100_000_000, 100, True, 0, False),
+    ],
+)
+def test_zero_conversion_finding_requires_spend_traffic_and_available_data(
+    cost_micros: int, clicks: int, available: bool, days_with_rows: int, expected: bool
+) -> None:
+    window = MetricWindow(
+        date(2026, 7, 1), date(2026, 7, 7), 7, days_with_rows,
+        2000, clicks, cost_micros, Decimal("0"), 0,
+    )
+    now = datetime(2026, 7, 8, tzinfo=UTC)
+    findings = generate_findings(
+        window, None, last_success_at=now, now=now, conversion_metrics_available=available
+    )
+    assert ("spend_without_conversions" in {finding.code for finding in findings}) is expected
+
+
 def add_current_window_metrics(db: Any, c1: int) -> None:
     for offset in range(3, 9):
         db.add(
@@ -65,7 +102,7 @@ def add_comparison_window_metrics(db: Any, c1: int) -> None:
 
 def add_successful_sync(db: Any, account_id: int) -> None:
     db.add(
-        JobRun(
+        JobRun(workspace_id=1,
             platform="google_ads",
             account_id=account_id,
             job_name="sync",
@@ -106,7 +143,9 @@ def test_authenticated_analytics_recommendation_approval_and_blocked_dry_run_api
         findings = client.get(
             f"/api/v1/accounts/{ids['a1']}/findings?date_from=2026-07-01&date_to=2026-07-08"
         ).json()
-        assert {f["code"] for f in findings} >= {"spend_without_conversions", "low_ctr"}
+        # The shared fixture includes 2.5 conversions; high CPA is not zero conversions.
+        assert "low_ctr" in {f["code"] for f in findings}
+        assert "spend_without_conversions" not in {f["code"] for f in findings}
         rec_id = generate_and_approve(client, ids["a1"])
         dry = client.post(
             f"/api/v1/recommendations/{rec_id}/execute-dry-run?idempotency_key=abc123"
@@ -131,6 +170,7 @@ def test_api_findings_pass_comparison_window_and_generate_cpa_recommendation() -
             f"/api/v1/accounts/{ids['a1']}/findings?date_from=2026-07-01&date_to=2026-07-08"
         ).json()
         assert "cpa_regression" in {finding["code"] for finding in findings}
+        assert "spend_without_conversions" not in {finding["code"] for finding in findings}
         recs = client.post(
             f"/api/v1/accounts/{ids['a1']}/recommendations/generate?"
             "date_from=2026-07-01&date_to=2026-07-08"
@@ -219,7 +259,8 @@ def test_dashboard_displays_analytics_findings_recommendations_and_dry_run_statu
         assert "Analytics window" in page.text
         assert "Deterministic findings" in page.text
         assert "Recommendation review queue" in page.text
-        assert "spend_without_conversions" in page.text
+        assert "low_ctr" in page.text
+        assert "spend_without_conversions" not in page.text
         blocked = client.post(
             f"/dashboard/recommendations/{rec_id}/execute-dry-run",
             data={"csrf_token": "test", "idempotency_key": "dashboard-key"},

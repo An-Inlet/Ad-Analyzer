@@ -1,5 +1,11 @@
 # Private CRM integration gateway (Phase 1)
 
+> Historical deployment design: B04 replaces the legacy ingress with a scoped v2
+> route and per-connection verification. The existing publish-only Terraform is
+> not ready for that SQL-backed lookup. See [B04 deployment decision and blockers](inlet-import-ownership.md#review-repairs-and-remaining-crm-infrastructure-decision)
+> before using the historical setup or payload examples below. No permission
+> expansion or deployment has been approved by this implementation change.
+
 ## Architecture and security boundary
 
 The public API Gateway exposes only `GET /health` and `POST /v1/crm/events`. It invokes an authenticated, private Cloud Run gateway. The gateway verifies the CRM HMAC, applies a strict non-PHI allowlist, and publishes normalized JSON to a dedicated Pub/Sub topic. A separate private worker consumes the subscription, persists events idempotently, and updates attribution/lifecycle state. The analyzer API, dashboard, database, recommendations, and advertising credentials are not routed through API Gateway.

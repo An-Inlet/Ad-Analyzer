@@ -245,6 +245,23 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
     )
+    google_ads_workspace_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_WORKSPACE_ID"
+    )
+    google_ads_connection_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_CONNECTION_ID"
+    )
+    google_ads_account_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_ACCOUNT_ID"
+    )
+    google_ads_credentials_reference: str = Field(
+        default="", alias="INLET_GOOGLE_ADS_CREDENTIALS_REFERENCE"
+    )
+
+    customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
+    customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
+    customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")
+
     iap_audience: str = Field(
         default="",
         validation_alias="AD_ANALYZER_IAP_AUDIENCE",
@@ -269,6 +286,9 @@ class Settings(BaseSettings):
     meta_sync_pages: int = Field(default=3, ge=1, le=10, validation_alias="META_SYNC_PAGES")
     meta_sync_interval_minutes: int = Field(
         default=60, ge=15, le=1440, validation_alias="META_SYNC_INTERVAL_MINUTES"
+    )
+    shopify_measurement_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_SHOPIFY_MEASUREMENT_ENABLED"
     )
     shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
     shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")

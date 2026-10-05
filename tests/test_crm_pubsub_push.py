@@ -143,5 +143,5 @@ def test_api_gateway_does_not_expose_internal_push_endpoint() -> None:
     assert "/internal/pubsub/crm-events" not in openapi
     assert set(line.strip() for line in openapi.splitlines() if line.startswith("  /")) == {
         "/health:",
-        "/v1/crm/events:",
+        "/v1/crm/workspaces/{workspace_id}/connections/{connection_id}/events:",
     }

@@ -17,6 +17,9 @@ from app.collectors.google_ads import (
     GoogleAdsIntegrationError,
     GoogleAdsRateLimitError,
 )
+from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
+from app.settings import Settings
+from app.settings import settings as app_settings
 
 FAILED_JOB_RUN_PERSISTENCE_ERROR = (
     "Google Ads sync failed and the failure record could not be persisted"
@@ -102,8 +105,10 @@ class GoogleAdsSyncService:
 
     job_name = "google_ads_read_only_sync"
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, configuration: Settings | None = None) -> None:
         self.session = session
+        self.settings = configuration or app_settings
+        self._scope: AdvertisingImportScope | None = None
         self.repository = AdvertisingMetricsRepository(session)
         self._last_records_processed = 0
         self._last_resolved_account: AdvertisingAccountCreate | None = None
@@ -162,6 +167,16 @@ class GoogleAdsSyncService:
                 classification=SyncFailureClassification.PERMANENT_CONFIGURATION,
             )
         capability.validate(self.session)
+        if self._scope is None:
+            raise ImportScopeError("missing import scope")
+        account, connection = validate_advertising_scope(self.session, self._scope)
+        if self.settings.google_ads_customer_id != account.external_account_id:
+            raise ImportScopeError("configured account does not match import scope")
+        if (
+            not self.settings.google_ads_credentials_reference
+            or connection.secret_manager_reference != self.settings.google_ads_credentials_reference
+        ):
+            raise ImportScopeError("credential ownership unavailable")
 
     def _collect_and_persist(
         self,
@@ -172,8 +187,23 @@ class GoogleAdsSyncService:
     ) -> GoogleAdsSyncResult:
         records_processed = 0
         self._last_records_processed = records_processed
+        self._scope = AdvertisingImportScope(
+            job_run.workspace_id,
+            job_run.connection_id or 0,
+            job_run.account_id or 0,
+            job_run.platform,
+        )
+        self.repository.scope = self._scope
         self._check_before_collector(capability)
-        resolved_account = google_ads.collect_account()
+        owned_account, _ = validate_advertising_scope(self.session, self._scope)
+        resolved_account = google_ads.collect_account(
+            workspace_id=job_run.workspace_id, settings=self.settings
+        )
+        if (
+            resolved_account.external_account_id != owned_account.external_account_id
+            or resolved_account.platform != self._scope.platform
+        ):
+            raise ImportScopeError("collector account does not match import scope")
         resolved_account = resolved_account.model_copy(
             update={"workspace_id": job_run.workspace_id}
         )
@@ -188,7 +218,7 @@ class GoogleAdsSyncService:
         self._check_before_collector(capability)
         campaigns = [
             self.repository.upsert_campaign(campaign)
-            for campaign in google_ads.collect_campaigns(account.id)
+            for campaign in google_ads.collect_campaigns(account.id, settings=self.settings)
         ]
         records_processed += len(campaigns)
         self._last_records_processed = records_processed
@@ -199,7 +229,9 @@ class GoogleAdsSyncService:
         self._check_before_collector(capability)
         ad_groups = [
             self.repository.upsert_ad_group(ad_group)
-            for ad_group in google_ads.collect_ad_groups(campaign_ids_by_external_id)
+            for ad_group in google_ads.collect_ad_groups(
+                campaign_ids_by_external_id, settings=self.settings
+            )
         ]
         records_processed += len(ad_groups)
         self._last_records_processed = records_processed
@@ -210,13 +242,15 @@ class GoogleAdsSyncService:
         self._check_before_collector(capability)
         ads = [
             self.repository.upsert_ad(ad)
-            for ad in google_ads.collect_ads(ad_group_ids_by_external_id)
+            for ad in google_ads.collect_ads(ad_group_ids_by_external_id, settings=self.settings)
         ]
         records_processed += len(ads)
         self._last_records_processed = records_processed
 
         self._check_before_collector(capability)
-        normalized_keywords = google_ads.collect_keywords(ad_group_ids_by_external_id)
+        normalized_keywords = google_ads.collect_keywords(
+            ad_group_ids_by_external_id, settings=self.settings
+        )
         keywords = [self.repository.upsert_keyword(keyword) for keyword in normalized_keywords]
         records_processed += len(keywords)
         self._last_records_processed = records_processed
@@ -229,6 +263,7 @@ class GoogleAdsSyncService:
         normalized_search_terms = google_ads.collect_search_terms(
             ad_group_ids_by_external_id,
             date_range,
+            settings=self.settings,
         )
         search_terms = [
             self.repository.upsert_search_term(search_term)
@@ -253,6 +288,7 @@ class GoogleAdsSyncService:
                 ad_group_ids_by_external_id,
                 keyword_ids_by_scope,
                 search_term_ids_by_scope,
+                settings=self.settings,
             ).metrics
         else:
             metrics = []

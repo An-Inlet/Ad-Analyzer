@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 from app.crm.models import CrmConnection, CrmEventRecord, LeadAttribution
 from app.crm.worker import CrmEventProcessor, handle_message
 from app.database.session import Base
+from app.main import app  # noqa: F401
+from app.workspaces.models import Workspace, WorkspaceIntegration
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -15,7 +17,10 @@ def event() -> dict[str, object]:
         "occurred_at": datetime.now(UTC).isoformat(),
         "crm_lead_id": "lead-1",
         "utm_source": "google",
-        "payload_version": 1,
+        "payload_version": 2,
+        "workspace_id": 1,
+        "connection_id": 1,
+        "provider": "hubspot",
     }
 
 
@@ -23,9 +28,27 @@ def session() -> Session:
     engine = create_engine("sqlite+pysqlite:///:memory:")
     Base.metadata.create_all(engine)
     result = Session(engine)
+    result.add(Workspace(id=1, slug="brand", name="Brand", client_name="Brand"))
+    result.flush()
+    result.add(
+        WorkspaceIntegration(
+            id=1,
+            workspace_id=1,
+            integration_key="crm-test",
+            provider="hubspot",
+            display_name="CRM",
+            status="active",
+            configuration={},
+        )
+    )
+    result.flush()
     result.add(
         CrmConnection(
-            name="fake", status="active", secret_manager_reference="projects/fake/secrets/crm"
+            workspace_id=1,
+            workspace_integration_id=1,
+            name="fake",
+            status="active",
+            secret_manager_reference="projects/fake/secrets/crm",
         )
     )
     result.commit()

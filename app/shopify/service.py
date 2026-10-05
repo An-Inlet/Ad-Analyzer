@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.imports.native import bind_shopify, revoke_native_integration
 from app.settings import Settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOAuthState
@@ -98,7 +99,7 @@ class ConnectionService:
         return f"https://{shop}/admin/oauth/authorize?" + urlencode(
             {
                 "client_id": self.settings.shopify_client_id,
-                "scope": ",".join(sorted(SCOPES)),
+                "scope": ",".join(sorted(self.required_scopes())),
                 "redirect_uri": self.settings.shopify_redirect_uri,
                 "state": nonce,
             }
@@ -118,6 +119,11 @@ class ConnectionService:
             raise ShopifyError("invalid_oauth_state")
         return row
 
+    def required_scopes(self) -> frozenset[str]:
+        from app.commerce.ledger import MEASUREMENT_SCOPES
+
+        return MEASUREMENT_SCOPES if self.settings.shopify_measurement_enabled else SCOPES
+
     def finish(
         self, state: ShopifyOAuthState, code: str, role: str, now: datetime
     ) -> ShopifyConnection:
@@ -135,7 +141,11 @@ class ConnectionService:
         try:
             details = metadata["shop"]
             granted = {s["handle"] for s in metadata["currentAppInstallation"]["accessScopes"]}
-            if not granted >= SCOPES or any(not s.startswith("read_") for s in granted):
+            if (
+                not granted >= self.required_scopes()
+                or not set(bundle["scopes"]) >= self.required_scopes()
+                or any(not s.startswith("read_") for s in granted)
+            ):
                 raise ValueError("scopes")
             if shop_domain(details["myshopifyDomain"]) != shop:
                 raise ValueError("shop")
@@ -162,6 +172,12 @@ class ConnectionService:
             ShopifyAudit(workspace_id=workspace_id, action="connected", actor_role=role)
         )
         try:
+            bind_shopify(self.session, row, reconnect=True)
+            from app.commerce.ledger import bind_store
+
+            if self.settings.shopify_measurement_enabled or details.get("id") is not None:
+                # Disabling imports cannot discard a previously verified privacy identity.
+                bind_store(self.session, row, details["id"], self.settings, now)
             self.session.commit()
         except IntegrityError:
             self.session.rollback()
@@ -183,6 +199,13 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.shopify.privacy_identity import preserve
+
+            preserve(self.session, row)
+            from app.commerce.privacy import remove_store
+
+            remove_store(self.session, row.commerce_store_id)
+            revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)  # Cascades imported facts and encrypted authorization.
         self.session.execute(
             delete(ShopifyOAuthState)

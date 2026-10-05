@@ -456,3 +456,32 @@ counts are separate; reserved and uncertain requests remain visible across UTC-d
 rollover and continue blocking unsafe retries. No reservations are reset/released by
 this display correction. Required checks and exact-head CI evidence are recorded in
 PR64. These are B06 acceptance repairs, not B07 implementation.
+
+## B07 — Offline Mandates And Durable Actions
+
+The owner extended authorization across the remaining offline MVP at 23:33:14 UTC
+on 2026-10-05. Dependent draft PRs may precede predecessor merge; package-by-package
+approval is no longer required. Main remains `ea3591c`; B01–B06 predecessor PR64
+head `ff694f93e32b13f188b646cc3f2db0e854c36fcc` passed hosted CI run 37385671768
+(806 passed, zero skipped). Its local Full passed (800 passed, six PowerShell skips).
+
+B07 is on `codex/inlet-b07-mandates`, based on that verified predecessor. It adds
+versioned fixed-period, single-currency simulation mandates, explicit owned account
+scope, cumulative consumption/reservations/change/count caps, exact new campaign/
+creative review, durable fenced claims, dispatch rechecks and uncertain-outcome
+reconciliation. Customer APIs preserve current role/CSRF/workspace isolation. Pause,
+revoke and cancellation do not claim to stop live ads or reverse spent money.
+Migration 0027 adds only mandate/revision/action/audit tables. No live executor exists.
+
+Focused SQLite/PostgreSQL coverage initially passed 16 tests; the final suite adds a
+concurrent stop/dispatch test. Canonical action hashing prevents JSON key order from
+bypassing draft deduplication. Ruff and mypy pass (205 files). Required Full and hosted
+CI are pending at this entry; exact committed-head results will be recorded in the PR.
+The CI pull-request base filter now includes dependent `codex/inlet-*` branches so
+stacked draft PRs run the same checks; no checks or release restrictions are weakened.
+
+Next: B08 customer Google OAuth/account selection and scoped backfill, with an
+injected offline transport and live integration disabled. The remaining backlog follows
+the audit dependency order. Website work remains owner-managed; pricing, live provider
+setup/validation, deployment, pilot operations and the unanswered CRM gateway proposal
+remain separate gates, not reasons to stop independent offline implementation.

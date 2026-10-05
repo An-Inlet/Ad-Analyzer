@@ -173,6 +173,9 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    mandate_simulation_enabled: bool = Field(
+        default=True, validation_alias="AD_ANALYZER_MANDATE_SIMULATION_ENABLED"
+    )
     """Application settings loaded from environment variables."""
 
     def __init__(self, **data: Any) -> None:

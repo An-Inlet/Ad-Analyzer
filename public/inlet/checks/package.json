@@ -1,0 +1,7 @@
+{
+  "name": "inlet-public-page-checks",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {"test": "node verify.cjs"},
+  "devDependencies": {"playwright": "1.62.1"}
+}

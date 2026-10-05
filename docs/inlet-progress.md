@@ -19,6 +19,9 @@ Last updated: 2026-10-05. Product: **Inlet**. Company: **An Inlet**.
 
 Branch: `codex/inlet-b01-conversion-diagnostics`.
 
+Draft PR: [#64](https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/64).
+Implementation commits: `91fe009` (diagnostics), `afe2cd9` (required-check fixes).
+
 Reproduced before editing the rule: 100 clicks, 10 conversions and 100,000,000
 cost micros incorrectly generated `spend_without_conversions`. Fractional positive
 conversions also reproduced the error. A zero-spend input exposed another false
@@ -52,17 +55,20 @@ failures without changing customer reporting behavior.
 
 - `python -m pytest tests/test_analyzer_v1.py tests/test_analysis_cadences.py`:
   **38 passed** after the diagnostic fix.
-- `scripts/validate.sh Full` with guarded disposable PostgreSQL: running final
-  gates; primary pytest result **600 passed, 6 skipped**. The six skips require
+- `scripts/validate.sh Full` with guarded disposable PostgreSQL: **exit 0**;
+  primary pytest result **600 passed, 6 skipped**. The six skips require
   PowerShell, which is unavailable on this Linux environment.
 - Ruff: passed. Mypy: passed, 159 source files. Whitespace diff check: passed.
 - PostgreSQL integration tests and migration upgrade/downgrade/upgrade: passed.
 - ReadOnly: **75 passed**. Security: **98 passed, 1 skipped** (PowerShell).
-- Privacy: **14 passed**. Final Focused gate pending completion.
+- Privacy: **14 passed**. Final Focused gate: **38 passed, 6 skipped**, including
+  successful repeated-full validation on the same disposable database.
 - Full log: `/tmp/inlet-validation-full.log` in this execution environment.
 
-PR and CI status will be recorded after pushing. Nothing is live-verified or
-deployed. No new migration is introduced by B01.
+Remote CI pending at PR creation; local required validation is complete. Nothing
+is live-verified or deployed. No new migration is introduced by B01. Git fetch
+and push work; GitHub CLI API requests returned Forbidden, so the authorized
+GitHub connector was used to create the draft PR.
 
 ## B02–B04 — Customer Foundation
 

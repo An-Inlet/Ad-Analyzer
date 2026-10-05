@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from functools import partial
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 
@@ -442,6 +443,9 @@ def test_uninstall_ignores_previous_installation_and_removes_current(
 def test_dashboard_api_export_privacy_and_permissions(
     client: TestClient, db: Session, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Route reports must use the same fixed clock as the imported order fixture.
+    monkeypatch.setattr("app.api.shopify.sales_report", partial(sales_report, now=NOW))
+    monkeypatch.setattr("app.dashboard.shopify.sales_report", partial(sales_report, now=NOW))
     row = connected(db, configuration)
     beta = connected(db, configuration, "beta")
     for key in type(configuration).model_fields:

@@ -23,7 +23,7 @@ dependencies = [
     "pydantic>=2.8.2",
     "pydantic-settings>=2.4.0",
     "python-multipart>=0.0.20",
-    "sqlalchemy>=2.0.32",
+    "sqlalchemy>=2.0.32,<2.1",
     "uvicorn[standard]>=0.30.5",
 ]
 

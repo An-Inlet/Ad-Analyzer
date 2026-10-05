@@ -44,3 +44,12 @@ extend beyond B04 or authorize provider provisioning, credentials, permission
 expansion, live customer-account changes, advertising spend, self-approval, merging,
 or deployment. Human review, merge and production-release gates remain required.
 The public website is now entirely owner-managed and outside this work.
+
+## User-approved B05 extension (2026-10-05)
+
+At 15:46:40 UTC the owner approved extending the same PR #64 integration exception
+through B05. Approved measurement: Shopify merchandise sales after discounts and
+refunds, excluding tax/shipping; refunds on processing date; store-local calendar
+months explicitly confirmed in goals; 13 months of minimal measurement history
+with deletion requirements preserved. This does not authorize B06 implementation,
+merge/deployment/live access, or the unanswered CRM gateway architecture proposal.

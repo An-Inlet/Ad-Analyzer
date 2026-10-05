@@ -33,10 +33,17 @@ class ShopifyConnection(Base):
             name="fk_shopifyconnection_integration_scope",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["commerce_store_id", "workspace_id"],
+            ["commerce_stores.id", "commerce_stores.workspace_id"],
+            name="fk_shopify_commerce_store",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("id", "workspace_id", name="uq_shopify_connection_workspace"),
         CheckConstraint("status IN ('connected','reconnect_required')", name="ck_shopify_status"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
+    commerce_store_id: Mapped[str | None] = mapped_column(String(32))
     workspace_integration_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), unique=True
@@ -128,6 +135,7 @@ class ShopifyPrivacyRequest(Base):
     workspace_id: Mapped[int] = mapped_column(Integer)
     request_key: Mapped[str] = mapped_column(String(64))
     order_keys: Mapped[list[str]] = mapped_column(JSON)
+    commerce_keys: Mapped[list[str]] = mapped_column(JSON, default=list)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -141,3 +149,7 @@ class ShopifyAudit(Base):
     actor_role: Mapped[str] = mapped_column(String(32))
     record_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+# Register related tables wherever the legacy Shopify models are loaded.
+from app.commerce import models as commerce_models  # noqa: E402, F401

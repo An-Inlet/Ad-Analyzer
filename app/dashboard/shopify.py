@@ -238,7 +238,30 @@ def privacy_export(
                 )
             )
         )
+    from app.commerce.models import CommerceEntry, CommerceOrder
+
+    measurement_records: list[dict[str, Any]] = []
+    for offset in range(0, len(item.commerce_keys), 500):
+        facts = db.execute(
+            select(CommerceEntry, CommerceOrder)
+            .join(CommerceOrder)
+            .where(
+                CommerceOrder.workspace_id == workspace.id,
+                CommerceOrder.order_key.in_(item.commerce_keys[offset : offset + 500]),
+            )
+        ).all()
+        measurement_records.extend(
+            {
+                "processed_at": entry.happened_at.isoformat(),
+                "order_created_at": order.created_at.isoformat(),
+                "currency": entry.currency,
+                "net_sales_micros": entry.net_micros,
+                "action": entry.action,
+            }
+            for entry, order in facts
+        )
     payload = {
+        "measurement_records": measurement_records,
         "requested_at": item.requested_at.isoformat(),
         "records": [
             {

@@ -79,10 +79,11 @@ def test_native_ownership_backfill_and_legacy_google_history(
                 VALUES (71, 1, 'example-test.myshopify.com', 'Fixture', 'USD', 'UTC',
                         'reconnect_required', 'synthetic-fixture', CURRENT_TIMESTAMP)""")
             )
-        command.upgrade(config, "20261005_0022")
+        command.upgrade(config, "head")
         with Session(engine) as db:
             row = db.get(ShopifyConnection, 71)
             assert row
+            assert row.commerce_store_id is None  # Never fabricate B05 history on upgrade.
             registry = db.get(WorkspaceIntegration, row.workspace_integration_id)
             assert registry and registry.status == "revoked"
             registry_id = registry.id
@@ -126,7 +127,7 @@ def test_native_ownership_backfill_and_legacy_google_history(
                 {"id": meta},
             )
         command.downgrade(config, "20261005_0021")
-        command.upgrade(config, "20261005_0022")
+        command.upgrade(config, "head")
         with engine.connect() as db:
             assert (
                 db.execute(

@@ -198,3 +198,7 @@ def run_shopify_tick(engine: Engine) -> None:
                     break
             if result["status"] != "syncing":
                 break
+
+    from app.commerce.sync import run_commerce_tick
+
+    run_commerce_tick(engine, settings)

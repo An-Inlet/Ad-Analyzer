@@ -266,3 +266,57 @@ Deadlock-correction Full validation completed with **exit 0**: **694 passed,
 migrations, ReadOnly (75), Security (98/1 PowerShell skip), Privacy (14), and Focused
 (38/6 PowerShell skips) all passed. Log: `/tmp/inlet-meta-lock-full.log`.
 Exact corrective-head CI is recorded in PR #64 after push.
+
+## B05 — Canonical Commerce Measurement (Implementation)
+
+Owner approval received 2026-10-05 15:46:40 UTC extends the PR64 exception through
+B05 only and confirms merchandise sales net discounts/refunds excluding tax and
+shipping, refund processing dates, store-local calendar months, and 13 months of
+minimal measurement history. The earlier CRM gateway architecture decision remains
+open. Main remains audit baseline `ea3591c`; previous PR head `f1793d99` passed hosted
+CI run 37296556343 with 700 tests and no skips.
+
+Implemented the versioned contract in `inlet-commerce-contract.md`: stable scoped
+HMAC identities, Shopify-authoritative merchandise events, verified-source linkage,
+distinct known customers, explicit calendar/cumulative windows, revisioned daily
+facts and immutable ordinary snapshots. Added customer-scoped preview/snapshot
+endpoints, optional default-off history importer, migration 0023, extended privacy
+exports, 13-month retention and persistent erasure suppression across reconnects.
+Privacy deletion removes snapshots/history and prevents reporting remaining facts
+as complete zero. Existing raw 59-day cash-collected functionality is preserved.
+
+Initial focused run: 60 cases passed for commerce plus existing Shopify. Additional
+OAuth and transaction rollback regressions added afterward. Mypy currently covers
+190 files; required Full validation and exact-head CI results will be recorded below.
+Schema-only Shopify validation passed all three queries; no live provider calls.
+Standalone documentation helper unavailable; pinned-version/live reconciliation
+and Shopify history/customer access approval remain release gates. B06 goal editing,
+B12 real customer-data adapters and CRM deployment are not implemented by this package.
+
+B05 focused acceptance now passes **35 cases** including populated PostgreSQL
+upgrade/downgrade/re-upgrade, optional OAuth scopes, retry backoff and atomic failed
+pages. The first Full attempt found the older migration test loading today's ORM
+at schema 0022; it now migrates through head while preserving its B04 backfill and
+revocation assertions, and verifies existing Shopify connections remain unbound.
+That attempt reported 726 passed, 6 skips, and the migration failure plus its nested
+Full-run failure. Ruff and mypy (190 files) pass after correction.
+An extra SQLite migration experiment stops at pre-existing migration 0002's unsupported
+constraint alteration; the required migration acceptance target is PostgreSQL.
+
+B05 final local `scripts/validate.sh Full` completed with **exit 0**: **728 passed,
+6 PowerShell skips**. Ruff, mypy (190 files), whitespace, PostgreSQL (3), reversible
+migrations, ReadOnly (75), Security (98/1 PowerShell skip), Privacy (14), and Focused
+(38/6 PowerShell skips) all passed. Full log: `/tmp/inlet-b05-full.log`. The final
+Focused gate also verifies repeated validation on the same disposable database.
+The earlier standalone SQLite experiment is not a supported full migration result.
+
+B05 is implemented and fixture/PostgreSQL-verified, not live-verified. Exact pushed
+commit and hosted CI evidence are recorded in draft PR64. No merge, deployment,
+provider grant, live import, advertising change, gateway configuration or website
+edit occurred. B06 is the next package: persist an editable, customer-confirmed goal
+with an explicit metric/source, currency, timezone, calendar-versus-cumulative
+window and baseline snapshot. Goal confirmation must not authorize campaign
+publication or increase a spending mandate. B06 implementation follows predecessor
+review/merge or a new explicit extension under `docs/automation-policy.md`; the
+approved integration exception currently ends at B05. CRM gateway architecture
+remains a separate unresolved owner decision.

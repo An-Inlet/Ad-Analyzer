@@ -45,10 +45,28 @@ def process_event(
     row = session.scalar(
         select(ShopifyConnection).where(ShopifyConnection.shop_domain == shop).with_for_update()
     )
-    if row is None:
-        return
     if payload.get("shop_domain") and shop_domain(str(payload["shop_domain"])) != shop:
         raise ShopifyError("shopify_event_shop_mismatch")
+    from app.commerce.models import CommerceStore
+    from app.commerce.privacy import process_measurement_event
+
+    commerce_keys = []
+    stores = list(
+        session.scalars(
+            select(CommerceStore)
+            .where(
+                CommerceStore.shop_domain == shop,
+            )
+            .with_for_update()
+        )
+    )
+    for store in stores:
+        commerce_keys.extend(
+            process_measurement_event(session, store, topic, payload, configuration, published_at)
+        )
+    if row is None:
+        session.commit()
+        return
     if topic in {"shop/redact", "app/uninstalled"}:
         if utc(published_at) < utc(row.connected_at):
             return  # An event from a previous installation must not erase a new authorization.
@@ -92,6 +110,7 @@ def process_event(
                         workspace_id=row.workspace_id,
                         request_key=request_key,
                         order_keys=keys,
+                        commerce_keys=commerce_keys,
                         requested_at=utc(published_at),
                     )
                 )
@@ -178,6 +197,9 @@ def run_privacy_tick(engine: Engine) -> None:
 def purge_expired_facts(engine: Engine, *, now: datetime | None = None) -> None:
     now = utc(now or datetime.now(UTC))
     with Session(engine) as session:
+        from app.commerce.privacy import purge_measurements
+
+        purge_measurements(session, now)
         # Retention applies even while imports are paused or access has been revoked.
         session.execute(
             delete(ShopifyOrder)

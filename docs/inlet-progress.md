@@ -485,3 +485,27 @@ injected offline transport and live integration disabled. The remaining backlog 
 the audit dependency order. Website work remains owner-managed; pricing, live provider
 setup/validation, deployment, pilot operations and the unanswered CRM gateway proposal
 remain separate gates, not reasons to stop independent offline implementation.
+
+## B08 — Google Customer Lifecycle Preparation
+
+Branch `codex/inlet-b08-google-connection` stacks on B07 `7e31642` / draft PR66.
+Added session-bound, single-use OAuth state, account selection limited to authorized
+leaf-account metadata, context-bound encrypted grants, explicit customer/connection/
+account jobs, reconnect generations and local disconnect revocation. Staged windows
+publish atomically; recent seven-day coverage precedes bounded 90-day backfill. Analysis
+completion has an independent durable outbox so its failure never repeats a good import.
+Eight fixture tests passed on SQLite/PostgreSQL before final scheduler refinements;
+final focused/Full/CI evidence is recorded at the package head in its PR. Migration0028
+adds only Google customer authorization/connection/completion tables; unrelated generated
+CRM drops and enum differences were removed before execution.
+
+This is offline lifecycle preparation, not full B08 live acceptance: runtime transport
+fails closed and provider runtime selection and live refresh/read reconciliation remain unimplemented.
+A fixed token-exchange request and bounded SDK manager traversal/paging adapter are
+tested with injected offline IO; nine focused tests pass. The operator collector is preserved. Customer UI
+selection is B18; live grants, deployment and provider-account setup are separate gates.
+See `inlet-google-connection-contract.md` for the exact boundary. Continue independent
+backlog work and retain this gap in the launch checklist; do not call the product ready.
+
+B07 local Full at `7e31642` passed: 818 tests, six PowerShell skips; migration round-trip,
+Ruff, mypy and boundary gates pass. Hosted run37390420054 remains pending here.

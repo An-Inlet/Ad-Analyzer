@@ -173,6 +173,13 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    google_customer_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="AD_ANALYZER_GOOGLE_CUSTOMER_ENCRYPTION_KEY"
+    )
+    google_customer_client_id: str = Field(
+        default="", validation_alias="AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_ID"
+    )
+
     mandate_simulation_enabled: bool = Field(
         default=True, validation_alias="AD_ANALYZER_MANDATE_SIMULATION_ENABLED"
     )

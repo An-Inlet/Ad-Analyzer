@@ -282,8 +282,12 @@ def test_postgres_concurrent_goal_edits_and_quota(
         assert sorted(f.result(timeout=20) for f in futures) == [200, 429]
 
 
+@pytest.mark.parametrize("pending_state", ["reserved", "uncertain"])
 def test_goal_api_identity_csrf_roles_and_source_isolation(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    pending_state: str,
 ) -> None:
     from collections.abc import Generator
     from unittest.mock import Mock
@@ -377,6 +381,25 @@ def test_goal_api_identity_csrf_roles_and_source_isolation(
     assert interpreted.status_code == 200 and interpreted.json()["status"] == "needs_clarification"
     assert owner.get(prefix + "/usage").json()["authorized_model_spend_micros"] == 0
     with Session(customer_engine) as db:
+        usage_row = db.get(GoalUsage, (wid, "interpret-api-1"))
+        assert usage_row is not None
+        usage_row.state = pending_state
+        usage_row.created_at = NOW - timedelta(days=1)
+        db.commit()
+    usage_result = owner.get(prefix + "/usage").json()
+    assert usage_result["calls_reserved_today"] == 0
+    assert usage_result["pending"] == 1
+    pending = owner.post(
+        path + "/interpret",
+        json={
+            "expected_revision": 2,
+            "milestone": "same goal",
+            "idempotency_key": "next-day-request",
+        },
+        headers=headers,
+    )
+    assert pending.status_code == 409 and "outcome pending" in pending.text
+    with Session(customer_engine) as db:
         member = db.get(CustomerMembership, (user, wid))
         assert member is not None
         member.role = "viewer"
@@ -392,8 +415,9 @@ def test_goal_api_identity_csrf_roles_and_source_isolation(
     assert owner.get(path).status_code == 401
 
 
+@pytest.mark.parametrize("different_keys", [False, True])
 def test_postgres_confirmation_race_is_idempotent(
-    customer_engine: Engine, configuration: Settings
+    customer_engine: Engine, configuration: Settings, different_keys: bool
 ) -> None:
     if customer_engine.dialect.name != "postgresql":
         return
@@ -409,25 +433,36 @@ def test_postgres_confirmation_race_is_idempotent(
         gid, wid, pid = goal.id, goal.workspace_id, p.id
     barrier = Barrier(2)
 
-    def confirm() -> str:
+    def confirm(index: int) -> tuple[str, str]:
         with Session(customer_engine) as db:
             barrier.wait(timeout=10)
             g = service.owned(db, wid, gid)
             service.confirm(
                 db,
                 g,
-                ConfirmInput(expected_revision=1, preview_id=pid, idempotency_key="same-confirm"),
-                NOW,
-                actor_id="offline-user",
+                ConfirmInput(
+                    expected_revision=1,
+                    preview_id=pid,
+                    idempotency_key=f"confirm-{index}" if different_keys else "same-confirm",
+                ),
+                NOW + timedelta(seconds=index),
+                actor_id=f"actor-{index}",
             )
             db.commit()
-            return service.serialize(db, g, NOW)["assessment"]  # type: ignore[no-any-return]
+            revision = service.current(db, g)
+            assert revision.confirmed_by is not None and revision.confirmed_at is not None
+            from app.shopify.security import utc
+
+            return revision.confirmed_by, utc(revision.confirmed_at).isoformat()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(confirm) for _ in range(2)]
-        assert [f.result(timeout=20) for f in futures] == ["confirmed", "confirmed"]
+        futures = [pool.submit(confirm, i) for i in range(2)]
+        results = [f.result(timeout=20) for f in futures]
+        assert len(set(results)) == 1
     with Session(customer_engine) as db:
-        assert db.scalar(select(func.count()).select_from(GoalConfirmation)) == 1
+        assert db.scalar(select(func.count()).select_from(GoalConfirmation)) == (
+            2 if different_keys else 1
+        )
 
 
 def test_timeout_keeps_reservation_without_duplicate_call(
@@ -626,3 +661,28 @@ def test_revoked_source_allows_draft_edit_but_not_confirmation(
         assert g.revision == 2
         with pytest.raises(HTTPException, match="source unavailable"):
             service.preview(db, g, NOW)
+
+
+def test_confirmation_preserves_original_actor_and_time_across_keys(
+    customer_engine: Engine, configuration: Settings
+) -> None:
+    from app.shopify.security import utc
+
+    with Session(customer_engine) as db:
+        goal = seed(db, configuration)
+        p = service.preview(db, goal, NOW)
+        first = ConfirmInput(expected_revision=1, preview_id=p.id, idempotency_key="owner-confirm")
+        service.confirm(db, goal, first, NOW, actor_id="owner-A")
+        db.commit()
+        for key in ["admin-confirm", "owner-confirm"]:
+            service.confirm(
+                db,
+                goal,
+                first.model_copy(update={"idempotency_key": key}),
+                NOW + timedelta(seconds=1),
+                actor_id="admin-B",
+            )
+            db.commit()
+            revision = service.current(db, goal)
+            assert revision.confirmed_by == "owner-A"
+            assert revision.confirmed_at is not None and utc(revision.confirmed_at) == NOW

@@ -86,3 +86,8 @@ Existing B05 privacy tests continue to apply. Required Full and exact-commit CI 
 are recorded in PR64 and the progress ledger. No live provider or browser portal behavior
 is claimed verified. The approved integration exception ends at B06; B07, merge,
 deployment, live model activation and CRM gateway architecture remain separate gates.
+
+Repeated confirmation of the same preview under a different request key preserves
+the original confirmer/time; the extra key is a replay receipt, not a new approval.
+The usage response distinguishes today's reserved calls from all-age outstanding
+reserved/uncertain requests. UTC midnight never hides or releases unresolved work.

@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
 from app.goals import service
@@ -67,16 +67,12 @@ def usage(
 ) -> dict[str, Any]:
     access(db, principal.user.id, workspace_id, response)
     day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-    rows = list(
-        db.scalars(
-            select(GoalUsage).where(
-                GoalUsage.workspace_id == workspace_id, GoalUsage.created_at >= day
-            )
-        )
-    )
+    base = select(func.count()).select_from(GoalUsage).where(GoalUsage.workspace_id == workspace_id)
+    today = db.scalar(base.where(GoalUsage.created_at >= day)) or 0
+    pending = db.scalar(base.where(GoalUsage.state.in_(["reserved", "uncertain"]))) or 0
     return {
-        "calls_reserved_today": len(rows),
-        "pending": sum(r.state in {"reserved", "uncertain"} for r in rows),
+        "calls_reserved_today": today,
+        "pending": pending,
         "authorized_model_spend_micros": 0,
         "external_model_calls_enabled": False,
     }

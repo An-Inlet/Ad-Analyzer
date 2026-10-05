@@ -163,8 +163,11 @@ def confirm(db: Session, goal: Goal, body: ConfirmInput, now: datetime, *, actor
         raise HTTPException(409, "baseline changed; review a new preview")
     if goal.confirmed_preview_id is not None and goal.confirmed_preview_id != p.id:
         raise HTTPException(409, "revision already confirmed")
-    goal.confirmed_preview_id, revision.confirmed_at = p.id, now
-    revision.confirmed_by = actor_id
+    if goal.confirmed_preview_id is None:
+        goal.confirmed_preview_id, revision.confirmed_at = p.id, now
+        revision.confirmed_by = actor_id
+    # A second key for the same confirmed preview is a replay receipt, not a
+    # new approval. Preserve the original customer and timestamp immutably.
     db.add(
         GoalConfirmation(
             goal_id=goal.id,

@@ -440,3 +440,19 @@ portal and not a purchasable SaaS release. B07 mandate/action state is next, sub
 predecessor review/merge or a further explicit exception. Live model/data-processing/
 cost approval, Shopify live reconciliation, deployment and CRM gateway architecture
 remain separate unresolved gates. No such approval is inferred from B06 authorization.
+
+### B06 Independent Review Repairs
+
+Review of `9628c1fa` found two defects, reproduced on both SQLite and PostgreSQL:
+a new idempotency key for an already confirmed preview overwrote the original
+confirming customer/time, and the usage endpoint omitted prior-day outstanding
+reservations while the interpreter correctly continued blocking them. The regression
+run failed all four affected cases before correction.
+
+Reconfirming the same preview now only records another replay receipt; the original
+revision's customer/time remain immutable. PostgreSQL races cover different actors
+using both shared and different request keys. Daily usage and all-age outstanding
+counts are separate; reserved and uncertain requests remain visible across UTC-day
+rollover and continue blocking unsafe retries. No reservations are reset/released by
+this display correction. Required checks and exact-head CI evidence are recorded in
+PR64. These are B06 acceptance repairs, not B07 implementation.

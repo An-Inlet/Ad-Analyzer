@@ -192,6 +192,7 @@ class OptimizationRuntime:
     replacement_reader: "ReplacementReader | None" = None
     candidate_review_guard: CandidateReviewGuard | None = None
     candidate_review_writer: CandidateReviewWriter | None = None
+    automatic_authority_guard: CandidateReviewGuard | None = None
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

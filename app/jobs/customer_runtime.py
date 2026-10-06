@@ -22,6 +22,8 @@ from app.google_connections.contracts import GoogleReadTransport, get_transport
 from app.google_connections.dispatcher import deliver_analysis, run_imports
 from app.google_connections.models import GoogleCustomerConnection, GoogleImportCompletion
 from app.mandates.service import workspace_lock
+from app.session_automation.runtime import SessionAutomationRuntime, get_session_automation_runtime
+from app.session_automation.worker import run_due as run_session_automation
 from app.settings import Settings, settings
 from app.sources.contracts import SourceTransport, get_source_transport
 from app.sources.dispatcher import run_tiktok
@@ -130,6 +132,9 @@ def run_customer_tick(
     google_factory: Callable[[], GoogleReadTransport] = get_transport,
     tiktok_factory: Callable[[], SourceTransport] = lambda: get_source_transport("tiktok_ads"),
     billing_factory: Callable[[], BillingTransport] = get_billing_transport,
+    automation_factory: Callable[[], SessionAutomationRuntime | None] = (
+        get_session_automation_runtime
+    ),
 ) -> dict[str, str]:
     """Run bounded independent stages; disabled stages never construct transports.
 
@@ -152,9 +157,7 @@ def run_customer_tick(
         if configuration.billing_receipt_read_enabled:
             stage(
                 "billing",
-                lambda: run_billing_receipts(
-                    lambda: Session(engine), get_billing_receipt_reader()
-                ),
+                lambda: run_billing_receipts(lambda: Session(engine), get_billing_receipt_reader()),
             )
         else:
             stage(
@@ -177,4 +180,6 @@ def run_customer_tick(
                 stage("tiktok", lambda: run_tiktok(engine, tiktok_factory(), current))
     if configuration.customer_analysis_outbox_enabled:
         stage("analysis_outbox", lambda: deliver_analysis(engine, _analyze, now=current))
+    if configuration.customer_session_automation_enabled:
+        stage("session_automation", lambda: run_session_automation(engine, automation_factory))
     return outcomes

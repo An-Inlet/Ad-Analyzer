@@ -239,6 +239,9 @@ class Settings(BaseSettings):
     billing_portal_configuration: str = Field(
         default="", alias="AD_ANALYZER_BILLING_PORTAL_CONFIGURATION"
     )
+    customer_session_automation_enabled: bool = Field(
+        default=False, alias="INLET_CUSTOMER_SESSION_AUTOMATION_ENABLED"
+    )
     customer_google_scheduler_enabled: bool = Field(
         default=False, alias="AD_ANALYZER_CUSTOMER_GOOGLE_SCHEDULER_ENABLED"
     )

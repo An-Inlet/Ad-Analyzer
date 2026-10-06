@@ -22,6 +22,12 @@ def check(
     if runtime.candidate_review_guard is None:
         raise HTTPException(409, "candidate review authority unavailable")
     runtime.candidate_review_guard(db, row.workspace_id, row.id, actor, clock)
+    from app.session_automation.authority import automatic
+
+    if automatic(row):
+        if runtime.automatic_authority_guard is None:
+            raise HTTPException(409, "session automatic authority unavailable")
+        runtime.automatic_authority_guard(db, row.workspace_id, row.id, actor, clock)
 
 
 def check_id(

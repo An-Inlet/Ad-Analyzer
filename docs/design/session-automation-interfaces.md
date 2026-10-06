@@ -131,3 +131,60 @@ this list rather than replaying Start. Start also deduplicates an active identic
 original-session/mandate/policy intent under the workspace lock. Capabilities adds
 `mandates: list[AutomaticMandateOption]` with exact server-resolved binding, label,
 currency, total_limit_micros, starts_at, ends_at. UI never guesses consent/ledger IDs.
+
+## Implemented Backend (0072)
+
+The routes above, two protected audit tables, deferred historical-default authority
+markers, current original-session admission guard and runnable worker are now
+implemented. `worker.advance` composes selection, actual candidate reads, exact
+review preparation, semantic admission, durable reservation/claim and the existing
+Google/Meta/TikTok transports. It never invokes human approval. Run authority is
+fixed by the protected admission reference; manual fallback is rejected.
+
+`SessionAutomationRuntime` in `runtime.py` is the concrete server assembly port.
+`SemanticEpochProducer.read(db, CandidateDecision)` supplies the reviewed stable
+epoch from a registered environment/source/family. It is not a browser field and
+cannot be inferred from catalog timestamps or policy revisions. Default assembly
+returns None, the policy/producer registries are empty, and
+`INLET_CUSTOMER_SESSION_AUTOMATION_ENABLED` is false. The shipped scheduler invokes
+`worker.run_due` only under that explicit opt-in; ALL_DATA_SYNCS is checked before
+constructing runtime and again before work. Tests inject complete contract scenarios.
+
+A pass advances its due time before external reads. A failure before that advance
+also receives a bounded60-second maintenance defer, under the workspace lock,
+without changing claims, reservations, approvals or original session authority.
+This prevents a revoked earliest session from permanently shadowing a later valid
+session in the same workspace. This is retry scheduling, never a financial proof or
+permission to replay an original provider request.
+
+Closure explicitly stops session runs and records the stopping owner. Candidate
+privacy/retraction nulls0068 links and blocks automatic forward gates. Protected
+admission commitments and financial reconciliation/settlement history remain;
+no raw measurement body or original session digest is exported. An empty0072
+migration roundtrip works; any populated session/admission or automatic marker
+refuses a downgrade that would erase authority provenance or consumed epochs.
+Historical pre0072 fixtures explicitly assert missing new tables and use only the
+old human discriminator; this is test scaffolding, not an application fallback.
+The pre0066 Google fixture likewise omits only the later capture append after an
+explicit table-absence assertion; current capture paths remain real.
+
+### Remaining Production Work
+
+This is a runnable original-session automatic existing-budget implementation with
+actual adapters exercised over MockTransport. It is not live qualification. No
+qualified genuine directional producer, calibrated production numeric policy,
+native complete exposure bound or original-terminal/transition proof producer is
+registered. Current native inventory diagnostics remain unqualified; lower budget,
+current target state, missing resource, elapsed period and delayed reporting do not
+prove original finality or release retained exposure. A distinct future semantic
+signal can repeat only through existing complete ancestry/replacement accounting.
+Logout-independent background delegation, automatic new campaigns/creative,
+activation and emergency pause authority are not part of this implementation.
+
+The automatic policy additionally commits `candidate_policy_digest`, not merely a
+policy ID/revision: changing step/count parameters under the same reference fails
+Start and current admission. Capabilities also reject unset numeric parameters and
+an operationally disabled live execution runtime. Production registry-to-runtime
+assembly is still unimplemented: the default factory returns None. Adding actual
+qualified directional/exposure/terminal producers and assembling their authenticated
+server adapters is remaining engineering, not a request for credentials alone.

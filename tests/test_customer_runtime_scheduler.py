@@ -2,10 +2,11 @@
 
 from datetime import UTC, timedelta
 from types import SimpleNamespace
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pytest
 from app.ads.models import JobRun
+from app.analysis.enums import AnalysisRunStatus
 from app.automation.models import PlatformAutomationControl, WorkspaceAutomationControl
 from app.google_connections.models import GoogleImportCompletion
 from app.jobs import customer_runtime as runtime
@@ -118,7 +119,7 @@ def test_outbox_disabled_workspace_backs_off_and_healthy_tenant_progresses(
         db.commit()
     analyzed = []
 
-    def record_analysis(engine: Engine, job: int) -> SimpleNamespace:
+    def record_analysis(engine: Engine, job: int, **kwargs: Any) -> SimpleNamespace:
         analyzed.append(job)
         return SimpleNamespace(status="succeeded")
 
@@ -210,7 +211,7 @@ def test_stale_selected_outbox_never_analyzes_after_lifecycle_change(
             connect(db, wid, sid, google)
     analyzed: list[int] = []
 
-    def record_analysis(engine: Engine, job: int) -> SimpleNamespace:
+    def record_analysis(engine: Engine, job: int, **kwargs: Any) -> SimpleNamespace:
         analyzed.append(job)
         return SimpleNamespace(status="succeeded")
 
@@ -244,3 +245,113 @@ def test_real_local_analysis_executes_under_lifecycle_guard(
         assert analysis is not None and analysis.status == "succeeded"
         assert analysis.workspace_id == wid
         assert completion is not None and completion.state == "delivered"
+
+
+def test_failed_analysis_retries_same_run_after_backoff_once(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.analysis.models import AnalysisRun
+    from app.analysis.service import AnalysisRunService
+    from app.google_connections.dispatcher import deliver_analysis, run_imports
+
+    google = FixtureTransport()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "retry-analysis")
+        connect(db, wid, sid, google)
+    run_imports(customer_engine, google, NOW)
+    run_imports(customer_engine, google, NOW)
+    original = AnalysisRunService._analyze
+    calls = []
+
+    def fail_once(self: AnalysisRunService, **kwargs: Any) -> Any:
+        calls.append(kwargs["workspace_id"])
+        if len(calls) == 1:
+            raise RuntimeError("private failure must not enter audit")
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(AnalysisRunService, "_analyze", fail_once)
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 0
+    with Session(customer_engine) as db:
+        failed = db.scalar(select(AnalysisRun))
+        assert failed is not None and failed.status == "failed"
+        run_id = failed.id
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 0
+    assert calls == [wid]
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW + timedelta(minutes=5)) == 1
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW + timedelta(minutes=10)) == 0
+    with Session(customer_engine) as db:
+        rows = list(db.scalars(select(AnalysisRun)))
+        assert len(rows) == 1 and rows[0].id == run_id and rows[0].status == "succeeded"
+        assert rows[0].retry_count == 1
+        assert rows[0].retry_history[0]["error_code"] == "analysis_failed"
+        assert "private" not in str(rows[0].retry_history)
+    assert calls == [wid, wid]
+
+
+def test_ambiguous_running_analysis_is_never_reclaimed(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.analysis.models import AnalysisRun
+    from app.analysis.service import AnalysisRunService
+    from app.google_connections.dispatcher import deliver_analysis, run_imports
+
+    google = FixtureTransport()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "ambiguous-analysis")
+        connect(db, wid, sid, google)
+    run_imports(customer_engine, google, NOW)
+    run_imports(customer_engine, google, NOW)
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 1
+    with Session(customer_engine) as db:
+        run = db.scalar(select(AnalysisRun))
+        completion = db.scalar(select(GoogleImportCompletion))
+        assert run is not None and completion is not None
+        # Simulate a durably claimed attempt with unknown outcome.
+        run.status = AnalysisRunStatus.RUNNING
+        run.finished_at = None
+        completion.state = "pending"
+        db.commit()
+
+    def forbidden(*args: Any, **kwargs: Any) -> NoReturn:
+        raise AssertionError("ambiguous run executed again")
+
+    monkeypatch.setattr(AnalysisRunService, "_analyze", forbidden)
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW + timedelta(days=10)) == 0
+    with Session(customer_engine) as db:
+        run = db.scalar(select(AnalysisRun))
+        assert run is not None and run.status == "running" and run.retry_count == 0
+
+
+def test_lost_analysis_commit_ack_does_not_relabel_success_retryable(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.analysis.models import AnalysisRun
+    from app.google_connections.dispatcher import deliver_analysis, run_imports
+
+    google = FixtureTransport()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "lost-analysis-ack")
+        connect(db, wid, sid, google)
+    run_imports(customer_engine, google, NOW)
+    run_imports(customer_engine, google, NOW)
+    original = Session.commit
+    lost: list[bool] = []
+
+    def commit_then_lose_ack(db: Session) -> None:
+        should_fail = not lost and any(
+            isinstance(row, AnalysisRun) and row.status == AnalysisRunStatus.SUCCEEDED
+            for row in db.dirty
+        )
+        original(db)
+        if should_fail:
+            lost.append(True)
+            raise RuntimeError("simulated lost commit acknowledgement")
+
+    monkeypatch.setattr(Session, "commit", commit_then_lose_ack)
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 1
+    assert lost == [True]
+    with Session(customer_engine) as db:
+        run = db.scalar(select(AnalysisRun))
+        assert (
+            run is not None and run.status == AnalysisRunStatus.SUCCEEDED and run.retry_count == 0
+        )

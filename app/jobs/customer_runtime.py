@@ -79,7 +79,7 @@ def _analyze(engine: Engine, job_id: int) -> object:
         if not cadence.post_sync.enabled:
             raise ValueError("analysis disabled")
         paid_work(db, job.workspace_id, datetime.now(UTC))
-        result = run_post_sync_analysis(engine, job_id)
+        result = run_post_sync_analysis(engine, job_id, as_of=job.finished_at, retry_failed=True)
         if result is None or result.status != AnalysisRunStatus.SUCCEEDED:
             raise ValueError("analysis incomplete")
         return result

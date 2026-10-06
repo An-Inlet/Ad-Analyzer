@@ -662,3 +662,16 @@ Not a completed B13 acceptance or live payment result.
   and analysis VARCHAR/enum drift; no unrelated schema changes were applied.
 - Full validation and hosted CI pending. No live provider calls, activation, merge
   or deployment. Independent portal migration0032 requires merge revision when combined.
+
+#### Failed analysis retry completion
+
+- Added coordinator-only opt-in retry of authoritatively FAILED local analysis runs,
+  retaining source/account/window binding and the same run ID/key. Row locks prevent
+  concurrent reclaim; ambiguous RUNNING and successful runs are not reclaimed.
+- Preserved post-commit success when acknowledgement/refresh fails; retry cannot
+  turn already-committed recommendations into duplicate work.
+- Migration0035 stores total retries and the latest32 sanitized failed attempts.
+- Expanded focused suite: **106 passed**, two existing Alembic deprecation warnings,
+  `/tmp/inlet-scheduler-all-focused.log`; Ruff and mypy253 files passed.
+- Disposable PostgreSQL upgrade plus0035→0034→0035 roundtrip passed.
+- Full and hosted CI still pending for the final scheduler head. No external calls.

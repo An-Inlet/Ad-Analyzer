@@ -35,7 +35,8 @@ completions on reconnect/disconnect/authentication failure. Disabled or failed
 analysis remains pending with a durable five-minute retry delay; an ineligible
 first row cannot starve a later healthy tenant at a batch limit of one.
 
-Migration `20261006_0034` adds nullable outbox retry time, descending from `0031`.
+Migration `20261006_0034` adds nullable outbox retry time, descending from `0031`;
+`0035` adds bounded retry audit fields.
 When integrating the independent portal `0032` branch, add an explicit Alembic
 merge revision; do not silently rewrite migration lineage.
 
@@ -47,7 +48,13 @@ Full validation and hosted CI remain pending for this package.
 
 Remaining limitations: source stages return aggregate dispatcher outcomes; the
 coordinator's completed marker means invocation finished, not every tenant succeeded.
-Existing analysis run keys deduplicate execution; retrying a previously failed
-analysis run needs the separate analysis retry lifecycle to be completed rather
-than marking its outbox delivered. No live transport, grant, billing, or customer
+Existing analysis run keys deduplicate execution. The customer outbox explicitly
+permits reclaiming only durably FAILED local runs with matching immutable source,
+account, policy and metric/outcome windows. FAILED follows rollback of local analysis
+and recommendation writes; no advertising mutation runs here. A row lock serializes
+reclaims. RUNNING is never reclaimed on elapsed time alone. Successful rows remain
+deduplicated, including when commit acknowledgement is lost. Migration0035 records
+a total retry count and the most recent32 sanitized failure attempts (older detail
+is intentionally bounded). Failed retryable runs back off through the outbox;
+changed scope/windows fail closed instead of silently rewriting the original run. No live transport, grant, billing, or customer
 journey is qualified by these offline checks.

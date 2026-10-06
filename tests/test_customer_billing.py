@@ -383,3 +383,62 @@ def test_management_route_enforces_owner_scope_and_csrf(
         db.commit()
     assert owner.post(path, headers=headers(owner)).status_code == 404
     assert fixture.calls == ["cus_owned"]
+
+
+@pytest.mark.parametrize("terminal", ["canceled", "incomplete_expired"])
+def test_delayed_terminal_subscription_event_cannot_replace_current_purchase(
+    customer_engine: Engine, terminal: str
+) -> None:
+    from app.billing.dispatcher import run
+    from sqlalchemy.orm import sessionmaker
+
+    class HistoryFixture(FixtureBilling):
+        reads: list[str] = []
+
+        def current(
+            self, customer_id: str, subscription_id: str, now: datetime
+        ) -> SubscriptionState:
+            self.reads.append(subscription_id)
+            return self.state.model_copy(
+                update={
+                    "subscription_id": subscription_id,
+                    "observed_at": now,
+                    "status": terminal if subscription_id == "sub_old" else "active",
+                }
+            )
+
+    fixture = HistoryFixture()
+    with Session(customer_engine) as db:
+        wid, _ = setup(db, "delayed-terminal")
+        db.add(
+            WorkspaceBilling(
+                workspace_id=wid,
+                customer_request_key="history",
+                customer_id="cus_fixture",
+                subscription_id="sub_current",
+                status="active",
+            )
+        )
+        db.add(
+            BillingEvent(
+                id="evt_old",
+                body_hash="c" * 64,
+                customer_id="cus_fixture",
+                subscription_id="sub_old",
+                event_type="customer.subscription.updated",
+                received_at=NOW,
+            )
+        )
+        db.commit()
+    assert run(sessionmaker(customer_engine), POLICY, fixture, NOW, 1)["events"] == 1
+    with Session(customer_engine) as db:
+        saved = db.get(WorkspaceBilling, wid)
+        assert (
+            saved is not None
+            and saved.subscription_id == "sub_current"
+            and saved.status == "active"
+        )
+        require_entitlement(db, wid, POLICY, NOW)
+        event = db.get(BillingEvent, "evt_old")
+        assert event is not None and event.state == "processed"
+    assert fixture.reads == ["sub_old", "sub_current"]

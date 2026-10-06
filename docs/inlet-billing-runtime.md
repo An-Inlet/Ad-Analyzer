@@ -42,3 +42,10 @@ input; this implementation did not provision it or authorize charges.
 Validation:36 focused HTTP+billing tests passed (including SQLite/PostgreSQL membership,
 CSRF and suspension checks), Ruff/mypy pass. Full and hosted CI pending. Additional
 source: https://docs.stripe.com/customer-management/integrate-customer-portal .
+
+Delayed events for a different, now-terminal subscription are now acknowledged only
+after canonical provider reads prove customer identity, terminal status and freshness,
+and refresh the actual current subscription. No event payload status can replace the
+current purchase. Tests cover canceled and incomplete-expired predecessors with current
+entitlement preserved. Combined HTTP, billing and review regressions:80 passed on
+SQLite/disposable PostgreSQL, no skips. Ruff/mypy and diffcheck pass. Full pending.

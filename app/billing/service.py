@@ -13,6 +13,7 @@ from app.billing.contracts import (
     BillingManagementTransport,
     BillingPolicy,
     BillingTransport,
+    SubscriptionState,
     UnavailableBilling,
 )
 from app.billing.models import BillingEvent, WorkspaceBilling
@@ -161,11 +162,18 @@ def reconcile(
     if event.state == "processed":
         return False
     try:
-        if row.subscription_id is not None and row.subscription_id != event.subscription_id:
-            outcome = resolve_checkout(db, row, policy, transport, now)
-            if outcome != "complete" or row.subscription_id != event.subscription_id:
-                raise HTTPException(409, "subscription identity requires reconciliation")
-        refresh(db, wid, policy, transport, now, subscription_id=event.subscription_id)
+        target = event.subscription_id
+        if row.subscription_id is not None and row.subscription_id != target:
+            notified = verified_current(transport, row.customer_id, target, now)
+            if notified.status in {"canceled", "incomplete_expired"}:
+                # Delayed events for a terminal subscription cannot replace a
+                # current purchase. Read the current purchase before acknowledging.
+                target = row.subscription_id
+            else:
+                outcome = resolve_checkout(db, row, policy, transport, now)
+                if outcome != "complete" or row.subscription_id != target:
+                    raise HTTPException(409, "subscription identity requires reconciliation")
+        refresh(db, wid, policy, transport, now, subscription_id=target)
     except HTTPException:
         event.error_code = "provider_read_unavailable"
         event.next_attempt_at = now + timedelta(minutes=1)
@@ -220,18 +228,7 @@ def refresh(
         raise HTTPException(409, "billing identity unavailable")
     if row.subscription_id is not None and row.subscription_id != subscription_id:
         raise HTTPException(409, "billing identity conflict")
-    try:
-        state = transport.current(row.customer_id, subscription_id, now)
-    except Exception:
-        raise HTTPException(502, "billing verification unavailable") from None
-    if (
-        state.customer_id != row.customer_id
-        or state.subscription_id != subscription_id
-        or state.observed_at < now - timedelta(seconds=30)
-        or state.observed_at > now
-        or state.livemode
-    ):
-        raise HTTPException(409, "billing verification mismatch")
+    state = verified_current(transport, row.customer_id, subscription_id, now)
     row.subscription_id, row.price_id = state.subscription_id, state.price_id
     row.status, row.period_end = state.status, state.period_end
     row.cancel_at_period_end, row.verified_at = state.cancel_at_period_end, state.observed_at
@@ -336,3 +333,21 @@ def management(
     if location.scheme != "https" or location.netloc != "billing.stripe.com":
         raise HTTPException(502, "billing management location unavailable")
     return {"mode": transport.mode, "url": url}
+
+
+def verified_current(
+    transport: BillingTransport, customer_id: str, subscription_id: str, now: datetime
+) -> SubscriptionState:
+    try:
+        state = transport.current(customer_id, subscription_id, now)
+    except Exception:
+        raise HTTPException(502, "billing verification unavailable") from None
+    if (
+        state.customer_id != customer_id
+        or state.subscription_id != subscription_id
+        or state.observed_at < now - timedelta(seconds=30)
+        or state.observed_at > now
+        or state.livemode
+    ):
+        raise HTTPException(409, "billing verification mismatch")
+    return state

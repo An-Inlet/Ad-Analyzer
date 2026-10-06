@@ -51,6 +51,12 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify pinned self-hosted authentication bundle
+        run: |
+          npm ci --prefix browser/auth --ignore-scripts --no-audit --no-fund
+          npm run --prefix browser/auth build
+          git diff --exit-code -- app/portal/static/firebase-auth.mjs
+
       - name: Require a browser for customer portal checks
         run: |
           set -euo pipefail

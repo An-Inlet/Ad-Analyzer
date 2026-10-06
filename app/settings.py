@@ -331,6 +331,12 @@ class Settings(BaseSettings):
     customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
     customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
     customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")
+    customer_browser_auth_enabled: bool = Field(
+        default=False, alias="INLET_CUSTOMER_BROWSER_AUTH_ENABLED"
+    )
+    # Firebase web configuration is public; never put an admin/service-account key here.
+    customer_identity_web_api_key: str = Field(default="", alias="INLET_IDENTITY_WEB_API_KEY")
+    customer_identity_web_app_id: str = Field(default="", alias="INLET_IDENTITY_WEB_APP_ID")
 
     iap_audience: str = Field(
         default="",

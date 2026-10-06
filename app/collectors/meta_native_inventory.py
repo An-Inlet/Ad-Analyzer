@@ -11,7 +11,7 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import httpx
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, Field, TypeAdapter, model_validator
 
 from app.executors.social_http import _private_http
 from app.goals.schemas import StrictModel
@@ -47,6 +47,37 @@ class MetaNativeInventoryRequest(StrictModel):
         return fingerprint("inlet.meta-native-inventory-request.v1", self.model_dump(mode="json"))
 
 
+class MetaAccountObservationRequestV2(StrictModel):
+    schema_version: Literal["inlet.meta-account-observation-request.v2"] = (
+        "inlet.meta-account-observation-request.v2"
+    )
+    purpose: Literal["account_diagnostics"] = "account_diagnostics"
+    spending_authority: Literal["none"] = "none"
+    account: ExecutionAccount
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    time_zone: str = Field(min_length=1, max_length=64)
+    period_start: AwareDatetime
+    period_end: AwareDatetime
+
+    @model_validator(mode="after")
+    def bounded(self) -> "MetaAccountObservationRequestV2":
+        ZoneInfo(self.time_zone)
+        if (
+            self.account.account.platform != "meta_ads"
+            or not re.fullmatch(r"[0-9]{1,32}", self.account.external_advertiser_id)
+            or not timedelta(0) < self.period_end - self.period_start <= timedelta(days=366)
+        ):
+            raise ValueError("invalid native inventory request")
+        return self
+
+    def digest(self) -> str:
+        return fingerprint(self.schema_version, self.model_dump(mode="json"))
+
+
+MetaInventoryRequest = MetaNativeInventoryRequest | MetaAccountObservationRequestV2
+_request_adapter: TypeAdapter[MetaInventoryRequest] = TypeAdapter(MetaInventoryRequest)
+
+
 class MetaNativeInventoryContext(OptimizationContext):
     request_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
@@ -68,7 +99,7 @@ class MetaNativeOwner(StrictModel):
 
 
 class MetaNativeInventory(StrictModel):
-    request: MetaNativeInventoryRequest
+    request: MetaInventoryRequest
     observation_started_at: AwareDatetime
     observed_at: AwareDatetime
     expires_at: AwareDatetime
@@ -114,7 +145,7 @@ class MetaNativeInventory(StrictModel):
         return fingerprint("inlet.meta-native-inventory.v1", self.model_dump(mode="json"))
 
 
-ContextReader = Callable[[MetaNativeInventoryRequest, datetime], MetaNativeInventoryContext]
+ContextReader = Callable[[MetaInventoryRequest, datetime], MetaNativeInventoryContext]
 CAMPAIGN_STATUSES = ["ACTIVE", "PAUSED", "ARCHIVED", "DELETED", "IN_PROCESS", "WITH_ISSUES"]
 ADSET_STATUSES = [*CAMPAIGN_STATUSES, "CAMPAIGN_PAUSED"]
 COMMON_FIELDS = (
@@ -135,9 +166,7 @@ def _amount(value: Any) -> int | None:
     raise MetaNativeInventoryUnavailable("inventory_amount_invalid")
 
 
-def _owner(
-    row: dict[str, Any], request: MetaNativeInventoryRequest, child: bool
-) -> MetaNativeOwner:
+def _owner(row: dict[str, Any], request: MetaInventoryRequest, child: bool) -> MetaNativeOwner:
     if row.get("account_id") != request.account.external_advertiser_id:
         raise MetaNativeInventoryUnavailable("inventory_owner_mismatch")
     return MetaNativeOwner(
@@ -173,12 +202,10 @@ class MetaNativeInventoryHTTP:
     ) -> None:
         self.context_reader, self.clock, self.transport = context_reader, clock, transport
 
-    def __call__(
-        self, request: MetaNativeInventoryRequest, now: datetime, /
-    ) -> MetaNativeInventory:
+    def __call__(self, request: MetaInventoryRequest, now: datetime, /) -> MetaNativeInventory:
         private = _private_http.set(True)
         try:
-            return self._read(MetaNativeInventoryRequest.model_validate(request.model_dump()), now)
+            return self._read(_request_adapter.validate_python(request.model_dump()), now)
         except MetaNativeInventoryUnavailable:
             raise
         except Exception:
@@ -187,7 +214,7 @@ class MetaNativeInventoryHTTP:
         finally:
             _private_http.reset(private)
 
-    def _read(self, request: MetaNativeInventoryRequest, now: datetime) -> MetaNativeInventory:
+    def _read(self, request: MetaInventoryRequest, now: datetime) -> MetaNativeInventory:
         deadline, calls, total_bytes = monotonic() + 60, 0, 0
         expires = now + timedelta(minutes=5)
 

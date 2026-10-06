@@ -8,7 +8,7 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import httpx
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, Field, TypeAdapter, model_validator
 
 from app.executors.google_optimization import GoogleOptimizationTransport
 from app.executors.optimization_http import OptimizationUnavailable
@@ -43,6 +43,37 @@ class GoogleNativeInventoryRequest(StrictModel):
 
     def digest(self) -> str:
         return fingerprint("inlet.google-native-inventory-request.v1", self.model_dump(mode="json"))
+
+
+class GoogleAccountObservationRequestV2(StrictModel):
+    schema_version: Literal["inlet.google-account-observation-request.v2"] = (
+        "inlet.google-account-observation-request.v2"
+    )
+    purpose: Literal["account_diagnostics"] = "account_diagnostics"
+    spending_authority: Literal["none"] = "none"
+    account: ExecutionAccount
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    time_zone: str = Field(min_length=1, max_length=64)
+    period_start: AwareDatetime
+    period_end: AwareDatetime
+
+    @model_validator(mode="after")
+    def bounded(self) -> "GoogleAccountObservationRequestV2":
+        ZoneInfo(self.time_zone)
+        if (
+            self.account.account.platform != "google_ads"
+            or not re.fullmatch(r"[0-9]{10}", self.account.external_advertiser_id)
+            or not timedelta(0) < self.period_end - self.period_start <= timedelta(days=366)
+        ):
+            raise ValueError("invalid native inventory request")
+        return self
+
+    def digest(self) -> str:
+        return fingerprint(self.schema_version, self.model_dump(mode="json"))
+
+
+GoogleInventoryRequest = GoogleNativeInventoryRequest | GoogleAccountObservationRequestV2
+_request_adapter: TypeAdapter[GoogleInventoryRequest] = TypeAdapter(GoogleInventoryRequest)
 
 
 class NativeCampaign(StrictModel):
@@ -92,7 +123,7 @@ class NativeBillingSetup(StrictModel):
 
 
 class GoogleNativeInventory(StrictModel):
-    request: GoogleNativeInventoryRequest
+    request: GoogleInventoryRequest
     observation_started_at: AwareDatetime
     observed_at: AwareDatetime
     expires_at: AwareDatetime
@@ -122,7 +153,7 @@ class GoogleNativeInventoryContext(OptimizationContext):
     request_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
-ContextReader = Callable[[GoogleNativeInventoryRequest, datetime], GoogleNativeInventoryContext]
+ContextReader = Callable[[GoogleInventoryRequest, datetime], GoogleNativeInventoryContext]
 
 
 def _ref(value: Any, customer: str, collection: str) -> str:
@@ -174,10 +205,8 @@ class GoogleNativeInventoryHTTP:
         self._wire = GoogleOptimizationTransport(transport=transport)
         self.clock = clock
 
-    def __call__(
-        self, request: GoogleNativeInventoryRequest, now: datetime, /
-    ) -> GoogleNativeInventory:
-        request = GoogleNativeInventoryRequest.model_validate(request.model_dump())
+    def __call__(self, request: GoogleInventoryRequest, now: datetime, /) -> GoogleNativeInventory:
+        request = _request_adapter.validate_python(request.model_dump())
         context = self.context_reader(request, now)
         if context.request_digest != request.digest():
             raise GoogleNativeInventoryUnavailable("native_inventory_context_invalid")

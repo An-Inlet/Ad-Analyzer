@@ -4336,3 +4336,42 @@ Root qualified repurchase, original regression and Stripe transport suites70 pas
 26.54s (`/tmp/inlet-next-billing-repurchase.log`); Ruff, mypy610 and whitespace passed.
 Frozen a4fcd3a stays unchanged and failing until its terminal validation is recorded;
 these successor passes do not erase that failure.
+
+## Owned Native Account Diagnostics — Read-Only Assembly
+
+Branch `codex/inlet-account-diagnostics`, isolated from root9e8d9f5. The customer
+CSRF POST `/api/customer/v1/workspaces/{wid}/execution/diagnostics` now constructs
+an actual vault-backed, fixed-endpoint Google/Meta/TikTok diagnostic service without
+an execution runtime or spending mandate. Input is owned account ID and bounded
+observation dates only. Original-session, owner, source-generation, account-money,
+billing and all-data-sync fences are rechecked around OAuth and collector IO.
+Per-request transports close deterministically. Default read switch remains off.
+
+New account-observation request v2 variants coexist with unchanged mandate-bound
+v1 bytes and digests (baseline hashes captured from8f384ff). Customer output contains
+bounded inventory counts and fixed explanatory reasons; no native monetary counters,
+resource IDs, raw responses or credentials. Financial bounds remain null and
+optimization_available remains false. No diagnostic documents are persisted.
+
+Checks: compatibility/API/native-collector suite218 passed on PostgreSQL and SQLite;
+additional final billing/credential fences12 passed. Final API/contract suite recorded
+below. Whole Ruff and mypy603 source files pass; whitespace check passes. All HTTP is
+MockTransport, encrypted credentials synthetic; no live verification, spending,
+provider mutations, Full workflow, manual CI dispatch, merge or deployment.
+
+This closes a real read-service/application assembly gap. It does not qualify a
+production spending guarantee or calibrated direction source. Those remain explicit
+source/product-boundary limitations, not solved by credentials or this read switch.
+UI consumer is owned by customer_portal; actual browser qualification follows the
+frozen backend. See docs/design/read-only-native-assembly.md for exact contracts.
+
+Final new API/contracts:62 passed, zero skips, both databases (66.69s), log
+`/tmp/diag-final-api.log`; prior218 log `/tmp/diag-all.log`. Static logs
+`/tmp/diag-final-ruff.log`, `/tmp/diag-final-mypy.log`. This exact code is ready for
+independent browser integration; hosted/full CI remains unclaimed.
+
+Root integrated verification: account diagnostic contracts/API, concrete native
+assembly, all three native inventories and model registry: **246 passed in127.46s**,
+zero skips (`/tmp/inlet-next-account-diagnostics.log`). Whole Ruff, configured
+mypy615 files and staged whitespace check passed. This is synthetic-provider,
+SQLite/PostgreSQL verification; no live qualification is asserted.

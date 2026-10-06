@@ -10,7 +10,7 @@ from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import httpx
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import AwareDatetime, Field, TypeAdapter, model_validator
 
 from app.executors.social_http import _private_http
 from app.goals.schemas import StrictModel
@@ -46,6 +46,37 @@ class TikTokNativeInventoryRequest(StrictModel):
         return fingerprint("inlet.tiktok-native-inventory-request.v1", self.model_dump(mode="json"))
 
 
+class TikTokAccountObservationRequestV2(StrictModel):
+    schema_version: Literal["inlet.tiktok-account-observation-request.v2"] = (
+        "inlet.tiktok-account-observation-request.v2"
+    )
+    purpose: Literal["account_diagnostics"] = "account_diagnostics"
+    spending_authority: Literal["none"] = "none"
+    account: ExecutionAccount
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    time_zone: str = Field(min_length=1, max_length=64)
+    period_start: AwareDatetime
+    period_end: AwareDatetime
+
+    @model_validator(mode="after")
+    def bounded(self) -> "TikTokAccountObservationRequestV2":
+        ZoneInfo(self.time_zone)
+        if (
+            self.account.account.platform != "tiktok_ads"
+            or not re.fullmatch(r"[0-9]{1,32}", self.account.external_advertiser_id)
+            or not timedelta(0) < self.period_end - self.period_start <= timedelta(days=366)
+        ):
+            raise ValueError("invalid native inventory request")
+        return self
+
+    def digest(self) -> str:
+        return fingerprint(self.schema_version, self.model_dump(mode="json"))
+
+
+TikTokInventoryRequest = TikTokNativeInventoryRequest | TikTokAccountObservationRequestV2
+_request_adapter: TypeAdapter[TikTokInventoryRequest] = TypeAdapter(TikTokInventoryRequest)
+
+
 class TikTokNativeInventoryContext(OptimizationContext):
     request_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
 
@@ -68,7 +99,7 @@ class TikTokNativeOwner(StrictModel):
 
 
 class TikTokNativeInventory(StrictModel):
-    request: TikTokNativeInventoryRequest
+    request: TikTokInventoryRequest
     observation_started_at: AwareDatetime
     observed_at: AwareDatetime
     expires_at: AwareDatetime
@@ -113,7 +144,7 @@ class TikTokNativeInventory(StrictModel):
         return fingerprint("inlet.tiktok-native-inventory.v1", self.model_dump(mode="json"))
 
 
-ContextReader = Callable[[TikTokNativeInventoryRequest, datetime], TikTokNativeInventoryContext]
+ContextReader = Callable[[TikTokInventoryRequest, datetime], TikTokNativeInventoryContext]
 
 
 def _budget(value: Any) -> str | None:
@@ -127,9 +158,7 @@ def _budget(value: Any) -> str | None:
     return raw
 
 
-def _owner(
-    row: dict[str, Any], req: TikTokNativeInventoryRequest, child: bool
-) -> TikTokNativeOwner:
+def _owner(row: dict[str, Any], req: TikTokInventoryRequest, child: bool) -> TikTokNativeOwner:
     if row.get("advertiser_id") != req.account.external_advertiser_id:
         raise TikTokNativeInventoryUnavailable("inventory_owner_mismatch")
     return TikTokNativeOwner(
@@ -162,14 +191,10 @@ class TikTokNativeInventoryHTTP:
     ) -> None:
         self.context_reader, self.clock, self.transport = context_reader, clock, transport
 
-    def __call__(
-        self, request: TikTokNativeInventoryRequest, now: datetime, /
-    ) -> TikTokNativeInventory:
+    def __call__(self, request: TikTokInventoryRequest, now: datetime, /) -> TikTokNativeInventory:
         private = _private_http.set(True)
         try:
-            return self._read(
-                TikTokNativeInventoryRequest.model_validate(request.model_dump()), now
-            )
+            return self._read(_request_adapter.validate_python(request.model_dump()), now)
         except TikTokNativeInventoryUnavailable:
             raise
         except Exception:
@@ -177,7 +202,7 @@ class TikTokNativeInventoryHTTP:
         finally:
             _private_http.reset(private)
 
-    def _read(self, request: TikTokNativeInventoryRequest, now: datetime) -> TikTokNativeInventory:
+    def _read(self, request: TikTokInventoryRequest, now: datetime) -> TikTokNativeInventory:
         deadline, calls, total_bytes = monotonic() + 60, 0, 0
         expires = now + timedelta(minutes=5)
 

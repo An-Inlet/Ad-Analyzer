@@ -10,14 +10,18 @@ parallel branches were sequential.
 
 - Integrated subset before latest scheduler/portal retry updates:144 passed,
   one SQLite-only row-lock skip with explicit disposable PostgreSQL.
-- Integrated Ruff/mypy passed (269 files with migration tests).
+- Integrated Ruff/mypy passed (270 files including the assembled journey).
+- Latest scheduler, portal retry, CRM and migration subset:78 passed.
+- Assembled real application/database journey:2 passed (SQLite/PostgreSQL),
+  covering session/workspace, Google connection selection, goal review/confirmation,
+  signed billing webhook plus dispatcher, entitlement changes, disconnect and logout.
+  Shopify baseline installation remains an explicit fixture-only boundary.
 - Populated PostgreSQL0031→head→0031→head:2 tests passed. Existing workspace,
   goal/revision, job, failed analysis and pending outbox data survived. New retry
   defaults and backoff columns were checked. Goal receipts intentionally disappear
   on downgrade and are empty after re-upgrade.
 
-These checks are not final-head Full/CI acceptance. Latest review fixes must be
-included and retested, and the integrated customer API journey remains in progress.
+These checks are not final-head Full/CI acceptance. Latest review fixes are included and targeted tests passed; Full/CI remain pending.
 The standalone browser still requires an existing verified session; customer
 Shopify setup and closure flows remain implementation work. Provider methods are
 exercised through deterministic fixtures/HTTP mocks, never live credentials.
@@ -29,7 +33,8 @@ exercised through deterministic fixtures/HTTP mocks, never live credentials.
 - TikTok outbox analysis must bind SourceConnection rather than Google connection:
   integrated PR83 ad4e9f2.
 - Klaviyo explicitly nullable subscription channels: integrated follow-up c2e09c1; valid null means unknown, not unsubscribed.
-- Actual customer API journey and customer Shopify onboarding routes: in progress.
+- Actual customer API journey passed offline; customer Shopify onboarding routes
+  remain in progress on a separate branch.
 
 ## Launch Boundary
 

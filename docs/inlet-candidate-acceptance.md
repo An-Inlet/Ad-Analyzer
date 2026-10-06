@@ -17,7 +17,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Owned candidate queue/selection and exact Google original-response evidence integrated; candidate-to-review is implemented; session-bound automatic orchestration remains under implementation; native financial/transition producers remain unqualified |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Owned candidate queue/selection and exact Google original-response evidence integrated; candidate-to-review is implemented; original-session automatic orchestration, separate admissions and actual customer controls are implemented offline; native financial/transition producers remain unqualified |
 | B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named configuration, customer creation and separate activation integrated; live supported-profile qualification remains |
 | B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover configuration, customer creation and separate activation integrated; native catalog parser and live advertiser/history qualification remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
@@ -25,7 +25,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
 | B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation, original-confirmer guards and customer creation/activation integrated; native provider capability proof remains |
-| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned reconciliation observations, disabled parameterized maturity evaluator, v3 association bridge and retractable bounded feedback implemented; owned independent Shopify acquisition/publication and canonical association-feedback consumer are implemented; genuine delivery timing, calibrated maturity and directional policy/consumer remain unavailable or unfinished |
+| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned reconciliation observations, disabled parameterized maturity evaluator, v3 association bridge and retractable bounded feedback implemented; owned independent Shopify acquisition/publication and canonical association-feedback consumer are implemented; authenticated directional evaluator/adapter is implemented with contract fixtures; genuine delivery timing, qualified maturity/count facts, calibration and automatic first-action policy remain unavailable, so B17 is incomplete |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google/social creation and optimization UI integrated; both approval-context findings repaired and independently source-reviewed. Production assembly, default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated financial/social restore and composed export/closure verified offline; green final Full/CI and intended-environment alerts/recovery/retention remain |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
@@ -34,14 +34,17 @@ pass is not evidence of a purchasable service or complete live acceptance.
 
 1. Verify the assembled accounting, closure, activation, strict export and durable
    optimization changes with the integrated Google customer execution journey.
-2. Complete candidate-to-review/automatic mandate orchestration and measured-feedback
-   consumer wiring; preserve named social configuration and exact media-review repairs.
-3. Supply actual qualified portfolio/native-cap/reporting and terminal-request
-   facts. Current server ports and contract scenarios are not concrete live sources.
-   Preserve the strict spending ceiling; no daily-budget or reporting-SLO shortcut.
+2. Validate the integrated session orchestration and directional consumers; complete
+   usable read-only account diagnostics independently of unavailable execution mandates.
+   An exact customer-reviewed first action exists; automatic initial direction does not.
+3. Resolve the concrete [provider evidence/product decision](design/provider-guarantee-product-decision.md).
+   The strict financial contract is not demonstrated for arbitrary outside-writer accounts.
+   Preserve it unless the owner explicitly selects a separately specified launch scope;
+   do not add empty financial interfaces or treat access as a missing guarantee.
 4. Supply qualified measurement maturity/effective-time evidence before claiming
    action comparisons. Current persisted assessments honestly remain insufficient.
-5. Freeze the assembled candidate; run Full and normal authorized PR CI, resolve
+5. After the applicable policy/assembly work or explicit scope decision, freeze the
+   assembled candidate; run Full and normal authorized PR CI, resolve
    actual failures, and complete the explicit offline pilot matrix. Then present
    concrete configuration/commercial/release and unrelated live-pilot gates.
 
@@ -177,3 +180,17 @@ and default-disabled runtime observations at migration 0071. Root combined migra
 native restore and registry checks passed: 13 passed, 1 expected SQLite skip.
 Neither these focused checks nor the older successful local Full validate the
 successor's entire assembled tree; a new frozen Full and normal hosted CI are required.
+
+
+## Integrated After a4fcd3a
+
+Integration9c76ff8 includes session backend/UI and authenticated epochs (0072), the
+0073 schema join, exact Google transition composition, and the owned directional
+consumer. Root focused checks: session66 passed/1 expected skip, supporting composition
+46 passed, migration/restore8 passed/1 expected skip, complete disposable schema
+roundtrip passed, directional42 passed. These are separate suites, not an assembled
+Full result. Both frozen a4fcd3a validation runs remain pending at this update.
+
+The provider matrix is a proposal, not a release-scope change. Recommendation-only
+launch would leave autonomous action, publication and qualified learning acceptance
+incomplete. No production source or policy is installed by passing synthetic tests.

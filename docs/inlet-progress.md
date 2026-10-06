@@ -1047,3 +1047,9 @@ Ruff, mypy (289 files), and diff check passed. Real Chromium/HTTPS/API/DB naviga
 passed on SQLite and PostgreSQL; provider consent HTTP and token/metadata transport are
 mocked. Full/CI pending. See `docs/inlet-shopify-consent-ui.md` for exact evidence and
 remaining disconnect UI/live qualification gaps.
+
+Consent-navigation draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/104.
+Implementation/checks are at `c6f32cfd11f56923ad34d0d0195d0493a1d7b4f5`; the following
+documentation-only commit records the PR link. Shopify toolkit search could not fetch
+its service; official Shopify OAuth documentation was verified through web retrieval.
+Toolkit telemetry was disabled; no user prompt was sent to its telemetry service.

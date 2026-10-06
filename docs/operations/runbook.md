@@ -115,3 +115,15 @@ receipts; neither an expired lease nor an alert authorizes retry or live changes
 Future provider backoff is expected. A response without observed alerts is not a
 storage/provider availability result or proof of complete coverage. External alert
 routing remains unconfigured and must be qualified separately before release.
+
+### Customer Export Privacy Deployment Gate
+
+Keep `INLET_CUSTOMER_EXPORT_ENABLED=false` until a quiescent upgrade establishes
+that **all** API/operator/import/scheduler/privacy writers sharing the database run
+the verified workspace-revision hooks. Migrating the column alone cannot fence old
+writers. Mixed old/new writer rolling releases are not qualified. Drain/stop old
+processes and transactions, apply the release migrations, start uniform verified
+writers, then obtain the release owner's decision before enabling exports. Unknown
+running versions keep the feature disabled. Turning it off aborts ongoing exports
+at their next checkpoint. See `docs/inlet-customer-export.md` for source coverage
+and the bounded snapshot/stream contract; no live rollout is implied by tests.

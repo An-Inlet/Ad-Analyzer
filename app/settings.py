@@ -346,6 +346,7 @@ class Settings(BaseSettings):
         default="", alias="INLET_GOOGLE_ADS_CREDENTIALS_REFERENCE"
     )
 
+    customer_export_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_EXPORT_ENABLED")
     customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
     customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
     customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")

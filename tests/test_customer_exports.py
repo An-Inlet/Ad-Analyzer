@@ -39,7 +39,10 @@ from tests.test_customer_lifecycle import KEY, NOW, seed
 
 
 @pytest.fixture
-def export_engine(customer_engine: Engine, tmp_path: Path) -> Generator[Engine, None, None]:
+def export_engine(
+    customer_engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Generator[Engine, None, None]:
+    monkeypatch.setattr(settings, "customer_export_enabled", True)
     if customer_engine.dialect.name != "sqlite":
         yield customer_engine
         return
@@ -161,9 +164,9 @@ def test_archive_snapshot_media_and_secret_exclusion(export_engine: Engine, tmp_
         file.close()
 
 
-@pytest.mark.parametrize("failure", ["session", "membership", "provider", "expired"])
+@pytest.mark.parametrize("failure", ["session", "membership", "provider", "expired", "runtime"])
 def test_fresh_stream_revocation_and_cleanup(
-    export_engine: Engine, tmp_path: Path, failure: str
+    export_engine: Engine, tmp_path: Path, failure: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     provider = FakeProvider()
     authority, wid = prepared(export_engine, provider)
@@ -183,6 +186,8 @@ def test_fresh_stream_revocation_and_cleanup(
             member.status = "suspended"
         elif failure == "expired":
             session.expires_at = int(time.time()) - 1
+        elif failure == "runtime":
+            monkeypatch.setattr(settings, "customer_export_enabled", False)
         else:
             provider.disabled.add("one")
         db.commit()
@@ -305,6 +310,10 @@ def test_actual_http_create_replay_download_foreign_owner_and_logout(
         rid = response.json()["request_id"]
         assert client.post(path, json={}, headers=headers).json()["request_id"] == rid
         assert other.get(f"{path}/{rid}").status_code == 404
+        monkeypatch.setattr(settings, "customer_export_enabled", False)
+        assert client.post(path, json={}, headers=headers).status_code == 503
+        assert client.get(f"{path}/{rid}/download").status_code == 503
+        monkeypatch.setattr(settings, "customer_export_enabled", True)
         response = client.get(f"{path}/{rid}/download")
         assert response.status_code == 200, response.text
         manifest, _ = unpack(io.BytesIO(response.content))
@@ -545,3 +554,9 @@ def test_expired_build_receipt_allows_explicit_retry(export_engine: Engine) -> N
     assert before is not None
     authority.claim()
     assert authority.revision == before + 1
+
+
+def test_export_runtime_defaults_disabled() -> None:
+    from app.settings import Settings
+
+    assert not Settings(_env_file=None).customer_export_enabled

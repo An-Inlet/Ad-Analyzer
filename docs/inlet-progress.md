@@ -1285,3 +1285,23 @@ No live provider requests, credentials, spend, merge to main or deployment occur
 Provider qualification/review persistence, full provider coordination/activation,
 Meta/TikTok adapters, measured feedback, customer lifecycle and release/pilots remain
 active backlog, with code gaps distinguished from external qualification.
+
+### B18 Visible Test Billing Journey (2026-10-06)
+
+Branch `codex/inlet-billing-browser`, isolated from frozen PR112 `3a3cca8`, adds safe
+server billing availability/status flags, owned-workspace return URLs, visible
+checkout/resume/status refresh/management and post-provider owner/session rechecks.
+Actual Chromium/API/DB journeys on SQLite/PostgreSQL use the real Stripe HTTP adapter
+with mocked provider responses and intercepted provider navigation. No real charges,
+price decisions, credentials, live requests, migration, merge or deployment.
+
+A delayed management response plus workspace switch reproduced controls permanently
+disabled by overlapping portal guards; a shared busy counter/original-state map now
+restores controls only once all tasks settle, with epoch/no-navigation coverage.
+Final focused billing/portal/Shopify/browser checks: **78 passed, 1 SQLite-only skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff/diff checks pass; targeted strict mypy
+passes 220 files. Whole-tree mypy has only the inherited GCS unused-ignore already
+fixed independently by root PR113 `7ae1d0d`; left untouched here. Full not started.
+See [billing journey evidence and limits](inlet-billing-browser.md) and
+`/tmp/inlet-billing-browser-final.log`. Next: final integration validation and remaining
+core-task/account controls; live purchasing stays a separate commercial/release gate.

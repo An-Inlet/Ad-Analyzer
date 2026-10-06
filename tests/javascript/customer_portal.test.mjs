@@ -51,3 +51,10 @@ test('Shopify authorization destination stays at the exact merchant HTTPS consen
   for (const url of ['http://store.myshopify.com/admin/oauth/authorize', 'https://other.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com.evil.test/admin/oauth/authorize', 'https://store.myshopify.com:444/admin/oauth/authorize', 'https://user@store.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com/other']) assert.throws(() => shopifyDestination({authorization_url:url}, shop));
   assert.throws(() => shopifyDestination({authorization_url:'https://evil.test/admin/oauth/authorize'}, 'https://evil.test'));
 });
+
+test('billing redirects require known action and provider session paths', () => {
+  assert.equal(billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/p/session/test_fixture'}, 'management'), 'https://billing.stripe.com/p/session/test_fixture');
+  for (const url of ['https://checkout.stripe.com/other', 'https://checkout.stripe.com/', 'https://checkout.stripe.com/c/../other']) assert.throws(() => billingDestination({mode:'stripe_test',url}, 'checkout'));
+  assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/'}, 'management'));
+  assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/p/session/fixture'}, 'unknown'));
+});

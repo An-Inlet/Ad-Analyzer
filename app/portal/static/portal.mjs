@@ -26,8 +26,9 @@ export function billingDestination(result, kind) {
   // Fixture links never navigate. Only the explicitly configured test provider may redirect.
   if (result.mode !== 'stripe_test') throw new Error('Billing is unavailable outside configured test mode.');
   const url = new URL(result.url);
+  if (!['checkout', 'management'].includes(kind) || typeof result.url !== 'string' || result.url.length > 2048) throw new Error('Billing returned an invalid destination.');
   const host = kind === 'checkout' ? 'checkout.stripe.com' : 'billing.stripe.com';
-  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) throw new Error('Billing returned an invalid destination.');
+  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password || (kind === 'checkout' ? !url.pathname.startsWith('/c/') : !url.pathname.startsWith('/p/session/'))) throw new Error('Billing returned an invalid destination.');
   return url.href;
 }
 export function shopifyDestination(result, shop) {
@@ -86,7 +87,7 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0;
-  let signupKey = null, signupBody = null;
+  let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
   async function api(...args) {
@@ -102,9 +103,9 @@ if (typeof document !== 'undefined') {
   }
   function clearWorkspace() {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
-    for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'basis']) $(id).replaceChildren();
+    for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'shopify-setup']) show(id, false);
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup']) show(id, false);
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -152,13 +153,17 @@ if (typeof document !== 'undefined') {
   const invalidate = () => { reviewed = null; show('review', false); };
   async function guarded(task) {
     const controls = [...document.querySelectorAll('button,input,select')];
-    const states = controls.map(c => c.disabled);
+    if (busyCount === 0) controlStates = new Map(controls.map(c => [c, c.disabled]));
+    busyCount++;
     controls.forEach(c => { c.disabled = true; });
     try { await task(); } catch (error) {
       if (error instanceof StaleRequest) return;
       if (error.status === 401) clearSession();
       say(error.message, true);
-    } finally { controls.forEach((c, i) => { c.disabled = states[i]; }); }
+    } finally {
+      busyCount--;
+      if (busyCount === 0) { for (const [control, disabled] of controlStates) control.disabled = disabled; controlStates = null; }
+    }
   }
   async function session() {
     clearSession();
@@ -202,9 +207,7 @@ if (typeof document !== 'undefined') {
     $('store').replaceChildren(...stores.filter(s => s.status === 'active').map((s, i) => option(s.id, `Shopify Store ${i + 1} · ${s.currency} · ${s.time_zone}`)));
     $('goal').replaceChildren(option('', 'New Goal'), ...goals.map((g, i) => option(g.id, `Goal ${i + 1} · ${period(g.definition?.target_window)} · ${g.confirmation_recorded ? 'Confirmed' : 'Draft'}`)));
     renderMandates(result[2]);
-    const billing = result[3]; $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : 'Purchasing Unavailable'} · Live billing has not been verified.`;
-    const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
-    show('checkout', owner && billing.mode === 'stripe_test'); show('management', owner && billing.mode === 'stripe_test');
+    renderBilling(result[3]);
     const providers = [['Google Ads', '/google/connections'], ['TikTok Ads', '/sources/tiktok_ads'], ['Klaviyo', '/sources/klaviyo'], ['HubSpot', '/sources/hubspot'], ['Omnisend', '/sources/omnisend']];
     const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await api(path + endpoint)]; } catch (error) { if (error instanceof StaleRequest || error.status === 401) throw error; return [name, 'Status unavailable']; } }));
     if (turn !== epoch) throw new StaleRequest();
@@ -226,6 +229,33 @@ if (typeof document !== 'undefined') {
     location.assign(shopifyDestination(result, shop));
   }); };
   window.addEventListener('pageshow', event => { if (event.persisted) guarded(session); });
+  function renderBilling(billing) {
+    $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : 'Purchasing Unavailable'}`;
+    $('billing-detail').replaceChildren();
+    for (const message of [
+      'Returning from Stripe does not confirm payment. Access changes only after verified server reconciliation.',
+      billing.checkout_pending ? 'Checkout is pending. If you canceled or lost the response, resume the same checkout safely; do not assume a payment succeeded.' : null,
+      billing.verification_current ? 'Subscription status was recently verified by the server.' : 'Subscription status has not been recently verified. Check again after processing.',
+      billing.cancel_at_period_end ? 'Cancellation is scheduled at the end of the current period.' : null,
+      billing.needs_attention ? 'Billing needs attention. Check its status again; contact support if reconciliation remains unavailable.' : null,
+    ].filter(Boolean)) $('billing-detail').append(textNode('p', message));
+    if (billing.period_end) $('billing-detail').append(textNode('p', `Current Period Ends: ${new Date(billing.period_end).toLocaleString('en-US', {timeZone:'UTC'})} UTC`));
+    const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
+    show('checkout', Boolean(owner && billing.mode === 'stripe_test' && billing.can_checkout));
+    show('management', Boolean(owner && billing.mode === 'stripe_test' && billing.can_manage));
+    $('checkout').textContent = billing.checkout_pending ? 'Resume Test Checkout' : 'Open Test Checkout';
+    show('billing-refresh', true);
+  }
+  async function refreshBilling() {
+    try { renderBilling(await api(root() + '/billing')); }
+    catch (error) {
+      if (error instanceof StaleRequest) throw error;
+      $('billing').textContent = ''; $('billing-detail').replaceChildren();
+      show('checkout', false); show('management', false);
+      throw error;
+    }
+  }
+  $('billing-refresh').onclick = () => guarded(refreshBilling);
   $('retry').onclick = () => guarded(session);
   // Auth is lazy and disabled by server configuration; no SDK/provider network by default.
   import('./auth.mjs').then(async ({prepareSignIn}) => {
@@ -296,6 +326,22 @@ if (typeof document !== 'undefined') {
     await api(root() + `/goals/${id}/confirm`, 'POST', {expected_revision: reviewed.revision, preview_id: reviewed.preview_id, idempotency_key: reviewed.key});
     await loadWorkspace(); $('goal').value = id; editGoal(); say('Goal confirmed. Advertising spending remains unauthorized.');
   });
-  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => { const result = await api(root() + '/billing/' + kind, 'POST'); location.assign(billingDestination(result, kind)); });
+  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => {
+    const path = root(), cookies = document.cookie;
+    say(kind === 'checkout' ? 'Opening test checkout. If interrupted, check billing status and resume safely.' : 'Opening test subscription management.');
+    try {
+      const result = await api(path + '/billing/' + kind, 'POST');
+      if (cookies !== document.cookie) { clearSession(); throw new Error('Your session changed. Sign in again before opening billing.'); }
+      location.assign(billingDestination(result, kind));
+    } catch (error) {
+      if (error instanceof StaleRequest) throw error;
+      if ([401, 403, 404].includes(error.status)) {
+        $('billing').textContent = ''; $('billing-detail').replaceChildren(); show('checkout', false); show('management', false);
+      } else {
+        $('billing-detail').replaceChildren(textNode('p', 'The billing request did not finish. Check billing status, then resume the existing checkout if offered. Returning or retrying does not confirm payment.'));
+      }
+      throw error;
+    }
+  });
   guarded(session);
 }

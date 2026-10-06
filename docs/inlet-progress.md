@@ -862,3 +862,10 @@ Focused validation: 53 pytest cases (SQLite, PostgreSQL and actual Chromium), in
 rebuild with an identical asset SHA. No live provider calls, grants, merge or deployment.
 Full remains queued with the integrating agent to avoid duplicating active validation.
 See `docs/inlet-customer-signin.md` for boundaries and real-provider qualification gates.
+### B19 Readiness HTTP Status Repair (2026-10-06)
+
+Invalid startup configuration previously returned /ready HTTP200 withnot_ready.
+It now returns503 and Cache-Control:no-store; valid startup configuration returns200,
+while /health remains200 liveness.17 deployment/configuration tests passed, Ruff/mypy270
+passed. This remains configuration readiness, not live DB/dependency health or a
+restore/release qualification. See inlet-audit-status.md for B01–B20 status.

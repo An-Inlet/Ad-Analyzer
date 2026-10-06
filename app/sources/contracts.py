@@ -53,6 +53,17 @@ class GuardedSourceExchange(Protocol):
 
 
 @runtime_checkable
+class GuardedPKCESourceExchange(Protocol):
+    def exchange_pkce_guarded(
+        self,
+        code: str,
+        redirect_uri: str,
+        code_verifier: str,
+        checkpoint: Callable[[], None],
+    ) -> SourceGrant: ...
+
+
+@runtime_checkable
 class PKCESourceTransport(Protocol):
     """Optional explicit per-attempt capability; adapters hold no verifier state."""
 

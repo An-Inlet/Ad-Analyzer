@@ -27,6 +27,7 @@ from app.mandates.service import workspace_lock
 from app.settings import settings
 from app.shopify.security import utc
 from app.sources.contracts import (
+    GuardedPKCESourceExchange,
     GuardedSourceExchange,
     PKCESourceTransport,
     ProviderName,
@@ -204,7 +205,9 @@ def finish(
         db.commit()  # Never hold actor/workspace locks during the next provider IO.
 
     try:
-        if isinstance(transport, PKCESourceTransport) and verifier is not None:
+        if isinstance(transport, GuardedPKCESourceExchange) and verifier is not None:
+            grant = transport.exchange_pkce_guarded(code, redirect(provider), verifier, checkpoint)
+        elif isinstance(transport, PKCESourceTransport) and verifier is not None:
             grant = transport.exchange_pkce(code, redirect(provider), verifier)
         elif isinstance(transport, GuardedSourceExchange):
             grant = transport.exchange_guarded(code, redirect(provider), checkpoint)
@@ -419,7 +422,10 @@ def view(row: SourceConnection) -> dict[str, Any]:
         "mode": get_source_transport(cast(ProviderName, row.provider)).mode,
         "live_verified": False,
     }
-    if row.provider == "tiktok_ads" and row.status in {"provider_error", "reconnect_required"}:
+    if row.provider in {"tiktok_ads", "klaviyo", "hubspot", "omnisend"} and row.status in {
+        "provider_error",
+        "reconnect_required",
+    }:
         result["status_label"] = (
             "Provider Request Rejected"
             if row.status == "provider_error"

@@ -33,6 +33,7 @@ PUBLIC = {
     ("GET", "/app/settings"),
     ("GET", "/app/campaign-review"),
     ("GET", "/app/workspace-export"),
+    ("GET", "/app/activity"),
     ("GET", "/app/workspace-closure"),
     ("GET", "/app/workspace-closure/{workspace_id}/{request_id}"),
     ("GET", "/api/customer/v1/auth-config"),

@@ -24,6 +24,7 @@ from app.api.customer_mandates import router as customer_mandates_router
 from app.api.customer_meta import router as customer_meta_router
 from app.api.customer_optimization import router as customer_optimization_router
 from app.api.customer_outcomes import router as customer_outcomes_router
+from app.api.customer_session_automation import router as customer_session_automation_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_social_execution import router as customer_social_execution_router
 from app.api.customer_social_review import router as customer_social_review_router
@@ -154,6 +155,7 @@ app.include_router(customer_campaign_review_router)
 app.include_router(customer_lifecycle_router)
 app.include_router(customer_exports_router)
 app.include_router(customer_execution_router)
+app.include_router(customer_session_automation_router)
 app.include_router(customer_social_review_router)
 
 app.include_router(customer_social_execution_router)

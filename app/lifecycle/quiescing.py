@@ -128,6 +128,17 @@ def quiesce(
     from app.optimization_candidates.invalidation import erase_workspace_candidates
 
     erase_workspace_candidates(db, workspace.id)
+    automations = Base.metadata.tables["session_automation_runs"]
+    db.execute(
+        update(automations)
+        .where(automations.c.workspace_id == wid, automations.c.stopped_at.is_(None))
+        .values(
+            state="stopped",
+            reason="customer_stopped",
+            stopped_at=now,
+            stopped_by=principal.user.id,
+        )
+    )
     workspace.status = "closing"
     db.flush()
     for name in (

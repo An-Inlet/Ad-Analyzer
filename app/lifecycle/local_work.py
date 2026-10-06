@@ -80,6 +80,7 @@ LOCAL_RUNS = {
 # New persisted worker tables using these established suffixes require an explicit
 # category before a local observation can be reported as complete.
 WORK_FAMILIES = {
+    "session_automation_runs": "protected_publication",
     "optimization_candidate_jobs": "erasable_derived_read_queue",
     "job_runs": "local_run",
     "analysis_runs": "local_run",
@@ -110,6 +111,7 @@ def verify_work_registry() -> None:
 
 
 ADMISSION_STATES = {
+    "session_automation_runs": ("state", "stopped"),
     "workspace_integrations": ("status", "revoked"),
     "crm_connections": ("status", "closed"),
     "google_customer_connections": ("status", "disconnected"),

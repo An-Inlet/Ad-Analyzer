@@ -32,6 +32,7 @@ MODEL_MODULES = (
     "app.outcome_feedback.models",
     "app.optimization_candidates.models",
     "app.optimization_candidates.review_models",
+    "app.session_automation.models",
     "app.publication.execution_models",
     "app.publication.models",
     "app.publication.provider_models",

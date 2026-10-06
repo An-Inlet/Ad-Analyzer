@@ -61,10 +61,16 @@ from app.publication.replacement_contracts import (
     parse_review,
 )
 from app.publication.service import owner
+from app.session_automation import authority as automatic_authority
+from app.session_automation.contracts import (
+    CustomerExactApprovalAuthority,
+    SessionMandateDecisionAuthority,
+)
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
 
 STEP = "optimize"
+MANUAL_AUTHORITY = CustomerExactApprovalAuthority()
 
 
 def current(
@@ -314,6 +320,8 @@ def approve_optimization(
     row, document = checked_review(db, wid, review_id, actor, runtime, clock)
     if (digest, plan_digest) != (row.digest, row.plan_digest):
         raise HTTPException(409, "exact optimization approval required")
+    if automatic_authority.automatic(row):
+        raise HTTPException(409, "automatic authority cannot become customer approval")
     existing = db.get(ProviderExecutionApproval, row.id)
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
@@ -344,19 +352,18 @@ def create_run(
     actor: str,
     runtime: OptimizationRuntime,
     clock: creation.Clock,
+    *,
+    authority: CustomerExactApprovalAuthority | SessionMandateDecisionAuthority = MANUAL_AUTHORITY,
+    commit: bool = True,
 ) -> ProviderExecutionRun:
     row, document = checked_review(db, wid, review_id, actor, runtime, clock)
-    approval = db.get(ProviderExecutionApproval, row.id)
-    if approval is None or (approval.review_digest, approval.plan_digest) != (
-        row.digest,
-        row.plan_digest,
-    ):
-        raise HTTPException(409, "exact optimization approval required")
-    owner(db, wid, approval.actor)
+    automatic_authority.resolve(db, row, authority, actor, runtime, clock)
     existing = db.scalar(
         select(ProviderExecutionRun).where(ProviderExecutionRun.review_id == row.id)
     )
     if existing is not None:
+        if automatic_authority.for_run(existing) != authority:
+            raise HTTPException(409, "optimization authority cannot change")
         return existing
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
@@ -367,8 +374,15 @@ def create_run(
     check(db, row, actor, runtime, clock)
     validate_document(document, policy, clock())
     run = ProviderExecutionRun(
-        id=uuid4().hex, workspace_id=wid, review_id=row.id, state="ready", created_at=clock()
+        id=uuid4().hex,
+        workspace_id=wid,
+        review_id=row.id,
+        state="ready",
+        created_at=clock(),
     )
+    if isinstance(authority, SessionMandateDecisionAuthority):
+        run.authority_kind = authority.kind
+        run.automatic_decision_id = authority.admission_id
     db.add(run)
     db.flush()
     db.add(
@@ -376,7 +390,8 @@ def create_run(
             run_id=run.id, step_id=STEP, workspace_id=wid, ordinal=0, state="pending"
         )
     )
-    db.commit()
+    if commit:
+        db.commit()
     return run
 
 
@@ -396,14 +411,11 @@ def locked_run(
     if run is None:
         raise HTTPException(404, "optimization run unavailable")
     row, document = checked_review(db, wid, run.review_id, actor, runtime, clock)
-    approval = db.get(ProviderExecutionApproval, row.id)
-    if approval is None or (approval.review_digest, approval.plan_digest) != (
-        row.digest,
-        row.plan_digest,
-    ):
-        raise HTTPException(409, "exact optimization approval required")
-    owner(db, wid, approval.actor)
+    authority = automatic_authority.for_run(run)
+    automatic_authority.resolve(db, row, authority, actor, runtime, clock)
     db.refresh(run, with_for_update=True)
+    if automatic_authority.for_run(run) != authority:
+        raise HTTPException(409, "optimization authority changed during run lock")
     if run.canceled_at is not None or run.state == "canceled":
         raise HTTPException(409, "optimization canceled")
     return run, document

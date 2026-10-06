@@ -34,6 +34,7 @@ def test_disabled_does_not_construct_providers(customer_engine: Engine) -> None:
             google_factory=forbidden,
             tiktok_factory=forbidden,
             billing_factory=forbidden,
+            automation_factory=forbidden,
         )
         == {}
     )

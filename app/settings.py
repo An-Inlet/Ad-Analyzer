@@ -173,6 +173,18 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    google_customer_runtime_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_GOOGLE_CUSTOMER_RUNTIME_MODE"
+    )
+    google_customer_api_version: str = Field(
+        default="", alias="AD_ANALYZER_GOOGLE_CUSTOMER_API_VERSION"
+    )
+    google_customer_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_SECRET"
+    )
+    google_customer_developer_token: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_GOOGLE_CUSTOMER_DEVELOPER_TOKEN"
+    )
     billing_provider_mode: str = Field(
         default="disabled", alias="AD_ANALYZER_BILLING_PROVIDER_MODE"
     )

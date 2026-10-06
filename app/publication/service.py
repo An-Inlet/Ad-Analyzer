@@ -353,6 +353,20 @@ def claim_next(
         )
         record, plan, mandate, action = locked(db, wid, plan_id)
         authority.validate(db, plan, actor, now)
+        # dispatch commits the mandate marker. A stop may win before we reacquire
+        # the workspace fence, so no earlier authorization survives this boundary.
+        if (
+            not record.approved_by
+            or record.state in {"cancelled", "cancel_requested"}
+            or action.cancel_requested
+            or action.state != "dispatching"
+            or record.request_key not in {None, request_key}
+        ):
+            raise HTTPException(409, "publication cancelled or dispatch changed")
+        owner(db, wid, record.approved_by)
+        mandates.preconditions(
+            db, mandate, action, authority.evidence(db, mandate, plan, now), now
+        )
     rows = {
         r.step_id: r
         for r in db.scalars(

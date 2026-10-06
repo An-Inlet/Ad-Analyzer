@@ -47,3 +47,22 @@ production container behavior, and playback on customer browsers remain unverifi
 References: [FFmpeg protocol options](https://ffmpeg.org/ffmpeg-protocols.html#Protocol-Options),
 [MOV demuxer options](https://ffmpeg.org/ffmpeg-formats.html),
 [FFprobe frame inspection](https://ffmpeg.org/ffprobe.html).
+
+## Decoder Clock Compatibility
+
+Ubuntu 24.04 FFmpeg 6.1.1-3ubuntu5 reports the final decoded video frame's start in
+null-muxer `out_time_us` for silent clips; FFmpeg 7.1.5 reports its end. The same
+five-frame 10 fps MP4 has a validated duration of 0.5 seconds and frame starts
+0.0–0.4 seconds, producing progress clocks 0.4 and 0.5 respectively. The validator
+accepts the exact final decoded frame-start clock (within one microsecond) only
+when there is no audio stream. It does not widen the duration tolerance. Full
+FFprobe frame/duration checks, independent terminal FFmpeg decode, matching total
+frame count, and the strict 60-second bound remain mandatory. Audio still requires
+an end-of-stream clock matching the existing duration tolerance.
+
+Reproduced the original failure and fixed behavior using identical synthetic bytes
+in a disposable Ubuntu 24.04 container. Ten actual FFmpeg 6.1 cases passed: silent
+and AAC accepted; wrong video/audio codecs, dimensions/pixels/frame rate/duration,
+truncation and corruption rejected. Local 7.1 regressions additionally reject
+nearby-but-wrong progress clocks and mismatched frame counts/audio timing. No
+production media or provider access was involved.

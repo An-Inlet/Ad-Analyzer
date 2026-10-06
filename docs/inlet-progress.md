@@ -846,3 +846,19 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+## Customer Browser Sign-In Package (2026-10-06)
+
+Branch `codex/inlet-customer-signin` from integrated `8ae5ab798eadd8835749f9ed03844fcf8280c25f`.
+Disabled-by-default Google browser signup/sign-in now exchanges a fresh provider identity
+once into the existing revocable server session. Confirmed CSRF logout precedes account
+switching; unknown exchange results clear customer DOM and require an explicit session
+check. Firebase Auth 12.19.0 uses in-memory persistence and SDK cleanup in `finally`.
+Self-hosted asset and exact dependency lock rebuild reproducibly; CI enforces the diff.
+Enabled-only CSP contains fixed Google bootstrap/API origins and derived project iframe.
+
+Focused validation: 53 pytest cases (SQLite, PostgreSQL and actual Chromium), including
+8 Node subtests, plus Ruff, mypy (272 source files), whitespace checks and a clean npm-ci
+rebuild with an identical asset SHA. No live provider calls, grants, merge or deployment.
+Full remains queued with the integrating agent to avoid duplicating active validation.
+See `docs/inlet-customer-signin.md` for boundaries and real-provider qualification gates.

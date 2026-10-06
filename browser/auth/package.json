@@ -1,0 +1,8 @@
+{
+  "name": "inlet-customer-auth",
+  "private": true,
+  "type": "module",
+  "scripts": {"build": "esbuild sdk.mjs --bundle --format=esm --platform=browser --minify --legal-comments=eof --outfile=../../app/portal/static/firebase-auth.mjs"},
+  "dependencies": {"firebase": "12.19.0"},
+  "devDependencies": {"esbuild": "0.28.2"}
+}

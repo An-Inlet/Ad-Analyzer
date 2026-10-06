@@ -2390,3 +2390,14 @@ worksheet. Root actual browser/API/backend regressions33passed1SQLite-onlyskip
 (`/tmp/inlet-next-descriptive-ui.log`). Ruff/mypy474/diff passed. The docs-only
 Google exposure assessment/joint-envelope proposal a156fbc is integrated7360e3e;
 it does not qualify a provider profile or change the monetary promise.
+
+## Final Credential Context Authorization Repair
+
+PR169d5c0671 integrated as f872552. Credential context resolution now precedes the
+final fresh session/claim admission check for creation, activation and optimization;
+creation also validates the claimed owner before resolving credentials. Corrected
+agent baselines reproduced10 product failures on both databases (earlier erroneous
+creation fixture failures are excluded). Root execution-session regression suite
+20passed (`/tmp/inlet-next-context-fence.log`); Ruff/mypy474/diff passed. The fixed
+artifact is newer than both running c602a1b Full and e512529 hosted CI; any pass from
+those predecessors does not qualify this repair or establish release readiness.

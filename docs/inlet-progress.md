@@ -1057,3 +1057,13 @@ were stopped together. No replacement Full started pending root coordination.
   exposure requirement. Provider runtime factory stays unavailable. Production
   authority, qualification reads, persisted provider review/coordinator/UI, separate
   activation and settlement remain implementation work; B15 is not complete.
+
+## Shared Meta/TikTok Publication Types — 2026-10-06
+
+- Isolated `codex/inlet-social-contracts` from PR108 e4c1392. Additive social contracts
+  leave existing Google and fixture schemas/hashes unchanged. Frozen typed operations,
+  media binding, resource-kind namespaces, review/plan/request/receipt and transport ports.
+- Contract/compiler/Google adapter focused regression: 41 passed. Whole-tree Ruff
+  passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
+- No live factory or production permission. Unknown provider combination eligibility
+  remains explicit qualification work, and B16 is not complete.

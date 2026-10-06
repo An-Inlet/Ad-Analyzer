@@ -30,6 +30,7 @@ from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.types import Receive, Scope, Send
 
+from tests.browser_targets import wait_for_page_target
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -182,7 +183,7 @@ def test_google_navigation_selection_cancel_retry_and_current_role(
             with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
                 return list(json.load(response))
 
-        browser = GoogleBrowser(tabs()[0]["webSocketDebuggerUrl"], origin)
+        browser = GoogleBrowser(wait_for_page_target(tabs), origin)
         browser.call(
             "Fetch.enable",
             {

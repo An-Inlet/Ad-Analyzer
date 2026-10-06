@@ -29,6 +29,7 @@ from app.settings import settings
 from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from tests.browser_targets import wait_for_page_target
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -171,7 +172,7 @@ def test_meta_customer_browser_consent_selection_disconnect(
             with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
                 return list(json.load(response))
 
-        browser = MetaBrowser(tabs()[0]["webSocketDebuggerUrl"], origin)
+        browser = MetaBrowser(wait_for_page_target(tabs), origin)
         browser.call(
             "Fetch.enable",
             {

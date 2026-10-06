@@ -1705,3 +1705,27 @@ reran actual HTTPS browser recovery after the final guard changes. Ruff and stri
 mypy (334 files) passed. No backend/schema edits beyond composing the inherited
 Google lock-order conflict; no production closure, data erasure or provider call.
 See `docs/inlet-closure-ui.md`. Export implementation remains separate.
+## Hosted Browser Target Discovery Repair
+
+Independent child of frozen PR125 `512cadc`: `codex/inlet-browser-target-repair`.
+Fetched hosted PR118 workflow run37410393272/job112097300707 logs through the GitHub
+connector. The Google SQLite failure was `IndexError` at
+`GoogleBrowser(tabs()[0]["webSocketDebuggerUrl"], origin)` before application navigation:
+DevToolsActivePort existed, but Chromium's `/json` response was still empty.
+
+Shared bounded `wait_for_page_target` now waits for a page with a usable WebSocket URL,
+ignores workers/incomplete targets and supports exact IDs for second-tab creation.
+Google/Shopify/Meta/billing harnesses use it; no production code or assertion weakening.
+Deterministic regressions reproduce the original empty-response indexing failure and
+cover delayed readiness, transient connection failure, exact target selection and timeout.
+
+Initial affected-browser run: **10 passed, 1 failed**. The failure was the distinct billing
+PostgreSQL initial-login/Retry workspace-options timeout, not target discovery. Parent
+and the session-harness repair owner were notified; that unrelated failure is not hidden.
+The deterministic helper rerun passed **3 tests**. Ruff/mypy **327 files** and diff checks
+pass. Parent owns Full; frozen PR118/PR125 were preserved. No live requests.
+
+Focused discovery + Google/Shopify/Meta Chromium journeys on SQLite/PostgreSQL:
+**9 passed** (`tests/test_browser_targets.py`, `tests/test_google_connections_browser.py`,
+`tests/test_shopify_consent_browser.py`, `tests/test_meta_customer_browser.py`). The
+billing startup failure remains reported separately for its dedicated repair.

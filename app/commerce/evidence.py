@@ -329,7 +329,7 @@ def read_publication(
     try:
         document = parse_publication(row)
     except (ValueError, TypeError, KeyError):
-        raise ShopifyError("commerce_publication_invalid") from None
+        raise ShopifyError("commerce_publication_binding_invalid") from None
     return {
         "publication_id": row.id,
         "manifest_digest": row.manifest_digest,

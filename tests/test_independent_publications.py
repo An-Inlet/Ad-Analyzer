@@ -424,3 +424,102 @@ def test_v2_does_not_displace_candidate_v1_but_actual_changes_still_deny(
         with pytest.raises(HTTPException) as changed:
             source_current(db, scope, actor)
         assert changed.value.status_code == 409
+
+
+def test_real_v2_provenance_persists_with_insufficient_assessment_and_erases(
+    customer_engine: Engine, configuration: Settings, tmp_path: Any
+) -> None:
+    import time
+    from uuid import uuid4
+
+    from app.outcome_feedback.models import V3Assessment
+    from app.outcome_feedback.service import EvidenceReference, persist_assessment
+    from app.outcomes.owned_v3 import OwnedV3Request, assess_owned_v3
+    from app.publication.service import owner
+    from sqlalchemy.orm import sessionmaker
+
+    from tests.test_owned_outcomes import evidence
+
+    with Session(customer_engine) as db:
+        wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
+        user = db.get(CustomerUser, actor)
+        assert user is not None
+        user.issuer = FakeProvider.issuer
+        session = CustomerSession(
+            digest=uuid4().hex * 2,
+            user_id=actor,
+            csrf_digest="f" * 64,
+            created_at=int(time.time()),
+            authenticated_at=int(time.time()),
+            expires_at=int(time.time()) + 3600,
+        )
+        db.add(session)
+        db.commit()
+        service = OwnedAcquisition(
+            lambda: Session(customer_engine),
+            CustomerPrincipal(user, session),
+            FakeProvider(),
+            configuration,
+            environment="contract_test",
+            clock=lambda: NOW,
+        )
+    request = OwnedV3Request.model_validate(body.model_dump(exclude={"policy_id"}))
+
+    def authorize(db: Session) -> None:
+        owner(db, wid, actor)
+
+    value = assess_owned_v3(
+        sessionmaker(customer_engine), wid, actor, request, authorize, lambda: NOW
+    )
+    scope = value.context.scope
+    scan = service.capture(
+        wid,
+        scope.store_id,
+        scope.goal_id,
+        scope.goal_revision,
+        date(2026, 10, 1),
+        date(2026, 10, 2),
+    )
+    _, transport = transport_for(scan)
+    identifier = service.acquire_and_publish(scan, transport=transport)
+    with Session(customer_engine) as db:
+        rows = [
+            db.get(CommerceMeasurementPublication, key)
+            for key in (value.publication_id, identifier)
+        ]
+        assert all(rows)
+        refs = tuple(
+            EvidenceReference(
+                publication_id=row.id,
+                manifest_digest=row.manifest_digest,
+                completion_digest=row.completion_digest,
+            )
+            for row in rows
+            if row
+        )
+        stored = persist_assessment(db, wid, actor, value, refs, authorize, lambda: NOW)
+        assert stored.document["status"] == "insufficient"
+        # A retained acquisition is provenance, never evidence of settled maturity.
+        from app.outcomes.maturity import OperationalMaturityResult
+
+        unqualified = OperationalMaturityResult(
+            status="insufficient",
+            environment="contract_test",
+            policy_digest=None,
+            evidence_digest=None,
+            context_digest=digest(value.context.model_dump(mode="json")),
+            evaluated_at=NOW,
+            supporting_completions=(refs[1].completion_digest,),
+            reasons=("fixture_unqualified",),
+        )
+        forged = value.model_copy(update={"before_maturity": unqualified})
+        with pytest.raises(HTTPException, match="maturity unavailable"):
+            persist_assessment(db, wid, actor, forged, refs, authorize, lambda: NOW)
+        saved_id = stored.id
+        db.commit()
+        independent = db.get(CommerceMeasurementPublication, identifier)
+        assert independent is not None
+        db.delete(independent)
+        db.commit()
+        db.expire_all()
+        assert db.get(V3Assessment, saved_id) is None

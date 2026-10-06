@@ -51,7 +51,9 @@ def publication(
     try:
         # Clock is evaluated after acquiring the workspace/source fence, not at route entry.
         read_publication(db, wid, row.store_id, row.id, now=clock())
-    except ShopifyError:
+    except ShopifyError as error:
+        if error.code == "commerce_publication_binding_invalid":
+            raise HTTPException(409, "measurement publication binding invalid") from None
         raise HTTPException(404, "measurement publication unavailable") from None
     store = db.get(CommerceStore, row.store_id)
     if store is None or store.workspace_id != wid:

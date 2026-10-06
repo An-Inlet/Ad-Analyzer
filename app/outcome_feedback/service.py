@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.commerce.evidence import digest, lock_workspace
+from app.commerce.publication_contracts import IndependentManifest, parse_publication
 from app.outcome_feedback.models import (
     ContributionSlot,
     FeedbackRecord,
@@ -18,7 +19,6 @@ from app.outcome_feedback.models import (
     V3EvidenceDependency,
 )
 from app.outcomes.contracts import Digest, Frozen, Positive
-from app.outcomes.descriptive import validate_manifest
 from app.outcomes.feedback import (
     FeedbackContribution,
     FeedbackDecisionPolicy,
@@ -90,13 +90,21 @@ def _check(
         raise HTTPException(409, "maturity policy unavailable")
     seen: set[str] = set()
     completions: set[str] = set()
+    unqualified: set[str] = set()
     for reference in references:
         reference = EvidenceReference.model_validate(reference.model_dump())
         if reference.publication_id in seen:
             raise HTTPException(409, "duplicate evidence dependency")
         seen.add(reference.publication_id)
         row, _ = publication(db, wid, reference.publication_id, clock)
-        validate_manifest(row)
+        manifest = parse_publication(row)
+        if isinstance(manifest, IndependentManifest):
+            if (
+                manifest.environment != value.context.environment
+                or manifest.acquisition.request.scope != value.context.scope
+            ):
+                raise HTTPException(409, "independent evidence scope changed")
+            unqualified.add(reference.completion_digest)
         if utc(row.published_at) > value.context.evaluated_at:
             raise HTTPException(409, "future evidence dependency")
         if (
@@ -114,6 +122,8 @@ def _check(
         if part is not None
         for completion in part.supporting_completions
     }
+    if required & unqualified:
+        raise HTTPException(409, "independent acquisition maturity unavailable")
     if value.publication_id not in seen or not required <= completions:
         raise HTTPException(409, "complete evidence dependency set required")
     authorize(db)

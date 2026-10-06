@@ -3337,42 +3337,6 @@ PostgreSQL transaction/migration roundtrip, read-only/security/privacy gates com
 Final focused gate includes another nestedFull regression and remains running.
 Hosted run37427571832 remains nonterminal.
 
-### Independent Shopify Full-History Acquisition — Offline, Unqualified
-
-Branch `codex/inlet-independent-acquisition`, isolated from `9e56413`; typed
-interface frozen first at `084c119`. `IndependentAcquirer` now executes fixed
-GraphQL requests through an injected HTTP transport and freshly traverses all
-accessible order/agreement/sale pages from an empty cursor. It reuses the existing
-merchandise metric, including refunds on processing date from ancient orders,
-retaining only requested-window aggregate output. Actual granted scopes and shop
-identity/basis are checked at both ends. Bounded I/O, strict parent/cursor checks,
-order mutation checks and fresh injected authority/privacy/retention fences fail
-closed. No database write, scheduler or default runtime was added.
-
-`ScanCompletion` always reports correction unresolved, snapshot/finality unavailable
-and maturity unqualified. No completion is cast to eligible maturity evidence;
-production maturity/producer registries remain None. A DB-backed original-session
-and privacy authority adapter and reviewed versioned publication/export integration
-remain required. The feedback owner confirmed existing owned publication FKs can
-support a strict new manifest variant, but no persistence edits or migration were
-made. See `docs/inlet-independent-acquisition.md` and the research proposal.
-
-Validation: **38 focused contract/MockTransport tests passed** in 0.31 seconds,
-covering ancient-order refunds, actual granted scopes, complete nested/multiple
-pages, cross-parent responses, mutations, privacy/session/generation/retention
-changes, zero, tax exclusions, DST, throttles/errors, byte/request/order/deadline
-bounds and sanitized logs. All five GraphQL operations passed connected Shopify
-schema validation (tool exposes no API-version selector; not claimed as pinned
-schema validation). Whole Ruff, clean mypy (**523 source files**) and diff checks
-passed. No live Shopify or advertising calls, credentials or Full run.
-
-Wider existing commerce/maturity regression on SQLite/disposable PostgreSQL:
-**110 passed, 1 failed**, two Alembic deprecation warnings. Failure is existing
-`test_privacy_migration_backfills_existing_measurement_identity[postgres]` during
-billing-table downgrade: `pk_customer_workspace_billing` constraint absent.
-This acquisition package changes no billing or migration code; parent notified for
-assembled qualification. Logs: `/tmp/inlet-independent-tests-final.log`,
-`/tmp/inlet-independent-regressions.log`, `/tmp/inlet-independent-mypy-final.log`.
 ### 2026-10-06 — Commercial offer qualification integrated
 
 Integrated PR193 frozen43b7e38. Exact immutable offer binding, configured-price and
@@ -3753,3 +3717,29 @@ warnings in29.13s across acquisition, commerce measurement and maturity evaluati
 and whitespace passed. Updated current acceptance matrix to distinguish newly
 implemented billing/feedback/selection from remaining ordinary code and genuinely
 unavailable provider guarantees. Main reconfirmed ea3591c5086fbf2cee8038bf9208ac7f0050de75.
+
+### Independent Publication V2 — Integrated Validation
+
+Merged frozen root06dab9a while preserving v1 bytes and version-aware selection.
+The feedback resolver now accepts exact owned v2 provenance for insufficient
+assessments, matches environment and full metric/goal/source scope, and rejects
+unresolved v2 completions as maturity support. Actual MockTransport acquisition ->
+publication -> insufficient assessment dependency -> deletion cascade passes both
+SQLite and PostgreSQL. No production policy/producer or runtime is installed.
+
+Integrated regression: **205 passed, 3 skipped, 4 failed** initially. All four
+failures were existing 409-vs-404 assertions for owned malformed binding; stricter
+manifest validation ran earlier and had mapped these to unavailable. Repaired the
+error distinction, preserving foreign/erased/retention 404 and raw digest behavior.
+Final affected consumer plus acquisition/publication suite: **81 passed, 1 skipped**
+(69.84s). Export regression: **47 passed, 1 skipped** (117.02s). Added feedback
+provenance/maturity denial tests: **2 passed** (both databases). Whole Ruff, clean
+mypy (**564 source files**) and diff checks passed. SQLite-only concurrency skips
+remain explicit. No Full run; parent owns assembled qualification.
+
+Logs: `/tmp/inlet-independent-integrated.log`,
+`/tmp/inlet-independent-compatibility.log`, `/tmp/inlet-independent-feedback.log`,
+`/tmp/inlet-independent-export-regression.log`,
+`/tmp/inlet-independent-final-types.log`. A transient execution transport disconnect
+occurred after these processes; a subsequent harmless read succeeded and confirmed
+terminal logs and preserved files. No GitHub quota block was reported.

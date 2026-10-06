@@ -13,7 +13,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
-from app.publication import models as publication_models  # noqa: F401
 
 
 class LifecycleRequest(Base):

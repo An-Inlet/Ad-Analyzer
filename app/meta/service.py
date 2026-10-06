@@ -326,6 +326,9 @@ class ConnectionService:
             raise MetaError("meta_reconnect_required") from None
 
     def disconnect(self, workspace_id: int, role: str) -> None:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(self.session, workspace_id)
         row = self.get(workspace_id, lock=True)
         if row:
             from app.meta.staging import clear

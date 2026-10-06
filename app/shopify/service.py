@@ -223,6 +223,9 @@ class ConnectionService:
         return str(bundle["access_token"])
 
     def disconnect(self, workspace_id: int, role: str) -> None:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(self.session, workspace_id)
         # Fence customer OAuth callbacks, including disconnect of a pending first install.
         self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)

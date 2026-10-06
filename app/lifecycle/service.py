@@ -28,9 +28,14 @@ def begin(
     if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", key):
         raise HTTPException(422, "invalid idempotency key")
     wid = body.scope.workspace_id
-    lock_customer_mutation(db, principal, wid, provider)
-    if customer_workspace(db, principal.user.id, wid)[1] != "owner":
-        raise HTTPException(403, "workspace owner required")
+    if body.operation == "export":
+        from app.lifecycle.quiescing import owner
+
+        owner(db, principal, provider, wid)
+    else:
+        lock_customer_mutation(db, principal, wid, provider)
+        if customer_workspace(db, principal.user.id, wid)[1] != "owner":
+            raise HTTPException(403, "workspace owner required")
     key_digest = hashlib.sha256(key.encode()).hexdigest()
     request_digest = hashlib.sha256(
         json.dumps(body.model_dump(), sort_keys=True, separators=(",", ":")).encode()

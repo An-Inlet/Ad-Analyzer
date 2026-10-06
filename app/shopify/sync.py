@@ -90,6 +90,9 @@ class ShopifySyncService:
             # A savepoint rolls back a failed page while retaining the row lock and
             # any rotated credentials until the outer transaction commits.
             with self.session.begin_nested():
+                from app.lifecycle.privacy import bump_workspace_export_revision
+
+                bump_workspace_export_revision(self.session, workspace_id)
                 query = (
                     f"updated_at:>='{utc(row.window_start).isoformat()}' "
                     f"updated_at:<='{utc(row.window_end).isoformat()}' "

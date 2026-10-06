@@ -1332,3 +1332,42 @@ results must be attributed to its exact head, not the predecessor.
 Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
 PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
 freezing the successor for Full/CI.
+
+### Import-order-independent migration regression — 2026-10-06
+
+The missing-application-tables validation test depended on whatever ORM models
+pytest collection had imported. A focused invocation reproduced PostgreSQL
+DependentObjectsStillExist: web_analytics_events still referenced ad_groups, absent
+from the partial drop graph. The test now reflects the actual migration-created
+schema and drops its application tables in dependency order while retaining
+alembic_version. The existing guarded disposable-database validation remains first;
+no production reset behavior or validation gate is relaxed.
+
+Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
+upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
+hosted successor results remain separate and must be recorded after assembly.
+
+PR112 `73725be` local Full60224 terminated exit1: **1,578 passed, 38 skipped,
+1 failed**. Its nested Full failed the missing-application-tables test because the
+focused gate's partial ORM registry omitted publication dependencies on
+mandate_actions. The isolated reproduction omitted measurement dependencies on
+ad_groups; both demonstrate the same import-dependent drop graph. Reflection repair
+`1624b18` preserves the test's missing-table/rebuild behavior and Alembic stamp.
+Hosted37409558917 remains in progress at this record; its outcome is not inferred
+from the local run. A fresh local Full will validate the repaired head separately.
+
+### Shared ORM metadata bootstrap — 2026-10-06
+
+Added one explicit model-module registry used by Alembic, web startup, scheduler
+runtime loading, CRM worker startup and pytest bootstrap. Registration declares
+metadata only and performs no database connection, schema mutation or provider IO.
+A coverage test requires every domain models.py module to be registered, including
+future lifecycle/provider modules when integrated. Cross-domain foreign-key checks
+cover the publication and measurement dependencies behind the earlier partial-registry
+failures. The migration reflection repair remains: the actual migrated schema is
+still authoritative when intentionally removing application tables on a guarded
+ disposable database.
+
+Checks: 11 focused tests passed, including the real PostgreSQL missing-table/rebuild
+regression and CRM push tests. Ruff, mypy321 and diff check passed. This package is
+separate from frozen PR112/PR118 validation; Full/CI evidence remains pending.

@@ -57,7 +57,8 @@ def downgrade() -> None:
     db = op.get_bind()
     if db.scalar(sa.text("SELECT count(*) FROM customer_billing_offer_bindings")) or db.scalar(
         sa.text(
-            "SELECT count(*) FROM customer_workspace_billing WHERE qualification_digest IS NOT NULL "
+            "SELECT count(*) FROM customer_workspace_billing "
+            "WHERE qualification_digest IS NOT NULL "
             "OR qualification IS NOT NULL OR checkout_offer_binding_id IS NOT NULL "
             "OR subscription_offer_binding_id IS NOT NULL"
         )

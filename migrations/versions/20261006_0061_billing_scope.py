@@ -55,13 +55,15 @@ def downgrade() -> None:
     for name, identity in TABLES.items():
         if db.scalar(
             sa.text(
-                f"SELECT count(*) FROM {name} WHERE provider <> 'stripe' OR environment <> 'test' OR merchant_account_id <> 'legacy_unqualified'"
+                f"SELECT count(*) FROM {name} WHERE provider <> 'stripe' "
+                "OR environment <> 'test' OR merchant_account_id <> 'legacy_unqualified'"
             )
         ):
             raise RuntimeError("qualified billing identities require preservation before downgrade")
         if db.scalar(
             sa.text(
-                f"SELECT count(*) FROM (SELECT {identity} FROM {name} GROUP BY {identity} HAVING count(*) > 1) AS duplicates"
+                f"SELECT count(*) FROM (SELECT {identity} FROM {name} "
+                f"GROUP BY {identity} HAVING count(*) > 1) AS duplicates"
             )
         ):
             raise RuntimeError("multiple billing identities cannot be collapsed")

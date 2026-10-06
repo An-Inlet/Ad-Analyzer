@@ -645,3 +645,41 @@ billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skip
 (before three additional HTTP error cases, separately passed). Ruff, mypy and
 `git diff --check` pass. Full validation has not run for this runtime candidate.
 Not a completed B13 acceptance or live payment result.
+
+## CRM HTTP Runtime Preparation — 2026-10-06
+
+Branch `codex/inlet-crm-runtime` from PR75 head
+`01aa869b7df73bcdf1dca5fc25391a43f0af4efc`. Implemented disabled-default Klaviyo
+PKCE/read/refresh/revoke and HubSpot OAuth v3/introspection/read/refresh HTTP paths.
+Provider account identity precedes every profile page; no new profile persistence or
+canonical matching shortcut. Explicit PKCE arguments and encrypted per-attempt state
+survive replicas without mutable adapter context. Omnisend current contacts[] and
+hasMore projection fixed against official docs; its factory remains blocked pending
+verified brand-response identity and OAuth scope parameter. Detailed code/live gaps
+and sources: `docs/inlet-crm-http-runtime.md`. Focused suite 85 passed with SQLite and
+PostgreSQL; Ruff/mypy255/diff-check pass. Full/CI pending root review. No live calls.
+
+### Source Status Follow-Up For TikTok Lifecycle
+
+At the parallel TikTok lifecycle package's request, shared source views now provide
+safe customer-facing status_label/next_action fields for provider_error and
+reconnect_required. Provider rejection asks the owner to review provider access or
+configuration and reconnect; it is not mislabeled as proved revocation. No tokens or
+raw provider message is exposed. Other provider/status responses are unchanged.
+Focused status test passed; Ruff/mypy256/diff-check passed. This small follow-up can
+be cherry-picked independently of the CRM transport package.
+
+### Klaviyo Nullable Channel Regression — 2026-10-06
+
+Isolated branch `codex/inlet-crm-nullable-fix` from PR82 head
+`6080164d7f2ca66d0d8599ff9faa4346de64c425` preserves the ongoing Full run's tree.
+The pinned 2026-07-15 schema permits null email/SMS subscription channels:
+https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/apis/get_profiles.json
+A mixed page with subscribed email and null SMS reproduced
+`crm_profile_response_invalid` before the fix. Nullable channels now project unknown
+consent and suppression, retaining valid neighboring channels and profiles. The HTTP
+regression covers both channel directions, both null, nullable marketing and ordinary
+subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with disposable
+PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
+head remains separate evidence; this correction has not independently run Full or
+called a live provider.

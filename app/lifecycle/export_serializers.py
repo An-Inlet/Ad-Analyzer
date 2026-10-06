@@ -17,6 +17,7 @@ from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
+from app.optimization_candidates.selection_contracts import WORK_ADAPTER, CandidateWorkV2
 from app.outcomes.owned_contracts import OwnedAssessment
 from app.publication.activation_contracts import (
     ActivationReceipt,
@@ -124,7 +125,6 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "workspace_findings": ("message",),
 }
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
-    ("optimization_candidate_jobs", "work"): CandidateWork,
     ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
@@ -182,6 +182,8 @@ RESPONSE_ADAPTERS: dict[str, TypeAdapter[Any]] = {
 }
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
+ADAPTERS[("optimization_candidate_jobs", "work")] = WORK_ADAPTER
+
 INTERNAL = {
     "auth_session_digest",
     "export_privacy_revision",
@@ -260,12 +262,16 @@ def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
-    if isinstance(document, CandidateWork):
+    if isinstance(document, (CandidateWork, CandidateWorkV2)):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.policy.environment != row["environment"]
             or document.scope.source.publication_id != row["publication_id"]
             or document.scope.source.attempt_id != row["attempt_id"]
+            or (
+                isinstance(document, CandidateWorkV2)
+                and document.selection.actor_id != row["actor_id"]
+            )
             or document.digest() != row["input_digest"]
         ):
             raise ValueError("candidate work ownership mismatch")

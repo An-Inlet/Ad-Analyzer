@@ -26,6 +26,7 @@ from app.optimization_candidates.contracts import (
     CandidateWork,
 )
 from app.optimization_candidates.models import CandidateJob, CandidateResult
+from app.optimization_candidates.selection_contracts import CandidateWorkV2, parse_work
 from app.publication import execution_mandates as mandates
 from app.publication.contracts import fingerprint
 from app.publication.coordinator import read_owned_outcome_receipt
@@ -123,7 +124,10 @@ def source_current(db: Session, scope: CandidateScope, actor: str) -> None:
 
 
 def current(
-    db: Session, work: CandidateWork, principal: CustomerPrincipal, runtime: CandidateRuntime
+    db: Session,
+    work: CandidateWork | CandidateWorkV2,
+    principal: CustomerPrincipal,
+    runtime: CandidateRuntime,
 ) -> tuple[ProviderMandatePolicy, int, int]:
     wid, scope = work.scope.account.workspace_id, work.scope
     authorize(db, principal, wid, runtime)
@@ -158,14 +162,34 @@ def current(
     source_current(db, scope, principal.user.id)
     # Final session check follows all potentially blocking source/policy reads.
     authorize(db, principal, wid, runtime)
+    if isinstance(work, CandidateWorkV2) and (
+        work.selection.actor_id != principal.user.id
+        or not work.selection.observed_at <= runtime.clock() < work.selection.expires_at
+    ):
+        raise HTTPException(409, "candidate selection expired or actor changed")
     return policy, positive_changes_used(db, wid, ledger.id), ledger.action_count
 
 
 def enqueue(
-    db: Session, principal: CustomerPrincipal, work: CandidateWork, runtime: CandidateRuntime
+    db: Session,
+    principal: CustomerPrincipal,
+    work: CandidateWork | CandidateWorkV2,
+    runtime: CandidateRuntime,
 ) -> CandidateJob:
-    work = CandidateWork.model_validate(work.model_dump(mode="json"))
+    work = parse_work(work.model_dump(mode="json"))
     current(db, work, principal, runtime)
+    row = _insert_checked(db, principal, work, runtime)
+    db.commit()
+    return row
+
+
+def _insert_checked(
+    db: Session,
+    principal: CustomerPrincipal,
+    work: CandidateWork | CandidateWorkV2,
+    runtime: CandidateRuntime,
+) -> CandidateJob:
+    """Internal: caller holds current workspace/session/mandate/source fences."""
     wid = work.scope.account.workspace_id
     existing = db.scalar(
         select(CandidateJob).where(
@@ -190,7 +214,7 @@ def enqueue(
         created_at=runtime.clock(),
     )
     db.add(row)
-    db.commit()
+    db.flush()
     return row
 
 
@@ -213,13 +237,14 @@ def load(db: Session, wid: int, job_id: str) -> CandidateJob:
     return row
 
 
-def owned_work(row: CandidateJob) -> CandidateWork:
-    work = CandidateWork.model_validate(row.work)
+def owned_work(row: CandidateJob) -> CandidateWork | CandidateWorkV2:
+    work = parse_work(row.work)
     if (
         work.scope.account.workspace_id != row.workspace_id
         or work.policy.environment != row.environment
         or work.scope.source.publication_id != row.publication_id
         or work.scope.source.attempt_id != row.attempt_id
+        or (isinstance(work, CandidateWorkV2) and work.selection.actor_id != row.actor_id)
         or work.digest() != row.input_digest
     ):
         raise HTTPException(409, "candidate job ownership changed")
@@ -284,7 +309,10 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
 
             observation = CandidateObservation.model_validate(observation.model_dump(mode="json"))
             db.commit()
-            if observation.scope != work.scope:
+            if observation.scope != work.scope or (
+                isinstance(work, CandidateWorkV2)
+                and observation.state.digest() != work.selection.state_digest
+            ):
                 raise HTTPException(409, "candidate observation changed")
             evidence = observation.evidence
             profile = (
@@ -314,6 +342,8 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 or utc(row.lease_until) <= runtime.clock()
             ):
                 return "superseded"
+            if isinstance(work, CandidateWorkV2) and runtime.clock() >= work.selection.expires_at:
+                raise HTTPException(409, "candidate selection expired during result lock")
             decision = compile_candidate(
                 observation, work.policy, policy, positive, actions, runtime.clock()
             )

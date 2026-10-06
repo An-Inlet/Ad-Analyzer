@@ -645,3 +645,16 @@ billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skip
 (before three additional HTTP error cases, separately passed). Ruff, mypy and
 `git diff --check` pass. Full validation has not run for this runtime candidate.
 Not a completed B13 acceptance or live payment result.
+
+## Customer Portal Preparation — 2026-10-06
+
+Branch `codex/inlet-customer-portal`, base billing-management
+`a8a35fccf871cf2870336a0850eebf58346df409`. Added separate `/app` customer shell,
+functional workspace creation/selection, monthly goal save/edit/baseline review and
+exact-revision confirmation, scoped status/mandate review, and owner test-billing
+handoffs. Public website unchanged. Existing sessions required; no invented signup
+or production purchase claim. Details, test evidence and explicit gaps are in
+`docs/inlet-customer-portal.md`. Focused pytest: 6 passed (actual Chromium mocked-API
+journey plus 5 Node contracts); Ruff/mypy253/diff-check pass. Root owns Full/CI.
+Next: browser identity journey, connections setup, mandate lifecycle UI, readable
+progress; provider/runtime preparation is still independent work.

@@ -311,6 +311,7 @@ class ComparisonProgressV1(Frozen):
 
 class ReportedAcquisitionRequestV1(Committed):
     id: Id
+    supersedes_request_id: Id | None = None
     anchor: ConfigurationObservationAnchorV1
     objective: EfficiencyObjectiveV1
     policy: ReportedWindowPolicyV1
@@ -322,7 +323,8 @@ class ReportedAcquisitionRequestV1(Committed):
     @model_validator(mode="after")
     def owned_comparable(self) -> "ReportedAcquisitionRequestV1":
         if (
-            self.anchor.cohort != self.objective.cohort
+            self.supersedes_request_id == self.id
+            or self.anchor.cohort != self.objective.cohort
             or self.anchor.goal_id != self.objective.goal_id
             or self.anchor.goal_revision != self.objective.goal_revision
             or self.anchor.environment != self.policy.environment

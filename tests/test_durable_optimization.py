@@ -56,7 +56,15 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_optimization_http import Server
 
 
-def ready(db: Session, config: Settings, path: Path, provider: str, kind: str = "budget"):  # type: ignore[no-untyped-def]
+def ready(  # type: ignore[no-untyped-def]
+    db: Session,
+    config: Settings,
+    path: Path,
+    provider: str,
+    kind: str = "budget",
+    *,
+    campaign: bool = False,
+):
     old, actor = setup(db, config, path)
     wid = old.workspace_id
     if provider != "google_ads":
@@ -117,6 +125,8 @@ def ready(db: Session, config: Settings, path: Path, provider: str, kind: str = 
     else:
         scope = old.accounts[0]
     server = GoogleServer() if provider == "google_ads" else Server(provider)
+    if campaign and isinstance(server, Server) and provider == "meta_ads":
+        server.meta_campaign["daily_budget"] = "5000"
     adapter: OptimizationTransport
     if provider == "google_ads":
         adapter = GoogleOptimizationTransport(transport=httpx.MockTransport(server))
@@ -133,9 +143,9 @@ def ready(db: Session, config: Settings, path: Path, provider: str, kind: str = 
     )
     target = OptimizationTarget(
         kind="campaign"
-        if provider == "google_ads"
+        if provider == "google_ads" or campaign
         else ("adset" if provider == "meta_ads" else "adgroup"),
-        external_id="5" if provider == "google_ads" else "6",
+        external_id="5" if provider == "google_ads" or campaign else "6",
         campaign_id="5",
     )
 

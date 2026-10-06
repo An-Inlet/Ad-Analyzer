@@ -40,6 +40,18 @@ class ReadComparisonProgress(Protocol):
     ) -> ComparisonProgressV1: ...
 
 
+class ReobserveComparison(Protocol):
+    def __call__(
+        self,
+        db: Session,
+        principal: CustomerPrincipal,
+        provider: IdentityProvider,
+        workspace_id: int,
+        request_id: str,
+        runtime: ReportedFeedbackRuntime,
+    ) -> ComparisonProgressV1: ...
+
+
 class ReadComparison(Protocol):
     def __call__(
         self,

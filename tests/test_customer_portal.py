@@ -1,5 +1,6 @@
 """The shell is public; data and mutations remain on customer-authenticated APIs."""
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -41,10 +42,19 @@ def test_assets_and_existing_routes_are_separate() -> None:
     assert "textContent" in script
 
 
+def portal_executable(*names: str) -> str:
+    for name in names:
+        executable = shutil.which(name)
+        if executable:
+            return executable
+    message = f"Customer portal checks require one of: {', '.join(names)}"
+    if os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("CI") == "true":
+        pytest.fail(message + "; hosted CI must not skip this check")
+    pytest.skip(message + "; install locally to run this check")
+
+
 def test_portal_javascript_contracts() -> None:
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("Node.js is required for browser-independent JavaScript contract tests")
+    node = portal_executable("node")
     subprocess.run([node, "--test", "tests/javascript/customer_portal.test.mjs"], check=True)
 
 
@@ -54,11 +64,9 @@ def test_customer_journey_in_local_browser(tmp_path: Path) -> None:
     import http.server
     import threading
 
-    chromium = shutil.which("chromium") or shutil.which("chromium-browser")
-    if chromium is None:
-        pytest.skip(
-            "Chromium unavailable; browser journey must run in a browser-enabled environment"
-        )
+    chromium = portal_executable(
+        "chromium", "chromium-browser", "google-chrome", "google-chrome-stable"
+    )
     html = (
         Path("app/portal/static/index.html")
         .read_text()
@@ -120,3 +128,20 @@ def test_customer_journey_in_local_browser(tmp_path: Path) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("name", ["node", "google-chrome"])
+def test_missing_portal_dependency_fails_in_ci(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    with pytest.raises(pytest.fail.Exception, match="hosted CI must not skip"):
+        portal_executable(name)
+
+
+def test_google_chrome_is_supported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        shutil, "which", lambda name: "/usr/bin/google-chrome" if name == "google-chrome" else None
+    )
+    assert portal_executable("chromium", "chromium-browser", "google-chrome") == (
+        "/usr/bin/google-chrome"
+    )

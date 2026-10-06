@@ -37,14 +37,18 @@ The shell/assets use no-store, same-origin script/connect CSP, no inline executi
 no framing and no-referrer. Session failures hide customer content. Existing API
 membership and role enforcement remains authoritative.
 
-Checks run: `pytest tests/test_customer_portal.py` (6 passed, including Chromium
+Checks run: `pytest tests/test_customer_portal.py` (9 passed, including Chromium
 DOM journey and Node contract suite); embedded Node suite has 6 passing tests.
 `ruff check .`, `mypy` (253 files), and `git diff --check` passed. Browser fixture
 uses synthetic fetch responses and localhost only; it verifies workspace creation,
 malicious workspace text escaping, goal save/edit/review/confirm, review invalidation,
 exact revision and CSRF, unavailable checkout, cumulative-editor protection and
 signout. Node checks cover redirects, amounts, dates, CSRF and sanitized API errors.
-Chromium/Node checks explicitly skip when those executables are absent.
+Hosted CI requires Node.js (set up with version 22) and a compatible browser;
+missing dependencies fail the job rather than skipping coverage. Browser discovery
+supports Chromium, chromium-browser, google-chrome and google-chrome-stable.
+Local runs without those executables explicitly skip the affected check. The
+workflow checks for the runner's installed browser and fails early if absent.
 
 Full repository validation and hosted CI are delegated to the integrating root.
 No database-backed end-to-end browser journey or live provider behavior is claimed.

@@ -668,3 +668,11 @@ missing data is distinct from zero. Internal review IDs and revisions remain in
 API requests only. Current sales progress is explicitly unavailable. Focused
 pytest: 6 passed including Chromium readable-review assertions and six Node
 contracts; Ruff/mypy253/diff-check pass. Full remains assigned to root.
+
+### Portal CI Dependency Enforcement
+
+Google Chrome binaries are now supported alongside Chromium. Hosted CI sets up
+Node 22 and requires an installed compatible browser; missing dependencies fail
+explicitly instead of skipping. Local missing-dependency skips remain documented.
+Focused portal tests: 9 passed, including CI failure-policy tests and real local
+Chromium execution. Ruff/mypy253/diff-check pass. No external provider access.

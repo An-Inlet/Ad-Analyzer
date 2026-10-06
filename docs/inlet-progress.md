@@ -1781,3 +1781,26 @@ Retained Meta ownership draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer
 Tested implementation: `d6a98b54aebed24416700638a675700a7d765e43`; final ownership-only
 rerun **7 passed, 1 intentional SQLite concurrency skip**. Following commit only records
 this PR link. Parent will join migration0049 with the next unfrozen candidate.
+### B19 Assembled Route Boundary Matrix — 2026-10-06
+
+Branch `codex/inlet-route-boundaries`, isolated from frozen PR130
+`0cf6706ca9e12e8ccdba77f10c2247fd976e3593`. Inventoried all 79 protected method/path
+combinations in the assembled app: 41 operator API, 37 dashboard and one worker.
+The exact inventory is `docs/inlet-route-boundaries.md`. Tests enumerate effective
+FastAPI lazy include contexts, including hidden routes, and fail on unclassified
+routes/mounts. Public shells/callback documents/status/docs/assets and independently
+signed webhook ingress are explicit exceptions; remaining customer routes require
+the existing customer dependency.
+
+A customer signs in using the actual session API on SQLite and PostgreSQL. Each
+protected route is then exercised under configured/missing production and local
+HTTP development settings, with a forbidden database dependency proving rejection
+before handlers. Local HTTP explicitly receives real session/CSRF cookies on a
+loopback peer, so omission of Secure cookies cannot explain denial. Customer sessions
+remain valid afterward. No missing runtime guard was found, so this package changes
+only tests/documentation and adds no duplicate controls or deployment permissions.
+
+Validation: combined assembled-boundary/IAP/operator API/Google push/ingress tests
+**90 passed, zero skipped**. Whole-tree Ruff, mypy (359 source files) and diff check
+passed. No Full, live calls, IAM/configuration changes or deployment qualification.
+Exact assembled successor validation remains required.

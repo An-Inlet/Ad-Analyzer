@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_commerce_measurement import NOW, agreement, setup, source, window
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
@@ -542,9 +543,9 @@ def test_timeout_keeps_reservation_without_duplicate_call(
 
 
 def test_b06_populated_migration_and_snapshot_erasure(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    migration_customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return
     from alembic import command
     from alembic.config import Config
@@ -552,18 +553,17 @@ def test_b06_populated_migration_and_snapshot_erasure(
     from app.settings import settings
     from sqlalchemy import delete, text
 
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         goal = seed(db, configuration)
         store_id = GoalDefinition.model_validate(service.current(db, goal).definition).store_id
-    with customer_engine.connect() as connection:
+    with migration_customer_engine.connect() as connection:
         schema = connection.scalar(text("SELECT current_schema()"))
-    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    scoped = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261005_0025")
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         assert db.get(CommerceStore, store_id) is not None
         assert db.get(UsagePolicy, "global") is not None
         store = db.get(CommerceStore, store_id)

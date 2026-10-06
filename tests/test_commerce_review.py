@@ -13,6 +13,7 @@ from app.shopify.privacy import process_event
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_commerce_measurement import NOW, agreement, setup, source, window
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
@@ -347,7 +348,7 @@ def test_unknown_canonical_customer_keeps_privacy_pending(
 
 
 def test_migration_preserves_pre_enable_tombstones(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    migration_customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from alembic import command
     from alembic.config import Config
@@ -357,23 +358,22 @@ def test_migration_preserves_pre_enable_tombstones(
     from app.shopify.security import Vault
     from sqlalchemy import text
 
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return  # Populated production-schema upgrade is PostgreSQL-only.
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         row = connected(db, configuration)
         wid, domain, rid = row.workspace_id, row.shop_domain, row.id
         key = order_key(Vault(configuration), row, 1)
         db.add(ShopifyTombstone(connection_id=rid, workspace_id=wid, order_key=key))
         db.commit()
-    with customer_engine.connect() as connection:
+    with migration_customer_engine.connect() as connection:
         schema = connection.scalar(text("SELECT current_schema()"))
-    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    scoped = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261005_0024")
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         from app.shopify.models import ShopifyConnection
 
         assert db.get(ShopifyPrivacyIdentity, (wid, domain, "order", key)) is not None
@@ -386,7 +386,7 @@ def test_migration_preserves_pre_enable_tombstones(
 
 @pytest.mark.parametrize("canonical_only", [False, True])
 def test_migrated_export_stays_pending_then_replay_includes_resolved_facts(
-    customer_engine: Engine,
+    migration_customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
     canonical_only: bool,
@@ -409,9 +409,9 @@ def test_migrated_export_stays_pending_then_replay_includes_resolved_facts(
 
     from tests.test_shopify_sales import order as legacy_order
 
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return  # This regression exercises the populated production migration.
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         row, store = setup(db, configuration)
         values = source(1, None, NOW) if canonical_only else source(1, 100, NOW)
         if canonical_only:
@@ -432,15 +432,14 @@ def test_migrated_export_stays_pending_then_replay_includes_resolved_facts(
         db.add(item)
         db.commit()
         rid, sid, qid = row.id, store.id, item.id
-    with customer_engine.connect() as connection:
+    with migration_customer_engine.connect() as connection:
         schema = connection.scalar(text("SELECT current_schema()"))
-    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    scoped = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261005_0024")
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         restored_row, restored_store = db.get(ShopifyConnection, rid), db.get(CommerceStore, sid)
         request_item = db.get(ShopifyPrivacyRequest, qid)
         assert restored_row is not None and restored_store is not None and request_item is not None

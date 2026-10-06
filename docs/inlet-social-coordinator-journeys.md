@@ -1,6 +1,6 @@
 # Durable Social Creation Journeys
 
-The dependent package starts at coordinator4c103f7 and merges optimization PR135
+The dependent package starts at coordinator 4c103f7 and merges optimization PR135
 cb416a8 without editing coordinator contracts, models, migrations or authority code.
 `ScopedProviderMediaReader` bridges the existing private store to real social HTTP
 transports: it selects the media row by workspace and ID, verifies the stored bytes,
@@ -36,6 +36,6 @@ PR135 transport tests do not substitute for that integration.
 
 Validation: with disposable PostgreSQL enabled,
 `pytest -ra tests/test_social_coordinator_journeys.py tests/test_provider_coordinator.py`
-passed45 tests with1 expected SQLite independent-worker-lock skip in73.79seconds.
-Log: `/tmp/inlet-social-journeys-final.log`. Whole Ruff, configured mypy378 files and
+passed 45 tests with 1 expected SQLite independent-worker-lock skip in 73.79 seconds.
+Log: `/tmp/inlet-social-journeys-final.log`. Whole Ruff, configured mypy (378) files and
 `git diff --check` passed. Full and hosted CI have not been verified for this child.

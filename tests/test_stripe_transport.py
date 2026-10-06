@@ -106,6 +106,16 @@ def test_default_runtime_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(settings, "billing_provider_mode", "stripe_test")
     monkeypatch.setattr(settings, "billing_api_key", SecretStr("sk_test_synthetic"))
     monkeypatch.setattr(settings, "billing_api_version", "2025-03-31.basil")
+    monkeypatch.setattr(settings, "billing_offer_profile", None)
+    assert isinstance(get_billing_transport(), UnavailableBilling)
+
+    from tests.test_billing_offers import PROFILE, TEST
+
+    profile = PROFILE.model_copy(update={"scope": TEST})
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "billing_merchant_account_id", TEST.merchant_account_id)
+    monkeypatch.setattr(settings, "billing_api_version", profile.api_version)
+    monkeypatch.setattr(settings, "billing_offer_profile", profile.model_dump_json())
     assert isinstance(get_billing_transport(), StripeBilling)
 
 

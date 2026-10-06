@@ -1224,3 +1224,30 @@ No claim that resource limits constitute an OS sandbox.
   exposure requirement. Provider runtime factory stays unavailable. Production
   authority, qualification reads, persisted provider review/coordinator/UI, separate
   activation and settlement remain implementation work; B15 is not complete.
+
+### B15–B20 Acceptance Evidence Matrix (2026-10-06)
+
+Documentation-only branch `codex/inlet-acceptance-matrix` starts from frozen PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6`. Added
+[retained audit criteria and detailed engineering decomposition](inlet-b15-b20-acceptance.md)
+with exact candidate heads for PR95/97–100. Inspected relevant implementation,
+publication adapter proposal, real-browser harness and restore/learning tests.
+Distinguishes missing code from provider/operations qualification and owner decisions;
+credits neither fixture publication nor browser-origin API helpers as completed core
+customer journeys. Existing legacy learning remains recognized as reusable work.
+
+No application code, schema or settings changed. Validation is Markdown structure,
+local referenced-path inspection and `git diff --check`; no pytest/Full rerun or new
+provider call. Quoted acceptance wording comes from the integrating agent's retained
+Library audit read; original attachment bytes were not materialized here. Next: finish
+shared provider publication contracts/actual adapters and core task UI, then stable
+B17 evidence contracts and final integrated operational/pilot acceptance.
+
+
+Acceptance-matrix refresh before integration freeze: PR101 `8835340`, PR102
+`2508a75`, PR103 `d4c78c5`, PR104 `fa70d8b`, PR107 `a6de6e9`, PR108 `e4c1392`
+and PR109 `e12f11b` are now recorded with exact full heads and focused counts in
+`inlet-b15-b20-acceptance.md`. Shopify consent navigation and the concrete Google
+compiler/HTTP adapter receive implementation credit; durable qualified publication
+coordination/activation, storage deletion, video UI and intended-environment evidence
+remain open. No new Full or provider call; documentation checks only.

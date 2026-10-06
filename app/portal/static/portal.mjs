@@ -94,8 +94,9 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
-  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null;
+  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [];
   let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
+
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
   async function api(...args) {
@@ -113,8 +114,9 @@ if (typeof document !== 'undefined') {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    googleSetup = null; $('shopify-disconnect-consent').checked = false;
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize']) show(id, false);
+    googleSetup = null; googleConnections = []; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review']) show(id, false);
+
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -232,6 +234,11 @@ if (typeof document !== 'undefined') {
     googleSetup = await api(path + '/google/setup');
     if (turn !== epoch) throw new StaleRequest();
     show('google-setup', true); show('google-authorize', Boolean(googleSetup.enabled && googleSetup.can_manage));
+    googleConnections = (results.find(([name]) => name === 'Google Ads')?.[1] || []);
+    if (!Array.isArray(googleConnections)) googleConnections = [];
+    googleConnections = googleConnections.filter(row => row.status !== 'disconnected');
+    $('google-disconnect-account').replaceChildren(...googleConnections.map(row => option(row.id, `${row.external_account_id} · ${label(row.status)}`)));
+    show('google-disconnect', Boolean(googleSetup.can_manage && googleConnections.length));
     $('google-setup-status').textContent = !googleSetup.enabled ? 'Google Ads connection setup is not configured.' : googleSetup.can_manage ? 'An owner or admin can connect an advertising account.' : 'Ask a workspace owner or admin to connect Google Ads.';
 
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
@@ -242,6 +249,17 @@ if (typeof document !== 'undefined') {
     if (!$('shopify-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Shopify.');
     await api(root() + '/shopify', 'DELETE'); await loadWorkspace();
     say('Shopify disconnected and imported data removed. Saved goal history remains; reconnect and import before reconfirming.');
+  });
+  const cancelGoogleDisconnect = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', false); };
+  $('google-disconnect-account').onchange = cancelGoogleDisconnect;
+  $('google-disconnect-cancel').onclick = cancelGoogleDisconnect;
+  $('google-disconnect-open').onclick = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', true); };
+  $('google-disconnect-confirm').onclick = () => guarded(async () => {
+    const selected = googleConnections.find(row => row.id === $('google-disconnect-account').value);
+    if (!googleSetup?.can_manage || !selected || !$('google-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting Google Ads.');
+    await api(root() + '/google/connections/' + encodeURIComponent(selected.id), 'DELETE');
+    await loadWorkspace();
+    say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
   });
   $('google-authorize').onclick = () => guarded(async () => {
     if (!googleSetup?.enabled || !googleSetup.can_manage) throw new Error('Google Ads setup is unavailable for this session.');

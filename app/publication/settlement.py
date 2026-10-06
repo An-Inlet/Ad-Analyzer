@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.goals.schemas import StrictModel
 from app.publication import coordinator
 from app.publication.contracts import fingerprint
+from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
 from app.publication.execution_contracts import (
     Environment,
     ExposureEvidence,
@@ -103,6 +104,7 @@ class SettlementRuntime:
     environment: Environment
     reader: SettlementReader
     live_enabled: bool = False
+    authorize: ExecutionAuthorizer = owner_authorizer
 
 
 def get_settlement_runtime() -> SettlementRuntime | None:
@@ -236,6 +238,7 @@ def settle(
     runtime: SettlementRuntime,
     clock: coordinator.Clock,
 ) -> ProviderExposureReservation:
+    runtime.authorize(db, wid, actor)
     _, _, snapshot = locked_snapshot(db, wid, reservation_id, actor)
     if runtime.environment != snapshot.environment or (
         snapshot.environment == "live" and not runtime.live_enabled
@@ -246,6 +249,7 @@ def settle(
     db.commit()
     evidence = runtime.reader(snapshot, clock())  # bounded read-only IO; no provider locks held
     evidence = SettlementObservation.model_validate(evidence.model_dump(mode="json"))
+    runtime.authorize(db, wid, actor)
     reservation, ledger, latest = locked_snapshot(db, wid, reservation_id, actor)
     now = clock()
     if (

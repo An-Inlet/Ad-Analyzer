@@ -71,6 +71,45 @@ class BudgetOwnerRef(StrictModel):
         )
 
 
+class GoogleBudgetOwnerRef(StrictModel):
+    """Bounded independent native Google budget; complete owning campaign topology."""
+
+    provider: Literal["google_ads"] = "google_ads"
+    owner: OptimizationTarget
+    mode: Literal["independent"] = "independent"
+    affected_targets: list[OptimizationTarget] = Field(min_length=1, max_length=200)
+    native_budget_resource: str = Field(pattern=r"^customers/[0-9]{10}/campaignBudgets/[0-9]+$")
+    topology_digest: Digest
+
+    @model_validator(mode="after")
+    def independent(self) -> "GoogleBudgetOwnerRef":
+        if self.owner.kind != "campaign" or self.affected_targets != [self.owner]:
+            raise ValueError("one complete independently owned Google campaign required")
+        return self
+
+    def target_set_digest(self) -> str:
+        return fingerprint(
+            "inlet.optimization-targets.v1",
+            {
+                "provider": self.provider,
+                "targets": [t.model_dump() for t in self.affected_targets],
+            },
+        )
+
+    def key(self, scope: ExecutionAccount) -> str:
+        prefix = f"customers/{scope.external_advertiser_id}/campaignBudgets/"
+        if scope.account.platform != "google_ads" or not self.native_budget_resource.startswith(
+            prefix
+        ):
+            raise ValueError("foreign native Google budget")
+        return self.native_budget_resource
+
+
+OptimizationBudgetOwner = Annotated[
+    BudgetOwnerRef | GoogleBudgetOwnerRef, Field(discriminator="provider")
+]
+
+
 class MoneyContext(StrictModel):
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     currency_exponent: int = Field(strict=True, ge=0, le=3)
@@ -89,7 +128,7 @@ class MoneyContext(StrictModel):
 class CurrentStateBase(StrictModel):
     scope: ExecutionAccount
     target: OptimizationTarget
-    budget_owner: BudgetOwnerRef
+    budget_owner: OptimizationBudgetOwner
     money: MoneyContext
     account_status: str = Field(min_length=1, max_length=64)
     configured_status: str = Field(min_length=1, max_length=64)
@@ -113,7 +152,9 @@ class CurrentStateBase(StrictModel):
     def same_owner(self) -> "CurrentStateBase":
         if (
             getattr(self, "api_version", None)
-            != {"meta_ads": "v26.0", "tiktok_ads": "v1.3"}.get(self.scope.account.platform)
+            != {"meta_ads": "v26.0", "tiktok_ads": "v1.3", "google_ads": "v25"}.get(
+                self.scope.account.platform
+            )
             or self.observation_started_at > self.observed_at
             or self.scope.account.platform != self.budget_owner.provider
             or self.target not in self.budget_owner.affected_targets
@@ -150,7 +191,45 @@ class TikTokCurrentState(CurrentStateBase):
     schedule_wire_timezone: Literal["UTC"]
 
 
-OptimizationState = Annotated[MetaCurrentState | TikTokCurrentState, Field(discriminator="kind")]
+class GoogleCurrentState(CurrentStateBase):
+    kind: Literal["google_current_v25"] = "google_current_v25"
+    api_version: Literal["v25"] = "v25"
+    native_budget_resource: str = Field(pattern=r"^customers/[0-9]{10}/campaignBudgets/[0-9]+$")
+    budget_amount_micros: int = Field(strict=True, ge=0, le=10**15)
+    budget_total_amount_micros: int | None = Field(strict=True, ge=0, le=10**15)
+    budget_explicitly_shared: bool
+    budget_reference_count: int = Field(strict=True, ge=0)
+    owning_campaign_ids: list[NumericId] = Field(min_length=1, max_length=200)
+    budget_period: str = Field(min_length=1, max_length=64)
+    budget_delivery_method: str = Field(min_length=1, max_length=64)
+    budget_status: str = Field(min_length=1, max_length=64)
+    budget_type: str = Field(min_length=1, max_length=64)
+    advertising_channel_type: str = Field(min_length=1, max_length=64)
+    advertising_channel_sub_type: str = Field(min_length=1, max_length=64)
+    bidding_strategy_type: str = Field(min_length=1, max_length=64)
+    manual_cpc_digest: Digest
+    network_settings_digest: Digest
+    campaign_start_date: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    campaign_end_date: str | None = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+    @model_validator(mode="after")
+    def independent_native_owner(self) -> "GoogleCurrentState":
+        if (
+            not isinstance(self.budget_owner, GoogleBudgetOwnerRef)
+            or self.native_budget_resource != self.budget_owner.key(self.scope)
+            or self.budget_explicitly_shared
+            or self.budget_reference_count != 1
+            or self.owning_campaign_ids != [self.target.campaign_id]
+            or self.target != self.budget_owner.owner
+            or (self.campaign_end_date is None) != (self.ends_at is None)
+        ):
+            raise ValueError("complete independent native Google budget ownership required")
+        return self
+
+
+OptimizationState = Annotated[
+    MetaCurrentState | TikTokCurrentState | GoogleCurrentState, Field(discriminator="kind")
+]
 
 
 class MetaBudgetSetV1(StrictModel):
@@ -175,8 +254,23 @@ class TikTokStatusSetV1(StrictModel):
     operation_status: Literal["DISABLE"]
 
 
+class GoogleBudgetSetV1(StrictModel):
+    kind: Literal["google_budget_set_v1"] = "google_budget_set_v1"
+    amount_micros: Micros
+
+
+class GoogleStatusSetV1(StrictModel):
+    kind: Literal["google_status_set_v1"] = "google_status_set_v1"
+    status: Literal["PAUSED"]
+
+
 OptimizationAction = Annotated[
-    MetaBudgetSetV1 | MetaStatusSetV1 | TikTokBudgetSetV1 | TikTokStatusSetV1,
+    MetaBudgetSetV1
+    | MetaStatusSetV1
+    | TikTokBudgetSetV1
+    | TikTokStatusSetV1
+    | GoogleBudgetSetV1
+    | GoogleStatusSetV1,
     Field(discriminator="kind"),
 ]
 
@@ -186,7 +280,7 @@ class OptimizationIntent(StrictModel):
     scope: ExecutionAccount
     mandate: ProviderMandateBinding
     target: OptimizationTarget
-    budget_owner: BudgetOwnerRef
+    budget_owner: OptimizationBudgetOwner
     action: OptimizationAction
     expected_state_digest: Digest
     approved_target_set_digest: Digest
@@ -196,15 +290,17 @@ class OptimizationIntent(StrictModel):
 
     @model_validator(mode="after")
     def scoped_action(self) -> "OptimizationIntent":
-        prefix = "meta_" if self.scope.account.platform == "meta_ads" else "tiktok_"
+        prefix = {"meta_ads": "meta_", "tiktok_ads": "tiktok_", "google_ads": "google_"}.get(
+            self.scope.account.platform, "unsupported_"
+        )
         if (
-            self.scope.account.platform not in {"meta_ads", "tiktok_ads"}
+            self.scope.account.platform not in {"meta_ads", "tiktok_ads", "google_ads"}
             or self.budget_owner.provider != self.scope.account.platform
             or not self.action.kind.startswith(prefix)
             or self.target not in self.budget_owner.affected_targets
             or self.approved_target_set_digest != self.budget_owner.target_set_digest()
             or (
-                isinstance(self.action, (MetaBudgetSetV1, TikTokBudgetSetV1))
+                isinstance(self.action, (MetaBudgetSetV1, TikTokBudgetSetV1, GoogleBudgetSetV1))
                 and self.target != self.budget_owner.owner
             )
         ):
@@ -247,7 +343,7 @@ class OptimizationRequest(StrictModel):
         ):
             raise ValueError("optimization preflight binding mismatch")
         if isinstance(
-            i.action, (MetaBudgetSetV1, TikTokBudgetSetV1)
+            i.action, (MetaBudgetSetV1, TikTokBudgetSetV1, GoogleBudgetSetV1)
         ) and i.action.amount_micros % 10 ** (6 - s.money.currency_exponent):
             raise ValueError("budget precision loss")
         if isinstance(i.action, TikTokBudgetSetV1) and (
@@ -264,6 +360,8 @@ class OptimizationContext(StrictModel):
     scope: ExecutionAccount
     access_token: SecretStr = Field(exclude=True, repr=False)
     app_secret: SecretStr | None = Field(default=None, exclude=True, repr=False)
+    developer_token: SecretStr | None = Field(default=None, exclude=True, repr=False)
+    login_customer_id: str | None = Field(default=None, pattern=r"^[0-9]{10}$", exclude=True)
     expires_at: AwareDatetime
 
 

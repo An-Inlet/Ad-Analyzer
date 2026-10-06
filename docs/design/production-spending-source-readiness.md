@@ -32,6 +32,13 @@ exposure. Unknown U/F/P stay null. These are independent from original-request f
 | Repeat and settlement | [replacement](../../app/publication/replacement.py), [replacement contracts](../../app/publication/replacement_contracts.py), [settlement](../../app/publication/settlement.py): exact predecessor snapshots, original fences, atomic transfer, retained unknowns, qualified closure/settlement interfaces. | No native ReplacementReader or SettlementReader. Contract tests and the synthetic restore reader do not qualify a production source. Settlement additionally needs reporting completeness through last possible effect and zero remaining exposure. |
 | Runtime and customer inventory assembly | [CustomerExecutionRuntime](../../app/publication/customer_runtime.py), [CreationRuntime](../../app/publication/coordinator_contracts.py), optimization, activation and settlement optional factories remain None. [ConfiguredOptimizationCatalog](../../app/publication/customer_optimization_catalog.py) performs real selected-target reads from explicit named inventory. | Credential/current-generation/context assembly, bounded automatic target discovery, profile registration, evidence refresh/cache and lifecycle invalidation are missing implementation. Do not label these only deployment configuration. A disabled diagnostic assembly can be built independently; live mutation assembly must not bypass absent proofs. |
 
+The shared [OptimizationHTTP.blockers](../../app/executors/optimization_http.py)
+also explicitly adds `native_profile_and_exposure_unqualified` for every live request;
+Google's override calls it. Approved access or setting `live_enabled` therefore cannot
+activate these adapters. Replacing this unconditional guard with server-selected,
+provider-backed qualification is future engineering after the proof mechanism exists,
+not a flag change or an invitation to remove the guard now.
+
 ## Provider Proof Eligibility
 
 | Required source fact | Google | Meta | TikTok |
@@ -89,7 +96,7 @@ MetaNativeInventoryRequest {
 MetaNativeInventoryContext extends OptimizationContext { request_digest }
 MetaNativeInventoryHTTP(request, now) -> MetaNativeInventory {
   exact request; observation_started_at; observed_at; expires_at
-  account observations: status; optional amount_spent_minor; spend_cap_minor
+  account observations: status; optional amount_spent_native; spend_cap_native
   campaigns <=200: id, account_id, status, optional daily/lifetime/spend caps,
                    optional start/stop and declared sharing/schedule flags
   adsets <=200: id, account_id, campaign_id, status, optional daily/lifetime/spend caps,
@@ -108,8 +115,9 @@ fixed paths. Reject loops, duplicate IDs, foreign ownership, missing parents, tr
 malformed numeric fields, currency/timezone mismatch, expired context and generation
 change. All statuses must be requested; unknown status or insufficient historical
 coverage cannot imply a qualified portfolio. Optional absent fields remain null, not
-zero/false. Native minor-unit counters stay explicitly labelled, not converted to an
-approved monetary basis. Use exact request-bound current context before/after IO; no
+zero/false. Native integer counters stay explicitly labelled with unqualified unit semantics, not
+converted to minor units or an approved monetary basis. SDK field types alone do not
+establish every counter's unit/basis. Use exact request-bound current context before/after IO; no
 DB transaction is released by this collector. Caller performs current owner/session/
 mandate checks around external IO. No default/live factory, persistence or mutation.
 
@@ -118,6 +126,17 @@ foreign child, omitted optional counters, explicit zero counter, unknown basis,
 changed generation, expired context, next-URL origin attack, cursor cycle, overflow,
 private-error sanitization; results cannot validate finite bounds. These checks close
 an offline diagnostic adapter gap, not strict-cap acceptance.
+
+## Implemented Diagnostic Delta After This Assessment
+
+The frozen port is now implemented in [MetaNativeInventoryHTTP](../../app/collectors/meta_native_inventory.py),
+with [wire and adversarial tests](../../tests/test_meta_native_inventory.py) and
+[collector evidence/limits](../inlet-meta-native-inventory.md). This closes the matrix's
+Meta whole-account diagnostic adapter gap at the reviewed base. It does **not** close
+native prevention, U/F/P, terminality, accounting-basis mapping, historic/pending-change
+completeness, production runtime assembly or automatic named-target discovery.
+The result uses `*_native` integer observations with explicitly unqualified units;
+SDK field types do not justify applying a currency conversion to every counter.
 
 ## Minimal Owner Decisions And Release Gates
 
@@ -138,7 +157,7 @@ Genuine later access/live gates: approved app scopes and account eligibility, op
 approved credentials/context, intended-environment read validation and documented
 provider capability evidence; separately authorized mutation qualification/release.
 Those cannot substitute for the missing code enumerated above. Next code order:
-Meta diagnostics; documented TikTok inventory; current-generation diagnostic assembly
+documented TikTok inventory; current-generation diagnostic assembly
 and named target discovery; then a qualified-source specification only if actual native
 semantics and prevention evidence support it. Parallel accounting/customer work remains
 independent. No live authority, Full run or deployment follows from this assessment.

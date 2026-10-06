@@ -2967,3 +2967,36 @@ Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
 production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
 not qualified. Frozen `8efe196` local Full and normal CI are still running and do
 not cover this newer package.
+
+## Production Spending Source Assessment And Meta Diagnostics — 2026-10-06
+
+Isolated `codex/inlet-spending-source-gap` from frozen `1c82e03`. Durable matrix:
+`docs/design/production-spending-source-readiness.md`; docs-first port committed
+`66de5f5` before implementation. Exact files distinguish implemented HTTP adapters
+from missing native U/F/P, finality/prevention producers, source/profile assembly,
+optimization fact binding and automatic named target discovery. Owner access alone
+cannot close these engineering gaps. Existing live optimization hard blocker remains.
+
+Approved bounded next package implements actual fixed-v26 Meta account/campaign/ad-set
+inventory HTTP in `app/collectors/meta_native_inventory.py`: all SDK-known status pages,
+exact account/request/generation context before/after IO, owned child topology, strict
+optional counters/flags, bounded wire/pagination and sanitized errors. Native counter
+units/basis/epoch are explicitly unqualified; absent values remain null. Result types
+cannot supply U/F/P or watermark. No factory or source-to-proof conversion is enabled.
+Official pinned SDK field/edge sources are recorded in `docs/inlet-meta-native-inventory.md`.
+
+Checks actually run: `pytest -o addopts='' -q tests/test_meta_native_inventory.py
+ tests/test_google_native_inventory.py tests/test_meta_catalog_http.py
+ tests/test_social_optimization_http.py` — **106 passed, no skips**. Whole Ruff and
+`mypy app tests` passed (499 source files); diff/relative-link checks passed. Logs:
+`/tmp/inlet-meta-native-tests.log`, `/tmp/inlet-meta-native-mypy.log`. Initial adjacent
+suite command named a nonexistent catalog file and collected no tests; corrected to
+`test_meta_catalog_http.py` for the passing run. No Full, provider calls, database/schema
+changes, credentials, production assembly or runtime enablement.
+
+Remaining next engineering: documented TikTok native inventory, authenticated diagnostic
+assembly/cache and automatic named target discovery; provider-backed source specification
+only once authoritative cap/accounting/finality/prevention semantics support it. Genuine
+owner choices are a versioned monetary promise and, after a demonstrated mechanism,
+acceptability of its restricted customer configurations. Strict ceiling remains; no
+best-effort authority inferred and no owner decision used to hide missing code.

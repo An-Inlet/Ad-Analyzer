@@ -2122,3 +2122,7 @@ Integrated exposure5bcd0aa. Combined-root focused actual SQLite/PostgreSQL check
 ### Local Closure Reconciliation Integration
 
 Integrated PR15629f7152. Combined current-only closure observation, actual closure browser, scheduler source authority and quiescing checks38 passed1 SQLite-only concurrency skip; Ruff and configured mypy passed. /tmp/inlet-next-closure-reconcile.log. Local pending analysis delivery cancellation is distinct from completed source import; unknown RUNNING records remain blocking and physical_workers_stopped remains null. No external ad shutdown, billing cancellation or deletion-policy inference.
+
+### Actual Social Activation Journey Integration
+
+Integrated PR1531e0c19f test package on assembled successor. Actual Meta/TikTok creation→separate approval→durable activation→owned projections, retained parent reservation, uncertainty/reconciliation, foreign scope, creative/cover drift and revoked generation checks24 passed with zero skips on SQLite/PostgreSQL. /tmp/inlet-next-social-activation.log. Ruff and configured mypy passed; no live provider calls or Full qualification.

@@ -59,7 +59,7 @@ class ConnectionService:
     def get(self, workspace_id: int, *, lock: bool = False) -> MetaConnection | None:
         query = select(MetaConnection).where(MetaConnection.workspace_id == workspace_id)
         if lock:
-            query = query.with_for_update()
+            query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
     def begin(self, workspace_id: int, actor: str, now: datetime) -> str:
@@ -180,7 +180,7 @@ class ConnectionService:
             MetaPendingGrant.expires_at > now,
         )
         if lock:
-            query = query.with_for_update()
+            query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
     def more_accounts(self, workspace_id: int, actor: str, now: datetime) -> None:
@@ -247,6 +247,8 @@ class ConnectionService:
                     external_account_id=external_id,
                 )
                 self.session.add(existing)
+            else:
+                existing.generation += 1
             existing.encrypted_credentials = vault.seal(workspace_id, external_id, bundle)
             existing.status, existing.conversion_action_type = "connected", action_type or None
             existing.connected_at, existing.last_sync_at = now, None

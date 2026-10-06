@@ -125,6 +125,13 @@ def _publish(
     return len(normalized)
 
 
+class SourceReadUnavailable(HTTPException):
+    """Current provider transport call failed; staged pages remain retryable."""
+
+    def __init__(self) -> None:
+        super().__init__(502, "source read unavailable")
+
+
 def tick(
     db: Session,
     workspace_id: int,
@@ -151,13 +158,14 @@ def tick(
         db.commit()
         raise
     try:
-        page = AdvertisingPage.model_validate(
-            transport.read(row.external_id, token, row.window_start, row.window_end, row.cursor)
+        raw_page = transport.read(
+            row.external_id, token, row.window_start, row.window_end, row.cursor
         )
     except Exception:
         row.error_code, row.next_attempt_at = "read_unavailable", now + timedelta(minutes=5)
         db.commit()
-        raise HTTPException(502, "source read unavailable") from None
+        raise SourceReadUnavailable() from None
+    page = AdvertisingPage.model_validate(raw_page)
     if page.account_id != row.external_id or page.currency != account.currency_code:
         raise HTTPException(409, "source account/currency mismatch")
     staged = dict(row.staged)
@@ -172,6 +180,7 @@ def tick(
     ):
         raise HTTPException(409, "source import capacity exceeded")
     if page.next_cursor:
+        row.error_code, row.next_attempt_at = None, None
         row.cursor, row.staged = (
             page.next_cursor,
             {"pages": pages, "cursors": seen + [page.next_cursor]},

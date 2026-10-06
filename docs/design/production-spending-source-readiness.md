@@ -193,3 +193,16 @@ persistence design require review before implementation; no new source is enable
 This does not change the U/F/P/preventive-writer gaps. Bounded social reported-spend
 observations remain independently implementable but unqualified; absent rows and reporting
 latency cannot establish zero liability or an immutable financial cutoff.
+
+
+## Original Google Response Capture Follow-Up
+
+The successful-original-response capture and owned durable reader in
+[the implementation note](google-synchronous-completion-source.md#implemented-capture-and-reader-still-no-terminality-mapping)
+are now implemented offline. This closes the missing sanitized protocol provenance and
+storage/reader code for newly received exact Google single-update success responses.
+It deliberately **does not implement** `ClosedOriginalRequest`, a native unknown-request
+lookup, `ReplacementReader`, `SettlementReader`, or U/F/P source. Existing generic
+acknowledgments remain insufficient. Strict financial qualification remains blocked by
+the exact residual, transition and preventive-writer guarantees listed above, rather than
+by missing account credentials alone.

@@ -17,6 +17,10 @@ from app.executors.optimization_http import (
 from app.executors.social_http import _private_http
 from app.publication.contracts import fingerprint
 from app.publication.execution_contracts import ExecutionAccount
+from app.publication.google_completion_contracts import (
+    GoogleCapturedResponse,
+    GoogleSynchronousCapture,
+)
 from app.publication.optimization_contracts import (
     GoogleBudgetOwnerRef,
     GoogleBudgetSetV1,
@@ -411,7 +415,8 @@ class GoogleOptimizationTransport(OptimizationHTTP):
             result.append("google_optimization_already_matches")
         return sorted(set(result))[:32]
 
-    def operation(self, request: OptimizationRequest) -> tuple[str, str, dict[str, Any]]:
+    @staticmethod
+    def operation(request: OptimizationRequest) -> tuple[str, str, dict[str, Any]]:
         state, action = request.before, request.intent.action
         if not isinstance(state, GoogleCurrentState):
             raise OptimizationUnavailable("google_optimization_action_invalid")
@@ -485,8 +490,22 @@ class GoogleOptimizationTransport(OptimizationHTTP):
                 endpoint,
                 {"operations": [operation], "validateOnly": False, "partialFailure": False},
             )
-            if result.get("results") == [{"resourceName": resource}]:
-                outcome = "acknowledged"
+            if result == {"results": [{"resourceName": resource}]}:
+                capture = GoogleSynchronousCapture(
+                    account=request.intent.scope,
+                    environment=request.intent.mandate.environment,
+                    request_digest=request.digest(),
+                    attempt_id=request.attempt_id,
+                    fence=request.fence,
+                    endpoint=endpoint,
+                    resource_name=resource,
+                    operation_digest=fingerprint("inlet.google-original-operation.v1", operation),
+                    response_digest=fingerprint("inlet.google-original-result.v1", result),
+                )
+                capture.bind(request)
+                return GoogleCapturedResponse(
+                    request_digest=request.digest(), outcome="acknowledged", capture=capture
+                )
         except OptimizationUnavailable:
             pass
         return OptimizationResponse(request_digest=request.digest(), outcome=outcome)

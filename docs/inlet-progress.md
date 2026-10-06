@@ -3051,3 +3051,29 @@ No Full, live provider calls, credentials, migrations, deployment or enabled fac
 Native qualification/prevention/finality, production mutation assembly, automatic
 optimization-target discovery and diagnostic presentation remain separate code/evidence
 work; provider access alone does not close these gaps.
+
+### Original Google Response Capture — Offline Complete, Not Financial Finality
+
+`codex/inlet-google-completion-evidence`, isolated child of docs PR192 `36e3402`.
+Added sanitized typed capture only for exact successful original Google v25 single-update
+budget/PAUSED responses, plus owned append-only durable reader. Shared normalized response
+JSON remains unchanged; no ClosedOriginalRequest mapping, financial proof, hold release or
+factory enabled. Timeout/unknown/legacy acknowledgment cannot manufacture capture.
+Migration0066 down0060 creates the separate scoped record and refuses populated downgrade.
+The registry protects it; typed exports, actual customer closure and native PostgreSQL
+backup/restore preserve the original request/fence linkage and held financial obligations.
+
+Primary v25 service schema read/pinned to googleapis7c0638cf893464ba844aeb04683026406eb3f8ca.
+The source matrix documents remaining unknown-request, delivery/cost residual and preventive
+writer guarantees; a completed configuration operation is not settled spend or financial
+finality. No live provider calls or widened write authority.
+
+Validation: focused composed HTTP/durable/export/lifecycle/native restore suite112 passed,
+1 SQLite-only row-lock concurrency skip; additional actual closure-retention checks2 passed
+(SQLite/PostgreSQL). Whole Ruff and mypy507 pass; diffcheck clean. Native restore exercised
+real pg_dump/pg_restore, empty migration roundtrip, populated downgrade refusal, foreign
+workspace FK rejection and original attempt retention. Initial export test exposed internal
+scalar projection mismatch; fixed without widening export allowlists. An initial new unit
+fixture used the wrong clock and was corrected. Logs `/tmp/inlet-completion-tests.log` and
+`/tmp/inlet-completion-mypy.log`. No Full performed. Both runtime qualification and any
+mapping into authoritative request closure remain deliberately separate review/code work.

@@ -15,11 +15,11 @@ Authoritative protocol evidence read on this date:
 
 - [Resource service mutates](https://developers.google.com/google-ads/api/docs/mutating/service-mutates)
   describes atomic resource-service operations with partial failure disabled.
-- The v25 [campaign-budget service schema](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/campaign_budget_service.proto)
+- The v25 [campaign-budget service schema](https://raw.githubusercontent.com/googleapis/googleapis/7c0638cf893464ba844aeb04683026406eb3f8ca/google/ads/googleads/v25/services/campaign_budget_service.proto)
   defines the fixed REST endpoint, false partial_failure transaction behavior, validate_only
   distinction, and resource-name results for successful operations. Mutable resource
   response content is explicitly after mutation. The
-  [campaign service schema](https://raw.githubusercontent.com/googleapis/googleapis/master/google/ads/googleads/v25/services/campaign_service.proto)
+  [campaign service schema](https://raw.githubusercontent.com/googleapis/googleapis/7c0638cf893464ba844aeb04683026406eb3f8ca/google/ads/googleads/v25/services/campaign_service.proto)
   defines the same semantics for campaign updates.
 - [Mutate overview](https://developers.google.com/google-ads/api/docs/mutating/overview)
   distinguishes synchronous mutate from asynchronous batch jobs. Batch jobs are excluded.
@@ -122,3 +122,46 @@ No owner monetary-basis decision is required to capture this completion evidence
 financial profile does require explicit monetary-basis selection plus provider-backed
 preventive enforcement/residual semantics. Recommendation remains to preserve strict
 fail-closed optimization while completing these additive engineering sources.
+
+
+## Implemented Capture And Reader (Still No Terminality Mapping)
+
+The approved narrow implementation is in
+[Google completion contracts](../../app/publication/google_completion_contracts.py),
+[capture/owned reader](../../app/publication/google_completion.py), the actual
+[Google adapter](../../app/executors/google_optimization.py) and coordinator response
+transaction. Migration `20261006_0066` branches from `20261006_0060` and creates the
+separate `google_original_completions` table with owned original-attempt foreign key and
+unique fence. Populated downgrade refuses to erase evidence.
+
+The adapter returns an excluded in-process capture field, leaving normalized optimization
+response JSON and all social bytes unchanged. Only the exact `results` envelope for the
+one expected resource is accepted: extra/error/async fields, missing or foreign results
+and transport exceptions do not capture evidence. The coordinator adds a server
+`recorded_at` timestamp after receiving the response and persists both records in its
+original evidence transaction. This timestamp is record receipt time, not provider
+execution/effective-delivery time. Repeated identical capture retains the original
+record; conflicts fail. There is no application update/delete operation for this record.
+The database remains trusted storage; the document digest is an integrity/binding check,
+not a cryptographic provider attestation or defense against a privileged database writer
+rewriting all original evidence.
+
+The owned reader checks the complete original persisted review/request/fence plus the
+protocol/operation/resource/result digest and retained scalar columns. Legacy responses
+and crashes before durable capture yield no document. It does not reinterpret an unknown
+request from state readback or allow a different attempt/environment/account/generation
+to borrow evidence. No `ClosedOriginalRequest`, replacement proof, settlement proof,
+financial source or enabled factory is returned or configured.
+
+The lifecycle registry marks the record protected; strict typed export retains the
+sanitized document and rejects unreviewed payload fields. Focused tests cover actual
+MockTransport capture, real SQLite/PostgreSQL storage, account closure retaining original
+evidence/held obligations, unchanged social exports, composite ownership constraints and
+native pg_dump/pg_restore equality with populated evidence. No live provider qualification
+or authority to emit advertising mutations is implied by these tests.
+
+Remaining external guarantees are unchanged: unknown original requests lack an
+authoritative request-status/no-later-configuration-effect source; synchronous operation
+completion does not bound downstream delivery, outstanding charges, reporting residuals
+or future writers. Even a later reviewed mapping into request closure cannot fund a
+replacement or release a reservation without a separately qualified financial envelope.

@@ -12,6 +12,12 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "google_original_completions": TablePolicy(
+        "workspace",
+        ("attempt_id", "workspace_id", "fence", "request_digest", "digest", "recorded_at"),
+        None,
+        True,
+    ),
     "customer_social_configuration_reviews": TablePolicy(
         "workspace",
         (

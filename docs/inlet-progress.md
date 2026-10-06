@@ -1251,3 +1251,37 @@ and PR109 `e12f11b` are now recorded with exact full heads and focused counts in
 compiler/HTTP adapter receive implementation credit; durable qualified publication
 coordination/activation, storage deletion, video UI and intended-environment evidence
 remain open. No new Full or provider call; documentation checks only.
+
+## Reviewed Foundation Integration Candidate (2026-10-06)
+
+Branch `codex/inlet-reviewed-foundation` preserves frozen PR94 and combines PR95–109
+where dependencies apply: CRM renewal and all reviewed repairs, Meta lock ordering
+and resumable detail imports, exact campaign-review UI, actual Shopify consent
+navigation, private GCS storage, bounded video validation, database readiness,
+synthetic restore drill, durable publication core, actual typed Google HTTP adapter,
+authorization fencing, and the remaining B15–B20 acceptance matrix.
+
+Migration0042 explicitly joins0040/0041. Populated0039→0042→0039→0042 verifies old
+rows, new publication/Meta checkpoint records and compound ownership constraints.
+Upload now receives a bounded body, then executes authorization, decoder/storage and
+response serialization serially on one worker thread; a focused responsiveness test
+checks the event loop advances while the service is blocked. GCS imports use a
+precise untyped-SDK import boundary rather than suppressing repository type checks.
+
+Combined focused validation:309 passed,23 skipped,13 existing Alembic warnings.
+Twenty skips are SQLite-only concurrency/constraint cases whose PostgreSQL variants
+ran; three restore cases lacked explicit local container selection. The restore suite was then rerun with the guarded PostgreSQL container:19 passed,
+no skips (five existing Alembic warnings). Ruff and mypy317 passed. Full and
+hosted CI must run on the final committed head; no production acceptance is inferred.
+
+Prior frozen PR94 is now terminal: local Full main1297 passed,15 skips (nine SQLite
+concurrency plus six unavailable PowerShell), final automation38 passed/six PowerShell
+skips; all gates passed. Hosted CI37405580011/job112082298281 passed1303/nine SQLite
+skips. Actual checkoutd0fcf31c7b1565671028242e20c3a13edb2d53ea tree
+46bfb87a1e5eb3090ccb10d12ee21db42f3ea872 equals5f9a0d0. Session handles were lost at
+environment restart; preserved processes finished and logs contain terminal gates.
+
+No live provider requests, credentials, spend, merge to main or deployment occurred.
+Provider qualification/review persistence, full provider coordination/activation,
+Meta/TikTok adapters, measured feedback, customer lifecycle and release/pilots remain
+active backlog, with code gaps distinguished from external qualification.

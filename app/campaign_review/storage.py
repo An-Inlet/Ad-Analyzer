@@ -87,7 +87,7 @@ class LocalMediaStore:
 
 def get_media_store() -> MediaStore:
     if settings.media_storage_mode == "gcs" and settings.media_gcs_bucket:
-        from google.cloud import storage  # type: ignore[attr-defined]
+        import google.cloud.storage as storage  # type: ignore[import-untyped]
 
         from app.campaign_review.gcs_storage import GCSMediaStore
 

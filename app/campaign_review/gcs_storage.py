@@ -6,8 +6,8 @@ import re
 from collections.abc import Iterable
 from contextlib import suppress
 
+import google.cloud.storage as storage  # type: ignore[import-untyped]
 from google.api_core.exceptions import PreconditionFailed
-from google.cloud import storage  # type: ignore[attr-defined]
 
 from app.campaign_review.contracts import MAX_MEDIA_BYTES
 

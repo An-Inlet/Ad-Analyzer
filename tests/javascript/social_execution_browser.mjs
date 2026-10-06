@@ -13,7 +13,7 @@ assert($('execution-consent').disabled,'separate consent requires explicit ackno
 assert(!$('execution-social-fields').hidden&&$('execution-google-fields').hidden,'social configuration selector');
 $('execution-social-catalog').selectedIndex=1;$('execution-social-catalog').dispatchEvent(new Event('change'));
 assert($('execution-social-summary').textContent.includes('Offline Profile')&&$('execution-social-summary').textContent.includes('Confirmed'),'exact saved configuration summary');
-$('execution-prepare').click();await until(()=>!$('execution-review').hidden&&!$('execution-refresh').disabled,'exact social creation review');
+await until(()=>!$('execution-prepare').disabled,'exact selected media ready');$('execution-prepare').click();await until(()=>!$('execution-review').hidden&&!$('execution-refresh').disabled,'exact social creation review');
 assert(!$('execution-review-summary').textContent.includes('Search Partners'),'no irrelevant Google settings');
 assert($('execution-review-summary').textContent.includes('Creates Paused Resources'),'creation separate from activation');assert($('execution-start').disabled,'no run before approval');
 async function approveStart(){ $('execution-review-check').checked=true;$('execution-review-check').dispatchEvent(new Event('change'));$('execution-approve').click();await until(()=>!$('execution-start').disabled,'approved');$('execution-start').click();await until(()=>$('execution-run-state').textContent.includes('Ready')&&!$('execution-refresh').disabled,'durable run');}

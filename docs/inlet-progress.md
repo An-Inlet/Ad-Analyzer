@@ -2967,3 +2967,40 @@ Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
 production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
 not qualified. Frozen `8efe196` local Full and normal CI are still running and do
 not cover this newer package.
+
+### Customer Execution Approval Context And Exact Media Repair
+
+Isolated from `1c82e03` on `codex/inlet-execution-review-context`. Actual HTTPS
+browser baselines failed on both SQLite and disposable PostgreSQL: delayed social
+review A became approvable after selecting B (**2 failures**), and two persisted
+Meta configurations had identical labels (**2 failures**). Logs:
+`/tmp/inlet-review-context-baseline.log`, `/tmp/inlet-review-clarity-baseline.log`.
+
+The customer page now fences responses by monotonic context, captured editable
+values and session nonce, including response-body parsing. Changes clear exact
+approval; delayed successes/errors cannot restore old authority. Lost mutation
+responses disclose uncertainty and require saved-status recovery without replay.
+Selection and exact review show owned identity/measurement references plus decoded
+private image/video/cover bytes checked against the canonical size and SHA-256.
+Historical catalog names were not persisted; owned references are labeled honestly.
+See `docs/inlet-execution-review-context.md` for boundaries.
+
+Focused browser checks actually run, covering 40 unique cases across both databases:
+18 context-transition cases (`/tmp/inlet-review-context-matrix.log`), 4 Google
+journey/delayed-approval cases (`/tmp/inlet-review-google-browser.log`), 8 social
+journey/configuration-clarity cases (`/tmp/inlet-review-media-journeys.log`),
+4 private-media session/integrity cases (`/tmp/inlet-review-media-context.log`),
+4 late-error/lost-response cases (`/tmp/inlet-review-late-failure.log`), and
+2 admitted-run response-loss/recovery cases (`/tmp/inlet-review-lost-admission.log`).
+All passed. A subsequent session/lost-response subset passed **8 tests**, with
+32 deselected (`/tmp/inlet-review-final-session-loss.log`). These were incremental
+focused runs, not a single combined run. Whole Ruff and clean mypy passed
+(**501 source files**); JavaScript syntax and diff checks passed.
+
+After the final selection reset, the policy-transition and complete Meta/TikTok
+journey subset passed **6 tests**, with 28 deselected in 114.20 seconds
+(`/tmp/inlet-review-context-final-reset.log`).
+
+No backend/schema, live provider, credentials, runtime enabling or advertising
+authority changes. No Full or hosted dispatch run for this repair; root owns
+assembled qualification and integration.

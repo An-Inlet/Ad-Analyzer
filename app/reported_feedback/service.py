@@ -1,6 +1,7 @@
 """Owned operational comparison/application services; no provider mutation authority."""
 
 from datetime import datetime, timedelta
+from typing import cast
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -8,24 +9,39 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.campaign_performance.models import PerformanceCompletion
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
+from app.initial_planning import preview as initial_preview
 from app.initial_planning.clock import effective_now
-from app.initial_planning.contracts import EfficiencyObjectiveV1
+from app.initial_planning.contracts import CohortV1, EfficiencyObjectiveV1, PreviewIntentV1
+from app.initial_planning.models import PreviewRow
 from app.meta.security import utc
+from app.publication import customer_intents, execution_mandates
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.reported_feedback.anchor import resolve_anchor
 from app.reported_feedback.contracts import (
     ComparisonIntentV1,
     ComparisonProgressV1,
+    FeedbackPreviewIntentV1,
+    OperationalReportedComparisonV1,
     ReportedAcquisitionRequestV1,
+    ReportedFeedbackPolicyV1,
+    ReportedFeedbackPreviewV1,
+    ReportedWindowCapsuleV1,
     ReportWindowV1,
 )
-from app.reported_feedback.evaluator import midnight
+from app.reported_feedback.evaluator import bounded_delta, compare, midnight
 from app.reported_feedback.invalidation import retract_account_comparisons
-from app.reported_feedback.models import ReportedFeedbackJob
+from app.reported_feedback.models import (
+    ReportedActionComparison,
+    ReportedComparisonDependency,
+    ReportedFeedbackJob,
+    ReportedFeedbackSlot,
+    ReportedWindowCapsule,
+)
 from app.reported_feedback.runtime import ReportedFeedbackRuntime
 from app.workspaces.models import Workspace
 
@@ -68,9 +84,21 @@ def local_job_current(
     """Caller holds workspace/native fence; no new principal locks or external IO."""
     now = max(now, effective_now(db, runtime.initial))
     principal = local_job_authority(db, job, now)
+    latest = db.scalar(
+        select(ReportedFeedbackJob.id)
+        .where(
+            ReportedFeedbackJob.workspace_id == job.workspace_id,
+            ReportedFeedbackJob.opportunity_digest == job.opportunity_digest,
+        )
+        .order_by(ReportedFeedbackJob.created_at.desc(), ReportedFeedbackJob.id.desc())
+        .limit(1)
+    )
+    if latest != job.id:
+        raise HTTPException(409, "reported_feedback_request_superseded")
     request = ReportedAcquisitionRequestV1.model_validate(job.document)
     if (
         request.digest() != job.document_digest
+        or request.expires_at != utc(job.expires_at)
         or request.id != job.id
         or (
             request.anchor.cohort.workspace_id,
@@ -130,6 +158,12 @@ def _request(
     anchor = resolve_anchor(db, wid, intent.attempt_id, principal.user.id, now)
     if (intent.goal_id, intent.goal_revision) != (anchor.goal_id, anchor.goal_revision):
         raise HTTPException(409, "reported_feedback_goal_changed")
+    if (anchor.environment, anchor.cohort.selected_event, anchor.cohort.query_version) != (
+        policy.environment,
+        policy.selected_event,
+        policy.query_version,
+    ):
+        raise HTTPException(409, "reported_feedback_profile_unsupported")
     objective = EfficiencyObjectiveV1(
         cohort=anchor.cohort,
         goal_id=intent.goal_id,
@@ -280,3 +314,489 @@ def read_comparison_progress(
 ) -> ComparisonProgressV1:
     row, request = _owned_job(db, principal, provider, workspace_id, request_id, runtime)
     return _progress(row, request)
+
+
+def _capsules(
+    db: Session, row: ReportedFeedbackJob, request: ReportedAcquisitionRequestV1, now: datetime
+) -> tuple[ReportedWindowCapsuleV1, ...]:
+    rows = list(
+        db.scalars(
+            select(ReportedWindowCapsule)
+            .where(
+                ReportedWindowCapsule.workspace_id == row.workspace_id,
+                ReportedWindowCapsule.job_id == row.id,
+            )
+            .order_by(ReportedWindowCapsule.acquisition_completed_at, ReportedWindowCapsule.id)
+            .limit(17)
+        )
+    )
+    if len(rows) != row.completed_observations or len(rows) > 16:
+        raise HTTPException(409, "reported_feedback_capsule_set_changed")
+    result = []
+    for capsule in rows:
+        value = ReportedWindowCapsuleV1.model_validate(capsule.document)
+        completion = db.get(PerformanceCompletion, capsule.completion_id, populate_existing=True)
+        if (
+            value.id != capsule.id
+            or value.digest() != capsule.document_digest
+            or value.job_id != row.id
+            or value.cohort != request.anchor.cohort
+            or value.source_generation != row.source_generation
+            or value.environment != row.environment
+            or value.policy_digest != row.policy_digest
+            or value.completion_id != capsule.completion_id
+            or value.acquisition_run_id != capsule.acquisition_run_id
+            or (value.window.starts_on, value.window.ends_on)
+            != (capsule.starts_on, capsule.ends_on)
+            or value.acquisition_started_at != utc(capsule.acquisition_started_at)
+            or value.acquisition_completed_at != utc(capsule.acquisition_completed_at)
+            or value.expires_at != utc(capsule.expires_at)
+            or now >= value.expires_at
+            or completion is None
+            or completion.workspace_id != row.workspace_id
+            or completion.account_id != row.account_id
+            or completion.manifest_digest != value.completion_manifest_digest
+        ):
+            raise HTTPException(409, "reported_feedback_capsule_changed_or_expired")
+        result.append(value)
+    return tuple(result)
+
+
+def read_comparison(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    request_id: str,
+    runtime: ReportedFeedbackRuntime,
+) -> OperationalReportedComparisonV1:
+    row, request = _owned_job(db, principal, provider, workspace_id, request_id, runtime)
+    if (
+        row.state != "ready"
+        or row.completed_observations != 2 * request.policy.distinct_repeat_completions
+    ):
+        raise HTTPException(409, "reported_feedback_acquisition_incomplete")
+    now = effective_now(db, runtime.initial)
+    capsules = _capsules(db, row, request, now)
+    input_digest = fingerprint(
+        "inlet.reported-comparison-input.v1",
+        {
+            "request": request.digest(),
+            "capsules": sorted(c.digest() for c in capsules),
+        },
+    )
+    old = db.scalar(
+        select(ReportedActionComparison).where(
+            ReportedActionComparison.workspace_id == workspace_id,
+            ReportedActionComparison.input_digest == input_digest,
+        )
+    )
+    if old is not None:
+        if utc(old.expires_at) > now:
+            result = _validate_comparison(db, old, now)
+            bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+            local_job_current(db, row, runtime, effective_now(db, runtime.initial))
+            if effective_now(db, runtime.initial) >= result.expires_at:
+                raise HTTPException(409, "reported_feedback_comparison_expired")
+            return result
+        db.delete(old)
+        db.flush()
+    try:
+        result = compare(request, capsules, now)
+    except ValueError:
+        raise HTTPException(409, "reported_feedback_evidence_unavailable") from None
+    owned = dict(workspace_id=workspace_id, account_id=row.account_id, campaign_id=row.campaign_id)
+    saved = ReportedActionComparison(
+        **owned,
+        id=result.id,
+        environment=row.environment,
+        document=result.model_dump(mode="json"),
+        document_digest=result.digest(),
+        expires_at=result.expires_at,
+        job_id=row.id,
+        original_attempt_id=row.original_attempt_id,
+        receipt_id=result.anchor.latest_receipt_id,
+        receipt_sequence=result.anchor.latest_receipt_sequence,
+        policy_family=request.policy.family,
+        input_digest=input_digest,
+        assessed_at=now,
+    )
+    db.add(saved)
+    db.flush()
+    db.add_all(
+        [
+            ReportedComparisonDependency(**owned, comparison_id=result.id, capsule_id=c.id)
+            for c in capsules
+        ]
+    )
+    db.flush()
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    local_job_current(db, row, runtime, effective_now(db, runtime.initial))
+    if effective_now(db, runtime.initial) >= result.expires_at:
+        raise HTTPException(409, "reported_feedback_comparison_expired")
+    return result
+
+
+def _validate_comparison(
+    db: Session, row: ReportedActionComparison, now: datetime
+) -> OperationalReportedComparisonV1:
+    value = OperationalReportedComparisonV1.model_validate(row.document)
+    job = db.get(ReportedFeedbackJob, row.job_id, populate_existing=True)
+    if job is None:
+        raise HTTPException(409, "reported_feedback_original_request_unavailable")
+    principal = local_job_authority(db, job, now)
+    request = ReportedAcquisitionRequestV1.model_validate(job.document)
+    current = resolve_anchor(db, row.workspace_id, row.original_attempt_id, principal.user.id, now)
+    capsules = _capsules(db, job, request, now)
+    refs = tuple(value.before.capsules) + tuple(value.after.capsules)
+    dependencies = set(
+        db.scalars(
+            select(ReportedComparisonDependency.capsule_id)
+            .where(
+                ReportedComparisonDependency.comparison_id == row.id,
+                ReportedComparisonDependency.workspace_id == row.workspace_id,
+            )
+            .limit(17)
+        )
+    )
+    latest = db.scalar(
+        select(ReportedFeedbackJob.id)
+        .where(
+            ReportedFeedbackJob.workspace_id == job.workspace_id,
+            ReportedFeedbackJob.opportunity_digest == job.opportunity_digest,
+        )
+        .order_by(ReportedFeedbackJob.created_at.desc(), ReportedFeedbackJob.id.desc())
+        .limit(1)
+    )
+    if (
+        latest != job.id
+        or (
+            value.anchor.cohort.workspace_id,
+            value.anchor.cohort.account_id,
+            value.anchor.cohort.campaign_id,
+            value.anchor.environment,
+        )
+        != (row.workspace_id, row.account_id, row.campaign_id, row.environment)
+        or (job.workspace_id, job.account_id, job.campaign_id, job.environment)
+        != (row.workspace_id, row.account_id, row.campaign_id, row.environment)
+        or value.anchor.original_attempt_id != row.original_attempt_id
+        or value.anchor.original_attempt_id != job.original_attempt_id
+        or value.id != row.id
+        or value.digest() != row.document_digest
+        or value.job_id != job.id
+        or job.document_digest != request.digest()
+        or job.state != "ready"
+        or request.expires_at <= now
+        or value.expires_at != utc(row.expires_at)
+        or now >= value.expires_at
+        or value.anchor.latest_receipt_id != row.receipt_id
+        or value.anchor.latest_receipt_sequence != row.receipt_sequence
+        or value.policy_family != row.policy_family
+        or value.policy_digest != job.policy_digest
+        or value.anchor != request.anchor
+        or current.model_dump(exclude={"privacy_revision"})
+        != value.anchor.model_dump(exclude={"privacy_revision"})
+        or {(c.id, c.digest()) for c in capsules} != {(c.id, c.digest) for c in refs}
+        or dependencies != {c.id for c in capsules}
+    ):
+        raise HTTPException(409, "reported_feedback_comparison_changed_or_expired")
+    # Re-evaluate fresh age/coverage/stability; the immutable assessment may never
+    # prolong an observation's eligibility at a later read/export boundary.
+    checked = compare(request, capsules, now)
+    if (checked.status, checked.relative_cpa_improvement, checked.before, checked.after) != (
+        value.status,
+        value.relative_cpa_improvement,
+        value.before,
+        value.after,
+    ):
+        raise HTTPException(409, "reported_feedback_evidence_changed")
+    return value
+
+
+def reobserve_comparison(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    request_id: str,
+    runtime: ReportedFeedbackRuntime,
+) -> ComparisonProgressV1:
+    # Only an explicit owner intent opens a new bounded acquisition round; no
+    # counter reset or scheduled retry creates a second independent opportunity.
+    row, request = _owned_job(db, principal, provider, workspace_id, request_id, runtime)
+    comparison = read_comparison(db, principal, provider, workspace_id, request_id, runtime)
+    if comparison.status != "insufficient":
+        raise HTTPException(409, "reported_feedback_reobserve_requires_insufficient")
+    intent = ComparisonIntentV1(
+        attempt_id=request.anchor.original_attempt_id,
+        goal_id=request.objective.goal_id,
+        goal_revision=request.objective.goal_revision,
+        maximum_reported_cpa_micros=request.objective.maximum_reported_cpa_micros,
+    )
+    return _request(db, principal, provider, workspace_id, intent, runtime, row)
+
+
+def _active_set(
+    db: Session, cohort: CohortV1, policy: ReportedFeedbackPolicyV1, now: datetime
+) -> tuple[OperationalReportedComparisonV1, ...]:
+    rows = list(
+        db.scalars(
+            select(ReportedActionComparison)
+            .where(
+                ReportedActionComparison.workspace_id == cohort.workspace_id,
+                ReportedActionComparison.account_id == cohort.account_id,
+                ReportedActionComparison.campaign_id == cohort.campaign_id,
+                ReportedActionComparison.environment == policy.environment,
+                ReportedActionComparison.expires_at > now,
+            )
+            .order_by(ReportedActionComparison.id)
+            .limit(65)
+        )
+    )
+    if len(rows) > 64:
+        raise HTTPException(409, "reported_feedback_contribution_capacity")
+    unique: dict[str, OperationalReportedComparisonV1] = {}
+    for row in rows:
+        value = _validate_comparison(db, row, now)
+        if value.anchor.cohort != cohort or value.policy_digest != policy.comparison_policy_digest:
+            continue
+        if value.status != "operational_reported_as_of":
+            continue
+        direction = (
+            "increase"
+            if value.anchor.after_budget_micros > value.anchor.before_budget_micros
+            else "decrease"
+        )
+        if direction != policy.original_change:
+            continue
+        attempt = value.anchor.original_attempt_id
+        if attempt in unique:
+            raise HTTPException(409, "reported_feedback_duplicate_original_opportunity")
+        unique[attempt] = value
+    return tuple(sorted(unique.values(), key=lambda c: c.id))
+
+
+def _active_digest(values: tuple[OperationalReportedComparisonV1, ...]) -> str:
+    return fingerprint(
+        "inlet.operational-reported-active-set.v1",
+        {
+            "comparisons": [
+                {"comparison_id": value.id, "document_digest": value.digest()} for value in values
+            ]
+        },
+    )
+
+
+def validate_preview_dependencies(
+    db: Session, row: ReportedFeedbackSlot, now: datetime
+) -> ReportedFeedbackPreviewV1:
+    """Local export/read fence. Caller owns workspace lock; no commits or network."""
+    value = ReportedFeedbackPreviewV1.model_validate(row.document)
+    local_job_authority(db, cast(ReportedFeedbackJob, row), now)
+    cohort = value.cohort
+    active = _active_set(db, cohort, value.policy, now)
+    comparison = next((c for c in active if c.id == value.comparison_id), None)
+    baseline = db.get(PreviewRow, row.baseline_preview_id, populate_existing=True)
+    if (
+        value.id != row.id
+        or value.digest() != row.document_digest
+        or (cohort.workspace_id, cohort.account_id, cohort.campaign_id)
+        != (row.workspace_id, row.account_id, row.campaign_id)
+        or value.environment != row.environment
+        or value.policy.family != row.policy_family
+        or value.policy_digest != value.policy.digest()
+        or cohort.digest() != row.cohort_digest
+        or value.expires_at != utc(row.expires_at)
+        or value.created_at != utc(row.created_at)
+        or now >= value.expires_at
+        or not active
+        or comparison is None
+        or comparison.digest() != value.comparison_digest
+        or row.comparison_id != value.comparison_id
+        or comparison.anchor.original_attempt_id != row.original_attempt_id
+        or comparison.anchor.opportunity_digest(value.policy.family) != row.opportunity_digest
+        or row.opportunity_digest != value.opportunity_digest
+        or _active_digest(active) != value.active_set_digest
+        or len(active) != value.distinct_original_attempt_count
+        or min(c.expires_at for c in active) < value.expires_at
+        or baseline is None
+        or baseline.workspace_id != row.workspace_id
+        or baseline.original_actor_id != row.original_actor_id
+        or baseline.original_session_digest != row.original_session_digest
+        or baseline.document_digest != value.baseline_preview_digest
+        or baseline.id != value.baseline_preview_id
+        or utc(baseline.expires_at) < value.expires_at
+    ):
+        raise HTTPException(409, "reported_feedback_preview_changed_or_expired")
+    return value
+
+
+def apply_feedback_preview(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    intent: FeedbackPreviewIntentV1,
+    runtime: ReportedFeedbackRuntime,
+) -> ReportedFeedbackPreviewV1:
+    authorize = bind_authority(principal, provider)
+    authorize(db, workspace_id, principal.user.id)
+    policy = runtime.feedback_policy
+    if (
+        policy is None
+        or runtime.window_policy is None
+        or policy.comparison_policy_digest != runtime.window_policy.digest()
+    ):
+        raise HTTPException(409, "reported_feedback_not_configured")
+    row = db.scalar(
+        select(ReportedActionComparison).where(
+            ReportedActionComparison.id == intent.comparison_id,
+            ReportedActionComparison.workspace_id == workspace_id,
+        )
+    )
+    if row is None:
+        raise HTTPException(404, "reported_feedback_comparison_not_found")
+    job, _ = _owned_job(db, principal, provider, workspace_id, row.job_id, runtime)
+    now = effective_now(db, runtime.initial)
+    comparison = _validate_comparison(db, row, now)
+    baseline = initial_preview.read_preview(
+        db, principal, provider, workspace_id, intent.baseline_preview_id, runtime.initial
+    )
+    baseline_row = db.get(PreviewRow, baseline.id)
+    assert baseline_row is not None
+    if (
+        baseline.objective != comparison.objective
+        or baseline.after_budget_micros is None
+        or baseline.created_at
+        < max(ref.acquired_at for ref in (*comparison.before.capsules, *comparison.after.capsules))
+        or baseline.recommendation_status != "proposed"
+        or policy.environment != comparison.anchor.environment
+    ):
+        raise HTTPException(409, "reported_feedback_post_acquisition_baseline_required")
+    active = _active_set(db, comparison.anchor.cohort, policy, now)
+    if comparison not in active or len(active) < policy.minimum_distinct_original_attempts:
+        raise HTTPException(409, "reported_feedback_independent_opportunities_insufficient")
+    delta = bounded_delta(active, policy)
+    proposed = baseline.after_budget_micros + delta
+    if proposed <= 0:
+        raise HTTPException(409, "reported_feedback_proposed_budget_nonpositive")
+    # Displayed nominal amount stays inside the separately consented plan too;
+    # this calculation creates no reservation, authority, or execution intent.
+    baseline_intent = PreviewIntentV1.model_validate(baseline_row.intent)
+    if baseline_intent.mandate_id is None or baseline_intent.mandate_revision is None:
+        raise HTTPException(409, "reported_feedback_budget_baseline_required")
+    binding = customer_intents.binding(
+        db, workspace_id, baseline_intent.mandate_id, baseline_intent.mandate_revision
+    )
+    _, mandate = execution_mandates.checked(
+        db, workspace_id, binding, principal.user.id, lambda: effective_now(db, runtime.initial)
+    )
+    if proposed > min(mandate.per_plan_cap_micros, mandate.total_cap_micros) or (
+        baseline.before_budget_micros is not None
+        and proposed - baseline.before_budget_micros > mandate.positive_change_cap_micros
+    ):
+        raise HTTPException(409, "reported_feedback_nominal_plan_limit")
+    expiry = min(
+        baseline.expires_at,
+        *(c.expires_at for c in active),
+        now + timedelta(seconds=policy.lifetime_seconds),
+    )
+    assert (
+        comparison.before.reported_cpa_micros is not None
+        and comparison.after.reported_cpa_micros is not None
+    )
+    value = ReportedFeedbackPreviewV1(
+        id=uuid4().hex,
+        environment=policy.environment,
+        cohort=comparison.anchor.cohort,
+        policy=policy,
+        comparison_id=comparison.id,
+        comparison_digest=comparison.digest(),
+        baseline_preview_id=baseline.id,
+        baseline_preview_digest=baseline_row.document_digest,
+        opportunity_digest=comparison.anchor.opportunity_digest(policy.family),
+        active_set_digest=_active_digest(active),
+        policy_digest=policy.digest(),
+        distinct_original_attempt_count=len(active),
+        before_reported_cpa_micros=comparison.before.reported_cpa_micros,
+        after_reported_cpa_micros=comparison.after.reported_cpa_micros,
+        baseline_budget_micros=baseline.after_budget_micros,
+        delta_micros=delta,
+        proposed_budget_micros=proposed,
+        explanation=(
+            "configuration_associated_reported_efficiency_not_causal",
+            "distinct_original_attempts_only",
+            "recomputed_from_unadjusted_baseline",
+            "bounded_by_explicit_server_policy",
+            "no_spending_authority_or_review_handoff",
+        ),
+        created_at=now,
+        expires_at=expiry,
+    )
+    old = db.scalar(
+        select(ReportedFeedbackSlot).where(
+            ReportedFeedbackSlot.workspace_id == workspace_id,
+            ReportedFeedbackSlot.environment == policy.environment,
+            ReportedFeedbackSlot.original_attempt_id == job.original_attempt_id,
+            ReportedFeedbackSlot.policy_family == policy.family,
+            ReportedFeedbackSlot.cohort_digest == value.cohort.digest(),
+        )
+    )
+    revision = old.revision + 1 if old else 1
+    if old:
+        db.delete(old)
+        db.flush()
+    saved = ReportedFeedbackSlot(
+        id=value.id,
+        workspace_id=workspace_id,
+        account_id=job.account_id,
+        campaign_id=job.campaign_id,
+        environment=policy.environment,
+        document=value.model_dump(mode="json"),
+        document_digest=value.digest(),
+        expires_at=value.expires_at,
+        comparison_id=value.comparison_id,
+        baseline_preview_id=baseline.id,
+        original_attempt_id=job.original_attempt_id,
+        original_actor_id=principal.user.id,
+        original_session_digest=principal.session.digest,
+        policy_family=policy.family,
+        cohort_digest=value.cohort.digest(),
+        opportunity_digest=value.opportunity_digest,
+        revision=revision,
+        created_at=now,
+    )
+    db.add(saved)
+    db.flush()
+    authorize(db, workspace_id, principal.user.id)
+    local_job_current(db, job, runtime, effective_now(db, runtime.initial))
+    return validate_preview_dependencies(db, saved, effective_now(db, runtime.initial))
+
+
+def read_feedback_preview(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    preview_id: str,
+    runtime: ReportedFeedbackRuntime,
+) -> ReportedFeedbackPreviewV1:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    row = db.scalar(
+        select(ReportedFeedbackSlot).where(
+            ReportedFeedbackSlot.id == preview_id,
+            ReportedFeedbackSlot.workspace_id == workspace_id,
+            ReportedFeedbackSlot.original_actor_id == principal.user.id,
+            ReportedFeedbackSlot.original_session_digest == principal.session.digest,
+        )
+    )
+    if row is None:
+        raise HTTPException(404, "reported_feedback_preview_not_found")
+    value = validate_preview_dependencies(db, row, effective_now(db, runtime.initial))
+    if runtime.feedback_policy != value.policy:
+        raise HTTPException(409, "reported_feedback_policy_changed")
+    initial_preview.read_preview(
+        db, principal, provider, workspace_id, value.baseline_preview_id, runtime.initial
+    )
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    return validate_preview_dependencies(db, row, effective_now(db, runtime.initial))

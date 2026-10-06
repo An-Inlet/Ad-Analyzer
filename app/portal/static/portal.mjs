@@ -46,6 +46,14 @@ export function googleDestination(result, configuration, origin) {
   if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected, key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Google authorization request is invalid.');
   return url.href;
 }
+export function metaDestination(result, configuration, origin) {
+  const url = new URL(result.authorization_url);
+  const expected = {client_id:configuration.client_id, redirect_uri:origin+'/api/customer/v1/meta/callback', scope:'ads_read', response_type:'code', auth_type:'rerequest'};
+  if (url.origin !== 'https://www.facebook.com' || url.pathname !== '/v26.0/dialog/oauth' || url.username || url.password || url.hash || configuration.redirect_uri !== expected.redirect_uri || configuration.authorization_endpoint !== url.origin+url.pathname) throw new Error('Meta authorization destination is invalid.');
+  for (const [key, value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('Meta configuration changed. Reload and retry.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Meta authorization request is invalid.');
+  return url.href;
+}
 export function amount(value, currency) {
   if (!Number.isSafeInteger(value) || !/^[A-Z]{3}$/.test(currency || '')) return 'Not Available';
   return new Intl.NumberFormat('en-US', {style: 'currency', currency, currencyDisplay: 'code'}).format(value / 1e6);
@@ -94,8 +102,9 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
-  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null;
+  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null;
   let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
+
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
   async function api(...args) {
@@ -113,8 +122,9 @@ if (typeof document !== 'undefined') {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    googleSetup = null; $('shopify-disconnect-consent').checked = false;
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize']) show(id, false);
+    googleSetup = null; googleConnections = []; metaSetup = null; $('meta-disconnect-consent').checked = false; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review', 'meta-setup', 'meta-authorize', 'meta-disconnect', 'meta-disconnect-review']) show(id, false);
+
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -220,7 +230,9 @@ if (typeof document !== 'undefined') {
     const providers = [['Google Ads', '/google/connections'], ['TikTok Ads', '/sources/tiktok_ads'], ['Klaviyo', '/sources/klaviyo'], ['HubSpot', '/sources/hubspot'], ['Omnisend', '/sources/omnisend']];
     const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await api(path + endpoint)]; } catch (error) { if (error instanceof StaleRequest || error.status === 401) throw error; return [name, 'Status unavailable']; } }));
     if (turn !== epoch) throw new StaleRequest();
-    renderConnections([['Shopify', stores], ...results, ['Meta Ads', null]]);
+    const meta = await api(path + '/meta');
+    if (turn !== epoch) throw new StaleRequest();
+    renderConnections([['Shopify', stores], ...results, ['Meta Ads', meta.connected ? [meta] : []]]);
     const setup = await api(path + '/shopify/setup');
     if (turn !== epoch) throw new StaleRequest();
     show('shopify-setup', true); show('shopify-connect', Boolean(setup.enabled && setup.can_manage));
@@ -232,8 +244,18 @@ if (typeof document !== 'undefined') {
     googleSetup = await api(path + '/google/setup');
     if (turn !== epoch) throw new StaleRequest();
     show('google-setup', true); show('google-authorize', Boolean(googleSetup.enabled && googleSetup.can_manage));
+    googleConnections = (results.find(([name]) => name === 'Google Ads')?.[1] || []);
+    if (!Array.isArray(googleConnections)) googleConnections = [];
+    googleConnections = googleConnections.filter(row => row.status !== 'disconnected');
+    $('google-disconnect-account').replaceChildren(...googleConnections.map(row => option(row.id, `${row.external_account_id} · ${label(row.status)}`)));
+    show('google-disconnect', Boolean(googleSetup.can_manage && googleConnections.length));
     $('google-setup-status').textContent = !googleSetup.enabled ? 'Google Ads connection setup is not configured.' : googleSetup.can_manage ? 'An owner or admin can connect an advertising account.' : 'Ask a workspace owner or admin to connect Google Ads.';
 
+    metaSetup = await api(path + '/meta/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    show('meta-setup', true); show('meta-authorize', Boolean(metaSetup.enabled && metaSetup.can_manage));
+    show('meta-disconnect', Boolean(meta.connected && metaSetup.can_manage));
+    $('meta-setup-status').textContent = !metaSetup.enabled ? 'Meta connection setup is not configured.' : metaSetup.can_manage ? 'Review Meta permissions and choose one advertising account.' : 'Ask a workspace owner or admin to connect Meta.';
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
   $('shopify-disconnect-open').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', true); };
@@ -242,6 +264,29 @@ if (typeof document !== 'undefined') {
     if (!$('shopify-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Shopify.');
     await api(root() + '/shopify', 'DELETE'); await loadWorkspace();
     say('Shopify disconnected and imported data removed. Saved goal history remains; reconnect and import before reconfirming.');
+  });
+  const cancelGoogleDisconnect = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', false); };
+  $('google-disconnect-account').onchange = cancelGoogleDisconnect;
+  $('google-disconnect-cancel').onclick = cancelGoogleDisconnect;
+  $('google-disconnect-open').onclick = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', true); };
+  $('google-disconnect-confirm').onclick = () => guarded(async () => {
+    const selected = googleConnections.find(row => row.id === $('google-disconnect-account').value);
+    if (!googleSetup?.can_manage || !selected || !$('google-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting Google Ads.');
+    await api(root() + '/google/connections/' + encodeURIComponent(selected.id), 'DELETE');
+    await loadWorkspace();
+    say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
+  });
+  $('meta-authorize').onclick = () => guarded(async () => {
+    if (!metaSetup?.enabled || !metaSetup.can_manage) throw new Error('Meta connection setup is unavailable.');
+    const result = await api(root()+'/meta/authorize', 'POST');
+    location.assign(metaDestination(result, metaSetup, location.origin));
+  });
+  $('meta-disconnect-open').onclick = () => { $('meta-disconnect-consent').checked = false; show('meta-disconnect-review', true); };
+  $('meta-disconnect-cancel').onclick = () => { $('meta-disconnect-consent').checked = false; show('meta-disconnect-review', false); };
+  $('meta-disconnect-confirm').onclick = () => guarded(async () => {
+    if (!metaSetup?.can_manage || !$('meta-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Meta.');
+    await api(root()+'/meta', 'DELETE'); await loadWorkspace();
+    say('Meta disconnected. Historical data remains; running campaigns and spending are unchanged.');
   });
   $('google-authorize').onclick = () => guarded(async () => {
     if (!googleSetup?.enabled || !googleSetup.can_manage) throw new Error('Google Ads setup is unavailable for this session.');

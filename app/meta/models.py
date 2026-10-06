@@ -67,6 +67,10 @@ class MetaConnection(Base):
 
 class MetaOAuthState(Base):
     __tablename__ = "meta_oauth_states"
+    __table_args__ = (
+        CheckConstraint("phase IN ('pending','exchanging','failed')", name="ck_meta_oauth_phase"),
+    )
+    phase: Mapped[str] = mapped_column(String(16), default="pending", server_default="pending")
     digest: Mapped[str] = mapped_column(String(64), primary_key=True)
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
     actor_digest: Mapped[str] = mapped_column(String(64))
@@ -75,6 +79,7 @@ class MetaOAuthState(Base):
 
 class MetaPendingGrant(Base):
     __tablename__ = "meta_pending_grants"
+    oauth_state_digest: Mapped[str | None] = mapped_column(String(64))
     __table_args__ = (UniqueConstraint("workspace_id", "actor_digest", name="uq_meta_grant_actor"),)
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))

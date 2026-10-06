@@ -1028,3 +1028,7 @@ SQLite and PostgreSQL, including failed image reads, stale approval and revoked 
 See `docs/inlet-campaign-review-ui.md` for behavior and remaining gaps. Full/CI pending.
 Next packages remain bounded video validation/private media lifecycle and concrete
 PublishPlan ports before dependent B15/B16 provider publication adapters.
+
+Review UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/99.
+Implementation and focused checks are at `b420478b5906e2183f1b36e8317506a239f9e119`;
+the following documentation-only commit records this PR link.

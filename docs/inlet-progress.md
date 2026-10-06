@@ -1938,3 +1938,21 @@ pending. CRM customer setup UI remains an engineering followup. See
 TikTok journey draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/139.
 Tested implementation: `bb27c674159ad94dc6e20d86a920291fa3ea2f1a`.
 Following commit only records this PR link; Full remains pending.
+
+### Durable Provider Coordinator Attention — 2026-10-06
+
+Isolated `codex/inlet-provider-attention` from integrated `caff2a3` (single migration
+head 0056) extends PR137's legacy attention evidence to actual provider coordinator
+records. Held exposure is summarized separately by contract-test/live environment;
+held alone is not an incident. Current scalar step states surface unknown/conflict,
+verified-no-effect review and overdue dispatch/emission, including canceled runs and
+closing workspaces. Ledger-end warnings never authorize settlement/replay. No JSON
+receipt guessing, amount totals, mutation or provider calls are introduced.
+
+Eleven fixed bounded reads retain caps, lower-bound flags and PostgreSQL timeout.
+Actual mocked Google receipt tests verify unknown → success → later unknown for the
+same original attempt, cancellation/closure preservation, exact dispatch-age bounds,
+separate environments, period-end warnings and capped counts. Final operations,
+provider-attention, boundary and existing API suite: **66 passed, zero skipped**.
+Whole-tree Ruff, mypy (379 files), and diff check passed. No migration changes, Full,
+live grants or external alert delivery. Frozen PR137 remains unchanged.

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import AwareDatetime, Field
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, and_, func, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import JobRunStatus
@@ -14,6 +14,13 @@ from app.goals.schemas import StrictModel
 from app.google_connections.models import GoogleCustomerConnection
 from app.mandates.models import MandateAction
 from app.meta.models import MetaConnection
+from app.publication.execution_models import (
+    ProviderExecutionAttempt,
+    ProviderExecutionRun,
+    ProviderExecutionStep,
+    ProviderExposureReservation,
+    ProviderPeriodLedger,
+)
 from app.publication.models import PublicationStepRecord
 from app.shopify.models import ShopifyConnection
 from app.sources.models import SourceConnection
@@ -36,7 +43,12 @@ class Signal(StrictModel):
         "publication_outcome_unknown",
         "action_outcome_unknown",
         "action_dispatch_overdue",
+        "provider_creation_unknown",
+        "provider_creation_no_effect",
+        "provider_dispatch_overdue",
+        "provider_exposure_period_ended",
     ]
+    environment: Literal["contract_test", "live"] | None = None
     severity: Literal["warning", "critical"]
     observed_count: int = Field(strict=True, ge=1, le=ROW_LIMIT * 4)
     oldest_observed_at: AwareDatetime | None
@@ -46,6 +58,12 @@ class Signal(StrictModel):
         "review_connection",
         "preserve_reservation_reconcile_no_retry",
     ]
+
+
+class HeldExposure(StrictModel):
+    environment: Literal["contract_test", "live"]
+    observed_held_count: int = Field(strict=True, ge=0, le=ROW_LIMIT)
+    oldest_period_end: AwareDatetime | None
 
 
 class Attention(StrictModel):
@@ -66,7 +84,8 @@ class Attention(StrictModel):
             "external_alert_delivery_not_configured",
         ]
     )
-    signals: list[Signal] = Field(max_length=10)
+    provider_held_exposure: list[HeldExposure] = Field(default_factory=list, max_length=2)
+    signals: list[Signal] = Field(max_length=18)
 
 
 def utc(value: datetime) -> datetime:
@@ -83,7 +102,7 @@ def attention(db: Session, now: datetime) -> Attention:
     # Transaction-local setting disappears when the request session rolls back/closes.
     if db.get_bind().dialect.name == "postgresql":
         db.execute(select(func.set_config("statement_timeout", str(STATEMENT_TIMEOUT_MS), True)))
-    evidence: dict[str, list[datetime | None]] = {}
+    evidence: dict[tuple[str, str | None], list[datetime | None]] = {}
 
     def rows(query: Select[Any]) -> list[Any]:
         nonlocal truncated
@@ -91,8 +110,8 @@ def attention(db: Session, now: datetime) -> Attention:
         truncated |= len(values) > ROW_LIMIT
         return values[:ROW_LIMIT]
 
-    def add(code: str, when: datetime | None) -> None:
-        evidence.setdefault(code, []).append(utc(when) if when else None)
+    def add(code: str, when: datetime | None, environment: str | None = None) -> None:
+        evidence.setdefault((code, environment), []).append(utc(when) if when else None)
 
     # Latest within each exact local job identity. A success suppresses its earlier failure.
     # The recent sample is bounded and any omitted history is explicitly marked incomplete.
@@ -178,18 +197,89 @@ def attention(db: Session, now: datetime) -> Attention:
         elif dispatched is None or utc(dispatched) <= cutoff:
             add("action_dispatch_overdue", dispatched)
 
+    # Production coordinator evidence is distinct from the legacy simulation tables.
+    # Current scalar step state reflects the latest immutable receipt for its one
+    # original attempt. Never filter by run/workspace activity: late uncertainty after
+    # cancellation/closure still requires attention. No request or receipt JSON is read.
+    held: dict[str, list[datetime]] = {"contract_test": [], "live": []}
+    reservations = rows(
+        select(ProviderExposureReservation.environment, ProviderPeriodLedger.ends_at)
+        .join(
+            ProviderPeriodLedger,
+            and_(
+                ProviderPeriodLedger.id == ProviderExposureReservation.ledger_id,
+                ProviderPeriodLedger.workspace_id == ProviderExposureReservation.workspace_id,
+                ProviderPeriodLedger.environment == ProviderExposureReservation.environment,
+            ),
+        )
+        .where(ProviderExposureReservation.state == "held")
+        .order_by(ProviderPeriodLedger.ends_at, ProviderExposureReservation.id)
+    )
+    for environment, end in reservations:
+        held[environment].append(utc(end))
+        if utc(end) <= now:
+            add("provider_exposure_period_ended", end, environment)
+    production_steps = rows(
+        select(
+            ProviderExecutionStep.state,
+            ProviderExecutionAttempt.dispatched_at,
+            ProviderExposureReservation.environment,
+        )
+        .join(
+            ProviderExecutionRun,
+            and_(
+                ProviderExecutionRun.id == ProviderExecutionStep.run_id,
+                ProviderExecutionRun.workspace_id == ProviderExecutionStep.workspace_id,
+            ),
+        )
+        .join(
+            ProviderExposureReservation,
+            and_(
+                ProviderExposureReservation.id == ProviderExecutionRun.reservation_id,
+                ProviderExposureReservation.workspace_id == ProviderExecutionRun.workspace_id,
+            ),
+        )
+        .outerjoin(
+            ProviderExecutionAttempt,
+            and_(
+                ProviderExecutionAttempt.run_id == ProviderExecutionStep.run_id,
+                ProviderExecutionAttempt.step_id == ProviderExecutionStep.step_id,
+                ProviderExecutionAttempt.workspace_id == ProviderExecutionStep.workspace_id,
+            ),
+        )
+        .where(
+            ProviderExecutionStep.state.in_(
+                ["unknown", "conflict", "verified_no_effect", "dispatching", "emitting"]
+            )
+        )
+        .order_by(
+            ProviderExecutionAttempt.dispatched_at.asc().nulls_first(),
+            ProviderExecutionStep.run_id,
+            ProviderExecutionStep.step_id,
+        )
+    )
+    for state, dispatched, environment in production_steps:
+        if state in {"unknown", "conflict"}:
+            add("provider_creation_unknown", dispatched, environment)
+        elif state == "verified_no_effect":
+            add("provider_creation_no_effect", dispatched, environment)
+        elif dispatched is None or utc(dispatched) <= cutoff:
+            add("provider_dispatch_overdue", dispatched, environment)
+
     signals = []
-    for code, times in sorted(evidence.items()):
+    for (code, environment), times in sorted(evidence.items()):
         timestamps = [value for value in times if value is not None]
         uncertain = code in {
             "renewal_outcome_unknown",
             "publication_outcome_unknown",
             "action_outcome_unknown",
             "action_dispatch_overdue",
+            "provider_creation_unknown",
+            "provider_dispatch_overdue",
         }
         action = (
             "preserve_reservation_reconcile_no_retry"
-            if uncertain
+            if uncertain or code.startswith("provider_")
             else "inspect_local_job"
             if code.startswith("job_")
             else "inspect_billing_reconciliation"
@@ -200,6 +290,7 @@ def attention(db: Session, now: datetime) -> Attention:
             Signal.model_validate(
                 {
                     "code": code,
+                    "environment": environment,
                     "severity": "critical" if uncertain else "warning",
                     "observed_count": len(times),
                     "oldest_observed_at": min(timestamps) if timestamps else None,
@@ -212,5 +303,13 @@ def attention(db: Session, now: datetime) -> Attention:
         status="attention_observed" if signals else "no_attention_observed",
         evidence_truncated=truncated,
         counts_are_lower_bounds=truncated,
+        provider_held_exposure=[
+            HeldExposure(
+                environment=environment,
+                observed_held_count=len(ends),
+                oldest_period_end=min(ends) if ends else None,
+            )
+            for environment, ends in held.items()
+        ],
         signals=signals,
     )

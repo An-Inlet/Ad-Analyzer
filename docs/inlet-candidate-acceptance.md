@@ -16,13 +16,13 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
 | B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Customer optimization API/UI integrated; native portfolio qualification, scheduler entrypoint and qualified repeat evidence sources remain |
-| B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named customer configuration/review integrated; live supported-profile qualification and creation consumer remain |
-| B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover customer configuration/review integrated; native catalog parser, live advertiser/history qualification and creation consumer remain |
+| B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named configuration, customer creation and separate activation integrated; live supported-profile qualification remains |
+| B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover configuration, customer creation and separate activation integrated; native catalog parser and live advertiser/history qualification remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
 | B13 | Checkout/return/management, webhook reconciliation and entitlements | Commercial configuration, live purchase/cancel, external closure policy; original hosted billing failure cause unresolved |
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
-| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation and original-confirmer session guards integrated; customer creation/activation consumer in progress, provider capability proof remains |
+| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation, original-confirmer guards and customer creation/activation integrated; native provider capability proof remains |
 | B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison and History UI integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google creation/activation customer API/UI and strict exports integrated; default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated replacement/social-review restore and composed export/closure coverage in progress; green final Full/CI and intended-environment alerts/recovery/retention remain |
@@ -137,6 +137,6 @@ named optimization discovery, mandate/topology consent and exact initial/repeat
 customer APIs (combined root checks: 49 passed); PR175 surfaces terminal provider
 rejections without raw error data or retries (combined root checks: 35 passed).
 The existing-campaign UI is integrated after 39 combined API/browser/route tests
-passed on SQLite and PostgreSQL (PR176). The social execution consumer is under
-combined integration validation. Production runtime factories remain disabled. Their focused
+passed on SQLite and PostgreSQL (PR176). The social execution consumer is integrated after 27 combined API/browser/route
+checks passed on both databases (PR177). Production runtime factories remain disabled. Their focused
 passes are not a replacement for a final assembled Full and hosted pass.

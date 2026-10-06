@@ -2903,3 +2903,14 @@ syntax and whitespace checks passed. Exact social creation and separate activati
 are now customer-accessible when the required server capabilities are supplied;
 production factories remain disabled and native qualification is unresolved.
 These newer customer flows are outside frozen `8efe196` Full/CI evidence.
+
+### Composed Archive And Closure On The Integrated Customer Flows
+
+Integrated PR178 (`c1226b5`) coverage: owned HTTP archive with exact replacement
+and social-approval documents, foreign-brand denial, local closure preserving
+held/superseded reservations and original receipts, denial of new closed-brand
+execution, and successful unrelated-brand execution through the customer facade.
+Root focused check passed **2 tests in 10.96 seconds**, SQLite and PostgreSQL;
+`/tmp/inlet-next-archive-closure.log`. Ruff, mypy (497 source files) and diff checks
+passed. No production code changed in this package. The native populated restore
+extension is separate and remains in progress. This is not live pilot evidence.

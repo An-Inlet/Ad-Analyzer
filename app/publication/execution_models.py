@@ -134,6 +134,9 @@ class ProviderExecutionConsent(Base):
 
 class ProviderExecutionReview(Base):
     __mapper_args__ = {"eager_defaults": False}
+    automatic_authority_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"), deferred=True
+    )
     candidate_provenance_required: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false"), deferred=True
     )
@@ -235,6 +238,7 @@ class ProviderExposureReservation(Base):
 
 
 class ProviderExecutionRun(Base):
+    __mapper_args__ = {"eager_defaults": False}
     __tablename__ = "provider_execution_runs"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id", name="uq_provider_run_scope"),
@@ -254,6 +258,22 @@ class ProviderExecutionRun(Base):
             ["provider_execution_runs.id", "provider_execution_runs.workspace_id"],
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["automatic_decision_id", "workspace_id"],
+            ["provider_automatic_decisions.id", "provider_automatic_decisions.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(authority_kind = 'customer_exact_approval' AND automatic_decision_id IS NULL) OR "
+            "(authority_kind = 'mandate_automatic_decision' AND automatic_decision_id IS NOT NULL)",
+            name="ck_provider_run_authority",
+        ),
+    )
+    authority_kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="customer_exact_approval", deferred=True
+    )
+    automatic_decision_id: Mapped[str | None] = mapped_column(
+        String(32), server_default=text("NULL"), deferred=True
     )
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     workspace_id: Mapped[int] = mapped_column(Integer)

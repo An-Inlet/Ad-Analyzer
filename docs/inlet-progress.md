@@ -4079,3 +4079,134 @@ and feedback-retraction composition tests60 passed in108.13s. Ruff check .,
 configured mypy590 and staged whitespace passed. Log
 `/tmp/inlet-next-financial-composition.log`. This provides composition only; no native
 financial certificate source, qualification registration or runtime is enabled.
+### Original-Session Automatic Budget Execution — 2026-10-06
+
+Branch `codex/inlet-session-automation`, backend successor of ports332d7fc and root
+c2e43b9. Migration0072 down0068 adds protected original-session intents and immutable
+semantic admissions, scoped to mandate revision/consent/ledger/review. Run authority
+is explicitly exact-human or mandate-automatic, never converted/fallback. Customer
+CSRF Start/status/Stop/history/capabilities APIs are implemented; Stop records the
+current owner and remains available after the initiating session has ended.
+
+The opt-in shipped scheduler now runs actual selection→candidate→exact review→
+automatic admission→shared reservation/claim→Google/Meta/TikTok adapter/readback.
+No human approval is fabricated. All3 contract scenarios exercise initial AND new
+semantic repeat effects with zero ProviderExecutionApproval rows. Stable native
+account/owner + ledger + policy family + semantic epoch prevent reuse across new
+Starts, refresh timestamps, policy revisions and mandate revisions. Exact numeric
+candidate-policy digest prevents same-reference configuration changes. Original
+session/candidate/mandate/source and financial proof are checked at forward gates;
+Stop during final context lookup blocks emission. Unknown original requests retain
+hold/fence, reconcile after Stop/retraction, and are never replayed.
+
+Parent review found a revoked earliest run could shadow a newer valid session in
+the same workspace before due time advanced. Fixed by workspace-locked scheduling
+maintenance that only defers the failed run; both-DB regression verifies the newer
+session executes once. Closure stops all session runs. Explicit registry/export
+classifications retain only bounded authority commitments and omit session hashes;
+no raw measurements are retained. Populated downgrade refuses to erase semantic
+consumption or change authority origin. Narrow historical fixture adapters assert
+absent new tables; no production missing-table fallback was added.
+
+Checks actually run: final automation/API/0072/strict-port suite55 passed +1 expected
+SQLite concurrency skip; additional final-admission rollback2 passed (bothDB).
+Broader bridge/final-evidence/scheduler/0058+0068+0072 checks110 passed +1 SQLite skip
+before the final scoped FK/numeric-policy hardening; scoped final FK/scheduler/
+concurrency subset12 passed +1 SQLite skip. Whole Ruff clean, mypy581 files clean,
+`git diff --check` clean. No Full or manual workflow dispatch in this lane.
+UI ports are frozen; UI207 actual-backend integration follows this commit.
+
+Remaining: actual qualified directional learning/numeric policy/native complete
+exposure and original-terminal/transition producers plus production registry/runtime
+assembly. Default factory None and scheduler flag false are unchanged operational
+limits; current native diagnostics are unqualified. These are missing source/code
+qualification, not only missing credentials. No live calls, spend, merges into main,
+deployment, new-campaign/creative/activation/pause authority or logout-independent
+delegation was enabled. Root final migration0073 will join intermediate0071 +0072.
+
+### Authorized Epoch Reader Seam — 2026-10-06
+
+Isolated `codex/inlet-authorized-epoch` successor of frozen backend1d1fc15 (PR212),
+without amending that head. Add optional principal-aware SemanticEpochProducer
+callback, preferred over the compatible legacy reader. Only the actual original
+principal from current session admission reaches it. Missing readers are unavailable;
+post-callback revocation/expiry denies admission and provider work. No inferred
+owner, browser authority field, source qualification or production enabling change.
+Checks: focused authorized/legacy all3/atomic rollback16 passed across SQLite and
+PostgreSQL; final authorized callback/missing-reader suite8 passed after availability
+hardening; whole Ruff clean, mypy582 files clean, diff check clean. No Full/live calls.
+### Session Automation UI — Frozen-Port Consumer Checkpoint
+
+`codex/inlet-session-automation-ui`, isolated child332d7fc, adds separate Start,
+status/history recovery and Stop to Existing Campaigns without replacing manual
+review. Exact consented mandate and registered policy options come from server
+capabilities; readonly limits/environment plus explicit current-session consent
+are shown. No browser evidence/financial policy inputs or backend edits.
+
+Validation: actual HTTPS manual API browser journey **2 passed** (both databases).
+Combined manual and controlled automation JSON-port browsers **4 passed**. Added
+in-flight CSRF/session replacement regression **2 passed** (6.50s), including
+A→B→A late success/failure, lost Start/Stop no replay, history-only recovery,
+unavailable capability, owner denial and logout cleanup. The first added test
+reused a consumed login token; the fixture now exchanges a distinct synthetic token,
+preserving replay denial. Ruff, node syntax, clean mypy **571 files**, diff checks
+pass. Logs `/tmp/inlet-session-automation-ui-contract.log`,
+`/tmp/inlet-session-automation-ui-security.log`,
+`/tmp/inlet-session-automation-ui-types.log`.
+
+Actual automation backend routes remain in the scheduler owner's active package;
+this consumer checkpoint does not claim their qualification. Next: merge its frozen
+head and run the real API/DB automation browser journey. No live calls or Full run.
+
+Review checkpoint: draft [PR207](https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/207)
+against `codex/inlet-session-automation`, implementation `73cca02`. Final combined
+browser run **4 passed** in17.07s. Actual backend qualification remains explicitly
+pending its frozen routes/models head; scheduler supplied the upcoming test fixture
+and runtime dependency names for the follow-up integration.
+
+### PR207 — Actual Session Automation API Browser Integration
+
+Merged frozen backend0072 `1d1fc15` into the isolated UI child (`a3c3d07`);
+no UI-owned schema changes. Actual HTTPS browser coverage now drives real
+session/CSRF Start, history/status and Stop routes, durable worker selection/
+admission and the real Google HTTP adapter with MockTransport. Exactly one mocked
+provider mutation occurs; zero human approval rows, two explicit session Starts.
+Late Start A→B→A, lost Start/Stop recovery without replay, original-session logout,
+fresh-owner Stop with runtime disabled and current role denial are verified on both
+SQLite and PostgreSQL.
+
+Unavailable runtime is not terminal: corrected the UI so a known nonstopped run
+can still be stopped. Backend owner delegated the additive capability label hunk:
+current owned account names plus bounded mandate reference, and policy reference,
+make otherwise identical options distinguishable without customer proof inputs.
+Actual browser checks account names render literally, including synthetic markup.
+
+Final combined API/manual/browser/controlled-port validation: **10 passed** in47.44s.
+Whole Ruff, clean mypy **582 source files**, JavaScript syntax and diff checks pass.
+Logs `/tmp/inlet-session-automation-ui-integrated.log` and
+`/tmp/inlet-session-automation-ui-integrated-types.log`. Earlier actual backend
+browser-only run: **2 passed** in17.86s. Parent owns integration,0073 join and
+assembled Full/hosted qualification. No live runtime or evidence policy enabled.
+
+### 2026-10-06 — Session Backend, Authenticated Epoch And Actual UI Integrated
+
+Integrated PR212 backend1d1fc15, authorized epoch8f384ff, and PR207 UI73cca02 /
+1384da9 / b3feacf. Root combined automatic/API/migration/browser/registry suite:
+66 passed,1 expected SQLite concurrency skip,4 Alembic warnings in266.29s.
+Original-principal epoch, shipped scheduler, protected closure and feedback retraction
+composition:46 passed in58.66s. Ruff, configured mypy602, staged whitespace passed.
+Logs `/tmp/inlet-next-session-automation.log` and
+`/tmp/inlet-next-automation-composition.log`. Actual HTTP adapters are MockTransport;
+no live execution or production-source qualification is implied.
+
+The tested path preserves explicit Start, original-session revocation, immutable
+numeric-policy binding, distinct automatic admissions, no fabricated human approval,
+semantic deduplication, and unknown-request reconciliation after Stop without replay.
+Stop remains accessible when runtime is unavailable. PR207 description was successfully
+updated through the connected GitHub tool after the shell route returned Forbidden;
+that was not quota evidence and no shell bypass/retry was used.
+
+Next: join0071+0072 at0073, complete directional adapter and assess first-action and
+actual production assembly. Provider feasibility must separate unavailable official
+guarantees from engineering gaps; do not add scaffolding indefinitely or weaken the
+strict contract without a concrete owner decision. Frozen a4fcd3a Full/CI still pending.

@@ -33,7 +33,9 @@ from tests.test_customer_portal import portal_executable
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.parametrize("scenario", ["manual", "automation_contract"])
 def test_optimization_real_browser(
+    scenario: str,
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -97,7 +99,11 @@ def test_optimization_real_browser(
         path = scope.get("path", "")
         if path == "/__fixture__/driver.mjs":
             script = (
-                Path("tests/javascript/optimization_browser.mjs")
+                Path(
+                    "tests/javascript/optimization_browser.mjs"
+                    if scenario == "manual"
+                    else "tests/javascript/session_automation_browser.mjs"
+                )
                 .read_text()
                 .replace("__WORKSPACE__", str(wid))
                 .replace("__POLICY__", json.dumps(policy))
@@ -200,7 +206,7 @@ def test_optimization_real_browser(
     try:
         assert completed.wait(60), "Optimization browser did not report completion"
         assert result and result[0]["status"] == "passed", result
-        assert len(server_http.writes) == 3, (
+        assert len(server_http.writes) == (3 if scenario == "manual" else 0), (
             "initial, repeat, pause only; no replay after lost response"
         )
     finally:

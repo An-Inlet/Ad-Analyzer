@@ -9,7 +9,12 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.billing.contracts import BillingPolicy, BillingTransport, UnavailableBilling
+from app.billing.contracts import (
+    BillingManagementTransport,
+    BillingPolicy,
+    BillingTransport,
+    UnavailableBilling,
+)
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.mandates.service import workspace_lock
 from app.shopify.security import utc
@@ -295,3 +300,42 @@ def resolve_checkout(
             )
     row.next_attempt_at = now + timedelta(seconds=policy.max_snapshot_age_seconds // 2)
     return state.status
+
+
+def management(
+    db: Session,
+    wid: int,
+    transport: BillingTransport,
+    configuration_id: str,
+    return_url: str,
+    now: datetime,
+) -> dict[str, str]:
+    ready(transport)
+    if not isinstance(transport, BillingManagementTransport):
+        raise HTTPException(503, "billing management unavailable")
+    location = urlsplit(return_url)
+    if (
+        location.scheme != "https"
+        or not location.hostname
+        or location.username
+        or location.fragment
+        or not re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", configuration_id)
+    ):
+        raise HTTPException(503, "billing management configuration unavailable")
+    row = owned(db, wid, now)
+    if row.customer_id is None:
+        raise HTTPException(409, "billing customer unavailable")
+    customer = row.customer_id
+    # A portal session creates no subscription or charge. Each request gets its
+    # own short-lived session; provider-side subscription changes reconcile later.
+    db.commit()
+    try:
+        url = transport.portal(
+            customer, configuration_id, return_url, f"{int(now.timestamp())}_{uuid4().hex}"
+        )
+    except Exception:
+        raise HTTPException(502, "billing management unavailable") from None
+    location = urlsplit(url)
+    if location.scheme != "https" or location.netloc != "billing.stripe.com":
+        raise HTTPException(502, "billing management location unavailable")
+    return {"mode": transport.mode, "url": url}

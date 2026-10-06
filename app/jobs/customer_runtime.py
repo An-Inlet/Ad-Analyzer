@@ -29,75 +29,92 @@ from app.workspaces.models import Workspace, WorkspaceConfiguration, WorkspaceIn
 logger = logging.getLogger(__name__)
 
 
-def _analyze(engine: Engine, job_id: int) -> object:
-    # Revalidate lifecycle, paid access and account ownership at delivery time.
-    # Raising keeps the durable outbox pending when a workspace temporarily disables analysis.
-    with Session(engine) as db:
-        job = db.get(JobRun, job_id)
-        if job is None or job.account_id is None or job.connection_id is None:
-            raise ValueError("analysis source unavailable")
-        workspace_lock(db, job.workspace_id)
-        workspace = db.get(Workspace, job.workspace_id)
-        connection: GoogleCustomerConnection | SourceConnection | None
-        if job.platform == AdvertisingPlatform.GOOGLE_ADS:
-            connection = db.scalar(
-                select(GoogleCustomerConnection)
-                .where(
-                    GoogleCustomerConnection.workspace_id == job.workspace_id,
-                    GoogleCustomerConnection.integration_id == job.connection_id,
-                    GoogleCustomerConnection.account_id == job.account_id,
-                    GoogleCustomerConnection.status == "connected",
-                )
-                .with_for_update()
-            )
-        elif job.platform == AdvertisingPlatform.TIKTOK_ADS:
-            connection = db.scalar(
-                select(SourceConnection)
-                .where(
-                    SourceConnection.provider == "tiktok_ads",
-                    SourceConnection.workspace_id == job.workspace_id,
-                    SourceConnection.integration_id == job.connection_id,
-                    SourceConnection.account_id == job.account_id,
-                    SourceConnection.status == "connected",
-                )
-                .with_for_update()
-            )
-        else:
-            raise ValueError("analysis source provider unavailable")
-        if workspace is None or workspace.status != "active" or connection is None:
-            raise ValueError("analysis source unavailable")
-        completion = db.get(GoogleImportCompletion, job_id)
-        if completion is None or completion.state != "pending":
-            raise ValueError("analysis source retired")
-        # Avoid FOR UPDATE on the account: the separate analysis session inserts FK
-        # references to it. Workspace/connection locks serialize source lifecycle changes.
-        account = db.scalar(
-            select(AdvertisingAccount.id)
-            .join(WorkspaceIntegration, WorkspaceIntegration.id == AdvertisingAccount.connection_id)
+def _analysis_source(db: Session, job_id: int) -> JobRun:
+    """Refresh source authority before admission and after the durable analysis claim."""
+    job = db.get(JobRun, job_id, populate_existing=True)
+    if job is None or job.account_id is None or job.connection_id is None:
+        raise ValueError("analysis source unavailable")
+    workspace_lock(db, job.workspace_id)
+    workspace = db.get(Workspace, job.workspace_id)
+    connection: GoogleCustomerConnection | SourceConnection | None
+    if job.platform == AdvertisingPlatform.GOOGLE_ADS:
+        connection = db.scalar(
+            select(GoogleCustomerConnection)
             .where(
-                AdvertisingAccount.id == job.account_id,
-                AdvertisingAccount.workspace_id == job.workspace_id,
-                AdvertisingAccount.platform == job.platform,
-                WorkspaceIntegration.id == job.connection_id,
-                WorkspaceIntegration.workspace_id == job.workspace_id,
-                WorkspaceIntegration.provider == job.platform.value,
-                WorkspaceIntegration.status == "active",
+                GoogleCustomerConnection.workspace_id == job.workspace_id,
+                GoogleCustomerConnection.integration_id == job.connection_id,
+                GoogleCustomerConnection.account_id == job.account_id,
+                GoogleCustomerConnection.status == "connected",
             )
+            .with_for_update()
         )
-        if account is None:
-            raise ValueError("analysis ownership unavailable")
-        if not AutomationControlService(db).effective_enabled(
-            job.workspace_id, AutomationControlKey.POST_SYNC_ANALYSIS
-        ):
-            raise ValueError("analysis disabled")
-        configuration = db.get(WorkspaceConfiguration, job.workspace_id)
-        cadence = AnalysisCadencePolicy.from_workspace_analysis(
-            configuration.analysis if configuration is not None else None
+    elif job.platform == AdvertisingPlatform.TIKTOK_ADS:
+        connection = db.scalar(
+            select(SourceConnection)
+            .where(
+                SourceConnection.provider == "tiktok_ads",
+                SourceConnection.workspace_id == job.workspace_id,
+                SourceConnection.integration_id == job.connection_id,
+                SourceConnection.account_id == job.account_id,
+                SourceConnection.status == "connected",
+            )
+            .with_for_update()
         )
-        if not cadence.post_sync.enabled:
-            raise ValueError("analysis disabled")
-        paid_work(db, job.workspace_id, datetime.now(UTC))
-        result = run_post_sync_analysis(engine, job_id, as_of=job.finished_at, retry_failed=True)
+    else:
+        raise ValueError("analysis source provider unavailable")
+    if workspace is None or workspace.status != "active" or connection is None:
+        raise ValueError("analysis source unavailable")
+    completion = db.get(GoogleImportCompletion, job_id)
+    if completion is None or completion.state != "pending":
+        raise ValueError("analysis source retired")
+    # Workspace/connection authority remains held through local output persistence.
+    account = db.scalar(
+        select(AdvertisingAccount.id)
+        .join(WorkspaceIntegration, WorkspaceIntegration.id == AdvertisingAccount.connection_id)
+        .where(
+            AdvertisingAccount.id == job.account_id,
+            AdvertisingAccount.workspace_id == job.workspace_id,
+            AdvertisingAccount.platform == job.platform,
+            WorkspaceIntegration.id == job.connection_id,
+            WorkspaceIntegration.workspace_id == job.workspace_id,
+            WorkspaceIntegration.provider == job.platform.value,
+            WorkspaceIntegration.status == "active",
+        )
+    )
+    if account is None:
+        raise ValueError("analysis ownership unavailable")
+    if not AutomationControlService(db).effective_enabled(
+        job.workspace_id, AutomationControlKey.POST_SYNC_ANALYSIS
+    ):
+        raise ValueError("analysis disabled")
+    configuration = db.get(WorkspaceConfiguration, job.workspace_id)
+    cadence = AnalysisCadencePolicy.from_workspace_analysis(
+        configuration.analysis if configuration is not None else None
+    )
+    if not cadence.post_sync.enabled:
+        raise ValueError("analysis disabled")
+    paid_work(db, job.workspace_id, datetime.now(UTC))
+    return job
+
+
+def _analyze(engine: Engine, job_id: int) -> object:
+    with Session(engine) as db:
+        job = _analysis_source(db, job_id)
+
+        def revalidate(current: Session) -> None:
+            _analysis_source(current, job_id)
+
+        # Borrow the same session: a second session would wait on this caller's
+        # workspace lock. Claim commits, so revalidate the source/paid authority
+        # again under the post-claim workspace guard before any local outputs.
+        result = run_post_sync_analysis(
+            engine,
+            job_id,
+            as_of=job.finished_at,
+            retry_failed=True,
+            session=db,
+            revalidate=revalidate,
+        )
         if result is None or result.status != AnalysisRunStatus.SUCCEEDED:
             raise ValueError("analysis incomplete")
         return result

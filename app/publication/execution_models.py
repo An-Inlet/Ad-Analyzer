@@ -205,7 +205,7 @@ class ProviderExposureReservation(Base):
             ondelete="RESTRICT",
         ),
         CheckConstraint(
-            "amount_micros >= 0 AND state IN ('held','settled')",
+            "amount_micros >= 0 AND state IN ('held','settled','superseded')",
             name="ck_provider_reservation_bounds",
         ),
         Index(
@@ -345,3 +345,62 @@ class ProviderExecutionReceipt(Base):
     receipt: Mapped[dict[str, Any]] = mapped_column(JSON)
     projection: Mapped[dict[str, Any]] = mapped_column(JSON)
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProviderReservationReplacement(Base):
+    """Immutable transfer audit; neither a refund nor terminal settlement."""
+
+    __tablename__ = "provider_reservation_replacements"
+    __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_provider_replacement_scope"),
+        UniqueConstraint("predecessor_id", name="uq_provider_replacement_predecessor"),
+        UniqueConstraint("successor_id", name="uq_provider_replacement_successor"),
+        ForeignKeyConstraint(
+            ["predecessor_id", "workspace_id"],
+            ["provider_exposure_reservations.id", "provider_exposure_reservations.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["successor_id", "workspace_id"],
+            ["provider_exposure_reservations.id", "provider_exposure_reservations.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["successor_run_id", "workspace_id"],
+            ["provider_execution_runs.id", "provider_execution_runs.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["review_id", "workspace_id"],
+            ["provider_execution_reviews.id", "provider_execution_reviews.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["ledger_id", "workspace_id", "environment"],
+            [
+                "provider_period_ledgers.id",
+                "provider_period_ledgers.workspace_id",
+                "provider_period_ledgers.environment",
+            ],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "predecessor_id <> successor_id AND old_amount_micros >= 0 AND new_amount_micros >= 0",
+            name="ck_provider_replacement_bounds",
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer)
+    ledger_id: Mapped[str] = mapped_column(String(32))
+    environment: Mapped[str] = mapped_column(String(16))
+    budget_owner_key: Mapped[str] = mapped_column(String(256))
+    predecessor_id: Mapped[str] = mapped_column(String(32))
+    successor_id: Mapped[str] = mapped_column(String(32))
+    successor_run_id: Mapped[str] = mapped_column(String(32))
+    review_id: Mapped[str] = mapped_column(String(32))
+    old_amount_micros: Mapped[int] = mapped_column(BigInteger)
+    new_amount_micros: Mapped[int] = mapped_column(BigInteger)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON)
+    digest: Mapped[str] = mapped_column(String(64))
+    actor: Mapped[str] = mapped_column(ForeignKey("customer_users.id", ondelete="RESTRICT"))
+    replaced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

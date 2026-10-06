@@ -42,6 +42,7 @@ from app.publication.optimization_contracts import (
 )
 from app.publication.optimization_execution_contracts import OptimizationExecutionReview
 from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
+from app.publication.replacement_contracts import RepeatOptimizationReview, ReplacementAuditDocument
 from app.publication.social_review_contracts import SocialConfigurationDocument
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
@@ -66,6 +67,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "provider_reviews": ("review", "plan"),
     "provider_execution_revisions": ("policy",),
     "provider_execution_reviews": ("document",),
+    "provider_reservation_replacements": ("document",),
     "provider_exposure_reservations": ("evidence", "settled_evidence"),
     "provider_execution_attempts": ("request",),
     "provider_execution_responses": ("response",),
@@ -116,6 +118,7 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "workspace_findings": ("message",),
 }
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
+    ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
     ("customer_goal_revisions", "definition"): GoalDefinition,
@@ -137,7 +140,10 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
     ("provider_execution_reviews", "document"): TypeAdapter(
         Annotated[
-            CreationExecutionReview | ActivationExecutionReview | OptimizationExecutionReview,
+            CreationExecutionReview
+            | ActivationExecutionReview
+            | OptimizationExecutionReview
+            | RepeatOptimizationReview,
             Field(discriminator="schema_version"),
         ]
     ),
@@ -252,7 +258,7 @@ def bind_document(
         ):
             raise ValueError("social configuration row ownership mismatch")
     elif isinstance(document, OwnedAssessment):
-        expected = {
+        expected: dict[str, Any] = {
             "workspace_id": document.workspace_id,
             "environment": document.environment,
             "publication_id": document.publication_id,
@@ -270,7 +276,24 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
-    elif isinstance(document, OptimizationExecutionReview):
+    elif isinstance(document, ReplacementAuditDocument):
+        expected = {
+            "workspace_id": document.snapshot.workspace_id,
+            "ledger_id": document.snapshot.ledger_id,
+            "environment": document.snapshot.environment,
+            "budget_owner_key": document.snapshot.budget_owner_key,
+            "predecessor_id": document.predecessor_id,
+            "successor_id": document.successor_id,
+            "successor_run_id": document.successor_run_id,
+            "review_id": document.review_id,
+            "old_amount_micros": document.snapshot.ancestry[-1].amount_micros,
+            "new_amount_micros": document.evidence.portfolio.proposed_owner_upper_micros,
+            "digest": document.digest(),
+            "actor": document.actor,
+        }
+        if any(row[key] != value for key, value in expected.items()):
+            raise ValueError("replacement audit row ownership mismatch")
+    elif isinstance(document, (OptimizationExecutionReview, RepeatOptimizationReview)):
         scope = document.plan.intent.scope
         if (
             scope.workspace_id != row["workspace_id"]

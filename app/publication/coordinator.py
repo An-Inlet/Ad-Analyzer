@@ -55,6 +55,7 @@ from app.publication.social_contracts import (
     SocialBoundRequest,
     SocialProviderReceipt,
     SocialProviderResponse,
+    SocialPublishPlan,
 )
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
@@ -72,9 +73,17 @@ def canonical(plan: CreationPlan) -> None:
         raise HTTPException(409, "registered canonical provider plan required")
 
 
-def gate(runtime: CreationRuntime, environment: str) -> None:
+def gate(runtime: CreationRuntime, environment: str, plan: CreationPlan | None = None) -> None:
     if runtime.environment != environment or (environment == "live" and not runtime.live_enabled):
         raise HTTPException(409, "provider execution runtime unavailable")
+    if isinstance(plan, SocialPublishPlan):
+        if environment == "live" and plan.review.configuration_review is None:
+            raise HTTPException(409, "customer configuration confirmation required")
+        if (
+            plan.review.configuration_review is not None
+            and runtime.social_configuration_current is None
+        ):
+            raise HTTPException(409, "current social configuration validator unavailable")
 
 
 def source_current(
@@ -93,6 +102,30 @@ def source_current(
         raise HTTPException(409, "current approved source revision required")
     owner(db, wid, row.approved_by)
     mandates.current_account(db, ExecutionAccount.from_publication(plan.review.scope))
+    if isinstance(plan, SocialPublishPlan) and plan.review.configuration_review is not None:
+        from app.publication.social_review_service import verify_plan
+
+        verify_plan(db, wid, plan, actor)
+
+
+def social_configuration_current(
+    db: Session,
+    wid: int,
+    plan: CreationPlan,
+    actor: str,
+    runtime: CreationRuntime,
+    clock: Clock,
+) -> None:
+    gate(runtime, runtime.environment, plan)
+    if isinstance(plan, SocialPublishPlan) and plan.review.configuration_review is not None:
+        from app.publication.social_review_service import verify_plan
+
+        document = verify_plan(db, wid, plan, actor)
+        if document.environment != runtime.environment:
+            raise HTTPException(409, "configuration environment changed")
+        if runtime.social_configuration_current is None:
+            raise HTTPException(409, "current social configuration validator unavailable")
+        runtime.social_configuration_current(document, clock())
 
 
 def prepare_creation(
@@ -105,10 +138,11 @@ def prepare_creation(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> ProviderExecutionReview:
-    gate(runtime, binding.environment)
+    gate(runtime, binding.environment, plan)
     runtime.authorize(db, wid, actor)
     _, policy = mandates.checked(db, wid, binding, actor, clock)
     source_current(db, wid, plan, actor, store, clock)
+    social_configuration_current(db, wid, plan, actor, runtime, clock)
     if "create_paused" not in policy.allowed_purposes:
         raise HTTPException(409, "creation outside approved policy")
     db.commit()
@@ -118,6 +152,7 @@ def prepare_creation(
     runtime.authorize(db, wid, actor)
     ledger, policy = mandates.checked(db, wid, binding, actor, clock)
     source_current(db, wid, plan, actor, store, clock)
+    social_configuration_current(db, wid, plan, actor, runtime, clock)
     document = CreationExecutionReview(
         mandate=binding, plan=plan, qualification=qualification, exposure=exposure
     )
@@ -179,9 +214,10 @@ def checked_review(
     if row is None:
         raise HTTPException(404, "provider execution review unavailable")
     document = CreationExecutionReview.model_validate(row.document)
-    gate(runtime, document.mandate.environment)
+    gate(runtime, document.mandate.environment, document.plan)
     _, policy = mandates.checked(db, wid, document.mandate, actor, clock)
     source_current(db, wid, document.plan, actor, store, clock)
+    social_configuration_current(db, wid, document.plan, actor, runtime, clock)
     master = db.get(
         PlatformAutomationControl, AutomationControlKey.ALL_DATA_SYNCS.value, populate_existing=True
     )
@@ -804,14 +840,14 @@ def unknown(request: CreationRequest, now: datetime) -> CreationReceipt:
     )
 
 
-def execute_claim(
+def checked_dispatch_step(
     db: Session,
     claim: DispatchClaim,
     actor: str,
     store: MediaStore,
     runtime: CreationRuntime,
     clock: Clock,
-) -> CreationReceipt:
+) -> ProviderExecutionStep:
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, store, runtime, clock)
     attempt = db.get(ProviderExecutionAttempt, claim.attempt_id)
     step = db.get(ProviderExecutionStep, (run.id, claim.request.step.step_id))
@@ -825,6 +861,28 @@ def execute_claim(
         or claim.environment != document.mandate.environment
     ):
         raise HTTPException(409, "original claim already emitted or changed")
+    return step
+
+
+def execute_claim(
+    db: Session,
+    claim: DispatchClaim,
+    actor: str,
+    store: MediaStore,
+    runtime: CreationRuntime,
+    clock: Clock,
+) -> CreationReceipt:
+    # Resolve credentials outside product locks, then reacquire current authority.
+    checked_dispatch_step(db, claim, actor, store, runtime, clock)
+    db.commit()
+    request = claim.request
+    google_context = (
+        runtime.google_context(request) if isinstance(request, BoundProviderRequest) else None
+    )
+    social_context = (
+        runtime.social_context(request) if not isinstance(request, BoundProviderRequest) else None
+    )
+    step = checked_dispatch_step(db, claim, actor, store, runtime, clock)
     step.state = "emitting"
     db.commit()  # durable one-emission marker; cancellation now preserves this in-flight attempt
     request = claim.request
@@ -832,12 +890,14 @@ def execute_claim(
     receipt: CreationReceipt
     try:
         if isinstance(request, BoundProviderRequest):
-            response = runtime.google.apply_once(request, runtime.google_context(request), clock())
+            assert google_context is not None
+            response = runtime.google.apply_once(request, google_context, clock())
         else:
             adapter = (
                 runtime.meta if request.scope.account.platform == "meta_ads" else runtime.tiktok
             )
-            response = adapter.apply_once(request, runtime.social_context(request), clock())
+            assert social_context is not None
+            response = adapter.apply_once(request, social_context, clock())
     except Exception:
         response = (
             ProviderResponse(request_digest=request.digest(), outcome="unknown")

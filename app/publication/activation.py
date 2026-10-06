@@ -583,7 +583,8 @@ def execute_claim(
     ):
         raise HTTPException(409, "original activation claim unavailable")
     preflight_graph(db, claim, document, runtime, clock)
-    # Reacquire exact authority after all blocking HTTP/storage reads.
+    emission_context = runtime.context(claim.request)
+    # Reacquire exact authority after all blocking HTTP/storage/credential reads.
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, store, runtime, clock)
     attempt = db.get(ProviderExecutionAttempt, claim.attempt_id)
     step = db.get(ProviderExecutionStep, (run.id, claim.request.target.step_id))
@@ -602,7 +603,7 @@ def execute_claim(
     request = claim.request
     adapter = runtime.transport(request)
     try:
-        response = adapter.apply_once(request, runtime.context(request), clock())
+        response = adapter.apply_once(request, emission_context, clock())
     except Exception:
         response = ActivationResponse(request_digest=request.digest(), outcome="unknown")
     record_response(db, claim.workspace_id, claim.attempt_id, response, clock)

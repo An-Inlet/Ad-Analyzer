@@ -1773,3 +1773,25 @@ checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This als
 qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
+
+## Durable Real-Adapter Creation And Evidence Checkpoint — 2026-10-06
+
+- Isolated child `codex/inlet-provider-coordinator` preserves frozen PR132. Actual
+  merge of reviewed foundation1300cf6706 at88c8ba4; reserved0048 joins0046/0047.
+- Canonical model registry and all12 protected lifecycle classifications added.
+  Closure revokes production consent and cancels future runs, preserving original
+  attempts, late readback, financial exposure and blockers; no classification bypass.
+- Implemented exact production creation approval, parent reservation with postcommit
+  cancellation/authority recheck, durable one-emission marker, real adapter dispatch,
+  acknowledgement archive, same-attempt receipt supersession and owned latest projection.
+- Focused coordinator/registry/lifecycle suite:29 passed,1 SQLite concurrency skip.
+  Final closure-after-receipt adjustment:2 passed. Prior broader lifecycle/quiescing
+  suite38 passed,1 skip. Whole Ruff/mypy368 and diff check passed; no Full started.
+- Actual Google MockTransport journey covers the entire persisted creation DAG,
+  duplicate emission prevention, uncertain result/late acknowledgement reconciliation,
+  absent readback remaining unknown, cancellation in the parent-commit gap, concurrent
+  claims, current ownership/generation/master/ledger changes, future/foreign receipt
+  rejection, conflicting identity and late evidence after workspace closure.
+- Missing code: production portfolio/cap/reporting-delay qualification, activation,
+  authoritative settlement and integrated social journeys. Shared readers currently
+  admit explicit contract-test scenarios only in tests; runtime remains unavailable.

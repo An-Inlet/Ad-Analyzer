@@ -60,3 +60,32 @@ provider execution-review preparation, activation, settlement or durable project
 queries. Those methods will use the reserved schema and must recheck current DB
 state after every durable-claim commit before creating an original attempt. No route
 or runtime factory is enabled, and no live-provider verification is claimed.
+
+## Callable Creation Coordinator And Owned Receipt Boundary
+
+`app.publication.coordinator` now implements `prepare_creation`, `approve_creation`,
+`create_run`, `claim_creation_step`, `execute_claim`, `record_response`,
+`record_receipt`, `reconcile_attempt`, `cancel_creation`, and
+`read_owned_outcome_receipt(db, workspace_id, attempt_id, actor)`.
+The last method returns `NormalizedProviderReceipt | None`, selecting the latest
+sequence for the original attempt; it verifies original immutable request/fence/scope,
+production policy lineage, digest, and same-attempt supersession. Unknown/conflict
+supersedes earlier success. The caller supplies an authenticated actor; the method
+rechecks current owner membership and permits retained evidence access while closing.
+
+Preparation compiles/rechecks a registered typed plan and exact current B14 source;
+it displays separately selected production consent plus original source lineage.
+Server-only `CreationRuntime` supplies configuration/exposure readers and concrete
+Google/Meta/TikTok adapter/context ports. It cannot be submitted as a customer body.
+Current reservation totals are derived again under locks before the parent reservation.
+After committing that reservation, authority and cancellation are checked again before
+creating the unique original attempt. A second durable marker permits one emission.
+Cancellation after that marker cannot undo an already in-flight effect; it freezes
+future steps and keeps exposure. Missing readback never permits a new attempt/fence.
+
+The real Google HTTP MockTransport journey exercises persisted exact approval,
+claim/emission/readback, timeouts, late acknowledgements and read-only reconciliation.
+The contract-test exposure reader explicitly models a bounded scenario; it is not live
+qualification. **Actual production portfolio/cap/reporting-delay qualification remains
+unimplemented**, as do separate activation and authoritative settlement. Runtime
+factory remains None/default-disabled; no live behavior or completed B15/B16 is claimed.

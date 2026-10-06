@@ -189,6 +189,14 @@ def quiesce(
         }:
             changes["generation"] = table.c.generation + 1
         db.execute(update(table).where(predicate(name, scope)).values(**changes))
+    # Cancel only future provider steps. Original attempts/receipts and exposure remain;
+    # a late readback may append evidence but must never revive a creation run.
+    executions = Base.metadata.tables["provider_execution_runs"]
+    db.execute(
+        update(executions)
+        .where(predicate("provider_execution_runs", scope), executions.c.canceled_at.is_(None))
+        .values(state="canceled", canceled_at=now)
+    )
     # Preserve worker state, monetary reservations, all facts and media. They are not
     # evidence of cancellation merely because normal admission is now disabled.
     request.state, request.revision, request.fence = "blocked", request.revision + 1, uuid4().hex

@@ -64,6 +64,7 @@ def ready(  # type: ignore[no-untyped-def]
     kind: str = "budget",
     *,
     goal_budget_micros: int = 50_000_000,
+    campaign: bool = False,
 ):
     old, actor = setup(db, config, path, goal_budget_micros=goal_budget_micros)
     wid = old.workspace_id
@@ -125,6 +126,8 @@ def ready(  # type: ignore[no-untyped-def]
     else:
         scope = old.accounts[0]
     server = GoogleServer() if provider == "google_ads" else Server(provider)
+    if campaign and isinstance(server, Server) and provider == "meta_ads":
+        server.meta_campaign["daily_budget"] = "5000"
     adapter: OptimizationTransport
     if provider == "google_ads":
         adapter = GoogleOptimizationTransport(transport=httpx.MockTransport(server))
@@ -141,9 +144,9 @@ def ready(  # type: ignore[no-untyped-def]
     )
     target = OptimizationTarget(
         kind="campaign"
-        if provider == "google_ads"
+        if provider == "google_ads" or campaign
         else ("adset" if provider == "meta_ads" else "adgroup"),
-        external_id="5" if provider == "google_ads" else "6",
+        external_id="5" if provider == "google_ads" or campaign else "6",
         campaign_id="5",
     )
 

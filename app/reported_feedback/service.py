@@ -1,15 +1,30 @@
 """Owned operational comparison/application services; no provider mutation authority."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
+from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.initial_planning.clock import effective_now
+from app.initial_planning.contracts import EfficiencyObjectiveV1
+from app.meta.security import utc
+from app.publication.contracts import fingerprint
+from app.publication.customer_authority import bind_authority
 from app.reported_feedback.anchor import resolve_anchor
-from app.reported_feedback.contracts import ReportedAcquisitionRequestV1
+from app.reported_feedback.contracts import (
+    ComparisonIntentV1,
+    ComparisonProgressV1,
+    ReportedAcquisitionRequestV1,
+    ReportWindowV1,
+)
+from app.reported_feedback.evaluator import midnight
+from app.reported_feedback.invalidation import retract_account_comparisons
 from app.reported_feedback.models import ReportedFeedbackJob
 from app.reported_feedback.runtime import ReportedFeedbackRuntime
 from app.workspaces.models import Workspace
@@ -84,3 +99,184 @@ def local_job_current(
         raise HTTPException(409, "reported_feedback_original_configuration_changed")
     local_job_authority(db, job, max(now, effective_now(db, runtime.initial)))
     return request
+
+
+def request_comparison(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    intent: ComparisonIntentV1,
+    runtime: ReportedFeedbackRuntime,
+) -> ComparisonProgressV1:
+    return _request(db, principal, provider, workspace_id, intent, runtime, None)
+
+
+def _request(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    wid: int,
+    intent: ComparisonIntentV1,
+    runtime: ReportedFeedbackRuntime,
+    predecessor: ReportedFeedbackJob | None,
+) -> ComparisonProgressV1:
+    authorize = bind_authority(principal, provider)
+    authorize(db, wid, principal.user.id)
+    now = effective_now(db, runtime.initial)
+    policy = runtime.window_policy
+    if policy is None:
+        raise HTTPException(409, "reported_feedback_not_configured")
+    anchor = resolve_anchor(db, wid, intent.attempt_id, principal.user.id, now)
+    if (intent.goal_id, intent.goal_revision) != (anchor.goal_id, anchor.goal_revision):
+        raise HTTPException(409, "reported_feedback_goal_changed")
+    objective = EfficiencyObjectiveV1(
+        cohort=anchor.cohort,
+        goal_id=intent.goal_id,
+        goal_revision=intent.goal_revision,
+        maximum_reported_cpa_micros=intent.maximum_reported_cpa_micros,
+    )
+    input_digest = fingerprint(
+        "inlet.reported-feedback-request-input.v1",
+        {
+            "anchor": anchor.model_dump(mode="json", exclude={"privacy_revision"}),
+            "objective": objective.model_dump(mode="json"),
+            "policy": policy.digest(),
+            "actor": principal.user.id,
+            "session": principal.session.digest,
+            "predecessor": predecessor.id if predecessor else None,
+        },
+    )
+    old = db.scalar(
+        select(ReportedFeedbackJob).where(
+            ReportedFeedbackJob.workspace_id == wid,
+            ReportedFeedbackJob.input_digest == input_digest,
+        )
+    )
+    if old is not None:
+        return read_comparison_progress(db, principal, provider, wid, old.id, runtime)
+    retained = list(
+        db.scalars(
+            select(ReportedFeedbackJob.id)
+            .where(
+                ReportedFeedbackJob.workspace_id == wid,
+                ReportedFeedbackJob.account_id == anchor.cohort.account_id,
+                ReportedFeedbackJob.campaign_id == anchor.cohort.campaign_id,
+            )
+            .limit(policy.maximum_requests + 1)
+        )
+    )
+    if len(retained) >= policy.maximum_requests:
+        raise HTTPException(409, "reported_feedback_retained_request_capacity")
+    zone = ZoneInfo(anchor.cohort.time_zone)
+    before_end = anchor.dispatched_at.astimezone(zone).date() - timedelta(days=1)
+    after_start = anchor.configuration_observed_at.astimezone(zone).date() + timedelta(days=1)
+    request = ReportedAcquisitionRequestV1(
+        id=uuid4().hex,
+        supersedes_request_id=predecessor.id if predecessor else None,
+        anchor=anchor,
+        objective=objective,
+        policy=policy,
+        before=ReportWindowV1(
+            starts_on=before_end - timedelta(days=policy.window_days - 1), ends_on=before_end
+        ),
+        after=ReportWindowV1(
+            starts_on=after_start, ends_on=after_start + timedelta(days=policy.window_days - 1)
+        ),
+        created_at=now,
+        expires_at=now + timedelta(seconds=policy.retention_seconds),
+    )
+    due = max(
+        now,
+        midnight(request.after.ends_on + timedelta(days=1), zone.key)
+        + timedelta(seconds=policy.minimum_close_age_seconds),
+    )
+    if due >= request.expires_at:
+        raise HTTPException(409, "reported_feedback_retention_before_acquisition")
+    # Another request never creates another independent action opportunity. Old
+    # numeric outputs are invalidated before a new actual acquisition round.
+    retract_account_comparisons(db, wid, anchor.cohort.account_id)
+    if predecessor is not None:
+        predecessor.state = "blocked"
+        predecessor.error_code = "superseded_by_explicit_reobservation"
+    row = ReportedFeedbackJob(
+        id=request.id,
+        workspace_id=wid,
+        account_id=anchor.cohort.account_id,
+        campaign_id=anchor.cohort.campaign_id,
+        environment=anchor.environment,
+        document=request.model_dump(mode="json"),
+        document_digest=request.digest(),
+        expires_at=request.expires_at,
+        original_attempt_id=anchor.original_attempt_id,
+        original_actor_id=principal.user.id,
+        original_session_digest=principal.session.digest,
+        source_connection_id=anchor.source_connection_id,
+        source_generation=anchor.source_generation,
+        policy_family=policy.family,
+        policy_digest=policy.digest(),
+        input_digest=input_digest,
+        opportunity_digest=anchor.opportunity_digest(policy.family),
+        state="pending",
+        completed_observations=0,
+        next_due_at=due,
+        created_at=now,
+    )
+    db.add(row)
+    db.flush()
+    authorize(db, wid, principal.user.id)
+    local_job_current(db, row, runtime, effective_now(db, runtime.initial))
+    return _progress(row, request)
+
+
+def _progress(
+    row: ReportedFeedbackJob, request: ReportedAcquisitionRequestV1
+) -> ComparisonProgressV1:
+    return ComparisonProgressV1.model_validate(
+        {
+            "id": row.id,
+            "state": row.state,
+            "completed_observations": row.completed_observations,
+            "required_observations": 2 * request.policy.distinct_repeat_completions,
+            "next_due_at": utc(row.next_due_at) if row.state in {"pending", "waiting"} else None,
+            "expires_at": request.expires_at,
+            "reason": row.error_code,
+        }
+    )
+
+
+def _owned_job(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    wid: int,
+    request_id: str,
+    runtime: ReportedFeedbackRuntime,
+) -> tuple[ReportedFeedbackJob, ReportedAcquisitionRequestV1]:
+    authorize = bind_authority(principal, provider)
+    authorize(db, wid, principal.user.id)
+    row = db.scalar(
+        select(ReportedFeedbackJob)
+        .where(
+            ReportedFeedbackJob.id == request_id,
+            ReportedFeedbackJob.workspace_id == wid,
+            ReportedFeedbackJob.original_actor_id == principal.user.id,
+            ReportedFeedbackJob.original_session_digest == principal.session.digest,
+        )
+        .execution_options(populate_existing=True)
+    )
+    if row is None:
+        raise HTTPException(404, "reported_feedback_request_not_found")
+    return row, local_job_current(db, row, runtime, effective_now(db, runtime.initial))
+
+
+def read_comparison_progress(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    request_id: str,
+    runtime: ReportedFeedbackRuntime,
+) -> ComparisonProgressV1:
+    row, request = _owned_job(db, principal, provider, workspace_id, request_id, runtime)
+    return _progress(row, request)

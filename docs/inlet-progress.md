@@ -5369,3 +5369,27 @@ cases passed both databases. Final focused command with explicit disposable PG:
 checks passed. The fixture's opener lookup/header typing was corrected before static
 checks; those were harness typing issues, separate from the reproduced product bug.
 No Full, remote action, live API, provider mutation, runtime enable or spend authority.
+## Populated 0076/0077 Native Restore Followup (Local Only)
+
+Isolated successor to root `2d3b9b1`, branch
+`codex/inlet-populated-0077-restore`. New test-only coverage builds real offline
+Meta preview-review and operational reported-feedback graphs through existing
+fixtures/services, then performs native `pg_dump`/drop/`pg_restore` in separate
+fixture-owned Alembic schemas. Complete schema/data/privilege fingerprints must
+match. Restored protected provenance, strict session exclusion and cross-workspace
+exclusion remain enforced; original-session revocation, source generation change
+and expiry deny numeric reads; semantic privacy erasure retains original financial
+receipts/reservations. The original advertising HTTP POST remains a controlled
+fixture action, never a live provider call. No production files or migrations
+changed. See `docs/inlet-populated-planning-restore.md` for the exact command.
+
+Early new-test failures were fixture mistakes (session field and injected clock
+shape), not reproduced product defects. The final checks and local log are recorded
+below; existing Full/hosted evidence is unchanged. No remote operation, Full,
+production restore, physical media restore or live qualification is claimed.
+
+Final immutable-test-file run: **2 passed, 2 expected SQLite skips**, two existing
+Alembic configuration warnings, **61.79s**; log
+`/tmp/inlet-populated-planning-restore-final-pass.log`. `ruff check .`, configured
+`mypy` (**702 source files**) and `git diff --check` passed. Dedicated database:
+`inlet_initial_restore_test_20261006`; active candidate databases were untouched.

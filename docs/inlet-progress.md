@@ -3120,3 +3120,118 @@ Normal hosted run37427571832/job112150604656 remains in pytest with preflight an
 migration passed; later gates remain pending. These are not terminal successes.
 UI repair for independent re-review is exact pushed `c3bf9b4` (PR187 feature20f4b6c),
 with root51 browser/route tests passed. No new assembled freeze until terminal checks.
+## Production Spending Source Assessment And Meta Diagnostics — 2026-10-06
+
+Isolated `codex/inlet-spending-source-gap` from frozen `1c82e03`. Durable matrix:
+`docs/design/production-spending-source-readiness.md`; docs-first port committed
+`66de5f5` before implementation. Exact files distinguish implemented HTTP adapters
+from missing native U/F/P, finality/prevention producers, source/profile assembly,
+optimization fact binding and automatic named target discovery. Owner access alone
+cannot close these engineering gaps. Existing live optimization hard blocker remains.
+
+Approved bounded next package implements actual fixed-v26 Meta account/campaign/ad-set
+inventory HTTP in `app/collectors/meta_native_inventory.py`: all SDK-known status pages,
+exact account/request/generation context before/after IO, owned child topology, strict
+optional counters/flags, bounded wire/pagination and sanitized errors. Native counter
+units/basis/epoch are explicitly unqualified; absent values remain null. Result types
+cannot supply U/F/P or watermark. No factory or source-to-proof conversion is enabled.
+Official pinned SDK field/edge sources are recorded in `docs/inlet-meta-native-inventory.md`.
+
+Checks actually run: `pytest -o addopts='' -q tests/test_meta_native_inventory.py
+ tests/test_google_native_inventory.py tests/test_meta_catalog_http.py
+ tests/test_social_optimization_http.py` — **106 passed, no skips**. Whole Ruff and
+`mypy app tests` passed (499 source files); diff/relative-link checks passed. Logs:
+`/tmp/inlet-meta-native-tests.log`, `/tmp/inlet-meta-native-mypy.log`. Initial adjacent
+suite command named a nonexistent catalog file and collected no tests; corrected to
+`test_meta_catalog_http.py` for the passing run. No Full, provider calls, database/schema
+changes, credentials, production assembly or runtime enablement.
+
+Remaining next engineering: documented TikTok native inventory, authenticated diagnostic
+assembly/cache and automatic named target discovery; provider-backed source specification
+only once authoritative cap/accounting/finality/prevention semantics support it. Genuine
+owner choices are a versioned monetary promise and, after a demonstrated mechanism,
+acceptability of its restricted customer configurations. Strict ceiling remains; no
+best-effort authority inferred and no owner decision used to hide missing code.
+
+## TikTok Regular Native Diagnostics And Scoped Meta Status Coverage — 2026-10-06
+
+`codex/inlet-tiktok-native-inventory`, child of PR182 `c360555`. Frozen collector and
+server-assembly interface: `79c36cc`, `docs/design/native-diagnostic-assembly.md`.
+Actual fixed TikTok advertiser/campaign/adgroup GET collection now covers accessible
+regular endpoint inventory with bounded STATUS_ALL paging, exact advertiser/parent
+ownership, stable counts, fresh generation/request context checks around every IO,
+precise native decimal observations and private errors. No Budget Manager/reset/closure
+schema is invented. U/F/P/watermark/cap/finality stay null; other campaign-family and
+historical completeness stay false. No production factory enabled.
+
+Parent review also clarified Meta status-query coverage in separate `5f25593`: pinned
+Campaign EffectiveStatus enum has six entries, AdSet adds CAMPAIGN_PAUSED; this does not
+prove all current provider statuses. Results now explicitly report SDK-known-only
+status scope and false all-status completeness.43 Meta tests passed for that change.
+
+TikTok/new-adjacent HTTP suite:107 passed, no skips; whole Ruff and mypy501 pass, diff
+clean. Logs `/tmp/inlet-tiktok-native-tests.log`, `/tmp/inlet-tiktok-native-mypy.log`.
+No Full, database/schema changes, credentials or live calls. Server-owned actual
+vault/context assembly is separately approved next, with bothDB authorization/race tests;
+this adapter package does not claim it exists or supplies qualified financial evidence.
+
+### Native Diagnostic Server Assembly — Offline Complete
+
+`codex/inlet-native-diagnostic-assembly`, isolated child of PR184 `78244fa`.
+`NativeDiagnosticService` selects a current persisted consented account, validates its
+owned integration/generation and currency/timezone, opens actual provider-bound vault
+material, and composes Google/Meta/TikTok native HTTP collectors. Independent sessions
+close before advertising/OAuth IO and never commit caller work. Customer authorization
+is server-bound and checked before/after IO and on final return. Google refresh uses
+an explicit internal helper with bounded documented expiry and an ephemeral per-read
+cache. No application factory, API, schedule, provider write or financial proof enabled.
+
+The composed SQLite/PostgreSQL tests exercise actual customer-session revocation,
+role downgrade, native identity/generation changes during HTTP, revocation during
+Google refresh, foreign canonical selection, stale consent, currency mismatch, expired
+and wrong-workspace encrypted grants, missing transport and malformed OAuth expiry.
+All diagnostic U/F/P remain null. Google collector now re-resolves authorization between
+pages while preserving the earliest observation/context expiry. The expanded initial
+run found an expiry extension regression (202 passed/1 failed); the corrected final
+run passed all203 tests with no skips. Whole Ruff and mypy503 passed; diffcheck clean.
+Commands: `pytest -o addopts='' -q tests/test_native_diagnostic_assembly.py
+ tests/test_google_native_inventory.py tests/test_meta_native_inventory.py
+ tests/test_tiktok_native_inventory.py tests/test_google_http_runtime.py`, using the
+existing disposable PostgreSQL schema fixture and SQLite. Logs:
+`/tmp/inlet-native-assembly-tests.log`, `/tmp/inlet-native-assembly-mypy.log`.
+No Full, live provider calls, credentials, migrations, deployment or enabled factory.
+Native qualification/prevention/finality, production mutation assembly, automatic
+optimization-target discovery and diagnostic presentation remain separate code/evidence
+work; provider access alone does not close these gaps.
+
+### 2026-10-06 08:25 UTC — Native diagnostics integration and review checkpoint
+
+Integrated frozen PR182/184/188 Meta/TikTok native diagnostics and owned vault-backed
+Google/Meta/TikTok assembly. Diagnostic observations remain unqualified for spending:
+no production financial exposure source, cap/finality guarantee, route or factory
+is enabled by this package. Root focused checks: 181 passed, zero skipped (exit 0),
+covering all four native inventory/assembly modules; log
+`/tmp/inlet-next-native-assembly.log`. Ruff passed; configured mypy passed across
+508 files; staged and unstaged whitespace checks passed.
+
+Parent independently re-reviewed source at c3bf9b470d528b01c5a366b2c12d44ff1d0c238b
+and closed both prior PR177 UI findings, with no further material adjacent issue.
+This was source review, not independent execution of the 51 root tests.
+
+Repeat-accounting repair integrated at a1a91e779654f5f94fe147582b46532c7ec44c8d
+(PR181 frozen ce5b66de93d14de74dae41646a1bc2dd3e833602): a 32-reservation ancestry
+could accept successor 33 although readers were bounded to 32. Admission now checks
+capacity at preparation, approval and transfer. Focused regression builds the actual
+32-entry chain, rejects successor 33, preserves the held reservation and readable
+32-entry settlement snapshot, retains contradictory-evidence holds, then reconciles
+and settles using qualified contract-test evidence. Root repeat/history/API checks:
+55 passed, one expected SQLite-only row-lock skip; Ruff/mypy/diff passed.
+
+Draft PR191 now records frozen candidate compiler 83e136220774dec6048dd26cd1f13cdd7610186b;
+it remains non-emitting and is not yet integrated. Feedback0064 and billing offer0063
+implementation continue against stable candidate0062 and billing0061 respectively.
+
+Frozen 8efe196 local Full primary pytest completed with 2639 passed, 59 skipped,
+85 warnings in 4650.54 seconds. This is NOT terminal Full success: subsequent gates
+remain pending/running. Normal hosted run37427571832 is still in pytest at this
+checkpoint. No manual dispatch, merge, deployment, provider access or spending.

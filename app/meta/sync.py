@@ -341,6 +341,18 @@ class MetaSyncService:
                         return {"status": "reported_feedback_unavailable", "imported": 0}
                     if self._fixed_lease.job_id != self._feedback_job_id:
                         raise MetaError("meta_reported_feedback_checkpoint_invalid")
+                    # The ordinary importer retries these read-only transport failures
+                    # after its persisted backoff. The fixed lease must get the same
+                    # opportunity: its current-source guard must not mistake the last
+                    # recoverable transport error for revoked connection authority.
+                    # Keep this inside the page savepoint; failure restores the prior
+                    # error before the normal failure handler records its new deadline.
+                    if (
+                        row.error_code in {"meta_unavailable", "meta_throttled"}
+                        and row.next_attempt_at is not None
+                        and utc(row.next_attempt_at) <= now
+                    ):
+                        row.error_code = None
                     require_lease(self.session, row, self._fixed_lease, now, self.reported_feedback)
                 if row.window_end is None or row.window_start is None:
                     if self.reported_feedback is not None:

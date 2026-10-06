@@ -5346,3 +5346,26 @@ HTML contains no customer state. Added this GET to the explicit PUBLIC route
 inventory alongside Initial Planning and Measurement History. Full route-boundary
 file:9pass, zero skips; Ruff/mypy702/diff pass. Log
 `/tmp/reported-feedback-route-boundaries.log`. No product authorization change.
+### Fixed Meta Report Retry Preserves Its Original Acquisition — Local Only
+
+Isolated successor of `3b8092b`. An actual injected `URLError` at rf_adsets reproduced
+on SQLite/PostgreSQL: initial `meta_unavailable`, no read before persisted backoff,
+then `meta_reported_feedback_authority_changed` instead of resumption at the deadline.
+The previous transport error was being interpreted as lost original source authority.
+Before repair: **2 failed**,9.23s (`/tmp/inlet-rf-retry-before.log`).
+
+The existing page savepoint now clears only `meta_unavailable`/`meta_throttled`, only
+for a bound fixed run with a persisted retry deadline that has elapsed, before the
+unchanged full lease/session/source/receipt checks. It does not clear fatal errors
+or missing deadlines. Failed pages restore the savepoint and use the existing error
+handler/backoff; successful pages retain the same original run/start timestamp.
+
+Actual HTTP timeout/throttle, before/exact deadline, same-run completion, original
+session revocation, source-generation drift, HTTP401 reconnect and missing-deadline
+cases passed both databases. Final focused command with explicit disposable PG:
+`pytest -o addopts='' -q tests/test_reported_feedback_retry.py
+ tests/test_reported_feedback_acquisition.py` — **28 passed**,61.99s;
+`/tmp/inlet-rf-retry-final.log`. Whole Ruff, configured mypy (**703 files**) and diff
+checks passed. The fixture's opener lookup/header typing was corrected before static
+checks; those were harness typing issues, separate from the reproduced product bug.
+No Full, remote action, live API, provider mutation, runtime enable or spend authority.

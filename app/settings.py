@@ -173,6 +173,9 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
+    tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
+    tiktok_app_secret: SecretStr | None = Field(default=None, alias="AD_ANALYZER_TIKTOK_APP_SECRET")
     google_customer_runtime_mode: str = Field(
         default="disabled", alias="AD_ANALYZER_GOOGLE_CUSTOMER_RUNTIME_MODE"
     )

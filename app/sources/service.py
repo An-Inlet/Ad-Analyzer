@@ -2,7 +2,7 @@
 
 import secrets
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -19,7 +19,13 @@ from app.imports.scope import ensure_native_integration
 from app.mandates.service import workspace_lock
 from app.settings import settings
 from app.shopify.security import utc
-from app.sources.contracts import ProviderName, SourceAccount, SourceTransport, UnavailableSource
+from app.sources.contracts import (
+    ProviderName,
+    SourceAccount,
+    SourceTransport,
+    UnavailableSource,
+    get_source_transport,
+)
 from app.sources.models import SourceAuthorization, SourceConnection
 from app.sources.security import SourceVault
 from app.workspaces.models import WorkspaceIntegration
@@ -48,7 +54,10 @@ def redirect(provider: ProviderName) -> str:
 
 
 def ready(transport: SourceTransport) -> None:
-    if isinstance(transport, UnavailableSource) or transport.mode != "fixture":
+    if isinstance(transport, UnavailableSource) or transport.mode not in {
+        "fixture",
+        "provider_read",
+    }:
         raise HTTPException(503, "source transport unavailable")
     SourceVault()
 
@@ -276,6 +285,6 @@ def view(row: SourceConnection) -> dict[str, Any]:
         "generation": row.generation,
         "last_sync_at": row.last_sync_at,
         "error_code": row.error_code,
-        "mode": "fixture",
+        "mode": get_source_transport(cast(ProviderName, row.provider)).mode,
         "live_verified": False,
     }

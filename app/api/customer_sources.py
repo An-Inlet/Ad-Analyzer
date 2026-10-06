@@ -49,7 +49,7 @@ def authorize(
         "authorization_url": s.begin(
             db, provider, workspace_id, principal.session.digest, transport, datetime.now(UTC)
         ),
-        "mode": "fixture",
+        "mode": transport.mode,
     }
 
 
@@ -73,7 +73,11 @@ def callback(
     pending = s.finish(
         db, provider, body.state, principal.session.digest, body.code, transport, now
     )
-    return {"workspace_id": pending.workspace_id, "accounts": pending.accounts, "mode": "fixture"}
+    return {
+        "workspace_id": pending.workspace_id,
+        "accounts": pending.accounts,
+        "mode": transport.mode,
+    }
 
 
 @router.post("/workspaces/{workspace_id}/sources/{provider}/select")
@@ -175,6 +179,6 @@ def tiktok_report(
         "conversion_value_micros": None,
         "conversion_semantics": "not_yet_qualified",
         "last_sync_at": row.last_sync_at,
-        "mode": "fixture",
+        "mode": s.view(row)["mode"],
         "live_verified": False,
     }

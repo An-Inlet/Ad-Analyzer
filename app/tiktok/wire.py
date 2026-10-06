@@ -15,7 +15,7 @@ PHASES = ("campaigns", "groups", "ads", "campaign_metrics", "group_metrics", "ad
 
 
 class TikTokReadAdapter:
-    mode: Literal["fixture"] = "fixture"
+    mode: Literal["fixture", "provider_read"] = "fixture"
 
     def __init__(self, io: IO, app_id: str, secret: SecretStr) -> None:
         self.io, self.app_id, self.secret = io, app_id, secret
@@ -43,7 +43,7 @@ class TikTokReadAdapter:
         ids = grant.get("advertiser_ids")
         if (
             not isinstance(token, str)
-            or not token
+            or not 1 <= len(token) <= 8192
             or not isinstance(ids, list)
             or not 1 <= len(ids) <= 100
         ):
@@ -56,8 +56,18 @@ class TikTokReadAdapter:
             {"advertiser_ids": ids, "fields": ["advertiser_id", "name", "currency", "timezone"]},
             token,
         )
+        if (
+            not isinstance(data.get("list"), list)
+            or len(data["list"]) != len(ids)
+            or len(set(ids)) != len(ids)
+        ):
+            raise ValueError("incomplete advertiser metadata")
         accounts = []
+        seen: set[str] = set()
         for account in data["list"]:
+            if account["advertiser_id"] in seen:
+                raise ValueError("duplicate advertiser metadata")
+            seen.add(account["advertiser_id"])
             if account["advertiser_id"] not in ids:
                 raise ValueError("advertiser not in grant")
             accounts.append(
@@ -115,6 +125,8 @@ class TikTokReadAdapter:
             raise ValueError("invalid TikTok page")
         inventory = []
         for row in rows:
+            if row.get("advertiser_id", account) != account:
+                raise ValueError("cross-advertiser row")
             if phase == "campaigns":
                 if row.get("advertiser_id", account) != account:
                     raise ValueError("cross-advertiser campaign")
@@ -169,7 +181,10 @@ class TikTokReadAdapter:
         if (
             type(total) is not int
             or not 0 <= total <= 100
+            or type(info.get("page", int(number))) is not int
             or info.get("page", int(number)) != int(number)
+            or (total == 0 and bool(rows))
+            or (total > 0 and int(number) > total)
         ):
             raise ValueError("invalid TikTok pagination")
         if int(number) < total:

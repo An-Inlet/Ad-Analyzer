@@ -337,6 +337,7 @@ def ready(
             )
             or 0
         )
+        held = int(held)  # PostgreSQL SUM(bigint) returns an exact Decimal.
         return ExposureEvidence(
             environment="contract_test",
             mandate=b,

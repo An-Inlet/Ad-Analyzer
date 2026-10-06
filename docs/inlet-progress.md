@@ -666,3 +666,16 @@ configuration and reconnect; it is not mislabeled as proved revocation. No token
 raw provider message is exposed. Other provider/status responses are unchanged.
 Focused status test passed; Ruff/mypy256/diff-check passed. This small follow-up can
 be cherry-picked independently of the CRM transport package.
+
+### TikTok Lifecycle And Typed Provider Failures
+
+Branch `codex/inlet-tiktok-lifecycle`, base PR80 head
+`392d08672a718f1d6450441a6fa141943862abb9`: terminal HTTP authorization and local
+expiry require reconnect; unknown valid numeric provider rejection pauses reads
+with a distinct review label; transient failures preserve staging/backoff. Terminal
+transitions fence generations and discard only scoped pending analysis, preserving
+published data. Unused unqualified refresh material is no longer retained.
+105 focused tests passed with disposable PostgreSQL enabled; Ruff, mypy253 and
+diff-check passed. Full/hosted checks pending. See `inlet-tiktok-lifecycle.md` for
+primary-source evidence limits and remaining advertiser renewal/revoke qualification.
+No live API calls, activation, merge or deployment occurred.

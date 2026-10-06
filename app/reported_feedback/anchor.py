@@ -27,6 +27,7 @@ from app.publication.optimization_contracts import (
     MetaBudgetSetV1,
     MetaCurrentState,
     OptimizationReceipt,
+    OptimizationRequest,
 )
 from app.publication.replacement_contracts import parse_review
 from app.publication.replacement_lineage import ancestors
@@ -134,6 +135,39 @@ def resolve_anchor(
     )
     if len(attempts) != 1 or attempts[0].id != attempt_id:
         raise unavailable("reported_feedback_unique_original_attempt_required")
+    later = list(
+        db.scalars(
+            select(ProviderExecutionAttempt)
+            .join(ProviderExecutionRun, ProviderExecutionRun.id == ProviderExecutionAttempt.run_id)
+            .join(
+                ProviderExecutionReview,
+                ProviderExecutionReview.id == ProviderExecutionRun.review_id,
+            )
+            .where(
+                ProviderExecutionAttempt.workspace_id == wid,
+                ProviderExecutionRun.workspace_id == wid,
+                ProviderExecutionReview.workspace_id == wid,
+                ProviderExecutionReview.account_id == receipt.account.account.account_id,
+                ProviderExecutionAttempt.id != attempt_id,
+                ProviderExecutionAttempt.dispatched_at >= receipt.dispatched_at,
+            )
+            .limit(65)
+        )
+    )
+    if len(later) > 64:
+        raise unavailable("reported_feedback_later_action_capacity")
+    for candidate in later:
+        # Known later dispatch is an intervention even if its acknowledgement was
+        # lost. Never reinterpret unknown/old-value readback as harmless no-effect.
+        if "intent" not in candidate.request:
+            raise unavailable("reported_feedback_later_action_shape_unavailable")
+        intervening = OptimizationRequest.model_validate(candidate.request)
+        if intervening.digest() != candidate.request_digest:
+            raise unavailable("reported_feedback_later_action_changed")
+        if intervening.intent.scope != receipt.account:
+            raise unavailable("reported_feedback_later_action_scope_changed")
+        if intervening.intent.target.campaign_id == plan.intent.target.campaign_id:
+            raise unavailable("reported_feedback_later_campaign_intervention")
     source = source_current(db, wid, receipt.account.account.account_id)
     if source.conversion_action_type not in PURCHASE_ACTIONS:
         raise unavailable("reported_feedback_selected_purchase_event_required")

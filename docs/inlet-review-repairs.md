@@ -27,3 +27,34 @@ lifecycle, billing management, detailed Meta reporting, portal and operational c
 These are implementation work, not merely credential gates. Safe recovery after provider idempotency-key retention expires, retired-subscription event handling, actual provider HTTP/SDK adapters and runtime wiring remain follow-up code requirements; the current checkout transport is still unavailable by default. Real provider adapter code
 and runtime wiring must be completed with injected HTTP/SDK tests and disabled defaults;
 actual provider access, advertising changes, purchases and deployment remain unauthorized.
+
+### Validation follow-up
+
+The first full run at `5a09cec` failed: the access-log regression inherited
+`logger.disabled=True` from earlier migration logging configuration. The nested
+repeat-validation test failed for the same cause (908 passed, 6 skipped, 2 failed
+in the outer run). The regression now explicitly enables the logger and restores
+its previous disabled flag. Its focused test, Ruff and mypy pass. A full rerun is
+in progress; no terminal success is claimed for this revision yet.
+
+### Second bounded review: retry sequences
+
+The parent re-review closed the original five action-safety defects in source and
+tests at `46552e9`, but found two further retry sequences. Checkout lineage lookup
+now runs inside the event's durable failure/backoff boundary. Regression
+`test_replacement_lookup_failure_backs_off_before_dispatch_limit` places a failing
+replacement event before a healthy event and runs two limit-one ticks at the same
+time. The healthy event must complete on tick two.
+
+TikTok now classifies the current failure using `SourceReadUnavailable`, rather than
+an old stored error code. Valid partial pages clear stale error/backoff state;
+current validation/publication/cursor failures discard only the rejected staging.
+`test_tiktok_prior_read_failure_does_not_preserve_rejected_staging` covers transient
+read failure, successful partial staging, then repeated cursor, including a legacy
+stored transient marker. Published metrics/freshness are not reset.
+
+Earlier Full runs were stopped as superseded after these review fixes; they are not
+terminal acceptance evidence for the new revision. Fresh Full and hosted CI required.
+
+Second-review focused validation:60 passed (SQLite and disposable PostgreSQL),
+Ruff and mypy246 files passed; diffcheck passed. Full/CI pending at commit time.

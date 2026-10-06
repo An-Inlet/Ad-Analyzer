@@ -160,14 +160,11 @@ def reconcile(
         raise HTTPException(404, "billing event unavailable")
     if event.state == "processed":
         return False
-    if row.subscription_id is not None and row.subscription_id != event.subscription_id:
-        outcome = resolve_checkout(db, row, policy, transport, now)
-        if outcome != "complete" or row.subscription_id != event.subscription_id:
-            event.error_code = "subscription_identity_conflict"
-            event.next_attempt_at = now + timedelta(minutes=1)
-            db.commit()
-            raise HTTPException(409, "subscription identity requires reconciliation")
     try:
+        if row.subscription_id is not None and row.subscription_id != event.subscription_id:
+            outcome = resolve_checkout(db, row, policy, transport, now)
+            if outcome != "complete" or row.subscription_id != event.subscription_id:
+                raise HTTPException(409, "subscription identity requires reconciliation")
         refresh(db, wid, policy, transport, now, subscription_id=event.subscription_id)
     except HTTPException:
         event.error_code = "provider_read_unavailable"

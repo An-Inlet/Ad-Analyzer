@@ -37,6 +37,8 @@ PUBLIC = {
     ("GET", "/app/measurement-history"),
     ("GET", "/app/execution"),
     ("GET", "/app/social-configuration"),
+    ("GET", "/app/optimization"),
+    ("GET", "/app/optimization/{workspace_id}/{run_id}"),
     ("GET", "/app/execution/{workspace_id}/{run_id}"),
     ("GET", "/app/workspace-closure"),
     ("GET", "/app/workspace-closure/{workspace_id}/{request_id}"),

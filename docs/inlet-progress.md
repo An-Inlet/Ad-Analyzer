@@ -858,3 +858,10 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+Customer Shopify follow-up: merged integration8ae5ab798eadd8835749f9ed03844fcf8280c25f,
+resolving inherited migrationheads. Aligned legacy operator persistence and importer
+workspace-before-connection locks with customer callbacks. Final combined customer
+Shopify/legacy Shopify/privacy/integrated migration suite:73 passed,3 SQLite-only
+lock-semantics skips; PostgreSQL concurrency and populated migration roundtrip pass.
+Ruff, mypy268files and diff checks pass. Full and hosted CI remain pending.

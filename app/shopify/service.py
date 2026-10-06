@@ -22,6 +22,7 @@ from app.shopify.security import (
     shop_domain,
     utc,
 )
+from app.workspaces.models import Workspace
 
 
 def credentials(
@@ -181,6 +182,7 @@ class ConnectionService:
             raise ShopifyError("shopify_store_verification_failed") from None
         if before_persist is not None:
             before_persist()
+        self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)
         if row and row.shop_domain != shop:
             raise ShopifyError("disconnect_existing_store_first")
@@ -221,8 +223,6 @@ class ConnectionService:
         return str(bundle["access_token"])
 
     def disconnect(self, workspace_id: int, role: str) -> None:
-        from app.workspaces.models import Workspace
-
         # Fence customer OAuth callbacks, including disconnect of a pending first install.
         self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)

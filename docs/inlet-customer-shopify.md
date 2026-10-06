@@ -49,6 +49,8 @@ applies afterward. Provider failure rolls back local effects and returns a resta
 message; the provider's one-use code may already be spent, so restart authorization.
 
 The operator finish flow retains its prior early nonce consumption behavior.
+Operator persistence and the Shopify importer use the same workspace-before-connection
+lock order; imports skip locked workspaces rather than waiting with a connection lock.
 
 ## Validation
 
@@ -64,6 +66,13 @@ Docs retrieved through Shopify developer search and primary documentation. The
 skill's local telemetry helper scripts were unavailable in this execution environment;
 no prompt telemetry was sent. No Admin API GraphQL schema changes are introduced.
 
-Branch started at integration `c86beb3`, before its independent migration-head merge.
-That inherited multiple-head graph blocks migration-wide validation until this
-package joins the integration merge; it does not require a Shopify schema change.
+Branch started at integration `c86beb3` and subsequently merged integration
+`8ae5ab798eadd8835749f9ed03844fcf8280c25f`, including its independent migration-head
+merge. The inherited multiple-head blocker is resolved; no Shopify schema change
+is required.
+
+Final package checks: `pytest -o addopts='' -q tests/test_customer_shopify.py
+ tests/test_shopify_sales.py tests/test_commerce_review.py
+ tests/test_inlet_integrated_migrations.py` with disposable PostgreSQL:
+**73 passed, 3 SQLite-only concurrency skips**. Ruff, mypy (268 files), and
+`git diff --check` pass. Full and hosted CI remain pending; no live verification.

@@ -322,3 +322,23 @@ def test_customer_measurement_store_is_bound_and_purged(
         store = db.get(CommerceStore, store_id)
         assert store is not None and store.status == "revoked"
         assert store.covered_from is None and store.last_sync_at is None
+
+
+def test_postgres_import_skips_workspace_callback_fence(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("row lock ordering is PostgreSQL-specific")
+    from app.shopify import sync
+    from app.workspaces.models import Workspace
+
+    monkeypatch.setattr(sync, "syncing_allowed", lambda db, wid: True)
+    runtime = FixtureShopify()
+    owner, _, wid, _ = clients(customer_engine, runtime)
+    assert finish(owner, begin(owner, wid)).status_code == 200
+    with Session(customer_engine) as locked:
+        locked.scalar(select(Workspace).where(Workspace.id == wid).with_for_update())
+        with Session(customer_engine) as worker:
+            result = sync.ShopifySyncService(worker, settings, runtime).page(wid)
+            assert result == {"status": "not_connected_or_busy", "imported": 0}
+    assert runtime.requests == []

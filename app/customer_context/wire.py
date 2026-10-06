@@ -128,6 +128,16 @@ class ProfileReader:
                         channel_data = {}
                     if not isinstance(channel_data, dict):
                         raise ValueError("invalid profile channels")
+                    # Every typed identifier contributes, including missing consent.
+                    # Omnisend maps email identifiers to email and phone to SMS.
+                    identifier_type = identifier.get("type")
+                    expected = (
+                        {"email": "email", "phone": "sms"}.get(identifier_type)
+                        if isinstance(identifier_type, str)
+                        else None
+                    )
+                    if expected is not None and expected not in channel_data:
+                        channels[expected].add("unknown")
                     for channel, value in channel_data.items():
                         if channel in channels:
                             if value is not None and not isinstance(value, dict):

@@ -27,6 +27,8 @@ from app.meta.models import (
 from app.meta.normalize import metric_values
 from app.meta.security import MetaError, configuration_ready, identifier, utc
 from app.meta.service import ConnectionService
+from app.reported_feedback.contracts import FixedWindowLeaseV1
+from app.reported_feedback.runtime import ReportedFeedbackRuntime, get_reported_feedback_runtime
 from app.settings import Settings, settings
 
 PLATFORM = AdvertisingPlatform.META_ADS
@@ -47,10 +49,18 @@ def _label(value: object, limit: int) -> str:
 
 class MetaSyncService:
     def __init__(
-        self, session: Session, configuration: Settings, client: MetaClient | None = None
+        self,
+        session: Session,
+        configuration: Settings,
+        client: MetaClient | None = None,
+        *,
+        reported_feedback: ReportedFeedbackRuntime | None = None,
     ) -> None:
         self.session, self.settings = session, configuration
         self.client = client or MetaClient(configuration)
+        self.reported_feedback = reported_feedback or get_reported_feedback_runtime()
+        self._fixed_lease: FixedWindowLeaseV1 | None = None
+        self._feedback_job_id: str | None = None
 
     def _campaign(
         self, row: MetaConnection, item: dict[str, Any], *, insight: bool = False
@@ -87,9 +97,9 @@ class MetaSyncService:
         for item in items:
             if identifier(item["account_id"]) != row.external_account_id:
                 raise MetaError("meta_account_mismatch")
-            if row.phase == "campaigns":
+            if row.phase.removeprefix("rf_") == "campaigns":
                 self._campaign(row, item)
-            elif row.phase == "adsets":
+            elif row.phase.removeprefix("rf_") == "adsets":
                 campaign = self.session.scalar(
                     select(Campaign).where(
                         Campaign.account_id == row.account_id,
@@ -140,7 +150,7 @@ class MetaSyncService:
                         setattr(staged, name, value)
         self.session.flush()
         if (
-            row.phase == "insights"
+            row.phase.removeprefix("rf_") == "insights"
             and (
                 self.session.scalar(
                     select(func.count())
@@ -209,10 +219,33 @@ class MetaSyncService:
         )
         from app.campaign_performance.service import publish_meta
 
-        publish_meta(self.session, row, row.window_start, row.window_end, now)
-        row.covered_from = row.window_start
-        row.covered_through = row.window_end
-        row.last_sync_at, row.window_start, row.window_end, row.cursor = now, None, None, None
+        if self._fixed_lease is not None:
+            from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+            from app.initial_planning.clock import effective_now
+            from app.reported_feedback.acquisition import capture_terminal_window
+
+            if self.reported_feedback is None:
+                raise MetaError("meta_reported_feedback_unavailable")
+            now = max(now, effective_now(self.session, self.reported_feedback.initial))
+            publish_meta(self.session, row, row.window_start, row.window_end, now)
+            current = self.session.get(CurrentPerformance, row.account_id, populate_existing=True)
+            completion = (
+                self.session.get(PerformanceCompletion, current.completion_id) if current else None
+            )
+            if completion is None:
+                raise MetaError("meta_reported_feedback_completion_changed")
+            capture_terminal_window(
+                self.session, row, completion, self._fixed_lease, now, self.reported_feedback
+            )
+            row.covered_from = self._fixed_lease.rolling_covered_from
+            row.covered_through = self._fixed_lease.rolling_covered_through
+            row.last_sync_at = self._fixed_lease.rolling_last_sync_at
+        else:
+            publish_meta(self.session, row, row.window_start, row.window_end, now)
+            row.covered_from = row.window_start
+            row.covered_through = row.window_end
+            row.last_sync_at = now
+        row.window_start, row.window_end, row.cursor = None, None, None
         row.phase = "campaigns"
         self.session.add(
             JobRun(
@@ -220,7 +253,7 @@ class MetaSyncService:
                 connection_id=row.workspace_integration_id,
                 platform=PLATFORM,
                 account_id=row.account_id,
-                job_name="meta_ads_sync",
+                job_name="meta_ads_feedback_sync" if self._fixed_lease else "meta_ads_sync",
                 status=JobRunStatus.SUCCEEDED,
                 started_at=now,
                 finished_at=now,
@@ -239,6 +272,14 @@ class MetaSyncService:
             return {"status": "disabled", "imported": 0}
         if not lock_workspace(self.session, workspace_id, skip_locked=True):
             return {"status": "not_connected_or_busy", "imported": 0}
+        self._fixed_lease = None
+        self._feedback_job_id = None
+        if self.reported_feedback is not None:
+            from app.reported_feedback.acquisition import lock_job_authority
+
+            self._feedback_job_id = lock_job_authority(
+                self.session, workspace_id, now, self.reported_feedback
+            )
         row = self.session.scalar(
             select(MetaConnection)
             .where(
@@ -253,14 +294,12 @@ class MetaSyncService:
             return {"status": "not_connected_or_busy", "imported": 0}
         if row.next_attempt_at and utc(row.next_attempt_at) > now:
             return {"status": "retry_later", "imported": 0}
-        if (
-            not manual
-            and row.window_end is None
-            and row.last_sync_at
-            and utc(row.last_sync_at)
-            > now - timedelta(minutes=self.settings.meta_sync_interval_minutes)
-        ):
-            return {"status": "up_to_date", "imported": 0}
+        rolling_due = bool(
+            manual
+            or row.last_sync_at is None
+            or utc(row.last_sync_at)
+            <= now - timedelta(minutes=self.settings.meta_sync_interval_minutes)
+        )
         account = self.session.scalar(
             select(AdvertisingAccount).where(
                 AdvertisingAccount.id == row.account_id,
@@ -283,12 +322,54 @@ class MetaSyncService:
         row.last_attempt_at = now
         try:
             with self.session.begin_nested():
-                if row.window_end is None or row.window_start is None:
-                    end = now.astimezone(ZoneInfo(account.time_zone or "UTC")).date() - timedelta(
-                        days=1
+                if row.phase.startswith("rf_"):
+                    from app.reported_feedback.acquisition import (
+                        abort_fixed_window,
+                        active_lease,
+                        require_lease,
                     )
-                    row.window_start, row.window_end = end - timedelta(days=55), end
-                    row.phase, row.cursor = "campaigns", None
+
+                    self._fixed_lease = active_lease(self.session, row)
+                    if self.reported_feedback is None or self._fixed_lease is None:
+                        abort_fixed_window(
+                            self.session,
+                            row,
+                            self._fixed_lease,
+                            "reported_runtime_or_job_unavailable",
+                        )
+                        self.session.commit()
+                        return {"status": "reported_feedback_unavailable", "imported": 0}
+                    if self._fixed_lease.job_id != self._feedback_job_id:
+                        raise MetaError("meta_reported_feedback_checkpoint_invalid")
+                    require_lease(self.session, row, self._fixed_lease, now, self.reported_feedback)
+                if row.window_end is None or row.window_start is None:
+                    if self.reported_feedback is not None:
+                        from app.reported_feedback.acquisition import claim_fixed_window
+
+                        self._fixed_lease = claim_fixed_window(
+                            self.session,
+                            row,
+                            account,
+                            now,
+                            self.reported_feedback,
+                            rolling_due=rolling_due,
+                            authorized_job_id=self._feedback_job_id,
+                        )
+                    if self._fixed_lease is not None:
+                        row.window_start, row.window_end = (
+                            self._fixed_lease.window.starts_on,
+                            self._fixed_lease.window.ends_on,
+                        )
+                        row.phase, row.cursor = "rf_campaigns", None
+                    else:
+                        if not rolling_due:
+                            self.session.commit()
+                            return {"status": "up_to_date", "imported": 0}
+                        end = now.astimezone(
+                            ZoneInfo(account.time_zone or "UTC")
+                        ).date() - timedelta(days=1)
+                        row.window_start, row.window_end = end - timedelta(days=55), end
+                        row.phase, row.cursor = "campaigns", None
                     self.session.execute(
                         delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == row.id)
                     )
@@ -309,7 +390,7 @@ class MetaSyncService:
                     data = self.client.page(
                         row.external_account_id,
                         token,
-                        row.phase,
+                        row.phase.removeprefix("rf_"),
                         row.cursor,
                         row.window_start,
                         row.window_end,
@@ -319,10 +400,16 @@ class MetaSyncService:
                     status = "syncing"
                     if cursor:
                         row.cursor = cursor
-                    elif row.phase == "campaigns":
-                        row.phase, row.cursor = "adsets", None
-                    elif row.phase == "adsets":
-                        row.phase, row.cursor = "insights", None
+                    elif row.phase.removeprefix("rf_") == "campaigns":
+                        row.phase, row.cursor = (
+                            ("rf_adsets" if self._fixed_lease else "adsets"),
+                            None,
+                        )
+                    elif row.phase.removeprefix("rf_") == "adsets":
+                        row.phase, row.cursor = (
+                            ("rf_insights" if self._fixed_lease else "insights"),
+                            None,
+                        )
                     elif self.settings.meta_detail_enabled:
                         staging.begin(self.session, row)
                     else:
@@ -341,6 +428,21 @@ class MetaSyncService:
             return {"status": status, "imported": imported}
         except (MetaError, KeyError, TypeError, ValueError) as exc:
             code = exc.code if isinstance(exc, MetaError) else "meta_invalid_response"
+            if row.phase.startswith("rf_") and (
+                code.startswith("meta_reported_feedback_")
+                or code
+                in {
+                    "meta_campaign_inventory_changed",
+                    "meta_invalid_cursor",
+                    "meta_detail_checkpoint_stale",
+                    "meta_detail_capacity_exceeded",
+                    "meta_detail_invalid_snapshot",
+                    "meta_reconnect_required",
+                }
+            ):
+                from app.reported_feedback.acquisition import abort_fixed_window
+
+                abort_fixed_window(self.session, row, self._fixed_lease, code)
             row.error_code, row.last_attempt_at = code, now
             row.next_attempt_at = now + timedelta(
                 seconds=exc.retry_after if isinstance(exc, MetaError) else 60

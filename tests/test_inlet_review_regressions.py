@@ -547,3 +547,116 @@ def test_scheduler_recovers_completed_checkout_without_subscription_webhook(
         row = db.get(WorkspaceBilling, wid)
         assert row is not None and row.subscription_id == "sub_fixture" and row.status == "active"
     assert len(fixture.results) == 1
+
+
+def test_replacement_lookup_failure_backs_off_before_dispatch_limit(
+    customer_engine: Engine,
+) -> None:
+    from datetime import timedelta
+
+    from app.billing.dispatcher import run
+    from app.billing.models import BillingEvent, WorkspaceBilling
+    from sqlalchemy.orm import sessionmaker
+
+    from tests.test_customer_billing import POLICY
+    from tests.test_google_customer_connections import setup
+
+    class LookupOutage(TrackedCheckout):
+        def checkout_state(
+            self, customer_id: str, checkout_id: str, now: datetime
+        ) -> CheckoutState:
+            raise TimeoutError("synthetic lookup outage")
+
+    fixture = LookupOutage()
+    with Session(customer_engine) as db:
+        bad, _ = setup(db, "replacement-outage")
+        good, _ = setup(db, "healthy-behind")
+        db.add_all(
+            [
+                WorkspaceBilling(
+                    workspace_id=bad,
+                    customer_request_key="bad",
+                    customer_id="cus_bad",
+                    subscription_id="sub_old",
+                    status="canceled",
+                    checkout_id="cs_new",
+                ),
+                WorkspaceBilling(
+                    workspace_id=good,
+                    customer_request_key="good",
+                    customer_id="cus_fixture",
+                    subscription_id="sub_fixture",
+                ),
+                BillingEvent(
+                    id="evt_bad",
+                    body_hash="a" * 64,
+                    customer_id="cus_bad",
+                    subscription_id="sub_new",
+                    event_type="customer.subscription.created",
+                    received_at=NOW - timedelta(seconds=1),
+                ),
+                BillingEvent(
+                    id="evt_good",
+                    body_hash="b" * 64,
+                    customer_id="cus_fixture",
+                    subscription_id="sub_fixture",
+                    event_type="customer.subscription.updated",
+                    received_at=NOW,
+                ),
+            ]
+        )
+        db.commit()
+    factory = sessionmaker(customer_engine)
+    assert run(factory, POLICY, fixture, NOW, limit=1)["failed"] == 1
+    assert run(factory, POLICY, fixture, NOW, limit=1)["events"] == 1
+    with Session(customer_engine) as db:
+        event = db.get(BillingEvent, "evt_bad")
+        assert event is not None and event.state == "pending" and event.next_attempt_at is not None
+        assert db.get(BillingEvent, "evt_good").state == "processed"  # type: ignore[union-attr]
+
+
+def test_tiktok_prior_read_failure_does_not_preserve_rejected_staging(
+    customer_engine: Engine, configured: None
+) -> None:
+    from datetime import timedelta
+    from typing import Any
+
+    from app.sources.dispatcher import run_tiktok
+    from app.sources.models import SourceConnection
+
+    from tests.test_google_customer_connections import setup
+    from tests.test_tiktok_sources import TikTokFixture, connect
+
+    class RecoverThenConflict(TikTokFixture):
+        read_calls = 0
+
+        def read(
+            self, account: str, token: str, start: date, end: date, cursor: str | None
+        ) -> dict[str, Any]:
+            self.read_calls += 1
+            if self.read_calls == 1:
+                raise TimeoutError("synthetic transient")
+            return {"account_id": account, "currency": "USD", "next_cursor": "repeat"}
+
+    fixture = RecoverThenConflict()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "retry-conflict")
+        connected, _ = connect(db, wid, sid, fixture)
+        cid = connected.id
+        db.commit()
+    assert run_tiktok(customer_engine, fixture, NOW, 1)["failed"] == 1
+    future = NOW + timedelta(minutes=5)
+    assert run_tiktok(customer_engine, fixture, future, 1)["failed"] == 0
+    with Session(customer_engine) as db:
+        row = db.get(SourceConnection, cid)
+        assert row is not None and row.cursor == "repeat" and row.staged
+        assert row.error_code is None
+        # Also exercise cleanup with a legacy persisted transient marker.
+        row.error_code = "read_unavailable"
+        db.commit()
+    assert run_tiktok(customer_engine, fixture, future, 1)["failed"] == 1
+    with Session(customer_engine) as db:
+        row = db.get(SourceConnection, cid)
+        assert row is not None and row.error_code == "import_rejected"
+        assert row.cursor is None and row.staged == {}
+        assert row.last_sync_at is None and row.covered_from is None

@@ -1033,3 +1033,14 @@ Merged release-foundation5f9a0d0 into the publication branch, retaining both pro
 ledger sections. Only the ledger conflicted. Superseded local Full session63859
 was canceled (exit137), not passed; its wrapper and nested pytest/validation children
 were stopped together. No replacement Full started pending root coordination.
+
+## Provider Publication Shared Contracts — 2026-10-06
+
+- Branch `codex/inlet-google-publication` from PR98 merge `bc3aadc`.
+- Separate strict provider review/plan/request/receipt types and deterministic Google
+  Search paused DAG compiler. Original fixture hashes and simulation mandate remain
+  untouched. Real HTTP adapter and provider coordinator integration still pending.
+- Focused contract tests: 10 passed; Ruff passed; mypy three changed files passed;
+  `git diff --check` passed. No Full requested or started for this new branch.
+- Current Google v25 primary API references pinned in `inlet-provider-publication.md`.
+  No live provider calls or publication authorization.

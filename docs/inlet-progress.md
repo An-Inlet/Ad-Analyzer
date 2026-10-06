@@ -2118,3 +2118,29 @@ Integrated PR1543def4ba authoritative settlement. Combined settlement/activation
 ### Reviewed Portfolio Exposure Composition
 
 Integrated exposure5bcd0aa. Combined-root focused actual SQLite/PostgreSQL checks24 passed; Ruff and configured mypy passed. /tmp/inlet-next-exposure.log. Independent review repaired profile lifetime escaping into later dispatch and disagreement over prior-period held reservations; both have downstream regression coverage. Explicit server facts/profile ports remain unconfigured; no actual native cap or reporting-delay proof is invented, and no default live runtime is enabled.
+
+## B20 Offline Two-Brand Cross-Workflow Acceptance
+
+Branch `codex/inlet-two-brand-pilot`, based on `6eef6d8`. Added one composed
+same-database test, parameterized over SQLite/PostgreSQL: two API-provisioned owners,
+Shopify/Google/Klaviyo versus Shopify/Meta/HubSpot, actual mocked CRM HTTP account
+proof through customer APIs, confirmed goals, exact Google/Meta draft approval,
+cross-tenant reads/callback rejection, Brand A durable Google creation and separate
+activation through actual MockTransport adapters, then owned closure/receipt history
+and Brand B continuity. Existing shared Shopify fixture now accepts optional unique
+shop/domain IDs without changing defaults. No production code or migration changes.
+
+`docs/inlet-offline-pilot-matrix.md` identifies the exact evidence and gaps. Native
+ad installation/Shopify baseline are fixtures; qualification/exposure inputs remain
+contract-test evidence. Google execution is a direct coordinator call because
+customer dispatch APIs are absent. Brand B social dispatch and mature measured
+outcomes retain their separate existing suite evidence, not claimed composed here.
+This does not finish B18 self-serve execution or B20 unrelated real pilots.
+
+Checks actually run: six passed, zero skipped in 13.16s across the new two-brand
+scenario, previous assembled customer journey, and original durable Google creation
+case (both databases). Ruff passed; repository-configured mypy passed 433 files;
+`git diff --check` passed. Log: `/tmp/inlet-pilot-final.log`. No Full, CI dispatch,
+live provider, merge or deployment operations. Next: integrate/review this bounded
+acceptance evidence, then retain customer coordinator UI and intended-environment
+qualification as open work.

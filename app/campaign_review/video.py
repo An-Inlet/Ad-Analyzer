@@ -199,7 +199,19 @@ def validate_video(data: bytes) -> VideoInfo:
         if fields.get("progress") != "end" or int(fields.get("frame", "0")) != len(frames):
             raise ValueError()
         elapsed = number(fields["out_time_us"]) / 1000000
-        if elapsed < 0 or abs(elapsed - duration) > tolerance or elapsed > Decimal("60.000001"):
+        # FFmpeg 6.1's null muxer reports the final video frame's start for
+        # silent inputs; 7.1 reports its end. Recognize that exact clock only,
+        # without widening duration tolerance. Probe already fully decoded every
+        # frame and verified the complete video duration; decode must independently
+        # finish with the same frame count. Audio continues to require end time.
+        final_frame_clock = not audio and abs(elapsed - (times[-1] - times[0])) <= Decimal(
+            "0.000001"
+        )
+        if (
+            elapsed < 0
+            or (abs(elapsed - duration) > tolerance and not final_frame_clock)
+            or elapsed > Decimal("60.000001")
+        ):
             raise ValueError()
         return VideoInfo(width, height, int(duration * 1000), len(frames))
     except VideoUnavailable:

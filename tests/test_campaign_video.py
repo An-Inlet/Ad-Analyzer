@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -297,3 +298,47 @@ def test_worker_fixed_protocol_and_resource_limits(
     assert len(limits) == 5
     assert (resource.RLIMIT_CPU, (18, 20)) in limits
     assert (resource.RLIMIT_FSIZE, (0, 0)) in limits
+
+
+@pytest.mark.parametrize(
+    "elapsed,accepted", [(400000, True), (500000, True), (401000, False), (300000, False)]
+)
+def test_silent_progress_clock_versions_remain_bound_to_decoded_frames(
+    encoded: Any, monkeypatch: pytest.MonkeyPatch, elapsed: int, accepted: bool
+) -> None:
+    data = encoded()
+    original = video.decoder
+
+    def progress_clock(mode: str, payload: bytes) -> bytes:
+        output = original(mode, payload)
+        if mode == "decode":
+            return re.sub(rb"out_time_us=[0-9]+", f"out_time_us={elapsed}".encode(), output)
+        return output
+
+    monkeypatch.setattr(video, "decoder", progress_clock)
+    if accepted:
+        info = video.validate_video(data)
+        assert info.frame_count == 5 and info.duration_ms == 500
+    else:
+        with pytest.raises(video.VideoInvalid):
+            video.validate_video(data)
+
+
+def test_last_video_frame_clock_does_not_relax_audio_or_frame_count(
+    encoded: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data, silent = encoded(audio="aac"), encoded()
+    original = video.decoder
+
+    def clock(mode: str, payload: bytes) -> bytes:
+        output = original(mode, payload)
+        if mode == "decode":
+            output = re.sub(rb"out_time_us=[0-9]+", b"out_time_us=400000", output)
+            if payload == silent:
+                output = re.sub(rb"frame=[0-9]+", b"frame=4", output)
+        return output
+
+    monkeypatch.setattr(video, "decoder", clock)
+    for payload in (data, silent):
+        with pytest.raises(video.VideoInvalid):
+            video.validate_video(payload)

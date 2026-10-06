@@ -1448,3 +1448,17 @@ still authoritative when intentionally removing application tables on a guarded
 Checks: 11 focused tests passed, including the real PostgreSQL missing-table/rebuild
 regression and CRM push tests. Ruff, mypy321 and diff check passed. This package is
 separate from frozen PR112/PR118 validation; Full/CI evidence remains pending.
+## B14 — FFmpeg 6.1 Progress Clock Compatibility (2026-10-06)
+
+Isolated branch `codex/inlet-video-clock-fix`, parent `73725be`; frozen integration
+Full worktrees were not edited. Hosted Ubuntu's FFmpeg 6.1.1-3ubuntu5 reports the
+final frame start for silent MP4 null-muxer progress, while local 7.1.5 reports its
+end. Reproduced using identical real synthetic bytes in a disposable Ubuntu 24.04
+container. Recognize only the exact decoded final-frame timestamp within one
+microsecond for silent media; full frame-count/duration/decode checks remain.
+
+Actual FFmpeg 6.1 matrix: 10 cases passed, including valid silent/AAC and malformed
+codec/size/rate/duration/corrupt/truncated rejections. Logs:
+`/tmp/inlet-video61-before.log`, `/tmp/inlet-video61-after.log`,
+`/tmp/inlet-video61-matrix.log`. Application focused checks and full static results
+are recorded in the branch/PR handoff. No broader Full rerun is started here.

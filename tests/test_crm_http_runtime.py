@@ -314,7 +314,7 @@ def test_runtime_factories_disabled_and_cross_provider_readiness(
         service.ready(runtime, "klaviyo")
 
 
-def test_omnisend_documented_projection_and_unverified_identity_fail_closed() -> None:
+def test_omnisend_documented_projection_and_invalid_identity_fail_closed() -> None:
     payload = {
         "contacts": [
             {
@@ -335,12 +335,13 @@ def test_omnisend_documented_projection_and_unverified_identity_fail_closed() ->
 
     def no_io(request: httpx.Request) -> httpx.Response:
         calls.append(request)
-        return httpx.Response(200)
+        return httpx.Response(200, json={})
 
     runtime = OmnisendHTTPRead(CLIENT, SECRET, transport=httpx.MockTransport(no_io))
-    with pytest.raises(CRMReadError, match="unverified"):
+    with pytest.raises(CRMReadError, match="account_unavailable"):
         runtime.page("caller-account", TOKEN, None, NOW)
-    assert not calls
+    assert len(calls) == 1
+    assert calls[0].url.path == "/api/brands/current"
 
 
 def test_two_pkce_attempts_are_durable_isolated_and_cleared(

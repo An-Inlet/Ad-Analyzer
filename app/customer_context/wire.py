@@ -115,10 +115,24 @@ class ProfileReader:
                 p.lifecycle = lifecycle(row.get("properties", {}).get("lifecyclestage"))
             else:
                 channels: dict[str, set[ChannelStatus]] = {"email": set(), "sms": set()}
-                for identifier in row.get("identifiers", []):
-                    for channel, value in identifier.get("channels", {}).items():
+                identifiers = row.get("identifiers")
+                if identifiers is None:
+                    identifiers = []
+                if not isinstance(identifiers, list):
+                    raise ValueError("invalid profile identifiers")
+                for identifier in identifiers:
+                    if not isinstance(identifier, dict):
+                        raise ValueError("invalid profile identifier")
+                    channel_data = identifier.get("channels")
+                    if channel_data is None:
+                        channel_data = {}
+                    if not isinstance(channel_data, dict):
+                        raise ValueError("invalid profile channels")
+                    for channel, value in channel_data.items():
                         if channel in channels:
-                            channels[channel].add(status(value.get("status")))
+                            if value is not None and not isinstance(value, dict):
+                                raise ValueError("invalid profile channel")
+                            channels[channel].add(status(value.get("status") if value else None))
                 for channel, values in channels.items():
                     # Multiple addresses with conflicting statuses are not one permission.
                     setattr(

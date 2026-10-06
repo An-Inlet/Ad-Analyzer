@@ -962,3 +962,25 @@ Shopify exchange. Bounded review found logout Session-only and provisioning User
 fresh-workspace/replay-read compatible. CustomerShopify/identity/provisioning/native
 ownership suite:75 passed,6 SQLite-only lock skips; Ruff/mypy268files/diffpass.
 Prior ef0 Full/CI are superseded by this lock repair, not acceptance of repairedhead.
+
+## Omnisend Runtime Contract And Adapter (2026-10-06)
+
+Branch `codex/inlet-omnisend-runtime`, based on CRM pacing/lifecycle PR89 head
+`e566a20502f178385a3f508f6c20278b7a900d80`. First-party Omnisend SDK commit
+`fdfc72021e90d3fb333e7c1b2d77017dc69f850d` resolves the prior authorization and
+current-brand contract blockers: singular `scope`, authenticated top-level `brandID`.
+Actual disabled-default OAuth/code/refresh/brand/contact HTTP adapter now follows
+those contracts. Repeated account proof blocks foreign brands; unknown expiry remains
+unknown; null/missing channel context remains unknown; no profile PII is persisted.
+No provider revocation endpoint was invented. Source ownership/encryption/generation
+interfaces are reused, with no migration or live provider request.
+
+Checks: combined Omnisend/CRM/context/pacing/source suite **110 passed, 1 intentional
+SQLite row-lock skip**, with the PostgreSQL counterpart executed; two existing Alembic
+configuration deprecation warnings. Final exact RFC3986 authorization encoding change:
+**37 Omnisend tests passed**, including SQLite/PostgreSQL ownership flow. Ruff passed,
+mypy passed (274 source files), git diff --check passed. Logs:
+`/tmp/inlet-omnisend-final.log` and `/tmp/inlet-omnisend-encoding.log`.
+Full intentionally queued with root; hosted CI pending draft PR creation. Remaining
+CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
+live qualification are explicit in `docs/inlet-omnisend-runtime.md`.

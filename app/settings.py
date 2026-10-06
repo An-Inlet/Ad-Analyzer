@@ -187,6 +187,15 @@ class Settings(BaseSettings):
         default=None, alias="AD_ANALYZER_HUBSPOT_CLIENT_SECRET"
     )
 
+    omnisend_runtime_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_OMNISEND_RUNTIME_MODE"
+    )
+    omnisend_client_id: str = Field(default="", alias="AD_ANALYZER_OMNISEND_CLIENT_ID")
+    omnisend_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_OMNISEND_CLIENT_SECRET"
+    )
+    omnisend_api_revision: str = Field(default="", alias="AD_ANALYZER_OMNISEND_API_REVISION")
+
     tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
     tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
     tiktok_app_secret: SecretStr | None = Field(default=None, alias="AD_ANALYZER_TIKTOK_APP_SECRET")

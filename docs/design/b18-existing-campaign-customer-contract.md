@@ -35,7 +35,8 @@ These are proposed names, not implemented routes.
 | Method And Path | Input / Result |
 | --- | --- |
 | GET `/capabilities` | Owner-only, per-provider catalog/initial/repeat availability and fixed blocker codes; explicit environment. |
-| POST `/target-options` | Owned mandate and exact consent references, owned advertising-account reference, optional opaque page cursor. Returns bounded named target choices. |
+| POST `/target-options` | Confirmed owned goal/revision and advertising-account reference, before a mandate exists. Returns bounded named target choices. |
+| POST `/mandates` and PUT `/mandates/{id}` | Named choice plus ordinary editable spending limits; server derives complete allowed-target digest and fixed optimization purpose. Existing separate consent remains required. |
 | POST `/initial-reviews` | Mandate/consent references, choice reference and version, exact budget or pause intent, bounded customer rationale. Returns owned review reference and exact safe review projection. |
 | POST `/repeat-reviews` | Same inputs plus an owned predecessor reservation reference. Requires complete server replacement proof; returns a separately approved repeat review. |
 
@@ -70,8 +71,13 @@ complete topology: reject unsupported/oversized topology. Names are presentation
 only and never participate in authorization. Do not log provider names or raw data.
 
 The choice reference binds the server-resolved native target, native budget owner,
-complete affected-target topology, source generation, current-state digest, current
-policy/consent revision and catalog version. Resolve it through a bounded server
+complete affected-target topology, source generation, current-state digest, confirmed
+goal revision and catalog version. Mandate preparation derives allowed_target_set_digest
+from this server-owned topology. Before consent and initial/repeat review, re-resolve
+the catalog and validate the selected topology, currency and generation against the
+current mandate; do not accept a customer-supplied target digest. Discovery cannot
+require an optimization mandate: that would create a bootstrap cycle because the
+mandate already requires the complete target digest. Resolve it through a bounded server
 source on every preparation; no browser snapshot is authoritative. Prefer a
 reconstructible source-owned opaque reference with exact version checking, avoiding
 new persistence unless the actual source requires it. A digest without an owned

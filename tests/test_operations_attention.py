@@ -133,6 +133,7 @@ def test_connection_terminal_uncertainty_and_retry_due_are_sanitized(
         for index, (state, error, due) in enumerate(
             [
                 ("provider_error", "renewal_uncertain", None),
+                ("provider_error", PRIVATE, None),
                 ("reconnect_required", PRIVATE, None),
                 ("connected", PRIVATE, NOW + timedelta(hours=1)),
                 ("connected", PRIVATE, OLD),
@@ -157,6 +158,7 @@ def test_connection_terminal_uncertainty_and_retry_due_are_sanitized(
         report = attention(db, NOW)
         assert {s.code: s.observed_count for s in report.signals} == {
             "renewal_outcome_unknown": 1,
+            "connection_provider_error": 1,
             "connection_reconnect_required": 1,
             "connection_retry_overdue": 1,
         }
@@ -165,6 +167,50 @@ def test_connection_terminal_uncertainty_and_retry_due_are_sanitized(
             signals(db)["renewal_outcome_unknown"].action
             == "preserve_reservation_reconcile_no_retry"
         )
+        assert signals(db)["renewal_outcome_unknown"].severity == "critical"
+        assert signals(db)["connection_provider_error"].severity == "warning"
+        assert signals(db)["connection_provider_error"].action == "review_connection"
+
+
+@pytest.mark.parametrize("error_code", [None, "provider_rejected_40000", PRIVATE])
+def test_terminal_provider_rejection_without_retry_is_visible_and_recovers(
+    customer_engine: Engine, error_code: str | None
+) -> None:
+    with Session(customer_engine) as db:
+        wid = workspace(db, "provider-rejected").id
+        integration = WorkspaceIntegration(
+            workspace_id=wid, integration_key="tiktok", provider="tiktok", display_name=PRIVATE
+        )
+        db.add(integration)
+        db.flush()
+        connection = SourceConnection(
+            id="rejected",
+            workspace_id=wid,
+            integration_id=integration.id,
+            provider="tiktok",
+            external_id=PRIVATE,
+            status="provider_error",
+            error_code=error_code,
+            next_attempt_at=None,
+            encrypted_grant=PRIVATE,
+            window_start=NOW.date(),
+            window_end=NOW.date(),
+        )
+        db.add(connection)
+        db.commit()
+        report = attention(db, NOW)
+        assert report.status == "attention_observed"
+        assert [(s.code, s.severity, s.action, s.observed_count) for s in report.signals] == [
+            ("connection_provider_error", "warning", "review_connection", 1)
+        ]
+        assert report.signals[0].oldest_observed_at is None
+        assert PRIVATE not in report.model_dump_json()
+        assert "provider_rejected_40000" not in report.model_dump_json()
+        assert connection.status == "provider_error" and connection.encrypted_grant == PRIVATE
+        connection.status = "connected"
+        connection.error_code = None
+        db.commit()
+        assert attention(db, NOW).signals == []
 
 
 def test_unknown_publication_and_action_reservations_survive_workspace_closure(

@@ -38,6 +38,7 @@ class Signal(StrictModel):
         "billing_event_overdue",
         "billing_snapshot_overdue",
         "connection_reconnect_required",
+        "connection_provider_error",
         "connection_retry_overdue",
         "renewal_outcome_unknown",
         "publication_outcome_unknown",
@@ -85,7 +86,7 @@ class Attention(StrictModel):
         ]
     )
     provider_held_exposure: list[HeldExposure] = Field(default_factory=list, max_length=2)
-    signals: list[Signal] = Field(max_length=18)
+    signals: list[Signal] = Field(max_length=19)
 
 
 def utc(value: datetime) -> datetime:
@@ -174,6 +175,8 @@ def attention(db: Session, now: datetime) -> Attention:
                 add("renewal_outcome_unknown", None)
             elif state == "reconnect_required":
                 add("connection_reconnect_required", None)
+            elif state == "provider_error":
+                add("connection_provider_error", None)
             elif due is not None and utc(due) <= cutoff and error is not None:
                 add("connection_retry_overdue", due)
 

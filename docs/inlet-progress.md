@@ -2755,3 +2755,9 @@ PR130 CI must establish their own terminal results; neither is assembled-green y
   social creation authority after `bound()` and lazy media resolution in the legacy
   creation/activation branches. Optimization returns first; historical reconciliation
   does not require new social forward-execution qualification.
+
+## B19 terminal provider rejection attention — 2026-10-06
+
+At root `db22240`, a persisted terminal source `provider_error` with no retry timestamp produced `no_attention_observed`, even though reads were blocked. Added fixed `connection_provider_error` warning with `review_connection`; rotating-token `renewal_uncertain` still takes precedence as critical no-retry evidence. No raw provider error codes, identifiers, grants or payloads leave the report. Raised the maximum fixed signal union from 18 to 19 and documented the code. No provider action or automatic retry was added.
+
+Checks: `tests/test_operations_attention.py` and `tests/test_provider_operations_attention.py` passed 31 tests on SQLite and disposable PostgreSQL, no skips; terminal errors with missing/private error codes, recovery, mixed critical precedence and preserved state are covered. Log: `/tmp/inlet-provider-error-attention-tests.log`. Whole Ruff passed; mypy app/tests passed 490 source files; diff check passed. No Full, hosted CI, live calls or alert delivery claimed. Broader read-only B19/B20 review identified populated new-domain restore and composed export/closure/pilot evidence as remaining offline work, distinct from intended-environment/commercial gates.

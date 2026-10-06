@@ -19,6 +19,7 @@ terminal states retain a null age; an age is never fabricated.
 | `job_running_overdue` | Latest sampled running job began at least 15 minutes ago | Inspect worker ownership and progress before deciding recovery |
 | `billing_event_overdue` | Active-workspace pending event has no future retry, and receipt/retry due time is at least 15 minutes old | Inspect webhook reconciliation; never infer payment from browser return |
 | `billing_snapshot_overdue` | Active subscription lacks recent verification and any scheduled retry is at least 15 minutes overdue | Inspect reconciliation availability; do not grant entitlements manually |
+| `connection_provider_error` | Active-workspace native/source connection is terminally blocked by a provider rejection, including when no retry is scheduled | Review connection access/configuration; never replay automatically |
 | `connection_reconnect_required` | Active-workspace native/source connection requires a new grant | Direct the authorized customer to reconnect |
 | `connection_retry_overdue` | Persisted connection error has a retry due at least 15 minutes ago | Inspect pacing/worker state; respect account-wide cooldown |
 | `renewal_outcome_unknown` | Persisted renewal uncertainty | Preserve encrypted evidence; do not replay a possibly consumed rotating refresh token |
@@ -26,7 +27,7 @@ terminal states retain a null age; an age is never fabricated.
 | `action_outcome_unknown` | Mandate action outcome is unknown, including closing workspaces | Preserve reservation; investigate current authority and receipts |
 | `action_dispatch_overdue` | Dispatching action has no recorded dispatch time or is at least 15 minutes old | Investigate possible in-flight effects; age alone never authorizes retry |
 
-Unknown outcomes are critical; other signals are warnings. Counts represent their
+Unknown outcomes are critical; other signals are warnings. Persisted `renewal_uncertain` takes precedence over the generic provider-error warning, so rotating-token uncertainty retains its critical no-retry action. Provider-error codes and payloads are never included in this report. Counts represent their
 own evidence source and must not be summed into a count of unique incidents. The
 same incident can appear in both an action and a publication step. No currency
 amounts, customer/account/resource identifiers, raw errors, opaque grants, request
@@ -63,7 +64,7 @@ settlement is outside this endpoint. This package does not enable live execution
 
 Two additional bounded queries cover held reservations and current relevant steps.
 They use workspace-bound joins and separate environments, and share the existing
-500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 18 fixed
+500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 19 fixed
 code/environment signals and two exposure summaries can be emitted. A capped sample
 cannot establish absence of uncertainty outside its rows.
 

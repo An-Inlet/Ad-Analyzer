@@ -60,7 +60,7 @@ has been qualified. Credentials alone would not close the remaining engineering 
 
 1. **Integrated correctness:** obtain terminal Full and hosted results for frozen
    `0cf6706`; incorporate the retained Meta account ownership repair; qualify the
-   resulting exact successor artifact. Local Full remains pending; hosted run37412515307 failed with 1816 passed, 40 skipped and 3 failures (video playback twice and nested validation). The nested run also reported a billing failure whose traceback was truncated; its cause is unresolved.
+   resulting exact successor artifact. Local Full completed successfully (exit0); hosted run37412515307 failed with 1816 passed, 40 skipped and 3 failures (video playback twice and nested validation). The nested run also reported a billing failure whose traceback was truncated; its cause is unresolved.
 2. **Production execution:** connect the concrete Google/Meta/TikTok adapters to
    the separately consented production mandate and shared exposure ledger. Complete
    durable claims, exact review-to-request binding, unknown outcome reconciliation,
@@ -92,7 +92,7 @@ and lifecycle/export interfaces. Public website work remains owner-managed.
 | --- | --- | --- | --- |
 | PR112 `f698dea` | Failed:1578 passed,38 skipped,1 nested failure; Shopify initial-session readiness race | Run37410847813 failed:1581 passed,32 skipped,4 failures; FFmpeg decoder cases plus nestedFull | Superseded failed candidate; decoder and deterministic browser repairs incorporated into130 |
 | PR118 `216fda2` | Failed:1597 passed,38 skipped,1 nested failure; billing initial-session readiness race | Run37410393272 failed:1597 passed,32 skipped,7 failures; decoder/upload cases, nestedFull and Chromium page-target discovery | Superseded failed candidate; repairs incorporated into130 |
-| PR130 `0cf6706` | Running; no terminal success claimed | Run37412515307 failed:1816 passed,40 skipped,3 failures; browser playback and nested validation | Frozen predecessor; successor includes retained Meta ownership repair, commerce publications, bounded export, coordinator/social creation, operator attention and codec-qualified browser repair |
+| PR130 `0cf6706` | Passed (exit0):1813 passed,46 skipped in initial suite; all subsequent gates including final nested Full passed | Run37412515307 failed:1816 passed,40 skipped,3 failures; browser playback and nested validation | Frozen predecessor; successor includes retained Meta ownership repair, commerce publications, bounded export, coordinator/social creation, operator attention and codec-qualified browser repair |
 
 These predecessor runs did not pass. Earlier successful foundation runs remain
 historical evidence only and are not substituted for final integrated acceptance.
@@ -100,3 +100,5 @@ historical evidence only and are not substituted for final integrated acceptance
 ## Successor Focused Evidence
 
 At `915fbcc`, the combined exports, TikTok browser, route/model registry, provider attention, social coordinator and diagnostic suite passed **127 tests with one SQLite-only lock-contention skip**. Whole mypy (402 files) and Ruff passed. PR146 playback repair was integrated at `28089c7`; the actual customer portal, campaign review and billing browser suite completed successfully (16 tests). These checks do not establish a successful Full or hosted CI for the successor. No live qualification occurred.
+
+Frozen PR130 local Full completed with exit0; final account-isolation/automation gate passed38 tests with6 PowerShell-unavailable skips. Exact log:/tmp/inlet-mvp-candidate-full.log. Hosted PR146 preflight run37415266510 failed before dependency/test execution: both Google Chrome154.0.8037.57 and Chromium154.0.8037.0 returned browser_no_result. This is not a quota failure. Launch diagnostics/repair remain in progress; local codec success is not hosted success.

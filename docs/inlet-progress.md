@@ -1993,3 +1993,9 @@ Integrated PR146 codec-qualified browser selection at28089c7. Actual customer po
 Integrated PR147 analysis closure admission/persistence fencing. Combined analysis, cadence and customer quiescing checks:45 passed,1 SQLite-only lock-contention skip; whole mypy404 and Ruff passed. Log:/tmp/inlet-next-analysis-closure-corrected.log. An earlier invocation used nonexistent test filenames and ran no tests. This repairs the demonstrated local analysis race without asserting all workers physically drained. No live execution or deployment.
 
 Owner clarified conditional global stop: a verified GitHub plan/usage/resource limit that blocks work requires immediate idleness on all projects until explicit user resumption. All six workers notified. No verified limit observed at this checkpoint.
+
+### Frozen PR130 Terminal Local Full
+
+The unchanged0cf6706 artifact completed local Full with exit0. Initial pytest1813 passed46 skipped; final account-isolation/automation gate38 passed6 PowerShell skips in1014.99s. All intervening lint, types, PostgreSQL, migrations, read-only, security and privacy gates passed. Exact log:/tmp/inlet-mvp-candidate-full.log and its .exitcode file. Hosted37412515307 remains failed; no substitution of local evidence for hosted qualification.
+
+PR146 hosted run37415266510/job112112374138 failed early at real browser codec preflight: installed Google Chrome154.0.8037.57 and Chromium154.0.8037.0 both returned browser_no_result. No plan/quota error was reported. Agent investigating launch diagnostics; no weakened assertions or blind timeout extension authorized.

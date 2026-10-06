@@ -1,18 +1,32 @@
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 from app.customers.models import CustomerMembership
 from app.lifecycle.export_serializers import serialize
+from app.publication import coordinator
+from app.publication.coordinator_contracts import CreationRuntime
 from app.publication.execution_authorization import owner_authorizer
 from app.publication.social_catalog import MetaConfigurationProfile
+from app.publication.social_compiler import compile_social
+from app.publication.social_contracts import SocialConfigurationApprovalRef
+from app.publication.social_customer_producer import SocialPlanProducer
 from app.publication.social_review_contracts import (
+    LegacySocialConfigurationDocumentV1,
     MetaNoDSAAnswer,
     SocialConfigurationDocument,
     SocialRequirements,
     TikTokCoverAnswer,
 )
-from app.publication.social_review_service import confirm, prepare, read_confirmed, selection
+from app.publication.social_review_service import (
+    confirm,
+    meta_declaration,
+    prepare,
+    read_confirmed,
+    selection,
+    verify_plan,
+)
 from app.settings import Settings
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -28,12 +42,30 @@ from tests.test_social_customer_producer import fixture
 
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_exact_configuration_confirmation(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    encoded: Any,
+    provider: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        original, account, catalog, producer, actor, store, cover, _ = fixture(
-            db, configuration, tmp_path, provider, encoded() if provider == "tiktok_ads" else None
-        )
+        captured: list[CreationRuntime] = []
+        original_prepare = coordinator.prepare_creation
+
+        def observe(*args: Any, **kwargs: Any) -> Any:
+            captured.append(args[6])
+            return original_prepare(*args, **kwargs)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(coordinator, "prepare_creation", observe)
+            original, account, catalog, producer, actor, store, cover, _ = fixture(
+                db,
+                configuration,
+                tmp_path,
+                provider,
+                encoded() if provider == "tiktok_ads" else None,
+            )
         profile = next(iter(producer.profiles.values()))
         if isinstance(profile, MetaConfigurationProfile):
             profile = profile.model_copy(update={"dsa_required": False})
@@ -45,6 +77,7 @@ def test_exact_configuration_confirmation(
             wording_version="explicit-test-rule-v1",
             verified=True,
             dsa_required=False,
+            wording="Offline Test: Review This No-DSA Profile And Its Exact Media.",
         )
         document = selection(
             db,
@@ -122,6 +155,104 @@ def test_exact_configuration_confirmation(
                 lambda: NOW,
                 owner_authorizer,
             )
+        assert "configuration_review" not in original.review.model_dump(mode="json")
+        confirmed_producer = SocialPlanProducer(
+            [profile],
+            declarations=lambda request, now: meta_declaration(
+                db,
+                account.workspace_id,
+                row.id,
+                row.digest,
+                actor,
+                document,
+                owner_authorizer,
+            ),
+        )
+        plan = confirmed_producer.produce(
+            db,
+            original.review.source,
+            account,
+            option.identifier(catalog.request),
+            catalog,
+            store,
+            NOW,
+            actor=actor,
+            cover_media_id=cover,
+            configuration_review=SocialConfigurationApprovalRef(
+                review_id=row.id, review_digest=row.digest, approval_digest=approval.digest
+            ),
+        )
+        assert verify_plan(db, account.workspace_id, plan, actor) == document
+        with pytest.raises(HTTPException, match="validator unavailable"):
+            coordinator.gate(captured[0], "contract_test", plan)
+        with pytest.raises(HTTPException, match="confirmation required"):
+            coordinator.gate(
+                replace(captured[0], environment="live", live_enabled=True), "live", original
+            )
+        seen: list[str] = []
+        current_runtime = replace(
+            captured[0], social_configuration_current=lambda d, now: seen.append(d.digest())
+        )
+        coordinator.social_configuration_current(
+            db, account.workspace_id, plan, actor, current_runtime, lambda: NOW
+        )
+        assert seen == [document.digest()]
+
+        def stale_profile(d: SocialConfigurationDocument, now: Any) -> None:
+            raise HTTPException(409, "current profile changed")
+
+        with pytest.raises(HTTPException, match="current profile changed"):
+            coordinator.social_configuration_current(
+                db,
+                account.workspace_id,
+                plan,
+                actor,
+                replace(current_runtime, social_configuration_current=stale_profile),
+                lambda: NOW,
+            )
+        altered_fields = plan.review.configuration.model_copy(
+            update={"account_timezone": "Europe/London"}
+        )
+        altered = compile_social(plan.review.model_copy(update={"configuration": altered_fields}))
+        with pytest.raises(HTTPException, match="exact confirmed"):
+            verify_plan(db, account.workspace_id, altered, actor)
+        saved = row.document
+        row.document = {
+            key: value
+            for key, value in saved.items()
+            if key not in {"configuration_digest", "configuration"}
+        }
+        db.flush()
+        with pytest.raises(HTTPException, match="new exact configuration"):
+            verify_plan(db, account.workspace_id, plan, actor)
+        legacy = LegacySocialConfigurationDocumentV1.model_validate(
+            {
+                **{
+                    key: value
+                    for key, value in saved.items()
+                    if key not in {"configuration_digest", "configuration"}
+                },
+                "schema_version": "inlet.social-configuration-review.v1",
+                "requirements": {k: v for k, v in saved["requirements"].items() if k != "wording"},
+            }
+        )
+        historical, missing = serialize(
+            row.__tablename__,
+            {
+                **mapping,
+                "document": legacy.model_dump(mode="json"),
+                "digest": legacy.digest(),
+            },
+        )
+        assert not missing and historical["document"]["schema_version"].endswith(".v1")
+        row.document = legacy.model_dump(mode="json")
+        row.digest = legacy.digest()
+        db.flush()
+        with pytest.raises(HTTPException, match="new exact configuration"):
+            verify_plan(db, account.workspace_id, plan, actor)
+        row.document = saved
+        row.digest = document.digest()
+        db.flush()
         raw = document.model_dump()
         raw["answer"]["dsa_beneficiary"] = "Must never persist"
         with pytest.raises(ValidationError):

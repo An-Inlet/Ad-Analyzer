@@ -43,7 +43,10 @@ from app.publication.optimization_contracts import (
 from app.publication.optimization_execution_contracts import OptimizationExecutionReview
 from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
 from app.publication.replacement_contracts import RepeatOptimizationReview, ReplacementAuditDocument
-from app.publication.social_review_contracts import SocialConfigurationDocument
+from app.publication.social_review_contracts import (
+    LegacySocialConfigurationDocumentV1,
+    SocialConfigurationDocument,
+)
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
 # not arbitrary columns or provider transport responses. Typed historical fields use
@@ -125,7 +128,6 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("spending_mandate_revisions", "definition"): MandateDefinition,
     ("mandate_actions", "draft"): ActionDraft,
     ("customer_campaign_revisions", "artifact"): ReviewArtifact,
-    ("customer_social_configuration_reviews", "document"): SocialConfigurationDocument,
     ("publication_plans", "document"): PublishPlan,
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
@@ -138,6 +140,12 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_receipts", "receipt"): PublishReceipt,
 }
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("customer_social_configuration_reviews", "document"): TypeAdapter(
+        Annotated[
+            SocialConfigurationDocument | LegacySocialConfigurationDocumentV1,
+            Field(discriminator="schema_version"),
+        ]
+    ),
     ("provider_execution_reviews", "document"): TypeAdapter(
         Annotated[
             CreationExecutionReview
@@ -246,7 +254,7 @@ def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
-    if isinstance(document, SocialConfigurationDocument):
+    if isinstance(document, (SocialConfigurationDocument, LegacySocialConfigurationDocumentV1)):
         account = document.request.account
         if (
             account.workspace_id != row["workspace_id"]

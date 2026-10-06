@@ -237,10 +237,11 @@ def current(
     runtime: ActivationReviewRuntime,
     clock: creation.Clock,
 ) -> None:
-    creation.gate(runtime.creation, binding.environment)
+    creation.gate(runtime.creation, binding.environment, original)
     runtime.creation.authorize(db, wid, actor)
     _, policy = mandates.checked(db, wid, binding, actor, clock)
     creation.source_current(db, wid, original, actor, store, clock)
+    creation.social_configuration_current(db, wid, original, actor, runtime.creation, clock)
     master = db.get(
         PlatformAutomationControl, AutomationControlKey.ALL_DATA_SYNCS.value, populate_existing=True
     )

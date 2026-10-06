@@ -6,10 +6,17 @@ existence is not authority or proof that a field combination is eligible.
 
 import re
 from datetime import datetime
-from typing import Annotated, Literal, Protocol
+from typing import Annotated, Any, Literal, Protocol
 from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, Field, SecretStr, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SecretStr,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from app.campaign_review.contracts import MetaImage, ReviewArtifact, TikTokVideo
 from app.goals.schemas import StrictModel
@@ -179,6 +186,12 @@ SocialConfiguration = Annotated[
 ]
 
 
+class SocialConfigurationApprovalRef(StrictModel):
+    review_id: Id
+    review_digest: Digest
+    approval_digest: Digest
+
+
 class SocialPublicationReview(StrictModel):
     schema_version: Literal["inlet.social-publication-review.v1"] = (
         "inlet.social-publication-review.v1"
@@ -187,9 +200,20 @@ class SocialPublicationReview(StrictModel):
     source_digest: Digest
     scope: PublicationScope
     configuration: SocialConfiguration
+    configuration_review: SocialConfigurationApprovalRef | None = None
     # Still unqualified combinations: later server evidence extension must explicitly
     # replace this requirement, never interpret SDK enum presence as qualification.
     qualification_blockers: list[str] = Field(min_length=1, max_length=32)
+
+    @model_serializer(mode="wrap")
+    def serialize_optional_configuration(
+        self,
+        handler: SerializerFunctionWrapHandler,
+    ) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.configuration_review is None:
+            data.pop("configuration_review", None)
+        return data
 
     @model_validator(mode="after")
     def binding(self) -> "SocialPublicationReview":

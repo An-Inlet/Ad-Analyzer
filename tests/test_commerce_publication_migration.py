@@ -49,6 +49,7 @@ def test_publication_migration_roundtrip(
                 text("SELECT id,slug FROM workspaces WHERE slug='preserved'")
             ).one()
         command.upgrade(config, "20261006_0051")
+        command.upgrade(config, "20261006_0053")
         with Session(engine) as db:
             complete(db, configuration)
             assert db.scalar(select(CommerceMeasurementPublication.id)) is not None
@@ -63,6 +64,7 @@ def test_publication_migration_roundtrip(
             )
             assert db.execute(text("SELECT count(*) FROM commerce_orders")).scalar_one() == 1
         command.upgrade(config, "20261006_0051")
+        command.upgrade(config, "20261006_0053")
         with Session(engine) as db:
             assert db.scalar(select(CommerceMeasurementPublication.id)) is None
             assert db.scalar(select(CommerceEvidenceState.store_id)) is None

@@ -76,6 +76,9 @@ def invalidate(
     clear_history: bool = True,
 ) -> None:
     """Requires workspace/native/store fences; retains no old aggregate or digest."""
+    from app.lifecycle.privacy import bump_workspace_export_revision
+
+    bump_workspace_export_revision(db, store.workspace_id)
     fence = state(db, store, now)
     fence.privacy_epoch += 1
     if rebind:

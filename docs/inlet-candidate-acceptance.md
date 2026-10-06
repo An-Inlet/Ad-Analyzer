@@ -1,6 +1,6 @@
 # Integrated Inlet Candidate Acceptance
 
-This is the current candidate view for draft PR130. Earlier package matrices are
+This tracks frozen draft PR130 and its separately assembled successor branch `codex/inlet-mvp-next`. Earlier package matrices are
 historical checkpoints, not current completion claims. Main remains `ea3591c`.
 No live product, provider, purchase, deployment or advertising-spend qualification
 has been performed. Focused tests establish only their described offline behavior.
@@ -11,20 +11,20 @@ has been performed. Focused tests establish only their described offline behavio
 | B02 | Customer identity, scoped roles, revocable sessions, post-lock/provider revalidation and concurrent authorization tests | Configured identity provider and unrelated live customer qualification |
 | B03 | Idempotent workspace provisioning and owner membership; customer signup journey | Live signup and recovery under deployed configuration |
 | B04 | Explicit workspace/connection/account ownership, scoped imports/jobs and database constraints | Full integrated isolation suite and unrelated live accounts |
-| B05 | Canonical Shopify merchandise sales net discounts/refunds, store-local windows, 13-month retention, erasure suppression and owned measurement APIs | Actual historical publication manifests and privacy epochs underway; deployed source permission/completeness reconciliation |
+| B05 | Canonical Shopify merchandise sales net discounts/refunds, store-local windows, 13-month retention, erasure suppression and owned measurement APIs | Owned terminal publications and privacy epochs implemented offline; deployed source permission/completeness reconciliation |
 | B06 | Editable versioned goals, immutable confirmed baselines, scoped creation receipts and browser review/confirmation | Complete connected customer workflow and qualified historical baselines; goal confirmation is not spending authority |
-| B07 | Versioned mandate simulation, reservations, cancellation, uncertainty and cumulative-cap guards | Separate production mandate/coordinator implementation underway; qualified exposure bounds; validate draft aggressiveness policy |
+| B07 | Versioned mandate simulation, reservations, cancellation, uncertainty and cumulative-cap guards | Separate production mandate and creation coordinator implemented offline; durable optimization/activation/settlement unfinished; qualified exposure bounds; validate draft aggressiveness policy |
 | B08 | Concrete Google connection/import runtime, current customer consent/account selection and disconnect UI | Live app permissions, callback, refresh/revocation and historical reconciliation |
 | B09 | Reviewed Google optimization planning and concrete adapter work | Production mandate execution, authoritative portfolio exposure and controlled live qualification |
 | B10 | Scoped Meta child reporting, current customer OAuth/selection/disconnect UI and stale-grant fencing | Live permissions/account reconciliation and supported optimization matrix |
-| B11 | Scoped TikTok lifecycle/import runtime and paused publication adapter | Customer setup UI, production coordinator and live advertiser/reporting qualification |
+| B11 | Scoped TikTok lifecycle/import runtime and paused publication adapter | Customer setup and durable creation implemented offline; production optimization and live advertiser/reporting qualification remain |
 | B12 | Klaviyo/HubSpot/Omnisend scoped customer-context transport, suppression and quota defenses | Complete customer connection journeys and live data-purpose/permission qualification |
 | B13 | Billing provider transport, webhook reconciliation, checkout/return/management UI and entitlement guards | Commercial configuration, actual purchase/cancellation and closure billing policy |
 | B14 | Supplied-media review, private media storage adapter, bounded real video decoding and browser preview | Configured storage/provider media qualification; production publication depends on explicit review |
-| B15 | Google publication compiler/HTTP adapter, immutable qualification/review, durable offline execution core and cancellation/duplicate-effect regressions | Actual production authority/coordinator, reviewed activation and authoritative settlement; no live enablement |
-| B16 | Concrete Meta/TikTok paused publication adapters and shared typed contracts | Complete coordinator-backed campaign journeys, optimization execution and provider capability/exposure proof |
-| B17 | Strict comparable-window evaluator and conservative source projection | Published historical manifests, privacy-fenced persistent aggregates, durable production receipt projection and measured feedback |
-| B18 | Customer navigation, signup, goals, billing, Google/Shopify/Meta connections, media review and local-closure receipt UI | Remaining source setup journeys, activity/support, complete export/closure; public website is separately owner-managed |
+| B15 | Google publication compiler/HTTP adapter, immutable qualification/review, durable offline execution core and cancellation/duplicate-effect regressions | Actual durable creation coordinator implemented offline; exposure qualification, reviewed activation and authoritative settlement remain; no live enablement |
+| B16 | Concrete Meta/TikTok paused publication adapters and shared typed contracts | Actual coordinator-backed paused creation implemented offline; durable optimization/activation and provider capability/exposure proof remain |
+| B17 | Strict comparable-window evaluator and conservative source projection | Owned historical publications and privacy invalidation implemented; owned receipt assessment, maturity/effect-time qualification and measured feedback remain |
+| B18 | Customer navigation, signup, goals, billing, Google/Shopify/Meta connections, media review and local-closure receipt UI | TikTok setup and bounded export implemented (export disabled by default); CRM setup, activity/support and complete closure remain; public website is separately owner-managed |
 | B19 | CI gates, explicit global model registry, worker authentication, private storage and native restore exercise | Green integrated Full/CI; deployed readiness/alerts, retention and recovery qualification |
 | B20 | Offline unrelated-tenant, browser, revocation, retry and scope tests | Unrelated real pilots across every supported launch workflow, purchasing, closure and operations |
 
@@ -60,7 +60,7 @@ has been qualified. Credentials alone would not close the remaining engineering 
 
 1. **Integrated correctness:** obtain terminal Full and hosted results for frozen
    `0cf6706`; incorporate the retained Meta account ownership repair; qualify the
-   resulting exact successor artifact. The current local/hosted runs are pending.
+   resulting exact successor artifact. Local Full remains pending; hosted run37412515307 failed with 1816 passed, 40 skipped and 3 failures (video playback twice and nested validation). The nested run also reported a billing failure whose traceback was truncated; its cause is unresolved.
 2. **Production execution:** connect the concrete Google/Meta/TikTok adapters to
    the separately consented production mandate and shared exposure ledger. Complete
    durable claims, exact review-to-request binding, unknown outcome reconciliation,
@@ -92,7 +92,11 @@ and lifecycle/export interfaces. Public website work remains owner-managed.
 | --- | --- | --- | --- |
 | PR112 `f698dea` | Failed:1578 passed,38 skipped,1 nested failure; Shopify initial-session readiness race | Run37410847813 failed:1581 passed,32 skipped,4 failures; FFmpeg decoder cases plus nestedFull | Superseded failed candidate; decoder and deterministic browser repairs incorporated into130 |
 | PR118 `216fda2` | Failed:1597 passed,38 skipped,1 nested failure; billing initial-session readiness race | Run37410393272 failed:1597 passed,32 skipped,7 failures; decoder/upload cases, nestedFull and Chromium page-target discovery | Superseded failed candidate; repairs incorporated into130 |
-| PR130 `0cf6706` | Running; no terminal success claimed | Run37412515307 running | Frozen coherent candidate; known retained Meta ownership repair remains a separate successor change |
+| PR130 `0cf6706` | Running; no terminal success claimed | Run37412515307 failed:1816 passed,40 skipped,3 failures; browser playback and nested validation | Frozen predecessor; successor includes retained Meta ownership repair, commerce publications, bounded export, coordinator/social creation, operator attention and codec-qualified browser repair |
 
 These predecessor runs did not pass. Earlier successful foundation runs remain
 historical evidence only and are not substituted for final integrated acceptance.
+
+## Successor Focused Evidence
+
+At `915fbcc`, the combined exports, TikTok browser, route/model registry, provider attention, social coordinator and diagnostic suite passed **127 tests with one SQLite-only lock-contention skip**. Whole mypy (402 files) and Ruff passed. PR146 playback repair was integrated at `28089c7`; the actual customer portal, campaign review and billing browser suite completed successfully (16 tests). These checks do not establish a successful Full or hosted CI for the successor. No live qualification occurred.

@@ -1985,3 +1985,11 @@ assembled Full/CI run with preserved evidence; root owns separate video failures
 Isolated `codex/inlet-video-playback-ci` from frozen1300cf6706; B17 work preserved uncommitted in `/workspace/inlet-owned-outcomes`. Exact hosted job112103881519 chose stock Chromium154.0.8037.0 and failed real MP4 first-frame assertions; FFmpeg6.1 server tests passed. Added early real H264/AAC blob decode qualification and shared `INLET_TEST_BROWSER` selection, plus bounded failure diagnostics. No weaker assertions or longer timeouts. Exact snapshot download blocked HTTP403; original MediaError remains a hosted evidence gap, explicitly documented.
 
 Matching Ubuntu24.04/FFmpeg6.1/GoogleChrome154 actual silent+AAC decode passes; real HTTPS bothDB browser+portal suite14pass; Ruff/mypy362 and standalone probe mypy pass. See `docs/inlet-browser-media-ci.md`. Parent owns integration and Full/hosted qualification. B17 resumes afterward on its separate worktree.
+
+### Successor Playback And Analysis Closure Integration
+
+Integrated PR146 codec-qualified browser selection at28089c7. Actual customer portal, campaign review and billing browser tests completed successfully (16 tests); whole mypy402 and Ruff passed. Log: /tmp/inlet-next-playback-billing-corrected.log. An earlier invocation named a nonexistent billing test file and ran no tests; it is not evidence. Hosted billing root cause remains unresolved; bounded nested diagnostics will retain future per-case failures.
+
+Integrated PR147 analysis closure admission/persistence fencing. Combined analysis, cadence and customer quiescing checks:45 passed,1 SQLite-only lock-contention skip; whole mypy404 and Ruff passed. Log:/tmp/inlet-next-analysis-closure-corrected.log. An earlier invocation used nonexistent test filenames and ran no tests. This repairs the demonstrated local analysis race without asserting all workers physically drained. No live execution or deployment.
+
+Owner clarified conditional global stop: a verified GitHub plan/usage/resource limit that blocks work requires immediate idleness on all projects until explicit user resumption. All six workers notified. No verified limit observed at this checkpoint.

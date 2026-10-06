@@ -4514,3 +4514,27 @@ whitespace passed. Independent exact20ad0c4 review established no P1/P2 in its
 bounded scope,67 targeted passes plus four total activation fixture checks;
 record `/workspace/inlet-design/GOOGLE-TOTAL-BUDGET-INDEPENDENT-REVIEW.md`.
 No current financial gate or live runtime changed. UI integration follows separately.
+### Google Campaign Total Budget Customer UI — Offline
+
+Added an explicit daily/campaign-total choice to Campaign Execution, keeping the
+legacy daily intent shape. Exact reviews distinguish total budget, reservation,
+account time zone and period; guidance labels the 4–89-local-day subset as Inlet's
+qualification scope. Budget changes invalidate in-flight review context.
+
+Verification: actual HTTPS browser suite **8 passed** on SQLite/PostgreSQL
+(39.71s), including total PAUSED creation/readback, delayed-response mode change,
+reservation retention and no activation requests. Existing daily/activation,
+context-race and lost-response cases passed. Customer API/compiler/HTTP focused
+suite **53 passed** (24.66s); whole Ruff, clean mypy **618 files**, JavaScript
+syntax and whitespace checks passed. Tests use MockTransport, no live provider
+calls or financial/runtime enablement. Parent owns Full/hosted qualification.
+Branch: `codex/inlet-google-total-budget-ui`. See
+`docs/inlet-google-total-budget-ui.md`. B20 fresh-brand proposal remains separate
+at `/workspace/inlet-design/FRESH-BRAND-PILOT-PROPOSAL.md`; no B20 implementation
+is claimed here.
+
+Root PR221 UI/API integration: **20 passed in59.87s** on SQLite/PostgreSQL,
+`/tmp/inlet-next-google-total-ui.log`, covering actual daily/total browser flows
+and customer API. Ruff, mypy623, JavaScript syntax and staged whitespace passed.
+Financial eligibility, separate activation approval and runtime defaults unchanged.
+Prepared dc3c0d5 validation snapshot remains unchanged; this package is successor work.

@@ -46,10 +46,10 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 def setup_api(
-    db: Session, config: Settings, path: Path
+    db: Session, config: Settings, path: Path, *, total_budget: bool = False
 ) -> tuple[int, str, dict[str, Any], dict[str, Any], Any, CustomerExecutionRuntime, GoogleServer]:
     server = Server()
-    wid, run_id, actor, media, creation = ready(db, config, path, server)
+    wid, run_id, actor, media, creation = ready(db, config, path, server, total_budget=total_budget)
     run = db.get(ProviderExecutionRun, run_id)
     assert run is not None
     review = db.get(ProviderExecutionReview, run.review_id)

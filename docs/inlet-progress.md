@@ -2755,3 +2755,21 @@ PR130 CI must establish their own terminal results; neither is assembled-green y
   social creation authority after `bound()` and lazy media resolution in the legacy
   creation/activation branches. Optimization returns first; historical reconciliation
   does not require new social forward-execution qualification.
+
+## Exact Second Frozen Candidate And Independent API Progress
+
+PR130 and local candidate worktree freeze8efe19668d4920df6607ddd60140ab8ab0779049,
+tree11252fdbc785c270b49a1340dff95506d7391405. Local Full runs in
+`/workspace/inlet-mvp-candidate`, disposableDBinlet_oct06_candidate2_ci, log
+`/tmp/inlet-oct06-candidate2-full.log` (future `.exitcode`). Normal hosted run
+37427571832/job112150604656 is running pytest after successful browser preflight.
+Fetched merge80e432a072d4970fd4fe50c23b1a913257e99250 has the identical tree; actual
+checkout will be confirmed from its completed log. No terminal success yet.
+
+Independent newer root integrates PR174cc9266e asdb22240: owner-scoped named target
+catalog, optimization-only mandate/topology consent, initial/repeat API reviews,
+exhaustive shared execution dispatch and lazy media access only for creative paths.
+Root combined optimization/creation/social API/route checks49passed0skips85.35s
+(`/tmp/inlet-next-optimization-customer-api.log`). Ruff/configured mypy/diff passed.
+No migration or enabled production factory. Existing-campaign UI, native discovery
+and qualification remain separate; this newer API is outside the frozen8efe run.

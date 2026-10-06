@@ -86,6 +86,20 @@ class LocalMediaStore:
 
 
 def get_media_store() -> MediaStore:
+    if settings.media_storage_mode == "gcs" and settings.media_gcs_bucket:
+        from google.cloud import storage  # type: ignore[attr-defined]
+
+        from app.campaign_review.gcs_storage import GCSMediaStore
+
+        try:
+            if os.environ.get("STORAGE_EMULATOR_HOST"):
+                raise ValueError("storage emulator is not a production media backend")
+            return GCSMediaStore(
+                settings.media_gcs_bucket,
+                storage.Client(client_options={"api_endpoint": "https://storage.googleapis.com"}),
+            )
+        except Exception:
+            raise HTTPException(503, "private media storage unavailable") from None
     if settings.media_storage_mode != "local_dev" or not settings.media_local_directory:
         raise HTTPException(503, "private media storage unavailable")
     try:

@@ -174,6 +174,7 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 class Settings(BaseSettings):
     media_storage_mode: str = Field(default="disabled", alias="AD_ANALYZER_MEDIA_STORAGE_MODE")
+    media_gcs_bucket: str = Field(default="", alias="AD_ANALYZER_MEDIA_GCS_BUCKET")
     media_local_directory: str = Field(default="", alias="AD_ANALYZER_MEDIA_LOCAL_DIRECTORY")
     klaviyo_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_KLAVIYO_RUNTIME_MODE")
     klaviyo_client_id: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_CLIENT_ID")

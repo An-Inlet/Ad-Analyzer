@@ -18,7 +18,8 @@ async function api(path, turn) {
     if ([401, 403, 404].includes(response.status)) reset();
     throw new Error(response.status === 401 ? 'Your session ended. Sign in from Your Workspace.' : 'Activity is unavailable. Check your session or try again later.');
   }
-  const row = await response.json();
+  let row;
+  try { row = await response.json(); } catch (error) { if (turn !== epoch) throw new Stale(); throw new Error('Activity response could not be verified.'); }
   if (turn === epoch && cookies !== document.cookie) { reset(); throw new Error('Your session changed. Check your session again.'); }
   if (turn !== epoch) throw new Stale();
   return row;

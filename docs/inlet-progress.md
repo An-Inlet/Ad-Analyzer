@@ -2016,3 +2016,6 @@ live account, billing, advertising or deployment operations. Initial test fixtur
 used an unsupported membership status; corrected to schema-supported suspension.
 Standalone `mypy .` encountered the existing duplicate script module discovery;
 the repository's configured `mypy` command is the authoritative check.
+
+Final review also guards an obsolete response-body parse failure; the focused Chromium
+journey passed again (1 passed). Ruff, mypy (407 files) and diff check passed again.

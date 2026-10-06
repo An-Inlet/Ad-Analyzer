@@ -17,6 +17,8 @@ from app.goals.schemas import StrictModel
 from app.google_connections.models import GoogleCustomerConnection, GoogleImportCompletion
 from app.mandates.models import MandateAction
 from app.meta.models import MetaConnection
+from app.operations.models import OperationalObservationRecord
+from app.operations.observation_contracts import Component, Outcome, Slot
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
     ProviderExecutionRun,
@@ -73,6 +75,15 @@ class HeldExposure(StrictModel):
     oldest_period_end: AwareDatetime | None
 
 
+class RuntimeObservation(StrictModel):
+    component: Component
+    slot: Slot
+    outcome: Outcome
+    observed_at: AwareDatetime
+    expected_next_at: AwareDatetime | None
+    occurrence_count: int = Field(strict=True, ge=1, le=2147483647)
+
+
 class Attention(StrictModel):
     schema_version: Literal["inlet.operations.attention.v1"] = "inlet.operations.attention.v1"
     observed_at: AwareDatetime
@@ -83,14 +94,16 @@ class Attention(StrictModel):
     counts_are_lower_bounds: bool
     observation_gaps: list[str] = Field(
         default_factory=lambda: [
-            "storage_failures_not_recorded",
-            "scheduler_heartbeat_not_recorded",
+            "storage_observations_incomplete",
+            "scheduler_observations_do_not_prove_worker_liveness",
             "work_without_persisted_analysis_obligation_not_observed",
             "analysis_obligation_historical_generation_not_recorded",
             "publication_step_age_not_recorded",
             "external_alert_delivery_not_configured",
         ]
     )
+    runtime_observation_status: Literal["unobserved", "observed"] = "unobserved"
+    runtime_observations: list[RuntimeObservation] = Field(default_factory=list, max_length=9)
     provider_held_exposure: list[HeldExposure] = Field(default_factory=list, max_length=2)
     signals: list[Signal] = Field(max_length=22)
 
@@ -409,7 +422,30 @@ def attention(db: Session, now: datetime) -> Attention:
                 }
             )
         )
+    observations = list(
+        db.scalars(
+            select(OperationalObservationRecord)
+            .order_by(OperationalObservationRecord.component, OperationalObservationRecord.slot)
+            .limit(10)
+        )
+    )
+    truncated |= len(observations) > 9
+    runtime_observations = [
+        RuntimeObservation.model_validate(
+            {
+                "component": row.component,
+                "slot": row.slot,
+                "outcome": row.outcome,
+                "observed_at": utc(row.observed_at),
+                "expected_next_at": utc(row.expected_next_at) if row.expected_next_at else None,
+                "occurrence_count": row.occurrence_count,
+            }
+        )
+        for row in observations[:9]
+    ]
     return Attention(
+        runtime_observation_status="observed" if observations else "unobserved",
+        runtime_observations=runtime_observations,
         observed_at=now,
         status="attention_observed" if signals else "no_attention_observed",
         evidence_truncated=truncated,

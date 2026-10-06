@@ -284,6 +284,8 @@ class Settings(BaseSettings):
             data[_SYNC_LOCK_FIELD] = resolved
         super().__init__(**data)
 
+    operational_observations_enabled: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     @classmethod

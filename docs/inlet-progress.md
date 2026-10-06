@@ -548,3 +548,26 @@ local Full ataa4dcff passed827 tests with six PowerShell skips and all gates; ho
 is tracked in PR67. B09 checks continue independently on its immutable commit. Main
 was rechecked and remains ea3591c. Next package: B11 TikTok using the common owned
 account and ad-group/ad grain contracts. Live release/pilot gates remain open.
+
+## B11 — TikTok And Shared Customer Source Lifecycle
+
+Branch `codex/inlet-b11-tiktok` follows B10 `6f12be8` / draft PR69. Added bounded,
+session-bound source authorization, encrypted owned grants, reconnect generations,
+disconnect, staged atomic TikTok imports and scoped coverage-aware reporting. The wire
+adapter uses injected fixture IO and fixed read endpoints. Runtime source transport is
+unavailable. TikTok conversions/value stay unqualified for optimization; campaign and
+child grains cannot multiply reported spend. B08's customer callback query logging is
+also corrected and its relay shared with the source lifecycle.
+
+17 focused tests pass; Ruff and mypy (231 files) pass. Full and exact-head hosted checks
+are tracked in the package PR. Migration0030 is limited to customer-source tables and
+blocks downgrade with existing TikTok accounts. See `inlet-source-contract.md` for
+interfaces, preservation and remaining live/runtime acceptance. No provider calls,
+credentials, website changes, merge, deployment or spend occurred.
+
+Earlier package terminal evidence: B08 hosted CI37391397871 passed833 tests, zero skips,
+all gates. B09 local Full passed837 tests with six PowerShell skips; hosted CI37391760028
+passed843 tests with zero skips and all gates at36c0155 (PR68 updated). B10 local Full
+passed845 tests with six PowerShell skips and all gates at6f12be8; hosted CI37392693269
+is pending final account-isolation gate. Next: B12 read-only customer-data context using
+these explicit source identities; canonical Shopify revenue must remain unduplicated.

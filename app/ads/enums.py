@@ -6,6 +6,7 @@ class AdvertisingPlatform(StrEnum):
 
     GOOGLE_ADS = "google_ads"
     META_ADS = "meta_ads"
+    TIKTOK_ADS = "tiktok_ads"
 
 
 class MetricEntityType(StrEnum):

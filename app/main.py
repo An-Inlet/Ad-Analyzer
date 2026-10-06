@@ -14,6 +14,7 @@ from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
 from app.api.customer_mandates import router as customer_mandates_router
+from app.api.customer_sources import router as customer_sources_router
 from app.api.intelligence import router as intelligence_api_router
 from app.api.meta import router as meta_api_router
 from app.api.pubsub import router as pubsub_router
@@ -114,6 +115,7 @@ app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)
 app.include_router(customer_ad_detail_router)
+app.include_router(customer_sources_router)
 app.include_router(pubsub_router)
 app.include_router(dashboard_router)
 app.include_router(intelligence_dashboard_router)

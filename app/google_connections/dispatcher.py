@@ -1,7 +1,7 @@
 """Explicit scoped fixture dispatcher and durable post-import analysis delivery."""
 
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
@@ -83,15 +83,26 @@ def run_imports(
 
 
 def deliver_analysis(
-    engine: Engine, analyze: Callable[[Engine, int], object], limit: int = 20
+    engine: Engine,
+    analyze: Callable[[Engine, int], object],
+    limit: int = 20,
+    *,
+    now: datetime | None = None,
 ) -> int:
+    current = now or datetime.now(UTC)
     # Analysis already has unique source-job/run-key protection. Keep the outbox pending
     # across failures/crashes; successful source imports are never rerun for analysis failure.
     with Session(engine) as db:
         ids = list(
             db.scalars(
                 select(GoogleImportCompletion.job_id)
-                .where(GoogleImportCompletion.state == "pending")
+                .where(
+                    GoogleImportCompletion.state == "pending",
+                    or_(
+                        GoogleImportCompletion.next_attempt_at.is_(None),
+                        GoogleImportCompletion.next_attempt_at <= current,
+                    ),
+                )
                 .order_by(GoogleImportCompletion.job_id)
                 .limit(max(1, min(limit, 100)))
             )
@@ -101,6 +112,11 @@ def deliver_analysis(
         try:
             analyze(engine, job_id)
         except Exception:
+            with Session(engine) as db:
+                row = db.get(GoogleImportCompletion, job_id)
+                if row is not None and row.state == "pending":
+                    row.next_attempt_at = current + timedelta(minutes=5)
+                    db.commit()
             continue
         with Session(engine) as db:
             row = db.get(GoogleImportCompletion, job_id)

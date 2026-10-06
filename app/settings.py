@@ -196,6 +196,18 @@ class Settings(BaseSettings):
     billing_portal_configuration: str = Field(
         default="", alias="AD_ANALYZER_BILLING_PORTAL_CONFIGURATION"
     )
+    customer_google_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_GOOGLE_SCHEDULER_ENABLED"
+    )
+    customer_tiktok_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_TIKTOK_SCHEDULER_ENABLED"
+    )
+    customer_billing_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_BILLING_SCHEDULER_ENABLED"
+    )
+    customer_analysis_outbox_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_ANALYSIS_OUTBOX_ENABLED"
+    )
     billing_required: bool = Field(default=False, alias="AD_ANALYZER_BILLING_REQUIRED")
     billing_price_id: str = Field(default="", alias="AD_ANALYZER_BILLING_PRICE_ID")
     billing_max_accounts: int = Field(

@@ -645,3 +645,20 @@ billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skip
 (before three additional HTTP error cases, separately passed). Ruff, mypy and
 `git diff --check` pass. Full validation has not run for this runtime candidate.
 Not a completed B13 acceptance or live payment result.
+
+### Customer scheduler runtime (2026-10-06)
+
+- Branch `codex/inlet-scheduler-runtime`, based on PR79 Google lifecycle repair
+  `24ad1ae86300a32f3f28b60e8402aeaacc471ccf` (itself based on PR75).
+- Added explicit disabled-by-default shipped scheduler invocation of customer Google,
+  TikTok, billing reconciliation, and lifecycle/entitlement-guarded analysis outbox.
+- Added durable outbox retry timing and lifecycle fencing; see
+  `docs/inlet-customer-scheduler.md` for configuration, locking and remaining work.
+- Focused PostgreSQL + SQLite tests: **78 passed**, two existing Alembic configuration
+  deprecation warnings, `/tmp/inlet-scheduler-final-focused.log`.
+- Ruff passed; mypy passed across 253 source files; `git diff --check` passed.
+- Disposable PostgreSQL migration upgrade through `20261006_0034` passed.
+  Optional `alembic check` still reports pre-existing legacy CRM metadata removals
+  and analysis VARCHAR/enum drift; no unrelated schema changes were applied.
+- Full validation and hosted CI pending. No live provider calls, activation, merge
+  or deployment. Independent portal migration0032 requires merge revision when combined.

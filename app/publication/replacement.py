@@ -45,7 +45,7 @@ from app.publication.replacement_contracts import (
     ReservationAncestor,
     parse_review,
 )
-from app.publication.replacement_lineage import ancestors
+from app.publication.replacement_lineage import ancestors, require_successor_capacity
 from app.shopify.security import utc
 
 
@@ -167,6 +167,7 @@ def prepare_repeat_optimization(
         raise HTTPException(409, "authoritative original closure and transition source unavailable")
     ledger, policy = o.current(db, wid, binding, scope, actor, runtime, clock)
     original = snapshot(db, wid, predecessor_id, actor, ledger, policy, scope)
+    require_successor_capacity(original)
     db.commit()
     qualification = runtime.qualification_reader(db, binding, scope, target, clock())
     db.commit()
@@ -251,6 +252,7 @@ def transfer(
     binding, scope = plan.intent.mandate, plan.intent.scope
     ledger, policy = o.current(db, wid, binding, scope, actor, runtime, clock)
     original = snapshot(db, wid, document.predecessor.predecessor_id, actor, ledger, policy, scope)
+    require_successor_capacity(original)
     if original != document.predecessor:
         raise HTTPException(409, "reviewed replacement predecessor changed")
     run_id = run.id

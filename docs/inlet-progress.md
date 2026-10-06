@@ -2967,3 +2967,36 @@ Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
 production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
 not qualified. Frozen `8efe196` local Full and normal CI are still running and do
 not cover this newer package.
+
+## Repeat Accounting Readiness And Capacity Repair — 2026-10-06
+
+Isolated `codex/inlet-repeat-readiness` from assembled `1c82e03` assessed current
+manual customer repeat APIs/UI, durable accounting, native proof producers and the
+missing autonomous candidate/scheduler path. Detailed capability/missing-code matrix,
+recurring effect semantics, proposed trusted worker ports and a minimal separate
+background-delegation decision are in `docs/design/repeat-optimization-readiness.md`.
+No worker authority, factory, source qualification or live dispatch was enabled.
+
+Concrete defect: a readable 32-reservation chain could admit a 33rd reservation which
+historical settlement could not traverse. Baseline SQLite regression built the exact
+32-chain and failed because successor preparation did not reject it. Added shared
+capacity admission checks before preparation/approval/transfer without reducing the
+historical reader bound or truncating audit. At capacity, late original uncertainty
+still retains exposure; later original-fence read-only reconciliation and separately
+qualified terminal settlement remain usable.
+
+Checks: exact-limit/late-evidence/terminal-settlement test passed on SQLite and
+PostgreSQL (2 passed). Core repeat and current customer optimization API cases passed
+53 with 1 intentional SQLite row-lock skip during the combined run. That run also
+had two new-test clock errors: the supposed later reconciliation reused the original
+observation timestamp/content and correctly could not supersede a newer unknown
+receipt. Advancing the test clock one second repaired those fixtures; final isolated
+capacity rerun passed both. Product code did not change for that fixture correction.
+Ruff (`app tests migrations`), mypy (`app tests`, 498 files) and diff check passed.
+No Full, provider access, workflow dispatch or deployment.
+
+Next: freeze typed non-authorizing candidate/queue contracts, then implement offline
+policy selection and durable orchestration. Native terminal/transition guarantees
+remain missing implementations/evidence, not credentials-only gates. Background
+worker provenance must not impersonate per-action human review or weaken the original
+interactive session checks. Root owns the authorization decision and integration.

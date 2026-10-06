@@ -254,6 +254,9 @@ def checked_review(
         )
         if admitted is None:
             from app.publication.replacement import snapshot
+            from app.publication.replacement_lineage import require_successor_capacity
+
+            require_successor_capacity(document.predecessor)
 
             if (
                 snapshot(

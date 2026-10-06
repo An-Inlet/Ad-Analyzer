@@ -111,3 +111,56 @@ class MetaAudit(Base):
     actor_role: Mapped[str] = mapped_column(String(32))
     record_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class MetaDetailCheckpoint(Base):
+    """A child window is bound to one native grant generation and canonical owner."""
+
+    __tablename__ = "meta_detail_checkpoints"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "workspace_id"],
+            ["meta_connections.id", "meta_connections.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id"],
+            ["advertising_accounts.id", "advertising_accounts.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["integration_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "phase IN ('ads','adset_insights','ad_insights','complete')",
+            name="ck_meta_detail_phase",
+        ),
+        CheckConstraint("page_count >= 0 AND page_count <= 300", name="ck_meta_detail_pages"),
+        CheckConstraint("row_count >= 0 AND row_count <= 30000", name="ck_meta_detail_rows"),
+        CheckConstraint("byte_count >= 0 AND byte_count <= 16000000", name="ck_meta_detail_bytes"),
+        CheckConstraint("window_end >= window_start", name="ck_meta_detail_window"),
+    )
+    connection_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer)
+    account_id: Mapped[int] = mapped_column(Integer)
+    integration_id: Mapped[int] = mapped_column(Integer)
+    generation: Mapped[int] = mapped_column(Integer)
+    window_start: Mapped[date] = mapped_column(Date)
+    window_end: Mapped[date] = mapped_column(Date)
+    phase: Mapped[str] = mapped_column(String(24), default="ads")
+    cursor: Mapped[str | None] = mapped_column(Text)
+    seen_cursors: Mapped[list[str]] = mapped_column(JSON, default=list)
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    byte_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class MetaDetailStagedPage(Base):
+    __tablename__ = "meta_detail_staged_pages"
+    connection_id: Mapped[int] = mapped_column(
+        ForeignKey("meta_detail_checkpoints.connection_id", ondelete="CASCADE"), primary_key=True
+    )
+    page_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)

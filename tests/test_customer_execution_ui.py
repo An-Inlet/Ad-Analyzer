@@ -33,11 +33,13 @@ from tests.test_customer_portal import portal_executable
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.parametrize("scenario", ["journey", "context_race", "lost_response"])
 def test_execution_real_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     configuration: Settings,
+    scenario: str,
 ) -> None:
     chromium = portal_executable(
         "chromium", "chromium-browser", "google-chrome", "google-chrome-stable"
@@ -87,7 +89,13 @@ def test_execution_real_browser(
         path = scope.get("path", "")
         if path == "/__fixture__/driver.mjs":
             script = (
-                Path("tests/javascript/execution_browser.mjs")
+                Path(
+                    "tests/javascript/execution_lost_response.mjs"
+                    if scenario == "lost_response"
+                    else "tests/javascript/google_execution_context.mjs"
+                    if scenario == "context_race"
+                    else "tests/javascript/execution_browser.mjs"
+                )
                 .read_text()
                 .replace("__WORKSPACE__", str(wid))
                 .replace("__POLICY__", json.dumps(policy))

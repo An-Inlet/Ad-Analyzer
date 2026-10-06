@@ -6,6 +6,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Generator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +43,33 @@ from tests.test_customer_social_execution import setup_social
 from tests.test_shopify_sales import configuration as configuration
 
 
-@pytest.mark.parametrize("platform", ["meta_ads", "tiktok_ads"])
+@pytest.mark.parametrize(
+    "platform,scenario",
+    [
+        ("meta_ads", "journey"),
+        ("meta_ads", "media_session"),
+        ("meta_ads", "media_integrity"),
+        ("tiktok_ads", "journey"),
+        ("meta_ads", "context_race"),
+        *(
+            ("meta_ads", "context_" + transition)
+            for transition in (
+                "aba",
+                "body",
+                "draft",
+                "workspace",
+                "logout",
+                "session",
+                "policy",
+                "run",
+                "failure",
+                "lost",
+            )
+        ),
+        ("meta_ads", "clarity"),
+        ("tiktok_ads", "clarity"),
+    ],
+)
 def test_social_execution_real_browser(
     customer_engine: Engine,
     tmp_path: Path,
@@ -50,6 +77,7 @@ def test_social_execution_real_browser(
     configuration: Settings,
     encoded: Any,
     platform: str,
+    scenario: str,
 ) -> None:
     chromium = portal_executable(
         "chromium", "chromium-browser", "google-chrome", "google-chrome-stable"
@@ -99,6 +127,56 @@ def test_social_execution_real_browser(
         )
         row = prepare(db, wid, actor, current, lambda: NOW, owner_authorizer)
         confirm(db, wid, row.id, row.digest, actor, current, lambda: NOW, owner_authorizer)
+        if scenario.startswith("context_") or scenario == "clarity":
+            second_cover = cover
+            second = catalog.options[0].model_copy(
+                update={"page_id": "987654321", "label": "Other Page / Pixel"}
+            )
+            if platform == "tiktok_ads":
+                import io
+
+                from app.campaign_review import service as media_service
+                from PIL import Image
+
+                raw = io.BytesIO()
+                Image.new("RGB", (1200, 1200), "blue").save(raw, format="PNG")
+                second_cover = media_service.upload(db, wid, actor, raw.getvalue(), media, NOW).id
+                second = catalog.options[0]
+            catalog = catalog.model_copy(
+                update={
+                    "options": [catalog.options[0]]
+                    if platform == "tiktok_ads"
+                    else [catalog.options[0], second]
+                }
+            )
+            discovery = replace(discovery, catalog=lambda request, now: catalog)
+            runtime = replace(runtime, social_review=discovery)
+            second_document = resolve(
+                db,
+                wid,
+                actor,
+                ReviewIntent(
+                    draft_id=original.review.source.draft_id,
+                    draft_revision=original.review.source.revision,
+                    option_id=second.identifier(catalog.request),
+                    answer=current.answer,
+                    cover_media_id=second_cover,
+                ),
+                media,
+                discovery,
+                owner_authorizer,
+            )
+            second_row = prepare(db, wid, actor, second_document, lambda: NOW, owner_authorizer)
+            confirm(
+                db,
+                wid,
+                second_row.id,
+                second_row.digest,
+                actor,
+                second_document,
+                lambda: NOW,
+                owner_authorizer,
+            )
         mandate = db.get(ProviderExecutionMandate, mandate_id)
         assert mandate is not None
         policy = execution_mandates.policy(db, mandate).model_dump(mode="json")
@@ -133,9 +211,18 @@ def test_social_execution_real_browser(
         path = scope.get("path", "")
         if path == "/__fixture__/driver.mjs":
             script = (
-                Path("tests/javascript/social_execution_browser.mjs")
+                Path(
+                    "tests/javascript/execution_media_context.mjs"
+                    if scenario.startswith("media_")
+                    else "tests/javascript/execution_clarity.mjs"
+                    if scenario == "clarity"
+                    else "tests/javascript/execution_context_race.mjs"
+                    if scenario.startswith("context_")
+                    else "tests/javascript/social_execution_browser.mjs"
+                )
                 .read_text()
                 .replace("__WORKSPACE__", str(wid))
+                .replace("__TRANSITION__", scenario.removeprefix("context_"))
                 .replace("__DRAFT__", original.review.source.draft_id)
                 .replace("__POLICY__", json.dumps(policy))
             )

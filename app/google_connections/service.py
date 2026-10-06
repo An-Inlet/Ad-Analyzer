@@ -237,6 +237,9 @@ def disconnect(db: Session, row: GoogleCustomerConnection) -> None:
 def tick(
     db: Session, wid: int, cid: str, generation: int, transport: GoogleReadTransport, now: datetime
 ) -> int | None:
+    from app.billing.entitlements import paid_work
+
+    paid_work(db, wid, now)
     ready(transport)
     row = owned(db, wid, cid)
     if row.generation != generation or row.status != "connected" or not row.encrypted_grant:

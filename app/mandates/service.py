@@ -303,6 +303,9 @@ def preconditions(
 def claim(
     db: Session, m: Mandate, a: MandateAction, body: ClaimInput, actor: str, now: datetime
 ) -> None:
+    from app.billing.entitlements import paid_work
+
+    paid_work(db, m.workspace_id, now)
     if a.request_key is not None:
         if a.request_key != body.request_key:
             raise HTTPException(409, "action already claimed")
@@ -356,6 +359,9 @@ def dispatch(
     actor: str,
     now: datetime,
 ) -> None:
+    from app.billing.entitlements import paid_work
+
+    paid_work(db, m.workspace_id, now)
     if a.fence != fence or a.state != "claimed" or a.cancel_requested:
         raise HTTPException(409, "action cannot dispatch")
     if a.claimed_at is None or now - utc(a.claimed_at) > timedelta(minutes=5):

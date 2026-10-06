@@ -173,6 +173,15 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    billing_required: bool = Field(default=False, alias="AD_ANALYZER_BILLING_REQUIRED")
+    billing_price_id: str = Field(default="", alias="AD_ANALYZER_BILLING_PRICE_ID")
+    billing_max_accounts: int = Field(
+        default=1, ge=1, le=100, alias="AD_ANALYZER_BILLING_MAX_ACCOUNTS"
+    )
+    billing_webhook_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_WEBHOOK_SECRET"
+    )
+
     source_token_encryption_key: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_SOURCE_TOKEN_ENCRYPTION_KEY"
     )

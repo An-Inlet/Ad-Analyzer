@@ -595,3 +595,25 @@ PR69 has the terminal evidence. B11 Full/CI remain tracked in PR70. Next indepen
 offline package: B13 checkout/subscription webhook and entitlement preparation with
 commercial configuration disabled pending owner pricing decisions. B12 live/retained
 context gaps remain open rather than being represented as working connections.
+
+## B13 — Initial Billing Lifecycle And Entitlement Preparation
+
+Branch `codex/inlet-b13-billing` follows B12 `7495f68` / draft PR71. Prepared durable
+checkout idempotency, owner/CSRF-protected checkout, signed minimal webhook receipts,
+concurrent deduplication, canonical subscription-state reconciliation, stale-state
+refresh and an explicit entitlement guard. Initial billing tests pass across SQLite
+and PostgreSQL; exact final checks belong to the package PR. Pricing is unset and
+runtime transport unavailable. No charge, payment account, credentials or live call.
+
+This is an initial B13 slice, not completed purchasing/billing acceptance. See
+`inlet-billing-contract.md` for current worker guard coverage and remaining legacy job,
+portal/cancellation/replacement-subscription/runtime requirements. Migration0031 adds
+only two billing tables and refuses downgrade with preserved billing references or
+receipts; unrelated generated CRM drops/enum changes were removed before execution.
+
+B11 terminal evidence at5900e69: local Full854 passed with six PowerShell skips;
+hosted CI37394058700 passed860 tests with zero skips and all gates (PR70 updated).
+B12 local main suite862 passed with six PowerShell skips; Full final gate and hosted
+CI37394563656 remain tracked in PR71. Next independent package: B14 supplied media and
+versioned customer review, using B07 immutable action/review boundaries. Outstanding
+B12/B13 live and product acceptance remain explicit backlog items.

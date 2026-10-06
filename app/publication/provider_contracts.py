@@ -80,7 +80,9 @@ class ProviderPublicationReview(StrictModel):
         source, scope, fields = self.source, self.scope, self.configuration
         definition = source.definition
         if (
-            self.source_digest != source.fingerprint()
+            not source.offline_reviewable
+            or bool(source.blockers)
+            or self.source_digest != source.fingerprint()
             or source.workspace_id != scope.workspace_id
             or definition.account != scope.account
             or source.connection_version != scope.connection_version

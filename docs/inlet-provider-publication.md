@@ -40,3 +40,33 @@ Primary contracts checked 2026-10-06 and API pinned to v25:
 
 No provider calls, real grants, customer data, mutations or advertising spend were
 used to implement or test this package.
+
+## Actual Google HTTP Adapter
+
+`app/executors/google_publication.py` implements v25 REST validate-only, one-shot
+mutation, exact-ID GAQL readback, and reconciliation against acknowledged original
+attempts. It uses fixed Google origins and typed operation serializers, bounded
+responses/timeouts, no redirects, sanitized failures, optional developer-token
+headers, and no mutation retry. Construction performs no IO. The runtime factory
+still returns unavailable; neither a valid document nor a transport is authority.
+
+Readback checks all serialized semantic fields, including paused status, typed
+parents, amounts, bidding, network, geography, schedule, text and URLs. Proto3
+omitted default false/empty values are normalized only for explicitly requested
+false/empty fields. A successful mutation acknowledgement is not a verified effect.
+Conflicting fields or acknowledged IDs are conflicts. Empty/failed/incomplete
+readback stays unknown. A timeout without an acknowledged resource ID stays unknown
+and cannot be resent or inferred absent using a name search.
+
+Mocked tests exercise the whole compiled graph through actual HTTP serialization,
+validation, mutation acknowledgement and readback; before/after-effect timeouts,
+foreign generation/workspace/login, expired context, invalid receipts, bounded
+responses, redirects, rate limits, semantic drift, conflicting acknowledgements,
+and preservation of fixture execution guards. These are offline contract tests,
+not live API verification or qualified tracking evidence.
+
+Remaining implementation includes provider account/currency/timezone and exact
+conversion-goal/action/target qualification reads, durable provider approval and
+coordinator integration, explicit production mandate authority, customer publication
+review UI, separately reviewed activation, exposure settlement, and other providers.
+The adapter does not establish production eligibility by itself.

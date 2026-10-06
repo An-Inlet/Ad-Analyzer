@@ -58,7 +58,10 @@ def compile_google(review: ProviderPublicationReview) -> ProviderPublishPlan:
         ["campaign"],
     )
     for index, target in enumerate(
-        [*fields.country_targets.values(), *fields.language_targets.values()]
+        [
+            *(value for _, value in sorted(fields.country_targets.items())),
+            *(value for _, value in sorted(fields.language_targets.items())),
+        ]
     ):
         add(
             f"target_{index}",

@@ -204,3 +204,13 @@ def test_no_effect_requires_authoritative_evidence() -> None:
     )
     with pytest.raises(ValueError):
         ProviderReceipt.model_validate(data)
+
+
+def test_blocked_source_not_promoted_to_provider_plan() -> None:
+    data = review().model_dump()
+    source = ReviewArtifact.model_validate(data["source"]).model_copy(
+        update={"blockers": ["connection_reauthorization_required"]}
+    )
+    data.update(source=source.model_dump(), source_digest=source.fingerprint())
+    with pytest.raises(ValueError):
+        ProviderPublicationReview.model_validate(data)

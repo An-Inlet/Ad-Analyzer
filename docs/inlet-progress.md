@@ -1106,3 +1106,22 @@ were stopped together. No replacement Full started pending root coordination.
   Ruff and mypy (298 files), plus diff check, passed. No new Full run.
 - No live provider access or production authority enabled. Production coordinator,
   activation, and durable settlement remain the next package on a separate branch.
+
+## Provider Execution Consent And Ledger Foundation — 2026-10-06
+
+- Branch `codex/inlet-publication-execution` merges actual social adapters PR117 and
+  review-clock repair PR127, preserving ancestor commits. Shared optimization and
+  normalized receipt contracts frozen at17aefff for dependent adapters/evaluator.
+- Separate production-consent service now checks exact policy revision/digest and
+  current goal/owner/entitlement/account/native generation. Immutable environment and
+  shared exact period ledger prevent revision/new-consent accounting resets.
+- Migration0046 follows0043, adding12 scoped audit tables for consent, exact review,
+  exposure, run/step/original attempt, response, receipt and supersession lineage.
+  Held budget-owner uniqueness spans periods within the same environment/workspace.
+- This is a foundation checkpoint. Durable claims, exposure qualification, actual
+  adapter orchestration, separate activation, settlement and receipt projection query
+  remain implementation work. No live gate, provider access, merge or deployment.
+- Checks: 59 focused tests passed,7 SQLite-only skips; includes shared policy/receipt
+  contracts, consent isolation/accounting, cross-period held-owner uniqueness,
+  six PostgreSQL review-expiry lock barriers and populated0043↔0046 roundtrip.
+  Whole-tree Ruff and mypy311, plus diff check, passed. No Full run started.

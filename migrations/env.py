@@ -4,6 +4,7 @@ import app.billing.models  # noqa: F401
 import app.campaign_review.models  # noqa: F401
 import app.customer_context.models  # noqa: F401
 import app.google_connections.models  # noqa: F401
+import app.publication.execution_models  # noqa: F401
 import app.publication.models  # noqa: F401
 import app.publication.provider_models  # noqa: F401
 from alembic import context

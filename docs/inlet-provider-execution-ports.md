@@ -39,3 +39,24 @@ Adapters do not compute authority or mint exposure proofs. No runtime factory is
 active. Central coordinator will serialize every shared budget owner in the same
 period ledger and preserve unresolved fences/reservations. Missing/old readback is
 unknown, never proof that a delayed worker cannot submit.
+
+## Durable Foundation Checkpoint
+
+`execution_models.py` and migration0046 (down0043) define separate provider period
+ledgers, execution mandates/revisions/consents, exact execution reviews/approvals,
+exposure reservations, runs/steps/attempts/responses/receipts. Composite workspace
+foreign keys retain lineage. One original attempt per run/step and one immutable
+fence prevent clock-based replacement. A partial unique index reserves an unresolved
+budget owner across periods in the same workspace/environment, not merely per child.
+
+`execution_mandates.revise/consent/checked/suspend` implement exact customer consent
+and current goal/owner/entitlement/account/native generation checks. Revisions and
+additional mandates reuse the same exact period ledger; overlapping replacement
+periods and environment changes are rejected. Pause/revoke preserve accounting.
+These methods do not emit requests. Consent is distinct from B07 simulation records.
+
+This checkpoint does **not** implement coordinator claims, exposure qualification,
+provider execution-review preparation, activation, settlement or durable projection
+queries. Those methods will use the reserved schema and must recheck current DB
+state after every durable-claim commit before creating an original attempt. No route
+or runtime factory is enabled, and no live-provider verification is claimed.

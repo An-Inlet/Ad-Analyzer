@@ -35,6 +35,23 @@ def test_each_failure_survives_verbose_later_output_with_bounded_size(tmp_path: 
     assert len(text) < 27000
 
 
+def test_large_passing_parameter_ids_do_not_hide_small_failure(tmp_path: Path) -> None:
+    path = tmp_path / "report.xml"
+    with path.open("w") as output:
+        output.write('<testsuite><testcase name="')
+        output.write("large-passing-parameter-" * 450000)
+        output.write('"/><testcase classname="tests.browser" name="actual_failure">')
+        output.write('<failure message="expected ready">specific assertion</failure>')
+        output.write('</testcase></testsuite>')
+    assert 8 * 1024 * 1024 < path.stat().st_size < MAX_REPORT_BYTES
+    text = nested_failure_summary(path, "", "")
+    assert "Nested test failures/errors: 1" in text
+    assert "tests.browser::actual_failure" in text
+    assert "specific assertion" in text
+    assert "large-passing-parameter" not in text
+    assert len(text) < 1000
+
+
 @pytest.mark.parametrize("kind", ["missing", "malformed", "oversized"])
 def test_missing_or_bad_report_keeps_bounded_tool_failure(tmp_path: Path, kind: str) -> None:
     path = tmp_path / "report.xml"

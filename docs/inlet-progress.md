@@ -2611,3 +2611,41 @@ and empty migration roundtrip1passed/4deprecationwarnings,3.69seconds. Logs:
 `/tmp/inlet-repeat-independent-review.log` and
 `/tmp/inlet-repeat-independent-migration.log`. No additional material finding in
 that scope; no broad approval, Full or native qualification is inferred.
+
+## Frozen Validation Terminal Outcomes
+
+Local Full on c602a1b3d541a8c14c3d3fc85c41f7284aef6dec,
+treead37922d2b9fb2ac5d3be01d575d290d492c060e, terminated exit1:
+2511passed/58skipped/4failed/77warnings,2590.01seconds. Failures: nested Full,
+Shopify disconnect callback probe, Shopify expiry-purge probe, TikTok logger probe.
+The native-import barrier failure was nested-only and did not recur in the outer
+suite. Outer skips:52SQLite-only PostgreSQL semantics and6unavailablePowerShell.
+Nested skips additionally include one intentional recursion guard and3restore-tool
+availability skips in the sanitized child environment. Subsequent Full gates were
+not reached because pytest failed. Log `/tmp/inlet-oct06-assembled-full.log` and
+exit file; nested evidence `/tmp/inlet-oct06-nested-0.xml`.
+
+HostedPR130 run37421671069/job112132173160 terminated failure. Actual checkout
+f3e12aa8a0d17726491972b970c0d7e41cdc32ba merges e512529 into main ea3591c;
+tree37b1831dc312b68b1b51aa48d67e1ea5c195a7c4 equals the e512529 source tree.
+Browser H264/AAC preflight passed. Main pytest2426passed/51skipped/5failed,
+73warnings,2647.00seconds. Failures: nested Full, the same2Shopify probes, TikTok
+logger, and old provider-qualification migration fixture missing export privacy
+column. The migration fixture was repaired later in PR165; remaining reproduced
+probes are repaired in current root. Ruff/mypy/diff/reversible-migration/boundary/
+security/privacy/isolation steps were skipped after pytest failed, not passed.
+Hosted full log `/tmp/inlet-pr130-e512-hosted.log`.
+
+Hosted nested2424passed/52skipped/6failed: those four direct cases plus HubSpot and
+Meta PostgreSQL browser cases. Their exact assertions were lost because the8MiB
+JUnit-input bound rejected the report. Both browser cases passed in hosted outer
+pytest; cause remains unresolved, with bounded local reproduction underway. No
+quota/plan-limit evidence occurred. Manual workflow dispatch remains paused.
+
+The retained local JUnit is17,184,616bytes, mostly parameterized test IDs. Diagnostic
+reader now streams a finite64MiB report, clears completed cases and still prints
+at most8bounded failures plus short stdout/stderr tails. Regression with a large
+passing parameter ID followed by a real failure passes; all7diagnostic tests pass.
+Actual retained17MiB report now yields all4case-specific failures. No validation
+scope, exit handling, assertion, timeout or required gate is weakened. Ruff,
+configured mypy484 and diff check pass. New assembled Full/CI remains required.

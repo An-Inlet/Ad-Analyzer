@@ -2333,3 +2333,11 @@ separate worktree. Hosted PR130 e512529 tree37b1831dc312b68b1b51aa48d67e1ea5c195
 fetched synthetic merge f3e12aa8a0d17726491972b970c0d7e41cdc32ba has the identical
 tree. Actual hosted checkout still to confirm from completed job log. CI remains
 running, not a terminal pass.
+
+## Google native inventory diagnostics — 2026-10-06
+
+Implemented an actual bounded injectable v25 read-only inventory collector on `codex/inlet-google-native-inventory`, exact base `fe710a9`. It reads all paginated campaign/budget owners (including removed/other-channel rows), observed native-calendar cost, billing setups and proposed/approved/adjusted/pending/future account-budget facts. Missing owners, changed topology, billing read failures and absent cost stay explicit. Output types force unqualified cap semantics and null reporting watermark/unreported/future/proposed upper bounds; no default factory, qualified profile or ledger/reservation mutation exists.
+
+`docs/inlet-google-native-inventory.md` records the actual composition contract, provider evidence and remaining billing-basis/writer-boundary owner decisions. Lower budgets, finite caps and late reports do not prove reusable residual exposure or settle earlier optimization attempts. Runtime persistence/composition and a qualified source remain concrete engineering work, not credential-only gates.
+
+Checks run: `pytest -o addopts='' -q tests/test_google_native_inventory.py tests/test_google_optimization_http.py tests/test_google_catalog_http.py tests/test_customer_execution_catalog.py` — 103 passed, no skips; whole `ruff check .` passed; `mypy app tests` passed 464 source files; `git diff --check` passed. All HTTP mocked. No Full, hosted CI, live API, operational enablement, merge or deployment claimed.

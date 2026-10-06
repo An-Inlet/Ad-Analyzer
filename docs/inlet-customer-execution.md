@@ -114,3 +114,36 @@ repeat, pause and local cancellation; aggressiveness never raises the overall ca
 No customer optimization screen is added by this backend package. Customer operation
 still needs the corresponding UI and production qualification; configured inventory
 fixtures are not evidence of a self-service live product.
+
+## Existing Campaigns Page
+
+`/app/optimization` provides the separate owner journey for existing campaigns. It
+selects named connected accounts and confirmed goals, discovers configured targets,
+and lets the owner enter or edit ordinary spending limits. Spending-period fields
+require explicit UTC instants and separately show the native account time zone;
+store-local goal dates are never silently converted into spending consent. Editing
+limits blocks consent and preparation until the new revision is saved and explicitly
+consented. The 5/10/20% aggressiveness labels never imply a higher overall ceiling.
+
+Initial and repeat reviews have separate buttons. Repeat takes the opaque reservation
+reference from the selected owned run, never a typed native ID or proof. Budget mode
+comes from current server discovery; pause has no resume counterpart. The page uses
+shared exact approval, durable admission, one-step execution, receipt, reconciliation,
+local cancellation and consent revocation APIs. A lost mutation response blocks forward
+work until owned recovery; there is no automatic resubmission. A saved URL at
+`/app/optimization/{workspace_id}/{run_id}` recovers owned status independently of
+whether a production runtime is configured.
+
+The account read endpoint is bounded to 50 workspace accounts, validates current
+account/connection scope and excludes disconnected sources. It exposes local choice
+IDs, names and platform only. Oversized catalogs fail closed rather than silently
+truncate. The configured target inventory remains a separate production setup and
+qualification gap; this page does not turn it into automatic native discovery.
+
+The HTTPS Chromium fixture uses actual customer login/API/SQLAlchemy records and
+Google HTTP adapter calls over MockTransport on SQLite and PostgreSQL. Qualification
+and repeat-finality sources remain explicit offline fixtures. It exercises editable
+consent, initial/repeat budget and repeat pause, retained exposure, lost-response
+recovery, delayed success/error isolation, role loss, disabled-runtime status and
+logout. It is not a live-provider qualification or a browser journey for every
+Google/Meta/TikTok campaign type; the backend adapter matrix is separate evidence.

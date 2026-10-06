@@ -395,3 +395,34 @@ def test_shared_consent_rechecks_server_topology_and_unknown_dispatch_rejects(
         response = client.post(base + suffix, json=payload, headers=headers(client))
         assert response.status_code == 409 and "unsupported_execution_review" in response.text
     assert client.get(base + f"/reviews/{review['id']}").status_code == 409
+
+
+def test_owned_account_choices_hide_native_ids_and_disconnected_sources(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    replicas: tuple[TestClient, TestClient, FakeProvider],
+) -> None:
+    from app.google_connections.models import GoogleCustomerConnection
+    from sqlalchemy import select
+
+    client, other, _ = replicas
+    wid, _, runtime, base, _, _ = bootstrap(customer_engine, configuration, tmp_path, client)
+    result = client.get(base + "/optimization/accounts")
+    assert result.status_code == 200, result.text
+    assert result.headers["Cache-Control"] == "no-store"
+    assert result.json()["complete"] is True
+    choices = result.json()["accounts"]
+    assert len(choices) == 1
+    assert set(choices[0]) == {"id", "name", "platform"}
+    install(other, runtime)
+    login(other, "other-account-owner:1")
+    assert other.get(base + "/optimization/accounts").status_code in {403, 404}
+    with Session(customer_engine) as db:
+        connection = db.scalar(
+            select(GoogleCustomerConnection).where(GoogleCustomerConnection.workspace_id == wid)
+        )
+        assert connection is not None
+        connection.status = "disconnected"
+        db.commit()
+    assert client.get(base + "/optimization/accounts").json()["accounts"] == []

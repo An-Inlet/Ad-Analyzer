@@ -289,6 +289,9 @@ def run_view(db: Session, row: ProviderExecutionRun) -> dict[str, Any]:
         ],
         "reservation_retained": reservation is not None and reservation.state == "held",
         "reservation_state": reservation.state if reservation else None,
+        "reservation_reference": reservation.id
+        if reservation is not None and document["purpose"] == "existing_campaign_optimize"
+        else None,
         "effective_time": "unavailable",
         "external_cancellation_confirmed": False,
     }

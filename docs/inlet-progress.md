@@ -2611,3 +2611,34 @@ this package does not persist personal declarations or relax spending semantics.
   social creation authority after `bound()` and lazy media resolution in the legacy
   creation/activation branches. Optimization returns first; historical reconciliation
   does not require new social forward-execution qualification.
+
+## Existing Campaigns Customer Page (2026-10-06)
+
+- Added separate `/app/optimization` page/module and owned recovery URLs, plus an
+  additive execution navigation link. The browser selects named current account/
+  target choices, edits explicit UTC spending periods and limits, separately consents,
+  reviews/approves/adopts exact runs, executes one reviewed step, reads/reconciles
+  original receipts, and prepares qualified repeat budget or pause reviews.
+- Added bounded owner-only account choices validated through current account scope,
+  and an opaque owned reservation reference in optimization run projections. No
+  native provider ID/proof entry, migration, enabled factory or live source added.
+- Actual HTTPS Chromium → FastAPI → SQLite/PostgreSQL → Google HTTP MockTransport
+  journey verified initial budget, repeat budget and repeat pause with exactly three
+  writes. Dropped successful mutation responses recover from owned status without
+  replay. Delayed success/failure cannot restore a changed workspace. Owner-role loss,
+  disabled runtime recovery and logout preserve the documented boundaries.
+- A controlled regression found that a failed session/status GET after an uncertain
+  mutation cleared the UI uncertainty flag and re-enabled the old execution button:
+  **1 failed** in `/tmp/inlet-optimization-ui-uncertainty-repro.log`. Uncertainty is now
+  retained across failed reads until owned recovery. Input edits also invalidate
+  in-flight review responses; no timeout increase or automatic retry was added.
+- Validation: API/new browser/existing creation browser/route-boundary batch **39
+  passed in 79.40 seconds**, no skips; after the uncertainty fix the complete new
+  browser journey **2 passed in 15.14 seconds**, both databases. Ruff, configured
+  mypy (**490 source files**), Node syntax checks and `git diff --check` passed.
+  Logs `/tmp/inlet-optimization-ui-final.log` and
+  `/tmp/inlet-optimization-ui-browser-final.log`; corresponding JUnit files retained.
+- Boundary: browser journey uses explicit offline qualification/finality fixtures and
+  one Google campaign configuration. Backend provider permutations are separate
+  evidence. Native automatic discovery and live qualified execution remain unfinished.
+  No Full, CI dispatch, merge, deployment, live provider call or advertising spend.

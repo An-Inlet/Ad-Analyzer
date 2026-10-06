@@ -45,3 +45,9 @@ def customer_measurement_history() -> FileResponse:
 @router.get("/app/execution/{workspace_id}/{run_id}", include_in_schema=False)
 def customer_execution() -> FileResponse:
     return FileResponse(STATIC / "execution.html", media_type="text/html")
+
+
+@router.get("/app/optimization", include_in_schema=False)
+@router.get("/app/optimization/{workspace_id}/{run_id}", include_in_schema=False)
+def customer_optimization() -> FileResponse:
+    return FileResponse(STATIC / "optimization.html", media_type="text/html")

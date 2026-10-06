@@ -17,6 +17,7 @@ from app.billing.contracts import (
     UnavailableBilling,
 )
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.stripe import BillingReconciliationRequired
 from app.mandates.service import workspace_lock
 from app.shopify.security import utc
 
@@ -49,6 +50,8 @@ def checkout(
     transport: BillingTransport,
     return_url: str,
     now: datetime,
+    *,
+    _state_retries: int = 0,
 ) -> dict[str, Any]:
     ready(transport)
     redirect = urlsplit(return_url)
@@ -67,6 +70,10 @@ def checkout(
     if customer is None:
         try:
             customer = transport.customer(wid, key)
+        except BillingReconciliationRequired:
+            raise HTTPException(
+                409, "billing customer recovery unresolved; retry reconciliation"
+            ) from None
         except Exception:
             raise HTTPException(502, "billing customer pending; retry safely") from None
         if re.fullmatch(r"cus_[A-Za-z0-9_]{1,128}", customer) is None:
@@ -81,7 +88,28 @@ def checkout(
         raise HTTPException(409, "existing subscription requires billing management")
     if row.checkout_id is not None:
         outcome = resolve_checkout(db, row, policy, transport, now)
+        resolved_identity = (
+            row.customer_id,
+            row.checkout_key,
+            row.checkout_id,
+            row.subscription_id,
+        )
         db.commit()
+        # Canonical lookup committed and released the lock. Another caller may
+        # already have installed a replacement: reload before retiring anything.
+        row = owned(db, wid, now)
+        if (
+            row.customer_id,
+            row.checkout_key,
+            row.checkout_id,
+            row.subscription_id,
+        ) != resolved_identity:
+            db.rollback()
+            if _state_retries >= 2:
+                raise HTTPException(409, "checkout changed; retry current billing state")
+            return checkout(
+                db, wid, policy, transport, return_url, now, _state_retries=_state_retries + 1
+            )
         if outcome == "complete":
             if row.status not in {"canceled", "incomplete_expired"}:
                 raise HTTPException(409, "checkout completed; subscription reconciled")
@@ -93,7 +121,8 @@ def checkout(
                 None,
                 None,
             )
-            db.commit()
+            # Retirement and installation of the new durable key share this
+            # locked transaction; there must be no commit in between.
         if outcome == "open":
             if row.checkout_price != policy.price_id:
                 raise HTTPException(409, "checkout already pending for another plan")
@@ -117,6 +146,8 @@ def checkout(
     db.commit()
     try:
         result = transport.checkout(customer, policy.price_id, checkout_key, return_url)
+    except BillingReconciliationRequired:
+        raise HTTPException(409, "checkout recovery unresolved; retry reconciliation") from None
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
     if result.url is not None:

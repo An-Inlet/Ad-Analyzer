@@ -10,9 +10,7 @@ from app.publication.contracts import fingerprint
 from app.publication.execution_contracts import Environment, ProviderMandateBinding
 from app.publication.provider_contracts import Digest, Id
 
-BudgetOperation = Literal[
-    "google_budget_set_v1", "meta_budget_set_v1", "tiktok_budget_set_v1"
-]
+BudgetOperation = Literal["google_budget_set_v1", "meta_budget_set_v1", "tiktok_budget_set_v1"]
 
 
 class AutomaticPolicyRef(StrictModel):
@@ -30,6 +28,7 @@ class SessionAutomaticPolicy(StrictModel):
     policy_id: Id
     revision: int = Field(strict=True, ge=1)
     candidate_policy: CandidatePolicyRef
+    candidate_policy_digest: Digest
     allowed_operations: list[BudgetOperation] = Field(min_length=1, max_length=3)
     semantic_producer_families: list[Id] = Field(min_length=1, max_length=8)
     lifetime_seconds: int = Field(strict=True, ge=1, le=86400)
@@ -55,9 +54,7 @@ class SemanticDecisionEpoch(StrictModel):
     revisions; a producer must preserve semantic identity across source corrections.
     """
 
-    schema_version: Literal["inlet.semantic-decision-epoch.v1"] = (
-        "inlet.semantic-decision-epoch.v1"
-    )
+    schema_version: Literal["inlet.semantic-decision-epoch.v1"] = "inlet.semantic-decision-epoch.v1"
     producer_family: Id
     source_schema: str = Field(min_length=1, max_length=100)
     source_reference: Id

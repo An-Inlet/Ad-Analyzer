@@ -49,6 +49,7 @@ def test_policy_has_no_numeric_defaults_and_budget_only_scope() -> None:
         "policy_id": "4" * 32,
         "revision": 1,
         "candidate_policy": {"policy_id": "5" * 32, "revision": 1},
+        "candidate_policy_digest": "d" * 64,
         "allowed_operations": ["google_budget_set_v1"],
         "semantic_producer_families": ["6" * 32],
         "lifetime_seconds": 60,

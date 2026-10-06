@@ -4070,3 +4070,59 @@ Logs `/tmp/inlet-authorized-evidence-final2.log` and
 Executor recovery checked at09:45 UTC after parent disconnect notification: actual
 read/write, repository access, original Full pytest PIDs/CPU advance and PostgreSQL
 zero deadlocks succeeded. No observed process loss, quota failure or access blocker.
+### Original-Session Automatic Budget Execution — 2026-10-06
+
+Branch `codex/inlet-session-automation`, backend successor of ports332d7fc and root
+c2e43b9. Migration0072 down0068 adds protected original-session intents and immutable
+semantic admissions, scoped to mandate revision/consent/ledger/review. Run authority
+is explicitly exact-human or mandate-automatic, never converted/fallback. Customer
+CSRF Start/status/Stop/history/capabilities APIs are implemented; Stop records the
+current owner and remains available after the initiating session has ended.
+
+The opt-in shipped scheduler now runs actual selection→candidate→exact review→
+automatic admission→shared reservation/claim→Google/Meta/TikTok adapter/readback.
+No human approval is fabricated. All3 contract scenarios exercise initial AND new
+semantic repeat effects with zero ProviderExecutionApproval rows. Stable native
+account/owner + ledger + policy family + semantic epoch prevent reuse across new
+Starts, refresh timestamps, policy revisions and mandate revisions. Exact numeric
+candidate-policy digest prevents same-reference configuration changes. Original
+session/candidate/mandate/source and financial proof are checked at forward gates;
+Stop during final context lookup blocks emission. Unknown original requests retain
+hold/fence, reconcile after Stop/retraction, and are never replayed.
+
+Parent review found a revoked earliest run could shadow a newer valid session in
+the same workspace before due time advanced. Fixed by workspace-locked scheduling
+maintenance that only defers the failed run; both-DB regression verifies the newer
+session executes once. Closure stops all session runs. Explicit registry/export
+classifications retain only bounded authority commitments and omit session hashes;
+no raw measurements are retained. Populated downgrade refuses to erase semantic
+consumption or change authority origin. Narrow historical fixture adapters assert
+absent new tables; no production missing-table fallback was added.
+
+Checks actually run: final automation/API/0072/strict-port suite55 passed +1 expected
+SQLite concurrency skip; additional final-admission rollback2 passed (bothDB).
+Broader bridge/final-evidence/scheduler/0058+0068+0072 checks110 passed +1 SQLite skip
+before the final scoped FK/numeric-policy hardening; scoped final FK/scheduler/
+concurrency subset12 passed +1 SQLite skip. Whole Ruff clean, mypy581 files clean,
+`git diff --check` clean. No Full or manual workflow dispatch in this lane.
+UI ports are frozen; UI207 actual-backend integration follows this commit.
+
+Remaining: actual qualified directional learning/numeric policy/native complete
+exposure and original-terminal/transition producers plus production registry/runtime
+assembly. Default factory None and scheduler flag false are unchanged operational
+limits; current native diagnostics are unqualified. These are missing source/code
+qualification, not only missing credentials. No live calls, spend, merges into main,
+deployment, new-campaign/creative/activation/pause authority or logout-independent
+delegation was enabled. Root final migration0073 will join intermediate0071 +0072.
+
+### Authorized Epoch Reader Seam — 2026-10-06
+
+Isolated `codex/inlet-authorized-epoch` successor of frozen backend1d1fc15 (PR212),
+without amending that head. Add optional principal-aware SemanticEpochProducer
+callback, preferred over the compatible legacy reader. Only the actual original
+principal from current session admission reaches it. Missing readers are unavailable;
+post-callback revocation/expiry denies admission and provider work. No inferred
+owner, browser authority field, source qualification or production enabling change.
+Checks: focused authorized/legacy all3/atomic rollback16 passed across SQLite and
+PostgreSQL; final authorized callback/missing-reader suite8 passed after availability
+hardening; whole Ruff clean, mypy582 files clean, diff check clean. No Full/live calls.

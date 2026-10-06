@@ -4884,3 +4884,38 @@ annotation adjustment: **12 passed**,14.87s (`/tmp/initial-intent-exact.log`). W
 Ruff and configured mypy **657 files** pass; diff check clean. No Full, remote write,
 CI request, or live call. Branch `codex/inlet-initial-preview-intent` is local only;
 root integrates the separate goal-currency guard independently.
+
+### Initial Customer Preview Package — Assembled Local Checkpoint
+
+Integrated customer API/browser/native preview `5b0c037`, explicit goal/report
+currency guard `ffe4bdc`, and controlled stale-selection rejection `4426e77`.
+The real customer path captures owned Meta reports, confirms an explicit reported
+CPA objective, runs chronological sensitivity comparisons and shows a nominal exact
+budget preview when a matching owned native catalog and mandate are available.
+Original-session reuse, foreign/stale inputs, corrections, expiry, capacity and
+currency mismatches are rejected. No default numerical/retention policy, empirical
+qualification, executable review handoff or live spending authority was introduced.
+
+Root final consumer/API/HTTPS browser/native/currency/malformed-intent suites:
+**48 passed, no skips in60.19s**, `/tmp/inlet-next-initial-consumer-final.log`.
+An initial command used a nonexistent test filename and collected zero tests; the
+corrected complete command is the result above. Whole Ruff, configured mypy658,
+JavaScript syntax and whitespace checks passed. Earlier root composition165passed/
+4expected skips and complete0075 migration roundtrip remain valid. Repaired social
+coordinator/customer producer/historical migration on assembled branch: **41 passed**,
+4Alembic warnings96.65s; `/tmp/inlet-next-social-fixture-repair.log`.
+
+This completes the local retained-observation/calibration/initial-preview slice,
+not B17 mature action-outcome learning, a purchasable live release or approval for a
+recommendation-only release. Next proposal is retained in
+`docs/design/b17-operational-feedback-next-package.md`: actual fixed-window acquisition,
+configuration-associated comparable observations, retractable bounded feedback and
+explained preview updates; policy/calibration/live qualification remain unset.
+
+Frozen dc3 Full still runs unchanged at approximately42% of its outer suite, after
+its nested failure. Four additional outer social-review browser failures are visible;
+detailed tracebacks await terminal output. The historical ORM count failure has a
+verified local repair. A delegated monitor owns terminal evidence collection and
+subsequent isolated reproduction. No success is claimed for this Full. Hosted failure
+annotation and release-scope questions remain unanswered; no confirmed GitHub quota
+limit. All commits remain local under the push/PR/hosted-CI hold.

@@ -201,11 +201,16 @@ def read_current(
         or item.privacy_revision != workspace_export_revision(db, workspace_id)
         or item.currency != account.currency_code
         or item.time_zone != account.time_zone
-        or (item.starts_on, item.ends_on) != (source.covered_from, source.covered_through)
+    ):
+        raise unavailable()
+    if (
+        (item.starts_on, item.ends_on) != (source.covered_from, source.covered_through)
         or source.last_sync_at is None
         or utc(item.completed_at) != utc(source.last_sync_at)
     ):
-        raise unavailable()
+        from app.reported_feedback.current_report import require_fixed_current
+
+        require_fixed_current(db, source, item, campaign_id)
     digest, rows = manifest(db, account, item.starts_on, item.ends_on)
     if digest != item.manifest_digest or len(rows) != item.row_count:
         raise unavailable()

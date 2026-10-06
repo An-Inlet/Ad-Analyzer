@@ -5240,3 +5240,31 @@ CI, live provider access, deployment or production qualification. Remaining
 composed acceptance: root's actual Meta fixed-window acquisition through core
 capsules/comparison to this API/UI's genuinely computed updated preview. Core
 migration/lifecycle/aggregate retraction remains owned by the 0077 backend lane.
+
+### 0077 Fixed Current Report And Real Initial Baseline — Local Verification
+
+The genuine fixed-window acquisition→initial capture composition first failed:
+`campaign_performance.read_current` required rolling coverage/time even when the
+current completion was an actual fixed acquisition. The reader now accepts an
+alternate local proof only for the exact acquired campaign: retained immutable
+capsule and job commitments, current request head, original session, exact
+completion/run/window/time, source generation and privacy. Existing current
+pointer and complete metric manifest checks remain. No default policy, financial
+eligibility, provider I/O, or rolling timestamp rewrite is introduced.
+
+The genuine service journey passes on both databases: mocked HTTP fixed reports,
+actual initial captures/calibration, refreshed commerce, separately consented
+current fixture mandate, actual native catalog/read and initial preview, then
+explicit computed feedback. Fixture reported CPA changes 5→2.5; native45 produces
+initial46 and updated47 (currency units). Provider writes remain the one original
+fixture action. Sixteen cases pass including deleted capsule/job, expiry,
+supersession, source generation, session and other-campaign rejection. Whole Ruff
+and mypy681 pass. Logs: `/tmp/reported-feedback-real-preview.log`,
+`/tmp/reported-feedback-journey-mypy-full.log`. Actual composed browser remains
+next; no live qualification, review handoff, remote actions or Full run.
+
+Broader composition check: campaign-performance/acquisition/comparison collected
+suite has39pass/3fail. Two failures are pre-existing missing0077 lifecycle table
+classification when these models load together; one is historical0074 downgrade
+fixture dropping0075 under a0077 FK. Backend owner notified. Standalone campaign
+performance suite22pass; these integration gaps are not represented as passes.

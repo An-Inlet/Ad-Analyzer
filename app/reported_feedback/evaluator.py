@@ -9,6 +9,7 @@ from app.reported_feedback.contracts import (
     CapsuleReferenceV1,
     OperationalReportedComparisonV1,
     ReportedAcquisitionRequestV1,
+    ReportedFeedbackPolicyV1,
     ReportedWindowCapsuleV1,
     ReportedWindowPolicyV1,
     ReportedWindowSummaryV1,
@@ -168,6 +169,22 @@ def compare(
             now + timedelta(seconds=policy.decision_lifetime_seconds),
             *(c.expires_at for c in capsules),
         )
+        if not reasons:
+            expiry = min(
+                expiry,
+                *(
+                    c.acquisition_completed_at
+                    + timedelta(seconds=policy.maximum_acquisition_age_seconds)
+                    for c in capsules
+                ),
+                *(
+                    max(c.acquisition_completed_at for c in capsules if c.window == window)
+                    + timedelta(seconds=policy.maximum_source_age_seconds)
+                    for window in (request.before, request.after)
+                ),
+            )
+            if expiry <= now:
+                raise ValueError("report freshness boundary reached")
         return OperationalReportedComparisonV1(
             id=uuid4().hex,
             job_id=request.id,
@@ -183,3 +200,33 @@ def compare(
             assessed_at=now,
             expires_at=expiry,
         )
+
+
+def bounded_delta(
+    values: tuple[OperationalReportedComparisonV1, ...], policy: ReportedFeedbackPolicyV1
+) -> int:
+    """One capped contribution per original action, recomputed without compounding."""
+    if not values or len({v.anchor.original_attempt_id for v in values}) != len(values):
+        raise ValueError("distinct original opportunities required")
+    with localcontext() as context:
+        context.prec = 40
+        contributions = []
+        for value in values:
+            improvement = value.relative_cpa_improvement
+            if improvement is None or value.status != "operational_reported_as_of":
+                raise ValueError("operational comparison required")
+            if abs(improvement) <= policy.neutral_band:
+                contributions.append(Decimal(0))
+                continue
+            direction = (
+                policy.favorable_direction if improvement > 0 else policy.unfavorable_direction
+            )
+            sign = 1 if direction == "increase" else -1 if direction == "decrease" else 0
+            contributions.append(
+                sign * min(abs(improvement) * policy.weight, policy.contribution_clamp)
+            )
+        aggregate = max(
+            -policy.aggregate_clamp,
+            min(policy.aggregate_clamp, sum(contributions) / len(contributions)),
+        )
+        return int(aggregate * policy.maximum_preview_delta_micros)

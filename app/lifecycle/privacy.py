@@ -18,6 +18,9 @@ def bump_workspace_export_revision(db: Session, workspace_id: int) -> None:
     )
     if owned is None:
         raise ValueError("privacy workspace unavailable")
+    from app.optimization_candidates.invalidation import erase_workspace_candidates
+
+    erase_workspace_candidates(db, workspace_id)
     db.execute(
         update(Workspace)
         .where(Workspace.id == workspace_id)

@@ -125,6 +125,9 @@ def quiesce(
         raise HTTPException(409, "closure inventory changed")
     scope = LifecycleScopeV1(workspace_id=wid)
     # The workspace lock fences admission; all modifications are in this one transaction.
+    from app.optimization_candidates.invalidation import erase_workspace_candidates
+
+    erase_workspace_candidates(db, workspace.id)
     workspace.status = "closing"
     db.flush()
     for name in (

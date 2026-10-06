@@ -224,6 +224,9 @@ def publish(
         .order_by(CommerceMeasurementPublication.publication_revision.desc())
         .limit(1)
     )
+    from app.optimization_candidates.invalidation import erase_source_candidates
+
+    erase_source_candidates(db, store.workspace_id, store.id)
     fence.publication_revision += 1
     fence.updated_at = now
     payload = {

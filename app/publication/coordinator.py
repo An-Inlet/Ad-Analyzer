@@ -709,6 +709,9 @@ def record_receipt(
         raise HTTPException(409, "stale receipt cannot supersede newer evidence")
     # Every newer observation appends, including unknown/conflict after prior success.
     # Consumers select the latest sequence; historical success is never resurrected.
+    from app.optimization_candidates.invalidation import erase_attempt_candidates
+
+    erase_attempt_candidates(db, wid, attempt.id)
     rid, sequence = uuid4().hex, previous.sequence + 1 if previous else 1
     projection = normalized(
         db,

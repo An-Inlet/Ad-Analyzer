@@ -221,3 +221,14 @@ impossible claim, financial hold release, qualification registration, replacemen
 or settlement reader is implemented/enabled by it. Independent transition/portfolio proofs,
 U/F/P, financial basis mapping and preventive writer guarantees remain missing. Native
 unknown-request lookup is still unavailable. Credentials alone cannot fill those gaps.
+
+## Frozen a4fcd3a Composition Review
+
+The [replacement source composition proposal](replacement-source-composition-proposal.md)
+separates the implemented exact Google terminal batch from missing financial producers.
+It proposes an optional compositor with stable immutable certificate epochs and fresh
+owned ancestry checks, preserving the coordinator's exact-evidence recheck. No source,
+profile or runtime is enabled. Native U/F/P, compatible monetary basis, preventive writer
+control and unknown-request/financial finality remain unqualified; owner access alone
+cannot close them. Its updated matrix supersedes historical absence statements above
+for diagnostic assembly and the narrow Google successful-original-response subset.

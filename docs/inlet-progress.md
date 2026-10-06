@@ -3642,3 +3642,52 @@ running; first nested iteration progressed through primary pytest into latergate
 08:50 disconnect report: shell/filesystem probes and running Full PIDs verified alive;
 no observed lost work. Remote preservation is verified only after successful push
 and exact remote hash comparison, not from local commits alone.
+### Independent Shopify Full-History Acquisition — Offline, Unqualified
+
+Branch `codex/inlet-independent-acquisition`, isolated from `9e56413`; typed
+interface frozen first at `084c119`. `IndependentAcquirer` now executes fixed
+GraphQL requests through an injected HTTP transport and freshly traverses all
+accessible order/agreement/sale pages from an empty cursor. It reuses the existing
+merchandise metric, including refunds on processing date from ancient orders,
+retaining only requested-window aggregate output. Actual granted scopes and shop
+identity/basis are checked at both ends. Bounded I/O, strict parent/cursor checks,
+order mutation checks and fresh injected authority/privacy/retention fences fail
+closed. No database write, scheduler or default runtime was added.
+
+`ScanCompletion` always reports correction unresolved, snapshot/finality unavailable
+and maturity unqualified. No completion is cast to eligible maturity evidence;
+production maturity/producer registries remain None. A DB-backed original-session
+and privacy authority adapter and reviewed versioned publication/export integration
+remain required. The feedback owner confirmed existing owned publication FKs can
+support a strict new manifest variant, but no persistence edits or migration were
+made. See `docs/inlet-independent-acquisition.md` and the research proposal.
+
+Validation: **38 focused contract/MockTransport tests passed** in 0.31 seconds,
+covering ancient-order refunds, actual granted scopes, complete nested/multiple
+pages, cross-parent responses, mutations, privacy/session/generation/retention
+changes, zero, tax exclusions, DST, throttles/errors, byte/request/order/deadline
+bounds and sanitized logs. All five GraphQL operations passed connected Shopify
+schema validation (tool exposes no API-version selector; not claimed as pinned
+schema validation). Whole Ruff, clean mypy (**523 source files**) and diff checks
+passed. No live Shopify or advertising calls, credentials or Full run.
+
+Wider existing commerce/maturity regression on SQLite/disposable PostgreSQL:
+**110 passed, 1 failed**, two Alembic deprecation warnings. Failure is existing
+`test_privacy_migration_backfills_existing_measurement_identity[postgres]` during
+billing-table downgrade: `pk_customer_workspace_billing` constraint absent.
+This acquisition package changes no billing or migration code; parent notified for
+assembled qualification. Logs: `/tmp/inlet-independent-tests-final.log`,
+`/tmp/inlet-independent-regressions.log`, `/tmp/inlet-independent-mypy-final.log`.
+
+### 2026-10-06 — Independent bounded Shopify acquisition integrated
+
+Integrated PR197084c119/df2cad9: fresh bounded all-history HTTP enumeration with
+actual granted-history scope proof, ancient-order refunds on processing date, nested
+parent/cursor validation, mutation checks and current privacy/session/retention
+fences. Independent acquisition remains unresolved/unqualified for maturity; DB
+publication/authority/export successor is in progress. Root109 passed,3 Alembic
+warnings in29.13s across acquisition, commerce measurement and maturity evaluation
+(`/tmp/inlet-next-independent-acquisition.log`). Ruff check ., configured mypy561
+and whitespace passed. Updated current acceptance matrix to distinguish newly
+implemented billing/feedback/selection from remaining ordinary code and genuinely
+unavailable provider guarantees. Main reconfirmed ea3591c5086fbf2cee8038bf9208ac7f0050de75.

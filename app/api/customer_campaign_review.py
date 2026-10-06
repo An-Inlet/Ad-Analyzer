@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.campaign_review import service
 from app.campaign_review.contracts import (
-    MAX_IMAGE_BYTES,
+    MAX_MEDIA_BYTES,
     ExactApproval,
     MediaStore,
     RevisionEdit,
@@ -39,8 +39,8 @@ async def upload(
     response.headers["Cache-Control"] = "no-store"
     data = bytearray()
     async for chunk in request.stream():
-        if len(data) + len(chunk) > MAX_IMAGE_BYTES:
-            raise HTTPException(413, "image size exceeds limit")
+        if len(data) + len(chunk) > MAX_MEDIA_BYTES:
+            raise HTTPException(413, "media size exceeds limit")
         data.extend(chunk)
     row = service.upload(db, workspace_id, principal.user.id, bytes(data), store, datetime.now(UTC))
     return {

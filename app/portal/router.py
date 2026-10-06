@@ -56,3 +56,8 @@ def customer_social_configuration() -> FileResponse:
 @router.get("/app/optimization/{workspace_id}/{run_id}", include_in_schema=False)
 def customer_optimization() -> FileResponse:
     return FileResponse(STATIC / "optimization.html", media_type="text/html")
+
+
+@router.get("/app/account-diagnostics", include_in_schema=False)
+def customer_account_diagnostics() -> FileResponse:
+    return FileResponse(STATIC / "account-diagnostics.html", media_type="text/html")

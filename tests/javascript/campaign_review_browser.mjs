@@ -8,6 +8,43 @@ try {
   await until(() => $('review-workspace').options.length === 2 && !$('review-workspace').disabled, 'workspace choices');
   $('review-workspace').value = '__WORKSPACE__'; $('review-workspace').dispatchEvent(new Event('change'));
   await until(() => $('review-draft').options.length === 3 && !$('review-draft').disabled, 'draft choices');
+  await until(() => $('create-mandate').options.length === 2 && !$('create-mandate').disabled, 'creation mandates');
+  $('create-mandate').selectedIndex = 1; $('create-mandate').dispatchEvent(new Event('change'));
+  $('create-account').value = '2'; $('create-account').dispatchEvent(new Event('change'));
+  const create = $('draft-create');
+  const values = {name:'Supplied Video Draft', landing_page:'https://example.invalid/shop', budget:'0.00006',
+    starts:'2026-10-05T12:00', ends:'2026-10-05T13:00', countries:'US', languages:'en', text:'Supplied Video Copy'};
+  const mandate = (await (await fetch('/api/customer/v1/workspaces/__WORKSPACE__/mandates')).json())[0];
+  const local = stamp => { const d = new Date(stamp); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16); };
+  values.starts = local(mandate.definition.starts_at); values.ends = local(mandate.definition.ends_at);
+  for (const [key,value] of Object.entries(values)) create.elements.namedItem(key).value = value;
+  const clip = await (await fetch('/__fixture__/video')).blob();
+  const transfer = new DataTransfer(); transfer.items.add(new File([clip], 'supplied.mp4', {type:'video/mp4'}));
+  $('create-file').files = transfer.files; $('upload-media').click();
+  await until(() => $('creation-status').textContent.includes('Media validated') && !$('create-draft').disabled, 'real raw upload validated');
+  assert($('create-media').value, 'uploaded hash-bound media selected');
+  create.requestSubmit();
+  await until(() => $('campaign-title').textContent === 'Supplied Video Draft' && $('media-status').textContent.includes('Exact Supplied Media Loaded') && !$('review-draft').disabled, 'created video draft playable');
+  assert($('campaign-video').readyState >= 2 && $('campaign-video').videoWidth === 64, 'actual video decoded by browser');
+  assert($('campaign-video').src.startsWith('blob:'), 'bounded private blob playback');
+  assert($('approval-status').textContent.includes('Needs Your Review'), 'creation never approves');
+  const privateVideo = $('campaign-video').src;
+  await fetch('/__fixture__/media-denied', {method:'POST'}); $('review-reload').click();
+  await until(() => $('media-status').textContent.includes('Media Unavailable') && !$('review-draft').disabled, 'denied video blocks approval');
+  assert($('approve-campaign').disabled && !$('campaign-video').getAttribute('src'), 'stale video cleared');
+  let revoked = false; try { await fetch(privateVideo); } catch { revoked = true; }
+  assert(revoked, 'old video object URL revoked');
+  await fetch('/__fixture__/media-denied', {method:'POST'});
+  for (const [index,name] of [['0','New Google Draft'],['1','New Meta Draft']]) {
+    $('create-mandate').selectedIndex = 1; $('create-mandate').dispatchEvent(new Event('change'));
+    $('create-account').value = index; $('create-account').dispatchEvent(new Event('change'));
+    const supplied = {...values,name,headlines:'First Headline\nSecond Headline\nThird Headline',descriptions:'First Description\nSecond Description',exact_keywords:'supplied product',headline:'Supplied Headline'};
+    for (const [key,value] of Object.entries(supplied)) create.elements.namedItem(key).value = value;
+    if (index === '1') $('create-media').selectedIndex = 1;
+    create.requestSubmit();
+    await until(() => $('campaign-title').textContent === name && !$('review-draft').disabled, 'created '+name);
+    assert($('approval-status').textContent.includes('Needs Your Review'), 'new draft remains unapproved');
+  }
   $('review-draft').value = '__IMAGE_DRAFT__'; $('review-draft').dispatchEvent(new Event('change'));
   await until(() => $('media-status').textContent.includes('Exact Supplied Media Loaded') && !$('review-draft').disabled, 'validated image rendered');
   assert($('campaign-media').naturalWidth === 4, 'actual private media endpoint bytes decoded');

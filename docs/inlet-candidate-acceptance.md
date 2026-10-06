@@ -1,90 +1,71 @@
 # Integrated Inlet Candidate Acceptance
 
-This tracks frozen draft PR130 and its separately assembled successor branch `codex/inlet-mvp-next`. Earlier package matrices are
-historical checkpoints, not current completion claims. Main remains `ea3591c`.
-No live product, provider, purchase, deployment or advertising-spend qualification
-has been performed. Focused tests establish only their described offline behavior.
+This is the current implementation view of `codex/inlet-mvp-next`; draft PR130 is
+an older frozen predecessor. Main remains `ea3591c`. Nothing has been merged,
+deployed, purchased or qualified against live provider accounts. An offline test
+pass is not evidence of a purchasable service or complete live acceptance.
 
-| Package | Integrated implementation and evidence | Remaining acceptance |
+| Package | Implemented and tested offline | Remaining acceptance |
 | --- | --- | --- |
-| B01 | Positive-conversion diagnostic regression, including 100 clicks / 10 conversions / $100 spend, and true zero-conversion coverage | Preserve through integrated Full and CI |
-| B02 | Customer identity, scoped roles, revocable sessions, post-lock/provider revalidation and concurrent authorization tests | Configured identity provider and unrelated live customer qualification |
-| B03 | Idempotent workspace provisioning and owner membership; customer signup journey | Live signup and recovery under deployed configuration |
-| B04 | Explicit workspace/connection/account ownership, scoped imports/jobs and database constraints | Full integrated isolation suite and unrelated live accounts |
-| B05 | Canonical Shopify merchandise sales net discounts/refunds, store-local windows, 13-month retention, erasure suppression and owned measurement APIs | Owned terminal publications and privacy epochs implemented offline; deployed source permission/completeness reconciliation |
-| B06 | Editable versioned goals, immutable confirmed baselines, scoped creation receipts and browser review/confirmation | Complete connected customer workflow and qualified historical baselines; goal confirmation is not spending authority |
-| B07 | Versioned mandate simulation, reservations, cancellation, uncertainty and cumulative-cap guards | Separate production mandate and creation coordinator implemented offline; durable optimization/activation/settlement unfinished; qualified exposure bounds; validate draft aggressiveness policy |
-| B08 | Concrete Google connection/import runtime, current customer consent/account selection and disconnect UI | Live app permissions, callback, refresh/revocation and historical reconciliation |
-| B09 | Reviewed Google optimization planning and concrete adapter work | Production mandate execution, authoritative portfolio exposure and controlled live qualification |
-| B10 | Scoped Meta child reporting, current customer OAuth/selection/disconnect UI and stale-grant fencing | Live permissions/account reconciliation and supported optimization matrix |
-| B11 | Scoped TikTok lifecycle/import runtime and paused publication adapter | Customer setup and durable creation implemented offline; production optimization and live advertiser/reporting qualification remain |
-| B12 | Klaviyo/HubSpot/Omnisend scoped customer-context transport, suppression and quota defenses | Complete customer connection journeys and live data-purpose/permission qualification |
-| B13 | Billing provider transport, webhook reconciliation, checkout/return/management UI and entitlement guards | Commercial configuration, actual purchase/cancellation and closure billing policy |
-| B14 | Supplied-media review, private media storage adapter, bounded real video decoding and browser preview | Configured storage/provider media qualification; production publication depends on explicit review |
-| B15 | Google publication compiler/HTTP adapter, immutable qualification/review, durable offline execution core and cancellation/duplicate-effect regressions | Actual durable creation coordinator implemented offline; exposure qualification, reviewed activation and authoritative settlement remain; no live enablement |
-| B16 | Concrete Meta/TikTok paused publication adapters and shared typed contracts | Actual coordinator-backed paused creation implemented offline; durable optimization/activation and provider capability/exposure proof remain |
-| B17 | Strict comparable-window evaluator and conservative source projection | Owned historical publications and privacy invalidation implemented; owned receipt assessment, maturity/effect-time qualification and measured feedback remain |
-| B18 | Customer navigation, signup, goals, billing, Google/Shopify/Meta connections, media review and local-closure receipt UI | TikTok setup and bounded export implemented (export disabled by default); CRM setup, activity/support and complete closure remain; public website is separately owner-managed |
-| B19 | CI gates, explicit global model registry, worker authentication, private storage and native restore exercise | Green integrated Full/CI; deployed readiness/alerts, retention and recovery qualification |
-| B20 | Offline unrelated-tenant, browser, revocation, retry and scope tests | Unrelated real pilots across every supported launch workflow, purchasing, closure and operations |
+| B01 | Positive conversions (100 clicks, 10 conversions, $100 spend) do not produce no-conversions finding; true zero preserved | Preserve through final assembled Full/CI |
+| B02 | Identity, scoped roles, revocable sessions, authorization race coverage | New execution facade needs fresh session guards after internal commits/IO; intended IdP/live qualification |
+| B03 | Idempotent provisioning, owner membership, customer signup | Deployed signup/recovery |
+| B04 | Owned imports/jobs, connection generations, workspace-first closure locks; scheduler self-deadlock repaired | Final assembled isolation and unrelated live accounts |
+| B05 | Net Shopify merchandise sales, local windows, refunds, 13-month retention, terminal publications and privacy invalidation | Deployed historical coverage/completeness reconciliation |
+| B06 | Editable goals, versioned confirmation and immutable baseline reviews | Complete customer execution bridge and qualified connected baseline |
+| B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation and settlement | Account-set/currency accounting repair being qualified; actual native exposure sources; draft aggressiveness validation |
+| B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
+| B09 | Google optimization adapter ready in PR157; shared optimization coordinator in progress | Integration, complete native portfolio qualification and actual customer/scheduler entrypoints |
+| B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | Final optimization integration and live supported-profile qualification |
+| B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Final optimization integration and live advertiser/history qualification |
+| B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
+| B13 | Checkout/return/management, webhook reconciliation and entitlements | Commercial configuration, live purchase/cancel, external closure policy; original hosted billing failure cause unresolved |
+| B14 | Exact supplied-media review, private storage and bounded real decode | Hosted browser launch/codec qualification and intended storage/provider media setup |
+| B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/catalog underway; concrete native exposure/terminal-reporting sources; live qualification |
+| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Customer social configuration producer/facade, final optimization integration, provider capability proof |
+| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Current assessments remain insufficient; qualified maturity/effective-time facts and actual comparable feedback are not complete |
+| B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Creation/activation customer API/UI missing and now underway; strict export integration/default gate; external closure/disposition |
+| B19 | Readiness/schema checks, route/model registry, operator attention, native restore drill | Green final Full/CI, intended-environment alerts/recovery/retention |
+| B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture ready in PR158 | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
 
-## Current Integration Evidence
+## Current Critical Path
 
-At candidate `a9d4abb`, the focused PostgreSQL/SQLite/browser/video suite passed
-87 tests with seven SQLite-only skips; Node portal tests passed ten; whole mypy
-passed 359 files; Ruff and PostgreSQL base→0047→base→0047 passed. Subsequent closure
-UI and deterministic browser readiness/target-discovery repairs require the new
-combined browser run and frozen Full/CI. Individual package green tests do not
-substitute for those runs. Exact failures and follow-up checks live in
-`docs/inlet-progress.md`.
+1. Finish the demonstrated accounting repairs and strict owned execution/outcome
+   serializers, then integrate closure and social journey evidence into one artifact.
+2. Finish durable optimization with actual Google/Meta/TikTok adapters and shared
+   fresh session authorization. Add the customer intent facade and named provider
+   configuration catalog; direct service tests do not replace self-service flows.
+3. Supply actual qualified portfolio/native-cap/reporting and terminal-request
+   facts. Current server ports and contract scenarios are not concrete live sources.
+   Preserve the strict spending ceiling; no daily-budget or reporting-SLO shortcut.
+4. Supply qualified measurement maturity/effective-time evidence before claiming
+   action comparisons. Current persisted assessments honestly remain insufficient.
+5. Freeze the assembled candidate; run Full and normal authorized PR CI, resolve
+   actual failures, and complete the explicit offline pilot matrix. Then present
+   concrete configuration/commercial/release and unrelated live-pilot gates.
 
-## Next Dependency Order
+No aggressiveness percentage increases the overall spending mandate. New campaign
+creation and activation require their separate exact approvals. Local closure
+reports admission fencing and observed local records; physical worker termination,
+external ad shutdown, billing cancellation and data disposition are separate.
+Export is disabled by default pending uniform writer/deployment qualification.
+The public webpage remains separately owner-managed.
 
-1. Freeze and qualify the assembled candidate, including independent review findings.
-2. Finish the separate production mandate/ledger and real-adapter coordinator with
-   immutable authority, receipts, activation and settlement; preserve uncertainty.
-3. Finish bounded owned export, closure worker draining and explicit disposition.
-4. Produce privacy-fenced historical measurement manifests and measured action feedback.
-5. Finish remaining customer-source journeys, operational evidence and unrelated pilots.
+## GitHub Diagnostic Boundary
 
-No percentage aggressiveness setting authorizes a higher overall spending limit.
-New campaigns and creative always require customer review. Local closure currently
-blocks local work and records unresolved external obligations; it does not assert
-that external ads stopped, billing ended, workers drained or historical data was erased.
+The exact shell workflow dispatch remains paused. Read-only diagnosis found the
+execution environment proxy rejects the HTTPS tunnel to `api.github.com` with
+`403 Forbidden` before GitHub responds. Connected GitHub Actions reads and ordinary
+authorized pushes/PR creation succeed. No plan quota exhaustion is established;
+no credentials, network settings or restrictions were bypassed. A verified actual
+plan/usage limit still triggers the owner's all-project stop instruction.
 
-## Specific Current Critical Path
+## Verification Discipline
 
-The assembled candidate is **not purchasable SaaS**. It contains a large offline
-implementation, but no complete provider-backed optimization/purchase/pilot journey
-has been qualified. Credentials alone would not close the remaining engineering gaps.
-
-1. **Integrated correctness:** obtain terminal Full and hosted results for frozen
-   `0cf6706`; incorporate the retained Meta account ownership repair; qualify the
-   resulting exact successor artifact. Local Full completed successfully (exit0); hosted run37412515307 failed with 1816 passed, 40 skipped and 3 failures (video playback twice and nested validation). The nested run also reported a billing failure whose traceback was truncated; its cause is unresolved.
-2. **Production execution:** connect the concrete Google/Meta/TikTok adapters to
-   the separately consented production mandate and shared exposure ledger. Complete
-   durable claims, exact review-to-request binding, unknown outcome reconciliation,
-   separately reviewed activation, and evidence-based reservation settlement. This
-   blocks B15/B16 and the real receipt input for B17. Existing simulation authority
-   cannot be upgraded into production authority by configuration.
-3. **Measured feedback:** publish actual atomic commerce history with connection
-   generation and privacy epochs, then join the owned latest provider receipt to
-   comparable observations. Finish advertising-source publication adapters and
-   explicitly qualify maturity/effect-time policies. Stored snapshots or a pure
-   comparator alone do not satisfy measured optimization.
-4. **Complete customer control:** finish remaining TikTok/CRM setup, source-aware
-   export invalidation, closure worker draining and external-obligation handling,
-   activity/support, and full visible customer workflows. Local closure is not
-   provider shutdown, billing cancellation or data erasure.
-5. **Operational and commercial qualification:** test final route boundaries,
-   readiness/schema compatibility, recovery after erasure/revocation, alerts and
-   unrelated offline journeys. Then present concrete price/terms/retention and
-   intended-environment decisions, with explicit authorization required before
-   provisioning, purchases, provider changes or deployment. Unrelated live pilots
-   remain mandatory acceptance evidence.
-
-Parallel implementation follows the agreed production receipt, source-privacy,
-and lifecycle/export interfaces. Public website work remains owner-managed.
+Exact commands, results and logs are in `docs/inlet-progress.md`. No final Full or
+hosted success is claimed for this evolving successor. Individual focused passes
+must not be added together as if they were one full suite. Current owned exports,
+new session callbacks and optimization require combined verification before freeze.
 
 ## Predecessor Check Disposition
 
@@ -94,7 +75,7 @@ and lifecycle/export interfaces. Public website work remains owner-managed.
 | PR118 `216fda2` | Failed:1597 passed,38 skipped,1 nested failure; billing initial-session readiness race | Run37410393272 failed:1597 passed,32 skipped,7 failures; decoder/upload cases, nestedFull and Chromium page-target discovery | Superseded failed candidate; repairs incorporated into130 |
 | PR130 `0cf6706` | Passed (exit0):1813 passed,46 skipped in initial suite; all subsequent gates including final nested Full passed | Run37412515307 failed:1816 passed,40 skipped,3 failures; browser playback and nested validation | Frozen predecessor; successor includes retained Meta ownership repair, commerce publications, bounded export, coordinator/social creation, operator attention and codec-qualified browser repair |
 
-These predecessor runs did not pass. Earlier successful foundation runs remain
+No predecessor has both successful local and hosted final qualification. Earlier successful foundation runs remain
 historical evidence only and are not substituted for final integrated acceptance.
 
 ## Successor Focused Evidence

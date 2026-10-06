@@ -78,6 +78,7 @@ def test_owned_execution_json_export_is_complete_and_strict(
 @pytest.mark.parametrize(
     "table,field",
     [
+        ("action_outcome_assessments", "assessment"),
         ("provider_execution_revisions", "policy"),
         ("provider_execution_reviews", "document"),
         ("provider_execution_attempts", "request"),

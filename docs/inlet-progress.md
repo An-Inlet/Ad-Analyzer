@@ -2126,3 +2126,7 @@ Integrated PR15629f7152. Combined current-only closure observation, actual closu
 ### Actual Social Activation Journey Integration
 
 Integrated PR1531e0c19f test package on assembled successor. Actual Meta/TikTok creation→separate approval→durable activation→owned projections, retained parent reservation, uncertainty/reconciliation, foreign scope, creative/cover drift and revoked generation checks24 passed with zero skips on SQLite/PostgreSQL. /tmp/inlet-next-social-activation.log. Ruff and configured mypy passed; no live provider calls or Full qualification.
+
+### Strict Owned Execution And Outcome Export Integration
+
+Integrated PR159c87a7ff. Actual create→activate→settle→archive, owned outcome export, strict row/digest bindings, privacy cascade after first stream chunk and existing export checks76 passed1 SQLite-only lock-contention skip; Ruff and configured mypy437 passed. /tmp/inlet-next-strict-export.log. Unknown JSON is not dumped; export remains disabled by default. Upcoming durable optimization adds more typed domains and requires a follow-up serializer delta before final freeze.

@@ -2165,3 +2165,47 @@ Integrated PR1589d4c02. Two independently API-provisioned brands share one datab
 Integrated PR162a68adb8. Parent review reproduced six failures: settled accountA spend60 could be omitted by a new/revised B-only mandate sharing cap100/periodledger, and unresolved other-currency holds were summed numerically. First consent now pins stable accounting account identities; revisions/new mandates/consents/admission cannot change that set. Drafts before consent remain editable. Mixed-currency held exposure blocks new work without assuming FX. No historical accounting or consent is rewritten.
 
 Isolated broad regression74 passed; concurrent consent/claim checks10 passed2 SQLite-only skips; final settlement-IO race/restoration checks9 passed1 skip. Combined-root accounting/exposure/two-brand suite35 passed1 SQLite-only skip; Ruff and configured mypy passed. /tmp/inlet-next-period-accounting.log. Current scalar accounting cannot support arbitrary in-period account-set changes; UI must state that restriction. No migration or live calls.
+### Google Existing-Campaign HTTP Optimization — 2026-10-06
+
+Branch `codex/inlet-google-optimization-http` from frozen additive Google ports
+`c7a9713566bcf0962310e8421cdeaf031fcef7d9`. Adds actual injectable v25 REST budget/pause
+transport, separate from legacy fixture GoogleActions and B07 simulation consent.
+Native budget resource is the owner key; paginated campaign topology plus reference
+count must prove one independent owner. Search/manual CPC/daily standard budget is
+the conservative supported subset. No shared budgets, resume or negative keywords.
+
+Reads bind customer currency/timezone, native settings, schedule, topology and
+automatic recommendation state. Masked validate-only and one-shot mutations use
+fixed endpoints/bounded responses/timeouts and sanitized errors. Unknown or late
+responses retain the original attempt; read-only reconciliation never retries a
+mutation, and old state never proves no effect. Native indefinite end is explicitly
+null, not an invented date or exposure horizon. Social request documents unchanged.
+
+Checks: actual Google HTTP, additive Google contracts, frozen social adapter/digests
+and Google publication tests **92 passed, zero skipped**; Ruff, mypy app/tests
+(**389 files**) and diff check passed. No migrations or Full. Runtime factory remains
+None and live exposure remains rejected. Coordinator integration/live portfolio
+qualification/activation/settlement remain separate work. No live calls, spending,
+merge or deployment. See `docs/inlet-google-optimization-http.md`.
+
+## Durable optimization and customer-session fencing checkpoint
+
+Added actual Google/Meta/TikTok one-action optimization coordination under separate
+production consent, exact review/approval, current native budget-owner/state/exposure,
+one original attempt and retained uncertainty. Shared owned receipt projection now
+supports optimization without inferred treatment time. Cumulative positive changes
+remain charged across cancellation, settlement and policy revisions; same-owner held
+exposure blocks subsequent changes. Server-bound session authorizers revalidate the
+original API principal across provider reads/internal commits before protected writes.
+
+Checks: 100 passed/1 SQLite concurrency skip across new durable/session tests and
+creation/activation/settlement regressions; separate optimization concurrency1passed/
+1SQLite skip; whole Ruff/mypy/diff passed. No Full/workflow dispatch/live operation.
+Branch `codex/inlet-durable-optimization`; additive Google contracts e932238/c7a9713,
+plan/runtime ports950f6f4 and actual Google adapter15797fd992 are ancestors. Missing:
+concrete live exposure/terminal sources, safe ongoing rebudgeting, and actual customer
+API/UI/runtime integration. Default runtime factories remain None.
+
+### Durable Three-Provider Optimization Integration
+
+Integrated PR1603df38fc including actualGoogle157 and fresh session authorizer callbacks. Combined real mocked Google/Meta/TikTok budget/pause durable journeys, revoked-session races, PostgreSQL claims and repaired accounting35/period constraints50 passed2 SQLite-only skips; Ruff/configured mypy passed. /tmp/inlet-next-durable-optimization.log. Exact allowed targets, positive aggressiveness/cumulative change caps, original-attempt uncertainty and native-owner reservation retention remain enforced. Customer facade/catalog and concrete native qualification sources are separate unfinished packages.

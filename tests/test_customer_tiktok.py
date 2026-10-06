@@ -152,7 +152,10 @@ def test_retry_only_replaces_current_provider_session_workspace(
         assert service.authorization(db, "klaviyo", other_provider, sid, NOW)
 
 
-def test_auth_code_callback_bridge_headers_and_actual_access_filter() -> None:
+@pytest.mark.parametrize("initially_disabled", [False, True])
+def test_auth_code_callback_bridge_headers_and_actual_access_filter(
+    monkeypatch: pytest.MonkeyPatch, initially_disabled: bool
+) -> None:
     import logging
     from io import StringIO
 
@@ -170,9 +173,13 @@ def test_auth_code_callback_bridge_headers_and_actual_access_filter() -> None:
     assert "fixture-private-code" not in bridge.text
     stream = StringIO()
     logger = logging.getLogger("uvicorn.access")
+    # Alembic fileConfig disables existing loggers after earlier browser tests
+    # create uvicorn.access. Exercise both incoming states, then restore them.
+    monkeypatch.setattr(logger, "disabled", initially_disabled)
     handler = logging.StreamHandler(stream)
     install_access_filter()
     logger.addHandler(handler)
+    logger.disabled = False
     try:
         logger.handle(
             logging.LogRecord(
@@ -198,3 +205,4 @@ def test_auth_code_callback_bridge_headers_and_actual_access_filter() -> None:
         assert "GET /health" in stream.getvalue()
     finally:
         logger.removeHandler(handler)
+        logger.disabled = initially_disabled

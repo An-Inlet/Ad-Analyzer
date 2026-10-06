@@ -12,6 +12,7 @@ Ad Analyzer platform. New platform resources and environment names use Ad Analyz
 ## Backup and restore
 - Take a PostgreSQL logical backup before each migration.
 - Restore into disposable PostgreSQL and run `alembic upgrade head` before promoting backups as valid.
+- For offline engineering qualification, run the [synthetic restore drill](../inlet-restore-drill.md). It does not qualify production backups or post-snapshot privacy/revocation reconciliation.
 
 ## Phase 11.4 execution operations dashboard
 - Use `/dashboard/accounts/{account_id}/execution-operations` for the authenticated, operator-only, account-scoped execution operations view.

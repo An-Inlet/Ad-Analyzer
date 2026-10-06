@@ -376,10 +376,49 @@ def test_customer_api_preview_confirm_replay_status_and_session_isolation(
     assert closed.status_code == 200, closed.text
     assert closed.json()["state"] == "blocked" and closed.json()["closed"] is False
     assert client.post(close_url + "/confirm", headers=headers, json=body).status_code == 200
-    assert client.get(close_url).status_code == 200
+    assert (
+        client.post(close_url + "/reconcile-local", json={"expected_revision": 2}).status_code
+        == 403
+    )
+    local = client.post(
+        close_url + "/reconcile-local", headers=headers, json={"expected_revision": 2}
+    )
+    assert local.status_code == 200, local.text
+    assert local.json()["revision"] == 3
+    assert local.json()["local_work"]["local_records_drained"] is True
+    assert local.json()["local_work"]["physical_workers_stopped"] is None
+    assert local.json()["closed"] is False
+    assert (
+        client.post(
+            close_url + "/reconcile-local", headers=headers, json={"expected_revision": 2}
+        ).status_code
+        == 409
+    )
+    assert client.get(close_url).json()["local_work"]["observation_kind"] == "current_only"
     assert client.get(url).status_code == 404
     assert client.get(f"/api/customer/v1/workspaces/{surviving}").status_code == 200
     assert client.get("/api/customer/v1/session").status_code == 200
     assert other_client.get(close_url).status_code == 404
+    foreign_headers = {"Origin": ORIGIN, "X-CSRF-Token": other_client.cookies[CSRF_COOKIE]}
+    assert (
+        other_client.post(
+            close_url + "/reconcile-local", headers=foreign_headers, json={"expected_revision": 3}
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            close_url + "/reconcile-local",
+            headers=headers,
+            json={"expected_revision": 3, "purge": True},
+        ).status_code
+        == 422
+    )
     assert client.delete("/api/customer/v1/session", headers=headers).status_code == 204
     assert client.get(close_url).status_code == 401
+    assert (
+        client.post(
+            close_url + "/reconcile-local", headers=headers, json={"expected_revision": 3}
+        ).status_code
+        == 401
+    )

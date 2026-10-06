@@ -2118,3 +2118,7 @@ Integrated PR1543def4ba authoritative settlement. Combined settlement/activation
 ### Reviewed Portfolio Exposure Composition
 
 Integrated exposure5bcd0aa. Combined-root focused actual SQLite/PostgreSQL checks24 passed; Ruff and configured mypy passed. /tmp/inlet-next-exposure.log. Independent review repaired profile lifetime escaping into later dispatch and disagreement over prior-period held reservations; both have downstream regression coverage. Explicit server facts/profile ports remain unconfigured; no actual native cap or reporting-delay proof is invented, and no default live runtime is enabled.
+
+### Local Closure Reconciliation Integration
+
+Integrated PR15629f7152. Combined current-only closure observation, actual closure browser, scheduler source authority and quiescing checks38 passed1 SQLite-only concurrency skip; Ruff and configured mypy passed. /tmp/inlet-next-closure-reconcile.log. Local pending analysis delivery cancellation is distinct from completed source import; unknown RUNNING records remain blocking and physical_workers_stopped remains null. No external ad shutdown, billing cancellation or deletion-policy inference.

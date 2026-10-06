@@ -24,7 +24,10 @@ def test_customer_and_checkout_wire_contract() -> None:
         assert request.headers["idempotency-key"] == KEY
         body = parse_qs(request.content.decode())
         if request.url.path == "/v1/customers":
-            assert body == {"metadata[inlet_workspace_id]": ["42"]}
+            assert body == {
+                "metadata[inlet_workspace_id]": ["42"],
+                "metadata[inlet_customer_request]": [KEY],
+            }
             return httpx.Response(200, json={"id": "cus_test", "livemode": False})
         assert body["customer"] == ["cus_test"]
         assert body["line_items[0][price]"] == ["price_test"]
@@ -92,7 +95,7 @@ def test_expired_retry_and_live_key_do_not_reach_transport() -> None:
         clock=lambda: NOW + timedelta(hours=23),
     )
     with pytest.raises(BillingProviderError, match="requires_reconciliation"):
-        wire.customer(42, KEY)
+        wire.request("POST", "/v1/customers", key=KEY)
     with pytest.raises(ValueError):
         StripeBilling(SecretStr("sk_live_synthetic"), "2025-03-31.basil")
 

@@ -32,3 +32,14 @@ A pure `evaluate_operational_maturity(policy_or_none, collected_evidence)` retur
 Recommended policy intent: permit **explicitly labeled operational maturity**, with future correction/retraction support; do not promise authoritative finality that current sources do not provide. Keep production qualification disabled until a documented calibration establishes defensible values for each supported source/metric/time basis. No numeric age or stability count is recommended yet: current retained incremental import samples cannot estimate independent completeness or delivery onset reliably.
 
 Owner selection of that intent does not complete the missing producer, policy evaluator, v3 bridge or feedback consumer. Ask for calibrated parameter approval only with actual coverage/revision evidence and sensitivity results, clearly identifying insufficient sample sizes. Delivery-linked launch outcomes also need qualified timing evidence; a separate configuration comparison may remain descriptive. No policy can raise the customer's overall spending mandate or authorize new campaigns/creative.
+
+## Subsequent Offline Evaluator Package
+
+`app/outcomes/maturity.py` now implements the immutable parameterized policy, disabled
+registry/producer lookup, generic pure evaluator and server dependency boundary
+proposed above. No numeric production values or genuine independent reconciliation
+producer are installed. Its typed facts port supports future server producers without
+changing the mathematical checks; fixture/live environment mismatch fails closed.
+See `b17-operational-maturity-interface.md` for the frozen interface and proposed v3,
+feedback and retraction interfaces. The missing independent source/timing producers,
+v3 assessment bridge and feedback/retraction consumer remain implementation work.

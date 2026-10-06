@@ -64,6 +64,15 @@ def test_terminal_observations_capture_revisions_without_maturity(
         assert changed[0].last_change_discovery_lag_seconds is not None
         assert changed[0].last_change_discovery_lag_seconds > 0
         assert report.maturity == report.independent_reconciliation == "unqualified"
+        from app.outcomes.maturity import evaluate_operational_maturity
+
+        from tests.test_operational_maturity import fixture
+
+        policy, _, context = fixture()
+        maturity = evaluate_operational_maturity(policy, report, context)
+        assert maturity.status == "insufficient"
+        assert "independent_reconciliation_unavailable" in maturity.reasons
+        assert maturity.supporting_completions == ()
         assert report.recommendation_update is None and report.spending_authority == "none"
         assert all(item.observation.coverage.mature_through is None for item in report.observations)
         assert not db.new and not db.dirty and not db.deleted

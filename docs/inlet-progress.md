@@ -2988,3 +2988,24 @@ combined run before fixture corrections had 48 passed/2 skips and two new fixtur
 failures; those were corrected (valid sync interval and actual fixture sales delta),
 then all 10 collector cases rerun successfully. Ruff, mypy (504 files), and
 `git diff --check` passed. No Full, CI dispatch, live qualification or deployment.
+
+## B17 Parameterized Operational Maturity Evaluator (2026-10-06)
+
+Branch `codex/inlet-operational-maturity`, isolated child of PR183 `1a08ecd`.
+Added immutable versioned policy with explicit required parameters, a production-capable
+server facts port, generic pure evaluator and registry/service boundary. Both policy
+and independent source producer defaults return None. Existing incremental terminal
+imports cannot qualify, even under permissive policies. Fixture/live isolation, exact
+scope/privacy/goal/source, complete calendar coverage, chronology/freshness, revision
+envelope and correction predicates fail closed. Operational qualification is never
+finality or causal attribution; no recommendations or spending authority are added.
+
+Frozen contract and proposed next v3 bridge/feedback/retraction interfaces:
+`docs/design/b17-operational-maturity-interface.md`. Genuine independent full-window
+and authoritative timing producers, owned bridge and feedback/retraction consumer
+remain missing code, distinct from owner parameter calibration/live qualification.
+
+Validation: 39 passed in 7.81s (29 pure synthetic boundary tests and 10 actual retained
+collector cases across SQLite/PostgreSQL, including proof current imports cannot
+qualify). Ruff, mypy (506 files), and diff checks passed. No Full, manual CI dispatch,
+API, migration, production policy installation, provider calls or deployment.

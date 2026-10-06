@@ -604,6 +604,22 @@ TABLES: dict[str, TablePolicy] = {
     ),
     "customer_token_exchanges": TablePolicy("identity_global", (), None, False),
     "customer_users": TablePolicy("identity_global", (), None, False),
+    "customer_billing_offer_bindings": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "provider",
+            "environment",
+            "merchant_account_id",
+            "checkout_key",
+            "profile_digest",
+            "binding_digest",
+            "created_at",
+        ),
+        None,
+        True,
+    ),
     "customer_workspace_billing": TablePolicy(
         "workspace",
         (
@@ -612,6 +628,9 @@ TABLES: dict[str, TablePolicy] = {
             "merchant_account_id",
             "workspace_id",
             "customer_id",
+            "checkout_offer_binding_id",
+            "subscription_offer_binding_id",
+            "qualification_digest",
             "checkout_price",
             "checkout_expires_at",
             "subscription_id",

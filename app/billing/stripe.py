@@ -14,6 +14,7 @@ import httpx
 from pydantic import SecretStr
 
 from app.billing.contracts import CheckoutResult, CheckoutState, SubscriptionState
+from app.billing.offers import BoundOfferV1, OfferProfileV1
 from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 
 
@@ -349,3 +350,35 @@ class StripeBilling:
         if parsed.scheme != "https" or parsed.netloc != "billing.stripe.com":
             raise BillingProviderError("billing_portal_location_invalid")
         return url
+
+    def qualify_offer(self, profile: OfferProfileV1) -> None:
+        from app.billing.offer_stripe import portal_configuration, price
+
+        price(self, profile)
+        portal_configuration(self, profile)
+
+    def checkout_bound(
+        self, bound: BoundOfferV1, customer: str, return_url: str, *, recover_only: bool = False
+    ) -> CheckoutResult:
+        from app.billing.offer_stripe import checkout
+
+        return checkout(self, bound, customer, return_url, recover_only=recover_only)
+
+    def checkout_state_bound(
+        self, bound: BoundOfferV1, customer: str, cid: str, now: datetime
+    ) -> CheckoutState:
+        from app.billing.offer_stripe import checkout_state
+
+        return checkout_state(self, bound, customer, cid, now)
+
+    def current_bound(
+        self, bound: BoundOfferV1, customer: str, sid: str, now: datetime
+    ) -> SubscriptionState:
+        from app.billing.offer_stripe import current
+
+        return current(self, bound, customer, sid, now)
+
+    def portal_bound(self, bound: BoundOfferV1, customer: str, return_url: str, key: str) -> str:
+        from app.billing.offer_stripe import portal
+
+        return portal(self, bound, customer, return_url, key)

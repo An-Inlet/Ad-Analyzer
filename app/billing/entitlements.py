@@ -15,6 +15,19 @@ from app.workspaces.models import WorkspaceIntegration
 
 
 def policy() -> BillingPolicy:
+    if (
+        settings.billing_provider_mode == "stripe_live"
+        or settings.billing_offer_profile is not None
+    ):
+        from app.billing.offers import configured_offer
+
+        try:
+            profile = configured_offer()
+            return BillingPolicy(
+                price_id=profile.price_id, max_accounts=profile.max_advertising_accounts
+            )
+        except ValueError:
+            raise HTTPException(503, "commercial offer unavailable") from None
     if not settings.billing_price_id:
         raise HTTPException(503, "commercial configuration unavailable")
     max_accounts = (

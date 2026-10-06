@@ -3,6 +3,7 @@ from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import AwareDatetime, Field, model_validator
 
+from app.billing.offers import BoundOfferV1, OfferProfileV1, OfferQualificationV1
 from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 from app.goals.schemas import StrictModel
 
@@ -15,6 +16,7 @@ class BillingPolicy(StrictModel):
 
 
 class ScopedBillingResult(StrictModel):
+    binding_digest: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     scope: BillingScopeV1 = LEGACY_TEST_SCOPE
     livemode: bool = Field(strict=True, default=False)
 
@@ -26,6 +28,7 @@ class ScopedBillingResult(StrictModel):
 
 
 class SubscriptionState(ScopedBillingResult):
+    qualification: OfferQualificationV1 | None = None
     customer_id: str = Field(pattern=r"^cus_[A-Za-z0-9_]{1,128}$")
     subscription_id: str = Field(pattern=r"^sub_[A-Za-z0-9_]{1,128}$")
     price_id: str = Field(pattern=r"^price_[A-Za-z0-9_]{1,128}$")
@@ -106,6 +109,9 @@ def get_billing_transport() -> BillingTransport:
         from app.billing.scope import configured_scope
 
         scope = configured_scope()
+        from app.billing.offers import configured_offer
+
+        configured_offer()
         return StripeBilling(settings.billing_api_key, settings.billing_api_version, scope=scope)
     except ValueError:
         return UnavailableBilling()
@@ -115,4 +121,21 @@ def get_billing_transport() -> BillingTransport:
 class BillingManagementTransport(Protocol):
     def portal(
         self, customer_id: str, configuration_id: str, return_url: str, request_key: str
+    ) -> str: ...
+
+
+@runtime_checkable
+class BoundBillingTransport(Protocol):
+    def qualify_offer(self, profile: OfferProfileV1) -> None: ...
+    def checkout_bound(
+        self, bound: BoundOfferV1, customer: str, return_url: str, *, recover_only: bool = False
+    ) -> CheckoutResult: ...
+    def checkout_state_bound(
+        self, bound: BoundOfferV1, customer: str, cid: str, now: datetime
+    ) -> CheckoutState: ...
+    def current_bound(
+        self, bound: BoundOfferV1, customer: str, sid: str, now: datetime
+    ) -> SubscriptionState: ...
+    def portal_bound(
+        self, bound: BoundOfferV1, customer: str, return_url: str, key: str
     ) -> str: ...

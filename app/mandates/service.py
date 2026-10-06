@@ -27,7 +27,10 @@ from app.workspaces.models import Workspace
 
 def workspace_lock(db: Session, workspace_id: int) -> None:
     w = db.scalar(
-        select(Workspace).where(Workspace.id == workspace_id).with_for_update(key_share=True)
+        select(Workspace)
+        .where(Workspace.id == workspace_id)
+        .with_for_update(key_share=True)
+        .execution_options(populate_existing=True)
     )
     if w is None or w.status != "active":
         raise HTTPException(404, "workspace unavailable")

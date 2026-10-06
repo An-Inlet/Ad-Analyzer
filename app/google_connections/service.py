@@ -104,10 +104,15 @@ def start(db: Session, wid: int, sid: str, now: datetime, transport: GoogleReadT
 
 
 def authorization(db: Session, nonce: str, sid: str, now: datetime) -> GoogleAuthorization:
+    peek = db.get(GoogleAuthorization, digest(nonce), populate_existing=True)
+    if peek is None or peek.session_digest != sid:
+        raise HTTPException(404, "authorization unavailable")
+    workspace_lock(db, peek.workspace_id)
     row = db.scalar(
         select(GoogleAuthorization)
         .where(GoogleAuthorization.digest == digest(nonce))
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if row is None or row.session_digest != sid or utc(row.expires_at) <= now:
         raise HTTPException(404, "authorization unavailable")

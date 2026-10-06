@@ -15,6 +15,7 @@ from app.api.customer_campaign_review import router as customer_campaign_review_
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
+from app.api.customer_lifecycle import router as customer_lifecycle_router
 from app.api.customer_mandates import router as customer_mandates_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_sources import router as customer_sources_router
@@ -132,6 +133,7 @@ app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)
 app.include_router(customer_campaign_review_router)
+app.include_router(customer_lifecycle_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
 app.include_router(customer_shopify_router)

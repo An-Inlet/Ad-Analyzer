@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from typing import Any
@@ -64,8 +65,8 @@ class ConnectionService:
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
-    def begin(self, workspace_id: int, actor: str, now: datetime) -> str:
-        if not configuration_ready(self.settings):
+    def begin(self, workspace_id: int, actor: str, now: datetime, *, customer: bool = False) -> str:
+        if not configuration_ready(self.settings, customer=customer):
             raise MetaError("meta_configuration_required")
         vault = Vault(self.settings)
         digest = vault.digest("actor", actor)
@@ -207,6 +208,8 @@ class ConnectionService:
         action_type: str,
         role: str,
         now: datetime,
+        *,
+        before_persist: Callable[[], None] | None = None,
     ) -> MetaConnection:
         if action_type not in CONVERSION_ACTIONS:
             raise MetaError("meta_invalid_conversion_event")
@@ -229,7 +232,21 @@ class ConnectionService:
         bundle = vault.open(
             workspace_id, "grant:" + grant.actor_digest, grant.encrypted_credentials
         )
+        grant_id = grant.id
+        generation = (existing.id, existing.generation) if existing else None
+        if before_persist:
+            self.session.commit()  # Release customer locks before provider IO.
         details = account_metadata(self.client.account(external_id, bundle["access_token"]))
+        if before_persist:
+            before_persist()
+            grant = self.grant(workspace_id, actor, now, lock=True)
+            existing = self.get(workspace_id, lock=True)
+            if (
+                grant is None
+                or grant.id != grant_id
+                or ((existing.id, existing.generation) if existing else None) != generation
+            ):
+                raise MetaError("meta_authorization_expired")
         if details["account_id"] != external_id:
             raise MetaError("meta_account_not_authorized")
         try:

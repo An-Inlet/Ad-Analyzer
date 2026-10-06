@@ -1,15 +1,29 @@
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.billing import service
-from app.billing.contracts import BillingTransport, UnavailableBilling, get_billing_transport
+from app.billing.contracts import (
+    BillingManagementTransport,
+    BillingTransport,
+    UnavailableBilling,
+    get_billing_transport,
+)
 from app.billing.entitlements import policy
 from app.billing.models import WorkspaceBilling
 from app.billing.webhooks import receive
-from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
+from app.customers.access import (
+    Database,
+    MutationPrincipal,
+    Principal,
+    Provider,
+    customer_workspace,
+    lock_customer_mutation,
+)
 from app.settings import settings
+from app.shopify.security import utc
 
 router = APIRouter(tags=["customer"])
 Transport = Annotated[BillingTransport, Depends(get_billing_transport)]
@@ -19,14 +33,47 @@ Transport = Annotated[BillingTransport, Depends(get_billing_transport)]
 def status(
     workspace_id: int, principal: Principal, db: Database, response: Response, transport: Transport
 ) -> dict[str, Any]:
-    customer_workspace(db, principal.user.id, workspace_id)
+    _, role = customer_workspace(db, principal.user.id, workspace_id)
     response.headers["Cache-Control"] = "no-store"
     row = db.get(WorkspaceBilling, workspace_id)
+    try:
+        configured_policy = policy()
+    except HTTPException:
+        configured_policy = None
+    available = not isinstance(transport, UnavailableBilling) and transport.mode == "stripe_test"
+    owner = role == "owner"
+    existing = row is not None and row.status in {
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "paused",
+        "incomplete",
+    }
+    verified = bool(
+        row
+        and configured_policy
+        and row.verified_at
+        and not row.error_code
+        and datetime.now(UTC) - timedelta(seconds=configured_policy.max_snapshot_age_seconds)
+        <= utc(row.verified_at)
+        <= datetime.now(UTC)
+    )
     return {
+        "can_checkout": owner and available and configured_policy is not None and not existing,
+        "can_manage": bool(
+            owner
+            and available
+            and row
+            and row.customer_id
+            and isinstance(transport, BillingManagementTransport)
+            and re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", settings.billing_portal_configuration)
+        ),
+        "checkout_pending": bool(row and row.checkout_key and not row.subscription_id),
+        "verification_current": verified,
+        "needs_attention": bool(row and row.error_code),
         "status": row.status if row else "unconfigured",
-        "mode": "unavailable"
-        if isinstance(transport, UnavailableBilling)
-        else transport.mode,
+        "mode": "unavailable" if isinstance(transport, UnavailableBilling) else transport.mode,
         "live_verified": False,
         "period_end": row.period_end if row else None,
         "cancel_at_period_end": row.cancel_at_period_end if row else False,
@@ -41,19 +88,24 @@ def checkout(
     db: Database,
     response: Response,
     transport: Transport,
+    identity: Provider,
 ) -> dict[str, Any]:
     _, role = customer_workspace(db, principal.user.id, workspace_id)
     if role != "owner":
         raise HTTPException(403, "workspace owner required")
     response.headers["Cache-Control"] = "no-store"
-    return service.checkout(
+    result = service.checkout(
         db,
         workspace_id,
         policy(),
         transport,
-        settings.customer_app_origin + "/app/settings",
+        settings.customer_app_origin + f"/app/settings?workspace={workspace_id}&billing_return=1",
         datetime.now(UTC),
     )
+    lock_customer_mutation(db, principal, workspace_id, identity)
+    if customer_workspace(db, principal.user.id, workspace_id)[1] != "owner":
+        raise HTTPException(403, "workspace owner required")
+    return result
 
 
 @router.post("/api/billing/stripe/events")
@@ -83,16 +135,21 @@ def management(
     db: Database,
     response: Response,
     transport: Transport,
+    identity: Provider,
 ) -> dict[str, str]:
     _, role = customer_workspace(db, principal.user.id, workspace_id)
     if role != "owner":
         raise HTTPException(403, "workspace owner required")
     response.headers["Cache-Control"] = "no-store"
-    return service.management(
+    result = service.management(
         db,
         workspace_id,
         transport,
         settings.billing_portal_configuration,
-        settings.customer_app_origin + "/app/settings",
+        settings.customer_app_origin + f"/app/settings?workspace={workspace_id}&billing_return=1",
         datetime.now(UTC),
     )
+    lock_customer_mutation(db, principal, workspace_id, identity)
+    if customer_workspace(db, principal.user.id, workspace_id)[1] != "owner":
+        raise HTTPException(403, "workspace owner required")
+    return result

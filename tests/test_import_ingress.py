@@ -11,6 +11,7 @@ from app.crm.dependencies import get_ingress_db, get_publisher, get_replay_guard
 from app.crm.models import CrmEventRecord
 from app.crm.ownership import get_secret_reader
 from app.crm.publisher import FakeEventPublisher
+from app.crm.push_auth import require_crm_push_identity
 from app.crm.replay import InMemoryReplayGuard
 from app.database.session import get_db
 from app.imports.models import ImportRejection
@@ -68,6 +69,8 @@ def test_signed_ingress_to_worker_preserves_connection_and_workspace(owned_engin
             # Even accidentally shared provider secrets cannot authorize replay across routes.
             return TEST_SECRET
 
+    # This test isolates scoped ingress/processing; worker identity has its own integration suite.
+    app.dependency_overrides[require_crm_push_identity] = lambda: None
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_ingress_db] = database
     app.dependency_overrides[get_publisher] = lambda: publisher

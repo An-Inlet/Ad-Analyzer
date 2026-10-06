@@ -23,3 +23,9 @@ def customer_campaign_review() -> FileResponse:
 @router.get("/app/workspace-export", include_in_schema=False)
 def customer_workspace_export() -> FileResponse:
     return FileResponse(STATIC / "workspace-export.html", media_type="text/html")
+
+
+@router.get("/app/workspace-closure", include_in_schema=False)
+@router.get("/app/workspace-closure/{workspace_id}/{request_id}", include_in_schema=False)
+def customer_workspace_closure() -> FileResponse:
+    return FileResponse(STATIC / "workspace-closure.html", media_type="text/html")

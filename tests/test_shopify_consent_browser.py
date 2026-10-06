@@ -1,5 +1,6 @@
 """Real portal/navigation/GET bridge; consent HTTP is intercepted before any network."""
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -29,8 +30,10 @@ from app.shopify import client as shopify_http
 from app.shopify.models import ShopifyConnection, ShopifyOAuthState
 from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.types import Receive, Scope, Send
 from websockets.sync.client import connect
 
+from tests.browser_targets import wait_for_page_target
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -48,6 +51,41 @@ class Browser:
         self.origin = origin
         self.callbacks: list[str] = []
 
+    def consent_document(self, url: str) -> str:
+        parsed = urlsplit(url)
+        assert parsed.scheme == "https" and parsed.hostname == SHOP
+        assert parsed.path == "/admin/oauth/authorize"
+        params_in = parse_qs(parsed.query)
+        assert params_in["redirect_uri"] == [self.origin + "/api/customer/v1/shopify/callback"]
+        state = params_in["state"][0]
+        values = {
+            "shop": SHOP,
+            "state": state,
+            "code": "offline-consent-code",
+            "timestamp": str(int(time.time())),
+        }
+        secret = settings.shopify_client_secret
+        assert secret is not None
+        values["hmac"] = hmac.new(
+            secret.get_secret_value().encode(),
+            "&".join(f"{key}={value}" for key, value in sorted(values.items())).encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        callback = params_in["redirect_uri"][0] + "?" + urlencode(values)
+        self.callbacks.append(callback)
+        cancel = (
+            params_in["redirect_uri"][0]
+            + "?"
+            + urlencode({"error": "access_denied", "state": state})
+        )
+        body = (
+            "<!doctype html><title>Offline Shopify Consent</title>"
+            "<h1>Review Store Permissions</h1>"
+            f'<a id="consent-approve" href="{html.escape(callback)}">Approve</a>'
+            f'<a id="consent-cancel" href="{html.escape(cancel)}">Cancel</a>'
+        )
+        return body
+
     def call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.sequence += 1
         request_id = self.sequence
@@ -56,40 +94,7 @@ class Browser:
             reply = json.loads(self.socket.recv(timeout=15))
             if reply.get("method") == "Fetch.requestPaused":
                 event = reply["params"]
-                parsed = urlsplit(event["request"]["url"])
-                assert parsed.scheme == "https" and parsed.hostname == SHOP
-                assert parsed.path == "/admin/oauth/authorize"
-                params_in = parse_qs(parsed.query)
-                assert params_in["redirect_uri"] == [
-                    self.origin + "/api/customer/v1/shopify/callback"
-                ]
-                state = params_in["state"][0]
-                values = {
-                    "shop": SHOP,
-                    "state": state,
-                    "code": "offline-consent-code",
-                    "timestamp": str(int(time.time())),
-                }
-                secret = settings.shopify_client_secret
-                assert secret is not None
-                values["hmac"] = hmac.new(
-                    secret.get_secret_value().encode(),
-                    "&".join(f"{key}={value}" for key, value in sorted(values.items())).encode(),
-                    hashlib.sha256,
-                ).hexdigest()
-                callback = params_in["redirect_uri"][0] + "?" + urlencode(values)
-                self.callbacks.append(callback)
-                cancel = (
-                    params_in["redirect_uri"][0]
-                    + "?"
-                    + urlencode({"error": "access_denied", "state": state})
-                )
-                body = (
-                    "<!doctype html><title>Offline Shopify Consent</title>"
-                    "<h1>Review Store Permissions</h1>"
-                    f'<a id="consent-approve" href="{html.escape(callback)}">Approve</a>'
-                    f'<a id="consent-cancel" href="{html.escape(cancel)}">Cancel</a>'
-                )
+                body = self.consent_document(event["request"]["url"])
                 self.sequence += 1
                 self.socket.send(
                     json.dumps(
@@ -214,10 +219,28 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         "dependency_overrides",
         {get_db: database, get_identity_provider: lambda: FakeProvider()},
     )
+    initial_probe, release_probe = threading.Event(), threading.Event()
+
+    async def delayed_initial_session(scope: Scope, receive: Receive, send: Send) -> None:
+        # Reproduce login finishing while the portal's startup probe still disables Retry.
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "GET"
+            and scope["path"] == "/api/customer/v1/session"
+            and not initial_probe.is_set()
+        ):
+            initial_probe.set()
+            assert await asyncio.to_thread(release_probe.wait, 15)
+        await app(scope, receive, send)
+
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
         uvicorn.Config(
-            app, log_level="critical", lifespan="off", ssl_certfile=str(cert), ssl_keyfile=str(key)
+            delayed_initial_session,
+            log_level="critical",
+            lifespan="off",
+            ssl_certfile=str(cert),
+            ssl_keyfile=str(key),
         )
     )
     thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
@@ -259,7 +282,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
                 return list(json.load(response))
 
-        browser = Browser(tabs()[0]["webSocketDebuggerUrl"], origin)
+        browser = Browser(wait_for_page_target(tabs), origin)
         browser.call(
             "Fetch.enable",
             {
@@ -273,6 +296,8 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         )
         browser.call("Page.navigate", {"url": origin + "/app"})
         browser.wait("document.getElementById('retry') !== null")
+        assert initial_probe.wait(10)
+        assert browser.evaluate("document.getElementById('retry').disabled")
 
         def login(current: Browser, token: str) -> None:
             assert (
@@ -285,6 +310,11 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             )
 
         login(browser, "consent-owner:first")
+        release_probe.set()
+        browser.wait(
+            "typeof document.getElementById('retry').onclick === 'function' && "
+            "!document.getElementById('retry').disabled"
+        )
         browser.evaluate("document.getElementById('retry').click()")
 
         def workspace(current: Browser) -> None:
@@ -342,7 +372,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         # A second tab changes the real customer session while consent is pending.
         target = browser.call("Target.createTarget", {"url": origin + "/app"})["targetId"]
         second = Browser(
-            next(tab["webSocketDebuggerUrl"] for tab in tabs() if tab["id"] == target), origin
+            wait_for_page_target(tabs, target_id=target), origin
         )
         second.wait("document.getElementById('retry') !== null")
         login(second, "consent-stranger:second")
@@ -369,6 +399,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             for entry in history["entries"]
         )
     finally:
+        release_probe.set()
         if browser:
             browser.context.close()
         if second:

@@ -128,21 +128,16 @@ def customer_workspace(db: Session, user_id: str, workspace_id: int) -> tuple[Wo
     return result
 
 
-def lock_customer_mutation(
-    db: Session, principal: CustomerPrincipal, workspace_id: int, provider: IdentityProvider
-) -> None:
-    """Reauthorize at the mutation boundary, then fence local revocation until commit.
-
-    Canonical order matches customer Shopify and login: workspace, user, session,
-    membership. Call after receiving a body, before taking product/account locks.
-    Never hold these locks while waiting for an untrusted request body.
-    """
+def guard_customer_mutation(db: Database, principal: CustomerPrincipal, workspace_id: int) -> str:
+    """Lock current authorization through credential persistence/disconnection."""
     db.scalar(
         select(Workspace)
         .where(Workspace.id == workspace_id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
+    # Login updates user contact data before rotating its presented session.
+    # Use the same order so neither transaction holds the other's next row.
     user = db.scalar(
         select(CustomerUser)
         .where(CustomerUser.id == principal.user.id)
@@ -156,30 +151,41 @@ def lock_customer_mutation(
         .execution_options(populate_existing=True)
     )
     if (
-        user is None
-        or user.status != "active"
-        or user.issuer != provider.issuer
-        or session is None
-        or session.user_id != user.id
+        session is None
         or session.revoked_at is not None
         or session.expires_at <= int(time.time())
+        or user is None
+        or user.status != "active"
+        or session.user_id != user.id
     ):
-        raise denied()
-    membership = db.scalar(
+        raise HTTPException(401, "customer authentication required")
+    db.scalar(
         select(CustomerMembership)
         .where(
-            CustomerMembership.user_id == user.id,
-            CustomerMembership.workspace_id == workspace_id,
+            CustomerMembership.user_id == user.id, CustomerMembership.workspace_id == workspace_id
         )
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if membership is None or membership.status != "active":
-        raise HTTPException(404, "workspace not found")
     _, role = customer_workspace(db, user.id, workspace_id)
     if role not in {"owner", "admin"}:
         raise HTTPException(403, "insufficient role")
-    provider.check_active(user.subject, session.authenticated_at)
-    # Row locks fence revocation, but time can advance during lock/provider waits.
     if session.expires_at <= int(time.time()):
+        raise denied()
+    return role
+
+
+def lock_customer_mutation(
+    db: Session, principal: CustomerPrincipal, workspace_id: int, provider: IdentityProvider
+) -> None:
+    """Fence local revocation, then refresh provider authority before product writes.
+
+    Receive untrusted bodies before acquiring the canonical workspace/user/session/
+    membership locks. The shared guard refreshes all rows under those locks.
+    """
+    guard_customer_mutation(db, principal, workspace_id)
+    if principal.user.issuer != provider.issuer:
+        raise denied()
+    provider.check_active(principal.user.subject, principal.session.authenticated_at)
+    if principal.session.expires_at <= int(time.time()):
         raise denied()

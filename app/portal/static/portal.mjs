@@ -26,8 +26,9 @@ export function billingDestination(result, kind) {
   // Fixture links never navigate. Only the explicitly configured test provider may redirect.
   if (result.mode !== 'stripe_test') throw new Error('Billing is unavailable outside configured test mode.');
   const url = new URL(result.url);
+  if (!['checkout', 'management'].includes(kind) || typeof result.url !== 'string' || result.url.length > 2048) throw new Error('Billing returned an invalid destination.');
   const host = kind === 'checkout' ? 'checkout.stripe.com' : 'billing.stripe.com';
-  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) throw new Error('Billing returned an invalid destination.');
+  if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password || (kind === 'checkout' ? !url.pathname.startsWith('/c/') : !url.pathname.startsWith('/p/session/'))) throw new Error('Billing returned an invalid destination.');
   return url.href;
 }
 export function shopifyDestination(result, shop) {
@@ -35,6 +36,22 @@ export function shopifyDestination(result, shop) {
   if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(domain)) throw new Error('Enter your store’s myshopify.com domain without a URL or path.');
   const url = new URL(result.authorization_url);
   if (url.protocol !== 'https:' || url.hostname !== domain || url.port || url.username || url.password || url.pathname !== '/admin/oauth/authorize' || url.hash) throw new Error('Shopify returned an invalid authorization destination.');
+  return url.href;
+}
+export function googleDestination(result, configuration, origin) {
+  const url = new URL(result.authorization_url);
+  const expected = {client_id: configuration.client_id, redirect_uri: origin + '/api/customer/v1/google/callback', response_type: 'code', scope: 'https://www.googleapis.com/auth/adwords', access_type: 'offline', prompt: 'consent'};
+  if (configuration.redirect_uri !== expected.redirect_uri || url.protocol !== 'https:' || url.hostname !== 'accounts.google.com' || url.port || url.username || url.password || url.pathname !== '/o/oauth2/v2/auth' || url.hash) throw new Error('Google returned an invalid authorization destination.');
+  for (const [key, value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('Google authorization configuration changed. Reload before trying again.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected, key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Google authorization request is invalid.');
+  return url.href;
+}
+export function metaDestination(result, configuration, origin) {
+  const url = new URL(result.authorization_url);
+  const expected = {client_id:configuration.client_id, redirect_uri:origin+'/api/customer/v1/meta/callback', scope:'ads_read', response_type:'code', auth_type:'rerequest'};
+  if (url.origin !== 'https://www.facebook.com' || url.pathname !== '/v26.0/dialog/oauth' || url.username || url.password || url.hash || configuration.redirect_uri !== expected.redirect_uri || configuration.authorization_endpoint !== url.origin+url.pathname) throw new Error('Meta authorization destination is invalid.');
+  for (const [key, value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('Meta configuration changed. Reload and retry.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Meta authorization request is invalid.');
   return url.href;
 }
 export function amount(value, currency) {
@@ -85,8 +102,9 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
-  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0;
-  let signupKey = null, signupBody = null;
+  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null;
+  let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
+
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
   async function api(...args) {
@@ -102,9 +120,11 @@ if (typeof document !== 'undefined') {
   }
   function clearWorkspace() {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
-    for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'basis']) $(id).replaceChildren();
+    for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'shopify-setup']) show(id, false);
+    googleSetup = null; googleConnections = []; metaSetup = null; $('meta-disconnect-consent').checked = false; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review', 'meta-setup', 'meta-authorize', 'meta-disconnect', 'meta-disconnect-review']) show(id, false);
+
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -133,7 +153,7 @@ if (typeof document !== 'undefined') {
         const state = connection ? label(connection.status) : Array.isArray(connections) ? 'Not Connected' : 'Status Unavailable';
         const imported = connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('en-US', {timeZone:'UTC'}) + ' UTC' : 'No Import Recorded';
         const attention = connection?.error_code ? 'Import Needs Attention' : connection?.live_verified === false ? 'Live Connection Not Verified' : connection ? 'No Reported Import Error' : 'Setup Not Available Here';
-        for (const value of [name + (rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
+        for (const value of [name + (connection?.external_account_id ? ` · ${connection.external_account_id}` : rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
         table.append(row);
       }
     }
@@ -152,13 +172,17 @@ if (typeof document !== 'undefined') {
   const invalidate = () => { reviewed = null; show('review', false); };
   async function guarded(task) {
     const controls = [...document.querySelectorAll('button,input,select')];
-    const states = controls.map(c => c.disabled);
+    if (busyCount === 0) controlStates = new Map(controls.map(c => [c, c.disabled]));
+    busyCount++;
     controls.forEach(c => { c.disabled = true; });
     try { await task(); } catch (error) {
       if (error instanceof StaleRequest) return;
       if (error.status === 401) clearSession();
       say(error.message, true);
-    } finally { controls.forEach((c, i) => { c.disabled = states[i]; }); }
+    } finally {
+      busyCount--;
+      if (busyCount === 0) { for (const [control, disabled] of controlStates) control.disabled = disabled; controlStates = null; }
+    }
   }
   async function session() {
     clearSession();
@@ -202,13 +226,13 @@ if (typeof document !== 'undefined') {
     $('store').replaceChildren(...stores.filter(s => s.status === 'active').map((s, i) => option(s.id, `Shopify Store ${i + 1} · ${s.currency} · ${s.time_zone}`)));
     $('goal').replaceChildren(option('', 'New Goal'), ...goals.map((g, i) => option(g.id, `Goal ${i + 1} · ${period(g.definition?.target_window)} · ${g.confirmation_recorded ? 'Confirmed' : 'Draft'}`)));
     renderMandates(result[2]);
-    const billing = result[3]; $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : 'Purchasing Unavailable'} · Live billing has not been verified.`;
-    const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
-    show('checkout', owner && billing.mode === 'stripe_test'); show('management', owner && billing.mode === 'stripe_test');
+    renderBilling(result[3]);
     const providers = [['Google Ads', '/google/connections'], ['TikTok Ads', '/sources/tiktok_ads'], ['Klaviyo', '/sources/klaviyo'], ['HubSpot', '/sources/hubspot'], ['Omnisend', '/sources/omnisend']];
     const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await api(path + endpoint)]; } catch (error) { if (error instanceof StaleRequest || error.status === 401) throw error; return [name, 'Status unavailable']; } }));
     if (turn !== epoch) throw new StaleRequest();
-    renderConnections([['Shopify', stores], ...results, ['Meta Ads', null]]);
+    const meta = await api(path + '/meta');
+    if (turn !== epoch) throw new StaleRequest();
+    renderConnections([['Shopify', stores], ...results, ['Meta Ads', meta.connected ? [meta] : []]]);
     const setup = await api(path + '/shopify/setup');
     if (turn !== epoch) throw new StaleRequest();
     show('shopify-setup', true); show('shopify-connect', Boolean(setup.enabled && setup.can_manage));
@@ -216,9 +240,59 @@ if (typeof document !== 'undefined') {
     const connected = await api(path + '/shopify');
     if (turn !== epoch) throw new StaleRequest();
     if (connected.length) { $('shopify-domain').value = connected[0].shop_domain; $('shopify-current').textContent = `${connected[0].shop_domain} · ${label(connected[0].status)}`; }
+    show('shopify-disconnect-open', Boolean(connected.length && setup.can_manage));
+    googleSetup = await api(path + '/google/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    show('google-setup', true); show('google-authorize', Boolean(googleSetup.enabled && googleSetup.can_manage));
+    googleConnections = (results.find(([name]) => name === 'Google Ads')?.[1] || []);
+    if (!Array.isArray(googleConnections)) googleConnections = [];
+    googleConnections = googleConnections.filter(row => row.status !== 'disconnected');
+    $('google-disconnect-account').replaceChildren(...googleConnections.map(row => option(row.id, `${row.external_account_id} · ${label(row.status)}`)));
+    show('google-disconnect', Boolean(googleSetup.can_manage && googleConnections.length));
+    $('google-setup-status').textContent = !googleSetup.enabled ? 'Google Ads connection setup is not configured.' : googleSetup.can_manage ? 'An owner or admin can connect an advertising account.' : 'Ask a workspace owner or admin to connect Google Ads.';
 
+    metaSetup = await api(path + '/meta/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    show('meta-setup', true); show('meta-authorize', Boolean(metaSetup.enabled && metaSetup.can_manage));
+    show('meta-disconnect', Boolean(meta.connected && metaSetup.can_manage));
+    $('meta-setup-status').textContent = !metaSetup.enabled ? 'Meta connection setup is not configured.' : metaSetup.can_manage ? 'Review Meta permissions and choose one advertising account.' : 'Ask a workspace owner or admin to connect Meta.';
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
+  $('shopify-disconnect-open').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', true); };
+  $('shopify-disconnect-cancel').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', false); };
+  $('shopify-disconnect-confirm').onclick = () => guarded(async () => {
+    if (!$('shopify-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Shopify.');
+    await api(root() + '/shopify', 'DELETE'); await loadWorkspace();
+    say('Shopify disconnected and imported data removed. Saved goal history remains; reconnect and import before reconfirming.');
+  });
+  const cancelGoogleDisconnect = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', false); };
+  $('google-disconnect-account').onchange = cancelGoogleDisconnect;
+  $('google-disconnect-cancel').onclick = cancelGoogleDisconnect;
+  $('google-disconnect-open').onclick = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', true); };
+  $('google-disconnect-confirm').onclick = () => guarded(async () => {
+    const selected = googleConnections.find(row => row.id === $('google-disconnect-account').value);
+    if (!googleSetup?.can_manage || !selected || !$('google-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting Google Ads.');
+    await api(root() + '/google/connections/' + encodeURIComponent(selected.id), 'DELETE');
+    await loadWorkspace();
+    say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
+  });
+  $('meta-authorize').onclick = () => guarded(async () => {
+    if (!metaSetup?.enabled || !metaSetup.can_manage) throw new Error('Meta connection setup is unavailable.');
+    const result = await api(root()+'/meta/authorize', 'POST');
+    location.assign(metaDestination(result, metaSetup, location.origin));
+  });
+  $('meta-disconnect-open').onclick = () => { $('meta-disconnect-consent').checked = false; show('meta-disconnect-review', true); };
+  $('meta-disconnect-cancel').onclick = () => { $('meta-disconnect-consent').checked = false; show('meta-disconnect-review', false); };
+  $('meta-disconnect-confirm').onclick = () => guarded(async () => {
+    if (!metaSetup?.can_manage || !$('meta-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Meta.');
+    await api(root()+'/meta', 'DELETE'); await loadWorkspace();
+    say('Meta disconnected. Historical data remains; running campaigns and spending are unchanged.');
+  });
+  $('google-authorize').onclick = () => guarded(async () => {
+    if (!googleSetup?.enabled || !googleSetup.can_manage) throw new Error('Google Ads setup is unavailable for this session.');
+    const result = await api(root() + '/google/authorize', 'POST');
+    location.assign(googleDestination(result, googleSetup, location.origin));
+  });
   $('shopify-connect').onsubmit = event => { event.preventDefault(); guarded(async () => {
     const shop = $('shopify-domain').value.trim().toLowerCase();
     shopifyDestination({authorization_url: `https://${shop}/admin/oauth/authorize`}, shop);
@@ -226,6 +300,33 @@ if (typeof document !== 'undefined') {
     location.assign(shopifyDestination(result, shop));
   }); };
   window.addEventListener('pageshow', event => { if (event.persisted) guarded(session); });
+  function renderBilling(billing) {
+    $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : 'Purchasing Unavailable'}`;
+    $('billing-detail').replaceChildren();
+    for (const message of [
+      'Returning from Stripe does not confirm payment. Access changes only after verified server reconciliation.',
+      billing.checkout_pending ? 'Checkout is pending. If you canceled or lost the response, resume the same checkout safely; do not assume a payment succeeded.' : null,
+      billing.verification_current ? 'Subscription status was recently verified by the server.' : 'Subscription status has not been recently verified. Check again after processing.',
+      billing.cancel_at_period_end ? 'Cancellation is scheduled at the end of the current period.' : null,
+      billing.needs_attention ? 'Billing needs attention. Check its status again; contact support if reconciliation remains unavailable.' : null,
+    ].filter(Boolean)) $('billing-detail').append(textNode('p', message));
+    if (billing.period_end) $('billing-detail').append(textNode('p', `Current Period Ends: ${new Date(billing.period_end).toLocaleString('en-US', {timeZone:'UTC'})} UTC`));
+    const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
+    show('checkout', Boolean(owner && billing.mode === 'stripe_test' && billing.can_checkout));
+    show('management', Boolean(owner && billing.mode === 'stripe_test' && billing.can_manage));
+    $('checkout').textContent = billing.checkout_pending ? 'Resume Test Checkout' : 'Open Test Checkout';
+    show('billing-refresh', true);
+  }
+  async function refreshBilling() {
+    try { renderBilling(await api(root() + '/billing')); }
+    catch (error) {
+      if (error instanceof StaleRequest) throw error;
+      $('billing').textContent = ''; $('billing-detail').replaceChildren();
+      show('checkout', false); show('management', false);
+      throw error;
+    }
+  }
+  $('billing-refresh').onclick = () => guarded(refreshBilling);
   $('retry').onclick = () => guarded(session);
   // Auth is lazy and disabled by server configuration; no SDK/provider network by default.
   import('./auth.mjs').then(async ({prepareSignIn}) => {
@@ -296,6 +397,22 @@ if (typeof document !== 'undefined') {
     await api(root() + `/goals/${id}/confirm`, 'POST', {expected_revision: reviewed.revision, preview_id: reviewed.preview_id, idempotency_key: reviewed.key});
     await loadWorkspace(); $('goal').value = id; editGoal(); say('Goal confirmed. Advertising spending remains unauthorized.');
   });
-  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => { const result = await api(root() + '/billing/' + kind, 'POST'); location.assign(billingDestination(result, kind)); });
+  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => {
+    const path = root(), cookies = document.cookie;
+    say(kind === 'checkout' ? 'Opening test checkout. If interrupted, check billing status and resume safely.' : 'Opening test subscription management.');
+    try {
+      const result = await api(path + '/billing/' + kind, 'POST');
+      if (cookies !== document.cookie) { clearSession(); throw new Error('Your session changed. Sign in again before opening billing.'); }
+      location.assign(billingDestination(result, kind));
+    } catch (error) {
+      if (error instanceof StaleRequest) throw error;
+      if ([401, 403, 404].includes(error.status)) {
+        $('billing').textContent = ''; $('billing-detail').replaceChildren(); show('checkout', false); show('management', false);
+      } else {
+        $('billing-detail').replaceChildren(textNode('p', 'The billing request did not finish. Check billing status, then resume the existing checkout if offered. Returning or retrying does not confirm payment.'));
+      }
+      throw error;
+    }
+  });
   guarded(session);
 }

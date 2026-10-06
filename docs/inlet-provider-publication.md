@@ -70,3 +70,38 @@ conversion-goal/action/target qualification reads, durable provider approval and
 coordinator integration, explicit production mandate authority, customer publication
 review UI, separately reviewed activation, exposure settlement, and other providers.
 The adapter does not establish production eligibility by itself.
+
+## Persisted Google Configuration Qualification And Review
+
+`google_qualification.qualify_google` now uses actual bounded Google search requests
+through the injected HTTP client to check advertiser/currency/timezone, exact custom
+conversion goal and enabled website purchase actions, geo country and targetable
+language mappings. Only a digest of normalized evidence is retained; raw provider
+payloads/tokens are not stored. This is configuration evidence, not full campaign
+eligibility or spending authority. Qualification lasts at most five minutes.
+
+`provider_service.prepare_google` builds the source/scope from current DB ownership,
+releases locks for reads, then reacquires workspace/mandate/source locks and rechecks
+owner, entitlement, source revision, advertiser and connection generation before
+persisting. A reconnect during IO fails closed. Refresh appends a new qualification
+and review rather than changing an approved proof. `approve` binds both exact review
+and plan digests. `checked_review` rechecks current DB and fresh stored evidence.
+`view` exposes the complete exact documents and explicit missing production features.
+
+Migration0043 follows0040 and adds separate `provider_qualifications`,
+`provider_reviews`, and `provider_review_approvals`, with scoped account/connection,
+source-revision and qualification/review foreign keys. No provider review is inserted
+into simulation mandate actions. `publication_authority` currently fails explicitly
+because a production mandate/dispatch implementation is still missing code; it does
+not interpret B07 simulation approval as permission. No live runtime is enabled.
+
+The optional qualification proof is omitted from serialization when absent, preserving
+existing unqualified Google review/plan hashes. Empty configuration blockers require
+bound server evidence; the approval service verifies its persisted scope and expiry.
+This does not clear unrelated production execution, activation or settlement work.
+
+Additional primary field references:
+
+- [Custom conversion goal](https://developers.google.com/google-ads/api/reference/rpc/v25/CustomConversionGoal)
+- [Language constant](https://developers.google.com/google-ads/api/reference/rpc/v25/LanguageConstant)
+- [Geo target constant](https://developers.google.com/google-ads/api/reference/rpc/v25/GeoTargetConstant)

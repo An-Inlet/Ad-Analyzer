@@ -2823,3 +2823,14 @@ backup recovery or unrelated live customer pilots.
   one Google campaign configuration. Backend provider permutations are separate
   evidence. Native automatic discovery and live qualified execution remain unfinished.
   No Full, CI dispatch, merge, deployment, live provider call or advertising spend.
+
+### Integrated Existing-Campaign Page Validation
+
+Integrated PR176 (`12032e0`) with the social configuration routes and navigation
+preserved. Root combined optimization API, optimization browser, existing creation
+browser and route-boundary suite passed **39 tests, no skips, in 76.14 seconds**
+on SQLite and disposable PostgreSQL. Log: `/tmp/inlet-next-optimization-ui.log`.
+An initial invocation named a nonexistent browser test file and collected no tests;
+the corrected command produced the result above. Ruff, mypy (491 source files),
+Node module syntax and whitespace checks passed. Frozen `8efe196` validation does
+not include this newer UI. No production factory was enabled.

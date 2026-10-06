@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -98,6 +99,7 @@ class AnalysisRunService:
         policy_version: str = "v1",
         as_of: datetime | None = None,
         retry_failed: bool = False,
+        revalidate: Callable[[Session], None] | None = None,
     ) -> AnalysisRun:
         resolved_as_of = _utc(as_of or datetime.now(UTC))
         metric_end = resolved_as_of.date() - timedelta(days=1)
@@ -131,6 +133,8 @@ class AnalysisRunService:
             # Claim commits durably; reacquire authority before any local output.
             # Keep this workspace lock through result persistence.
             require_active_workspace(self.session, workspace_id)
+            if revalidate is not None:
+                revalidate(self.session)
             summary = self._analyze(
                 workspace_id=workspace_id,
                 account_id=account_id,

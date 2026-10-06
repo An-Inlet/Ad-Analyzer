@@ -1,6 +1,6 @@
 # Inlet Build Progress
 
-Last updated: 2026-10-05. Product: **Inlet**. Company: **An Inlet**.
+Last updated: 2026-10-06. Product: **Inlet**. Company: **An Inlet**.
 
 ## Baseline And Working Rules
 
@@ -13,7 +13,9 @@ Last updated: 2026-10-05. Product: **Inlet**. Company: **An Inlet**.
   integrations are Klaviyo, HubSpot and Omnisend.
 - No production deployment, merge, advertising spend or customer-account changes
   are authorized by this development assignment. No such actions were performed.
-- Only one dependent product PR at a time under the current repository policy.
+- The original single-dependent-PR policy is superseded for this offline assignment
+  by the owner-approved exception in `docs/automation-policy.md`; merge and live
+  release gates remain.
 
 ## B01 — Conversion Diagnostics
 
@@ -2834,3 +2836,58 @@ An initial invocation named a nonexistent browser test file and collected no tes
 the corrected command produced the result above. Ruff, mypy (491 source files),
 Node module syntax and whitespace checks passed. Frozen `8efe196` validation does
 not include this newer UI. No production factory was enabled.
+Merge0060 joins0058replacement and0059social review heads. Root combined repeat,
+replacement migration, social review/migration and fresh-session regression suite:
+54passed/1SQLite-onlyskip/8existingdeprecationwarnings,77.51seconds
+(`/tmp/inlet-next-repeat-social-merge.log`). Whole Ruff/mypy484/diff passed. Migration
+checks cover empty roundtrip and refusal to erase populated replacement lineage;
+independent late-ancestor review remains recorded separately. Frozen c602a1b Full
+and hosted e512529 do not include this package and are still running.
+
+## Social Customer Execution Journey — 2026-10-06
+
+Isolated child `codex/inlet-social-creation` of PR173 `ae57ccc`, incorporating frozen
+PR174 `cc9266e` common optimization dispatcher and root's unchanged `ca404a9`/0060
+merge revision. No newly allocated migration, live runtime, provider connection or
+spending authority. The social feature remains a separate final commit for review.
+
+Added strict owner/session/CSRF social creation intents using only saved configuration
+and production consent references. Server reconstruction binds current catalog,
+profile, reviewed rules, source/generation, exact private media and persisted customer
+confirmation. Forward approval/run/advance and separate activation refresh current
+selection outside locks, then retain original-session authorization and a pure local
+freshness check at locked coordinator boundaries. Current discovery is deliberately
+not a prerequisite for original-attempt reconciliation. Live native catalog blockers
+remain denied, and no personal DSA inputs or retention exception are introduced.
+
+The existing customer execution page now offers readable confirmed Meta/TikTok
+configuration selection, exact paused creation approval, durable steps and recovery,
+separate activation, receipts and logout. Google settings remain separate; social
+customers do not paste resource IDs or submit runtime/proof JSON. Contract-test mode
+explicitly makes no provider account changes. Activation readback is not causal or
+effective-time evidence, and uncertain exposure is not prematurely released.
+
+Actual focused results (separate selections):
+- 8 passed: API paths on SQLite/PostgreSQL, extra-proof rejection, owner/CSRF/logout,
+  wrong digest, disabled runtime, changed-rule denial, fresh session revocation during
+  catalog IO, expiry during qualification, durable creation/activation and original
+  receipt recovery with current discovery absent. `/tmp/inlet-social-creation-api-final.log`
+- 4 passed: actual HTTPS Chromium social journeys, Meta/TikTok on both databases,
+  named selection, literal strings, separate consent/reviews, paused creation,
+  activation, owned status recovery and logout. `/tmp/inlet-social-creation-browser.log`
+- 52 passed: existing Google API/browser, optimization API, configuration API,
+  historical hash compatibility and assembled route boundaries.
+  `/tmp/inlet-social-creation-regression-final.log`
+- Subsequent final authority checks: 6 passed, covering original-session/expiry
+  denial and preservation of any pre-existing server configuration validator.
+  `/tmp/inlet-social-creation-authority-final.log` (overlaps the earlier API selection).
+- Whole Ruff, clean mypy499, JavaScript syntax and diff checks passed. Single Alembic
+  head0060 uses the exact already-reviewed root merge revision.
+
+Earlier fixture runs are superseded: an original media-reader Session reopened after
+fixture cleanup and blocked disposable-schema teardown; the final test assembly uses
+fresh closed per-read sessions. No production persistence behavior was altered for
+that harness repair. Root owns assembled Full/hosted qualification. No Full or CI
+workflow was launched for this package. Native spending/finality proof, TikTok native
+catalog decoding, DSA personal-data closure handling and live qualification remain
+open. See `inlet-social-execution-intents.md` for the exact ports and limits.

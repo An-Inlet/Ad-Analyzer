@@ -55,3 +55,8 @@ class InitialPreviewReviewLink(Base):
     plan_digest: Mapped[str] = mapped_column(String(64))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+from app.initial_planning.review_triggers import register  # noqa: E402
+
+register(Base.metadata.tables["initial_preview_reviews"])

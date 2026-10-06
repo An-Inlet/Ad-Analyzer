@@ -212,7 +212,7 @@ def prepare_optimization(
         created_at=clock(),
     )
     db.add(row)
-    persist_candidate_writer(db, row, document, runtime)
+    persist_candidate_writer(db, row, document, runtime, newly_created=True)
     db.commit()
     return row
 
@@ -222,7 +222,24 @@ def persist_candidate_writer(
     row: ProviderExecutionReview,
     document: OptimizationReview,
     runtime: OptimizationRuntime,
+    *,
+    newly_created: bool = False,
 ) -> None:
+    if runtime.initial_preview_review_writer is not None:
+        if not newly_created and not row.initial_preview_provenance_required:
+            raise HTTPException(409, "ordinary review cannot adopt initial preview authority")
+        if (
+            runtime.candidate_review_writer is not None
+            or runtime.automatic_authority_guard is not None
+        ):
+            raise HTTPException(409, "mixed initial review provenance unavailable")
+        try:
+            db.flush()
+            runtime.initial_preview_review_writer(db, row, document)
+            db.flush()
+        except Exception:
+            db.rollback()
+            raise
     if runtime.candidate_review_writer is not None:
         try:
             db.flush()
@@ -248,7 +265,7 @@ def checked_review(
     )
     if row is None or row.document.get("purpose") != "existing_campaign_optimize":
         raise HTTPException(404, "optimization review unavailable")
-    from app.optimization_candidates.review_guard import check
+    from app.publication.forward_provenance import check
 
     check(db, row, actor, runtime, clock)
     document = parse_review(row.document)
@@ -327,7 +344,7 @@ def approve_optimization(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
     validate_document(document, policy, clock())
-    from app.optimization_candidates.review_guard import check
+    from app.publication.forward_provenance import check
 
     check(db, row, actor, runtime, clock)
     validate_document(document, policy, clock())
@@ -369,7 +386,7 @@ def create_run(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
     validate_document(document, policy, clock())
-    from app.optimization_candidates.review_guard import check
+    from app.publication.forward_provenance import check
 
     check(db, row, actor, runtime, clock)
     validate_document(document, policy, clock())
@@ -514,7 +531,7 @@ def claim_step(
         ledger.spent_high_water_micros = max(
             ledger.spent_high_water_micros, e.reported_spend_micros
         )
-        from app.optimization_candidates.review_guard import check_id
+        from app.publication.forward_provenance import check_id
 
         check_id(db, wid, run.review_id, actor, runtime, clock)
         validate_document(document, policy, clock())
@@ -529,7 +546,7 @@ def claim_step(
         return None
     _, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
     validate_document(document, policy, clock())
-    from app.optimization_candidates.review_guard import check_id
+    from app.publication.forward_provenance import check_id
 
     check_id(db, wid, run.review_id, actor, runtime, clock)
     validate_document(document, policy, clock())
@@ -982,7 +999,7 @@ def execute_claim(
         db, claim.workspace_id, request.intent.mandate, request.intent.scope, actor, runtime, clock
     )
     validate_document(document, policy, clock())
-    from app.optimization_candidates.review_guard import check_id
+    from app.publication.forward_provenance import check_id
 
     check_id(db, claim.workspace_id, run.review_id, actor, runtime, clock)
     validate_document(document, policy, clock())

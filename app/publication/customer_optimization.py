@@ -52,9 +52,16 @@ def bind(
         runtime.execution.environment == "live" and not runtime.execution.live_enabled
     ):
         raise intents.unavailable("optimization_runtime_unavailable")
-    return replace(
-        runtime, execution=replace(runtime.execution, authorize=bind_authority(principal, provider))
-    )
+    execution = replace(runtime.execution, authorize=bind_authority(principal, provider))
+    if runtime.initial_planning is not None:
+        from app.initial_planning.review_bridge import guard_for
+
+        execution = replace(
+            execution,
+            initial_preview_review_guard=guard_for(runtime.initial_planning, principal, provider),
+            initial_preview_review_writer=None,
+        )
+    return replace(runtime, execution=execution)
 
 
 def request(

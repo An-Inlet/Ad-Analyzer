@@ -143,3 +143,18 @@ identity_provider) -> InitialPreviewReviewGuard` is request-bound, never global.
 
 This contracts/models checkpoint does not claim migration/guard/bridge implementation.
 0076 backend owns the required immutable-origin triggers and complete schema migration.
+
+## First Backend Checkpoint
+
+Actual bridge, forward guard routing, immutable-origin/link trigger DDL and0076 migration
+are implemented. Generic customer runtime bind installs a request-local preview guard;
+missing context fails closed. Writer cannot adopt an existing ordinary review, and the
+protected origin's uniqueness survives child deletion. Original financial readers run
+unchanged; initial/candidate/automatic writers cannot be mixed.
+
+First meaningful SQLite/PostgreSQL tests:4 passed in22.07s (actual Meta HTTP native
+preview → explicit contract-test qualification/exposure → exact review, same-preview
+retry, marker downgrade rejection, child deletion/idempotency preservation, capsule
+cascade and generic approval denial). Ruff and mypy666 passed. Additional final-dispatch,
+reconciliation, concurrency and real migration/lifecycle tests remain in progress; this
+checkpoint does not claim those complete. No live/remote/default runtime change.

@@ -297,7 +297,7 @@ def transfer(
         or not proof.observed_at <= clock() < proof.expires_at
     ):
         raise HTTPException(409, "replacement accounting or qualification changed")
-    from app.optimization_candidates.review_guard import check_id
+    from app.publication.forward_provenance import check_id
 
     check_id(db, wid, run.review_id, actor, runtime, clock)
     o.validate_document(document, policy, clock())

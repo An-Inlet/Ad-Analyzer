@@ -43,6 +43,20 @@ def test_assets_and_existing_routes_are_separate() -> None:
 
 
 def portal_executable(*names: str) -> str:
+    browsers = {"chromium", "chromium-browser", "google-chrome", "google-chrome-stable"}
+    selected = os.environ.get("INLET_TEST_BROWSER")
+    if selected and browsers.intersection(names):
+        executable = shutil.which(selected)
+        if not executable:
+            pytest.fail("Configured codec-qualified browser is unavailable")
+        return executable
+    # Branded Chrome includes H.264/AAC; unbranded snapshot builds may omit them.
+    if browsers.intersection(names):
+        names = tuple(
+            n
+            for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
+            if n in names
+        )
     for name in names:
         executable = shutil.which(name)
         if executable:
@@ -132,6 +146,7 @@ def test_customer_journey_in_local_browser(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("name", ["node", "google-chrome"])
 def test_missing_portal_dependency_fails_in_ci(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
+    monkeypatch.delenv("INLET_TEST_BROWSER", raising=False)
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     monkeypatch.setattr(shutil, "which", lambda _name: None)
     with pytest.raises(pytest.fail.Exception, match="hosted CI must not skip"):
@@ -139,9 +154,30 @@ def test_missing_portal_dependency_fails_in_ci(monkeypatch: pytest.MonkeyPatch, 
 
 
 def test_google_chrome_is_supported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("INLET_TEST_BROWSER", raising=False)
     monkeypatch.setattr(
         shutil, "which", lambda name: "/usr/bin/google-chrome" if name == "google-chrome" else None
     )
     assert portal_executable("chromium", "chromium-browser", "google-chrome") == (
         "/usr/bin/google-chrome"
     )
+
+
+def test_codec_qualified_browser_selection_is_shared(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("INLET_TEST_BROWSER", "/fixture/qualified-chrome")
+    monkeypatch.setattr(
+        shutil, "which", lambda name: name if name == "/fixture/qualified-chrome" else None
+    )
+    assert portal_executable("chromium", "google-chrome") == "/fixture/qualified-chrome"
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    with pytest.raises(pytest.fail.Exception, match="codec-qualified browser is unavailable"):
+        portal_executable("chromium", "google-chrome")
+
+
+def test_local_browser_prefers_codec_capable_brand_without_changing_node(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INLET_TEST_BROWSER", raising=False)
+    monkeypatch.setattr(shutil, "which", lambda name: "/fixture/" + name)
+    assert portal_executable("chromium", "google-chrome") == "/fixture/google-chrome"
+    assert portal_executable("node") == "/fixture/node"

@@ -303,7 +303,7 @@ def test_capped_evidence_never_claims_complete_health(customer_engine: Engine) -
             event.remove(customer_engine, "before_cursor_execute", record)
         assert result.evidence_truncated and result.counts_are_lower_bounds
         assert result.signals[0].observed_count == ROW_LIMIT
-        assert len(statements) == (13 if customer_engine.dialect.name == "postgresql" else 12)
+        assert len(statements) == (14 if customer_engine.dialect.name == "postgresql" else 13)
         assert all("LIMIT" in statement or "set_config" in statement for statement in statements)
         if customer_engine.dialect.name == "postgresql":
             assert db.scalar(select(func.current_setting("statement_timeout"))) == "2s"

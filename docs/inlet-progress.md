@@ -3517,3 +3517,17 @@ passed; no terminal local result yet. No manual dispatch, merge, release or quot
 
 Schema plan update: candidate-to-review provenance0068down0062 approved; final root
 merge0069 will join0063,0064,0066,0068. Proposed0067/0065 were never created.
+
+### 2026-10-06 — Unstarted analysis obligation attention integrated
+
+Integrated PR19071c4550: bounded overdue analysis obligations from owned completed
+imports without a corresponding AnalysisRun; fixed inspect-local-job reason only,
+no automatic retry or fabricated historical generation. Root checks67 passed in48.16s
+(`/tmp/inlet-next-analysis-obligation.log`), Ruff check ., configured mypy542 and
+whitespace passed. Initial command named a nonexistent test module and collected
+no tests; corrected command used actual attention/activity modules.
+
+At08:45 parent reported another transport disconnect notification. Executor commands,
+filesystem read/write probe and in-flight root test progression succeeded immediately;
+no observed work loss, process death or quota signal. Frozen local final focused gate
+nested pytest remains active,20min elapsed with10min CPU at this checkpoint.

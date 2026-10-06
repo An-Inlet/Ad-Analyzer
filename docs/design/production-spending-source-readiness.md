@@ -178,3 +178,18 @@ original-request terminality, production mutation assembly/profile registration,
 automatic target discovery and qualified evidence caching remain missing or unqualified.
 Nothing in these follow-ups converts null U/F/P into zero or makes access approval
 sufficient to enable optimization.
+
+## Next Original-Response Source Proposal
+
+The [Google synchronous completion proposal](google-synchronous-completion-source.md)
+identifies a narrow implementable source for newly captured successful original Google
+v25 single-operation responses. Official schemas describe successful post-mutation
+results and atomic operations. Mapping this to original-request terminality is an explicit
+reviewable inference, limited to operation completion, never future-delivery or financial
+settlement. Current generic acknowledged records lack the proposed provenance and cannot
+be retroactively promoted. Unknown/timeout attempts remain unclosed. Shared contract and
+persistence design require review before implementation; no new source is enabled here.
+
+This does not change the U/F/P/preventive-writer gaps. Bounded social reported-spend
+observations remain independently implementable but unqualified; absent rows and reporting
+latency cannot establish zero liability or an immutable financial cutoff.

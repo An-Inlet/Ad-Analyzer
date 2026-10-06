@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
-const until = async (predicate, message) => { const end = Date.now() + 20000; while (!predicate()) { if (Date.now() > end) throw new Error(message); await new Promise(resolve => setTimeout(resolve, 20)); } };
+const until = async (predicate, message) => { const end = Date.now() + 20000; while (!predicate()) { if (Date.now() > end) throw new Error(message + ' · ' + JSON.stringify({readyState:$('campaign-video').readyState,networkState:$('campaign-video').networkState,mediaError:$('campaign-video').error?.code||null,h264:$('campaign-video').canPlayType('video/mp4; codecs="avc1.64000a"'),mediaStatus:$('media-status').textContent})); await new Promise(resolve => setTimeout(resolve, 20)); } };
 try {
   const login = await fetch('/api/customer/v1/session', {method:'POST', headers:{'Content-Type':'application/json', 'X-Inlet-Request':'1'}, body:JSON.stringify({id_token:'review-owner:browser'})});
   assert(login.ok, 'fixture identity login');

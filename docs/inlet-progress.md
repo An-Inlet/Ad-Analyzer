@@ -1746,3 +1746,9 @@ checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This als
 qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
+
+## Hosted Browser Codec Qualification Repair (2026-10-06)
+
+Isolated `codex/inlet-video-playback-ci` from frozen1300cf6706; B17 work preserved uncommitted in `/workspace/inlet-owned-outcomes`. Exact hosted job112103881519 chose stock Chromium154.0.8037.0 and failed real MP4 first-frame assertions; FFmpeg6.1 server tests passed. Added early real H264/AAC blob decode qualification and shared `INLET_TEST_BROWSER` selection, plus bounded failure diagnostics. No weaker assertions or longer timeouts. Exact snapshot download blocked HTTP403; original MediaError remains a hosted evidence gap, explicitly documented.
+
+Matching Ubuntu24.04/FFmpeg6.1/GoogleChrome154 actual silent+AAC decode passes; real HTTPS bothDB browser+portal suite14pass; Ruff/mypy362 and standalone probe mypy pass. See `docs/inlet-browser-media-ci.md`. Parent owns integration and Full/hosted qualification. B17 resumes afterward on its separate worktree.

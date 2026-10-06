@@ -2583,3 +2583,31 @@ this package does not persist personal declarations or relax spending semantics.
 - Validation: documentation diff/whitespace check only; no tests, Full, CI dispatch,
   provider calls, deployment or spend. Next package: freeze typed interfaces, then
   implement owned catalog/preparation and customer boundary regressions.
+
+## Customer Existing-Campaign Optimization API (2026-10-06)
+
+- Added separate owner/session/CSRF target discovery, optimization-only mandate
+  creation/editing and consent, initial exact review and separately qualified repeat
+  review endpoints. All target topology is resolved from named server configuration
+  plus actual adapter reads; callers cannot supply provider IDs, proof or payloads.
+- Shared approval/run/advance/reconciliation now reject unknown purpose/schema
+  combinations and dispatch optimization explicitly. Owned review/run projections
+  include exact historical mandate limits and independently retained exposure.
+  Creation/activation media storage is resolved lazily; budget/pause requires none.
+- Actual Google, Meta and TikTok adapter journeys use MockTransport with real customer
+  login, CSRF, API calls and durable SQLite/PostgreSQL coordinator records. Added
+  stale/foreign/forged input, topology re-consent, missing repeat source, unknown
+  dispatch and original-session revocation-during-I/O coverage.
+- Production factories remain `None`. Configured offered inventory is not native
+  automatic discovery or qualified exposure/finality. Customer optimization UI and
+  native qualified producers remain follow-up work; no live execution is enabled.
+- Validation: broader API/catalog/UI/pilot/route-boundary/durable/repeat batch
+  **113 passed, 1 SQLite-only concurrency skip**. After adding exact historical
+  reviewed-limit projection, API/catalog/route-boundary batch **46 passed**. Final
+  owner/session/role/topology/capability batch **24 passed in 34.38 seconds**, on
+  SQLite and disposable PostgreSQL. Ruff, configured mypy (**489 source files**) and
+  `git diff --check` passed. No Full, CI dispatch or live provider call.
+- Shared social hook coordinated with portal owner: their later helper may refresh
+  social creation authority after `bound()` and lazy media resolution in the legacy
+  creation/activation branches. Optimization returns first; historical reconciliation
+  does not require new social forward-execution qualification.

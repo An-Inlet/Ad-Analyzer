@@ -1,6 +1,6 @@
 # B18 Bounded Customer Export
 
-This package implements export for the frozen PR122 stored-data schema. It does
+This package implements export for the integrated PR130 and commerce-publication schema. It does
 not close accounts, delete records, cancel billing, call advertising providers,
 or fetch remote customer data. Existing identity revocation checks still apply.
 The parent approved these interfaces before implementation, including strict `{}`
@@ -77,11 +77,12 @@ request fences are also checked.
 
 ## Integration And Remaining Work
 
-This branch is based on PR122 plus canonical model registry commit `8fb35bc`.
-New provider-review/production-execution models added in parallel need explicit
-lifecycle classification and structured export allowlists before integration;
-the completeness guard must not be weakened. Source-privacy epoch work proposed
-for B17 is separate; this package does not introduce a shared privacy epoch.
+This branch began from PR122 plus canonical model registry commit `8fb35bc`,
+then integrated frozen candidate `0cf6706` and commerce publication `e9708ec`.
+The provider-review and commerce publication schemas are explicitly classified.
+Parallel production-execution/outcome models require additional lifecycle and
+structured export classification before integration; do not weaken the guard.
+The shared workspace privacy revision and commerce stamp are described below.
 No retained-export policy, purge policy, final closure state or live provider
 verification is claimed. Export UI and cross-replica resource admission are not
 part of this backend package.
@@ -142,3 +143,70 @@ Integrated export/backend/UI/closure UI/model-registry focused checks: **53 pass
 `/tmp/inlet-export-real-browser.log` and `/tmp/inlet-export-browser-combined.log`.
 Full remains parent-coordinated. Shared workspace privacy revision work is approved
 and underway; this checkpoint is not final acceptance for concurrent erasure.
+
+## Privacy Generation Contract
+
+The parent approved one shared `Workspace.export_privacy_revision` (BIGINT,
+initially zero) and reserved migration `0053` down `0047`. It is not a retention
+policy. `app.lifecycle.privacy.bump_workspace_export_revision` locks the workspace
+without an active-only admission predicate and increments inside the caller's
+transaction. It never commits. Closing and retained inactive workspaces still
+receive erasure/retention maintenance; rollback reverses both deletion and revision.
+Call before native/store locks, or only after the same workspace is already locked.
+Multiple workspaces are locked in increasing ID order.
+
+The archive captures both this revision and `workspace_privacy_stamp` inside its
+single data snapshot. Every fresh build/stream authorization checkpoint compares
+both against independent current reads. A change aborts generation or further
+streaming; previously delivered bytes cannot be recalled. The commerce stamp also
+includes the store set, source generation and privacy epoch. The workspace revision
+covers legacy-only stores that never had a CommerceStore.
+
+Wired destructive source paths:
+
+| Stored Data | Existing Destructive Writer | Transactional Fence |
+| --- | --- | --- |
+| Legacy Shopify facts and privacy identities | Authenticated orders/delete, customer redact, shop redact and uninstall handling | Ordered owning workspace locks, then shared revision before native/store work |
+| Legacy Shopify imported orders | Sync page suppressed/test-order removal and retained-history cleanup | Already-held workspace lock, increment inside page savepoint |
+| Native Shopify connection and cascading facts | Explicit local disconnect | Shared revision before native connection locks |
+| Expired legacy orders, tombstones, privacy requests, audit records | Existing retention sweep | One owner transaction, workspace first, shared revision before cleanup |
+| Commerce facts, snapshots and aggregate publications | Commerce invalidation for erase, disconnect, rebind and retention | Existing workspace-first invalidation advances shared revision and source epoch |
+| Native Meta connection and cascading/staged data | Explicit local disconnect | Shared revision before native locks |
+
+CRM and customer Google/source disconnect currently retain imported facts; no
+existing customer-data erase/retention writer was found for those domains. Their
+normal data updates are represented by the as-of snapshot. Credentials and raw
+transport staging are intentionally excluded. Future destructive writers and
+media-deletion APIs must adopt this same revision contract before being enabled.
+Unknown model ownership remains fail-closed, and intentionally unattributable
+legacy data remains omitted with `all_stored_workspace_data_complete=false`.
+
+No separate privacy counter was introduced in parallel. Commerce change
+`a3e1e39` is integrated. Migration `0051` and `0053` remain separate heads for the
+parent's final schema integration; this package does not invent a merge revision.
+Export UI now exposes expired build leases as interrupted so an owner can explicitly
+retry after a stopped worker; it never auto-restarts or declares delivery complete.
+
+## Privacy-Integrated Acceptance Checkpoint
+
+The final focused command included export APIs/serializers/browser UI, real HTTPS
+browser/API/database journeys, shared privacy revision races/migration, commerce
+publication/migration, existing Shopify and Meta connections, registry, lifecycle,
+quiescing and lifecycle migration: **162 passed, 3 SQLite row-lock-only skips**,
+107.87 seconds. No test failure remains in that run. Logs:
+`/tmp/inlet-export-final-acceptance.log` and `/tmp/inlet-export-final-mypy3.log`.
+Ruff passed; `mypy app tests` passed **371 files**; `git diff --check` passed.
+
+Actual legacy-only erasure tests keep an export snapshot open while a separate
+connection commits `orders/delete`, and also erase after the first stream chunk.
+Both SQLite/WAL (foreign keys enabled) and PostgreSQL abort further export access.
+PostgreSQL statement capture verifies the first destructive lock is the workspace.
+Tests separately cover closing-workspace disconnect, uninstall, retention, Meta
+cleanup, privacy revision rollback, expired build recovery, and populated 0053
+upgrade/downgrade. No live identity/provider/storage call, merge or deployment was
+performed. Full and hosted CI are not represented by these focused results.
+
+Parallel production coordinator and outcome-assessment schemas were still being
+integrated by the parent after this checkpoint. Their owned JSON must receive
+explicit versioned serializers (or remain visibly unsupported); the prior scalar
+allowlists alone do not establish complete customer data export.

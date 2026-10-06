@@ -40,6 +40,7 @@ def build(
     revision: int,
     store: Callable[[], MediaStore],
     authorize: Callable[[], None],
+    capture_privacy: Callable[[Session], dict[str, Any]],
 ) -> tuple[BinaryIO, dict[str, Any]]:
     """Build before headers; caller owns the returned anonymous file, including on disconnect."""
     verify_registry()
@@ -86,6 +87,7 @@ def build(
                     Session(bind=connection) as snapshot,
                     tarfile.open(fileobj=output, mode="w") as archive,
                 ):
+                    privacy = capture_privacy(snapshot)
                     scope = LifecycleScopeV1(workspace_id=wid)
                     for name, policy in TABLES.items():
                         checkpoint()
@@ -206,6 +208,7 @@ def build(
                             omission["reason"] == "unclassified" for omission in omissions
                         )
                         and all(section["complete"] for section in sections),
+                        "privacy_fence": privacy,
                         "delivery": "unconfirmed",
                         "retained_artifact": False,
                     }

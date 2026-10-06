@@ -12,11 +12,13 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app.commerce.evidence import workspace_privacy_stamp
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider, denied
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.lifecycle.archive import encoded
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
+from app.lifecycle.privacy import workspace_export_revision
 from app.lifecycle.quiescing import owner
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
@@ -40,6 +42,13 @@ class Authority:
         self.wid, self.request_id = wid, request_id
         self.revision: int | None = None
         self.fence: str | None = None
+        self.privacy_revision: int | None = None
+        self.commerce_stamp: str | None = None
+
+    def capture_privacy(self, snapshot: Session) -> dict[str, Any]:
+        self.privacy_revision = workspace_export_revision(snapshot, self.wid)
+        self.commerce_stamp = workspace_privacy_stamp(snapshot, self.wid)
+        return {"workspace_revision": self.privacy_revision, "commerce_stamp": self.commerce_stamp}
 
     def check(self) -> None:
         # One fresh READ COMMITTED transaction per check; never the export snapshot/session.
@@ -113,6 +122,11 @@ class Authority:
             )
             if accepted is None:
                 raise denied()
+            if self.privacy_revision is not None and (
+                workspace_export_revision(db, self.wid) != self.privacy_revision
+                or workspace_privacy_stamp(db, self.wid) != self.commerce_stamp
+            ):
+                raise HTTPException(409, "export source data was invalidated; build a new archive")
 
     def claim(self) -> tuple[int, str]:
         with Session(self.engine) as db:

@@ -19,6 +19,7 @@ from app.lifecycle.exports import SLOTS, Authority, Download
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.lifecycle.quiescing import owner
 from app.lifecycle.service import begin
+from app.shopify.security import utc
 
 router = APIRouter(prefix="/api/customer/v1", tags=["customer"])
 
@@ -50,11 +51,16 @@ class ExportInput(StrictModel):
 
 
 def view(row: LifecycleRequest, step: LifecycleStep | None) -> dict[str, Any]:
+    state = row.state
+    if state == "building" and (
+        step is None or step.lease_until is None or utc(step.lease_until) <= datetime.now(UTC)
+    ):
+        state = "interrupted"
     return {
         "schema_version": "inlet.export-request.v1",
         "request_id": row.id,
         "workspace_id": row.workspace_id,
-        "state": row.state,
+        "state": state,
         "revision": row.revision,
         "snapshot": row.blockers,
         "manifest_sha256": step.evidence_digest if step else None,
@@ -130,7 +136,13 @@ def download(
         revision, _ = authority.claim()
         claimed = True
         file, manifest = archive.build(
-            engine, workspace_id, request_id, revision, get_media_store, authority.check
+            engine,
+            workspace_id,
+            request_id,
+            revision,
+            get_media_store,
+            authority.check,
+            authority.capture_privacy,
         )
         authority.check()
         authority.finish(manifest)

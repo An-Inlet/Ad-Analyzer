@@ -9,6 +9,7 @@ from sqlalchemy import Engine, delete, or_, select, union
 from sqlalchemy.orm import Session
 
 from app.imports.native import revoke_native_integration
+from app.lifecycle.privacy import bump_workspace_export_revision
 from app.settings import Settings, settings
 from app.shopify.models import (
     ShopifyAudit,
@@ -75,6 +76,9 @@ def process_event(
             .with_for_update()
         )
     )
+    if topic in {"orders/delete", "customers/redact", "shop/redact", "app/uninstalled"}:
+        for workspace_id in sorted(locked_owners):
+            bump_workspace_export_revision(session, workspace_id)
     row = session.scalar(
         select(ShopifyConnection).where(ShopifyConnection.shop_domain == shop).with_for_update()
     )
@@ -328,6 +332,7 @@ def purge_expired_facts(engine: Engine, *, now: datetime | None = None) -> None:
     for owner in owners:
         with Session(engine) as session:
             lock_workspace(session, owner)
+            bump_workspace_export_revision(session, owner)
             session.execute(
                 delete(ShopifyOAuthState).where(
                     ShopifyOAuthState.workspace_id == owner,

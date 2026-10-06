@@ -23,6 +23,7 @@ from app.publication.provider_contracts import ProviderPublicationReview, Provid
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "analysis_runs": ("blocking_reasons", "decision_brief", "retry_history"),
     "commerce_snapshots": ("result",),
+    "commerce_measurement_publications": ("manifest",),
     "crm_events": ("normalized_payload",),
     "customer_campaign_revisions": ("artifact",),
     "customer_goal_revisions": ("definition",),
@@ -47,6 +48,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
 ADDITIONS: dict[str, tuple[str, ...]] = {
     "automation_control_audits": ("key",),
     "commerce_entries": ("order_key",),
+    "commerce_measurement_publications": ("completion_digest", "manifest_digest"),
     "commerce_orders": ("order_key", "privacy_key", "customer_key"),
     "commerce_shop_aliases": ("shop_domain",),
     "commerce_source_links": ("order_key",),

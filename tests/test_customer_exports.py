@@ -29,7 +29,7 @@ from app.settings import settings
 from app.workspaces.models import Workspace, WorkspaceConfiguration
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 from starlette.requests import ClientDisconnect
 
@@ -46,6 +46,13 @@ def export_engine(customer_engine: Engine, tmp_path: Path) -> Generator[Engine, 
     engine = create_engine(
         f"sqlite:///{tmp_path / 'export.db'}", connect_args={"check_same_thread": False}
     )
+
+    @event.listens_for(engine, "connect")
+    def foreign_keys(connection: Any, _: Any) -> None:
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     with engine.connect() as connection:
         connection.exec_driver_sql("PRAGMA journal_mode=WAL")
     Base.metadata.create_all(engine)
@@ -83,6 +90,7 @@ def build(
         authority.revision,
         lambda: store,
         authority.check,
+        authority.capture_privacy,
     )
 
 
@@ -513,8 +521,27 @@ def test_supported_schema_has_explicit_field_dispositions() -> None:
     for name, policy in TABLES.items():
         if policy.scope in {"identity_global", "platform_global", "unclassified"}:
             continue
-        for column in Base.metadata.tables[name].c.keys():
+        for column in Base.metadata.tables[name].c.keys():  # noqa: SIM118
             assert column in fields(name) or exclusion(name, column) == "security_or_internal", (
                 name,
                 column,
             )
+
+
+def test_expired_build_receipt_allows_explicit_retry(export_engine: Engine) -> None:
+    from datetime import timedelta
+
+    from app.api.customer_exports import view
+
+    authority, _ = prepared(export_engine)
+    with Session(export_engine) as db:
+        row = db.get(LifecycleRequest, authority.request_id)
+        step = db.get(LifecycleStep, (authority.request_id, "export_build"))
+        assert row is not None and step is not None
+        step.lease_until = NOW - timedelta(minutes=1)
+        db.commit()
+        assert view(row, step)["state"] == "interrupted"
+    before = authority.revision
+    assert before is not None
+    authority.claim()
+    assert authority.revision == before + 1

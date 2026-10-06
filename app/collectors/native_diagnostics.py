@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 from fastapi import HTTPException
-from pydantic import AwareDatetime, Field, SecretStr, TypeAdapter
+from pydantic import AwareDatetime, Field, SecretStr, TypeAdapter, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from app.billing.entitlements import paid_work
 from app.collectors import google_native_inventory as google
 from app.collectors import meta_native_inventory as meta
 from app.collectors import tiktok_native_inventory as tiktok
+from app.collectors.account_diagnostic_contracts import validate_observation_period
 from app.goals.schemas import StrictModel
 from app.google_connections.http import GoogleHTTPRead
 from app.google_connections.models import GoogleCustomerConnection
@@ -52,6 +53,11 @@ class AccountDiagnosticRequest(StrictModel):
     account_id: int = Field(strict=True, gt=0)
     starts_at: AwareDatetime
     ends_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def bounded(self) -> "AccountDiagnosticRequest":
+        validate_observation_period(self.starts_at, self.ends_at)
+        return self
 
 
 DiagnosticRequest = NativeDiagnosticRequest | AccountDiagnosticRequest

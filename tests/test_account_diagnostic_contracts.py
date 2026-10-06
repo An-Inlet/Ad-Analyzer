@@ -50,3 +50,26 @@ def test_historical_native_request_bytes_unchanged() -> None:
         value = factory()
         assert value.digest() == digest
         assert hashlib.sha256(value.model_dump_json().encode()).hexdigest() == serialized
+
+
+@pytest.mark.parametrize(
+    "start,end",
+    [
+        ("0001-01-01T00:00:00+14:00", "0001-01-02T00:00:00+14:00"),
+        ("0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z"),
+        ("9999-12-30T00:00:00-14:00", "9999-12-31T23:00:00-14:00"),
+        ("9999-12-30T00:00:00Z", "9999-12-31T23:00:00Z"),
+    ],
+)
+def test_unrepresentable_account_timezone_edges_rejected(start: str, end: str) -> None:
+    with pytest.raises(ValidationError, match="cannot be represented"):
+        AccountDiagnosticIntentV1.model_validate(
+            dict(account_id=1, starts_at=start, ends_at=end)
+        )
+
+
+def test_ordinary_historical_period_is_not_given_an_arbitrary_age_limit() -> None:
+    intent = AccountDiagnosticIntentV1.model_validate(
+        dict(account_id=1, starts_at="1990-01-01T00:00:00Z", ends_at="1990-02-01T00:00:00Z")
+    )
+    assert intent.starts_at.year == 1990

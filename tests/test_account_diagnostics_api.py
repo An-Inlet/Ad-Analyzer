@@ -50,6 +50,7 @@ from tests.test_tiktok_native_inventory import Server as TikTokServer
         "billing",
         "expired",
         "missing_credentials",
+        "unrepresentable_period",
     ],
 )
 def test_real_account_diagnostic_api(
@@ -200,9 +201,16 @@ def test_real_account_diagnostic_api(
     assert alice.post(path, json=payload).status_code == 403
     assert bob.post(path, json=payload, headers=headers(bob)).status_code in {403, 404}
     assert not calls and not constructed
+    if change == "unrepresentable_period":
+        payload.update(
+            starts_at="0001-01-01T00:00:00+14:00", ends_at="0001-01-02T00:00:00+14:00"
+        )
     response = alice.post(path, json=payload, headers=headers(alice))
     if change == "disabled":
         assert response.status_code == 503
+        assert not calls and not constructed
+    elif change == "unrepresentable_period":
+        assert response.status_code == 422
         assert not calls and not constructed
     elif change:
         assert response.status_code in (

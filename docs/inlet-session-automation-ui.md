@@ -24,12 +24,23 @@ All labels/messages are textContent; no browser storage or secrets are introduce
 
 ## Validation Boundary
 
-Real HTTPS browser tests use actual sign-in/workspace/manual optimization APIs on
-SQLite and disposable PostgreSQL. The automation-only browser scenario currently
-uses controlled frozen JSON responses to test delayed/lost-response and session
-cleanup behavior; it does not claim actual automation backend execution. The
-scheduler owner is implementing those routes and persistence separately. Actual
-backend integration qualification is still required when that head freezes.
+Real HTTPS browser tests now cover actual sign-in/workspace/manual optimization
+and session automation APIs on SQLite and disposable PostgreSQL. The actual
+Start → durable worker → Google MockHTTP effect → history/recovery → Stop journey
+creates no human approval records and emits exactly one mocked provider change.
+Delayed successful Start after workspace A→B→A and lost Start/Stop responses never
+replay. A fresh owner session can stop an old run even with execution runtime
+unavailable; logout and role loss clear the UI.
+
+The separate controlled-port scenario still tests in-flight session-cookie changes
+and deterministic response races. It is explicitly a UI contract test, not provider
+qualification. Server capability labels use current owned account names and bounded
+mandate/policy references so different selections remain distinguishable.
+
+Integrated validation: **10 passed** in47.44s across actual API/browser and controlled
+browser suites; whole Ruff, clean mypy582 files, JavaScript syntax and diff checks.
+Production/native evidence, intended-environment deployment and assembled Full
+remain separate qualification gates.
 
 Default production runtime/policy/evidence remain disabled. This UI supplies no
 spending qualification or logout-independent delegation.

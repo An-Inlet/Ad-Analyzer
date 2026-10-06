@@ -2,7 +2,7 @@
 export function sessionAutomation({api,guarded,changed,path,node,rows,summary,money,state}) {
   const $=id=>document.getElementById('opt-auto-'+id);
   let capabilities=null,mandate=null,policy=null,run=null,history=[],unknown=false;
-  const terminal=r=>['stopped','expired','unavailable'].includes(r?.status);
+  const terminal=r=>['stopped','expired'].includes(r?.status);
   const environment=e=>e==='contract_test'?'Offline Contract Test — No Provider Account Changes':e==='live'?'Live Environment':'Environment Unavailable';
   const statusNames={unavailable:'Unavailable',running:'Running',waiting:'Waiting',stopped:'Stopped',expired:'Expired',blocked:'Blocked'};
   const valid=r=>{if(!r||!Object.hasOwn(statusNames,r.status)||r.session_bound!==true||typeof r.message!=='string'||r.message.length>300||!(r.run_id===null||typeof r.run_id==='string'))throw new Error('Automation status could not be verified. Refresh owned status.');return r;};

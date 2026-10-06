@@ -3854,3 +3854,27 @@ limits; current native diagnostics are unqualified. These are missing source/cod
 qualification, not only missing credentials. No live calls, spend, merges into main,
 deployment, new-campaign/creative/activation/pause authority or logout-independent
 delegation was enabled. Root final migration0073 will join intermediate0071 +0072.
+
+### PR207 — Actual Session Automation API Browser Integration
+
+Merged frozen backend0072 `1d1fc15` into the isolated UI child (`a3c3d07`);
+no UI-owned schema changes. Actual HTTPS browser coverage now drives real
+session/CSRF Start, history/status and Stop routes, durable worker selection/
+admission and the real Google HTTP adapter with MockTransport. Exactly one mocked
+provider mutation occurs; zero human approval rows, two explicit session Starts.
+Late Start A→B→A, lost Start/Stop recovery without replay, original-session logout,
+fresh-owner Stop with runtime disabled and current role denial are verified on both
+SQLite and PostgreSQL.
+
+Unavailable runtime is not terminal: corrected the UI so a known nonstopped run
+can still be stopped. Backend owner delegated the additive capability label hunk:
+current owned account names plus bounded mandate reference, and policy reference,
+make otherwise identical options distinguishable without customer proof inputs.
+Actual browser checks account names render literally, including synthetic markup.
+
+Final combined API/manual/browser/controlled-port validation: **10 passed** in47.44s.
+Whole Ruff, clean mypy **582 source files**, JavaScript syntax and diff checks pass.
+Logs `/tmp/inlet-session-automation-ui-integrated.log` and
+`/tmp/inlet-session-automation-ui-integrated-types.log`. Earlier actual backend
+browser-only run: **2 passed** in17.86s. Parent owns integration,0073 join and
+assembled Full/hosted qualification. No live runtime or evidence policy enabled.

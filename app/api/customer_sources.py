@@ -1,15 +1,25 @@
 """Customer source setup; unconfigured transports fail closed."""
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse
 from pydantic import Field
 from sqlalchemy import select
 
-from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
+from app.customers.access import (
+    Database,
+    MutationPrincipal,
+    Principal,
+    Provider,
+    customer_workspace,
+    guard_customer_mutation,
+)
 from app.customers.oauth import callback_relay
 from app.goals.schemas import StrictModel
+from app.settings import settings
 from app.sources import service as s
 from app.sources.contracts import ProviderName, SourceTransport, get_source_transport
 from app.sources.models import SourceConnection
@@ -44,6 +54,7 @@ def authorize(
     response: Response,
     transport: Transport,
 ) -> dict[str, Any]:
+    guard_customer_mutation(db, principal, workspace_id)
     access(db, principal.user.id, workspace_id, response, True)
     return {
         "authorization_url": s.begin(
@@ -55,6 +66,20 @@ def authorize(
 
 @router.get("/sources/{provider}/callback")
 def browser_callback(provider: ProviderName) -> Response:
+    if provider == "tiktok_ads":
+        return FileResponse(
+            Path(__file__).parents[1] / "portal" / "static" / "tiktok-callback.html",
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-store",
+                "Referrer-Policy": "no-referrer",
+                "X-Frame-Options": "DENY",
+                "Content-Security-Policy": (
+                    "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
+                    "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+                ),
+            },
+        )
     return callback_relay()
 
 
@@ -66,16 +91,33 @@ def callback(
     db: Database,
     response: Response,
     transport: Transport,
+    identity: Provider,
 ) -> dict[str, Any]:
     now = datetime.now(UTC)
-    pending = s.authorization(db, provider, body.state, principal.session.digest, now)
-    access(db, principal.user.id, pending.workspace_id, response, True)
+    pending = s.authorization(db, provider, body.state, principal.session.digest, now, lock=False)
+    wid = pending.workspace_id
+
+    def guard() -> None:
+        guard_customer_mutation(db, principal, wid)
+        identity.check_active(principal.user.subject, principal.session.authenticated_at)
+
+    guard()
+    access(db, principal.user.id, wid, response, True)
     pending = s.finish(
-        db, provider, body.state, principal.session.digest, body.code, transport, now
+        db,
+        provider,
+        body.state,
+        principal.session.digest,
+        body.code,
+        transport,
+        now,
+        before_persist=guard,
+        clock=lambda: datetime.now(UTC),
     )
     return {
         "workspace_id": pending.workspace_id,
         "accounts": pending.accounts,
+        "live_verified": False,
         "mode": transport.mode,
     }
 
@@ -89,6 +131,7 @@ def select_account(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    guard_customer_mutation(db, principal, workspace_id)
     access(db, principal.user.id, workspace_id, response, True)
     now = datetime.now(UTC)
     pending = s.authorization(db, provider, body.state, principal.session.digest, now)
@@ -127,6 +170,7 @@ def disconnect(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    guard_customer_mutation(db, principal, workspace_id)
     access(db, principal.user.id, workspace_id, response, True)
     row = s.owned(db, workspace_id, provider, connection_id)
     s.disconnect(db, row)
@@ -181,4 +225,25 @@ def tiktok_report(
         "last_sync_at": row.last_sync_at,
         "mode": s.view(row)["mode"],
         "live_verified": False,
+    }
+
+
+@router.get("/workspaces/{workspace_id}/sources/tiktok_ads/setup")
+def tiktok_setup(
+    workspace_id: int, principal: Principal, db: Database, response: Response
+) -> dict[str, Any]:
+    _, role = customer_workspace(db, principal.user.id, workspace_id)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        s.ready(get_source_transport("tiktok_ads"), "tiktok_ads")
+        callback = s.redirect("tiktok_ads")
+        enabled = bool(settings.tiktok_app_id)
+    except HTTPException:
+        callback, enabled = "", False
+    return {
+        "enabled": enabled,
+        "can_manage": role in {"owner", "admin"},
+        "app_id": settings.tiktok_app_id if enabled else "",
+        "redirect_uri": callback,
+        "authorization_endpoint": "https://business-api.tiktok.com/portal/auth",
     }

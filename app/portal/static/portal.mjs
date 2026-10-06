@@ -54,6 +54,14 @@ export function metaDestination(result, configuration, origin) {
   if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Meta authorization request is invalid.');
   return url.href;
 }
+export function tiktokDestination(result, configuration, origin) {
+  const url = new URL(result.authorization_url);
+  const expected = {app_id:configuration.app_id, redirect_uri:origin+'/api/customer/v1/sources/tiktok_ads/callback'};
+  if (url.origin !== 'https://business-api.tiktok.com' || url.pathname !== '/portal/auth' || url.username || url.password || url.hash || configuration.redirect_uri !== expected.redirect_uri || configuration.authorization_endpoint !== url.origin+url.pathname) throw new Error('TikTok authorization destination is invalid.');
+  for (const [key, value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('TikTok configuration changed. Reload and retry.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('TikTok authorization request is invalid.');
+  return url.href;
+}
 export function amount(value, currency) {
   if (!Number.isSafeInteger(value) || !/^[A-Z]{3}$/.test(currency || '')) return 'Not Available';
   return new Intl.NumberFormat('en-US', {style: 'currency', currency, currencyDisplay: 'code'}).format(value / 1e6);
@@ -64,7 +72,7 @@ export function period(window) {
   if (!Number.isFinite(start.getTime())) return 'Not Available';
   return window.time_basis === 'calendar_month' ? new Intl.DateTimeFormat('en-US', {month: 'long', year: 'numeric', timeZone: 'UTC'}).format(start) : `${window.start} to ${window.end} (end excluded)`;
 }
-const labels = {active: 'Active', connected: 'Connected', disconnected: 'Disconnected', pending: 'Pending', revoked: 'Revoked', draft: 'Draft', approved: 'Approved For Simulation', confirmed: 'Confirmed', baseline_unavailable: 'Baseline Needs Attention', unavailable: 'Unavailable', unconfigured: 'Not Configured', trialing: 'Trial', past_due: 'Payment Overdue', canceled: 'Canceled', unpaid: 'Unpaid', incomplete: 'Setup Incomplete', incomplete_expired: 'Setup Expired', paused: 'Paused', conservative: 'Conservative', balanced: 'Balanced', assertive: 'Assertive', google_ads: 'Google Ads', meta_ads: 'Meta Ads', tiktok_ads: 'TikTok Ads'};
+const labels = {reconnect_required:'Reconnect Required', provider_error:'Provider Needs Attention', active: 'Active', connected: 'Connected', disconnected: 'Disconnected', pending: 'Pending', revoked: 'Revoked', draft: 'Draft', approved: 'Approved For Simulation', confirmed: 'Confirmed', baseline_unavailable: 'Baseline Needs Attention', unavailable: 'Unavailable', unconfigured: 'Not Configured', trialing: 'Trial', past_due: 'Payment Overdue', canceled: 'Canceled', unpaid: 'Unpaid', incomplete: 'Setup Incomplete', incomplete_expired: 'Setup Expired', paused: 'Paused', conservative: 'Conservative', balanced: 'Balanced', assertive: 'Assertive', google_ads: 'Google Ads', meta_ads: 'Meta Ads', tiktok_ads: 'TikTok Ads'};
 const label = value => labels[value] || 'Status Unavailable';
 export function baselineWarnings(reasons) {
   const descriptions = {missing_history: 'Historical data is missing for part or all of the selected baseline month. The source has not identified individual missing months.', incomplete_window: 'The selected baseline month has not been fully imported.', stale_source: 'The latest source data is too old to confirm this baseline.', import_in_progress: 'A source import is still in progress.', source_error: 'The source import needs attention.', unreconciled_source: 'Some source records have not reconciled.', outside_retention: 'The selected baseline is outside the retained history.'};
@@ -102,7 +110,7 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
-  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null;
+  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null, tiktokSetup = null, tiktokConnections = [];
   let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
 
   const pendingGoals = new Map();
@@ -122,8 +130,8 @@ if (typeof document !== 'undefined') {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    googleSetup = null; googleConnections = []; metaSetup = null; $('meta-disconnect-consent').checked = false; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review', 'meta-setup', 'meta-authorize', 'meta-disconnect', 'meta-disconnect-review']) show(id, false);
+    googleSetup = null; googleConnections = []; tiktokSetup = null; tiktokConnections = []; $('tiktok-disconnect-consent').checked = false; $('tiktok-disconnect-account').replaceChildren(); metaSetup = null; $('meta-disconnect-consent').checked = false; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review', 'meta-setup', 'meta-authorize', 'meta-disconnect', 'meta-disconnect-review', 'tiktok-setup', 'tiktok-authorize', 'tiktok-disconnect', 'tiktok-disconnect-review']) show(id, false);
 
   }
   function clearSession() {
@@ -152,8 +160,8 @@ if (typeof document !== 'undefined') {
         const row = document.createElement('tr');
         const state = connection ? label(connection.status) : Array.isArray(connections) ? 'Not Connected' : 'Status Unavailable';
         const imported = connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('en-US', {timeZone:'UTC'}) + ' UTC' : 'No Import Recorded';
-        const attention = connection?.error_code ? 'Import Needs Attention' : connection?.live_verified === false ? 'Live Connection Not Verified' : connection ? 'No Reported Import Error' : 'Setup Not Available Here';
-        for (const value of [name + (connection?.external_account_id ? ` · ${connection.external_account_id}` : rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
+        const attention = connection?.next_action || (connection?.error_code ? 'Import Needs Attention' : connection?.live_verified === false ? 'Live Connection Not Verified' : connection ? 'No Reported Import Error' : 'Setup Not Available Here');
+        for (const value of [name + ((connection?.external_account_id || connection?.external_id) ? ` · ${connection.external_account_id || connection.external_id}` : rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
         table.append(row);
       }
     }
@@ -256,6 +264,15 @@ if (typeof document !== 'undefined') {
     show('meta-setup', true); show('meta-authorize', Boolean(metaSetup.enabled && metaSetup.can_manage));
     show('meta-disconnect', Boolean(meta.connected && metaSetup.can_manage));
     $('meta-setup-status').textContent = !metaSetup.enabled ? 'Meta connection setup is not configured.' : metaSetup.can_manage ? 'Review Meta permissions and choose one advertising account.' : 'Ask a workspace owner or admin to connect Meta.';
+    tiktokSetup = await api(path + '/sources/tiktok_ads/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    tiktokConnections = results.find(([name]) => name === 'TikTok Ads')?.[1];
+    if (!Array.isArray(tiktokConnections)) tiktokConnections = [];
+    tiktokConnections = tiktokConnections.filter(row => row.status !== 'disconnected');
+    $('tiktok-disconnect-account').replaceChildren(...tiktokConnections.map(row => option(row.id, `${row.external_id} · ${label(row.status)}`)));
+    show('tiktok-setup', true); show('tiktok-authorize', Boolean(tiktokSetup.enabled && tiktokSetup.can_manage));
+    show('tiktok-disconnect', Boolean(tiktokSetup.can_manage && tiktokConnections.length));
+    $('tiktok-setup-status').textContent = !tiktokSetup.enabled ? 'TikTok connection setup is not configured.' : tiktokSetup.can_manage ? 'Connect an advertiser authorized by your TikTok login.' : 'Ask a workspace owner or admin to connect TikTok.';
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
   $('shopify-disconnect-open').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', true); };
@@ -275,6 +292,21 @@ if (typeof document !== 'undefined') {
     await api(root() + '/google/connections/' + encodeURIComponent(selected.id), 'DELETE');
     await loadWorkspace();
     say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
+  });
+  $('tiktok-authorize').onclick = () => guarded(async () => {
+    if (!tiktokSetup?.enabled || !tiktokSetup.can_manage) throw new Error('TikTok connection setup is unavailable.');
+    const result = await api(root()+'/sources/tiktok_ads/authorize', 'POST');
+    location.assign(tiktokDestination(result,tiktokSetup,location.origin));
+  });
+  const cancelTikTokDisconnect = () => { $('tiktok-disconnect-consent').checked = false; show('tiktok-disconnect-review', false); };
+  $('tiktok-disconnect-account').onchange = cancelTikTokDisconnect;
+  $('tiktok-disconnect-cancel').onclick = cancelTikTokDisconnect;
+  $('tiktok-disconnect-open').onclick = () => { $('tiktok-disconnect-consent').checked = false; show('tiktok-disconnect-review', true); };
+  $('tiktok-disconnect-confirm').onclick = () => guarded(async () => {
+    const selected = tiktokConnections.find(row => row.id === $('tiktok-disconnect-account').value);
+    if (!tiktokSetup?.can_manage || !selected || !$('tiktok-disconnect-consent').checked) throw new Error('Select an advertiser and confirm the data effects before disconnecting TikTok.');
+    await api(root()+'/sources/tiktok_ads/'+encodeURIComponent(selected.id),'DELETE'); await loadWorkspace();
+    say('TikTok disconnected. Historical data remains; campaigns and spending are unchanged.');
   });
   $('meta-authorize').onclick = () => guarded(async () => {
     if (!metaSetup?.enabled || !metaSetup.can_manage) throw new Error('Meta connection setup is unavailable.');

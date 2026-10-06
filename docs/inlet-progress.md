@@ -1910,3 +1910,31 @@ Ruff/whole mypy382passed. Exact logs: `/tmp/inlet-next-coordinator.log` and
 Merge0054 joins Meta ownership and commerce/global privacy histories;0056 then joins
 provider execution0048. New tables remain explicitly classified in lifecycle
 inventory. No successor Full is claimed; frozen130 evidence remains separate.
+### B18 TikTok Customer Consent, Selection And Local Disconnect — 2026-10-06
+
+Branch `codex/inlet-tiktok-customer-ui`, isolated from `f77553b`. Customers can
+start configured TikTok consent, return through a dedicated auth_code-only GET
+bridge, select an authorized advertiser and disconnect locally with explicit data
+consequences. Runtime remains disabled by default. No migration or provider writes.
+
+Shared optional GuardedSourceExchange checks the current actor and exact exchanging
+nonce after each TikTok HTTP request and releases locks before the next. Retry
+replaces only the same session/workspace/provider pending flow. Late exchanges
+cannot replace newer attempts; failed exchanges require a fresh start. Existing
+CRM PKCE signatures remain intact. Callback authorization codes are stripped from
+history and not retained in browser storage; installed access-log filtering
+suppresses auth_code callback requests. Disconnect retains reporting/goal history
+and sibling grants, clears local grant/staging/scheduling and advances generation.
+
+Checks: shared source/CRM/TikTok batch **178 passed, 14 existing SQLite concurrency
+skips**; TikTok browser/customer API/source/status/portal batch **34 passed**; final
+auth_code logging/customer API plus adjacent Google/Meta browser batch **19 passed**.
+Actual HTTPS browser journeys run against both SQLite and PostgreSQL with mocked
+provider HTTP only. Node helpers **11 passed**; Ruff, mypy app tests (**362 files**) and
+diff check pass. Full/hosted CI/integration and live provider qualification remain
+pending. CRM customer setup UI remains an engineering followup. See
+`docs/inlet-tiktok-customer-ui.md` for the frozen interface and limitations.
+
+TikTok journey draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/139.
+Tested implementation: `bb27c674159ad94dc6e20d86a920291fa3ea2f1a`.
+Following commit only records this PR link; Full remains pending.

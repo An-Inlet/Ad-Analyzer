@@ -174,7 +174,7 @@ def test_callback_redaction_and_content_security() -> None:
             logging.INFO,
             "",
             1,
-            path + "?code=fixture-secret&state=fixture-state",
+            path + "?auth_code=fixture-secret&state=fixture-state",
             (),
             None,
         )

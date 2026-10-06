@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from typing import Any, Literal, Protocol, runtime_checkable
@@ -40,6 +41,15 @@ class SourceTransport(Protocol):
     def read(
         self, account: str, token: str, start: date, end: date, cursor: str | None
     ) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class GuardedSourceExchange(Protocol):
+    """Per-call actor checkpoint between exchange requests; no shared mutable guard."""
+
+    def exchange_guarded(
+        self, code: str, redirect_uri: str, checkpoint: Callable[[], None]
+    ) -> SourceGrant: ...
 
 
 @runtime_checkable

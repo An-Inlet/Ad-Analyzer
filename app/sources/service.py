@@ -4,6 +4,7 @@ import base64
 import hashlib
 import re
 import secrets
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlsplit
@@ -26,6 +27,7 @@ from app.mandates.service import workspace_lock
 from app.settings import settings
 from app.shopify.security import utc
 from app.sources.contracts import (
+    GuardedSourceExchange,
     PKCESourceTransport,
     ProviderName,
     SourceAccount,
@@ -67,7 +69,7 @@ def ready(transport: SourceTransport, provider: ProviderName | None = None) -> N
     }:
         raise HTTPException(503, "source transport unavailable")
     if (
-        provider in {"klaviyo", "hubspot", "omnisend"}
+        provider is not None
         and transport.mode == "provider_read"
         and getattr(transport, "provider", None) != provider
     ):
@@ -101,7 +103,19 @@ def begin(
     url = urlsplit(location)
     if url.scheme != "https" or url.hostname not in HOSTS[provider] or url.username or url.password:
         raise HTTPException(503, "source authorization unavailable")
-    db.execute(delete(SourceAuthorization).where(SourceAuthorization.expires_at <= now))
+    db.execute(
+        delete(SourceAuthorization)
+        .execution_options(synchronize_session="fetch")
+        .where(SourceAuthorization.expires_at <= now)
+    )
+    db.execute(
+        delete(SourceAuthorization).where(
+            SourceAuthorization.provider == provider,
+            SourceAuthorization.workspace_id == wid,
+            SourceAuthorization.session_digest == sid,
+            SourceAuthorization.state != "selected",
+        )
+    )
     db.add(
         SourceAuthorization(
             digest=digest(nonce),
@@ -119,11 +133,15 @@ def begin(
 
 
 def authorization(
-    db: Session, provider: ProviderName, nonce: str, sid: str, now: datetime
+    db: Session, provider: ProviderName, nonce: str, sid: str, now: datetime, *, lock: bool = True
 ) -> SourceAuthorization:
     peek = db.get(SourceAuthorization, digest(nonce), populate_existing=True)
     if peek is None or peek.session_digest != sid or peek.provider != provider:
         raise HTTPException(404, "authorization unavailable")
+    if not lock:
+        if utc(peek.expires_at) <= now:
+            raise HTTPException(404, "authorization unavailable")
+        return peek
     workspace_lock(db, peek.workspace_id)
     row = db.scalar(
         select(SourceAuthorization)
@@ -149,6 +167,9 @@ def finish(
     code: str,
     transport: SourceTransport,
     now: datetime,
+    *,
+    before_persist: Callable[[], None] | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> SourceAuthorization:
     ready(transport, provider)
     row = authorization(db, provider, nonce, sid, now)
@@ -165,34 +186,63 @@ def finish(
         )
         if not isinstance(verifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier):
             raise HTTPException(409, "authorization context unavailable")
+    wid = row.workspace_id
+    current_time = clock or (lambda: now)
     row.state, row.encrypted_grant = "exchanging", None
     db.commit()
+
+    def validate() -> SourceAuthorization:
+        if before_persist:
+            before_persist()
+        current = authorization(db, provider, nonce, sid, current_time())
+        if current.state != "exchanging":
+            raise HTTPException(409, "authorization already consumed")
+        return current
+
+    def checkpoint() -> None:
+        validate()
+        db.commit()  # Never hold actor/workspace locks during the next provider IO.
+
     try:
-        grant = (
-            transport.exchange_pkce(code, redirect(provider), verifier)
-            if isinstance(transport, PKCESourceTransport) and verifier is not None
-            else transport.exchange(code, redirect(provider))
+        if isinstance(transport, PKCESourceTransport) and verifier is not None:
+            grant = transport.exchange_pkce(code, redirect(provider), verifier)
+        elif isinstance(transport, GuardedSourceExchange):
+            grant = transport.exchange_guarded(code, redirect(provider), checkpoint)
+        else:
+            grant = transport.exchange(code, redirect(provider))
+        row = validate()
+        if grant.expires_at is not None and grant.expires_at <= current_time():
+            raise HTTPException(409, "source consent expired")
+        row.encrypted_grant = SourceVault().seal(
+            wid,
+            provider,
+            row.digest,
+            {
+                "access_token": grant.access_token.get_secret_value(),
+                "refresh_token": grant.refresh_token.get_secret_value()
+                if grant.refresh_token
+                else None,
+                "expires_at": grant.expires_at.isoformat() if grant.expires_at else None,
+            },
         )
-    except Exception:
+        row.accounts, row.state = [a.model_dump() for a in grant.accounts], "select_account"
+        db.commit()
+        return row
+    except Exception as error:
+        db.rollback()
+        workspace_lock(db, wid)
+        failed = db.get(SourceAuthorization, digest(nonce), populate_existing=True)
+        if (
+            failed is not None
+            and failed.provider == provider
+            and failed.session_digest == sid
+            and failed.state == "exchanging"
+        ):
+            failed.state, failed.encrypted_grant = "failed", None
+        db.commit()
+        if isinstance(error, HTTPException):
+            raise
         raise HTTPException(502, "source authorization unavailable; restart connection") from None
-    if grant.expires_at is not None and grant.expires_at <= now:
-        raise HTTPException(409, "source consent expired")
-    row = authorization(db, provider, nonce, sid, now)
-    row.encrypted_grant = SourceVault().seal(
-        row.workspace_id,
-        provider,
-        row.digest,
-        {
-            "access_token": grant.access_token.get_secret_value(),
-            "refresh_token": grant.refresh_token.get_secret_value()
-            if grant.refresh_token
-            else None,
-            "expires_at": grant.expires_at.isoformat() if grant.expires_at else None,
-        },
-    )
-    row.accounts, row.state = [a.model_dump() for a in grant.accounts], "select_account"
-    db.commit()
-    return row
 
 
 def owned(db: Session, wid: int, provider: ProviderName, cid: str) -> SourceConnection:
@@ -349,7 +399,7 @@ def disconnect(db: Session, row: SourceConnection) -> None:
     assert integration is not None
     integration.status = "revoked"
     row.encrypted_grant, row.cursor, row.staged = None, None, {}
-    row.status = "disconnected"
+    row.status, row.next_attempt_at = "disconnected", None
     row.generation += 1
     db.commit()
 
@@ -361,6 +411,7 @@ def view(row: SourceConnection) -> dict[str, Any]:
         "provider": row.provider,
         "connection_id": row.integration_id,
         "account_id": row.account_id,
+        "external_id": row.external_id,
         "status": row.status,
         "generation": row.generation,
         "last_sync_at": row.last_sync_at,

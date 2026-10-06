@@ -15,8 +15,8 @@ OAuth state, owner/account selection, generation fences and imports remain in pl
 The factory defaults to unavailable. Enabling requires explicit
 `AD_ANALYZER_GOOGLE_CUSTOMER_RUNTIME_MODE=google_read`, an explicitly pinned
 `AD_ANALYZER_GOOGLE_CUSTOMER_API_VERSION`, existing customer client ID, and secret
-settings `AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_SECRET` and
-`AD_ANALYZER_GOOGLE_CUSTOMER_DEVELOPER_TOKEN`. Setting up these values or enabling
+setting `AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_SECRET`. Legacy
+`AD_ANALYZER_GOOGLE_CUSTOMER_DEVELOPER_TOKEN` is optional for compatibility. Setting up these values or enabling
 runtime in a deployed environment still requires the separate live approval gate.
 Google's adwords OAuth scope is not intrinsically read-only; this adapter exposes only
 read searches and token exchange. It contains no advertising mutation endpoint.

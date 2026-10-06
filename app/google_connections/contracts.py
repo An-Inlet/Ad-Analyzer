@@ -1,7 +1,7 @@
 """Read-only provider boundary. Fixture implementations cannot be enabled as live providers."""
 
 from datetime import date
-from typing import Literal, Protocol
+from typing import Literal, Protocol, runtime_checkable
 from zoneinfo import ZoneInfo
 
 from pydantic import Field, SecretStr, field_validator
@@ -94,7 +94,6 @@ def get_transport() -> GoogleReadTransport:
     if (
         settings.google_customer_runtime_mode == "google_read"
         and settings.google_customer_client_secret
-        and settings.google_customer_developer_token
     ):
         try:
             return GoogleHTTPRead(
@@ -106,3 +105,12 @@ def get_transport() -> GoogleReadTransport:
         except ValueError:
             pass
     return UnavailableTransport()
+
+
+class GoogleAuthorizationUnavailable(RuntimeError):
+    """Current customer grant needs fresh consent; contains no provider payload."""
+
+
+@runtime_checkable
+class GoogleGrantLifecycle(Protocol):
+    def revoke(self, refresh_token: str) -> None: ...

@@ -1,7 +1,7 @@
 """Explicit scoped fixture dispatcher and durable post-import analysis delivery."""
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
@@ -12,7 +12,7 @@ from app.google_connections.models import (
     GoogleCustomerConnection,
     GoogleImportCompletion,
 )
-from app.google_connections.service import tick
+from app.google_connections.service import GoogleReadUnavailable, tick
 from app.workspaces.models import Workspace, WorkspaceIntegration
 
 
@@ -57,9 +57,28 @@ def run_imports(
             try:
                 if tick(db, wid, cid, generation, transport, now) is not None:
                     completed += 1
-            except Exception:
+            except Exception as exc:
                 db.rollback()
-                failed += 1  # Deliberately no raw transport/account/error payload logging.
+                # A rollback must not leave an invalid final page permanently queued.
+                # Lock and recheck after rollback to avoid poisoning fresh consent.
+                row = db.scalar(
+                    select(GoogleCustomerConnection)
+                    .where(
+                        GoogleCustomerConnection.id == cid,
+                        GoogleCustomerConnection.workspace_id == wid,
+                        GoogleCustomerConnection.generation == generation,
+                        GoogleCustomerConnection.status == "connected",
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+                if row is not None:
+                    row.next_attempt_at = now + timedelta(minutes=5)
+                    if not isinstance(exc, GoogleReadUnavailable):
+                        row.error_code = "import_rejected"
+                        row.cursor, row.staged = None, {}
+                    db.commit()
+                failed += 1  # No raw provider/account/error payload logging.
     return {"selected": len(selected), "completed_windows": completed, "failed": failed}
 
 

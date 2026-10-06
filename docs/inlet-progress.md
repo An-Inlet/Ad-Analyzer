@@ -846,3 +846,29 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+## Durable Klaviyo Page Pacing — 2026-10-06
+
+Branch `codex/inlet-crm-pacing` from integration `8ae5ab7`. Added a real internal
+one-page consumer and explicit receipt acknowledgement, preserving account proof on
+every page and the canonical mapping gate. Durable global opaque quota coordinates
+same-account/app connections across replicas; encrypted checkpoints retain cursors,
+not profiles. Typed 429 responses persist Retry-After cooldown without sleeps or
+revocation misclassification. No scheduler enrollment or live requests.
+
+Focused SQLite/PostgreSQL CRM pacing/HTTP/context run: 57 passed, 1 intentional SQLite
+skip for the real PostgreSQL concurrent-lock case (that PostgreSQL case passed).
+Ruff, mypy app/tests (269 files), and diff checks passed. Disposable PostgreSQL
+migration upgrade to0038, downgrade to0036, and re-upgrade passed. Full and hosted CI
+for this new package remain pending. PR82 validation remains a separate unchanged
+head. Remaining boundaries and official limits: `docs/inlet-crm-pacing.md`.
+
+### CRM Pacing Lifecycle Review
+
+Disconnect/reconnect now delete scoped checkpoint cursor/receipt material under the
+existing source locks. In-flight completion cannot resurrect it. Bounded opportunistic
+quota cleanup preserves active leases/cooldowns. Retry-After is measured from response
+time and successful responses after lease expiry are rejected. Expanded CRM and
+source-lifecycle suite: 73 passed, 1 intentional SQLite lock-case skip, 2 existing
+Alembic configuration deprecation warnings; actual PostgreSQL replica cases pass.
+Ruff/mypy269/diff-check pass. Migration unchanged from the tested roundtrip.

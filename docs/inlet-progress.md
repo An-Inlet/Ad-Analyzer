@@ -911,3 +911,31 @@ ran. Two existing Alembic warnings. Ruff, mypy (275 files), diff check passed.
 Log `/tmp/inlet-renewal-final.log`. Full and hosted CI pending; root owns validation-slot
 coordination. Detailed state, scopes, backoff and remaining work are recorded in
 `docs/inlet-crm-renewal.md`.
+
+### CRM Renewal Review Repairs (2026-10-06)
+
+Branch `codex/inlet-crm-quota-race` starts from PR96 `501310829e3796598f374bcc4a68790ca3632d64`;
+PR96 remains immutable. Reproduced lost Retry-After during concurrent reconnect:
+a same-account peer incorrectly received a page at +126s despite a 3600s cooldown
+(`/tmp/inlet-crm-quota-race-before.log`). Reproduced six mixed Omnisend known/unknown
+identifier failures (`/tmp/inlet-omni-null-before.log`).
+
+Repairs: persist account cooldown independently before stale connection acceptance;
+retain successor leases; encrypt issuing-client/quota binding with pending renewal
+candidates; preserve unknown typed email/SMS identifiers; honor bounded Omnisend
+problem `retryAfter`; scope Omnisend quotas to brand across clients. All mocked and
+disposable-database only. No migrations, credentials, provider calls, live grants,
+merge or deployment. See `docs/inlet-crm-renewal.md` for first-party contracts and
+mandatory quiescent upgrade/cooldown gate for legacy Omnisend quota namespaces.
+
+Final frozen focused validation and draft PR evidence follow below. Full remains
+coordinated by the integrating agent. Private Google Cloud Storage work is paused
+behind these review repairs; untouched worktree `/workspace/inlet-gcs-media` starts
+at `5f9a0d0` on `codex/inlet-gcs-media`.
+
+Frozen validation: `pytest tests/test_crm_quota_lifecycle.py tests/test_crm_renewal.py
+tests/test_crm_pacing.py tests/test_omnisend_http_runtime.py tests/test_crm_http_runtime.py
+tests/test_customer_context.py` with disposable PostgreSQL enabled: **193 passed,
+15 skipped**, 60.46s (`/tmp/inlet-crm-repair-frozen.log`). All skips are SQLite-only
+row-lock/concurrency cases; PostgreSQL counterparts ran. Ruff passed; mypy passed
+(272 source files); `git diff --check` passed. Hosted CI and local Full pending.

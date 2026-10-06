@@ -3000,3 +3000,25 @@ only once authoritative cap/accounting/finality/prevention semantics support it.
 owner choices are a versioned monetary promise and, after a demonstrated mechanism,
 acceptability of its restricted customer configurations. Strict ceiling remains; no
 best-effort authority inferred and no owner decision used to hide missing code.
+
+## TikTok Regular Native Diagnostics And Scoped Meta Status Coverage — 2026-10-06
+
+`codex/inlet-tiktok-native-inventory`, child of PR182 `c360555`. Frozen collector and
+server-assembly interface: `79c36cc`, `docs/design/native-diagnostic-assembly.md`.
+Actual fixed TikTok advertiser/campaign/adgroup GET collection now covers accessible
+regular endpoint inventory with bounded STATUS_ALL paging, exact advertiser/parent
+ownership, stable counts, fresh generation/request context checks around every IO,
+precise native decimal observations and private errors. No Budget Manager/reset/closure
+schema is invented. U/F/P/watermark/cap/finality stay null; other campaign-family and
+historical completeness stay false. No production factory enabled.
+
+Parent review also clarified Meta status-query coverage in separate `5f25593`: pinned
+Campaign EffectiveStatus enum has six entries, AdSet adds CAMPAIGN_PAUSED; this does not
+prove all current provider statuses. Results now explicitly report SDK-known-only
+status scope and false all-status completeness.43 Meta tests passed for that change.
+
+TikTok/new-adjacent HTTP suite:107 passed, no skips; whole Ruff and mypy501 pass, diff
+clean. Logs `/tmp/inlet-tiktok-native-tests.log`, `/tmp/inlet-tiktok-native-mypy.log`.
+No Full, database/schema changes, credentials or live calls. Server-owned actual
+vault/context assembly is separately approved next, with bothDB authorization/race tests;
+this adapter package does not claim it exists or supplies qualified financial evidence.

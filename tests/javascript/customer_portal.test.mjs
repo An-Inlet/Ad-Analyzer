@@ -60,3 +60,9 @@ test('Shopify authorization destination stays at the exact merchant HTTPS consen
   assert.equal(googleDestination({authorization_url:url},config,origin),url);
   for (const altered of [url.replace('accounts.google.com','evil.example'),url.replace('fixture-client','other-client'),url+'&state=duplicate',url+'&extra=unapproved',url+'&constructor=unapproved',url.replace('adwords','userinfo'),url.replace('https%3A%2F%2Finlet.example','https%3A%2F%2Fevil.example')]) assert.throws(()=>googleDestination({authorization_url:altered},config,origin));
  });
+test('billing redirects require known action and provider session paths', () => {
+  assert.equal(billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/p/session/test_fixture'}, 'management'), 'https://billing.stripe.com/p/session/test_fixture');
+  for (const url of ['https://checkout.stripe.com/other', 'https://checkout.stripe.com/', 'https://checkout.stripe.com/c/../other']) assert.throws(() => billingDestination({mode:'stripe_test',url}, 'checkout'));
+  assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/'}, 'management'));
+  assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/p/session/fixture'}, 'unknown'));
+});

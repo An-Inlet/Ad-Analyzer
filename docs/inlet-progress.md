@@ -1354,3 +1354,22 @@ Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111
 Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
 commit only records this PR link. Final Google browser rerun also passed both database
 variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.
+### B18 Visible Test Billing Journey (2026-10-06)
+
+Branch `codex/inlet-billing-browser`, isolated from frozen PR112 `3a3cca8`, adds safe
+server billing availability/status flags, owned-workspace return URLs, visible
+checkout/resume/status refresh/management and post-provider owner/session rechecks.
+Actual Chromium/API/DB journeys on SQLite/PostgreSQL use the real Stripe HTTP adapter
+with mocked provider responses and intercepted provider navigation. No real charges,
+price decisions, credentials, live requests, migration, merge or deployment.
+
+A delayed management response plus workspace switch reproduced controls permanently
+disabled by overlapping portal guards; a shared busy counter/original-state map now
+restores controls only once all tasks settle, with epoch/no-navigation coverage.
+Final focused billing/portal/Shopify/browser checks: **78 passed, 1 SQLite-only skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff/diff checks pass; targeted strict mypy
+passes 220 files. Whole-tree mypy has only the inherited GCS unused-ignore already
+fixed independently by root PR113 `7ae1d0d`; left untouched here. Full not started.
+See [billing journey evidence and limits](inlet-billing-browser.md) and
+`/tmp/inlet-billing-browser-final.log`. Next: final integration validation and remaining
+core-task/account controls; live purchasing stays a separate commercial/release gate.

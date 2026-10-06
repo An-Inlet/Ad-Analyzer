@@ -2158,3 +2158,9 @@ Branch `codex/inlet-durable-optimization`; additive Google contracts e932238/c7a
 plan/runtime ports950f6f4 and actual Google adapter15797fd992 are ancestors. Missing:
 concrete live exposure/terminal sources, safe ongoing rebudgeting, and actual customer
 API/UI/runtime integration. Default runtime factories remain None.
+
+## Google named configuration HTTP producer — 2026-10-06
+
+Implemented the frozen opaque-selection catalog port from `9c2d9f6e460f45cb0ca42202102212ecfb8bf0db` on isolated branch `codex/inlet-google-catalog`. The actual injectable v25 read-only HTTP producer verifies customer identity, discovers named owned purchase goals with their complete eligible action sets, and resolves exact country/language constants. Bounded pagination, duplicate/foreign reference rejection, expiry, sanitized errors/private HTTP logging and excluded credential fields are covered. Native resource IDs stay server-side; no default factory or live permission was added. See `docs/inlet-google-catalog-http.md` for the integration contract and primary sources.
+
+Validation: `pytest -q tests/test_google_catalog_http.py tests/test_customer_execution_catalog.py tests/test_google_publication_http.py tests/test_provider_publication_contracts.py` passed all 72 tests (no skips); whole-tree `ruff check .` passed; `mypy app tests` passed 432 source files; `git diff --check` passed. All HTTP was mocked. No Full, hosted CI, live provider qualification, deployment or merge is claimed. Explicit credential resolver/runtime composition remains separate work. Native portfolio spending bounds remain unqualified and require the evidence/semantics work recorded in the exposure assessment; catalog discovery grants no publication/spending authority.

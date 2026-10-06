@@ -1,7 +1,7 @@
 const base = '/api/customer/v1';
 const $ = id => document.getElementById(id);
 const text = (tag, value) => { const node = document.createElement(tag); node.textContent = value; return node; };
-let busy = false, signedIn = false, workspaces = [], preview = null, previewName = '', previewKey = null;
+let busy = false, signedIn = false, workspaces = [], preview = null, previewName = '', previewKey = null, currentReceipt = null;
 const blockers = {publication_unresolved:'Advertising action outcomes still need verification.', billing_unresolved:'Billing and subscription obligations remain unresolved.', provider_revocation_unverified:'External provider permissions have not been verified revoked.', worker_not_quiescent:'In-flight work has not been verified stopped.', retention_policy_unset:'A retention and deletion policy still needs a decision.', media_generation_unavailable:'Private media cleanup evidence is unavailable.', legacy_scope_unclassified:'Some historical data ownership still needs review.', export_incomplete:'A complete export is not available.'};
 export function receiptPath(pathname) {
   const match = /^\/app\/workspace-closure\/([1-9][0-9]*)\/([a-f0-9]{32})\/?$/.exec(pathname);
@@ -13,12 +13,14 @@ function enable() {
   $('closure-workspace').disabled = busy;
   $('closure-preview').disabled = busy || !signedIn || !$('closure-workspace').value;
   $('closure-confirm').disabled = busy || !preview || $('closure-name').value !== previewName || !$('closure-ack').checked;
+  $('closure-reconcile').disabled = busy || !signedIn || !currentReceipt;
   $('closure-logout').disabled = busy; $('closure-retry').disabled = busy;
 }
 function clear() {
+  currentReceipt = null; $('closure-reconcile').hidden = true;
   preview = null; previewName = ''; $('closure-confirm-form').reset();
   for (const id of ['closure-review','closure-receipt']) $(id).hidden = true;
-  for (const id of ['closure-target','closure-inventory','closure-preview-blockers','closure-digest','closure-receipt-target','closure-state','closure-effects','closure-data','closure-external','closure-blockers']) $(id).replaceChildren();
+  for (const id of ['closure-target','closure-inventory','closure-preview-blockers','closure-digest','closure-receipt-target','closure-state','closure-effects','closure-data','closure-external','closure-blockers','closure-local-work']) $(id).replaceChildren();
   for (const id of ['closure-status-link','closure-preview-receipt']) $(id).removeAttribute('href');
   enable();
 }
@@ -40,7 +42,7 @@ async function api(path, method = 'GET', body, key) {
 }
 function displayBlockers(id, rows) { $(id).replaceChildren(...rows.map(row=>text('li',blockers[row.code] || 'An additional requirement is unresolved.'))); }
 export function localReceiptConfirmed(row) {
-  return row.schema_version === 'inlet.lifecycle.request.v1' && row.state === 'blocked' && row.revision === 2
+  return row.schema_version === 'inlet.lifecycle.request.v1' && row.state === 'blocked' && Number.isSafeInteger(row.revision) && row.revision >= 2
     && row.closed === false && row.data_erased === false && row.provider_actions_verified === false;
 }
 function validateReceipt(row, target) {
@@ -51,6 +53,11 @@ function renderReceipt(row) {
   clear(); $('closure-receipt').hidden = false;
   $('closure-receipt-target').textContent = `Workspace ${row.scope.workspace_id} · Request ${row.request_id}`;
   const localConfirmed = localReceiptConfirmed(row);
+  currentReceipt = localConfirmed ? row : null; $('closure-reconcile').hidden = !localConfirmed;
+  const observation = row.local_work;
+  if (observation?.schema_version === 'inlet.lifecycle.local_quiescence.v1' && observation.observation_kind === 'current_only' && observation.physical_workers_stopped === null) {
+    $('closure-local-work').textContent = `${observation.local_records_drained === true ? 'No Unknown Or Nonterminal Local Work Records Observed.' : 'Local Work Records Still Need Verification.'} This is a current database observation, not confirmation that worker processes stopped. Full closure remains blocked. ${observation.durable_receipt ? 'A verification digest is retained; the historical observation payload is not retained.' : 'Use Check Local Work to record a verification digest.'}`;
+  }
   $('closure-state').textContent = localConfirmed ? 'Local Closure Confirmed · Full Closure Blocked' : row.state === 'requested' ? 'Preview Created · Closure Not Confirmed' : 'Closure Not Verified Complete';
   $('closure-effects').textContent = localConfirmed ? 'Inlet has removed local connection credentials and disabled new workspace work. In-flight work still requires verification.' : 'Local credential removal and work stoppage are not confirmed by this receipt.';
   $('closure-data').textContent = 'Historical data is retained. Complete closure and data erasure are not verified.';
@@ -86,6 +93,17 @@ if (typeof document !== 'undefined') {
   $('closure-workspace').onchange = () => { clear(); previewKey = null; };
   $('closure-name').oninput = enable; $('closure-ack').onchange = enable;
   $('closure-retry').onclick = () => guarded(session);
+  $('closure-reconcile').onclick = () => guarded(async()=>{
+    const frozen = currentReceipt; if (!frozen) throw new Error('Check the current closure request first.');
+    const target = {workspace_id:frozen.scope.workspace_id,request_id:frozen.request_id};
+    try {
+      const row = await api(`${base}/workspaces/${target.workspace_id}/closures/${target.request_id}/reconcile-local`,'POST',{expected_revision:frozen.revision});
+      validateReceipt(row,target); renderReceipt(row);
+    } catch(error) {
+      if (![401,403,404,422].includes(error.status)) { await status(target); return; }
+      throw error;
+    }
+  });
   $('closure-logout').onclick = () => guarded(async()=>{ signedOut(); await api(base+'/session','DELETE'); $('closure-message').textContent = 'Signed out. Sign in again to recover this request’s current status.'; });
   $('closure-preview').onclick = () => guarded(async()=>{
     clear(); const workspace = workspaces.find(w=>String(w.id)===$('closure-workspace').value);

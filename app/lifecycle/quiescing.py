@@ -17,6 +17,7 @@ from app.customers.models import CustomerMembership, CustomerSession, CustomerUs
 from app.database.session import Base
 from app.lifecycle.contracts import LifecycleBlockerV1, LifecycleScopeV1
 from app.lifecycle.inventory import inventory, predicate
+from app.lifecycle.local_work import cancel_analysis_queue
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.workspaces.locking import lock_workspace_row
 from app.workspaces.models import Workspace
@@ -197,6 +198,7 @@ def quiesce(
     # evidence of cancellation merely because normal admission is now disabled.
     request.state, request.revision, request.fence = "blocked", request.revision + 1, uuid4().hex
     request.updated_at = now
+    cancel_analysis_queue(db, request)
     pending_blockers = [
         LifecycleBlockerV1(code=code, subsystem=subsystem, resolution_kind=kind).model_dump()
         for code, subsystem, kind in [

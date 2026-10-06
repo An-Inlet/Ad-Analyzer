@@ -4045,3 +4045,37 @@ Logs `/tmp/inlet-authorized-evidence-final2.log` and
 Executor recovery checked at09:45 UTC after parent disconnect notification: actual
 read/write, repository access, original Full pytest PIDs/CPU advance and PostgreSQL
 zero deadlocks succeeded. No observed process loss, quota failure or access blocker.
+
+## Disabled Google Replacement Source Composition — 2026-10-06
+
+Branch `codex/inlet-financial-source-composition`, isolated from frozen `a4fcd3a`;
+proposal commit `05d7ade` approved before additive implementation. Added exact transition
+request/certificate/profile ports and optional server-owned Google replacement compositor.
+Actual retained original-success terminal evidence is joined only with an independently
+injected allowlisted financial certificate. Private transactions recheck full ancestry,
+mandate/account generation, current authorization, high-water and held reservations before/
+after source IO; final clock resampling rejects lock/authorization delays. Immutable
+certificate epoch and stable closure content preserve exact reviewed transfer equality.
+No source fallback, native profile/default factory, migration, financial release or live
+provider activity. Native U/F/P and preventive writer guarantees remain missing, as recorded
+in `docs/design/production-spending-source-readiness.md`; fixtures do not qualify them.
+
+Checks: completion/terminal/replacement/composition suite **103 passed, 1 SQLite-only
+PostgreSQL-lock skip** (160.87s; `/tmp/inlet-composition-tests.log`). After the freshness
+repair and added unknown-ancestor case, final compositor suite **32 passed** across SQLite
+and PostgreSQL (66.69s; `/tmp/inlet-composition-final.log`). Direct compositor delayed-
+authorization regression **2 passed, 30 deselected** (5.87s;
+`/tmp/inlet-composition-delay.log`), so coordinator freshness cannot mask that check.
+Whole Ruff passed; configured mypy **585 files** passed; diff whitespace and proposal
+relative links passed. Dedicated disposable PostgreSQL `inlet_meta_browser_ci`; no Full.
+Tests include real prepare/transfer with unchanged certificate, rejection of changed
+certificate, persisted owner-role/generation/high-water/hold changes during IO, sanitized
+source failures, future/expired/null/unregistered evidence, and unknown original ancestors.
+Next: parent review/integration and separate native provider-backed source specification;
+credentials or a monetary-basis decision alone do not implement missing guarantees.
+
+Root integrated PR210 (05d7ade + fa3bd4f). Combined compositor, exact original-terminal
+and feedback-retraction composition tests60 passed in108.13s. Ruff check .,
+configured mypy590 and staged whitespace passed. Log
+`/tmp/inlet-next-financial-composition.log`. This provides composition only; no native
+financial certificate source, qualification registration or runtime is enabled.

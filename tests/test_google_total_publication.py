@@ -71,15 +71,19 @@ def test_interior_dst_exact_local_schedule(month: int, day: int, days: int) -> N
     assert plan.publication_eligible is False
 
 
-@pytest.mark.parametrize("failure", ["mixed", "excess", "compiler", "daily_op", "time", "shared"])
+@pytest.mark.parametrize(
+    "failure", ["mixed", "excess", "compiler", "daily_op", "time", "shared", "amount"]
+)
 def test_exact_total_contract_rejects_mismatch(failure: str) -> None:
     raw = total_review().model_dump()
-    if failure in {"compiler", "daily_op", "shared"}:
+    if failure in {"compiler", "daily_op", "shared", "amount"}:
         plan = compile_google(total_review()).model_dump()
         if failure == "compiler":
             plan["compiler_id"] = "google_search_v25_v1"
         elif failure == "daily_op":
             plan["steps"][0]["operation"] = compile_google(review()).steps[0].operation.model_dump()
+        elif failure == "amount":
+            plan["steps"][0]["operation"]["total_amount_micros"] -= 1
         else:
             plan["steps"][0]["operation"]["explicitly_shared"] = True
         with pytest.raises(ValidationError):

@@ -23,8 +23,10 @@ from tests.test_provider_coordinator import ready
 from tests.test_shopify_sales import configuration as configuration
 
 
-def activation_ready(db: Session, config: Settings, path: Path, server: Server):  # type: ignore[no-untyped-def]
-    wid, parent, actor, store, runtime = ready(db, config, path, server)
+def activation_ready(  # type: ignore[no-untyped-def]
+    db: Session, config: Settings, path: Path, server: Server, *, total_budget: bool = False
+):
+    wid, parent, actor, store, runtime = ready(db, config, path, server, total_budget=total_budget)
     while claim := c.claim_creation_step(db, wid, parent, actor, store, runtime, lambda: NOW):
         assert (
             c.execute_claim(db, claim, actor, store, runtime, lambda: NOW).outcome
@@ -60,15 +62,17 @@ def activation_ready(db: Session, config: Settings, path: Path, server: Server):
     return wid, parent, actor, store, a.ActivationReviewRuntime(runtime, exposure), binding
 
 
+@pytest.mark.parametrize("total_budget", [False, True])
 def test_exact_separate_activation_review_retains_parent_reservation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    total_budget: bool,
 ) -> None:
     with Session(customer_engine) as db:
         server = Server()
         wid, parent, actor, store, runtime, binding = activation_ready(
-            db, configuration, tmp_path, server
+            db, configuration, tmp_path, server, total_budget=total_budget
         )
         row = a.prepare_activation(db, wid, parent, binding, actor, store, runtime, lambda: NOW)
         document = a.ActivationExecutionReview.model_validate(row.document)
@@ -92,18 +96,20 @@ def test_exact_separate_activation_review_retains_parent_reservation(
         assert server.activations == 0
 
 
+@pytest.mark.parametrize("total_budget", [False, True])
 def test_non_activatable_budget_drift_blocks_activation_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    total_budget: bool,
 ) -> None:
     with Session(customer_engine) as db:
         server = Server()
         wid, parent, actor, store, runtime, binding = activation_ready(
-            db, configuration, tmp_path, server
+            db, configuration, tmp_path, server, total_budget=total_budget
         )
         budget = next(row for name, row in server.rows.items() if "/campaignBudgets/" in name)
-        budget["amountMicros"] = "999999"
+        budget["totalAmountMicros" if total_budget else "amountMicros"] = "999999"
         with pytest.raises(HTTPException, match="original graph"):
             a.prepare_activation(db, wid, parent, binding, actor, store, runtime, lambda: NOW)
         assert server.activations == 0

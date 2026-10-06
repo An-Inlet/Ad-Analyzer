@@ -4432,3 +4432,41 @@ unsupported universal outside-writer guarantee. Next concrete offline slices are
 reviewed PAUSED Google Search total-budget compiler/readback and immutable current
 campaign-report completion/reader (Meta first, migration0074 reserved after0073).
 Neither enables automatic execution or claims mature learning.
+### Google Reviewed Total-Budget PAUSED Publication — Offline Backend
+
+Restricted-profile assessment is independently reviewable in commit `2d746f7`;
+shared typed backend interface frozen in `20ad0c4`. Added the explicit
+`google_search_total_v25_v1` configuration/compiler and
+`google_create_total_budget_v1` operation: `totalAmountMicros`, `CUSTOM_PERIOD`,
+independent budget, exact account-local start/end and initially PAUSED Search
+campaign. Exact total must fit the reviewed reservation; mixed daily/total fields,
+compiler/configuration mismatch and changed operation amount are rejected.
+DAILY review/plan golden digests remain unchanged; no social serialized fields change.
+
+The initial supported duration is deliberately an interior subset: 4–89 inclusive
+local calendar days plus 72 hours through 90 days elapsed UTC, with existing local
+midnight/day-end precision. Three/90-day boundary interpretation is unqualified by
+Inlet; this is not a claim that Google rejects those boundaries. See
+[the frozen interface](design/google-total-budget-interface-delta.md) and
+[restricted-profile assessment](design/google-restricted-mandate-profiles.md).
+
+Actual MockHTTP exercises validation, mutation and semantic readback through the
+complete DAG; conflicting daily amount, total amount, period, sharing or omitted
+required fields fail closed. Durable SQLite/PostgreSQL tests create the paused
+campaign, retain its reservation and project owned receipts. Status-only activation
+transport accepts the new immutable configuration without inventing budget fields.
+All financial qualification and separate activation approval gates remain intact.
+No provider calls, live settings, enrollment, automatic optimization or qualified
+native exposure source were added. Customer UI is a separate dependent package.
+
+Validation: broader backend contracts/HTTP/qualification/mandate/coordinator/
+activation/social contract suite **164 passed, 8 SQLite-only skips** (80.78s),
+`/tmp/inlet-total-backend.log`. Whole Ruff and configured mypy **618 files** pass;
+whitespace checks pass. Final expanded recovery suite recorded below.
+
+Expanded coordinator/activation-review recovery suite: **35 passed, 1 SQLite-only
+lock skip** (57.16s), `/tmp/inlet-total-recovery.log`. Both budget modes cover lost
+acknowledgement without replay, exact separate activation approval retaining the
+parent hold, and native budget drift blocking activation review. Static checks
+were rerun after these additions and pass. Full/intended-environment validation
+belongs to the parent integration; none is claimed by this package.

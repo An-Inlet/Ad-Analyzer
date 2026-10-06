@@ -21,7 +21,9 @@ class AccountDiagnosticIntentV1(StrictModel):
 
 
 class DiagnosticInventoryCountV1(StrictModel):
-    kind: Literal["campaign", "campaign_budget", "account_budget", "billing_setup", "adset", "adgroup"]
+    kind: Literal[
+        "campaign", "campaign_budget", "account_budget", "billing_setup", "adset", "adgroup"
+    ]
     count: int = Field(strict=True, ge=0, le=200)
 
 

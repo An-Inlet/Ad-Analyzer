@@ -1092,3 +1092,17 @@ were stopped together. No replacement Full started pending root coordination.
   passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
 - No live factory or production permission. Unknown provider combination eligibility
   remains explicit qualification work, and B16 is not complete.
+## PR121 Qualification Expiry After Lock Wait — 2026-10-06
+
+- Isolated repair `codex/inlet-review-clock` from frozen PR121 `46c7adf`; predecessor
+  head preserved. Prepare and approval now sample their injected clock after blocking
+  lifecycle/review reads and immediately before persistence. Approval timestamps use
+  the fresh decision time. Checked-review and approval APIs require clock callables.
+- Six real PostgreSQL barriers cover prepare/approve while workspace, mandate, or
+  native connection locks cross qualification expiry. All reject expired artifacts;
+  a controlled stale-entry-clock mutation made all six fail, then was removed.
+- Focused qualification/compiler/HTTP suite: **61 passed, 7 SQLite-only skips**.
+  Includes six PostgreSQL barriers and populated migration roundtrip. Whole-tree
+  Ruff and mypy (298 files), plus diff check, passed. No new Full run.
+- No live provider access or production authority enabled. Production coordinator,
+  activation, and durable settlement remain the next package on a separate branch.

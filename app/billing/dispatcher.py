@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.billing import repository
 from app.billing.contracts import BillingPolicy, BillingTransport
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.billing.service import reconcile, refresh, resolve_checkout
@@ -19,14 +20,16 @@ def run(
     now: datetime,
     limit: int = 10,
 ) -> dict[str, int]:
+    scope = repository.transport_scope(transport)
     with factory() as db:
         pending = list(
             db.execute(
                 select(WorkspaceBilling.workspace_id, BillingEvent.id)
-                .join(BillingEvent, BillingEvent.customer_id == WorkspaceBilling.customer_id)
+                .join(BillingEvent, repository.customer_join())
                 .join(Workspace, Workspace.id == WorkspaceBilling.workspace_id)
                 .where(
                     Workspace.status == "active",
+                    repository.scoped(WorkspaceBilling, scope),
                     BillingEvent.state == "pending",
                     or_(
                         BillingEvent.next_attempt_at.is_(None), BillingEvent.next_attempt_at <= now
@@ -42,6 +45,7 @@ def run(
                 .join(Workspace)
                 .where(
                     Workspace.status == "active",
+                    repository.scoped(WorkspaceBilling, scope),
                     WorkspaceBilling.workspace_id.not_in([wid for wid, _ in pending]),
                     or_(
                         WorkspaceBilling.subscription_id.is_not(None),
@@ -77,7 +81,7 @@ def run(
     for wid in stale:
         with factory() as db:
             try:
-                row = db.get(WorkspaceBilling, wid)
+                row = repository.billing(db, wid, scope)
                 if (
                     row is not None
                     and row.checkout_id is not None
@@ -88,7 +92,7 @@ def run(
                 ):
                     from app.billing.service import owned
 
-                    row = owned(db, wid)
+                    row = owned(db, wid, scope=scope)
                     resolve_checkout(db, row, policy, transport, now)
                 else:
                     refresh(db, wid, policy, transport, now)
@@ -96,7 +100,7 @@ def run(
                 counts["refreshes"] += 1
             except Exception:
                 db.rollback()
-                row = db.get(WorkspaceBilling, wid)
+                row = repository.billing(db, wid, scope)
                 if row is not None:
                     row.next_attempt_at = now + timedelta(minutes=1)
                     db.commit()

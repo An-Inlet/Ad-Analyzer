@@ -8,6 +8,7 @@ import pytest
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import JobRun
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.database.session import get_db
 from app.main import app
 from app.mandates.models import Mandate, MandateAction
@@ -110,10 +111,10 @@ def test_billing_backoff_is_expected_until_explicit_overdue_threshold(
         assert not signals(db, NOW + timedelta(hours=1, seconds=OVERDUE_SECONDS - 1))
         actual = signals(db, NOW + timedelta(hours=1, seconds=OVERDUE_SECONDS))
         assert set(actual) == {"billing_event_overdue", "billing_snapshot_overdue"}
-        row = db.get(BillingEvent, "evt_fixture")
+        row = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_fixture"))
         assert row
         row.state = "processed"
-        billing = db.get(WorkspaceBilling, wid)
+        billing = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert billing
         billing.verified_at = NOW + timedelta(hours=2)
         db.commit()

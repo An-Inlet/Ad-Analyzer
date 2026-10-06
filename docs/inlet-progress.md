@@ -3320,3 +3320,19 @@ Google original-response evidence capture is approved as an additive source only
 not ClosedOriginalRequest classification or financial release. Migration0066 down0060
 reserved; final root merge0067 will join0063,0064,0066. The earlier proposed0065
 was never created and is unused.
+
+### 2026-10-06 — Environment-scoped billing foundation integrated
+
+Integrated PR186 frozen0efe061. Billing identity now includes provider/environment/
+merchant account across records, events, recovery and ownership. Legacy test rows
+cannot grant live entitlement; live provider mandates require scoped paid entitlement.
+Root tests106 passed, one SQLite row-lock skip,13 Alembic warnings in45.61s
+(`/tmp/inlet-next-billing-scopes.log`). Ruff check . caught two long migration SQL
+strings; formatting-only fix applied. Ruff now passed, configured mypy519 files passed,
+whitespace passed. Offer qualification0063 is a separate pending package; no commercial
+price/defaults, live configuration, purchase or release enabled.
+
+Frozen8efe196 localFull primary2639 passed59 skipped; subsequent Ruff, mypy,
+PostgreSQL transaction/migration roundtrip, read-only/security/privacy gates completed.
+Final focused gate includes another nestedFull regression and remains running.
+Hosted run37427571832 remains nonterminal.

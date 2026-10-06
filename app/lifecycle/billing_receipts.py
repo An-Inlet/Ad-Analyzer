@@ -5,7 +5,9 @@ from collections.abc import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.billing import repository
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.scope import BillingScopeV1
 from app.lifecycle.models import LifecycleRequest
 from app.workspaces.models import Workspace
 
@@ -16,8 +18,13 @@ def retain_pending(factory: Callable[[], Session], limit: int = 10) -> int:
     with factory() as db:
         candidates = list(
             db.execute(
-                select(WorkspaceBilling.workspace_id, BillingEvent.id)
-                .join(BillingEvent, BillingEvent.customer_id == WorkspaceBilling.customer_id)
+                select(
+                    WorkspaceBilling.workspace_id,
+                    BillingEvent.id,
+                    BillingEvent.environment,
+                    BillingEvent.merchant_account_id,
+                )
+                .join(BillingEvent, repository.customer_join())
                 .join(Workspace, Workspace.id == WorkspaceBilling.workspace_id)
                 .where(Workspace.status == "closing", BillingEvent.state == "pending")
                 .order_by(BillingEvent.received_at, BillingEvent.id)
@@ -25,7 +32,8 @@ def retain_pending(factory: Callable[[], Session], limit: int = 10) -> int:
             )
         )
     retained = 0
-    for wid, event_id in candidates:
+    for wid, event_id, environment, merchant in candidates:
+        scope = BillingScopeV1(environment=environment, merchant_account_id=merchant)
         with factory() as db:
             workspace = db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update())
             if workspace is None or workspace.status != "closing":
@@ -39,9 +47,11 @@ def retain_pending(factory: Callable[[], Session], limit: int = 10) -> int:
                 )
                 .limit(1)
             )
-            billing = db.get(WorkspaceBilling, wid)
+            billing = repository.billing(db, wid, scope)
             event = db.scalar(
-                select(BillingEvent).where(BillingEvent.id == event_id).with_for_update()
+                select(BillingEvent)
+                .where(BillingEvent.id == event_id, repository.scoped(BillingEvent, scope))
+                .with_for_update()
             )
             if (
                 request is None

@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from app.billing.dispatcher import run
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.customers.access import CustomerPrincipal, customer_workspace
 from app.customers.models import CustomerSession, CustomerUser
 from app.google_connections.models import GoogleAuthorization, GoogleCustomerConnection
@@ -134,7 +135,7 @@ def test_late_billing_notice_is_retained_without_provider_or_entitlement(
         "failed": 0,
     }
     with Session(customer_engine) as db:
-        event = db.get(BillingEvent, "evt_late")
+        event = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_late"))
         assert event is not None and event.state == "closure_pending" and event.processed_at is None
         assert db.get(Workspace, wid).status == "closing"  # type: ignore[union-attr]
 

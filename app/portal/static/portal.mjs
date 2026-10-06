@@ -23,8 +23,8 @@ export function definitionFrom(values, store) {
     aggressiveness: values.aggressiveness};
 }
 export function billingDestination(result, kind) {
-  // Fixture links never navigate. Only the explicitly configured test provider may redirect.
-  if (result.mode !== 'stripe_test') throw new Error('Billing is unavailable outside configured test mode.');
+  // Fixture links never navigate. Only the explicitly configured provider environment may redirect.
+  if (!['stripe_test', 'stripe_live'].includes(result.mode)) throw new Error('Billing is unavailable outside the configured environment.');
   const url = new URL(result.url);
   if (!['checkout', 'management'].includes(kind) || typeof result.url !== 'string' || result.url.length > 2048) throw new Error('Billing returned an invalid destination.');
   const host = kind === 'checkout' ? 'checkout.stripe.com' : 'billing.stripe.com';
@@ -381,7 +381,7 @@ if (typeof document !== 'undefined') {
   }); };
   window.addEventListener('pageshow', event => { if (event.persisted) guarded(session); });
   function renderBilling(billing) {
-    $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : 'Purchasing Unavailable'}`;
+    $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : billing.mode === 'stripe_live' ? 'Live Billing' : 'Purchasing Unavailable'}`;
     $('billing-detail').replaceChildren();
     for (const message of [
       'Returning from Stripe does not confirm payment. Access changes only after verified server reconciliation.',
@@ -392,9 +392,11 @@ if (typeof document !== 'undefined') {
     ].filter(Boolean)) $('billing-detail').append(textNode('p', message));
     if (billing.period_end) $('billing-detail').append(textNode('p', `Current Period Ends: ${new Date(billing.period_end).toLocaleString('en-US', {timeZone:'UTC'})} UTC`));
     const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
-    show('checkout', Boolean(owner && billing.mode === 'stripe_test' && billing.can_checkout));
-    show('management', Boolean(owner && billing.mode === 'stripe_test' && billing.can_manage));
-    $('checkout').textContent = billing.checkout_pending ? 'Resume Test Checkout' : 'Open Test Checkout';
+    show('checkout', Boolean(owner && ['stripe_test', 'stripe_live'].includes(billing.mode) && billing.can_checkout));
+    show('management', Boolean(owner && ['stripe_test', 'stripe_live'].includes(billing.mode) && billing.can_manage));
+    const billingLabel = billing.mode === 'stripe_live' ? '' : 'Test ';
+    $('checkout').textContent = `${billing.checkout_pending ? 'Resume' : 'Open'} ${billingLabel}Checkout`;
+    $('management').textContent = `Manage ${billingLabel}Subscription`;
     show('billing-refresh', true);
   }
   async function refreshBilling() {

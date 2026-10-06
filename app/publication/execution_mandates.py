@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform
-from app.billing.entitlements import paid_work
+from app.billing.entitlements import live_paid_work, paid_work
 from app.goals import service as goals
 from app.google_connections.models import GoogleCustomerConnection
 from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
@@ -180,7 +180,10 @@ def validate_policy(
     for account in sorted(p.accounts, key=lambda a: a.account.account_id):
         current_account(db, account)
     now = clock()
-    paid_work(db, p.workspace_id, now)
+    if p.environment == "live":
+        live_paid_work(db, p.workspace_id, now)
+    else:
+        paid_work(db, p.workspace_id, now)
     definition = goals.current(db, goal).definition
     if (
         goals.assessment(db, goal, now) != "confirmed"

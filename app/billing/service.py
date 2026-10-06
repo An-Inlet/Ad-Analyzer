@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.billing import repository
 from app.billing.contracts import (
     BillingManagementTransport,
     BillingPolicy,
@@ -16,7 +17,8 @@ from app.billing.contracts import (
     SubscriptionState,
     UnavailableBilling,
 )
-from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.models import WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 from app.billing.stripe import BillingReconciliationRequired
 from app.mandates.service import workspace_lock
 from app.shopify.security import utc
@@ -26,16 +28,20 @@ def ready(transport: BillingTransport) -> None:
     if isinstance(transport, UnavailableBilling) or transport.mode not in {
         "fixture",
         "stripe_test",
+        "stripe_live",
     }:
         raise HTTPException(503, "billing unavailable")
 
 
-def owned(db: Session, wid: int, now: datetime | None = None) -> WorkspaceBilling:
+def owned(
+    db: Session, wid: int, now: datetime | None = None, *, scope: BillingScopeV1 = LEGACY_TEST_SCOPE
+) -> WorkspaceBilling:
     workspace_lock(db, wid)
-    row = db.get(WorkspaceBilling, wid, populate_existing=True)
+    row = repository.billing(db, wid, scope)
     if row is None:
         row = WorkspaceBilling(
             workspace_id=wid,
+            **scope.columns(),
             customer_request_key=f"{int((now or datetime.now(UTC)).timestamp())}_{uuid4().hex}",
         )
         db.add(row)
@@ -54,6 +60,7 @@ def checkout(
     _state_retries: int = 0,
 ) -> dict[str, Any]:
     ready(transport)
+    scope = repository.transport_scope(transport)
     redirect = urlsplit(return_url)
     if (
         redirect.scheme != "https"
@@ -62,7 +69,7 @@ def checkout(
         or redirect.fragment
     ):
         raise HTTPException(503, "billing return unavailable")
-    row = owned(db, wid, now)
+    row = owned(db, wid, now, scope=scope)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
     key, customer = row.customer_request_key, row.customer_id
@@ -78,12 +85,12 @@ def checkout(
             raise HTTPException(502, "billing customer pending; retry safely") from None
         if re.fullmatch(r"cus_[A-Za-z0-9_]{1,128}", customer) is None:
             raise HTTPException(502, "billing customer unavailable")
-        row = owned(db, wid)
+        row = owned(db, wid, scope=scope)
         if row.customer_id is not None and row.customer_id != customer:
             raise HTTPException(409, "billing customer conflict")
         row.customer_id = customer
         db.commit()
-    row = owned(db, wid, now)
+    row = owned(db, wid, now, scope=scope)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
     if row.checkout_id is not None:
@@ -97,7 +104,7 @@ def checkout(
         db.commit()
         # Canonical lookup committed and released the lock. Another caller may
         # already have installed a replacement: reload before retiring anything.
-        row = owned(db, wid, now)
+        row = owned(db, wid, now, scope=scope)
         if (
             row.customer_id,
             row.checkout_key,
@@ -134,7 +141,7 @@ def checkout(
                 raise HTTPException(409, "checkout still unresolved; retry reconciliation")
             return {"mode": transport.mode, "url": row.checkout_url, "id": row.checkout_id}
         # Only canonical expired/no-subscription proof permits a new idempotency key.
-        row = owned(db, wid)
+        row = owned(db, wid, scope=scope)
     if row.checkout_key is None:
         row.checkout_key, row.checkout_price = (
             f"{int(now.timestamp())}_{uuid4().hex}",
@@ -150,6 +157,8 @@ def checkout(
         raise HTTPException(409, "checkout recovery unresolved; retry reconciliation") from None
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
+    if result.scope != scope:
+        raise HTTPException(409, "checkout environment mismatch")
     if result.url is not None:
         location = urlsplit(result.url)
         if (
@@ -158,7 +167,7 @@ def checkout(
             or location.username
         ):
             raise HTTPException(502, "checkout result unavailable")
-    row = owned(db, wid)
+    row = owned(db, wid, scope=scope)
     if row.checkout_key != checkout_key or row.customer_id != customer:
         raise HTTPException(409, "checkout ownership changed")
     if row.checkout_id is not None and row.checkout_id != result.id:
@@ -170,7 +179,7 @@ def checkout(
     )
     db.commit()  # Retain the recovered provider ID even if its URL has expired.
     if result.expires_at <= now or result.url is None:
-        row = owned(db, wid)
+        row = owned(db, wid, scope=scope)
         outcome = resolve_checkout(db, row, policy, transport, now)
         db.commit()
         raise HTTPException(409, "checkout " + outcome + "; retry from current billing state")
@@ -186,8 +195,9 @@ def reconcile(
     now: datetime,
 ) -> bool:
     ready(transport)
-    row = owned(db, wid)
-    event = db.get(BillingEvent, event_id, populate_existing=True)
+    scope = repository.transport_scope(transport)
+    row = owned(db, wid, scope=scope)
+    event = repository.event(db, event_id, scope)
     if event is None or row.customer_id is None or event.customer_id != row.customer_id:
         raise HTTPException(404, "billing event unavailable")
     if event.state == "processed":
@@ -224,8 +234,9 @@ def require_entitlement(
     now: datetime,
     *,
     account_count: int = 0,
+    scope: BillingScopeV1 = LEGACY_TEST_SCOPE,
 ) -> None:
-    row = owned(db, wid)
+    row = owned(db, wid, scope=scope)
     allowed = {"active", "trialing"} if policy.trial_allowed else {"active"}
     if (
         row.status not in allowed
@@ -253,7 +264,8 @@ def refresh(
     subscription_id: str | None = None,
 ) -> None:
     ready(transport)
-    row = owned(db, wid)
+    scope = repository.transport_scope(transport)
+    row = owned(db, wid, scope=scope)
     subscription_id = subscription_id or row.subscription_id
     if row.customer_id is None or subscription_id is None:
         raise HTTPException(409, "billing identity unavailable")
@@ -274,6 +286,9 @@ def resolve_checkout(
     transport: BillingTransport,
     now: datetime,
 ) -> str:
+    scope = repository.transport_scope(transport)
+    if any(getattr(row, key) != value for key, value in scope.columns().items()):
+        raise HTTPException(409, "checkout environment mismatch")
     if row.checkout_id is None or row.customer_id is None:
         raise HTTPException(409, "checkout identity unavailable")
     try:
@@ -283,7 +298,7 @@ def resolve_checkout(
     if (
         state.id != row.checkout_id
         or state.customer_id != row.customer_id
-        or state.livemode
+        or state.scope != repository.transport_scope(transport)
         or not now - timedelta(seconds=30) <= state.observed_at <= now
     ):
         raise HTTPException(409, "checkout identity mismatch")
@@ -336,6 +351,7 @@ def management(
     now: datetime,
 ) -> dict[str, str]:
     ready(transport)
+    scope = repository.transport_scope(transport)
     if not isinstance(transport, BillingManagementTransport):
         raise HTTPException(503, "billing management unavailable")
     location = urlsplit(return_url)
@@ -347,7 +363,7 @@ def management(
         or not re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", configuration_id)
     ):
         raise HTTPException(503, "billing management configuration unavailable")
-    row = owned(db, wid, now)
+    row = owned(db, wid, now, scope=scope)
     if row.customer_id is None:
         raise HTTPException(409, "billing customer unavailable")
     customer = row.customer_id
@@ -378,7 +394,7 @@ def verified_current(
         or state.subscription_id != subscription_id
         or state.observed_at < now - timedelta(seconds=30)
         or state.observed_at > now
-        or state.livemode
+        or state.scope != repository.transport_scope(transport)
     ):
         raise HTTPException(409, "billing verification mismatch")
     return state

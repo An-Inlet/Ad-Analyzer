@@ -22,6 +22,7 @@ import uvicorn
 from app.billing.contracts import get_billing_transport
 from app.billing.dispatcher import run
 from app.billing.models import WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.billing.stripe import StripeBilling
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
@@ -334,7 +335,7 @@ def test_visible_checkout_return_recovery_management_and_revocation(
         ]
         assert len(posts) == 2 and len({r.headers["Idempotency-Key"] for r in posts}) == 1
         with factory() as db:
-            row = db.get(WorkspaceBilling, wid)
+            row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
             assert row and row.subscription_id is None and row.status == "unconfigured"
 
         def deliver(event: str) -> None:

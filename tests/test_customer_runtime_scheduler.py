@@ -158,6 +158,7 @@ def test_billing_refresh_runs_through_coordinator_even_when_syncs_disabled(
     customer_engine: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from app.billing.models import WorkspaceBilling
+    from app.billing.scope import LEGACY_TEST_SCOPE
     from app.settings import settings
 
     from tests.test_customer_billing import POLICY, FixtureBilling
@@ -184,7 +185,7 @@ def test_billing_refresh_runs_through_coordinator_even_when_syncs_disabled(
     )
     assert result == {"billing": "completed"}
     with Session(customer_engine) as db:
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.status == "active" and row.verified_at is not None
 
 

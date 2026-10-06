@@ -27,6 +27,7 @@ from app.api import customer_billing, customer_goals, customer_shopify
 from app.billing.contracts import get_billing_transport
 from app.billing.dispatcher import run as billing_run
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.commerce import reporting
 from app.commerce.ledger import MEASUREMENT_SCOPES
 from app.commerce.models import CommerceEntry, CommerceOrder, CommerceSnapshot, CommerceStore
@@ -367,9 +368,9 @@ def test_real_browser_customer_api_journey(
                 assert db.scalar(select(func.count()).select_from(model)) == 0
             store = db.scalar(select(CommerceStore).where(CommerceStore.workspace_id == wid))
             assert store is not None and store.status == "revoked"
-            row = db.get(WorkspaceBilling, wid)
+            row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
             assert row is not None and row.status == "active"
-            billing_event = db.get(BillingEvent, "evt_browser_journey")
+            billing_event = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_browser_journey"))
             assert billing_event is not None and billing_event.state == "processed"
             assert (
                 db.scalar(

@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from app.billing.contracts import CheckoutResult, CheckoutState
 from app.billing.models import WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.billing.service import checkout
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -103,7 +104,7 @@ def test_concurrent_terminal_checkout_retirement_converges_on_one_purchase(
     assert original["id"] == second["id"]
     assert len(provider.created) == 1
     with Session(customer_engine) as db:
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.checkout_id == second["id"]
         assert row.checkout_key in provider.created
 
@@ -309,7 +310,7 @@ def test_lost_checkout_post_then_two_day_recovery_adopts_purchase_without_second
         now = NOW + timedelta(days=2)
         with pytest.raises(HTTPException, match="complete"):
             checkout(db, wid, POLICY, wire, "https://inlet.example/app/settings", now)
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.subscription_id == "sub_created" and row.status == "active"
         require_entitlement(db, wid, POLICY, now)
         assert len(post_keys) == 1

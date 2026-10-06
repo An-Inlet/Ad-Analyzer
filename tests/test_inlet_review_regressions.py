@@ -202,7 +202,9 @@ def test_actual_uvicorn_access_capture_excludes_oauth_queries_preserves_normal_e
     logger = logging.getLogger("uvicorn.access")
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
-    level = logger.level
+    level, disabled = logger.level, logger.disabled
+    # Earlier migration tests configure logging with disable_existing_loggers.
+    logger.disabled = False
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
     install_access_filter()
@@ -227,6 +229,7 @@ def test_actual_uvicorn_access_capture_excludes_oauth_queries_preserves_normal_e
     finally:
         logger.removeHandler(handler)
         logger.setLevel(level)
+        logger.disabled = disabled
 
 
 @pytest.mark.parametrize(
@@ -396,8 +399,10 @@ class TrackedCheckout:
         return self.subscriptions[subscription_id].model_copy(update={"observed_at": now})
 
 
+@pytest.mark.parametrize("missing_url", [False, True])
 def test_uncertain_expired_checkout_is_recovered_before_attempt_retirement(
     customer_engine: Engine,
+    missing_url: bool,
 ) -> None:
     from datetime import timedelta
 
@@ -416,6 +421,11 @@ def test_uncertain_expired_checkout_is_recovered_before_attempt_retirement(
         fixture.states["cs_session1"] = fixture.states["cs_session1"].model_copy(
             update={"status": "expired"}
         )
+        if missing_url:
+            fixture.results = {
+                key: value.model_copy(update={"url": None})
+                for key, value in fixture.results.items()
+            }
         fixture.unavailable = True
         with pytest.raises(HTTPException, match="reconciliation unavailable"):
             billing.checkout(

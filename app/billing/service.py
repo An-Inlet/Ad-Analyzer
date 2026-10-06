@@ -1,7 +1,7 @@
 """Workspace billing ownership and canonical-state entitlement reconciliation."""
 
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -16,15 +16,21 @@ from app.shopify.security import utc
 
 
 def ready(transport: BillingTransport) -> None:
-    if isinstance(transport, UnavailableBilling) or transport.mode != "fixture":
+    if isinstance(transport, UnavailableBilling) or transport.mode not in {
+        "fixture",
+        "stripe_test",
+    }:
         raise HTTPException(503, "billing unavailable")
 
 
-def owned(db: Session, wid: int) -> WorkspaceBilling:
+def owned(db: Session, wid: int, now: datetime | None = None) -> WorkspaceBilling:
     workspace_lock(db, wid)
     row = db.get(WorkspaceBilling, wid, populate_existing=True)
     if row is None:
-        row = WorkspaceBilling(workspace_id=wid, customer_request_key=uuid4().hex)
+        row = WorkspaceBilling(
+            workspace_id=wid,
+            customer_request_key=f"{int((now or datetime.now(UTC)).timestamp())}_{uuid4().hex}",
+        )
         db.add(row)
         db.flush()
     return row
@@ -47,7 +53,7 @@ def checkout(
         or redirect.fragment
     ):
         raise HTTPException(503, "billing return unavailable")
-    row = owned(db, wid)
+    row = owned(db, wid, now)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
     key, customer = row.customer_request_key, row.customer_id
@@ -64,7 +70,7 @@ def checkout(
             raise HTTPException(409, "billing customer conflict")
         row.customer_id = customer
         db.commit()
-    row = owned(db, wid)
+    row = owned(db, wid, now)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
     if row.checkout_id is not None:
@@ -91,11 +97,14 @@ def checkout(
                 or utc(row.checkout_expires_at) <= now
             ):
                 raise HTTPException(409, "checkout still unresolved; retry reconciliation")
-            return {"mode": "fixture", "url": row.checkout_url, "id": row.checkout_id}
+            return {"mode": transport.mode, "url": row.checkout_url, "id": row.checkout_id}
         # Only canonical expired/no-subscription proof permits a new idempotency key.
         row = owned(db, wid)
     if row.checkout_key is None:
-        row.checkout_key, row.checkout_price = uuid4().hex, policy.price_id
+        row.checkout_key, row.checkout_price = (
+            f"{int(now.timestamp())}_{uuid4().hex}",
+            policy.price_id,
+        )
     if row.checkout_price != policy.price_id:
         raise HTTPException(409, "pending checkout must be reconciled")
     checkout_key = row.checkout_key
@@ -104,9 +113,14 @@ def checkout(
         result = transport.checkout(customer, policy.price_id, checkout_key, return_url)
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
-    location = urlsplit(result.url)
-    if location.scheme != "https" or location.netloc != "checkout.stripe.com" or location.username:
-        raise HTTPException(502, "checkout result unavailable")
+    if result.url is not None:
+        location = urlsplit(result.url)
+        if (
+            location.scheme != "https"
+            or location.netloc != "checkout.stripe.com"
+            or location.username
+        ):
+            raise HTTPException(502, "checkout result unavailable")
     row = owned(db, wid)
     if row.checkout_key != checkout_key or row.customer_id != customer:
         raise HTTPException(409, "checkout ownership changed")
@@ -118,12 +132,12 @@ def checkout(
         result.expires_at,
     )
     db.commit()  # Retain the recovered provider ID even if its URL has expired.
-    if result.expires_at <= now:
+    if result.expires_at <= now or result.url is None:
         row = owned(db, wid)
         outcome = resolve_checkout(db, row, policy, transport, now)
         db.commit()
         raise HTTPException(409, "checkout " + outcome + "; retry from current billing state")
-    return {"mode": "fixture", "url": result.url, "id": result.id}
+    return {"mode": transport.mode, "url": result.url, "id": result.id}
 
 
 def reconcile(

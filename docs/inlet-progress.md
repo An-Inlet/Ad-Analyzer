@@ -2709,3 +2709,21 @@ DSA personal capture remains blocked until closure-safe privacy propagation acro
 all original/activation copies is implemented. No live credential/provider calls,
 spending, merge or deployment. See `inlet-social-review-journey.md` for frozen ports
 and `inlet-social-declaration-privacy-lineage.md` for the actual finality dependency.
+
+## Social Customer Configuration And Next Candidate
+
+PR173ae57ccc integrated8221455. Customer owner/session/CSRF routes and actual
+private Meta/TikTok review UI bind exact full nonpersonal configuration, readable
+reviewed requirement wording and video/cover media. V2 approvals cannot be reused
+for changed configuration; v1 history/export stays readable but nonexecutable;
+legacy absent-reference plan hashes remain unchanged. DSA-required/unverified
+profiles and live/native qualification remain blocked. No new migration; head0060.
+Social creation/activation consumer and existing-campaign optimization customer
+intent are separate followup packages, not claimed complete here.
+
+Root combined social API/browser/hash/review/migration/repeat/routes suite:
+51passed/1SQLite-onlyskip/4deprecationwarnings,86.06seconds
+(`/tmp/inlet-next-social-customer-flow.log`); Ruff/mypy489/diff passed. This candidate
+includes post-context session repair, repeat accounting, reproduced frozen-failure
+fixture repairs, and bounded normal-CI diagnostic artifacts. Next frozen Full and
+PR130 CI must establish their own terminal results; neither is assembled-green yet.

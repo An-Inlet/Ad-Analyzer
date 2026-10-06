@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.commerce.evidence import digest, lock_workspace
 from app.commerce.ledger import DEFINITION
 from app.commerce.models import CommerceMeasurementPublication
+from app.commerce.publication_contracts import version_filter
 from app.goals.models import Goal, GoalRevision
 from app.goals.schemas import GoalDefinition
 from app.outcomes.descriptive_contracts import (
@@ -34,6 +35,8 @@ def lineage(row: CommerceMeasurementPublication) -> PublicationLineage:
 
 
 def validate_manifest(row: CommerceMeasurementPublication) -> None:
+    if row.manifest.get("schema_version") != "inlet.commerce-publication.v1":
+        raise HTTPException(409, "unsupported measurement publication")
     expected = {
         "workspace_id": row.workspace_id,
         "store_id": row.store_id,
@@ -125,6 +128,7 @@ def compare(
             .where(
                 CommerceMeasurementPublication.workspace_id == wid,
                 CommerceMeasurementPublication.store_id == store.id,
+                version_filter(),
             )
             .order_by(CommerceMeasurementPublication.publication_revision.desc())
             .limit(1)

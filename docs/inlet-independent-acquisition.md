@@ -49,10 +49,10 @@ operations validated. That validator does not expose a version selector; it is n
 claimed as pinned-2026-07 validation. Fields/semantics were also inspected in the
 pinned official docs listed in the proposal. No operation was executed on a store.
 
-## Next Publication Contract — Proposed, Not Implemented
+## Owned Publication Contract — Implemented Offline
 
 Feedback storage owner confirmed existing publication identities/FKs can support
-an explicit v2 manifest. Before any publication edits, agree these exact rules:
+an explicit v2 manifest. The owned adapter and strict parser now implement these rules:
 
 - Discriminated parser: current v1 stays incremental; new
   `inlet.commerce-independent-publication.v2` contains the exact typed
@@ -83,3 +83,20 @@ an explicit v2 manifest. Before any publication edits, agree these exact rules:
   workspace-first scope/privacy/session/retention recheck. No migration is reserved.
 
 Any future settled-as-of mapping needs reviewed assurance, not a type cast.
+
+
+`OwnedAcquisition` now captures the original session identity, reauthorizes in
+short independent transactions before/after HTTP, and atomically publishes after
+fresh source/privacy/retention checks. No locks span provider HTTP. Existing opaque
+shop identity is proved by its keyed digest; no raw shop identity is persisted.
+The v2 manifest union is strict in explicit reads, archive exports and feedback
+dependencies. Unresolved v2 acquisitions cannot satisfy maturity supporting
+completion requirements. Deleting any retained v2 dependency cascades its owned
+assessment. Latest v1 readers and candidate fences select supported versions before
+limiting results; adding v2 alone does not displace working v1 evidence.
+
+There is no customer route, worker registration, credential refresh, installed
+maturity policy or production producer. A future HTTP caller must enforce origin
+and CSRF before invoking the server-only adapter. Full-history capacity, granted
+historical access, privacy suppression resolution and intended-environment operation
+remain qualification limits; independent acquisition does not establish finality.

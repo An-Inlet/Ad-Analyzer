@@ -13,6 +13,7 @@ from app.automation import AutomationControlKey
 from app.automation.models import PlatformAutomationControl
 from app.commerce.evidence import digest as source_digest
 from app.commerce.models import CommerceEvidenceState, CommerceMeasurementPublication, CommerceStore
+from app.commerce.publication_contracts import version_filter
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerSession, CustomerUser
@@ -86,6 +87,16 @@ def source_current(db: Session, scope: CandidateScope, actor: str) -> None:
         .execution_options(populate_existing=True)
     )
     state = db.get(CommerceEvidenceState, fence.store_id, populate_existing=True)
+    latest_v1 = db.scalar(
+        select(CommerceMeasurementPublication.id)
+        .where(
+            CommerceMeasurementPublication.workspace_id == wid,
+            CommerceMeasurementPublication.store_id == fence.store_id,
+            version_filter(),
+        )
+        .order_by(CommerceMeasurementPublication.publication_revision.desc())
+        .limit(1)
+    )
     if (
         workspace is None
         or workspace.status != "active"
@@ -100,7 +111,7 @@ def source_current(db: Session, scope: CandidateScope, actor: str) -> None:
         or publication.privacy_epoch != fence.privacy_epoch
         or state.privacy_epoch != fence.privacy_epoch
         or publication.publication_revision != fence.publication_revision
-        or state.publication_revision != fence.publication_revision
+        or latest_v1 != fence.publication_id
         or publication.source_revision != fence.source_revision
         or store.revision != fence.source_revision
         or publication.manifest_digest != fence.manifest_digest

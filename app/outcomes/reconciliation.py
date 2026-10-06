@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.commerce.evidence import digest, lock_workspace
 from app.commerce.models import CommerceMeasurementPublication
+from app.commerce.publication_contracts import version_filter
 from app.goals.models import Goal, GoalRevision
 from app.goals.schemas import GoalDefinition
 from app.outcomes.contracts import Window
@@ -64,6 +65,7 @@ def collect_owned_reconciliations(
                     CommerceMeasurementPublication.store_id == store.id,
                     CommerceMeasurementPublication.generation == anchor.generation,
                     CommerceMeasurementPublication.privacy_epoch == anchor.privacy_epoch,
+                    version_filter(),
                 )
                 .order_by(CommerceMeasurementPublication.publication_revision.desc())
                 .limit(17)

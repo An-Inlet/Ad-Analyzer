@@ -17,6 +17,7 @@ from app.billing.offers import (
 )
 from app.campaign_review.contracts import ReviewArtifact
 from app.commerce.evidence import digest as assessment_digest
+from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
 from app.crm.schemas import CrmEvent
 from app.goals.schemas import GoalDefinition
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
@@ -167,6 +168,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_receipts", "receipt"): PublishReceipt,
 }
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("commerce_measurement_publications", "manifest"): MANIFEST,
     ("customer_social_configuration_reviews", "document"): TypeAdapter(
         Annotated[
             SocialConfigurationDocument | LegacySocialConfigurationDocumentV1,
@@ -286,7 +288,9 @@ def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
-    if isinstance(document, OfferProfileV1):
+    if isinstance(document, ManifestBasis):
+        bind_manifest(row, document, raw)
+    elif isinstance(document, OfferProfileV1):
         bound = BoundOfferV1(
             id=row["id"],
             workspace_id=row["workspace_id"],
@@ -510,7 +514,11 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                 if model is not None:
                     document = model.model_validate(value)
                     bind_document(table, field, row, document, value)
-                    value = document.model_dump(mode="json")
+                    value = (
+                        value
+                        if isinstance(document, ManifestBasis)
+                        else document.model_dump(mode="json")
+                    )
                 adapter = ADAPTERS.get((table, field))
                 if (table, field) == ("provider_execution_responses", "response"):
                     adapter = next(
@@ -526,7 +534,11 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                 if adapter is not None:
                     document = adapter.validate_python(value)
                     bind_document(table, field, row, document, value)
-                    value = document.model_dump(mode="json")
+                    value = (
+                        value
+                        if isinstance(document, ManifestBasis)
+                        else document.model_dump(mode="json")
+                    )
                 json.dumps(value, allow_nan=False)
             else:
                 value = scalar(value)

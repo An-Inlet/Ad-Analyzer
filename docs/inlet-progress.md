@@ -3808,3 +3808,66 @@ A later read-only executor call explicitly failed with transport disconnected; o
 bounded retry restored shell/read-write access, root remained clean before this
 package and frozenFull processes remained alive. Affected agents independently
 recovered preserved work. No quota signal or verified process/data loss.
+
+### Independent Publication V2 And Original-Session Authority
+
+Dependent child `codex/inlet-independent-publications` implements actual bounded
+Shopify acquisition -> fresh original-session/source/privacy authority -> atomic
+owned v2 publication -> authenticated provenance read -> strict archive export.
+The same publication ownership FK and source-wide erasure remove both versions;
+no schema migration is added. V2 commits the exact aggregate acquisition with a
+new domain-separated completion digest, acquisition interval (no source watermark),
+and unresolved/unqualified state. No maturity/producer/default runtime is enabled.
+
+Legacy v1 stored bytes/digests remain unchanged. SQL version filters preserve v1
+latest/default measurement, descriptive/reconciliation and candidate source fences
+when a v2 revision is added. Genuine source/privacy changes still deny/erase.
+Historical v2 read needs current session/ownership/source/privacy/retention, not an
+unchanged token or incremental source revision. Acquiring/publishing does recheck
+those exact source bindings. No token refresh or Shopify HTTP runs under DB locks.
+
+First focused DB validation: **38 passed** on SQLite and disposable PostgreSQL
+in 55.61 seconds, including actual tar archive, late stored-session/role/provider/
+privacy/source changes, v1 coexistence/candidate validity, erased/closed-source and
+retention deletion, unsupported JSON/digest rejection and final-commit revocation.
+Ruff, clean mypy (**544 source files**) and diff checks passed. Logs:
+`/tmp/inlet-independent-owned-freeze.log`,
+`/tmp/inlet-independent-owned-freeze-types2.log`.
+Feedback resolver integration and wider regression are the next validation step.
+
+### Independent Publication V2 — Integrated Validation
+
+Merged frozen root06dab9a while preserving v1 bytes and version-aware selection.
+The feedback resolver now accepts exact owned v2 provenance for insufficient
+assessments, matches environment and full metric/goal/source scope, and rejects
+unresolved v2 completions as maturity support. Actual MockTransport acquisition ->
+publication -> insufficient assessment dependency -> deletion cascade passes both
+SQLite and PostgreSQL. No production policy/producer or runtime is installed.
+
+Integrated regression: **205 passed, 3 skipped, 4 failed** initially. All four
+failures were existing 409-vs-404 assertions for owned malformed binding; stricter
+manifest validation ran earlier and had mapped these to unavailable. Repaired the
+error distinction, preserving foreign/erased/retention 404 and raw digest behavior.
+Final affected consumer plus acquisition/publication suite: **81 passed, 1 skipped**
+(69.84s). Export regression: **47 passed, 1 skipped** (117.02s). Added feedback
+provenance/maturity denial tests: **2 passed** (both databases). Whole Ruff, clean
+mypy (**564 source files**) and diff checks passed. SQLite-only concurrency skips
+remain explicit. No Full run; parent owns assembled qualification.
+
+Logs: `/tmp/inlet-independent-integrated.log`,
+`/tmp/inlet-independent-compatibility.log`, `/tmp/inlet-independent-feedback.log`,
+`/tmp/inlet-independent-export-regression.log`,
+`/tmp/inlet-independent-final-types.log`. A transient execution transport disconnect
+occurred after these processes; a subsequent harmless read succeeded and confirmed
+terminal logs and preserved files. No GitHub quota block was reported.
+
+### 2026-10-06 — Owned independent commerce publication integrated
+
+Integrated PR204 e8ae8ea/9ade644: original-session DB authority adapter, atomic
+v2 publication, strict owned manifest/digest parser, read/export and privacy/
+retention erasure. Latest supported-v1 readers and candidate fences preserve
+existing measurement behavior; v2 acquisition interval is not a watermark and
+unresolved completions cannot establish maturity. Root73 passed,1 expected SQLite
+row-lock skip in70.45s (`/tmp/inlet-next-independent-publications.log`); Ruff check .,
+configured mypy572 and whitespace passed. No migration, production policy/source
+registration or live request.

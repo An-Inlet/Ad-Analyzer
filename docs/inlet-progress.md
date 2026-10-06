@@ -872,3 +872,11 @@ PostgreSQL callback-vs-uninstall and expiry-sweep tests. Preserved native import
 suspended-workspace status after original CI exposed regression. Expanded suite
 including native ownership:85 passed,5 SQLite lock-only skips. Original CI37403352872
 failed (importer status and nested browser20sdeadline); fresh head validation required.
+
+PR87 login rotation follow-up: actual PostgreSQL concurrent email-refresh login and
+customer callback reproduced DeadlockDetected at ef0aaab. Guard now locks User before
+Session, matching login; callback observes rotated/revoked oldsession and performs no
+Shopify exchange. Bounded review found logout Session-only and provisioning User then
+fresh-workspace/replay-read compatible. CustomerShopify/identity/provisioning/native
+ownership suite:75 passed,6 SQLite-only lock skips; Ruff/mypy268files/diffpass.
+Prior ef0 Full/CI are superseded by this lock repair, not acceptance of repairedhead.

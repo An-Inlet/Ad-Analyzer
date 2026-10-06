@@ -55,15 +55,17 @@ def guard(db: Database, principal: CustomerPrincipal, workspace_id: int) -> str:
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    session = db.scalar(
-        select(CustomerSession)
-        .where(CustomerSession.digest == principal.session.digest)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
+    # Login updates user contact data before rotating its presented session.
+    # Use the same order so neither transaction holds the other's next row.
     user = db.scalar(
         select(CustomerUser)
         .where(CustomerUser.id == principal.user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    session = db.scalar(
+        select(CustomerSession)
+        .where(CustomerSession.digest == principal.session.digest)
         .with_for_update()
         .execution_options(populate_existing=True)
     )

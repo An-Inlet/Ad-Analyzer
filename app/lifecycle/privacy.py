@@ -1,6 +1,8 @@
 """Shared transactional invalidation of snapshots; independent of workspace admission."""
 
-from sqlalchemy import select, update
+from datetime import UTC, datetime
+
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.workspaces.models import Workspace
@@ -52,3 +54,17 @@ def workspace_export_revision(db: Session, workspace_id: int) -> int:
     if revision is None:
         raise ValueError("privacy workspace unavailable")
     return revision
+
+
+def database_utc_now(db: Session) -> datetime:
+    """Fresh database wallclock, not PostgreSQL's transaction-start timestamp."""
+    if db.get_bind().dialect.name == "postgresql":
+        value = db.scalar(select(func.clock_timestamp()))
+    elif db.get_bind().dialect.name == "sqlite":
+        raw = db.scalar(select(func.strftime("%Y-%m-%d %H:%M:%f", "now")))
+        value = datetime.fromisoformat(raw) if isinstance(raw, str) else None
+    else:
+        raise ValueError("unsupported retention database")
+    if not isinstance(value, datetime):
+        raise ValueError("database retention clock unavailable")
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)

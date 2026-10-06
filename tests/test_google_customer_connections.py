@@ -507,3 +507,101 @@ def test_late_conversion_refresh_covers_window_and_catches_new_days(
         assert row.phase == "refresh"
         db.refresh(other_metric)
         assert other_metric.conversions == 0
+
+
+def test_retry_replaces_only_current_session_workspace_pending_grant(
+    customer_engine: Engine, configured: None
+) -> None:
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "retry-one")
+        other, sid2 = setup(db, "retry-two")
+        transport = FixtureTransport()
+        _, receipt = connect(db, wid, sid, transport)
+
+        def begin(workspace: int, session: str) -> str:
+            return parse_qs(urlsplit(s.start(db, workspace, session, NOW, transport)).query)[
+                "state"
+            ][0]
+
+        second_session = begin(wid, sid2)
+        second_workspace = begin(other, sid)
+        abandoned = begin(wid, sid)
+        s.finish(db, abandoned, sid, "fixture", NOW, transport)
+        replacement = begin(wid, sid)
+        with pytest.raises(HTTPException):
+            s.authorization(db, abandoned, sid, NOW)
+        assert s.authorization(db, replacement, sid, NOW).state == "pending"
+        assert s.authorization(db, second_session, sid2, NOW).state == "pending"
+        assert s.authorization(db, second_workspace, sid, NOW).state == "pending"
+        assert s.authorization(db, receipt, sid, NOW).state == "selected"
+
+
+@pytest.mark.parametrize("change", ["session", "role"])
+def test_google_callback_rechecks_current_actor_after_exchange(
+    customer_engine: Engine, configured: None, change: str
+) -> None:
+    from collections.abc import Generator
+
+    from app.api import customer_google as api
+    from app.api.customer import router as auth_router
+    from app.customers.access import CSRF_COOKIE
+    from app.customers.identity import get_identity_provider
+    from app.customers.models import CustomerMembership
+    from app.database.session import get_db
+    from app.google_connections.contracts import get_transport
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from tests.test_customer_identity import ORIGIN, FakeProvider, login
+
+    application = FastAPI()
+    application.include_router(auth_router)
+    application.include_router(api.router)
+
+    def database() -> Generator[Session, None, None]:
+        with Session(customer_engine) as db:
+            yield db
+
+    application.dependency_overrides[get_db] = database
+    application.dependency_overrides[get_identity_provider] = lambda: FakeProvider()
+    owner = TestClient(application, base_url=ORIGIN)
+    uid = login(owner, "exchange-owner:1")
+    with Session(customer_engine) as db:
+        wid, _ = setup(db, "exchange-recheck")
+        db.add(CustomerMembership(user_id=uid, workspace_id=wid, role="owner"))
+        db.commit()
+
+    class ChangingTransport(FixtureTransport):
+        def exchange(self, code: str, redirect_uri: str) -> Grant:
+            grant = super().exchange(code, redirect_uri)
+            with Session(customer_engine) as db:
+                if change == "session":
+                    session = db.scalar(
+                        select(CustomerSession).where(CustomerSession.user_id == uid)
+                    )
+                    assert session is not None
+                    session.revoked_at = 1
+                else:
+                    membership = db.get(CustomerMembership, (uid, wid))
+                    assert membership is not None
+                    membership.role = "viewer"
+                db.commit()
+            return grant
+
+    transport = ChangingTransport()
+    application.dependency_overrides[get_transport] = lambda: transport
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": owner.cookies[CSRF_COOKIE]}
+    response = owner.post(f"/api/customer/v1/workspaces/{wid}/google/authorize", headers=headers)
+    assert response.status_code == 200
+    nonce = parse_qs(urlsplit(response.json()["authorization_url"]).query)["state"][0]
+    response = owner.post(
+        "/api/customer/v1/google/callback",
+        json={"state": nonce, "code": "fixture"},
+        headers=headers,
+    )
+    assert response.status_code == (401 if change == "session" else 403)
+    assert transport.calls == 1
+    with Session(customer_engine) as db:
+        row = db.scalar(select(GoogleAuthorization))
+        assert row is not None and row.state == "exchanging" and row.encrypted_grant is None
+        assert db.scalar(select(func.count()).select_from(GoogleCustomerConnection)) == 0

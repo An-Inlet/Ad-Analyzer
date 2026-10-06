@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -51,3 +51,12 @@ test('Shopify authorization destination stays at the exact merchant HTTPS consen
   for (const url of ['http://store.myshopify.com/admin/oauth/authorize', 'https://other.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com.evil.test/admin/oauth/authorize', 'https://store.myshopify.com:444/admin/oauth/authorize', 'https://user@store.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com/other']) assert.throws(() => shopifyDestination({authorization_url:url}, shop));
   assert.throws(() => shopifyDestination({authorization_url:'https://evil.test/admin/oauth/authorize'}, 'https://evil.test'));
 });
+
+ test('Google consent destination requires exact configured client callback scope and query', () => {
+  const origin = 'https://inlet.example';
+  const config = {client_id:'fixture-client', redirect_uri:origin+'/api/customer/v1/google/callback'};
+  const params = new URLSearchParams({client_id:config.client_id,redirect_uri:config.redirect_uri,response_type:'code',scope:'https://www.googleapis.com/auth/adwords',access_type:'offline',prompt:'consent',state:'a'.repeat(43)});
+  const url = 'https://accounts.google.com/o/oauth2/v2/auth?'+params;
+  assert.equal(googleDestination({authorization_url:url},config,origin),url);
+  for (const altered of [url.replace('accounts.google.com','evil.example'),url.replace('fixture-client','other-client'),url+'&state=duplicate',url+'&extra=unapproved',url+'&constructor=unapproved',url.replace('adwords','userinfo'),url.replace('https%3A%2F%2Finlet.example','https%3A%2F%2Fevil.example')]) assert.throws(()=>googleDestination({authorization_url:altered},config,origin));
+ });

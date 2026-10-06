@@ -1,6 +1,7 @@
 """Scoped customer authorization and resumable read imports."""
 
 import secrets
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -77,7 +78,18 @@ def ready(transport: GoogleReadTransport) -> None:
 def start(db: Session, wid: int, sid: str, now: datetime, transport: GoogleReadTransport) -> str:
     ready(transport)
     workspace_lock(db, wid)
-    db.execute(delete(GoogleAuthorization).where(GoogleAuthorization.expires_at <= now))
+    db.execute(
+        delete(GoogleAuthorization)
+        .execution_options(synchronize_session="fetch")
+        .where(GoogleAuthorization.expires_at <= now)
+    )
+    db.execute(
+        delete(GoogleAuthorization).where(
+            GoogleAuthorization.workspace_id == wid,
+            GoogleAuthorization.session_digest == sid,
+            GoogleAuthorization.state != "selected",
+        )
+    )
     nonce = secrets.token_urlsafe(32)
     db.add(
         GoogleAuthorization(
@@ -103,19 +115,27 @@ def start(db: Session, wid: int, sid: str, now: datetime, transport: GoogleReadT
     )
 
 
-def authorization(db: Session, nonce: str, sid: str, now: datetime) -> GoogleAuthorization:
-    row = db.scalar(
-        select(GoogleAuthorization)
-        .where(GoogleAuthorization.digest == digest(nonce))
-        .with_for_update()
-    )
+def authorization(
+    db: Session, nonce: str, sid: str, now: datetime, *, lock: bool = True
+) -> GoogleAuthorization:
+    query = select(GoogleAuthorization).where(GoogleAuthorization.digest == digest(nonce))
+    if lock:
+        query = query.with_for_update()
+    row = db.scalar(query.execution_options(populate_existing=True))
     if row is None or row.session_digest != sid or utc(row.expires_at) <= now:
         raise HTTPException(404, "authorization unavailable")
     return row
 
 
 def finish(
-    db: Session, nonce: str, sid: str, code: str, now: datetime, transport: GoogleReadTransport
+    db: Session,
+    nonce: str,
+    sid: str,
+    code: str,
+    now: datetime,
+    transport: GoogleReadTransport,
+    *,
+    before_persist: Callable[[], None] | None = None,
 ) -> GoogleAuthorization:
     ready(transport)
     row = authorization(db, nonce, sid, now)
@@ -127,6 +147,8 @@ def finish(
         grant = transport.exchange(code, redirect_uri())
     except Exception:
         raise HTTPException(502, "Google authorization unavailable; restart connection") from None
+    if before_persist is not None:
+        before_persist()
     row = authorization(db, nonce, sid, now)
     row.encrypted_grant = Vault().seal(
         row.workspace_id, row.digest, grant.refresh_token.get_secret_value()
@@ -141,7 +163,7 @@ def choose(
     db: Session, nonce: str, sid: str, external_id: str, now: datetime
 ) -> GoogleCustomerConnection:
     # Consistent lock order with imports/disconnect: workspace before connection.
-    reference = authorization(db, nonce, sid, now)
+    reference = authorization(db, nonce, sid, now, lock=False)
     wid = reference.workspace_id
     workspace_lock(db, wid)
     row = authorization(db, nonce, sid, now)
@@ -436,6 +458,7 @@ def view(row: GoogleCustomerConnection) -> dict[str, Any]:
         "id": row.id,
         "workspace_id": row.workspace_id,
         "account_id": row.account_id,
+        "external_account_id": row.external_account_id,
         "connection_id": row.integration_id,
         "status": row.status,
         "generation": row.generation,

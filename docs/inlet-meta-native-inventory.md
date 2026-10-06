@@ -15,6 +15,11 @@ that simply returns stale cached credentials is not a production integration.
 
 The actual HTTP code reads fixed v26 `act_{id}`, `/campaigns` and `/adsets` paths. It
 requests all SDK-known effective statuses, including archived/deleted resources.
+The exact pinned Campaign enum has six effective statuses; AdSet adds CAMPAIGN_PAUSED.
+Other resource types' review statuses are not inferred into those enums. The result
+explicitly says `status_scope=sdk_known_effective_statuses_only` and
+`all_effective_statuses_complete=false`: a completed query does not establish that
+the pinned SDK enumerates every current provider status.
 There are at most ten pages per edge, 200 campaigns and 200 ad sets. It uses only opaque
 bounded `after` cursors, never a provider next URL. Foreign accounts, missing parents,
 duplicate rows, cursor loops, malformed counters, mismatched currency/timezone and

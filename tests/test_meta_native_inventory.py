@@ -151,6 +151,8 @@ def test_account_wide_paging_is_diagnostic_not_cap_or_watermark() -> None:
     assert result.amount_spent_native == 0 and result.spend_cap_native == 10000
     assert result.campaigns[0].budget_sharing_enabled is None
     assert result.advertising_inventory_read_complete
+    assert result.status_scope == "sdk_known_effective_statuses_only"
+    assert result.all_effective_statuses_complete is False
     assert result.unit_semantics == "native_integer_unqualified"
     assert result.cap_semantics == "unqualified" and result.reporting_watermark is None
     assert (

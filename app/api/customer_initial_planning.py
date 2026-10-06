@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -52,6 +53,18 @@ def get_initial_planning_runtime(db: Database) -> InitialPlanningRuntime:
 
 
 Runtime = Annotated[InitialPlanningRuntime, Depends(get_initial_planning_runtime)]
+
+
+def validated_preview_intent(
+    objective: EfficiencyObjectiveV1, body: PreviewIntent
+) -> PreviewIntentV1:
+    """Validate the client selection against owned facts without leaking either."""
+    try:
+        return PreviewIntentV1(objective=objective, **body.model_dump())
+    except ValidationError:
+        raise HTTPException(
+            409, "The selected campaign or goal changed. Refresh and choose again."
+        ) from None
 
 
 @router.get("/options", response_model=PlanningOptions)
@@ -185,7 +198,7 @@ def native_options(
     objective = calibration.read_objective(
         db, principal, provider, workspace_id, body.calibration_id, runtime
     )
-    intent = PreviewIntentV1(objective=objective, **body.model_dump())
+    intent = validated_preview_intent(objective, body)
     before = preview.inputs(db, principal, provider, intent, runtime)
     db.rollback()
     catalog = native.catalog(db, principal, provider, objective, runtime)
@@ -276,7 +289,7 @@ def prepare(
     objective = calibration.read_objective(
         db, principal, provider, workspace_id, body.calibration_id, runtime
     )
-    intent = PreviewIntentV1(objective=objective, **body.model_dump())
+    intent = validated_preview_intent(objective, body)
     # Preserve already verified original identity references without allowing an
     # expired ORM attribute to silently reopen the API transaction during native IO.
     # Every service boundary still reloads and locks this exact session in SQL.

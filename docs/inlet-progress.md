@@ -4861,3 +4861,26 @@ Ruff, configured mypy **652 files**, JavaScript syntax and whitespace checks pas
 A test-only concrete HTTP response-class identity assertion had failed despite a
 valid200 response; the test now checks the actual required status/body behavior.
 This package is frozen locally only, with no remote write or CI requested.
+
+### Initial Preview Stale Selection Repair — Local Follow-Up
+
+Independent review reproduced HTTP500 for schema-valid native selections whose
+account differed from the owned calibration objective. Both `/native-options` and
+`/previews` constructed the strict internal intent without translating its domain
+validation failure. Exact base `b92a3c8`: **4 baseline failures** across SQLite and
+PostgreSQL, `/tmp/initial-intent-baseline.log`.
+
+The API now shares a strict intent-construction helper that translates this
+validation failure to a fixed, sanitized HTTP409 before provider IO. Internal
+scope validation remains unchanged; no submitted IDs, objective contents, or
+Pydantic diagnostics are echoed. Expanded coverage exercises stale account, goal,
+and goal revision for both endpoints on both databases, asserting zero native
+reads and zero inserted previews.
+
+Actual checks: **34 passed**,54.74s for the new regressions plus existing customer
+API, actual HTTPS browser, and real Meta MockHTTP preview paths
+(`/tmp/initial-intent-final.log`). Exact final regression rerun after a test import
+annotation adjustment: **12 passed**,14.87s (`/tmp/initial-intent-exact.log`). Whole
+Ruff and configured mypy **657 files** pass; diff check clean. No Full, remote write,
+CI request, or live call. Branch `codex/inlet-initial-preview-intent` is local only;
+root integrates the separate goal-currency guard independently.

@@ -16,6 +16,7 @@ from app.ads.schemas import AdCreate, DailyMetricCreate
 from app.goals.schemas import StrictModel
 from app.imports.scope import AdvertisingImportScope, validate_advertising_scope
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.normalize import metric_values
 from app.meta.security import MetaError, identifier
 from app.settings import Settings
@@ -270,6 +271,7 @@ def sync_window(
 
     if not configuration.meta_detail_enabled or not syncing_allowed(db, workspace_id):
         raise HTTPException(409, "Meta detail sync disabled")
+    lock_workspace(db, workspace_id)
     row = db.scalar(
         select(MetaConnection)
         .where(MetaConnection.id == connection_id, MetaConnection.workspace_id == workspace_id)

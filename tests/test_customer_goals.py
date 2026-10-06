@@ -334,6 +334,25 @@ def test_goal_api_identity_csrf_roles_and_source_isolation(
     prefix = f"/api/customer/v1/workspaces/{wid}/goals"
     path = f"{prefix}/{gid}"
     headers = {"Origin": ORIGIN, "X-CSRF-Token": owner.cookies[CSRF_COOKIE]}
+    create_headers = {**headers, "Idempotency-Key": "goal-lost-response"}
+    first = owner.post(prefix, json={"definition": body}, headers=create_headers)
+    retry = owner.post(prefix, json={"definition": body}, headers=create_headers)
+    assert first.status_code == retry.status_code == 201
+    assert first.json()["id"] == retry.json()["id"]
+    assert owner.post(prefix, json={"definition": None}, headers=create_headers).status_code == 409
+    assert owner.post(prefix, json={"definition": body}, headers=headers).status_code == 422
+    assert (
+        outsider.post(
+            prefix,
+            json={"definition": body},
+            headers={
+                "Origin": ORIGIN,
+                "X-CSRF-Token": outsider.cookies[CSRF_COOKIE],
+                "Idempotency-Key": "goal-lost-response",
+            },
+        ).status_code
+        == 404
+    )
     assert outsider.get(path).status_code == 404
     assert owner.get(f"{prefix}/{otherid}").status_code == 404
     assert owner.put(path, json={"expected_revision": 1, "definition": body}).status_code == 403
@@ -343,6 +362,17 @@ def test_goal_api_identity_csrf_roles_and_source_isolation(
         ).status_code
         == 404
     )
+    with Session(customer_engine) as db:
+        membership = db.get(CustomerMembership, (user, wid))
+        assert membership is not None
+        membership.status = "suspended"
+        db.commit()
+    assert owner.post(prefix, json={"definition": body}, headers=create_headers).status_code == 404
+    with Session(customer_engine) as db:
+        membership = db.get(CustomerMembership, (user, wid))
+        assert membership is not None
+        membership.status = "active"
+        db.commit()
     assert owner.get(path).headers["Cache-Control"] == "no-store"
     preview = owner.post(path + "/preview", json={"expected_revision": 1}, headers=headers)
     assert preview.status_code == 200

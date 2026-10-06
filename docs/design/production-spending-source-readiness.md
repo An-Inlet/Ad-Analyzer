@@ -232,3 +232,14 @@ profile or runtime is enabled. Native U/F/P, compatible monetary basis, preventi
 control and unknown-request/financial finality remain unqualified; owner access alone
 cannot close them. Its updated matrix supersedes historical absence statements above
 for diagnostic assembly and the narrow Google successful-original-response subset.
+
+### Disabled Replacement Composition Implemented
+
+The optional [GoogleReplacementReader](../../app/publication/google_replacement_source.py)
+now joins the actual owned original-success terminal reader with an explicitly injected,
+allowlisted immutable transition certificate. It rechecks current ancestry/authority and
+ledger after source IO, preserves exact reviewed proof equality, and never retains a stale
+source fallback. This closes composition code only: no provider transition certificate
+producer, finite native U/F/P, preventive writer mechanism, source profile registration,
+financial release, settlement source or live runtime activation is supplied. Test-only
+financial sources remain labeled `contract_test`.

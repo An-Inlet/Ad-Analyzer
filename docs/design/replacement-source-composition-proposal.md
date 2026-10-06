@@ -113,3 +113,25 @@ live blocker and disabled factories must remain unchanged.
 No owner answer alone closes U/F/P or native prevention. Next engineering choice is the
 bounded compositor above; native financial-source implementation remains blocked on a
 reviewable provider-backed guarantee, not merely access or consent.
+
+## Implemented Disabled Compositor
+
+The approved additive [ports](../../app/publication/transition_source_contracts.py) and
+[Google compositor](../../app/publication/google_replacement_source.py) implement this
+composition without a native financial producer, persistence or runtime registration.
+The server supplies exact `(source_profile, source_revision)` allowlist entries binding
+environment, operation qualification profile/revision, exposure semantics/model and proof
+kind. A live contract-scenario entry is invalid. Empty configuration cannot qualify.
+
+Each call obtains current owned terminal evidence in independent transactions before and
+after the source call. It checks exact complete snapshot, finite eligible portfolio,
+current held sum excluding only the predecessor, high-water, state, money/qualification,
+and completion timestamps. Source failures are sanitized and never use cached fallback.
+The stable closure digest contains exact source documents and request/fence identities;
+new authorization timestamps are excluded. Expiry is bounded by the immutable certificate,
+operation qualification and policy. The coordinator's exact transfer equality is unchanged.
+
+The source implementation still does not exist for native financial guarantees. Tests
+inject explicitly synthetic `contract_test` financial certificates alongside actual mock-
+HTTP Google original completion records. Passing them establishes composition and race
+handling, not native spending qualification. Existing adapters' live blockers remain.

@@ -165,3 +165,39 @@ authoritative request-status/no-later-configuration-effect source; synchronous o
 completion does not bound downstream delivery, outstanding charges, reporting residuals
 or future writers. Even a later reviewed mapping into request closure cannot fund a
 replacement or release a reservation without a separately qualified financial envelope.
+
+## Approved Narrow Terminal Mapping
+
+Subsequent review approved mapping the exact durable successful original synchronous
+Google single-update capture to `ClosedOriginalRequest.basis=authoritative_request_terminal`.
+The implementation is [google_request_terminal.py](../../app/publication/google_request_terminal.py).
+The interpretation is explicitly **original configuration request completed**. It is not
+`authoritative_later_effect_impossible`, zero delivery, zero pending cost, settled spend or
+an upper bound on future exposure. The pinned v25 success-result and atomic request
+semantics above support this limited inference; they supply no unknown-request lookup.
+
+`read_terminal_batch(db, workspace_id, binding, snapshot, actor, now, authorize=...)`
+requires a server-bound current authorizer and rechecks the exact consented mandate/current
+account. Under existing workspace/ledger/original evidence locks it reconstructs the
+entire persisted replacement ancestry and receipt epoch. Supplied omissions, changed
+high-water/accounting state, altered fences, environments or scopes fail before return.
+Every original receipt must have its own valid owned capture with exact operation/request/
+fence/resource/profile and a nonfuture recorded timestamp. A timeout whose later state
+readback succeeds still lacks capture and rejects the entire batch. So do legacy generic
+acknowledgments, response loss/crash before persistence and any unsupported ancestor.
+No partial result is returned, and no capture is inferred or manufactured from readback.
+
+The returned `GoogleTerminalBatch` binds account, mandate, full snapshot digest, exact
+closed request set and a current observation interval bounded by policy freshness and
+five minutes. Historical immutable captures do not receive a fabricated expiry; the new
+batch's authorization/current-snapshot observation does. Batch validation rejects future,
+expired and changed evidence epochs or an alternative closure basis. The reader does not
+perform provider IO, commit caller work, mutate holdings, register profiles or enable a
+factory. A customer-facing caller must bind its current session in `authorize`.
+
+This closes one genuine producer gap for **supported captured Google success only**.
+It supplies no `ReplacementEvidence`: complete independent transitional current/proposed/
+delayed/no-effect/residual exposure and portfolio proofs remain mandatory. Both replacement
+and settlement production factories remain disabled. Unknown requests still lack a native
+terminal lookup; U/F/P, compatible billed/served basis and preventive writer enforcement
+remain the external/source gaps described in the [matrix](production-spending-source-readiness.md).

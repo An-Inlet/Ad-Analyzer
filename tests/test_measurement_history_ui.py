@@ -11,11 +11,13 @@ from typing import Any
 
 import pytest
 import uvicorn
+from app.api import customer_descriptive
 from app.commerce import evidence as commerce_evidence
 from app.customers.identity import get_identity_provider
-from app.customers.models import CustomerUser
+from app.customers.models import CustomerMembership, CustomerUser
 from app.database.session import Base, get_db
 from app.main import app
+from app.outcomes import descriptive
 from app.settings import Settings, settings
 from app.shopify.privacy import process_event
 from app.workspaces.models import Workspace
@@ -79,6 +81,12 @@ def test_measurement_real_browser(
         return original_read(*args, **kwargs, now=NOW)
 
     monkeypatch.setattr(commerce_evidence, "read_publication", read_at_fixture_time)
+    original_compare = descriptive.compare
+
+    def compare_at_fixture_time(db: Any, wid: int, body: Any, authorize: Any) -> Any:
+        return original_compare(db, wid, body, authorize, clock=lambda: NOW)
+
+    monkeypatch.setattr(customer_descriptive, "compare", compare_at_fixture_time)
     completed = threading.Event()
     result: list[dict[str, Any]] = []
 
@@ -91,6 +99,14 @@ def test_measurement_real_browser(
                 .replace("__WORKSPACE__", str(wid))
             )
             await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if path == "/__fixture__/viewer":
+            with factory() as db:
+                membership = db.get(CustomerMembership, (actor, wid))
+                assert membership
+                membership.role = "viewer"
+                db.commit()
+            await JSONResponse({"ok": True})(scope, receive, send)
             return
         if path == "/__fixture__/erase":
             with factory() as db:

@@ -123,3 +123,11 @@ def test_calendar_overflow_controlled() -> None:
     item = observation(7).model_copy(update={"ends_on": date.max})
     with pytest.raises(HTTPException, match="calendar"):
         evaluate((item,), objective(item), policy(), NOW)
+
+
+def test_delayed_capture_does_not_mature_open_window_report() -> None:
+    first, second = observation(7), observation(8)
+    first = first.model_copy(update={"completed_at": datetime(2026, 7, 28, 12, tzinfo=UTC)})
+    result = evaluate((first, second), objective(first), policy(), NOW)
+    assert result.status == "insufficient"
+    assert "observation_window_age_insufficient" in result.reasons

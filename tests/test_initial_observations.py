@@ -10,6 +10,7 @@ from app.initial_planning.capture import capture_current, read_observation
 from app.initial_planning.invalidation import erase_workspace_observations
 from app.initial_planning.models import ObservationRow
 from app.initial_planning.runtime import InitialPlanningRuntime
+from app.lifecycle.privacy import database_utc_now
 from app.settings import Settings
 from fastapi import HTTPException
 from sqlalchemy import Engine, delete, select
@@ -20,7 +21,6 @@ from tests.test_campaign_performance import finish, setup
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_initial_calibration import policy
-from tests.test_meta_connection import NOW
 from tests.test_meta_connection import configuration as configuration
 
 
@@ -32,7 +32,8 @@ def ready(db: Session, engine: Engine, config: Settings, monkeypatch: pytest.Mon
     principal = CustomerPrincipal(user, session)
     provider = FakeProvider()
     provider.issuer = user.issuer
-    runtime = InitialPlanningRuntime(sessionmaker(engine), policy(), clock=lambda: NOW)
+    now = database_utc_now(db)
+    runtime = InitialPlanningRuntime(sessionmaker(engine), policy(), clock=lambda: now)
     return source, cid, principal, provider, runtime, payloads, runner
 
 
@@ -47,6 +48,7 @@ def test_capture_actual_values_idempotency_ownership_and_immutable(
             db, actor, provider, source.workspace_id, source.account_id, cid, runtime
         )
         assert item.spend_micros == 10000001 and str(item.conversions) == "3.000000"
+        assert item.reported_day_count == 1  # Never infer unreported days as observed zero.
         assert (
             capture_current(
                 db, actor, provider, source.workspace_id, source.account_id, cid, runtime
@@ -110,7 +112,7 @@ def test_retention_configuration_never_extends_capsule(
         changed = replace(
             runtime,
             configuration=runtime.configuration.model_copy(update={"retention_seconds": 1000000}),
-            clock=lambda: NOW + timedelta(seconds=1),
+            clock=lambda: runtime.clock() + timedelta(seconds=1),
         )
         assert (
             capture_current(
@@ -143,7 +145,7 @@ def test_dependency_delete_erases_parent_and_expiry_export_fence(
         )
         assert runtime.configuration
         obj = objective(item)
-        report = evaluate((item,), obj, runtime.configuration, NOW)
+        report = evaluate((item,), obj, runtime.configuration, runtime.clock())
         expiry = datetime.now(UTC) + timedelta(hours=-1 if expire else 1)
         db.add(
             CalibrationRow(
@@ -181,3 +183,24 @@ def test_dependency_delete_erases_parent_and_expiry_export_fence(
         assert db.get(CalibrationRow, report.id, populate_existing=True) is None
         assert db.get(ObservationRow, item.id) is not None
         assert (workspace_export_revision(db, source.workspace_id) > revision) is not expire
+        if expire:
+            assert (
+                capture_current(
+                    db, actor, provider, source.workspace_id, source.account_id, cid, runtime
+                )
+                == item
+            )  # Expired derived deletion does not demand a new provider import.
+
+
+def test_database_expiry_overrides_lagging_application_clock(
+    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import UTC, datetime
+
+    from app.initial_planning.clock import effective_now
+
+    with Session(customer_engine) as db:
+        runtime = InitialPlanningRuntime(
+            sessionmaker(customer_engine), policy(), clock=lambda: datetime(2000, 1, 1, tzinfo=UTC)
+        )
+        assert effective_now(db, runtime) >= datetime.now(UTC) - timedelta(seconds=1)

@@ -1508,3 +1508,12 @@ Google disconnect draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/
 Tested implementation: `7571ed2052f475b9235de6d94d09453b31921b2e`; the following commit
 only records this PR link. Parent subsequently selected Meta customer connections as
 the next isolated interface proposal, before TikTok/CRM implementation.
+## Shared Meta/TikTok Publication Types — 2026-10-06
+
+- Isolated `codex/inlet-social-contracts` from PR108 e4c1392. Additive social contracts
+  leave existing Google and fixture schemas/hashes unchanged. Frozen typed operations,
+  media binding, resource-kind namespaces, review/plan/request/receipt and transport ports.
+- Contract/compiler/Google adapter focused regression: 41 passed. Whole-tree Ruff
+  passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
+- No live factory or production permission. Unknown provider combination eligibility
+  remains explicit qualification work, and B16 is not complete.

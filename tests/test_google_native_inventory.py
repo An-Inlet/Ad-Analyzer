@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 from app.collectors.google_native_inventory import (
+    GoogleInventoryRequest,
     GoogleNativeInventory,
     GoogleNativeInventoryContext,
     GoogleNativeInventoryHTTP,
@@ -46,7 +47,7 @@ def request() -> GoogleNativeInventoryRequest:
     )
 
 
-def context(req: GoogleNativeInventoryRequest, now: datetime) -> GoogleNativeInventoryContext:
+def context(req: GoogleInventoryRequest, now: datetime) -> GoogleNativeInventoryContext:
     return GoogleNativeInventoryContext(
         scope=req.account,
         request_digest=req.digest(),
@@ -285,7 +286,7 @@ def test_native_lineage_and_values_fail_closed(mutation: str) -> None:
 
 
 def test_changed_scope_context_prevents_io() -> None:
-    def wrong(req: GoogleNativeInventoryRequest, now: datetime) -> GoogleNativeInventoryContext:
+    def wrong(req: GoogleInventoryRequest, now: datetime) -> GoogleNativeInventoryContext:
         value = context(req, now)
         value.scope = value.scope.model_copy(update={"connection_version": "google:3:2"})
         return value

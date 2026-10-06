@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 from app.collectors.tiktok_native_inventory import (
+    TikTokInventoryRequest,
     TikTokNativeInventory,
     TikTokNativeInventoryContext,
     TikTokNativeInventoryHTTP,
@@ -26,7 +27,7 @@ def request() -> TikTokNativeInventoryRequest:
     return TikTokNativeInventoryRequest.model_validate(raw)
 
 
-def context(req: TikTokNativeInventoryRequest, now: Any) -> TikTokNativeInventoryContext:
+def context(req: TikTokInventoryRequest, now: Any) -> TikTokNativeInventoryContext:
     return TikTokNativeInventoryContext(
         scope=req.account,
         request_digest=req.digest(),
@@ -204,7 +205,7 @@ def test_explicit_empty_and_absent_budget_remain_unqualified() -> None:
 def test_scope_is_rechecked_after_http(change: str) -> None:
     server = Server()
 
-    def current(req: TikTokNativeInventoryRequest, now: Any) -> TikTokNativeInventoryContext:
+    def current(req: TikTokInventoryRequest, now: Any) -> TikTokNativeInventoryContext:
         value = context(req, now)
         if server.calls:
             if change == "generation":

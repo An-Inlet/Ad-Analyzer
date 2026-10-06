@@ -1829,3 +1829,7 @@ provider HTTP only. Node helpers **11 passed**; Ruff, mypy app tests (**362 file
 diff check pass. Full/hosted CI/integration and live provider qualification remain
 pending. CRM customer setup UI remains an engineering followup. See
 `docs/inlet-tiktok-customer-ui.md` for the frozen interface and limitations.
+
+TikTok journey draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/139.
+Tested implementation: `bb27c674159ad94dc6e20d86a920291fa3ea2f1a`.
+Following commit only records this PR link; Full remains pending.

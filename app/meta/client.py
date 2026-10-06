@@ -72,7 +72,7 @@ class MetaClient:
         self, path: str, params: dict[str, str], token: str | None = None
     ) -> dict[str, Any]:
         if not re.fullmatch(
-            r"(?:oauth/access_token|me/(?:permissions|adaccounts)|act_[0-9]{1,32}(?:/(?:campaigns|adsets|insights))?)",
+            r"(?:oauth/access_token|me/(?:permissions|adaccounts)|act_[0-9]{1,32}(?:/(?:campaigns|adsets|ads|insights))?)",
             path,
         ):
             raise MetaError("meta_invalid_path")
@@ -178,3 +178,29 @@ class MetaClient:
         if cursor:
             params["after"] = cursor
         return self._request("act_" + identifier(account_id) + "/" + phase, params, token)
+
+    def detail_page(
+        self, account_id: str, token: str, phase: str, cursor: str | None, start: date, end: date
+    ) -> dict[str, Any]:
+        params = {"limit": str(PAGE_SIZE)}
+        edge = "ads" if phase == "ads" else "insights"
+        if phase == "ads":
+            params["fields"] = "id,account_id,campaign_id,adset_id,name,status,creative{id,name}"
+        elif phase in {"adset_insights", "ad_insights"}:
+            fields = (
+                "account_id,campaign_id,adset_id,date_start,date_stop,account_currency,"
+                "impressions,clicks,spend,actions,action_values"
+            )
+            if phase == "ad_insights":
+                fields += ",ad_id"
+            params.update(
+                fields=fields,
+                level="adset" if phase == "adset_insights" else "ad",
+                time_increment="1",
+                time_range=json.dumps({"since": start.isoformat(), "until": end.isoformat()}),
+            )
+        else:
+            raise MetaError("meta_invalid_path")
+        if cursor:
+            params["after"] = cursor
+        return self._request("act_" + identifier(account_id) + "/" + edge, params, token)

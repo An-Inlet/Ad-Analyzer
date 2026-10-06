@@ -10,6 +10,7 @@ from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import (
     Ad,
     AdGroup,
+    AdSet,
     AdvertisingAccount,
     Campaign,
     DailyMetric,
@@ -21,6 +22,7 @@ from app.ads.models import (
 from app.ads.schemas import (
     AdCreate,
     AdGroupCreate,
+    AdSetCreate,
     AdvertisingAccountCreate,
     CampaignCreate,
     DailyMetricCreate,
@@ -88,9 +90,21 @@ class AdvertisingMetricsRepository:
             ("campaign_id", "platform", "external_ad_group_id"),
         )
 
+    def upsert_ad_set(self, ad_set: AdSetCreate) -> AdSet:
+        self._require_campaign(ad_set.campaign_id)
+        return self._atomic_upsert(
+            AdSet, ad_set.model_dump(), ("campaign_id", "platform", "external_ad_set_id")
+        )
+
     def upsert_ad(self, ad: AdCreate) -> Ad:
         if self.scope is not None:
-            self._require_ad_group(ad.ad_group_id or 0)
+            if ad.ad_group_id is not None:
+                self._require_ad_group(ad.ad_group_id)
+            else:
+                parent = self.session.get(AdSet, ad.ad_set_id or 0)
+                if parent is None or parent.platform != self.scope.platform:
+                    raise ImportScopeError("ad-set unavailable")
+                self._require_campaign(parent.campaign_id)
         conflict_columns = (
             ("ad_group_id", "platform", "external_ad_id")
             if ad.ad_group_id is not None

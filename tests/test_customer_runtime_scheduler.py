@@ -355,3 +355,86 @@ def test_lost_analysis_commit_ack_does_not_relabel_success_retryable(
         assert (
             run is not None and run.status == AnalysisRunStatus.SUCCEEDED and run.retry_count == 0
         )
+
+
+@pytest.mark.usefixtures("tiktok_configured")
+def test_tiktok_actual_import_analysis_and_duplicate_delivery(customer_engine: Engine) -> None:
+    from app.analysis.models import AnalysisRun
+    from app.google_connections.dispatcher import deliver_analysis
+    from app.sources.dispatcher import run_tiktok
+
+    transport = TikTokFixture()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "tiktok-real-analysis")
+        tiktok_connect(db, wid, sid, transport)
+    run_tiktok(customer_engine, transport, NOW)
+    assert run_tiktok(customer_engine, transport, NOW)["completed_windows"] == 1
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 1
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 0
+    with Session(customer_engine) as db:
+        analyses = list(db.scalars(select(AnalysisRun)))
+        assert len(analyses) == 1 and analyses[0].workspace_id == wid
+        assert analyses[0].status == AnalysisRunStatus.SUCCEEDED
+
+
+@pytest.mark.usefixtures("tiktok_configured")
+@pytest.mark.parametrize("lifecycle", ["disconnect", "reconnect"])
+def test_tiktok_retired_generation_cannot_deliver_and_other_tenant_survives(
+    customer_engine: Engine, lifecycle: str
+) -> None:
+    from app.analysis.models import AnalysisRun
+    from app.google_connections.dispatcher import deliver_analysis
+    from app.sources import service as sources
+    from app.sources.dispatcher import run_tiktok
+
+    transport = TikTokFixture()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "tiktok-retired")
+        row, _ = tiktok_connect(db, wid, sid, transport)
+        cid = row.id
+        other, other_sid = setup(db, "tiktok-other")
+        tiktok_connect(db, other, other_sid, transport)
+    run_tiktok(customer_engine, transport, NOW)
+    run_tiktok(customer_engine, transport, NOW)
+    with Session(customer_engine) as db:
+        job_id = db.scalar(select(JobRun.id).where(JobRun.workspace_id == wid))
+        assert job_id is not None
+        if lifecycle == "disconnect":
+            sources.disconnect(db, sources.owned(db, wid, "tiktok_ads", cid))
+        else:
+            tiktok_connect(db, wid, sid, transport)
+    with pytest.raises(ValueError, match="analysis source"):
+        runtime._analyze(customer_engine, job_id)
+    assert deliver_analysis(customer_engine, runtime._analyze, now=NOW) == 1
+    with Session(customer_engine) as db:
+        analyses = list(db.scalars(select(AnalysisRun)))
+        assert len(analyses) == 1 and analyses[0].workspace_id == other
+        assert db.get(GoogleImportCompletion, job_id) is None
+
+
+@pytest.mark.usefixtures("tiktok_configured")
+def test_tiktok_foreign_workspace_connection_cannot_authorize_analysis(
+    customer_engine: Engine,
+) -> None:
+    from app.sources import service as sources
+    from app.sources.dispatcher import run_tiktok
+
+    transport = TikTokFixture()
+    with Session(customer_engine) as db:
+        wid, sid = setup(db, "tiktok-unbound")
+        row, _ = tiktok_connect(db, wid, sid, transport)
+        cid = row.id
+        other, other_sid = setup(db, "tiktok-foreign")
+        tiktok_connect(
+            db, other, other_sid, transport
+        )  # Same external advertiser, distinct tenant.
+    run_tiktok(customer_engine, transport, NOW)
+    run_tiktok(customer_engine, transport, NOW)
+    with Session(customer_engine) as db:
+        job_id = db.scalar(select(JobRun.id).where(JobRun.workspace_id == wid))
+        assert job_id is not None
+        row = sources.owned(db, wid, "tiktok_ads", cid)
+        row.account_id = None
+        db.commit()
+    with pytest.raises(ValueError, match="analysis source unavailable"):
+        runtime._analyze(customer_engine, job_id)

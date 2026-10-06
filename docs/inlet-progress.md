@@ -815,3 +815,20 @@ Earlier runtime validation is now terminal: PR75 Full989+6 local PowerShell skip
 CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full951+6
 passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
 this billing repair; these green baseline checks do not close newer findings.
+
+#### PR83 TikTok outbox review repair
+
+The provider-neutral completion table also receives TikTok jobs; the initial
+coordinator incorrectly required a Google connection for every delivery. The
+coordinator now branches on the persisted job platform and locks the matching
+owned Google or TikTok connection. TikTok reconnect/disconnect atomically retires
+only that source's pending jobs under the same workspace/connection locks.
+Real fixture TikTok imports now complete local analysis exactly once. Tests cover
+reconnect/disconnect stale selections, another tenant surviving retirement, and a
+foreign workspace connection being unable to authorize an unbound source job.
+
+Checks:67 focused SQLite/PostgreSQL tests passed (two existing Alembic warnings),
+Ruff/mypy253 files/diffcheck passed. Log:/tmp/inlet-scheduler-tiktok-final.log.
+The prior head96cca816 Full remains running in its untouched worktree; this repair
+was made in isolated/workspace/inlet-scheduler-repair so old validation is not
+silently attributed to the new code. Final-head Full/CI remain pending.

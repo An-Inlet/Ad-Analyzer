@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, JobRun
 from app.analysis.cadence import run_post_sync_analysis
 from app.analysis.enums import AnalysisRunStatus
@@ -22,6 +23,7 @@ from app.mandates.service import workspace_lock
 from app.settings import Settings, settings
 from app.sources.contracts import SourceTransport, get_source_transport
 from app.sources.dispatcher import run_tiktok
+from app.sources.models import SourceConnection
 from app.workspaces.models import Workspace, WorkspaceConfiguration, WorkspaceIntegration
 
 logger = logging.getLogger(__name__)
@@ -36,16 +38,32 @@ def _analyze(engine: Engine, job_id: int) -> object:
             raise ValueError("analysis source unavailable")
         workspace_lock(db, job.workspace_id)
         workspace = db.get(Workspace, job.workspace_id)
-        connection = db.scalar(
-            select(GoogleCustomerConnection)
-            .where(
-                GoogleCustomerConnection.workspace_id == job.workspace_id,
-                GoogleCustomerConnection.integration_id == job.connection_id,
-                GoogleCustomerConnection.account_id == job.account_id,
-                GoogleCustomerConnection.status == "connected",
+        connection: GoogleCustomerConnection | SourceConnection | None
+        if job.platform == AdvertisingPlatform.GOOGLE_ADS:
+            connection = db.scalar(
+                select(GoogleCustomerConnection)
+                .where(
+                    GoogleCustomerConnection.workspace_id == job.workspace_id,
+                    GoogleCustomerConnection.integration_id == job.connection_id,
+                    GoogleCustomerConnection.account_id == job.account_id,
+                    GoogleCustomerConnection.status == "connected",
+                )
+                .with_for_update()
             )
-            .with_for_update()
-        )
+        elif job.platform == AdvertisingPlatform.TIKTOK_ADS:
+            connection = db.scalar(
+                select(SourceConnection)
+                .where(
+                    SourceConnection.provider == "tiktok_ads",
+                    SourceConnection.workspace_id == job.workspace_id,
+                    SourceConnection.integration_id == job.connection_id,
+                    SourceConnection.account_id == job.account_id,
+                    SourceConnection.status == "connected",
+                )
+                .with_for_update()
+            )
+        else:
+            raise ValueError("analysis source provider unavailable")
         if workspace is None or workspace.status != "active" or connection is None:
             raise ValueError("analysis source unavailable")
         completion = db.get(GoogleImportCompletion, job_id)

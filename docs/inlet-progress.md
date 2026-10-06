@@ -1133,3 +1133,18 @@ Focused dependency/deployment/managed-configuration suite:23passed, including a 
 connection to explicitly guarded disposable PostgreSQL and sanitized failure/resource
 cleanup assertions. Ruff and mypy passed. Full/hostedCI pending. This does not prove
 schema compatibility, live production health, capacity or release readiness.
+## B19 Synthetic Restore Drill — 2026-10-06
+
+Branch `codex/inlet-restore-drill` from frozen PR94 head `5f9a0d0`. Added a guarded
+native PostgreSQL logical restore drill for a generated private schema containing two
+synthetic workspaces and tenant/session/goal/provider metadata, never grants or real
+customer data. Server/database identity is checked before schema mutation; arbitrary
+archives/source schemas are unsupported. ACLs, constraints/indexes, sequence state and
+all rows compare after restore; customer membership and provider FK isolation are
+exercised. Temporary schema cleanup succeeds on invalid archive and restore failure.
+
+Actual local PostgreSQL16.15 run: 82 tables,44 rows,two tenants restored; native archive
+348330bytes. Focused suite19passed,5existingAlembicwarnings; Ruff/mypy284/diff-check pass.
+No broad Full run, live backup configuration, intended-environment restore, PITR,
+key/media recovery, or post-snapshot privacy/revocation reconciliation claimed.
+Instructions and remaining operational qualification: `docs/inlet-restore-drill.md`.

@@ -4258,3 +4258,32 @@ Final new API/contracts:62 passed, zero skips, both databases (66.69s), log
 `/tmp/diag-final-api.log`; prior218 log `/tmp/diag-all.log`. Static logs
 `/tmp/diag-final-ruff.log`, `/tmp/diag-final-mypy.log`. This exact code is ready for
 independent browser integration; hosted/full CI remains unclaimed.
+
+### Account Diagnostics UI — Actual Read-Only Customer Journey
+
+Isolated branch `codex/inlet-account-diagnostics-ui` from rootb16dac4, merged frozen
+ports177edff and concrete backend445616f. New `/app/account-diagnostics`, linked
+from Existing Campaigns, uses owned named account selection and an explicit past
+UTC window up to366days. It reads only on customer action, needs no spending
+mandate, and renders bounded item counts, dates and fixed readable findings.
+Optimization remains false; native monetary values, resource IDs, raw JSON and
+internal qualification details are not rendered. Date/account/workspace changes,
+A→B→A, session-cookie changes, logout and owner denial clear stale output; no
+automatic read replay after a lost response.
+
+Actual HTTPS browser→session/CSRF API→encrypted synthetic vault→concrete service/
+factory→real Google/Meta/TikTok collectors via MockTransport is verified across
+SQLite and PostgreSQL. Only low-level HTTP transport and clock are injected, with
+mandate-check sentinel failing if consulted. Each journey verifies four explicit
+successful native reads, disabled factory zero calls and deterministic transport
+closure, while preserving manual execution UI logic.
+
+Initial browser run: **2 passed, 4 failed** because social fixtures also contained
+a valid Google account and the harness assumed a single entry. Corrected selection
+of the intended owned account without removing any account or weakening assertions.
+Final browser/shell/contracts/route suite: **18 passed**, no skips,26.49s using
+inlet_candidate_migration_ci with unique schemas and no shared database reset.
+Whole Ruff, clean mypy **609 files**, JavaScript syntax and diff checks pass.
+Logs `/tmp/inlet-account-diagnostics-ui-integrated.log` and
+`/tmp/inlet-account-diagnostics-ui-final-types.log`. Parent owns assembled Full
+and hosted/intended-environment qualification. No live settings or execution enabled.

@@ -3871,3 +3871,62 @@ unresolved completions cannot establish maturity. Root73 passed,1 expected SQLit
 row-lock skip in70.45s (`/tmp/inlet-next-independent-publications.log`); Ruff check .,
 configured mypy572 and whitespace passed. No migration, production policy/source
 registration or live request.
+## B17 Canonical Feedback Consumer And Composed Retraction — 2026-10-06
+
+Branch `codex/inlet-feedback-snapshot`, worktree `/workspace/inlet-feedback-snapshot`,
+base `c2e43b9236a5affeca7516d37783ec80bbc0a3f0`. Added server-only canonical
+scope, owned apply orchestration and a bounded provenance-rich association snapshot
+over actual persisted feedback. It rechecks current session/receipt/goal/source/plan
+and policy. Empty, unavailable and nonempty zero scores are distinct. Initial grouping
+supports existing-campaign optimization only; activation mapping and directional
+candidate consumption remain missing code. Default policies stay None; actual
+unqualified inputs cannot create eligible feedback.
+
+New snapshot cases passed across SQLite/PostgreSQL; combined snapshot/policy/storage
+suite: **36 passed** (89.26s). New composed0064→candidate→0068 tests: **4 passed**
+(14.23s), including final-context retraction after claim and protected0066 response /
+financial hold preservation with actual mocked Google emission and reconciliation.
+Derived numeric/dependency records are explicitly schema fixtures, not qualified facts.
+
+Final focused command covered `test_feedback_snapshot`, `test_feedback_review_composition`,
+`test_feedback_races`, `test_feedback_migration`, `test_candidate_review_migration` and
+`test_google_completion_restore`: **17 passed, 2 skipped**, 8 existing Alembic config
+warnings (32.42s). Skips: SQLite row-lock test and native Google restore because native
+PostgreSQL tooling/container was not configured.0064 and0068 migration roundtrips did
+run; no new native0066 restore success is claimed. Final Ruff, mypy **570 files**, and
+`git diff --check` passed. No migration, Full, manual dispatch, live call or policy
+activation. A transient exec transport disconnect recovered on one harmless retry;
+no quota signal occurred. See `docs/design/b17-feedback-decision-wiring.md`.
+
+### 2026-10-06 — Scoped feedback consumer and composed erasure verified
+
+Integrated PR2058323666 canonical owned feedback scope/apply/snapshot. Root13 passed
+with2 compositionfixturefailures: synthetic historical dependency incorrectly used
+a higher v1revision, so the version-aware current-source guard correctly blocked
+before the intended finalcontext race. Fixture now explicitly labels its unsupported
+dependency-only manifest and asserts current review before the race. Final4 composition
+cases passed in9.73s, preserving actualthird-context deletion, zero writes,0064cascade,
+0068forward denial and0066financial/capture/history retention. Configured native0066
+restore also passed in the13 priorpasses (no missing-tools skip). Ruff check .,
+configured mypy575 and whitespace passed. Logs `/tmp/inlet-next-feedback-consumer.log`
+and `/tmp/inlet-next-feedback-composition.log`. Association snapshots do not authorize
+direction or spending; actual qualified policy/source remain unavailable.
+
+### Frozen8efe196 LOCAL FULL TERMINAL SUCCESS
+
+`/tmp/inlet-oct06-candidate2-full.exitcode` is0; final log records38passed6PowerShell
+unavailable skips29deselected in3344.99s(55m44s) for finalFocused gate. Primarypytest
+2639passed59skipped85warnings in4650.54s; Ruff/mypy489/diff, PGtransactions3passed,
+actual upgrade/downgrade/reupgrade, ReadOnly75passed, Security98passed1PowerShellskip
+and Privacy14passed completed. The long duration is two nested Full iterations in
+primarypytest and two more in finalFocused; recursion guard explicitly sets
+AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION=true for children, preventing
+unbounded recursion. Process observations showed CPU advance and transition from
+primarypytest to latergates; finalallprocessesexited and frozenDB had no active
+connections/zero deadlocks. No coverage/timeouts weakened.
+
+The original interactive handle could not resume aftertransport recovery (unknown
+session/pongtimeout), but wrapper-owned exitfile and completeterminal log proveprocess
+finished successfully. This is not a lost/assumedalive execution. Full log retained
+at `/tmp/inlet-oct06-candidate2-full.log`. Hosted37427571832 remains FAILED onthat
+exacttree; PR199targetedrepair is onnewintegration and awaits assembledFull/CI.

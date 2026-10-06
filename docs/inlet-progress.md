@@ -1031,3 +1031,12 @@ provider call. Quoted acceptance wording comes from the integrating agent's reta
 Library audit read; original attachment bytes were not materialized here. Next: finish
 shared provider publication contracts/actual adapters and core task UI, then stable
 B17 evidence contracts and final integrated operational/pilot acceptance.
+
+
+Acceptance-matrix refresh before integration freeze: PR101 `8835340`, PR102
+`2508a75`, PR103 `d4c78c5`, PR104 `fa70d8b`, PR107 `a6de6e9`, PR108 `e4c1392`
+and PR109 `e12f11b` are now recorded with exact full heads and focused counts in
+`inlet-b15-b20-acceptance.md`. Shopify consent navigation and the concrete Google
+compiler/HTTP adapter receive implementation credit; durable qualified publication
+coordination/activation, storage deletion, video UI and intended-environment evidence
+remain open. No new Full or provider call; documentation checks only.

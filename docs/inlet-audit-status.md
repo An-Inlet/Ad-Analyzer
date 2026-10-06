@@ -20,7 +20,7 @@ suite is not completion of the audit's full customer/provider journey.
 | B12 | Klaviyo/HubSpot HTTP and conservative field projections implemented/tested | Durable pacing and verified Omnisend HTTP adapter implemented/tested; renewal, canonical identity mapping/retention consumer |
 | B13 | Test Stripe HTTP, webhooks, entitlements, management and safe recovery implemented/tested | Commercial configuration, complete browser journey and live qualification; legacy unknown keys fail closed |
 | B14 | Typed immutable offline review and bounded image validation implemented/tested | Video validation, production media storage, rendered review and preview/publication equivalence |
-| B15 | Fixture publication coordinator exists on separate draft PR98; actual Google publication incomplete | Real compiler/HTTP/readback, partial-effect reconciliation, separate activation and authority |
+| B15 | Fixture coordinator PR98 and concrete disabled Google compiler/HTTP PR108 exist; publication incomplete | Qualified provider review/coordinator/UI, capability reads, separate activation and authority |
 | B16 | Shared fixture foundation only; actual Meta/TikTok actions/publication incomplete | Each supported campaign type must complete its concrete provider journey |
 | B17 | Legacy learning/outcome components exist; Inlet action-effect feedback incomplete | Mature comparable action windows, bounded recommendation updates and customer explanations |
 | B18 | Portal plus actual HTTPS browser/API/database lifecycle tests pass | Actual browser/API/DB signup, goal and billing fixture journey passes; complete source setup, mandate editing, activity/support, export/closure |
@@ -69,3 +69,9 @@ That document includes PR95 browser-origin Shopify API limits, PR97 dependency
 readiness, PR98 fixture publication, PR99 rendered review and PR100 disposable native
 restore. These branches are not implicitly integrated into this base checkout. None
 of B15–B20 is complete; Full/CI and real environment acceptance remain separate.
+
+Latest matrix refresh also records PR101/102 lifecycle repairs, PR103 private GCS,
+PR104 actual Shopify consent navigation, PR107 delayed-write authorization, PR108
+concrete Google compiler/HTTP and PR109 bounded supplied-video validation. Their
+focused evidence does not complete integrated Full, cloud qualification, media
+lifecycle deletion, video UI or provider-approved publication/activation.

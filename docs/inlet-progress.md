@@ -1729,3 +1729,20 @@ Focused discovery + Google/Shopify/Meta Chromium journeys on SQLite/PostgreSQL:
 **9 passed** (`tests/test_browser_targets.py`, `tests/test_google_connections_browser.py`,
 `tests/test_shopify_consent_browser.py`, `tests/test_meta_customer_browser.py`). The
 billing startup failure remains reported separately for its dedicated repair.
+
+### Integrated Lifecycle Registry Repair And Browser Qualification
+
+Independent review found the newly registered provider qualification/review/approval
+models absent from the lifecycle table allowlist. The first combined browser run
+reproduced broken closure on both SQLite and PostgreSQL: 2 failed,13 passed
+(`/tmp/inlet-candidate-browser.log`). Added explicit workspace-scoped protected
+scalar projections for those tables; raw evidence/review/plan JSON stays omitted.
+A canonical-registry regression prevents this integration omission recurring.
+
+After repair, the lifecycle/model registry plus closure/Google/Shopify/Meta/billing
+browser and target-discovery suite passed **36 tests with one SQLite-only row-lock
+skip**; its PostgreSQL counterpart ran. Ruff, whole mypy (362 files), and diff
+checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This also
+qualifies the combined PR126/128 session-readiness and PR131 target-discovery
+repairs without timing retries or weakened product assertions. See the current
+`docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.

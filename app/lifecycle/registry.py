@@ -729,6 +729,49 @@ TABLES: dict[str, TablePolicy] = {
         False,
     ),
     "platform_automation_controls": TablePolicy("platform_global", (), None, False),
+    # Provider evidence remains protected; export only scoped scalar facts.
+    # Nested evidence/review/plan payloads require their own versioned serializers.
+    "provider_qualifications": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "integration_id",
+            "draft_id",
+            "source_revision",
+            "provider",
+            "api_version",
+            "binding_digest",
+            "observed_at",
+            "expires_at",
+            "created_by",
+        ),
+        None,
+        True,
+    ),
+    "provider_reviews": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "qualification_id",
+            "draft_id",
+            "source_revision",
+            "review_digest",
+            "plan_digest",
+            "created_by",
+            "created_at",
+        ),
+        None,
+        True,
+    ),
+    "provider_review_approvals": TablePolicy(
+        "workspace",
+        ("review_id", "workspace_id", "review_digest", "plan_digest", "actor", "approved_at"),
+        None,
+        True,
+    ),
     "publication_plans": TablePolicy(
         "workspace",
         (

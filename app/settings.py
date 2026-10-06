@@ -372,6 +372,9 @@ class Settings(BaseSettings):
     shopify_measurement_enabled: bool = Field(
         default=False, validation_alias="AD_ANALYZER_SHOPIFY_MEASUREMENT_ENABLED"
     )
+    shopify_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_SHOPIFY_CUSTOMER_ENABLED"
+    )
     shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
     shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")
     shopify_client_secret: SecretStr | None = Field(

@@ -816,6 +816,18 @@ CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full
 passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
 this billing repair; these green baseline checks do not close newer findings.
 
+### Customer Shopify Connection API (2026-10-06)
+
+Added disabled-by-default customer Shopify authorize/callback/list/disconnect routes,
+revocable session and owner/admin CSRF checks, signed-query-preserving static relay,
+and workspace/session/state transaction locks that serialize callbacks/disconnect.
+The existing read-only Shopify client, verified shop/scope binding, canonical store
+identity and privacy purge are reused. Operator callback configuration is unchanged.
+Focused customer cases:18 passed,2 SQLite lock-test skips; combined Shopify/privacy
+nonmigration regression suite:64 passed,2 skips,6 migration cases deselected because
+starting integrationbasec86beb3 had two migrationheads. Ruff/mypy266files/diff passed.
+Merge current integration's0036 before migration-wide checks. NoFull/providercalls,
+credentials, merge-to-main or deployment. See docs/inlet-customer-shopify.md.
 #### PR83 TikTok outbox review repair
 
 The provider-neutral completion table also receives TikTok jobs; the initial
@@ -915,3 +927,16 @@ not claimed clean. Full and hosted CI pending. No provider calls or live verific
 Remaining: TikTok video validation, customer review UI, production private storage and
 media lifecycle, B15/B16 compiler/publication/reconciliation and spend/freshness gates.
 The first package does not claim all B14 acceptance criteria complete.
+Customer Shopify follow-up: merged integration8ae5ab798eadd8835749f9ed03844fcf8280c25f,
+resolving inherited migrationheads. Aligned legacy operator persistence and importer
+workspace-before-connection locks with customer callbacks. Final combined customer
+Shopify/legacy Shopify/privacy/integrated migration suite:73 passed,3 SQLite-only
+lock-semantics skips; PostgreSQL concurrency and populated migration roundtrip pass.
+Ruff, mypy268files and diff checks pass. Full and hosted CI remain pending.
+
+PR87 cross-path review reproduced privacy-handler connection-before-workspace locking.
+Fixed privacy owner fences plus nonce-before-store retention/uninstall cleanup; added
+PostgreSQL callback-vs-uninstall and expiry-sweep tests. Preserved native importer
+suspended-workspace status after original CI exposed regression. Expanded suite
+including native ownership:85 passed,5 SQLite lock-only skips. Original CI37403352872
+failed (importer status and nested browser20sdeadline); fresh head validation required.

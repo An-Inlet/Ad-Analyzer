@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from typing import Any
@@ -12,7 +13,16 @@ from app.imports.native import bind_shopify, revoke_native_integration
 from app.settings import Settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOAuthState
-from app.shopify.security import SCOPES, ShopifyError, Vault, configuration_ready, shop_domain, utc
+from app.shopify.security import (
+    SCOPES,
+    ShopifyError,
+    Vault,
+    configuration_ready,
+    customer_redirect_uri,
+    shop_domain,
+    utc,
+)
+from app.workspaces.models import Workspace
 
 
 def credentials(
@@ -56,8 +66,10 @@ class ConnectionService:
             query = query.with_for_update()
         return self.session.scalar(query)
 
-    def begin(self, workspace_id: int, shop: str, actor: str, now: datetime) -> str:
-        if not configuration_ready(self.settings):
+    def begin(
+        self, workspace_id: int, shop: str, actor: str, now: datetime, *, customer: bool = False
+    ) -> str:
+        if not configuration_ready(self.settings, customer=customer):
             raise ShopifyError("shopify_configuration_required")
         shop = shop_domain(shop)
         existing = self.get(workspace_id)
@@ -100,7 +112,9 @@ class ConnectionService:
             {
                 "client_id": self.settings.shopify_client_id,
                 "scope": ",".join(sorted(self.required_scopes())),
-                "redirect_uri": self.settings.shopify_redirect_uri,
+                "redirect_uri": customer_redirect_uri(self.settings)
+                if customer
+                else self.settings.shopify_redirect_uri,
                 "state": nonce,
             }
         )
@@ -125,7 +139,13 @@ class ConnectionService:
         return MEASUREMENT_SCOPES if self.settings.shopify_measurement_enabled else SCOPES
 
     def finish(
-        self, state: ShopifyOAuthState, code: str, role: str, now: datetime
+        self,
+        state: ShopifyOAuthState,
+        code: str,
+        role: str,
+        now: datetime,
+        *,
+        before_persist: Callable[[], None] | None = None,
     ) -> ShopifyConnection:
         workspace_id, shop, digest = state.workspace_id, state.shop_domain, state.digest
         result = self.session.execute(
@@ -135,7 +155,10 @@ class ConnectionService:
         )
         if result.rowcount != 1:  # type: ignore[attr-defined]
             raise ShopifyError("invalid_oauth_state")
-        self.session.commit()  # Consume the authorization attempt before exchanging a one-use code.
+        if before_persist is None:
+            self.session.commit()  # Existing operator flow consumes before exchange.
+        # Customer caller holds workspace/session/state locks through the bounded exchange.
+        # Its nonce delete and credential persistence commit atomically.
         bundle = credentials(self.client.token(shop, code=code), now)
         metadata = self.client.shop(shop, bundle["access_token"])
         try:
@@ -157,6 +180,9 @@ class ConnectionService:
             name = str(details["name"])[:255]
         except (ValueError, KeyError, TypeError, ZoneInfoNotFoundError):
             raise ShopifyError("shopify_store_verification_failed") from None
+        if before_persist is not None:
+            before_persist()
+        self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)
         if row and row.shop_domain != shop:
             raise ShopifyError("disconnect_existing_store_first")
@@ -197,6 +223,8 @@ class ConnectionService:
         return str(bundle["access_token"])
 
     def disconnect(self, workspace_id: int, role: str) -> None:
+        # Fence customer OAuth callbacks, including disconnect of a pending first install.
+        self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)
         if row:
             from app.shopify.privacy_identity import preserve

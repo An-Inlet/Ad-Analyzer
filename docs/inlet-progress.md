@@ -868,3 +868,18 @@ not claimed clean. Full and hosted CI pending. No provider calls or live verific
 Remaining: TikTok video validation, customer review UI, production private storage and
 media lifecycle, B15/B16 compiler/publication/reconciliation and spend/freshness gates.
 The first package does not claim all B14 acceptance criteria complete.
+
+B14 integrated validation: merged PR86 head
+`ea4871b472c119dbe7e4a13d7958c315882eefd9` without conflicts, preserving migration0037
+and both progress records. At code head `17b21cd32d4a079b121638a3934f1482e5ceff36`,
+B14/Meta/customer journey/portal focused suite:72 passed,1 intentional SQLite race
+skip; Ruff/mypy277 and wheel build passed. Draft PR91:
+https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/91. Full/CI remain pending.
+
+Predecessor validation: unchanged PR84 `68c9bc58f9d337296d1421e966f7867027239c36`
+local Full finished exit0 (1,021 passed/6 unavailable-PowerShell skips; final automation
+38 passed/6 same skips). Hosted CI37401780500/job112070362703 passed1,027 tests and
+all gates; actual checkout3e700ed48e4b841d9fe2b493e3158c5cb2cb2ee2 tree equals head.
+PR79 hosted CI37401087556/job112068198895 passed1,022 tests/all gates; actual checkout
+040a5b424712203c90ea9e39b972445cb46ad42e tree equals head24ad1ae. PR79 local Full
+was not run. Both PR bodies record terminal CI evidence; no live qualification.

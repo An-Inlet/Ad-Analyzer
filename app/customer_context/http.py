@@ -10,8 +10,9 @@ import logging
 import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Any, Literal
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 from pydantic import SecretStr
@@ -44,6 +45,35 @@ class CRMHTTPLogFilter(logging.Filter):
 
 class CRMReadError(RuntimeError):
     """Sanitized error; never include credentials, raw payloads or customer identifiers."""
+
+
+class CRMAuthenticationUnavailable(CRMReadError):
+    """The current credential lacks authentication or required access; do not retry as 429."""
+
+    def __init__(self) -> None:
+        super().__init__("crm_authorization_unavailable")
+
+
+class CRMRateLimited(CRMReadError):
+    """Bounded scheduling hint, never a revocation signal."""
+
+    def __init__(self, retry_after: int) -> None:
+        super().__init__("crm_rate_limited")
+        self.retry_after = retry_after
+
+
+def retry_seconds(value: str | None, now: datetime) -> int:
+    try:
+        if value is None or len(value) > 128:
+            return 60
+        seconds = (
+            int(value)
+            if re.fullmatch(r"[0-9]{1,10}", value)
+            else int((parsedate_to_datetime(value) - now).total_seconds()) + 1
+        )
+        return max(5, min(seconds, 86400))
+    except (ValueError, TypeError, OverflowError):
+        return 60
 
 
 def bounded(value: object, maximum: int = 4096) -> str:
@@ -117,9 +147,11 @@ class CRMHTTP:
                 client.stream(method, url, headers=headers, params=params, data=data) as response,
             ):
                 if response.status_code in {401, 403}:
-                    raise CRMReadError("crm_authorization_unavailable")
+                    raise CRMAuthenticationUnavailable()
                 if response.status_code == 429:
-                    raise CRMReadError("crm_rate_limited")
+                    raise CRMRateLimited(
+                        retry_seconds(response.headers.get("Retry-After"), self.clock())
+                    )
                 if not 200 <= response.status_code < 300:
                     raise CRMReadError("crm_read_unavailable")
                 raw = bytearray()
@@ -365,7 +397,7 @@ class HubSpotHTTPRead(CRMHTTP):
 
 
 class OmnisendHTTPRead(CRMHTTP):
-    """Documented request/projection preparation; account schema blocks factory enablement."""
+    """Read-only 2026-03-15 contract pinned to the official Omnisend WordPress SDK."""
 
     provider: CustomerProvider = "omnisend"
     scopes = frozenset({"brands.read", "contacts.read"})
@@ -379,23 +411,103 @@ class OmnisendHTTPRead(CRMHTTP):
 
     def authorize_url(self, state: str, redirect_uri: str) -> str:
         oauth_parameters(state, redirect_uri, self.provider)
-        # Provider table says 'scopes' but its actual request example uses 'scope'.
-        # Keep authorization unavailable until that and account proof are qualified.
-        raise CRMReadError("omnisend_authorization_contract_unverified")
+        return "https://app.omnisend.com/oauth2/authorize?" + urlencode(
+            {
+                "response_type": "code",
+                "client_id": self.client_id,
+                "redirect_uri": redirect_uri,
+                "scope": " ".join(sorted(self.scopes)),
+                "state": state,
+            },
+            quote_via=quote,
+        )
+
+    def _oauth(self, data: dict[str, str]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "https://app.omnisend.com/oauth2/token",
+            data={
+                **data,
+                "client_id": self.client_id,
+                "client_secret": self.secret.get_secret_value(),
+            },
+        )
+
+    def _grant(
+        self,
+        payload: dict[str, Any],
+        *,
+        expected_account: str | None = None,
+        previous_refresh: str | None = None,
+    ) -> SourceGrant:
+        scope = payload.get("scope")
+        # Initial exchange must affirm the exact requested read permissions. For
+        # renewal, omitted scope retains the original OAuth grant (RFC 6749 6);
+        # an explicitly supplied differing scope always fails closed.
+        if not (previous_refresh is not None and "scope" not in payload) and (
+            not isinstance(scope, str) or set(scope.split()) != self.scopes
+        ):
+            raise CRMReadError("crm_scope_mismatch")
+        token = bounded(payload.get("access_token"))
+        refresh = payload.get("refresh_token", previous_refresh)
+        if "refresh_token" in payload or refresh is not None:
+            refresh = bounded(refresh)
+        lifetime = payload.get("expires_in")
+        if str(payload.get("token_type", "")).lower() != "bearer" or (
+            lifetime is not None
+            and (type(lifetime) is not int or not 0 < lifetime <= 10_000_000_000)
+        ):
+            raise CRMReadError("crm_grant_invalid")
+        try:
+            account = self.account(token)
+            if expected_account is not None and account.external_id != expected_account:
+                raise CRMReadError("crm_account_mismatch")
+            return SourceGrant(
+                access_token=SecretStr(token),
+                refresh_token=SecretStr(refresh) if refresh else None,
+                expires_at=self.clock() + timedelta(seconds=lifetime)
+                if lifetime is not None
+                else None,
+                accounts=[account],
+            )
+        except (ValueError, TypeError, OverflowError):
+            raise CRMReadError("crm_grant_invalid") from None
 
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant:
-        raise CRMReadError("omnisend_authorization_contract_unverified")
+        oauth_parameters("a" * 43, redirect_uri, self.provider)
+        return self._grant(
+            self._oauth(
+                {
+                    "grant_type": "authorization_code",
+                    "code": bounded(code),
+                    "redirect_uri": redirect_uri,
+                }
+            )
+        )
 
     def account(self, token: str) -> SourceAccount:
-        # Never fabricate an account binding from a caller-supplied ID. Official
-        # retrieved brand reference omits the response identity schema.
-        raise CRMReadError("omnisend_account_contract_unverified")
-
-    def read_current_brand(self, token: str) -> dict[str, Any]:
-        # Deliberately private boundary preparation, not exposed via the factory.
-        # No response retention; callers must not treat this as verified identity.
-        return self.get(
+        payload = self.get(
             "https://api.omnisend.com/api/brands/current",
             {"Authorization": "Bearer " + bounded(token), "Omnisend-Version": OMNISEND_REVISION},
             {},
+        )
+        try:
+            return SourceAccount(external_id=payload["brandID"], name="Omnisend Brand")
+        except (KeyError, TypeError, ValueError):
+            raise CRMReadError("crm_account_unavailable") from None
+
+    def get(self, path: str, headers: dict[str, str], params: dict[str, str]) -> dict[str, Any]:
+        payload = super().get(path, headers, params)
+        if path == "https://api.omnisend.com/api/contacts":
+            paging = payload.get("paging")
+            if not isinstance(paging, dict) or type(paging.get("hasMore")) is not bool:
+                raise CRMReadError("crm_profile_response_invalid")
+        return payload
+
+    def refresh(self, refresh_token: str, account_id: str) -> SourceGrant:
+        previous = bounded(refresh_token)
+        return self._grant(
+            self._oauth({"grant_type": "refresh_token", "refresh_token": previous}),
+            expected_account=account_id,
+            previous_refresh=previous,
         )

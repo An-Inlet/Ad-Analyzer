@@ -52,25 +52,20 @@ swapped ciphertext, wrong session, expiry and replay fail. Consumed state and ve
 removal survive session closure. Verifiers and tokens are absent from logs and plain
 stored authorization fields.
 
-## Omnisend Blockers And Corrected Projection
+## Omnisend Follow-Up
 
-Official OAuth documentation exists, so lack of OAuth support is **not** the blocker.
-It documents `/oauth2/authorize` and form-encoded `/oauth2/token`, but its parameter
-table says `scopes` while the request example says `scope`. The current-brand endpoint
-reference documents `/api/brands/current` and `brands.read`, but the accessible page
-has no response identity schema. The Markdown links were inaccessible to the web
-reader, and executor requests to documentation were rejected by its network proxy.
-No brand-ID field was guessed, and no live request was used to discover it.
+The original package left Omnisend unavailable because the rendered reference omitted
+its brand identity response and contradicted itself on `scope` versus `scopes`.
+That historical contract blocker is now resolved using pinned first-party Omnisend
+WordPress SDK source. The runtime has an explicit disabled-default factory path,
+current-brand proof and OAuth exchange/renewal. See
+[inlet-omnisend-contract-evidence.md](inlet-omnisend-contract-evidence.md) and
+[inlet-omnisend-runtime.md](inlet-omnisend-runtime.md) for exact evidence, checks and
+remaining live/lifecycle/identity/retention work. No credentialed calls were made.
 
-Required next evidence: authoritative current-brand response schema and confirmed
-OAuth scope parameter. After that, implement/qualify grant account proof and OAuth
-exchange, then permit the disabled-default factory path. This is remaining code and
-contract qualification, not merely missing credentials.
-
-The official migration guide proved the existing profile fixture wrong: current
-contact pages use `contacts[]`, not `data[]`, and `paging.hasMore` controls whether
-`paging.cursors.after` is followed. Projection/tests now enforce that contract and
-reject a missing required continuation. Omnisend revision `2026-03-15` is documented.
+Current contacts use `contacts[]`, per-contact `id`, and `paging.hasMore` with
+`paging.cursors.after` under revision `2026-03-15`. Missing or null channel context
+stays unknown; no address or phone fields are retained in the projection.
 
 ## Still Not B12 Acceptance
 

@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,10 +11,12 @@ from app.api.crm import router as crm_router
 from app.api.customer import router as customer_router
 from app.api.customer_ad_detail import router as customer_ad_detail_router
 from app.api.customer_billing import router as customer_billing_router
+from app.api.customer_campaign_review import router as customer_campaign_review_router
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
 from app.api.customer_mandates import router as customer_mandates_router
+from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_sources import router as customer_sources_router
 from app.api.intelligence import router as intelligence_api_router
 from app.api.meta import router as meta_api_router
@@ -27,6 +29,8 @@ from app.dashboard.meta import router as meta_dashboard_router
 from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.deployment import DeploymentProcess, validate_deployment_startup
+from app.portal.auth import customer_content_security_policy
+from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
 from app.shopify.logging import install_access_filter
@@ -78,9 +82,11 @@ def read_health() -> HealthResponse:
 
 
 @app.get("/ready", response_model=ReadinessResponse)
-def read_ready() -> ReadinessResponse:
+def read_ready(response: Response) -> ReadinessResponse:
     """Return startup readiness without contacting external services."""
     result = validate_deployment_startup(DeploymentProcess.WEB)
+    response.status_code = 200 if result.ok else 503
+    response.headers["Cache-Control"] = "no-store"
     database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
     return ReadinessResponse(
         status="ready" if result.ok else "not_ready",
@@ -114,13 +120,16 @@ app.include_router(intelligence_api_router)
 app.include_router(crm_router)
 app.include_router(customer_router)
 app.include_router(portal_router)
+app.include_router(browser_auth_router)
 app.mount("/app/assets", StaticFiles(directory=portal_static), name="customer-assets")
 app.include_router(customer_commerce_router)
 app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)
+app.include_router(customer_campaign_review_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
+app.include_router(customer_shopify_router)
 app.include_router(customer_billing_router)
 app.include_router(pubsub_router)
 app.include_router(dashboard_router)
@@ -137,10 +146,7 @@ async def dashboard_security_headers(request: Request, call_next: object) -> obj
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
     if request.url.path == "/app" or request.url.path.startswith("/app/"):
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; "
-            "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-        )
+        response.headers["Content-Security-Policy"] = customer_content_security_policy()
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"

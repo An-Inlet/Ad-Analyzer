@@ -34,13 +34,32 @@ def shop_domain(value: str) -> str:
     return value
 
 
-def configuration_ready(settings: Settings) -> bool:
+def customer_redirect_uri(settings: Settings) -> str:
+    origin = urlsplit(settings.customer_app_origin)
+    if (
+        origin.scheme != "https"
+        or not origin.hostname
+        or origin.username
+        or origin.password
+        or origin.path
+        or origin.query
+        or origin.fragment
+    ):
+        raise ShopifyError("shopify_configuration_required")
+    return settings.customer_app_origin + "/api/customer/v1/shopify/callback"
+
+
+def configuration_ready(settings: Settings, *, customer: bool = False) -> bool:
     try:
         if not settings.shopify_enabled or not re.fullmatch(
             r"[a-zA-Z0-9_-]{8,128}", settings.shopify_client_id
         ):
             return False
-        uri = urlsplit(settings.shopify_redirect_uri)
+        if customer and not settings.shopify_customer_enabled:
+            return False
+        uri = urlsplit(
+            customer_redirect_uri(settings) if customer else settings.shopify_redirect_uri
+        )
         if (
             uri.scheme != "https"
             or not uri.hostname
@@ -50,7 +69,10 @@ def configuration_ready(settings: Settings) -> bool:
             or uri.fragment
         ):
             return False
-        if uri.path != "/dashboard/shopify/callback":
+        expected_path = (
+            "/api/customer/v1/shopify/callback" if customer else "/dashboard/shopify/callback"
+        )
+        if uri.path != expected_path:
             return False
         if not re.fullmatch(
             r"projects/[a-zA-Z0-9_.:-]+/subscriptions/[a-zA-Z0-9_.-]+",

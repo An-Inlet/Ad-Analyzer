@@ -816,6 +816,18 @@ CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full
 passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
 this billing repair; these green baseline checks do not close newer findings.
 
+### Customer Shopify Connection API (2026-10-06)
+
+Added disabled-by-default customer Shopify authorize/callback/list/disconnect routes,
+revocable session and owner/admin CSRF checks, signed-query-preserving static relay,
+and workspace/session/state transaction locks that serialize callbacks/disconnect.
+The existing read-only Shopify client, verified shop/scope binding, canonical store
+identity and privacy purge are reused. Operator callback configuration is unchanged.
+Focused customer cases:18 passed,2 SQLite lock-test skips; combined Shopify/privacy
+nonmigration regression suite:64 passed,2 skips,6 migration cases deselected because
+starting integrationbasec86beb3 had two migrationheads. Ruff/mypy266files/diff passed.
+Merge current integration's0036 before migration-wide checks. NoFull/providercalls,
+credentials, merge-to-main or deployment. See docs/inlet-customer-shopify.md.
 #### PR83 TikTok outbox review repair
 
 The provider-neutral completion table also receives TikTok jobs; the initial
@@ -846,3 +858,157 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+## Customer Browser Sign-In Package (2026-10-06)
+
+Branch `codex/inlet-customer-signin` from integrated `8ae5ab798eadd8835749f9ed03844fcf8280c25f`.
+Disabled-by-default Google browser signup/sign-in now exchanges a fresh provider identity
+once into the existing revocable server session. Confirmed CSRF logout precedes account
+switching; unknown exchange results clear customer DOM and require an explicit session
+check. Firebase Auth 12.19.0 uses in-memory persistence and SDK cleanup in `finally`.
+Self-hosted asset and exact dependency lock rebuild reproducibly; CI enforces the diff.
+Enabled-only CSP contains fixed Google bootstrap/API origins and derived project iframe.
+
+Focused validation: 53 pytest cases (SQLite, PostgreSQL and actual Chromium), including
+8 Node subtests, plus Ruff, mypy (272 source files), whitespace checks and a clean npm-ci
+rebuild with an identical asset SHA. No live provider calls, grants, merge or deployment.
+Full remains queued with the integrating agent to avoid duplicating active validation.
+See `docs/inlet-customer-signin.md` for boundaries and real-provider qualification gates.
+### B19 Readiness HTTP Status Repair (2026-10-06)
+
+Invalid startup configuration previously returned /ready HTTP200 withnot_ready.
+It now returns503 and Cache-Control:no-store; valid startup configuration returns200,
+while /health remains200 liveness.17 deployment/configuration tests passed, Ruff/mypy270
+passed. This remains configuration readiness, not live DB/dependency health or a
+restore/release qualification. See inlet-audit-status.md for B01–B20 status.
+## Durable Klaviyo Page Pacing — 2026-10-06
+
+Branch `codex/inlet-crm-pacing` from integration `8ae5ab7`. Added a real internal
+one-page consumer and explicit receipt acknowledgement, preserving account proof on
+every page and the canonical mapping gate. Durable global opaque quota coordinates
+same-account/app connections across replicas; encrypted checkpoints retain cursors,
+not profiles. Typed 429 responses persist Retry-After cooldown without sleeps or
+revocation misclassification. No scheduler enrollment or live requests.
+
+Focused SQLite/PostgreSQL CRM pacing/HTTP/context run: 57 passed, 1 intentional SQLite
+skip for the real PostgreSQL concurrent-lock case (that PostgreSQL case passed).
+Ruff, mypy app/tests (269 files), and diff checks passed. Disposable PostgreSQL
+migration upgrade to0038, downgrade to0036, and re-upgrade passed. Full and hosted CI
+for this new package remain pending. PR82 validation remains a separate unchanged
+head. Remaining boundaries and official limits: `docs/inlet-crm-pacing.md`.
+
+### CRM Pacing Lifecycle Review
+
+Disconnect/reconnect now delete scoped checkpoint cursor/receipt material under the
+existing source locks. In-flight completion cannot resurrect it. Bounded opportunistic
+quota cleanup preserves active leases/cooldowns. Retry-After is measured from response
+time and successful responses after lease expiry are rejected. Expanded CRM and
+source-lifecycle suite: 73 passed, 1 intentional SQLite lock-case skip, 2 existing
+Alembic configuration deprecation warnings; actual PostgreSQL replica cases pass.
+Ruff/mypy269/diff-check pass. Migration unchanged from the tested roundtrip.
+### B14 Campaign Review Core — 2026-10-06
+
+Isolated `codex/inlet-campaign-review` from integration
+`3417bc22d986aefc6abb08905dea89495b20ce53`; migration 0037 follows 0036. Added private
+scoped immutable development JPEG/PNG storage (disabled default), typed campaign
+revision/preview/exact approval APIs, current ownership/mandate/entitlement/generation
+bindings, and explicit Meta generation on verified reauthorization. Edits append an
+unapproved revision. Offline review approval is distinct from publication eligibility;
+provider publication remains disabled. Core ports and remaining design copied to
+`docs/inlet-campaign-review-contract.md`; implemented behavior and limitations in
+`docs/inlet-campaign-review-core.md`.
+
+Checks: 61 focused SQLite/PostgreSQL/mock tests passed, 1 intentional SQLite-only skip
+for the PostgreSQL row-lock race; Ruff passed; mypy 276 files passed; diff check passed.
+New disposable `inlet_b14_migration_ci`: upgrade head and 0037→0036→head passed.
+Additional `alembic check` found existing CRM import/analysis enum drift, no B14 drift;
+not claimed clean. Full and hosted CI pending. No provider calls or live verification.
+
+Remaining: TikTok video validation, customer review UI, production private storage and
+media lifecycle, B15/B16 compiler/publication/reconciliation and spend/freshness gates.
+The first package does not claim all B14 acceptance criteria complete.
+Customer Shopify follow-up: merged integration8ae5ab798eadd8835749f9ed03844fcf8280c25f,
+resolving inherited migrationheads. Aligned legacy operator persistence and importer
+workspace-before-connection locks with customer callbacks. Final combined customer
+Shopify/legacy Shopify/privacy/integrated migration suite:73 passed,3 SQLite-only
+lock-semantics skips; PostgreSQL concurrency and populated migration roundtrip pass.
+Ruff, mypy268files and diff checks pass. Full and hosted CI remain pending.
+
+PR87 cross-path review reproduced privacy-handler connection-before-workspace locking.
+Fixed privacy owner fences plus nonce-before-store retention/uninstall cleanup; added
+PostgreSQL callback-vs-uninstall and expiry-sweep tests. Preserved native importer
+suspended-workspace status after original CI exposed regression. Expanded suite
+including native ownership:85 passed,5 SQLite lock-only skips. Original CI37403352872
+failed (importer status and nested browser20sdeadline); fresh head validation required.
+
+B14 integrated validation: merged PR86 head
+`ea4871b472c119dbe7e4a13d7958c315882eefd9` without conflicts, preserving migration0037
+and both progress records. At code head `17b21cd32d4a079b121638a3934f1482e5ceff36`,
+B14/Meta/customer journey/portal focused suite:72 passed,1 intentional SQLite race
+skip; Ruff/mypy277 and wheel build passed. Draft PR91:
+https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/91. Full/CI remain pending.
+
+Predecessor validation: unchanged PR84 `68c9bc58f9d337296d1421e966f7867027239c36`
+local Full finished exit0 (1,021 passed/6 unavailable-PowerShell skips; final automation
+38 passed/6 same skips). Hosted CI37401780500/job112070362703 passed1,027 tests and
+all gates; actual checkout3e700ed48e4b841d9fe2b493e3158c5cb2cb2ee2 tree equals head.
+PR79 hosted CI37401087556/job112068198895 passed1,022 tests/all gates; actual checkout
+040a5b424712203c90ea9e39b972445cb46ad42e tree equals head24ad1ae. PR79 local Full
+was not run. Both PR bodies record terminal CI evidence; no live qualification.
+PR87 login rotation follow-up: actual PostgreSQL concurrent email-refresh login and
+customer callback reproduced DeadlockDetected at ef0aaab. Guard now locks User before
+Session, matching login; callback observes rotated/revoked oldsession and performs no
+Shopify exchange. Bounded review found logout Session-only and provisioning User then
+fresh-workspace/replay-read compatible. CustomerShopify/identity/provisioning/native
+ownership suite:75 passed,6 SQLite-only lock skips; Ruff/mypy268files/diffpass.
+Prior ef0 Full/CI are superseded by this lock repair, not acceptance of repairedhead.
+
+## Omnisend Runtime Contract And Adapter (2026-10-06)
+
+Branch `codex/inlet-omnisend-runtime`, based on CRM pacing/lifecycle PR89 head
+`e566a20502f178385a3f508f6c20278b7a900d80`. First-party Omnisend SDK commit
+`fdfc72021e90d3fb333e7c1b2d77017dc69f850d` resolves the prior authorization and
+current-brand contract blockers: singular `scope`, authenticated top-level `brandID`.
+Actual disabled-default OAuth/code/refresh/brand/contact HTTP adapter now follows
+those contracts. Repeated account proof blocks foreign brands; unknown expiry remains
+unknown; null/missing channel context remains unknown; no profile PII is persisted.
+No provider revocation endpoint was invented. Source ownership/encryption/generation
+interfaces are reused, with no migration or live provider request.
+
+Checks: combined Omnisend/CRM/context/pacing/source suite **110 passed, 1 intentional
+SQLite row-lock skip**, with the PostgreSQL counterpart executed; two existing Alembic
+configuration deprecation warnings. Final exact RFC3986 authorization encoding change:
+**37 Omnisend tests passed**, including SQLite/PostgreSQL ownership flow. Ruff passed,
+mypy passed (274 source files), git diff --check passed. Logs:
+`/tmp/inlet-omnisend-final.log` and `/tmp/inlet-omnisend-encoding.log`.
+Full intentionally queued with root; hosted CI pending draft PR creation. Remaining
+CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
+live qualification are explicit in `docs/inlet-omnisend-runtime.md`.
+
+## Combined Customer Foundation Candidate (2026-10-06)
+
+Branch `codex/inlet-release-foundation`, based on frozen PR86 ea4871b, integrates
+Shopify customer OAuth/session locks (PR87), readiness status (PR88), CRM pacing
+(PR89), browser Google sign-in (PR90), offline media/review (PR91), real HTTPS
+browser/API/DB tests (PR92), and verified Omnisend HTTP contracts (PR93).
+Migration0039 merges0037/0038. Populated round trips verify existing rows survive
+and new tables downgrade/recreate correctly.
+
+Code head b3035a8: combined customer/sign-in/Shopify/review/CRM/Omnisend/migration/
+ownership/commerce/readiness suite **214 passed, 8 intentional SQLite concurrency
+skips**, PostgreSQL counterparts executed; 20 existing Alembic deprecation warnings.
+Ruff and mypy287 passed; focused log `/tmp/inlet-release-focused.log`. A first
+invocation named a nonexistent test file and exited4 without executing tests; the
+corrected complete invocation produced the results above. Full/CI pending finalhead.
+
+Predecessor final-head evidence: PR83 ad4e9f2 local Full1048passed6PowerShellskips,
+CI1054passed0skips; PR84 68c9bc5 local Full1021passed6PowerShellskips, CI1027passed;
+PR85 eefc7fe local Full957passed7skips, CI963passed1intentionalSQLite-onlyskip;
+PR82 c2e09c1 local Full1020passed6PowerShellskips, CI1026passed. All listed Full
+runs ended exit0 and all hosted gates succeeded with actual checkout trees equal
+to their PR heads. These are offline results, not live qualification or deployment.
+
+Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
+journey; publication coordinator with fixture-only authority. B07 simulation mandates
+remain simulation and B14 review does not grant publication permission. No provider
+mutations, live credentials, merge or deployment were performed.

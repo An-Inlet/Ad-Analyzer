@@ -173,6 +173,8 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    media_storage_mode: str = Field(default="disabled", alias="AD_ANALYZER_MEDIA_STORAGE_MODE")
+    media_local_directory: str = Field(default="", alias="AD_ANALYZER_MEDIA_LOCAL_DIRECTORY")
     klaviyo_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_KLAVIYO_RUNTIME_MODE")
     klaviyo_client_id: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_CLIENT_ID")
     klaviyo_client_secret: SecretStr | None = Field(
@@ -184,6 +186,15 @@ class Settings(BaseSettings):
     hubspot_client_secret: SecretStr | None = Field(
         default=None, alias="AD_ANALYZER_HUBSPOT_CLIENT_SECRET"
     )
+
+    omnisend_runtime_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_OMNISEND_RUNTIME_MODE"
+    )
+    omnisend_client_id: str = Field(default="", alias="AD_ANALYZER_OMNISEND_CLIENT_ID")
+    omnisend_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_OMNISEND_CLIENT_SECRET"
+    )
+    omnisend_api_revision: str = Field(default="", alias="AD_ANALYZER_OMNISEND_API_REVISION")
 
     tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
     tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
@@ -331,6 +342,12 @@ class Settings(BaseSettings):
     customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
     customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
     customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")
+    customer_browser_auth_enabled: bool = Field(
+        default=False, alias="INLET_CUSTOMER_BROWSER_AUTH_ENABLED"
+    )
+    # Firebase web configuration is public; never put an admin/service-account key here.
+    customer_identity_web_api_key: str = Field(default="", alias="INLET_IDENTITY_WEB_API_KEY")
+    customer_identity_web_app_id: str = Field(default="", alias="INLET_IDENTITY_WEB_APP_ID")
 
     iap_audience: str = Field(
         default="",
@@ -363,6 +380,9 @@ class Settings(BaseSettings):
     )
     shopify_measurement_enabled: bool = Field(
         default=False, validation_alias="AD_ANALYZER_SHOPIFY_MEASUREMENT_ENABLED"
+    )
+    shopify_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_SHOPIFY_CUSTOMER_ENABLED"
     )
     shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
     shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")

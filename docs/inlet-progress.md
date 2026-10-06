@@ -3992,3 +3992,81 @@ rejection in live mode, missing calibrated parameters, distinct completion thres
 cohort contradiction, absent producers and current-snapshot retraction. Final Ruff,
 mypy587 files and diff whitespace checks passed. Adapter remains unimplemented in this
 frozen first slice; no direction reaches a candidate or executor yet.
+### 2026-10-06 — Independent Review And Remaining Disabled Consumers
+
+Frozen candidate remains a4fcd3a; integration documentation successor includes the
+bounded outcome/feedback review index and PR208 commercial worksheet. The worksheet
+requests only seller/markets, offer economics, account allowance and customer-policy
+choices; no values, credentials or live authorization are inferred. Agent checked
+69 existing billing regressions, Ruff/mypy582 and links; root checked document links
+and whitespace. Engineering is explicitly unfinished.
+
+Root approved two additive disabled contracts before implementation: directional
+association consumer (owned intervention cohort, stable original-attempt opportunity,
+explicit calibration and independently qualified observation-count provenance) and
+Google replacement compositor (exact immutable transition certificate plus freshly
+rechecked original terminal ancestry). No production registry or finite U/F/P is
+created by these approvals. Existing transfer equality, budget ceilings and fresh
+original-session guards remain mandatory. Qualified delivery/correction/financial
+facts and calibrated values remain unavailable; they are not credentials-only gates.
+
+Normal hosted37443239927 passed decoder preflight and migration and is running pytest.
+Local Full30802 is in the bounded nested regression; observed parent/child CPU advances
+and zero database deadlocks. Neither successor validation has a terminal result yet.
+
+### Frozen Outcome/Feedback Independent Review
+
+A separate bounded source review of exact a4fcd3a found no concrete P1/P2 defect in
+retraction, final execution provenance, protected financial history or export privacy
+fences. Reviewer ran 23 focused SQLite/PostgreSQL regressions, 1 expected skip in
+43.51s (`/tmp/inlet-outcome-review.log` and companion XML). The frozen tree was not
+changed. This is not a Full pass or a review of unavailable production policy/financial
+guarantees. Exact component PRs are indexed in `docs/design/inlet-outcome-review-index.md`.
+
+Root also identified potential same-workspace starvation in unfinished0072: an older
+revoked-session run could remain the earliest due item. The scheduler owner reproduced
+it and added non-authorizing deferral; both database regressions pass. The package is
+not yet frozen/integrated; final combined checks and actual backend UI remain pending.
+
+### Session Automatic Decision Ports — 2026-10-06
+
+Branch `codex/inlet-session-automation`, base `c2e43b9`: freeze strict original-session
+Start/status/stop/capabilities schemas and distinct automatic admission authority
+union in `app/session_automation/contracts.py`; implementation contract in
+`docs/design/session-automation-interfaces.md`. No routes, authority records,
+worker or enabled policy yet; migration0072 reserved down0068. Next package
+implements actual owned customer intent and durable all-provider offline journey.
+No human approval fabrication, logout-independent delegation, new campaign,
+activation or emergency pause is permitted by these types.
+
+Candidate final evidence hook now requires a current local lineage checker for
+registered feedback-dependent schemas before storing suggestions; missing or
+retracted lineage blocks. Pure association snapshots do not become directional
+learning. Checks actually run: PostgreSQL+SQLite hook regressions6 passed;
+strict contract tests3 passed; whole Ruff clean; whole mypy571 files clean;
+`git diff --check` clean. No Full, live calls, manual workflow dispatch or deployment.
+
+Root integrated frozen automation interface commits6c95a43 and332d7fc independently
+of unfinished0072. Candidate/final-evidence/contracts/review bridge checks:84 passed,
+1 expected PostgreSQL-only race skip on SQLite in115.81s. Ruff, configured mypy586
+and staged whitespace passed. Log `/tmp/inlet-next-automation-ports.log`.
+
+### Authenticated Directional Evidence Seam
+
+Added optional local evidence transform and original-principal final checker. The
+worker supplies the persisted job's current original session, rejects scope/native
+state changes, repeats source-profile authorization and current session/time checks,
+and refuses result insertion after the claim lease expires during dependency checks.
+Existing checker signatures remain compatible; no production adapter is registered.
+
+New boundary suite22 passed in24.58s; candidate/review/feedback composition79 passed,
+1 expected SQLite-only concurrency skip in112.33s. The broad run preceded the final
+additive lease check; the22-case final suite includes its expired-lease regression.
+An initial test-only typo used token_digest rather than CustomerSession.digest and
+was corrected before these passes. Ruff, mypy587 and whitespace passed.
+Logs `/tmp/inlet-authorized-evidence-final2.log` and
+`/tmp/inlet-authorized-evidence-composition.log`.
+
+Executor recovery checked at09:45 UTC after parent disconnect notification: actual
+read/write, repository access, original Full pytest PIDs/CPU advance and PostgreSQL
+zero deadlocks succeeded. No observed process loss, quota failure or access blocker.

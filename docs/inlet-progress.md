@@ -815,3 +815,16 @@ Earlier runtime validation is now terminal: PR75 Full989+6 local PowerShell skip
 CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full951+6
 passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
 this billing repair; these green baseline checks do not close newer findings.
+
+### Customer Shopify Connection API (2026-10-06)
+
+Added disabled-by-default customer Shopify authorize/callback/list/disconnect routes,
+revocable session and owner/admin CSRF checks, signed-query-preserving static relay,
+and workspace/session/state transaction locks that serialize callbacks/disconnect.
+The existing read-only Shopify client, verified shop/scope binding, canonical store
+identity and privacy purge are reused. Operator callback configuration is unchanged.
+Focused customer cases:18 passed,2 SQLite lock-test skips; combined Shopify/privacy
+nonmigration regression suite:64 passed,2 skips,6 migration cases deselected because
+starting integrationbasec86beb3 had two migrationheads. Ruff/mypy266files/diff passed.
+Merge current integration's0036 before migration-wide checks. NoFull/providercalls,
+credentials, merge-to-main or deployment. See docs/inlet-customer-shopify.md.

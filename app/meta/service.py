@@ -200,6 +200,16 @@ class ConnectionService:
         grant.accounts, grant.cursor = [account_metadata(item) for item in items], cursor
         self.session.commit()
 
+    def _require_account_owner(self, workspace_id: int, external_id: str) -> None:
+        if self.session.scalar(
+            select(AdvertisingAccount.id).where(
+                AdvertisingAccount.platform == AdvertisingPlatform.META_ADS,
+                AdvertisingAccount.external_account_id == external_id,
+                AdvertisingAccount.workspace_id != workspace_id,
+            )
+        ):
+            raise MetaError("meta_account_already_connected")
+
     def select_account(
         self,
         workspace_id: int,
@@ -220,14 +230,7 @@ class ConnectionService:
         existing = self.get(workspace_id, lock=True)
         if existing and existing.external_account_id != external_id:
             raise MetaError("meta_disconnect_existing_first")
-        if self.session.scalar(
-            select(AdvertisingAccount.id).where(
-                AdvertisingAccount.platform == AdvertisingPlatform.META_ADS,
-                AdvertisingAccount.external_account_id == external_id,
-                AdvertisingAccount.workspace_id != workspace_id,
-            )
-        ):
-            raise MetaError("meta_account_already_connected")
+        self._require_account_owner(workspace_id, external_id)
         vault = Vault(self.settings)
         bundle = vault.open(
             workspace_id, "grant:" + grant.actor_digest, grant.encrypted_credentials
@@ -249,6 +252,9 @@ class ConnectionService:
                 raise MetaError("meta_authorization_expired")
         if details["account_id"] != external_id:
             raise MetaError("meta_account_not_authorized")
+        # Provider IO can release customer locks. Recheck retained ownership here;
+        # the Meta-only unique index serializes concurrent inserts after this read.
+        self._require_account_owner(workspace_id, external_id)
         try:
             account = AdvertisingMetricsRepository(self.session).upsert_account(
                 AdvertisingAccountCreate(

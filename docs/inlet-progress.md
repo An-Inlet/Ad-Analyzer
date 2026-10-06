@@ -1471,3 +1471,24 @@ engineering/live gates: `docs/inlet-meta-customer-ui.md`; shared interface propo
 Meta customer controls draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/125.
 Implementation and checks: `aa05f66acf5b70c00e43389f874ac1ab669828c7`; the following
 commit only records this PR link. Frozen PR118/PR120 heads were preserved.
+
+## Retained Meta Account Ownership Race
+
+Independent child `codex/inlet-meta-ownership-repair` of frozen PR125 `512cadc` closes
+confirmed customer selection TOCTOU. Existing active MetaConnection uniqueness was
+insufficient after another workspace connected then disconnected during provider IO:
+the retained AdvertisingAccount remained. Repeat post-IO ownership validation plus
+Meta-only database uniqueness now enforces the existing ownership policy across writers.
+Migration0049 down0045 refuses legacy duplicates without rewriting or deleting data.
+
+Checks: ownership/customer/operator **49 passed, 1 SQLite concurrency skip**;
+ownership/import/workspace **48 passed, 1 SQLite concurrency skip**; populated SQLite/PG
+migration roundtrips and conflict refusal included. Actual two-writer PG test asserts
+the named partial-index conflict and rollback, not only a query recheck. Ruff/mypy
+**326 files**/diff pass. Full/CI pending. No live provider/customer data access,
+advertising actions, merge or deployment. See `docs/inlet-meta-ownership-repair.md`.
+
+Retained Meta ownership draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/133.
+Tested implementation: `d6a98b54aebed24416700638a675700a7d765e43`; final ownership-only
+rerun **7 passed, 1 intentional SQLite concurrency skip**. Following commit only records
+this PR link. Parent will join migration0049 with the next unfrozen candidate.

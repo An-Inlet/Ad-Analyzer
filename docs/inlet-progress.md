@@ -3966,3 +3966,25 @@ Local Full session30802 reached pytest after fresh migration; database
 `inlet_oct06_candidate3_ci`, log `/tmp/inlet-oct06-candidate3-full.log`, terminal
 wrapper result will be `/tmp/inlet-oct06-candidate3-full.exitcode`. No terminal
 success is claimed. Candidate worktree is clean and frozen while 0072 continues.
+
+### 2026-10-06 — Independent Review And Remaining Disabled Consumers
+
+Frozen candidate remains a4fcd3a; integration documentation successor includes the
+bounded outcome/feedback review index and PR208 commercial worksheet. The worksheet
+requests only seller/markets, offer economics, account allowance and customer-policy
+choices; no values, credentials or live authorization are inferred. Agent checked
+69 existing billing regressions, Ruff/mypy582 and links; root checked document links
+and whitespace. Engineering is explicitly unfinished.
+
+Root approved two additive disabled contracts before implementation: directional
+association consumer (owned intervention cohort, stable original-attempt opportunity,
+explicit calibration and independently qualified observation-count provenance) and
+Google replacement compositor (exact immutable transition certificate plus freshly
+rechecked original terminal ancestry). No production registry or finite U/F/P is
+created by these approvals. Existing transfer equality, budget ceilings and fresh
+original-session guards remain mandatory. Qualified delivery/correction/financial
+facts and calibrated values remain unavailable; they are not credentials-only gates.
+
+Normal hosted37443239927 passed decoder preflight and migration and is running pytest.
+Local Full30802 is in the bounded nested regression; observed parent/child CPU advances
+and zero database deadlocks. Neither successor validation has a terminal result yet.

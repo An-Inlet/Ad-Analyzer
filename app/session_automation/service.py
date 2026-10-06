@@ -68,7 +68,9 @@ def policy_for(
         or runtime.review.candidate.environment != policy.environment
         or runtime.review.execution.environment != policy.environment
         or not any(
-            p.environment == policy.environment and p.family in policy.semantic_producer_families
+            p.environment == policy.environment
+            and p.family in policy.semantic_producer_families
+            and (p.authorized_read is not None or p.read is not None)
             for p in runtime.epoch_producers
         )
     ):

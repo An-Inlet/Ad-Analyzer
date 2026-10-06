@@ -699,6 +699,7 @@ def test_final_admission_failure_rolls_back_marker_epoch_and_run_together(
             if db.scalar(select(func.count()).select_from(ProviderExecutionRun)):
                 calls.append("flushed_run")
                 raise HTTPException(409, "final semantic source retracted")
+            assert producer.read is not None
             return producer.read(db, decision)
 
         broken = replace(runtime, epoch_producers=(replace(producer, read=fail_after_flush),))

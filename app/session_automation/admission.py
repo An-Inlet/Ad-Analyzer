@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.customers.access import CustomerPrincipal
 from app.optimization_candidates import review_bridge
 from app.optimization_candidates.contracts import CandidateDecision
 from app.optimization_candidates.review_models import CandidateReviewLink
@@ -28,7 +29,11 @@ from app.shopify.security import utc
 
 
 def epoch_for(
-    db: Session, decision: CandidateDecision, families: list[str], runtime: SessionAutomationRuntime
+    db: Session,
+    principal: CustomerPrincipal,
+    decision: CandidateDecision,
+    families: list[str],
+    runtime: SessionAutomationRuntime,
 ) -> SemanticDecisionEpoch:
     matches = [
         p
@@ -46,9 +51,14 @@ def epoch_for(
         )
     ):
         raise HTTPException(409, "evidence_not_ready")
-    epoch = SemanticDecisionEpoch.model_validate(
-        matches[0].read(db, decision).model_dump(mode="json")
-    )
+    producer = matches[0]
+    if producer.authorized_read is not None:
+        value = producer.authorized_read(db, principal, decision)
+    elif producer.read is not None:
+        value = producer.read(db, decision)
+    else:
+        raise HTTPException(409, "semantic evidence reader unavailable")
+    epoch = SemanticDecisionEpoch.model_validate(value.model_dump(mode="json"))
     if (
         epoch.producer_family != matches[0].family
         or epoch.source_schema != decision.evidence.source_schema
@@ -89,7 +99,7 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
         _, decision, _, _ = review_bridge.bound_candidate(
             db, wid, link.candidate_result_id, actor, row.original_session_digest, runtime.review
         )
-        epoch = epoch_for(db, decision, policy.semantic_producer_families, fresh)
+        epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, fresh)
         review = db.get(ProviderExecutionReview, review_id, populate_existing=True)
         db.refresh(admission, with_for_update=True)
         if (
@@ -161,7 +171,7 @@ def admit(
             decision.action is None or decision.action.kind not in policy.allowed_operations
         ):
             raise HTTPException(409, "automatic decision outside mandate budget scope")
-        epoch = epoch_for(db, decision, policy.semantic_producer_families, runtime)
+        epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, runtime)
         # Workspace/ledger locks serialize semantic consumption. The DB unique key
         # also defends competing sessions/revisions without minting a replacement.
         existing = db.scalar(

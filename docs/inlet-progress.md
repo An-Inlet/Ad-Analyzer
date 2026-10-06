@@ -3826,3 +3826,15 @@ limits; current native diagnostics are unqualified. These are missing source/cod
 qualification, not only missing credentials. No live calls, spend, merges into main,
 deployment, new-campaign/creative/activation/pause authority or logout-independent
 delegation was enabled. Root final migration0073 will join intermediate0071 +0072.
+
+### Authorized Epoch Reader Seam — 2026-10-06
+
+Isolated `codex/inlet-authorized-epoch` successor of frozen backend1d1fc15 (PR212),
+without amending that head. Add optional principal-aware SemanticEpochProducer
+callback, preferred over the compatible legacy reader. Only the actual original
+principal from current session admission reaches it. Missing readers are unavailable;
+post-callback revocation/expiry denies admission and provider work. No inferred
+owner, browser authority field, source qualification or production enabling change.
+Checks: focused authorized/legacy all3/atomic rollback16 passed across SQLite and
+PostgreSQL; final authorized callback/missing-reader suite8 passed after availability
+hardening; whole Ruff clean, mypy582 files clean, diff check clean. No Full/live calls.

@@ -188,3 +188,19 @@ an operationally disabled live execution runtime. Production registry-to-runtime
 assembly is still unimplemented: the default factory returns None. Adding actual
 qualified directional/exposure/terminal producers and assembling their authenticated
 server adapters is remaining engineering, not a request for credentials alone.
+
+### Principal-Aware Epoch Readers
+
+`SemanticEpochProducer.authorized_read(db, principal, decision)` is an optional
+server-only reader. Admission and subsequent automatic forward guards pass the
+actual original `CustomerPrincipal` returned by `service.current`; they never
+infer an owner/session from account scope. When present it takes precedence over
+legacy `read(db, decision)`, including on failure. Legacy read remains supported;
+a producer with neither callback is unavailable. Authorized readers are local,
+noncommitting evidence readers, not grants or customer-provided callbacks.
+
+Original-session and expiry checks still run after the callback before persistence
+or emission. Tests mutate the original session's revoked/expiry state during the
+callback and verify no admission, attempt or provider write. The production epoch
+registry and default runtime remain unavailable; this port enables an authenticated
+future source adapter without claiming that such a source is already qualified.

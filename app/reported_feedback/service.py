@@ -15,7 +15,12 @@ from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.initial_planning import preview as initial_preview
 from app.initial_planning.clock import effective_now
-from app.initial_planning.contracts import CohortV1, EfficiencyObjectiveV1, PreviewIntentV1
+from app.initial_planning.contracts import (
+    CohortV1,
+    EfficiencyObjectiveV1,
+    InitialPreviewV1,
+    PreviewIntentV1,
+)
 from app.initial_planning.models import PreviewRow
 from app.meta.security import utc
 from app.publication import customer_intents, execution_mandates
@@ -78,22 +83,29 @@ def local_job_authority(
     return CustomerPrincipal(user=user, session=session)
 
 
+def _current_job_id(db: Session, job: ReportedFeedbackJob) -> str | None:
+    # No chronological tie-break or fallback to an older request after deletion.
+    ids = list(
+        db.scalars(
+            select(ReportedFeedbackJob.id)
+            .where(
+                ReportedFeedbackJob.workspace_id == job.workspace_id,
+                ReportedFeedbackJob.opportunity_digest == job.opportunity_digest,
+                ReportedFeedbackJob.state.not_in(("blocked", "expired")),
+            )
+            .limit(2)
+        )
+    )
+    return ids[0] if len(ids) == 1 else None
+
+
 def local_job_current(
     db: Session, job: ReportedFeedbackJob, runtime: ReportedFeedbackRuntime, now: datetime
 ) -> ReportedAcquisitionRequestV1:
     """Caller holds workspace/native fence; no new principal locks or external IO."""
     now = max(now, effective_now(db, runtime.initial))
     principal = local_job_authority(db, job, now)
-    latest = db.scalar(
-        select(ReportedFeedbackJob.id)
-        .where(
-            ReportedFeedbackJob.workspace_id == job.workspace_id,
-            ReportedFeedbackJob.opportunity_digest == job.opportunity_digest,
-        )
-        .order_by(ReportedFeedbackJob.created_at.desc(), ReportedFeedbackJob.id.desc())
-        .limit(1)
-    )
-    if latest != job.id:
+    if _current_job_id(db, job) != job.id:
         raise HTTPException(409, "reported_feedback_request_superseded")
     request = ReportedAcquisitionRequestV1.model_validate(job.document)
     if (
@@ -230,9 +242,21 @@ def _request(
     # Another request never creates another independent action opportunity. Old
     # numeric outputs are invalidated before a new actual acquisition round.
     retract_account_comparisons(db, wid, anchor.cohort.account_id)
-    if predecessor is not None:
-        predecessor.state = "blocked"
-        predecessor.error_code = "superseded_by_explicit_reobservation"
+    previous = list(
+        db.scalars(
+            select(ReportedFeedbackJob)
+            .where(
+                ReportedFeedbackJob.workspace_id == wid,
+                ReportedFeedbackJob.opportunity_digest == anchor.opportunity_digest(policy.family),
+                ReportedFeedbackJob.state.not_in(("blocked", "expired")),
+            )
+            .limit(policy.maximum_requests + 1)
+        )
+    )
+    for previous_row in previous:
+        previous_row.state = "blocked"
+        previous_row.error_code = "superseded_by_explicit_request"
+
     row = ReportedFeedbackJob(
         id=request.id,
         workspace_id=wid,
@@ -459,17 +483,8 @@ def _validate_comparison(
             .limit(17)
         )
     )
-    latest = db.scalar(
-        select(ReportedFeedbackJob.id)
-        .where(
-            ReportedFeedbackJob.workspace_id == job.workspace_id,
-            ReportedFeedbackJob.opportunity_digest == job.opportunity_digest,
-        )
-        .order_by(ReportedFeedbackJob.created_at.desc(), ReportedFeedbackJob.id.desc())
-        .limit(1)
-    )
     if (
-        latest != job.id
+        _current_job_id(db, job) != job.id
         or (
             value.anchor.cohort.workspace_id,
             value.anchor.cohort.account_id,
@@ -503,8 +518,15 @@ def _validate_comparison(
     # Re-evaluate fresh age/coverage/stability; the immutable assessment may never
     # prolong an observation's eligibility at a later read/export boundary.
     checked = compare(request, capsules, now)
-    if (checked.status, checked.relative_cpa_improvement, checked.before, checked.after) != (
+    if (
+        checked.status,
+        checked.reasons,
+        checked.relative_cpa_improvement,
+        checked.before,
+        checked.after,
+    ) != (
         value.status,
+        value.reasons,
         value.relative_cpa_improvement,
         value.before,
         value.after,
@@ -521,6 +543,33 @@ def reobserve_comparison(
     request_id: str,
     runtime: ReportedFeedbackRuntime,
 ) -> ComparisonProgressV1:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    previous = db.scalar(
+        select(ReportedFeedbackJob).where(
+            ReportedFeedbackJob.id == request_id,
+            ReportedFeedbackJob.workspace_id == workspace_id,
+            ReportedFeedbackJob.original_actor_id == principal.user.id,
+            ReportedFeedbackJob.original_session_digest == principal.session.digest,
+        )
+    )
+    if previous is not None and previous.state == "blocked":
+        candidates = list(
+            db.scalars(
+                select(ReportedFeedbackJob)
+                .where(
+                    ReportedFeedbackJob.workspace_id == workspace_id,
+                    ReportedFeedbackJob.opportunity_digest == previous.opportunity_digest,
+                    ReportedFeedbackJob.state.not_in(("blocked", "expired")),
+                )
+                .limit(2)
+            )
+        )
+        if len(candidates) == 1:
+            successor = ReportedAcquisitionRequestV1.model_validate(candidates[0].document)
+            if successor.supersedes_request_id == request_id:
+                return read_comparison_progress(
+                    db, principal, provider, workspace_id, successor.id, runtime
+                )
     # Only an explicit owner intent opens a new bounded acquisition round; no
     # counter reset or scheduled retry creates a second independent opportunity.
     row, request = _owned_job(db, principal, provider, workspace_id, request_id, runtime)
@@ -628,6 +677,21 @@ def validate_preview_dependencies(
         or utc(baseline.expires_at) < value.expires_at
     ):
         raise HTTPException(409, "reported_feedback_preview_changed_or_expired")
+    base_document = InitialPreviewV1.model_validate(baseline.document)
+    if (
+        base_document.digest() != baseline.document_digest
+        or base_document.id != baseline.id
+        or base_document.objective != comparison.objective
+        or base_document.after_budget_micros != value.baseline_budget_micros
+        or base_document.recommendation_status != "proposed"
+        or base_document.created_at
+        < max(ref.acquired_at for ref in (*comparison.before.capsules, *comparison.after.capsules))
+        or value.delta_micros != bounded_delta(active, value.policy)
+        or len(active) < value.policy.minimum_distinct_original_attempts
+        or value.before_reported_cpa_micros != comparison.before.reported_cpa_micros
+        or value.after_reported_cpa_micros != comparison.after.reported_cpa_micros
+    ):
+        raise HTTPException(409, "reported_feedback_baseline_changed")
     return value
 
 

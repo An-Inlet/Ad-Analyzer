@@ -43,6 +43,14 @@ try {
     $('social-category').value='unsure'; change('social-category');
     assert($('social-review').hidden && !$('social-ack').checked,'changed answer invalidates');
   }
+  await until(() => !$('social-load').disabled, 'configuration controls released');
+  const expired = await fetch('/__fixture__/expire', {method:'POST'});
+  assert(expired.ok, 'fixture clock advanced');
+  $('social-load').click();
+  await until(() => $('social-message').textContent.includes('configuration changed'), 'expired mandate rejected');
+  assert($('social-review').hidden && $('social-save').disabled && $('social-confirm').disabled, 'expired mandate cannot be reviewed or confirmed');
+  assert(!$('social-video').getAttribute('src') && !$('social-image').getAttribute('src'), 'expired review clears private media');
+  await until(() => !$('social-logout').disabled, 'failed request controls released');
   $('social-logout').click();
   await until(() => $('social-message').textContent === 'Signed Out.', 'logout');
   assert(!$('social-video').getAttribute('src') && !$('social-cover-image').getAttribute('src'), 'private URLs cleared');

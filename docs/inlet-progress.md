@@ -5019,3 +5019,35 @@ qualification. Contract-test qualification/exposure readers are explicit test
 fixtures. Production financial sources remain unavailable. Core migration,
 forward-gate/late-retraction/concurrency qualification remains the separate 0076
 backend package; this consumer adds no schema or provider mutation code.
+
+### Frozen Full Social Browser Clock Repair — Local Only
+
+Existing frozen `dc3c0d5` Full completed with exit1: outer pytest **6 failed,
+3616 passed,68 skipped** in6285.54s. Failures were the nested Full wrapper, four
+social-review browser platform/database cases, and the historical social migration
+count. Original terminal log preserved at `/tmp/inlet-dc3-terminal-pytest.log`;
+wrapper exit marker `/tmp/inlet-oct06-candidate4-full.exitcode`. No duplicate Full
+was launched, and its checkout/database were not modified.
+
+On isolated current root `3fcba5d`, all four actual social browsers reproduced
+(**4 failed**,96.34s). Sanitized route/status capture established social options200
+followed by campaign preview409 (`/tmp/inlet-social-browser-diagnostic.log`). The
+fixture pinned social discovery to October5 but the preview API used wall time;
+the outer Full crossed the fixture mandate's October6 noon expiry. The production
+expiry gate correctly rejected the stale fixture.
+
+The browser test now gives actual campaign preview and social discovery one
+explicit fixture clock. It additionally advances that clock past expiry after
+exact confirmation, then proves real review/save/confirmation are blocked and
+private media cleared. Only test code changes; no application expiry fallback,
+timeout extension or coverage removal. First repaired four-browser run **4 passed**
+in20.96s. Final combined checks recorded below. No push/PR/hosted CI/live calls.
+
+Final combined browser/API/migration/route suite: **16 passed,2 failed** in55.89s
+(`/tmp/inlet-social-browser-final.log`). All four actual browser and all four API
+cases pass. The two independent current-root failures are historical0057 fixture
+insertion of later `provider_execution_reviews.initial_preview_origin_id` and the
+route inventory missing `GET /app/plan-review`; both are reported for separate
+integration repair, not hidden or bypassed here. Whole Ruff, configured mypy
+**669 files**, JavaScript syntax and diff checks pass. This local commit contains
+only the demonstrated browser clock repair, explicit expiry coverage and diagnostics.

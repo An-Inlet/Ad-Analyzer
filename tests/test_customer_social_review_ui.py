@@ -6,11 +6,13 @@ import subprocess
 import threading
 import time
 from collections.abc import Generator
+from datetime import datetime, timedelta, tzinfo
 from pathlib import Path
 from typing import Any
 
 import pytest
 import uvicorn
+from app.api import customer_campaign_review
 from app.campaign_review.storage import get_media_store
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerUser
@@ -51,6 +53,15 @@ def test_social_review_real_browser(
     listener.bind(("127.0.0.1", 0))
     origin = f"https://127.0.0.1:{listener.getsockname()[1]}"
     monkeypatch.setattr(settings, "customer_app_origin", origin)
+    clock = [NOW]
+
+    class ReviewClock(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> "ReviewClock":
+            return cls.fromtimestamp(clock[0].timestamp(), tz)
+
+    # Discovery and the actual preview route must observe the same fixture period.
+    monkeypatch.setattr(customer_campaign_review, "datetime", ReviewClock)
     engine = customer_engine
     if engine.dialect.name == "sqlite":
         engine = create_engine(
@@ -82,7 +93,7 @@ def test_social_review_real_browser(
                     wording="Offline Test: Review This No-DSA Profile And Its Exact Media.",
                 )
             },
-            clock=lambda: NOW,
+            clock=lambda: clock[0],
         )
         user = db.get(CustomerUser, actor)
         assert user is not None
@@ -108,9 +119,14 @@ def test_social_review_real_browser(
     )
     completed = threading.Event()
     result: list[dict[str, Any]] = []
+    responses: list[tuple[str, int]] = []
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
+        if path == "/__fixture__/expire" and scope["method"] == "POST":
+            clock[0] = NOW + timedelta(days=2)
+            await JSONResponse({"ok": True})(scope, receive, send)
+            return
         if path == "/__fixture__/driver.mjs":
             script = (
                 Path("tests/javascript/social_configuration_browser.mjs")
@@ -141,7 +157,16 @@ def test_social_review_real_browser(
             )
             await Response(html, media_type="text/html")(scope, receive, send)
             return
-        await app(scope, receive, send)
+
+        async def record(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                if path.endswith("/preview"):
+                    responses.append(("campaign_preview", message["status"]))
+                elif path.endswith("/options"):
+                    responses.append(("social_options", message["status"]))
+            await send(message)
+
+        await app(scope, receive, record)
 
     certificate, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
@@ -178,7 +203,7 @@ def test_social_review_real_browser(
     )
     try:
         assert completed.wait(60), "Social review browser did not report completion"
-        assert result and result[0]["status"] == "passed", result
+        assert result and result[0]["status"] == "passed", (result, responses)
     finally:
         browser.terminate()
         try:

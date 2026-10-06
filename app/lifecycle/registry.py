@@ -12,6 +12,37 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "campaign_performance_completions": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "platform",
+            "source_connection_ref",
+            "generation",
+            "privacy_revision",
+            "starts_on",
+            "ends_on",
+            "currency",
+            "time_zone",
+            "query_version",
+            "semantics",
+            "selected_event",
+            "reporting_basis",
+            "completed_at",
+            "row_count",
+            "manifest_digest",
+        ),
+    ),
+    "campaign_performance_current": TablePolicy(
+        "workspace",
+        (
+            "account_id",
+            "workspace_id",
+            "completion_id",
+        ),
+    ),
     "google_original_completions": TablePolicy(
         "workspace",
         ("attempt_id", "workspace_id", "fence", "request_digest", "digest", "recorded_at"),

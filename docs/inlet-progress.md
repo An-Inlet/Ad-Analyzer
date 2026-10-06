@@ -1448,3 +1448,22 @@ Tested implementation: `7571ed2052f475b9235de6d94d09453b31921b2e`; the following
 only records this PR link. Parent subsequently selected Meta customer connections as
 the next isolated interface proposal, before TikTok/CRM implementation.
 
+
+## Meta Customer Consent, Selection And Disconnect
+
+Branch `codex/inlet-meta-customer-ui`, isolated child of PR118 `216fda2` plus PR120
+`a4a66d5`, implements customer Meta consent/GET callback/account pagination/conversion
+choice/scoped selection and disconnect. Migration0045 down0042 adds explicit flow
+phase and pending-grant nonce binding. Default customer setup is disabled. Current
+session/role/flow/generation are rechecked after provider IO; stale callbacks cannot
+overwrite completed retries. Operator signatures and nullable legacy grants remain
+compatible, while customer routes reject unbound grants.
+
+Checks: focused **57 passed, 2 intentional SQLite concurrency skips**; final customer
+API **22 passed**; Node **10 passed**; Ruff/mypy **325 files**/diff pass. Disposable PG
+migration upgrade/down0042/up0045 passed. Optional whole-schema Alembic check found
+unrelated CRM metadata and analysis enum differences (parent integrating separate
+registry repair), not a0045 mismatch. Full/CI pending. No live provider traffic,
+activation, advertising operations, merge or deployment. Evidence and remaining
+engineering/live gates: `docs/inlet-meta-customer-ui.md`; shared interface proposal:
+`docs/inlet-meta-customer-contract.md`.

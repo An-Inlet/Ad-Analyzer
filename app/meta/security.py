@@ -39,7 +39,7 @@ def identifier(value: object) -> str:
     return value
 
 
-def configuration_ready(settings: Settings) -> bool:
+def configuration_ready(settings: Settings, *, customer: bool = False) -> bool:
     try:
         if not settings.meta_enabled or not re.fullmatch(r"[0-9]{5,32}", settings.meta_client_id):
             return False
@@ -51,8 +51,9 @@ def configuration_ready(settings: Settings) -> bool:
             or uri.password
             or uri.query
             or uri.fragment
-            or uri.port not in {None, 443}
-            or uri.path != "/dashboard/meta/callback"
+            or (not customer and uri.port not in {None, 443})
+            or uri.path
+            != ("/api/customer/v1/meta/callback" if customer else "/dashboard/meta/callback")
         ):
             return False
         Vault(settings)

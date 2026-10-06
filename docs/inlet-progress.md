@@ -2341,3 +2341,13 @@ Implemented an actual bounded injectable v25 read-only inventory collector on `c
 `docs/inlet-google-native-inventory.md` records the actual composition contract, provider evidence and remaining billing-basis/writer-boundary owner decisions. Lower budgets, finite caps and late reports do not prove reusable residual exposure or settle earlier optimization attempts. Runtime persistence/composition and a qualified source remain concrete engineering work, not credential-only gates.
 
 Checks run: `pytest -o addopts='' -q tests/test_google_native_inventory.py tests/test_google_optimization_http.py tests/test_google_catalog_http.py tests/test_customer_execution_catalog.py` — 103 passed, no skips; whole `ruff check .` passed; `mypy app tests` passed 464 source files; `git diff --check` passed. All HTTP mocked. No Full, hosted CI, live API, operational enablement, merge or deployment claimed.
+
+## Native Google Diagnostics
+
+Integrated PR16716fd3b9 as15e99a8. Bounded campaign/budget/cost/billing/account-budget
+reads retain pending and adjusted caps and distinguish unavailable billing access
+from empty inventory. Output is statically unqualified with null-only reporting
+watermark and exposure bounds; no runtime factory or spending authority is added.
+Root native inventory regressions24passed (`/tmp/inlet-next-native-inventory.log`),
+whole Ruff/mypy474/diff passed. This is focused adapter validation using mocked HTTP,
+not actual provider qualification or the separately running frozen Full.

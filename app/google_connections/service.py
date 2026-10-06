@@ -1,4 +1,4 @@
-"""Scoped customer authorization and resumable read imports, with offline transport only."""
+"""Scoped customer authorization and resumable read imports."""
 
 import secrets
 from datetime import datetime, timedelta
@@ -21,6 +21,7 @@ from app.google_connections.contracts import (
     GoogleReadTransport,
     Page,
     UnavailableTransport,
+    get_transport,
 )
 from app.google_connections.models import (
     GoogleAuthorization,
@@ -57,7 +58,10 @@ def redirect_uri() -> str:
 
 
 def ready(transport: GoogleReadTransport) -> None:
-    if isinstance(transport, UnavailableTransport) or transport.mode != "fixture":
+    if isinstance(transport, UnavailableTransport) or transport.mode not in {
+        "fixture",
+        "google_read",
+    }:
         raise HTTPException(503, "Google customer transport unavailable")
     Vault()
 
@@ -385,6 +389,6 @@ def view(row: GoogleCustomerConnection) -> dict[str, Any]:
         "last_sync_at": row.last_sync_at,
         "error_code": row.error_code,
         "phase": row.phase,
-        "mode": "fixture",
+        "mode": get_transport().mode,
         "live_verified": False,
     }

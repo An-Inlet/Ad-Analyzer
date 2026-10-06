@@ -54,7 +54,8 @@ class Page(StrictModel):
 
 
 class GoogleReadTransport(Protocol):
-    mode: Literal["fixture"]
+    @property
+    def mode(self) -> Literal["fixture", "google_read"]: ...
 
     def exchange(self, code: str, redirect_uri: str) -> Grant: ...
     def page(
@@ -87,4 +88,21 @@ class UnavailableTransport:
 
 
 def get_transport() -> GoogleReadTransport:
+    from app.google_connections.http import GoogleHTTPRead
+    from app.settings import settings
+
+    if (
+        settings.google_customer_runtime_mode == "google_read"
+        and settings.google_customer_client_secret
+        and settings.google_customer_developer_token
+    ):
+        try:
+            return GoogleHTTPRead(
+                settings.google_customer_client_id,
+                settings.google_customer_client_secret,
+                settings.google_customer_developer_token,
+                settings.google_customer_api_version,
+            )
+        except ValueError:
+            pass
     return UnavailableTransport()

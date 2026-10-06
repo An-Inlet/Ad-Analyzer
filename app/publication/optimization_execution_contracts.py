@@ -175,6 +175,10 @@ class OptimizationExposureReader(Protocol):
 
 
 if TYPE_CHECKING:
+    from app.initial_planning.review_contracts import (
+        InitialPreviewReviewGuard,
+        InitialPreviewReviewWriter,
+    )
     from app.publication.replacement_contracts import ReplacementReader
 
 
@@ -193,6 +197,8 @@ class OptimizationRuntime:
     candidate_review_guard: CandidateReviewGuard | None = None
     candidate_review_writer: CandidateReviewWriter | None = None
     automatic_authority_guard: CandidateReviewGuard | None = None
+    initial_preview_review_guard: "InitialPreviewReviewGuard | None" = None
+    initial_preview_review_writer: "InitialPreviewReviewWriter | None" = None
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

@@ -133,6 +133,10 @@ class ProviderExecutionConsent(Base):
 
 
 class ProviderExecutionReview(Base):
+    initial_preview_provenance_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"), deferred=True
+    )
+    initial_preview_origin_id: Mapped[str | None] = mapped_column(String(32), deferred=True)
     __mapper_args__ = {"eager_defaults": False}
     automatic_authority_required: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false"), deferred=True
@@ -143,6 +147,15 @@ class ProviderExecutionReview(Base):
     __tablename__ = "provider_execution_reviews"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id", name="uq_provider_execution_review_scope"),
+        UniqueConstraint(
+            "workspace_id", "initial_preview_origin_id", name="uq_initial_review_origin"
+        ),
+        CheckConstraint(
+            "(NOT initial_preview_provenance_required AND initial_preview_origin_id IS NULL) OR "
+            "(initial_preview_provenance_required AND initial_preview_origin_id IS NOT NULL "
+            "AND NOT candidate_provenance_required AND NOT automatic_authority_required)",
+            name="ck_initial_review_origin",
+        ),
         UniqueConstraint("workspace_id", "digest", name="uq_provider_execution_review_digest"),
         ForeignKeyConstraint(
             ["consent_id", "workspace_id"],

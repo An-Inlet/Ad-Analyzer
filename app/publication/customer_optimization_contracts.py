@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Annotated, Literal, Protocol
+from typing import TYPE_CHECKING, Annotated, Literal, Protocol
 
 from pydantic import AwareDatetime, Field, model_validator
 
@@ -15,6 +15,9 @@ from app.publication.execution_contracts import ExecutionAccount
 from app.publication.optimization_contracts import OptimizationState
 from app.publication.optimization_execution_contracts import OptimizationRuntime
 from app.publication.provider_contracts import Digest, Id
+
+if TYPE_CHECKING:
+    from app.initial_planning.runtime import InitialPlanningRuntime
 
 
 class TargetQuery(StrictModel):
@@ -85,6 +88,7 @@ class CustomerOptimizationRuntime:
     execution: OptimizationRuntime
     catalog: TargetReader | None = None
     clock: Callable[[], datetime] = utc_now
+    initial_planning: "InitialPlanningRuntime | None" = None
 
 
 def get_customer_optimization_runtime() -> CustomerOptimizationRuntime | None:

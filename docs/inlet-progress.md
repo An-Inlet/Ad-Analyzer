@@ -2159,3 +2159,9 @@ qualification as open work.
 ### Two-Brand Offline Pilot Integration
 
 Integrated PR1589d4c02. Two independently API-provisioned brands share one database; composed API goal/review/source scopes, actual mocked Google creation/activation, unrelated-tenant denial and closure continuity verified. Combined new pilot and prior customer journey4 passed on SQLite/PostgreSQL; Ruff and configured mypy passed. /tmp/inlet-next-two-brand-pilot.log. Source/qualification fixtures and service-vs-customer-API boundaries are explicit; B20 live unrelated pilots and complete self-service execution remain open.
+
+### Cumulative Accounting Repair Integration
+
+Integrated PR162a68adb8. Parent review reproduced six failures: settled accountA spend60 could be omitted by a new/revised B-only mandate sharing cap100/periodledger, and unresolved other-currency holds were summed numerically. First consent now pins stable accounting account identities; revisions/new mandates/consents/admission cannot change that set. Drafts before consent remain editable. Mixed-currency held exposure blocks new work without assuming FX. No historical accounting or consent is rewritten.
+
+Isolated broad regression74 passed; concurrent consent/claim checks10 passed2 SQLite-only skips; final settlement-IO race/restoration checks9 passed1 skip. Combined-root accounting/exposure/two-brand suite35 passed1 SQLite-only skip; Ruff and configured mypy passed. /tmp/inlet-next-period-accounting.log. Current scalar accounting cannot support arbitrary in-period account-set changes; UI must state that restriction. No migration or live calls.

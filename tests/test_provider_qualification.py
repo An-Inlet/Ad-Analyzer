@@ -13,7 +13,11 @@ from app.google_connections.models import GoogleCustomerConnection
 from app.mandates.models import MandateAction
 from app.publication import provider_service as s
 from app.publication.google_qualification import qualify_google
-from app.publication.provider_contracts import ProviderContext, ProviderPublicationReview
+from app.publication.provider_contracts import (
+    GoogleSearchTotalPublicationFields,
+    ProviderContext,
+    ProviderPublicationReview,
+)
 from app.publication.provider_models import ProviderQualificationRecord, ProviderReviewRecord
 from app.settings import Settings
 from fastapi import HTTPException
@@ -116,8 +120,10 @@ def test_unqualified_provider_configuration_rejected(row: str, field: str, value
         qualify_google(r, ctx(r), adapter(rows), NOW)
 
 
-def seeded(db: Session, settings: Settings, path: Any) -> tuple[int, str, str, LocalMediaStore]:
-    mandate, scope, _ = setup(db, settings)
+def seeded(
+    db: Session, settings: Settings, path: Any, *, total_budget: bool = False
+) -> tuple[int, str, str, LocalMediaStore]:
+    mandate, scope, _ = setup(db, settings, days=10 if total_budget else 1)
     actor = uuid4().hex
     db.add(CustomerUser(id=actor, issuer="mock", subject=actor, email="mock@example.invalid"))
     db.flush()
@@ -126,7 +132,7 @@ def seeded(db: Session, settings: Settings, path: Any) -> tuple[int, str, str, L
     d = definition(db, mandate, scope).model_copy(
         update={
             "starts_at": NOW - timedelta(hours=1),
-            "ends_at": NOW + timedelta(hours=23, seconds=-1),
+            "ends_at": NOW + timedelta(days=9 if total_budget else 0, hours=23, seconds=-1),
             "budget_micros": 40,
         }
     )
@@ -146,7 +152,14 @@ def seeded(db: Session, settings: Settings, path: Any) -> tuple[int, str, str, L
 
 
 def prepare(
-    db: Session, wid: int, draft: str, actor: str, store: LocalMediaStore, now: Any = NOW
+    db: Session,
+    wid: int,
+    draft: str,
+    actor: str,
+    store: LocalMediaStore,
+    now: Any = NOW,
+    *,
+    total_budget: bool = False,
 ) -> ProviderReviewRecord:
     fields = review().configuration.model_copy(
         update={
@@ -155,13 +168,22 @@ def prepare(
             "account_timezone": "Pacific/Pago_Pago",
         }
     )
+    if total_budget:
+        raw = fields.model_dump()
+        raw.pop("daily_budget_micros")
+        raw.update(
+            kind="google_search_total_v25_v1",
+            total_budget_micros=40,
+            budget_semantics="native_total_budget_not_portfolio_proof",
+        )
+        total_fields = GoogleSearchTotalPublicationFields.model_validate(raw)
     rows = response_rows()
     rows["customer"]["timeZone"] = "Pacific/Pago_Pago"
     return s.prepare_google(
         db,
         wid,
         draft,
-        fields,
+        total_fields if total_budget else fields,
         actor,
         store,
         adapter(rows),

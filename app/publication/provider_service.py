@@ -22,8 +22,8 @@ from app.publication.execution_authorization import ExecutionAuthorizer, owner_a
 from app.publication.google_compiler import compile_google
 from app.publication.google_qualification import qualify_google
 from app.publication.provider_contracts import (
+    GooglePublicationFields,
     GoogleQualificationEvidence,
-    GoogleSearchPublicationFields,
     ProviderContext,
     ProviderPublicationReview,
     ProviderPublishPlan,
@@ -40,7 +40,7 @@ def current_review(
     db: Session,
     wid: int,
     draft_id: str,
-    fields: GoogleSearchPublicationFields,
+    fields: GooglePublicationFields,
     actor: str,
     store: MediaStore,
     now: datetime,
@@ -101,7 +101,7 @@ def prepare_google(
     db: Session,
     wid: int,
     draft_id: str,
-    fields: GoogleSearchPublicationFields,
+    fields: GooglePublicationFields,
     actor: str,
     store: MediaStore,
     transport: GooglePublicationHTTP,

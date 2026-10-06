@@ -20,6 +20,7 @@ from app.publication.provider_contracts import (
     GoogleCreatePausedAdGroup,
     GoogleCreatePausedCampaign,
     GoogleCreatePausedResponsiveSearchAd,
+    GoogleCreateTotalBudget,
     GoogleSetConversionGoal,
     ProviderContext,
     ProviderReceipt,
@@ -44,6 +45,19 @@ def serialize(request: BoundProviderRequest) -> tuple[str, str, dict[str, Any]]:
     """Return fixed collection, GAQL resource and one typed create/update operation."""
     request = BoundProviderRequest.model_validate(request.model_dump())
     op = request.step.operation
+    if isinstance(op, GoogleCreateTotalBudget):
+        return (
+            "campaignBudgets",
+            "campaign_budget",
+            {
+                "create": {
+                    "totalAmountMicros": str(op.total_amount_micros),
+                    "deliveryMethod": op.delivery_method,
+                    "period": op.period,
+                    "explicitlyShared": op.explicitly_shared,
+                }
+            },
+        )
     if isinstance(op, GoogleCreateBudget):
         return (
             "campaignBudgets",
@@ -371,6 +385,9 @@ class GooglePublicationHTTP:
             del expected["manualCpc"]
             expected["biddingStrategyType"] = "MANUAL_CPC"
         fields = _fields(expected, table)
+        total = isinstance(request.step.operation, GoogleCreateTotalBudget)
+        if total:
+            fields.append("campaign_budget.amount_micros")
         query = (
             f"SELECT {', '.join(fields)} FROM {table} "
             f"WHERE {table}.resource_name = '{resource}' LIMIT 2"
@@ -382,6 +399,10 @@ class GooglePublicationHTTP:
                 return self._receipt(request, now)
             key = table.split("_")[0] + "".join(part.title() for part in table.split("_")[1:])
             actual = rows[0].get(key) if isinstance(rows[0], dict) else None
+            if total and (
+                not isinstance(actual, dict) or actual.get("amountMicros") not in (None, "0", 0)
+            ):
+                return self._receipt(request, now, "conflict")
             if not _matches(expected, actual):
                 return self._receipt(request, now, "conflict")
             return self._receipt(request, now, "verified_effect", resource, expected)

@@ -19,8 +19,10 @@ from tests.test_provider_qualification import seeded
 from tests.test_shopify_sales import configuration as configuration
 
 
-def setup(db: Session, config: Settings, path: Any) -> tuple[ProviderMandatePolicy, str]:
-    wid, _, actor, _ = seeded(db, config, path)
+def setup(
+    db: Session, config: Settings, path: Any, *, total_budget: bool = False
+) -> tuple[ProviderMandatePolicy, str]:
+    wid, _, actor, _ = seeded(db, config, path, total_budget=total_budget)
     old = db.scalar(select(Mandate).where(Mandate.workspace_id == wid))
     assert old is not None
     source = simulation.policy(db, old)

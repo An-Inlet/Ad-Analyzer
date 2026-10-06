@@ -1424,3 +1424,20 @@ filename and collected no tests; the corrected command produced the 70-pass resu
 The independently reproduced migration reflection repair `1624b18` is included.
 Full/hosted CI are separate pending gates at the final integration head. Google
  disconnect follow-up and closure/lifecycle packages remain separate candidates.
+
+## B18 — Customer Closure Confirmation And Recoverable Status (2026-10-06)
+
+Isolated branch `codex/inlet-closure-ui` combines PR122 `9088dbd` and required PR118
+`216fda2`. Added a Settings link, separate closure shell/module and dedicated receipt
+route. Named workspace confirmation binds the exact revision/inventory digest;
+status stays owner-authorized after the workspace disappears from active choices.
+Truthful local effects, retained data, unverified work and unchanged external
+advertising/billing are explicit. Global session and other workspaces survive
+closure; explicit logout clears data and revokes the session normally.
+
+Focused parent/API/browser suites: 54 passed and one expected SQLite race skip,
+with PostgreSQL race coverage. Added Node receipt/version/path contract checks and
+reran actual HTTPS browser recovery after the final guard changes. Ruff and strict
+mypy (334 files) passed. No backend/schema edits beyond composing the inherited
+Google lock-order conflict; no production closure, data erasure or provider call.
+See `docs/inlet-closure-ui.md`. Export implementation remains separate.

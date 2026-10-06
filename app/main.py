@@ -37,7 +37,7 @@ from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
-from app.readiness import database_available
+from app.readiness import database_available, database_schema_current
 from app.shopify.logging import install_access_filter
 
 
@@ -61,6 +61,7 @@ class ReadinessResponse(BaseModel):
     status: str
     database_configured: bool
     database_available: bool
+    schema_revision_current: bool
     write_access_enabled: bool
 
 
@@ -94,13 +95,15 @@ def read_ready(response: Response) -> ReadinessResponse:
     """Require valid startup configuration and a read-only database dependency probe."""
     result = validate_deployment_startup(DeploymentProcess.WEB)
     available = result.ok and database_available()
-    response.status_code = 200 if available else 503
+    schema_current = available and database_schema_current()
+    response.status_code = 200 if schema_current else 503
     response.headers["Cache-Control"] = "no-store"
     database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
     return ReadinessResponse(
-        status="ready" if available else "not_ready",
+        status="ready" if schema_current else "not_ready",
         database_configured=database_configured,
         database_available=available,
+        schema_revision_current=schema_current,
         write_access_enabled=False,
     )
 

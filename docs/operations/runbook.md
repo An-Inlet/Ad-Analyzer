@@ -105,3 +105,13 @@ Ad Analyzer platform. New platform resources and environment names use Ad Analyz
 4. Run `python scripts/validate_deployment_startup.py --process migration`, then `alembic upgrade head`, then validate and start web, worker, and scheduler.
 5. For rotation, create a new secret version, point runtime references to it, validate, restart safely, verify readiness, then revoke the old version.
 6. For rollback, restore previous known-good configuration references, keep Google Ads writes disabled, keep the kill switch enabled, and rerun validation before restart.
+
+## Inlet Persisted Attention Signals
+
+Use the existing operator API's `GET /api/v1/operations/attention` for bounded,
+sanitized persisted work evidence. Follow the [signal contract and response guide](../inlet-operations-attention.md).
+Unknown publication/action outcomes require preserving reservations and reconciling
+receipts; neither an expired lease nor an alert authorizes retry or live changes.
+Future provider backoff is expected. A response without observed alerts is not a
+storage/provider availability result or proof of complete coverage. External alert
+routing remains unconfigured and must be qualified separately before release.

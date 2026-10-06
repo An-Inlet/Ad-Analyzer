@@ -1623,6 +1623,15 @@ claimed for this repair; the assembled successor needs exact-head Full/CI.
   claim/receipt projection, exact activation and uncertainty-aware settlement. Existing
   simulation approval never supplies production authority. No live operations enabled.
 
+## Shared Meta/TikTok Publication Types — 2026-10-06
+
+- Isolated `codex/inlet-social-contracts` from PR108 e4c1392. Additive social contracts
+  leave existing Google and fixture schemas/hashes unchanged. Frozen typed operations,
+  media binding, resource-kind namespaces, review/plan/request/receipt and transport ports.
+- Contract/compiler/Google adapter focused regression: 41 passed. Whole-tree Ruff
+  passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
+- No live factory or production permission. Unknown provider combination eligibility
+  remains explicit qualification work, and B16 is not complete.
 ## PR121 Qualification Expiry After Lock Wait — 2026-10-06
 
 - Isolated repair `codex/inlet-review-clock` from frozen PR121 `46c7adf`; predecessor
@@ -1638,6 +1647,24 @@ claimed for this repair; the assembled successor needs exact-head Full/CI.
 - No live provider access or production authority enabled. Production coordinator,
   activation, and durable settlement remain the next package on a separate branch.
 
+## Provider Execution Consent And Ledger Foundation — 2026-10-06
+
+- Branch `codex/inlet-publication-execution` merges actual social adapters PR117 and
+  review-clock repair PR127, preserving ancestor commits. Shared optimization and
+  normalized receipt contracts frozen at17aefff for dependent adapters/evaluator.
+- Separate production-consent service now checks exact policy revision/digest and
+  current goal/owner/entitlement/account/native generation. Immutable environment and
+  shared exact period ledger prevent revision/new-consent accounting resets.
+- Migration0046 follows0043, adding12 scoped audit tables for consent, exact review,
+  exposure, run/step/original attempt, response, receipt and supersession lineage.
+  Held budget-owner uniqueness spans periods within the same environment/workspace.
+- This is a foundation checkpoint. Durable claims, exposure qualification, actual
+  adapter orchestration, separate activation, settlement and receipt projection query
+  remain implementation work. No live gate, provider access, merge or deployment.
+- Checks: 59 focused tests passed,7 SQLite-only skips; includes shared policy/receipt
+  contracts, consent isolation/accounting, cross-period held-owner uniqueness,
+  six PostgreSQL review-expiry lock barriers and populated0043↔0046 roundtrip.
+  Whole-tree Ruff and mypy311, plus diff check, passed. No Full run started.
 ## Integrated Candidate — 2026-10-06
 
 Branch `codex/inlet-mvp-candidate` assembles the reviewed foundation, customer
@@ -1747,6 +1774,89 @@ qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
 
+### B19 Packaged Schema Revision Readiness
+
+A reachable database previously satisfied readiness regardless of its migration
+revision. The successor candidate now requires its recorded Alembic heads to match
+the heads packaged with the running artifact. Missing, older, unknown or extra
+heads return503 while liveness remains200. `database_available` remains separate
+from the additive `schema_revision_current` field. Read-only probes use fresh
+connections and existing connection/statement/lock limits; no migrations are run.
+This checks revision compatibility, not arbitrary schema drift, capacity or provider
+availability. The deployment image already packages the migrations directory.
+
+Focused readiness/deployment suite:21passed including actual disposable PostgreSQL
+missing/current/older/extra revision cases. Ruff, whole mypy362files and diffchecks
+passed. The frozen1300cf6706 Full/CI does not cover this successor change.
+## Retained Meta Account Ownership Race
+
+Independent child `codex/inlet-meta-ownership-repair` of frozen PR125 `512cadc` closes
+confirmed customer selection TOCTOU. Existing active MetaConnection uniqueness was
+insufficient after another workspace connected then disconnected during provider IO:
+the retained AdvertisingAccount remained. Repeat post-IO ownership validation plus
+Meta-only database uniqueness now enforces the existing ownership policy across writers.
+Migration0049 down0045 refuses legacy duplicates without rewriting or deleting data.
+
+Checks: ownership/customer/operator **49 passed, 1 SQLite concurrency skip**;
+ownership/import/workspace **48 passed, 1 SQLite concurrency skip**; populated SQLite/PG
+migration roundtrips and conflict refusal included. Actual two-writer PG test asserts
+the named partial-index conflict and rollback, not only a query recheck. Ruff/mypy
+**326 files**/diff pass. Full/CI pending. No live provider/customer data access,
+advertising actions, merge or deployment. See `docs/inlet-meta-ownership-repair.md`.
+
+Retained Meta ownership draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/133.
+Tested implementation: `d6a98b54aebed24416700638a675700a7d765e43`; final ownership-only
+rerun **7 passed, 1 intentional SQLite concurrency skip**. Following commit only records
+this PR link. Parent will join migration0049 with the next unfrozen candidate.
+### B19 Assembled Route Boundary Matrix — 2026-10-06
+
+Branch `codex/inlet-route-boundaries`, isolated from frozen PR130
+`0cf6706ca9e12e8ccdba77f10c2247fd976e3593`. Inventoried all 79 protected method/path
+combinations in the assembled app: 41 operator API, 37 dashboard and one worker.
+The exact inventory is `docs/inlet-route-boundaries.md`. Tests enumerate effective
+FastAPI lazy include contexts, including hidden routes, and fail on unclassified
+routes/mounts. Public shells/callback documents/status/docs/assets and independently
+signed webhook ingress are explicit exceptions; remaining customer routes require
+the existing customer dependency.
+
+A customer signs in using the actual session API on SQLite and PostgreSQL. Each
+protected route is then exercised under configured/missing production and local
+HTTP development settings, with a forbidden database dependency proving rejection
+before handlers. Local HTTP explicitly receives real session/CSRF cookies on a
+loopback peer, so omission of Secure cookies cannot explain denial. Customer sessions
+remain valid afterward. No missing runtime guard was found, so this package changes
+only tests/documentation and adds no duplicate controls or deployment permissions.
+
+Validation: combined assembled-boundary/IAP/operator API/Google push/ingress tests
+**90 passed, zero skipped**. Whole-tree Ruff, mypy (359 source files) and diff check
+passed. No Full, live calls, IAM/configuration changes or deployment qualification.
+Exact assembled successor validation remains required.
+
+### B19 Persisted Operator Attention Evidence — 2026-10-06
+
+Branch `codex/inlet-operations-attention` from root-next `f77553b` adds
+`GET /api/v1/operations/attention` to the existing operator bearer router. Its
+versioned aggregate contract uses fixed codes/severity/actions and timestamps,
+without identifiers, raw errors, provider payloads or mixed-currency totals. It
+observes latest sampled job failures/stale execution, overdue billing reconciliation,
+connection attention, and unknown publication/action outcomes including closing
+workspaces. Future backoff remains expected until 15 minutes past due. Reservation
+state is never released, and no provider/storage operation or alert is emitted.
+
+Nine bounded SELECTs each evaluate at most 500 scalar rows, with a sentinel for
+explicit truncation/lower-bound counts. PostgreSQL applies a two-second
+transaction-local statement timeout. Database failures stay sanitized 503 rather
+than reporting no attention. Storage, heartbeat, never-started work, local analysis
+history, independent publication-step age and external alert delivery gaps remain
+explicit. This is not deployed monitoring or a complete health assertion.
+
+Final operations/boundary/existing API suite: **54 passed, zero skipped**, including
+SQLite and PostgreSQL. Tests verify recovery, backoff thresholds, sanitized terminal
+uncertainty, reservation preservation after closure, query/result bounds, database
+failure sanitization, no-store responses and actual customer-session denial. Whole-tree
+Ruff, mypy (363 files) and diff check passed. Updated runbook and exact route inventory
+(now 80 protected method/path pairs). No Full, schema change, live calls, IAM or alert
+provisioning. External destination/escalation and deployment qualification remain gates.
 ## B17 Commerce Publication Package (2026-10-06)
 
 Isolated branch `codex/inlet-commerce-evidence` from frozen PR130 `0cf6706`;0051down0047. Implemented terminal-only aggregate commerce publications, source generation/privacy epoch, workspace-first read/import/privacy locking, per-workspace retention transactions, owned no-store GETs, and explicit lifecycle scalar classification. Closure retains history; source privacy still deletes; comparison maturity remains unavailable. No outcome tables or production receipt adapter yet.
@@ -1754,3 +1864,49 @@ Isolated branch `codex/inlet-commerce-evidence` from frozen PR130 `0cf6706`;0051
 Checks: focused suite124 passed2 expected SQLite race skips (`/tmp/inlet-commerce-evidence-focused.log`); final publication/migration subset14 passed1 expected SQLite lock skip (`/tmp/inlet-commerce-publications-final.log`); Ruff, mypy365, diff check pass. Disposable PG populated migration roundtrip passed. No Full/live calls. Export global revision0053/helper owned by portal_repairs is a pending integration dependency; commerce helper alone is not a global privacy guarantee. Next: wire approved global revision bump after that concrete head, then owned receipt adapter only when scheduler read boundary is frozen. See `docs/inlet-commerce-publications.md`.
 
 B17 export-fence followup: shared0053 model/helper cherry-picked from portal_repairs24fe23b (export-only serializer absent on this base omitted). Commerce invalidate now atomically bumps `Workspace.export_privacy_revision`; focused erasure/rebind/disconnect/retention assertions15 passed1 SQLite skip; combined0051+0053 populated roundtrip1 passed; Ruff/mypy367 pass. Archive capture/delivery and other-source invalidation are export-package work. PR136 https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/136 remains draft; root owns migration merge and Full qualification.
+## Durable Real-Adapter Creation And Evidence Checkpoint — 2026-10-06
+
+- Isolated child `codex/inlet-provider-coordinator` preserves frozen PR132. Actual
+  merge of reviewed foundation1300cf6706 at88c8ba4; reserved0048 joins0046/0047.
+- Canonical model registry and all12 protected lifecycle classifications added.
+  Closure revokes production consent and cancels future runs, preserving original
+  attempts, late readback, financial exposure and blockers; no classification bypass.
+- Implemented exact production creation approval, parent reservation with postcommit
+  cancellation/authority recheck, durable one-emission marker, real adapter dispatch,
+  acknowledgement archive, same-attempt receipt supersession and owned latest projection.
+- Focused coordinator/registry/lifecycle suite:29 passed,1 SQLite concurrency skip.
+  Final closure-after-receipt adjustment:2 passed. Prior broader lifecycle/quiescing
+  suite38 passed,1 skip. Whole Ruff/mypy368 and diff check passed; no Full started.
+- Actual Google MockTransport journey covers the entire persisted creation DAG,
+  duplicate emission prevention, uncertain result/late acknowledgement reconciliation,
+  absent readback remaining unknown, cancellation in the parent-commit gap, concurrent
+  claims, current ownership/generation/master/ledger changes, future/foreign receipt
+  rejection, conflicting identity and late evidence after workspace closure.
+- Missing code: production portfolio/cap/reporting-delay qualification, activation,
+  authoritative settlement and integrated social journeys. Shared readers currently
+  admit explicit contract-test scenarios only in tests; runtime remains unavailable.
+
+### Successor Integration: Commerce, Operations, And Durable Creation
+
+Successor `codex/inlet-mvp-next` preserves frozen130 while integrating retained Meta
+ownership enforcement, schema-revision readiness, actual terminal commerce
+publications/privacy epochs, operator attention and durable provider creation.
+Combined commerce/operations/lifecycle/route-readiness checks:72passed,2SQLite-only
+skips (`/tmp/inlet-next-commerce-ops.log`); Ruff/mypy372passed at that assembly.
+
+The actual coordinator integrates separate production consent, immutable period
+ledger, durable original-attempt dispatch and real Google HTTP MockTransport
+receipts. Production exposure qualification, activation/settlement and full social
+journeys remain open engineering work. The first combined coordinator/lifecycle/
+operations run had78passed,2SQLite-only skips,1migration-fixture failure: current
+Workspace ORM tried to insert the new privacy column into predecessor0043.
+The fixture now seeds with the current ORM at head, downgrades to the real predecessor
+with populated retained customer data, then upgrades to head and exercises the
+populated0046 downgrade/re-upgrade. Its focused regression passed (1test), without
+changing production migrations or weakening retained-user/empty-ledger assertions.
+Ruff/whole mypy382passed. Exact logs: `/tmp/inlet-next-coordinator.log` and
+`/tmp/inlet-next-coordinator-migration.log`.
+
+Merge0054 joins Meta ownership and commerce/global privacy histories;0056 then joins
+provider execution0048. New tables remain explicitly classified in lifecycle
+inventory. No successor Full is claimed; frozen130 evidence remains separate.

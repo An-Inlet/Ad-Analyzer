@@ -504,3 +504,17 @@ def test_postgres_concurrent_claim_has_single_winner(export_engine: Engine) -> N
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: claim(), range(2)))
     assert sorted(results) == ["busy", "claimed"]
+
+
+def test_supported_schema_has_explicit_field_dispositions() -> None:
+    from app.lifecycle.export_serializers import exclusion, fields
+    from app.lifecycle.registry import TABLES
+
+    for name, policy in TABLES.items():
+        if policy.scope in {"identity_global", "platform_global", "unclassified"}:
+            continue
+        for column in Base.metadata.tables[name].c.keys():
+            assert column in fields(name) or exclusion(name, column) == "security_or_internal", (
+                name,
+                column,
+            )

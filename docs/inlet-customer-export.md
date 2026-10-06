@@ -121,3 +121,24 @@ switch and empty workspace), plus shell security headers. Backend HTTP/database
 coverage above uses real APIs and SQL. These are complementary tests, not a claim
 that this Chromium fixture exercises the real API. Ruff passed; mypy **335 files**
 passed. Logs `/tmp/inlet-export-ui-focused2.log`, `/tmp/inlet-export-mypy2.log`.
+
+## Integrated Checkpoint
+
+Merged frozen candidate `0cf6706` into this isolated branch (`c75fb7a`), preserving
+newer billing and closure navigation. Added typed provider-review/plan projections;
+qualification evidence remains an intentional internal exclusion. Meta OAuth
+phase is exported; nonce digests remain excluded.
+
+Actual HTTPS Chromium → production session/workspace/export APIs → file SQLite and
+PostgreSQL: **2 passed**. Browser created an owned workspace/request, fetched the
+real TAR, verified stored workspace content and DOM receipt, revoked its cookie
+through logout, and received 401 on another archive request. Only identity is an
+offline provider fixture; browser fetch is not replaced. The test consumes the
+real archive with browser fetch, rather than claiming an operating-system Save
+File dialog was verified.
+
+Integrated export/backend/UI/closure UI/model-registry focused checks: **53 passed,
+1 SQLite row-lock skip**, 63.47 seconds. Ruff and mypy **365 files** passed. Logs
+`/tmp/inlet-export-real-browser.log` and `/tmp/inlet-export-browser-combined.log`.
+Full remains parent-coordinated. Shared workspace privacy revision work is approved
+and underway; this checkpoint is not final acceptance for concurrent erasure.

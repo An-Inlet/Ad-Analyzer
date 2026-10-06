@@ -15,6 +15,7 @@ from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.publication.contracts import BoundRequest, PublishPlan, PublishReceipt
+from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
 # not arbitrary columns or provider transport responses. Typed historical fields use
@@ -32,6 +33,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "lead_attribution": ("attribution_data",),
     "mandate_actions": ("draft",),
     "publication_plans": ("document",),
+    "provider_reviews": ("review", "plan"),
     "publication_steps": ("request", "receipt"),
     "publication_receipts": ("request", "receipt"),
     "recommendations": ("supporting_metrics", "planned_action"),
@@ -56,6 +58,7 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "customer_workspace_billing": ("checkout_id",),
     "execution_audits": ("rollback_instructions",),
     "mandate_actions": ("digest",),
+    "meta_oauth_states": ("phase",),
     "publication_plans": ("digest", "activation_digest"),
     "publication_receipts": ("digest",),
     "recommendation_audits": ("reason",),
@@ -82,6 +85,8 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("mandate_actions", "draft"): ActionDraft,
     ("customer_campaign_revisions", "artifact"): ReviewArtifact,
     ("publication_plans", "document"): PublishPlan,
+    ("provider_reviews", "review"): ProviderPublicationReview,
+    ("provider_reviews", "plan"): ProviderPublishPlan,
     ("publication_steps", "request"): BoundRequest,
     ("publication_steps", "receipt"): PublishReceipt,
     ("publication_receipts", "request"): BoundRequest,
@@ -102,6 +107,7 @@ INTERNAL = {
     "grant_digest",
     "session_digest",
     "actor_digest",
+    "oauth_state_digest",
     "cursor",
     "seen_cursors",
     "staged",
@@ -114,7 +120,10 @@ INTERNAL = {
     "checkout_url",
     "principal",
 }
-INTERNAL_TABLE_FIELDS = {("meta_detail_staged_pages", "payload")}
+INTERNAL_TABLE_FIELDS = {
+    ("meta_detail_staged_pages", "payload"),
+    ("provider_qualifications", "evidence"),
+}
 SECRET_KEY = re.compile(
     r"(?:secret|password|credential|authorization|cookie|session_digest|csrf|"
     r"(?:access|refresh|id)_token|encrypted|private_key)",

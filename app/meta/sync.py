@@ -14,6 +14,7 @@ from app.automation import AutomationControlKey, AutomationControlService
 from app.imports.native import bind_meta
 from app.imports.scope import ImportScopeError
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.models import (
     MetaAudit,
     MetaConnection,
@@ -231,6 +232,8 @@ class MetaSyncService:
             self.session, workspace_id
         ):
             return {"status": "disabled", "imported": 0}
+        if not lock_workspace(self.session, workspace_id, skip_locked=True):
+            return {"status": "not_connected_or_busy", "imported": 0}
         row = self.session.scalar(
             select(MetaConnection)
             .where(

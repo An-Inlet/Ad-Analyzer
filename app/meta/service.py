@@ -13,6 +13,7 @@ from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
 from app.imports.native import bind_meta, revoke_native_integration
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.models import (
     MetaAudit,
     MetaConnection,
@@ -59,6 +60,7 @@ class ConnectionService:
     def get(self, workspace_id: int, *, lock: bool = False) -> MetaConnection | None:
         query = select(MetaConnection).where(MetaConnection.workspace_id == workspace_id)
         if lock:
+            lock_workspace(self.session, workspace_id)
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
@@ -180,6 +182,7 @@ class ConnectionService:
             MetaPendingGrant.expires_at > now,
         )
         if lock:
+            lock_workspace(self.session, workspace_id)
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 

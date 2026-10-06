@@ -2568,3 +2568,18 @@ source for any provider; no live factory or customer repeat-intent UI enabled.
 Contract scenarios cannot qualify live. Root must join parallel 0058/0059 using 0060.
 Separate personal DSA erasure requires an admission-time nonpersonal closure binding;
 this package does not persist personal declarations or relax spending semantics.
+
+## Existing Campaign Customer Interface Design (2026-10-06)
+
+- Inspected assembled `5dd0d7a` and migration 0058; recorded the proposed owned
+  target catalog and separate initial/repeat review contract in
+  `docs/design/b18-existing-campaign-customer-contract.md`.
+- Identified required exhaustive purpose/schema dispatch and original-session
+  authorization extension in the existing creation/activation customer facade.
+  No API, UI, runtime, schema or source producer was implemented by this package.
+- Portal owner confirmed the optimization namespace does not conflict with the
+  active social configuration work. Default factories remain `None`; native
+  repeat closure/transition qualification is still unavailable.
+- Validation: documentation diff/whitespace check only; no tests, Full, CI dispatch,
+  provider calls, deployment or spend. Next package: freeze typed interfaces, then
+  implement owned catalog/preparation and customer boundary regressions.

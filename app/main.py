@@ -27,6 +27,8 @@ from app.dashboard.meta import router as meta_dashboard_router
 from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.deployment import DeploymentProcess, validate_deployment_startup
+from app.portal.auth import customer_content_security_policy
+from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
 from app.shopify.logging import install_access_filter
@@ -114,6 +116,7 @@ app.include_router(intelligence_api_router)
 app.include_router(crm_router)
 app.include_router(customer_router)
 app.include_router(portal_router)
+app.include_router(browser_auth_router)
 app.mount("/app/assets", StaticFiles(directory=portal_static), name="customer-assets")
 app.include_router(customer_commerce_router)
 app.include_router(customer_goals_router)
@@ -137,10 +140,7 @@ async def dashboard_security_headers(request: Request, call_next: object) -> obj
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
     if request.url.path == "/app" or request.url.path.startswith("/app/"):
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; "
-            "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-        )
+        response.headers["Content-Security-Policy"] = customer_content_security_policy()
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"

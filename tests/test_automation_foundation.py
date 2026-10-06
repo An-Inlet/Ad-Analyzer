@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from tests.validation_diagnostics import nested_failure_summary
 
 ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github" / "workflows" / "ci.yml"
@@ -546,8 +549,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
             {
                 "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_prod"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_prod"
                 ),
             },
             "staging/production database names are never disposable",
@@ -556,8 +558,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
             {
                 "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_staging"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_staging"
                 ),
             },
             "staging/production database names are never disposable",
@@ -574,8 +575,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
         (
             {
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_ci"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_ci"
                 ),
             },
             "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true",
@@ -787,25 +787,30 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
     )
 
 
-def test_full_validation_can_run_twice_against_same_disposable_database() -> None:
+def test_full_validation_can_run_twice_against_same_disposable_database(tmp_path: Path) -> None:
     if os.environ.get("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
         pytest.skip("nested Full validation regression test is disabled")
     command = validate_command("Full")
     env = disposable_postgres_env({"AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
-    for _ in range(2):
+    for iteration in range(2):
+        report = tmp_path / f"nested-full-{iteration}.xml"
+        run_env = dict(env)
+        run_env["PYTEST_ADDOPTS"] = shlex.join(
+            [
+                *shlex.split(env.get("PYTEST_ADDOPTS", "")),
+                "--tb=short",
+                f"--junitxml={report}",
+            ]
+        )
         result = subprocess.run(
             command,
             cwd=ROOT,
             check=False,
             text=True,
             capture_output=True,
-            env=env,
+            env=run_env,
         )
-        assert result.returncode == 0, (
-            "Full validation failed against the disposable PostgreSQL database.\n"
-            f"stdout:\n{result.stdout[-8000:]}\n"
-            f"stderr:\n{result.stderr[-8000:]}"
-        )
+        assert result.returncode == 0, nested_failure_summary(report, result.stdout, result.stderr)
 
 
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:

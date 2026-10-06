@@ -1746,3 +1746,28 @@ checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This als
 qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
+
+### Hosted Billing Failure Diagnostics — 2026-10-06
+
+Isolated `codex/inlet-billing-ci-repair` from frozen PR130 `0cf6706` investigates
+hosted run 37412515307, job 112103881519. The nested Full summary lists billing
+SQLite as failed, but its actual traceback was lost: the parent retained only the
+last 8,000 stdout characters, occupied by later video failures. There were no
+configured diagnostic artifacts. No billing root cause or successful repair is
+claimed from this incomplete evidence. Exact isolated billing SQLite/PostgreSQL
+rerun passed both cases.
+
+Nested Full now writes a separate local JUnit report for each of its two runs and
+uses short tracebacks. Failure reporting preserves bounded per-case evidence for
+up to eight failed/error cases, including each case name, message and final failing
+trace, followed by bounded tool stdout/stderr tails. Missing/malformed/oversized
+reports retain tool-failure diagnostics. Nonzero exit still fails immediately;
+success still requires both complete validations. No assertion, timeout or retry
+behavior in the billing journey was changed. No external artifact retention was
+provisioned or represented as available.
+
+Focused billing plus diagnostic/CI-contract checks: **9 passed, zero skipped**.
+Whole-tree Ruff, mypy (360 files), and diff check passed. Diagnostic tests reproduce
+an early billing failure hidden by verbose later output and prove it survives the
+new report. No new Full was run. The unresolved billing case needs the next exact
+assembled Full/CI run with preserved evidence; root owns separate video failures.

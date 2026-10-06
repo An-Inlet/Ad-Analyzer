@@ -62,6 +62,21 @@ export function tiktokDestination(result, configuration, origin) {
   if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('TikTok authorization request is invalid.');
   return url.href;
 }
+export function crmDestination(result, configuration, origin, provider) {
+  const specs = {klaviyo:['https://www.klaviyo.com/oauth/authorize','accounts:read profiles:read'],hubspot:['https://app.hubspot.com/oauth/authorize','crm.objects.contacts.read oauth'],omnisend:['https://app.omnisend.com/oauth2/authorize','brands.read contacts.read']};
+  const spec = specs[provider];
+  if (!spec) throw new Error('Customer data provider is unavailable.');
+  const url = new URL(result.authorization_url);
+  const expected = {client_id:configuration.client_id,redirect_uri:origin+`/api/customer/v1/sources/${provider}/callback`,scope:spec[1]};
+  if (provider !== 'hubspot') expected.response_type = 'code';
+  if (provider === 'klaviyo') expected.code_challenge_method = 'S256';
+  if (url.origin+url.pathname !== spec[0] || url.username || url.password || url.hash || configuration.authorization_endpoint !== spec[0] || configuration.redirect_uri !== expected.redirect_uri) throw new Error('Customer data consent destination is invalid.');
+  for (const [key,value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('Customer data consent configuration changed.');
+  const variable = provider === 'klaviyo' ? ['state','code_challenge'] : ['state'];
+  for (const key of variable) if (url.searchParams.getAll(key).length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get(key) || '')) throw new Error('Customer data consent request is invalid.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected,key) && !variable.includes(key))) throw new Error('Customer data consent request is invalid.');
+  return url.href;
+}
 export function amount(value, currency) {
   if (!Number.isSafeInteger(value) || !/^[A-Z]{3}$/.test(currency || '')) return 'Not Available';
   return new Intl.NumberFormat('en-US', {style: 'currency', currency, currencyDisplay: 'code'}).format(value / 1e6);
@@ -110,6 +125,8 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
+  const crmProviders = {klaviyo:"Klaviyo",hubspot:"HubSpot",omnisend:"Omnisend"};
+  let crmSetup = {}, crmConnections = {};
   let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null, tiktokSetup = null, tiktokConnections = [];
   let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
 
@@ -130,6 +147,8 @@ if (typeof document !== 'undefined') {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
+    crmSetup = {}; crmConnections = {};
+    for (const provider of Object.keys(crmProviders)) { show(provider+'-setup',false); show(provider+'-disconnect-review',false); $(provider+'-disconnect-consent').checked = false; $(provider+'-disconnect-account').replaceChildren(); }
     googleSetup = null; googleConnections = []; tiktokSetup = null; tiktokConnections = []; $('tiktok-disconnect-consent').checked = false; $('tiktok-disconnect-account').replaceChildren(); metaSetup = null; $('meta-disconnect-consent').checked = false; $('google-disconnect-consent').checked = false; $('google-disconnect-account').replaceChildren(); $('shopify-disconnect-consent').checked = false;
     for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'billing-refresh', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize', 'google-disconnect', 'google-disconnect-review', 'meta-setup', 'meta-authorize', 'meta-disconnect', 'meta-disconnect-review', 'tiktok-setup', 'tiktok-authorize', 'tiktok-disconnect', 'tiktok-disconnect-review']) show(id, false);
 
@@ -273,6 +292,17 @@ if (typeof document !== 'undefined') {
     show('tiktok-setup', true); show('tiktok-authorize', Boolean(tiktokSetup.enabled && tiktokSetup.can_manage));
     show('tiktok-disconnect', Boolean(tiktokSetup.can_manage && tiktokConnections.length));
     $('tiktok-setup-status').textContent = !tiktokSetup.enabled ? 'TikTok connection setup is not configured.' : tiktokSetup.can_manage ? 'Connect an advertiser authorized by your TikTok login.' : 'Ask a workspace owner or admin to connect TikTok.';
+    for (const [provider,name] of Object.entries(crmProviders)) {
+      const config = await api(path+`/sources/${provider}/setup`);
+      if (turn !== epoch) throw new StaleRequest();
+      crmSetup[provider] = config;
+      const rows = results.find(([title]) => title === name)?.[1];
+      crmConnections[provider] = Array.isArray(rows) ? rows.filter(row => row.status !== 'disconnected') : [];
+      $(provider+'-disconnect-account').replaceChildren(...crmConnections[provider].map(row => option(row.id,`${row.external_id} · ${label(row.status)}`)));
+      show(provider+'-setup',true); show(provider+'-authorize',Boolean(config.enabled && config.can_manage));
+      show(provider+'-disconnect',Boolean(config.can_manage && crmConnections[provider].length));
+      $(provider+'-setup-status').textContent = !config.enabled ? `${name} connection setup is not configured.` : config.can_manage ? `Connect an authenticated ${name} account for optional customer context.` : `Ask a workspace owner or admin to connect ${name}.`;
+    }
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
   $('shopify-disconnect-open').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', true); };
@@ -293,6 +323,24 @@ if (typeof document !== 'undefined') {
     await loadWorkspace();
     say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
   });
+  for (const [provider,name] of Object.entries(crmProviders)) {
+    const cancel = () => { $(provider+'-disconnect-consent').checked = false; show(provider+'-disconnect-review',false); };
+    $(provider+'-disconnect-account').onchange = cancel;
+    $(provider+'-disconnect-cancel').onclick = cancel;
+    $(provider+'-disconnect-open').onclick = () => { cancel(); show(provider+'-disconnect-review',true); };
+    $(provider+'-authorize').onclick = () => guarded(async () => {
+      const config = crmSetup[provider];
+      if (!config?.enabled || !config.can_manage) throw new Error(`${name} connection setup is unavailable.`);
+      const result = await api(root()+`/sources/${provider}/authorize`,'POST');
+      location.assign(crmDestination(result,config,location.origin,provider));
+    });
+    $(provider+'-disconnect-confirm').onclick = () => guarded(async () => {
+      const selected = crmConnections[provider]?.find(row => row.id === $(provider+'-disconnect-account').value);
+      if (!crmSetup[provider]?.can_manage || !selected || !$(provider+'-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting.');
+      await api(root()+`/sources/${provider}/`+encodeURIComponent(selected.id),'DELETE');
+      await loadWorkspace(); say(`${name} disconnected locally. Financial reports and goal history remain unchanged.`);
+    });
+  }
   $('tiktok-authorize').onclick = () => guarded(async () => {
     if (!tiktokSetup?.enabled || !tiktokSetup.can_manage) throw new Error('TikTok connection setup is unavailable.');
     const result = await api(root()+'/sources/tiktok_ads/authorize', 'POST');

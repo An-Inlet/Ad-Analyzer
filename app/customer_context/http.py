@@ -372,20 +372,27 @@ class KlaviyoHTTPRead(CRMHTTP):
         return self.grant(payload, expected_account=expected_account)
 
     def exchange_pkce(self, code: str, redirect_uri: str, code_verifier: str) -> SourceGrant:
+        return self.exchange_pkce_guarded(code, redirect_uri, code_verifier, lambda: None)
+
+    def exchange_pkce_guarded(
+        self, code: str, redirect_uri: str, code_verifier: str, checkpoint: Callable[[], None]
+    ) -> SourceGrant:
         oauth_parameters("a" * 43, redirect_uri, self.provider)
         if not re.fullmatch(r"[A-Za-z0-9._~-]{43,128}", code_verifier):
             raise CRMReadError("klaviyo_pkce_invalid")
-        return self._grant(
-            self._oauth(
-                "token",
-                {
-                    "grant_type": "authorization_code",
-                    "code": bounded(code),
-                    "redirect_uri": redirect_uri,
-                    "code_verifier": code_verifier,
-                },
-            )
+        payload = self._oauth(
+            "token",
+            {
+                "grant_type": "authorization_code",
+                "code": bounded(code),
+                "redirect_uri": redirect_uri,
+                "code_verifier": code_verifier,
+            },
         )
+        checkpoint()
+        grant = self._grant(payload)
+        checkpoint()
+        return grant
 
     def account(self, token: str) -> SourceAccount:
         payload = self.get(
@@ -458,17 +465,24 @@ class HubSpotHTTPRead(CRMHTTP):
         )
 
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant:
+        return self.exchange_guarded(code, redirect_uri, lambda: None)
+
+    def exchange_guarded(
+        self, code: str, redirect_uri: str, checkpoint: Callable[[], None]
+    ) -> SourceGrant:
         oauth_parameters("a" * 43, redirect_uri, self.provider)
-        return self.grant(
-            self._oauth(
-                "token",
-                {
-                    "grant_type": "authorization_code",
-                    "code": bounded(code),
-                    "redirect_uri": redirect_uri,
-                },
-            )
+        payload = self._oauth(
+            "token",
+            {
+                "grant_type": "authorization_code",
+                "code": bounded(code),
+                "redirect_uri": redirect_uri,
+            },
         )
+        checkpoint()
+        grant = self.grant(payload)
+        checkpoint()
+        return grant
 
     def account(self, token: str) -> SourceAccount:
         payload = self._oauth(
@@ -585,16 +599,23 @@ class OmnisendHTTPRead(CRMHTTP):
             raise CRMReadError("crm_grant_invalid") from None
 
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant:
+        return self.exchange_guarded(code, redirect_uri, lambda: None)
+
+    def exchange_guarded(
+        self, code: str, redirect_uri: str, checkpoint: Callable[[], None]
+    ) -> SourceGrant:
         oauth_parameters("a" * 43, redirect_uri, self.provider)
-        return self._grant(
-            self._oauth(
-                {
-                    "grant_type": "authorization_code",
-                    "code": bounded(code),
-                    "redirect_uri": redirect_uri,
-                }
-            )
+        payload = self._oauth(
+            {
+                "grant_type": "authorization_code",
+                "code": bounded(code),
+                "redirect_uri": redirect_uri,
+            }
         )
+        checkpoint()
+        grant = self._grant(payload)
+        checkpoint()
+        return grant
 
     def account(self, token: str) -> SourceAccount:
         payload = self.get(

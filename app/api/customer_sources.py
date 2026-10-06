@@ -66,9 +66,12 @@ def authorize(
 
 @router.get("/sources/{provider}/callback")
 def browser_callback(provider: ProviderName) -> Response:
-    if provider == "tiktok_ads":
+    if provider in {"tiktok_ads", "klaviyo", "hubspot", "omnisend"}:
         return FileResponse(
-            Path(__file__).parents[1] / "portal" / "static" / "tiktok-callback.html",
+            Path(__file__).parents[1]
+            / "portal"
+            / "static"
+            / ("tiktok-callback.html" if provider == "tiktok_ads" else "crm-callback.html"),
             media_type="text/html",
             headers={
                 "Cache-Control": "no-store",
@@ -246,4 +249,38 @@ def tiktok_setup(
         "app_id": settings.tiktok_app_id if enabled else "",
         "redirect_uri": callback,
         "authorization_endpoint": "https://business-api.tiktok.com/portal/auth",
+    }
+
+
+@router.get("/workspaces/{workspace_id}/sources/{provider}/setup")
+def crm_setup(
+    workspace_id: int,
+    provider: ProviderName,
+    principal: Principal,
+    db: Database,
+    response: Response,
+) -> dict[str, Any]:
+    if provider not in {"klaviyo", "hubspot", "omnisend"}:
+        raise HTTPException(404, "source unavailable")
+    _, role = customer_workspace(db, principal.user.id, workspace_id)
+    response.headers["Cache-Control"] = "no-store"
+    endpoints = {
+        "klaviyo": "https://www.klaviyo.com/oauth/authorize",
+        "hubspot": "https://app.hubspot.com/oauth/authorize",
+        "omnisend": "https://app.omnisend.com/oauth2/authorize",
+    }
+    client = getattr(settings, provider + "_client_id")
+    try:
+        transport = get_source_transport(provider)
+        s.ready(transport, provider)
+        callback = s.redirect(provider)
+        enabled = bool(client)
+    except HTTPException:
+        callback, enabled = "", False
+    return {
+        "enabled": enabled,
+        "can_manage": role in {"owner", "admin"},
+        "client_id": client if enabled else "",
+        "redirect_uri": callback,
+        "authorization_endpoint": endpoints[provider],
     }

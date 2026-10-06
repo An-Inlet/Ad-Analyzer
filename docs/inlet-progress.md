@@ -1980,3 +1980,34 @@ Whole-tree Ruff, mypy (360 files), and diff check passed. Diagnostic tests repro
 an early billing failure hidden by verbose later output and prove it survives the
 new report. No new Full was run. The unresolved billing case needs the next exact
 assembled Full/CI run with preserved evidence; root owns separate video failures.
+
+### B18 CRM Customer Consent, Selection And Disconnect — 2026-10-06
+
+Branch `codex/inlet-crm-customer-ui`, isolated from `915fbcc10151e56f7b28d2a1ae5f643c99503007`.
+Klaviyo, HubSpot and Omnisend now have configured customer consent controls, a
+code-only same-origin GET bridge, explicit authenticated-account confirmation and
+local disconnect with data-effect acknowledgement. Missing configuration is shown
+truthfully; provider enablement is independent and the export feature gate does
+not hide connection availability. Shopify remains the financial source; authorization
+does not qualify identity mapping, retained enrichment or targeting permission.
+
+Optional guarded PKCE exchange extends Klaviyo without changing existing source
+interfaces; HubSpot/Omnisend reuse guarded exchange. Each token/account HTTP boundary
+rechecks current actor, session, role, nonce and phase before another request or
+persistence. No shared adapter guard state. Fresh Klaviyo retry context remains
+encrypted; stale exchanges cannot replace it. Callback query stripping, CSP,
+no-referrer/no-store and actual access-log suppression cover all three providers.
+
+Validation: combined CRM/browser/renewal/quota/status/portal **219 passed, 14 existing
+SQLite concurrency skips**; expanded browser/sibling/status **10 passed**; final
+callback/API plus adjacent TikTok/Google/Meta browser **51 passed**. Six CRM journeys
+exercise actual local HTTPS/API/database on SQLite and PostgreSQL with mocked
+provider HTTP, including real PKCE challenge matching. Meta's adjacent test now
+waits for enabled disconnect controls, fixing a reproduced premature test click.
+JavaScript helpers **14 passed**; Ruff, mypy app/tests (**400 files**) and diff pass.
+
+No migration, private gateway, persistent enrichment, provider setup/live calls,
+spending, merge or deployment. Full/hosted CI and successor integration remain
+pending. Private gateway ownership architecture and persistent context policy are
+separate owner decisions; live provider qualification/mapping remains unverified.
+See `docs/inlet-crm-customer-ui.md` for contracts and evidence.

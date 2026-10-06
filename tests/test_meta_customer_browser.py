@@ -266,7 +266,11 @@ def test_meta_customer_browser_consent_selection_disconnect(
         browser.evaluate(
             "document.getElementById('meta-conversion').value='purchase';document.getElementById('meta-select').click()"
         )
-        browser.wait("document.getElementById('meta-disconnect')?.hidden === false")
+        browser.wait(
+            "document.getElementById('meta-disconnect')?.hidden === false && "
+            "!document.getElementById('meta-disconnect-open').disabled && "
+            "!document.getElementById('meta-disconnect-confirm').disabled"
+        )
         with factory() as db:
             row = db.scalar(select(MetaConnection))
             assert row is not None and row.workspace_id == wid

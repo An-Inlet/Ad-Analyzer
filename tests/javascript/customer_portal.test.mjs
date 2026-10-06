@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination, metaDestination, tiktokDestination} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination, metaDestination, tiktokDestination, crmDestination} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -81,4 +81,15 @@ test('TikTok consent requires fixed endpoint configured app callback and exact q
  const url=setup.authorization_endpoint+'?'+new URLSearchParams({app_id:setup.app_id,redirect_uri:setup.redirect_uri,state:'a'.repeat(43)});
  assert.equal(tiktokDestination({authorization_url:url},setup,origin),url);
  for(const bad of [url.replace('business-api.tiktok.com','evil.test'),url+'&state=duplicate',url+'&constructor=bad',url.replace('1234','9999'),url.replace('portal/auth','other')]) assert.throws(()=>tiktokDestination({authorization_url:bad},setup,origin));
+});
+
+for (const [provider,endpoint,scope] of [['klaviyo','https://www.klaviyo.com/oauth/authorize','accounts:read profiles:read'],['hubspot','https://app.hubspot.com/oauth/authorize','crm.objects.contacts.read oauth'],['omnisend','https://app.omnisend.com/oauth2/authorize','brands.read contacts.read']]) test(provider+' consent preserves exact configuration and scope',()=>{
+ const origin='https://inlet.example', configuration={client_id:'fixture-client',redirect_uri:origin+`/api/customer/v1/sources/${provider}/callback`,authorization_endpoint:endpoint};
+ const values={client_id:configuration.client_id,redirect_uri:configuration.redirect_uri,scope,state:'a'.repeat(43)};
+ if(provider!=='hubspot') values.response_type='code';
+ if(provider==='klaviyo') Object.assign(values,{code_challenge_method:'S256',code_challenge:'b'.repeat(43)});
+ const url=endpoint+'?'+new URLSearchParams(values);
+ assert.equal(crmDestination({authorization_url:url},configuration,origin,provider),url);
+ for(const bad of [url.replace('fixture-client','wrong'),url+'&state=duplicate',url+'&constructor=bad',url.replace('https://','http://'),url.replace('scope=','scope=write+'),url+'#fragment',url.replace('/oauth','/other')]) assert.throws(()=>crmDestination({authorization_url:bad},configuration,origin,provider));
+ if(provider==='klaviyo') for(const bad of [url.replace('S256','plain'),url.replace('b'.repeat(43),'short')]) assert.throws(()=>crmDestination({authorization_url:bad},configuration,origin,provider));
 });

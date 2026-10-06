@@ -4304,3 +4304,23 @@ CSRF endpoint and customer UI, with no fabricated mandate, financial source or n
 generic execution port. Existing v1 request bytes remain unchanged. Result contains
 bounded counts/reasons only, financial bounds null, optimization unavailable. Backend
 and UI implementation are proceeding on isolated branches; no live provider calls.
+
+### Frozen a4fcd3a Nested Validation Failure — Outer Run Still Active
+
+Preserved nested report `/tmp/inlet-a4fcd3a-nested-full-0.xml`:3462 tests,
+3386 passed,72 skipped,4 failed in2456.159s. Failures: repurchase regression bothDB,
+old Stripe factory expectation, and historical replacement migration accessing later
+0066 completion table. The latter is already repaired in0072's asserted historical
+fixture; root0073 migration tests passed. Billing owner reproduced the other3 failures:
+repurchase is a real service regression (new active subscription incorrectly sent through
+historical-terminal verification before resolving its owned checkout), not a waived
+fixture. Repair and qualified ownership tests are in progress. Factory expectation is
+stale under required reviewed offer/merchant configuration; production gate stays strict.
+
+Both Meta browser cases and both positive-conversion regressions passed in this nested
+report. That does not turn the nested or whole run green. Outer local Full continues;
+terminal result and hosted37443239927 still pending. No frozen code changed.
+
+Independent bounded source review of41cb48f found no concrete P1/P2 in directional
+head/cohort/count/epoch/retraction/session logic;6 targeted SQLite/PostgreSQL tests
+passed (`/tmp/inlet-directional-review.log`). This is not maturity/source qualification.

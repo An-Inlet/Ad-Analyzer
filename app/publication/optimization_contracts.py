@@ -210,7 +210,7 @@ class GoogleCurrentState(CurrentStateBase):
     manual_cpc_digest: Digest
     network_settings_digest: Digest
     campaign_start_date: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-    campaign_end_date: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    campaign_end_date: str | None = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 
     @model_validator(mode="after")
     def independent_native_owner(self) -> "GoogleCurrentState":
@@ -221,6 +221,7 @@ class GoogleCurrentState(CurrentStateBase):
             or self.budget_reference_count != 1
             or self.owning_campaign_ids != [self.target.campaign_id]
             or self.target != self.budget_owner.owner
+            or (self.campaign_end_date is None) != (self.ends_at is None)
         ):
             raise ValueError("complete independent native Google budget ownership required")
         return self

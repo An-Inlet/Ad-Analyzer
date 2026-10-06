@@ -139,3 +139,12 @@ def test_shared_or_foreign_native_owner_cannot_enter_bounded_google_profile(
 ) -> None:
     with pytest.raises(ValidationError):
         GoogleCurrentState.model_validate({**state().model_dump(), **change})
+
+
+def test_native_indefinite_end_is_explicitly_nullable_without_invented_date() -> None:
+    value = GoogleCurrentState.model_validate(
+        {**state().model_dump(), "campaign_end_date": None, "ends_at": None}
+    )
+    assert value.campaign_end_date is None and value.ends_at is None
+    with pytest.raises(ValidationError):
+        GoogleCurrentState.model_validate({**state().model_dump(), "campaign_end_date": None})

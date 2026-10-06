@@ -449,6 +449,7 @@ def test_completed_checkout_without_webhook_cannot_issue_second_purchase(
 
     from app.billing import service as billing
     from app.billing.models import WorkspaceBilling
+    from app.billing.scope import LEGACY_TEST_SCOPE
 
     from tests.test_customer_billing import POLICY
     from tests.test_google_customer_connections import setup
@@ -465,7 +466,7 @@ def test_completed_checkout_without_webhook_cannot_issue_second_purchase(
                 db, wid, POLICY, fixture, "https://inlet.example/settings", NOW + timedelta(hours=2)
             )
         assert len(fixture.results) == 1
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.subscription_id == "sub_fixture" and row.status == "active"
 
 
@@ -477,6 +478,7 @@ def test_repurchase_requires_terminal_old_subscription_and_owned_completed_sessi
 
     from app.billing import service as billing
     from app.billing.models import WorkspaceBilling
+    from app.billing.scope import LEGACY_TEST_SCOPE
     from app.billing.webhooks import receive
 
     from tests.test_customer_billing import POLICY, SECRET, payload, signature
@@ -514,7 +516,7 @@ def test_repurchase_requires_terminal_old_subscription_and_owned_completed_sessi
         event = json.dumps(raw).encode()
         receive(db, event, signature(event, fixture.now), SECRET, fixture.now)
         billing.reconcile(db, wid, "evt_new_subscription", POLICY, fixture, fixture.now)
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.subscription_id == "sub_new"
         billing.require_entitlement(db, wid, POLICY, fixture.now)
 
@@ -527,6 +529,7 @@ def test_scheduler_recovers_completed_checkout_without_subscription_webhook(
     from app.billing import service as billing
     from app.billing.dispatcher import run
     from app.billing.models import WorkspaceBilling
+    from app.billing.scope import LEGACY_TEST_SCOPE
     from sqlalchemy.orm import sessionmaker
 
     from tests.test_customer_billing import POLICY
@@ -544,7 +547,7 @@ def test_scheduler_recovers_completed_checkout_without_subscription_webhook(
         == 1
     )
     with Session(customer_engine) as db:
-        row = db.get(WorkspaceBilling, wid)
+        row = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert row is not None and row.subscription_id == "sub_fixture" and row.status == "active"
     assert len(fixture.results) == 1
 
@@ -556,6 +559,7 @@ def test_replacement_lookup_failure_backs_off_before_dispatch_limit(
 
     from app.billing.dispatcher import run
     from app.billing.models import BillingEvent, WorkspaceBilling
+    from app.billing.scope import LEGACY_TEST_SCOPE
     from sqlalchemy.orm import sessionmaker
 
     from tests.test_customer_billing import POLICY
@@ -610,9 +614,9 @@ def test_replacement_lookup_failure_backs_off_before_dispatch_limit(
     assert run(factory, POLICY, fixture, NOW, limit=1)["failed"] == 1
     assert run(factory, POLICY, fixture, NOW, limit=1)["events"] == 1
     with Session(customer_engine) as db:
-        event = db.get(BillingEvent, "evt_bad")
+        event = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_bad"))
         assert event is not None and event.state == "pending" and event.next_attempt_at is not None
-        assert db.get(BillingEvent, "evt_good").state == "processed"  # type: ignore[union-attr]
+        assert db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_good")).state == "processed"  # type: ignore[union-attr]
 
 
 def test_tiktok_prior_read_failure_does_not_preserve_rejected_staging(

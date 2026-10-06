@@ -465,6 +465,9 @@ TABLES: dict[str, TablePolicy] = {
     "customer_billing_events": TablePolicy(
         "parent",
         (
+            "provider",
+            "environment",
+            "merchant_account_id",
             "id",
             "customer_id",
             "subscription_id",
@@ -604,6 +607,9 @@ TABLES: dict[str, TablePolicy] = {
     "customer_workspace_billing": TablePolicy(
         "workspace",
         (
+            "provider",
+            "environment",
+            "merchant_account_id",
             "workspace_id",
             "customer_id",
             "checkout_price",

@@ -16,8 +16,9 @@ test('monthly goal preserves store currency/time zone and uses exclusive ends', 
   assert.throws(() => monthWindow('2026-13', store));
   assert.throws(() => definitionFrom({}, null));
 });
-test('billing redirects reject fixtures, hostile origins, credentials and live modes', () => {
+test('billing redirects allow configured test/live modes and reject fixtures and hostile origins', () => {
   assert.equal(billingDestination({mode:'stripe_test', url:'https://checkout.stripe.com/c/pay/test_123'}, 'checkout'), 'https://checkout.stripe.com/c/pay/test_123');
+  assert.equal(billingDestination({mode:'stripe_live',url:'https://checkout.stripe.com/c/pay/live_fixture'}, 'checkout'), 'https://checkout.stripe.com/c/pay/live_fixture');
   for (const url of ['http://checkout.stripe.com/x','https://checkout.stripe.com.evil.test/x','javascript:alert(1)','https://evil@checkout.stripe.com/x','https://checkout.stripe.com:444/x','https://billing.stripe.com/x']) assert.throws(() => billingDestination({mode:'stripe_test',url}, 'checkout'));
   for (const mode of ['fixture','live','unavailable']) assert.throws(() => billingDestination({mode,url:'https://checkout.stripe.com/x'}, 'checkout'));
 });

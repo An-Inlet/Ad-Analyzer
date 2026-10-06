@@ -14,6 +14,7 @@ from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOrder, Sh
 from app.shopify.normalize import normalized_order, order_key
 from app.shopify.security import ShopifyError, Vault, configuration_ready, utc
 from app.shopify.service import ConnectionService
+from app.workspaces.models import Workspace
 
 
 def syncing_allowed(session: Session, workspace_id: int) -> bool:
@@ -38,6 +39,18 @@ class ShopifySyncService:
             self.session, workspace_id
         ):
             return {"status": "disabled", "imported": 0}
+        # Match customer authorization/disconnect lock order; never hold a connection
+        # while waiting for their workspace fence. Scheduled reads skip busy owners.
+        workspace = self.session.scalar(
+            select(Workspace)
+            .where(Workspace.id == workspace_id)
+            .with_for_update(skip_locked=True, key_share=True)
+        )
+        if workspace is None:
+            return {"status": "not_connected_or_busy", "imported": 0}
+        if workspace.status != "active":
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         row = self.session.scalar(
             select(ShopifyConnection)
             .where(ShopifyConnection.workspace_id == workspace_id)

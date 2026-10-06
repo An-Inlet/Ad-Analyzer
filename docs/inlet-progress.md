@@ -791,3 +791,15 @@ Cross-reload discovery remains via the goal list, not persisted browser payloads
 Focused checks: 54 passed (SQLite, PostgreSQL and Chromium), no skips; Ruff,
 mypy (250 files), and diff whitespace check passed.
 Full validation/CI pending; no live calls, purchase, merge or deployment.
+### 2026-10-06 Billing Recovery Review Package
+
+PR77-based `codex/inlet-billing-recovery` fixes the reproduced PostgreSQL replacement
+checkout race and adds read-only reconciliation of expired uncertain Stripe attempts.
+95 focused SQLite/PostgreSQL tests passed, one SQLite row-lock skip; Ruff/mypy249/
+format/diff passed. Full/CI pending. See `inlet-billing-recovery.md` for exact scope,
+primary contract references and legacy-key limitation. No live requests or activation.
+
+Earlier runtime validation is now terminal: PR75 Full989+6 local PowerShell skips,
+CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full951+6
+passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
+this billing repair; these green baseline checks do not close newer findings.

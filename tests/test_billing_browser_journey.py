@@ -31,6 +31,7 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from tests.browser_targets import wait_for_page_target
 from tests.test_customer_billing import POLICY, SECRET, payload, signature
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
@@ -253,9 +254,12 @@ def test_visible_checkout_return_recovery_management_and_revocation(
         while not active.exists() and time.monotonic() < deadline:
             time.sleep(0.03)
         port = active.read_text().splitlines()[0]
-        with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
-            tabs = json.load(response)
-        browser = BillingBrowser(tabs[0]["webSocketDebuggerUrl"], origin)
+
+        def tabs() -> list[dict[str, Any]]:
+            with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
+                return list(json.load(response))
+
+        browser = BillingBrowser(wait_for_page_target(tabs), origin)
         browser.call(
             "Fetch.enable",
             {

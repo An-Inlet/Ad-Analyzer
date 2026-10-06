@@ -31,6 +31,7 @@ from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 from websockets.sync.client import connect
 
+from tests.browser_targets import wait_for_page_target
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -261,7 +262,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             with urlopen(f"http://127.0.0.1:{port}/json", timeout=5) as response:
                 return list(json.load(response))
 
-        browser = Browser(tabs()[0]["webSocketDebuggerUrl"], origin)
+        browser = Browser(wait_for_page_target(tabs), origin)
         browser.call(
             "Fetch.enable",
             {
@@ -344,7 +345,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         # A second tab changes the real customer session while consent is pending.
         target = browser.call("Target.createTarget", {"url": origin + "/app"})["targetId"]
         second = Browser(
-            next(tab["webSocketDebuggerUrl"] for tab in tabs() if tab["id"] == target), origin
+            wait_for_page_target(tabs, target_id=target), origin
         )
         second.wait("document.getElementById('retry') !== null")
         login(second, "consent-stranger:second")

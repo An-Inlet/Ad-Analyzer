@@ -11,6 +11,7 @@ import pytest
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount
 from app.api import customer_campaign_review, customer_goals, customer_mandates, customer_sources
+from app.api.customer_execution import get_execution_media_factory
 from app.campaign_review.storage import LocalMediaStore, get_media_store
 from app.commerce import reporting
 from app.customers.access import CSRF_COOKIE
@@ -149,6 +150,7 @@ def test_two_brands_api_review_execution_and_closure_isolation(
             get_db: database,
             get_identity_provider: lambda: identity,
             get_media_store: lambda: media,
+            get_execution_media_factory: lambda: lambda: media,
             get_source_transport: source_transport,
         },
     )

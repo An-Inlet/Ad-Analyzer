@@ -55,6 +55,11 @@ from app.publication.optimization_execution_contracts import (
     OptimizationRuntime,
     positive_delta,
 )
+from app.publication.replacement_contracts import (
+    OptimizationReview,
+    RepeatOptimizationReview,
+    parse_review,
+)
 from app.publication.service import owner
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
@@ -115,6 +120,16 @@ def validate_plan(plan: OptimizationPlan, policy: ProviderMandatePolicy, now: da
         raise HTTPException(409, "target already disabled")
 
 
+def validate_document(
+    document: OptimizationReview, policy: ProviderMandatePolicy, now: datetime
+) -> None:
+    validate_plan(document.plan, policy, now)
+    if isinstance(document, RepeatOptimizationReview) and not (
+        document.replacement.observed_at <= now < document.replacement.expires_at
+    ):
+        raise HTTPException(409, "replacement proof expired")
+
+
 def prepare_optimization(
     db: Session,
     wid: int,
@@ -169,7 +184,7 @@ def prepare_optimization(
             ProviderExecutionReview.digest == document.digest(),
         )
     )
-    validate_plan(plan, policy, clock())
+    validate_document(document, policy, clock())
     if ledger.spent_high_water_micros > exposure.reported_spend_micros:
         raise HTTPException(409, "optimization reporting below recorded spend")
     if existing is not None:
@@ -200,7 +215,7 @@ def checked_review(
     actor: str,
     runtime: OptimizationRuntime,
     clock: creation.Clock,
-) -> tuple[ProviderExecutionReview, OptimizationExecutionReview]:
+) -> tuple[ProviderExecutionReview, OptimizationReview]:
     row = db.scalar(
         select(ProviderExecutionReview).where(
             ProviderExecutionReview.id == review_id, ProviderExecutionReview.workspace_id == wid
@@ -208,7 +223,7 @@ def checked_review(
     )
     if row is None or row.document.get("purpose") != "existing_campaign_optimize":
         raise HTTPException(404, "optimization review unavailable")
-    document = OptimizationExecutionReview.model_validate(row.document)
+    document = parse_review(row.document)
     plan = document.plan
     ledger, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
     db.refresh(row, with_for_update=True)
@@ -223,9 +238,39 @@ def checked_review(
         or row.source_revision is not None
     ):
         raise HTTPException(409, "optimization review binding changed")
-    validate_plan(plan, policy, clock())
+    validate_document(document, policy, clock())
+    if isinstance(document, RepeatOptimizationReview) and not (
+        document.replacement.observed_at <= clock() < document.replacement.expires_at
+    ):
+        raise HTTPException(409, "replacement proof expired")
     if ledger.spent_high_water_micros > plan.exposure.reported_spend_micros:
         raise HTTPException(409, "optimization reporting below recorded spend")
+    if isinstance(document, RepeatOptimizationReview):
+        admitted = db.scalar(
+            select(ProviderExecutionRun.reservation_id).where(
+                ProviderExecutionRun.review_id == row.id,
+                ProviderExecutionRun.workspace_id == wid,
+            )
+        )
+        if admitted is None:
+            from app.publication.replacement import snapshot
+
+            if (
+                snapshot(
+                    db,
+                    wid,
+                    document.predecessor.predecessor_id,
+                    actor,
+                    ledger,
+                    policy,
+                    plan.intent.scope,
+                )
+                != document.predecessor
+            ):
+                raise HTTPException(409, "reviewed replacement ancestry changed")
+        if not document.replacement.observed_at <= clock() < document.replacement.expires_at:
+            raise HTTPException(409, "replacement proof expired after ancestry locks")
+        validate_document(document, policy, clock())
     return row, document
 
 
@@ -246,7 +291,7 @@ def approve_optimization(
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
-    validate_plan(document.plan, policy, clock())
+    validate_document(document, policy, clock())
     if existing is None:
         existing = ProviderExecutionApproval(
             review_id=row.id,
@@ -285,7 +330,7 @@ def create_run(
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
-    validate_plan(document.plan, policy, clock())
+    validate_document(document, policy, clock())
     run = ProviderExecutionRun(
         id=uuid4().hex, workspace_id=wid, review_id=row.id, state="ready", created_at=clock()
     )
@@ -307,7 +352,7 @@ def locked_run(
     actor: str,
     runtime: OptimizationRuntime,
     clock: creation.Clock,
-) -> tuple[ProviderExecutionRun, OptimizationExecutionReview]:
+) -> tuple[ProviderExecutionRun, OptimizationReview]:
     run = db.scalar(
         select(ProviderExecutionRun).where(
             ProviderExecutionRun.id == run_id, ProviderExecutionRun.workspace_id == wid
@@ -345,7 +390,7 @@ def positive_changes_used(db: Session, wid: int, ledger_id: str) -> int:
         )
     )
     return sum(
-        OptimizationExecutionReview.model_validate(raw).plan.positive_change_micros
+        parse_review(raw).plan.positive_change_micros
         for _, raw in rows
         if raw.get("purpose") == "existing_campaign_optimize"
     )
@@ -362,6 +407,12 @@ def claim_step(
     run, document = locked_run(db, wid, run_id, actor, runtime, clock)
     plan = document.plan
     ledger, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
+    if run.reservation_id is None and isinstance(document, RepeatOptimizationReview):
+        from app.publication.replacement import transfer
+
+        transfer(db, wid, run, document, actor, runtime, clock)
+        run, document = locked_run(db, wid, run_id, actor, runtime, clock)
+        plan = document.plan
     if run.reservation_id is None:
         e = plan.exposure
         held = (
@@ -396,7 +447,7 @@ def claim_step(
             )
         ):
             raise HTTPException(409, "current portfolio or cumulative action limits changed")
-        validate_plan(plan, policy, clock())
+        validate_document(document, policy, clock())
         assert e.proposed_owner_upper_micros is not None
         reservation = ProviderExposureReservation(
             id=uuid4().hex,
@@ -420,13 +471,13 @@ def claim_step(
         db.commit()
         run, document = locked_run(db, wid, run_id, actor, runtime, clock)
         plan = document.plan
-    validate_reservation(db, run, plan)
+    validate_reservation(db, run, plan, actor)
     step = db.get(ProviderExecutionStep, (run.id, STEP), with_for_update=True)
     assert step is not None
     if step.state != "pending":
         return None
     _, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
-    validate_plan(plan, policy, clock())
+    validate_document(document, policy, clock())
     attempt_id, fence = uuid4().hex, uuid4().hex
     request = plan.request(run.id, attempt_id, fence, clock())
     db.add(
@@ -452,7 +503,9 @@ def claim_step(
     )
 
 
-def validate_reservation(db: Session, run: ProviderExecutionRun, plan: OptimizationPlan) -> None:
+def validate_reservation(
+    db: Session, run: ProviderExecutionRun, plan: OptimizationPlan, actor: str
+) -> None:
     row = db.scalar(
         select(ProviderExposureReservation)
         .where(
@@ -484,14 +537,25 @@ def validate_reservation(db: Session, run: ProviderExecutionRun, plan: Optimizat
     ):
         raise HTTPException(409, "retained optimization exposure or portfolio changed")
 
+    from app.publication.replacement_lineage import ancestors
+
+    chain = ancestors(db, row)
+    incoming = chain[-1][1]
+    if incoming is not None:
+        from app.publication.replacement_contracts import ReplacementAuditDocument
+
+        audit = ReplacementAuditDocument.model_validate(incoming.document)
+        for original in audit.snapshot.receipts:
+            latest = read_owned_outcome_receipt(db, run.workspace_id, original.attempt_id, actor)
+            if latest != original:
+                raise HTTPException(409, "replacement ancestor evidence changed before emission")
+
 
 def evidence_lock(
     db: Session,
     wid: int,
     attempt_id: str,
-) -> tuple[
-    ProviderExecutionRun, OptimizationExecutionReview, ProviderExecutionAttempt, OptimizationRequest
-]:
+) -> tuple[ProviderExecutionRun, OptimizationReview, ProviderExecutionAttempt, OptimizationRequest]:
     if db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update()) is None:
         raise HTTPException(404, "workspace unavailable")
     attempt = db.scalar(
@@ -515,7 +579,7 @@ def evidence_lock(
         or row.document.get("purpose") != "existing_campaign_optimize"
     ):
         raise HTTPException(409, "original optimization review unavailable")
-    document = OptimizationExecutionReview.model_validate(row.document)
+    document = parse_review(row.document)
     request = OptimizationRequest.model_validate(attempt.request)
     if (
         row.digest != document.digest()
@@ -575,7 +639,7 @@ def validate_receipt(request: OptimizationRequest, receipt: OptimizationReceipt)
 def normalized(
     db: Session,
     run: ProviderExecutionRun,
-    document: OptimizationExecutionReview,
+    document: OptimizationReview,
     attempt: ProviderExecutionAttempt,
     receipt: OptimizationReceipt,
     receipt_id: str,
@@ -799,7 +863,8 @@ def checked_claim(
     db: Session,
     claim: OptimizationClaim,
     run: ProviderExecutionRun,
-    document: OptimizationExecutionReview,
+    document: OptimizationReview,
+    actor: str,
 ) -> ProviderExecutionStep:
     attempt = db.get(ProviderExecutionAttempt, claim.attempt_id)
     step = db.get(ProviderExecutionStep, (run.id, STEP))
@@ -814,7 +879,7 @@ def checked_claim(
         or step.state != "dispatching"
     ):
         raise HTTPException(409, "original optimization claim unavailable")
-    validate_reservation(db, run, document.plan)
+    validate_reservation(db, run, document.plan, actor)
     return step
 
 
@@ -826,7 +891,7 @@ def execute_claim(
     clock: creation.Clock,
 ) -> OptimizationReceipt:
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, runtime, clock)
-    checked_claim(db, claim, run, document)
+    checked_claim(db, claim, run, document, actor)
     request = claim.request
     db.commit()
     adapter = runtime.transport(request.intent.scope)
@@ -847,7 +912,13 @@ def execute_claim(
     emission_context = runtime.context(request.intent.scope)
     # Reacquire all authority after blocking provider/context IO and resample the clock.
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, runtime, clock)
-    step = checked_claim(db, claim, run, document)
+    step = checked_claim(db, claim, run, document, actor)
+    # Ancestor receipt locks/reads may wait too; final authority and proof time
+    # are sampled after those waits, immediately before the durable emitting state.
+    _, policy = current(
+        db, claim.workspace_id, request.intent.mandate, request.intent.scope, actor, runtime, clock
+    )
+    validate_document(document, policy, clock())
     step.state = "emitting"
     db.commit()
     try:

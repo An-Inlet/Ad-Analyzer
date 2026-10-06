@@ -2378,6 +2378,30 @@ Ruff passed, configured mypy passed 466 files, diff check passed. Log:
 `/tmp/inlet-descriptive-history-final.log`. No Full, CI dispatch, migrations, live
 provider calls, spending, merge or deployment.
 
+## Durable Google exposure design records — 2026-10-06
+
+Saved the [native exposure assessment](design/google-native-exposure-qualification.md) and [joint-envelope proposal](design/google-joint-envelope-proposal.md) under `docs/design` on a docs-only child of PR167 head `16fd3b907177b0446ffda63a694ff6fb753baa2e`. Both crosslink to the actual diagnostic collector and current composer. No currently reviewed preventive Google writer mechanism qualifies, and typed fields alone cannot close strict-cap acceptance. Owner monetary-basis selection remains unresolved; a restricted-launch question is conditional on first demonstrating a real enforceable mechanism. No runtime, migration, policy, or enablement change. Relative links and `git diff --check` verified; tests intentionally not repeated for prose.
+
+## Descriptive History Integration
+
+Integrated PR168e1cb081 as a95ca7c, with owner-only as-of comparison UI and explicit
+unqualified maturity/no action-attribution labels, plus unresolved owner decision
+worksheet. Root actual browser/API/backend regressions33passed1SQLite-onlyskip
+(`/tmp/inlet-next-descriptive-ui.log`). Ruff/mypy474/diff passed. The docs-only
+Google exposure assessment/joint-envelope proposal a156fbc is integrated7360e3e;
+it does not qualify a provider profile or change the monetary promise.
+
+## Final Credential Context Authorization Repair
+
+PR169d5c0671 integrated as f872552. Credential context resolution now precedes the
+final fresh session/claim admission check for creation, activation and optimization;
+creation also validates the claimed owner before resolving credentials. Corrected
+agent baselines reproduced10 product failures on both databases (earlier erroneous
+creation fixture failures are excluded). Root execution-session regression suite
+20passed (`/tmp/inlet-next-context-fence.log`); Ruff/mypy474/diff passed. The fixed
+artifact is newer than both running c602a1b Full and e512529 hosted CI; any pass from
+those predecessors does not qualify this repair or establish release readiness.
+
 ## Social Configuration Review Foundation — 2026-10-06
 
 Branch `codex/inlet-social-review`, base `a95ca7c`, reserved0059/down0057.
@@ -2455,3 +2479,177 @@ DSA personal capture remains blocked until closure-safe privacy propagation acro
 all original/activation copies is implemented. No live credential/provider calls,
 spending, merge or deployment. See `inlet-social-review-journey.md` for frozen ports
 and `inlet-social-declaration-privacy-lineage.md` for the actual finality dependency.
+## Social Review Storage Foundation
+
+Integrated frozen a08db1b as329ff9f: owned exact no-DSA configuration reviews and
+confirmations, explicit strict export/lifecycle classification, migration0059 from
+0057. Root review/migration/route suite15passed with4deprecation warnings
+(`/tmp/inlet-next-social-review-foundation.log`); Ruff/mypy479/diff passed; current
+single Alembic head0059. Customer routes, exact canonical-plan approval binding and
+UI remain a dependent package; storage does not enable dispatch. Personal DSA fields
+are absent/extra-forbidden; required or unverified DSA profiles remain blocked.
+
+Original audit timeline mapping supplied by the parent's read-only document check
+is recorded separately in `docs/inlet-audit-timeline.md`. It supersedes the earlier
+unverified weeks4–5 shorthand; phase comparisons are not delivery forecasts.
+
+## Meta/TikTok native spending evidence assessment — 2026-10-06
+
+Added [the bounded official-source eligibility matrix](design/meta-tiktok-native-exposure-assessment.md). TikTok documents editable/resettable account caps and lifetime controls; its credits-adjusted delayed net-cost metric and request-log identifier do not prove a strict portfolio envelope or original-request finality. Meta's official SDK identifies concrete mutable cap fields; inaccessible help/API semantics remain explicit gaps rather than third-party assumptions. The assessment specifies missing native enforcement, counting-period/adjustment, complete ownership, writer prevention and terminal-request evidence. No currently reviewed source qualifies the strict ceiling or safe reservation release. No runtime contracts, provider calls, credentials or authority changes. Relative links and staged diff check passed; no tests required for prose.
+
+## Frozen Full Nested Failure — Investigation In Progress
+
+The c602a1b frozen Full has not terminated, but its first nested Full reported
+2507passed/62skipped/4failed (2573tests,1247.354seconds). Preserved JUnit:
+`/tmp/inlet-oct06-nested-0.xml`. Failures: Shopify duplicate/disconnect callback
+barrier, Shopify expiry-purge barrier, Shopify connection-revocation/import barrier,
+and TikTok access-log filter test observing an empty ordinary-health log. The
+nested regression therefore fails and outer pytest continues. Dedicated isolated
+investigations are reproducing these; no assertions weakened and frozen tree untouched.
+These are actual observed failures, not a Full pass or a terminal aggregate result.
+
+## TikTok Access-Log Regression Isolation
+
+On isolated child of root `3a7577e`, reproduced the frozen nested failure without
+editing the Full worktree: create `logging.getLogger("uvicorn.access")` as earlier
+browser tests do, then call the repository's `logging.config.fileConfig("alembic.ini")`
+and execute `test_auth_code_callback_bridge_headers_and_actual_access_filter`.
+Alembic's existing-logger disabling left `logger.disabled=True`; `logger.handle`
+then suppressed both the sensitive callback and the ordinary-health positive
+control. Exact before failure is in `/tmp/inlet-tiktok-log-before.txt`.
+
+The test now explicitly enables its captured logger and restores the prior disabled
+state. Both incoming enabled/disabled states are parametrized. The actual callback
+query suppression and `GET /health` assertion are unchanged. Pytest monkeypatch
+restores the original external state after each case; the contaminated-process
+reproducer passed both cases and asserted its original disabled state was restored
+(`/tmp/inlet-tiktok-log-after.txt`). Separately verified actual `uvicorn.Config`
+re-enables the disabled access logger. No production logger/filter code changed.
+
+The ordered command, with the explicitly disposable PostgreSQL service enabled,
+was `pytest -xra tests/test_customer_browser_api_journey.py
+tests/test_inlet_integrated_migrations.py tests/test_customer_tiktok.py`:
+**20 passed, zero skips, six existing Alembic path-separator deprecation warnings**,
+24.39 seconds (`/tmp/inlet-tiktok-log-ordered-tests.txt`). This exercises actual
+HTTPS browser tests, populated migration downgrade/reupgrade, then TikTok cases
+in one process. Whole-tree Ruff, configured mypy (479 files), and diff check passed.
+No new Full or hosted CI result is claimed; the earlier frozen Full failure remains
+historical evidence until a repaired integrated tree is validated.
+
+## Frozen Full Shopify Race-Probe Repair
+
+Branch `codex/inlet-shopify-race-fixtures`, isolated from `f4cbcd2`; frozen Full
+checkouts unchanged. Reproduced two deterministic probe failures from retained
+`/tmp/inlet-oct06-nested-0.xml`: disconnect now waits in the workspace privacy
+`FOR NO KEY UPDATE` fence before the old literal `FOR UPDATE` probe, and expiry
+purge waits on workspace `FOR UPDATE` before its old OAuth DELETE probe. Updated
+only those synchronization probes; expiry also asserts that neither OAuth deletion
+nor measurement-store access occurs while waiting. Provider release/listener cleanup
+now runs even when a probe fails. No deadline increases, retries, sleeps or production
+changes.
+
+The third native import/revocation failure did not reproduce: it passed alone and
+alongside the two reproduced failures. Its test now surfaces completed worker
+exceptions/early statuses rather than masking them behind an unset event, and
+always releases its fixture barrier. The original nested failure remains unresolved;
+this diagnostic improvement is not claimed as its root-cause fix. Existing 5s/10s
+barriers and 0.2s revocation-blocking assertion remain unchanged.
+
+Checks: original three-case reproduction 2 failed/1 passed (19.67s); native case
+alone 1 passed (2.18s). Final complete `test_customer_shopify.py` and
+`test_review_native_ownership.py`: 34 passed, 6 SQLite-only PostgreSQL concurrency
+skips (25.46s). Ruff passed, configured mypy passed 474 files, diff check passed.
+Logs `/tmp/inlet-shopify-race-repro.log`, `/tmp/inlet-native-race-alone.log`,
+`/tmp/inlet-shopify-race-fixed.log`. No Full or CI dispatch. Next combined validation
+must still observe the native-import case; TikTok logger failure is separate work.
+
+## Combined Frozen-Failure Repair Checks
+
+Integrated TikTok logger-isolation479f282 as57ab587 and Shopify barrier/cleanup
+repairbc8a5f7 as1c3ba6f. Root combined `test_customer_shopify.py`,
+`test_review_native_ownership.py`, `test_customer_tiktok.py`:50passed/6SQLite-only
+skips,27.76seconds (`/tmp/inlet-next-frozen-failure-repairs.log`). Ruff/mypy479/diff
+passed. Two stale probes and logger-state contamination have reproduced causes;
+the one native-import barrier failure still has no independently reproduced cause.
+Its assertions/deadlines remain, with better failed-worker diagnostics and cleanup.
+This focused pass does not erase the observed frozen Full failure or establish a
+successful new assembled Full. Frozen outer suite and hosted CI still running.
+
+## Repeat Optimization Reservation Replacement — 2026-10-06
+
+Branch `codex/inlet-repeat-optimization` starts at assembled c602a1b and includes
+context-fence repair d5c0671. Adds a separately approved repeat review, complete
+predecessor/request closure snapshot, server-only transition qualification port,
+atomic superseded→successor held reservation transfer and migration 0058. Original
+v1 plan/request serialization is unchanged. Default replacement reader is absent.
+
+Google, Meta and TikTok actual HTTP adapters were exercised via MockTransport through
+three sequential requests and terminal settlement. All original attempts remain in
+the chain. New coverage includes no-attempt inherited hold retention, changed/expired/
+missing proof, cancellation after qualification, rollback after partial transactional
+writes, PostgreSQL concurrent claims, unknown successor no replay, and strict audit
+export plus migration downgrade refusal. Lifecycle inventory explicitly protects the
+new table; no arbitrary JSON export or table-classification bypass.
+
+Independent review reproduced a late ancestor contradiction bug on both databases:
+unknown receipt appended after successor claim incorrectly allowed emission. Fixed
+by checking latest complete ancestor evidence again at final post-context claim.
+The two controlled baseline failures became passes; final-context injection variants
+also pass. Fresh authority/proof time is resampled after ancestor reads.
+
+Final post-repair command `pytest -o addopts='' -q tests/test_repeat_optimization.py
+ tests/test_execution_session_authorizer.py` passed 47 with 1 intentional SQLite-only
+row-lock concurrency skip. Ruff (`app tests migrations`), mypy (`app tests`, 467 files)
+and diff check passed. Broader repeat/migration/optimization/settlement/session run passed 109 with 1
+intentional SQLite concurrency skip before the final additional fresh-authority
+check (verified by the 47-pass run). Migration empty roundtrip and populated
+downgrade refusal passed. Full is pending integration and root coordination. No manual workflow dispatch.
+
+Remaining: no authoritative native original-request closure/transitional exposure
+source for any provider; no live factory or customer repeat-intent UI enabled.
+Contract scenarios cannot qualify live. Root must join parallel 0058/0059 using 0060.
+Separate personal DSA erasure requires an admission-time nonpersonal closure binding;
+this package does not persist personal declarations or relax spending semantics.
+
+## Existing Campaign Customer Interface Design (2026-10-06)
+
+- Inspected assembled `5dd0d7a` and migration 0058; recorded the proposed owned
+  target catalog and separate initial/repeat review contract in
+  `docs/design/b18-existing-campaign-customer-contract.md`.
+- Identified required exhaustive purpose/schema dispatch and original-session
+  authorization extension in the existing creation/activation customer facade.
+  No API, UI, runtime, schema or source producer was implemented by this package.
+- Portal owner confirmed the optimization namespace does not conflict with the
+  active social configuration work. Default factories remain `None`; native
+  repeat closure/transition qualification is still unavailable.
+- Validation: documentation diff/whitespace check only; no tests, Full, CI dispatch,
+  provider calls, deployment or spend. Next package: freeze typed interfaces, then
+  implement owned catalog/preparation and customer boundary regressions.
+
+## Customer Existing-Campaign Optimization API (2026-10-06)
+
+- Added separate owner/session/CSRF target discovery, optimization-only mandate
+  creation/editing and consent, initial exact review and separately qualified repeat
+  review endpoints. All target topology is resolved from named server configuration
+  plus actual adapter reads; callers cannot supply provider IDs, proof or payloads.
+- Shared approval/run/advance/reconciliation now reject unknown purpose/schema
+  combinations and dispatch optimization explicitly. Owned review/run projections
+  include exact historical mandate limits and independently retained exposure.
+  Creation/activation media storage is resolved lazily; budget/pause requires none.
+- Actual Google, Meta and TikTok adapter journeys use MockTransport with real customer
+  login, CSRF, API calls and durable SQLite/PostgreSQL coordinator records. Added
+  stale/foreign/forged input, topology re-consent, missing repeat source, unknown
+  dispatch and original-session revocation-during-I/O coverage.
+- Production factories remain `None`. Configured offered inventory is not native
+  automatic discovery or qualified exposure/finality. Customer optimization UI and
+  native qualified producers remain follow-up work; no live execution is enabled.
+- Validation: broader API/catalog/UI/pilot/route-boundary/durable/repeat batch
+  **113 passed, 1 SQLite-only concurrency skip**. After adding exact historical
+  reviewed-limit projection, API/catalog/route-boundary batch **46 passed**. Final
+  owner/session/role/topology/capability batch **24 passed in 34.38 seconds**, on
+  SQLite and disposable PostgreSQL. Ruff, configured mypy (**489 source files**) and
+  `git diff --check` passed. No Full, CI dispatch or live provider call.
+- Shared social hook coordinated with portal owner: their later helper may refresh
+  social creation authority after `bound()` and lazy media resolution in the legacy
+  creation/activation branches. Optimization returns first; historical reconciliation
+  does not require new social forward-execution qualification.

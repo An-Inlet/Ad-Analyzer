@@ -239,7 +239,16 @@ def run(db: Session, wid: int, identifier: str) -> ProviderExecutionRun:
 
 
 def run_view(db: Session, row: ProviderExecutionRun) -> dict[str, Any]:
-    document = review(db, row.workspace_id, row.review_id).document
+    from app.publication.customer_optimization import purpose
+
+    review_row = review(db, row.workspace_id, row.review_id)
+    purpose(review_row)
+    document = review_row.document
+    mandate = (
+        document["plan"]["intent"]["mandate"]
+        if document["purpose"] == "existing_campaign_optimize"
+        else document["mandate"]
+    )
     steps = list(
         db.scalars(
             select(ProviderExecutionStep)
@@ -267,10 +276,10 @@ def run_view(db: Session, row: ProviderExecutionRun) -> dict[str, Any]:
     return {
         "id": row.id,
         "review_id": row.review_id,
-        "mandate_id": document["mandate"]["mandate_id"],
-        "mandate_revision": document["mandate"]["revision"],
+        "mandate_id": mandate["mandate_id"],
+        "mandate_revision": mandate["revision"],
         "purpose": document["purpose"],
-        "environment": document["mandate"]["environment"],
+        "environment": mandate["environment"],
         "state": row.state,
         "canceled": row.canceled_at is not None,
         "parent_run_id": row.parent_run_id,
@@ -335,10 +344,17 @@ def discover(
     return GoogleCatalog.model_validate(result.model_dump())
 
 
-def review_view(row: ProviderExecutionReview) -> dict[str, Any]:
+def review_view(row: ProviderExecutionReview, db: Session | None = None) -> dict[str, Any]:
     from app.publication.activation_review import ActivationExecutionReview
     from app.publication.coordinator_contracts import CreationExecutionReview
+    from app.publication.customer_optimization import purpose
+    from app.publication.customer_optimization import review_view as optimization_view
 
+    kind = purpose(row)
+    if kind == "existing_campaign_optimize":
+        if db is None:
+            raise unavailable("reviewed_policy_unavailable")
+        return optimization_view(row, db)
     document = (
         ActivationExecutionReview.model_validate(row.document)
         if row.document.get("purpose") == "activate"

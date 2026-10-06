@@ -1,11 +1,13 @@
 """Customer execution intent APIs; no client-controlled runtime, proof or provider request."""
 
+from collections.abc import Callable
 from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app.api.customer_optimization import Runtime as OptimizationRuntime
 from app.campaign_review.contracts import MediaStore
 from app.campaign_review.storage import get_media_store
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
@@ -15,9 +17,11 @@ from app.publication import (
     activation_review,
     coordinator,
     execution_mandates,
+    optimization,
     provider_service,
 )
 from app.publication import customer_intents as intents
+from app.publication import customer_optimization as opt
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_runtime import (
     CustomerExecutionRuntime,
@@ -44,6 +48,14 @@ from app.publication.service import owner
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/execution", tags=["customer"])
 Runtime = Annotated[CustomerExecutionRuntime | None, Depends(get_customer_execution_runtime)]
 Store = Annotated[MediaStore, Depends(get_media_store)]
+
+
+def get_execution_media_factory() -> Callable[[], MediaStore]:
+    """Resolve media only for operations that actually use creative assets."""
+    return get_media_store
+
+
+MediaFactory = Annotated[Callable[[], MediaStore], Depends(get_execution_media_factory)]
 
 
 def bound(
@@ -170,8 +182,17 @@ def consent(
     provider: Provider,
     db: Database,
     runtime: Runtime,
+    optimization_runtime: OptimizationRuntime,
     response: Response,
 ) -> dict[str, Any]:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    _, mandate_row = execution_mandates.owned(db, workspace_id, mandate_id)
+    if "existing_campaign_optimize" in execution_mandates.policy(db, mandate_row).allowed_purposes:
+        from app.api.customer_optimization import consent as optimization_consent
+
+        return optimization_consent(
+            workspace_id, mandate_id, body, principal, provider, db, optimization_runtime, response
+        )
     server = bound(runtime, principal, provider)
     server.creation.authorize(db, workspace_id, principal.user.id)
     execution_mandates.consent(
@@ -285,7 +306,7 @@ def prepare_creation(
         server.clock,
     )
     response.headers["Cache-Control"] = "no-store"
-    return intents.review_view(row)
+    return intents.review_view(row, db)
 
 
 @router.post("/activation-reviews", status_code=201)
@@ -315,7 +336,7 @@ def prepare_activation(
         server.clock,
     )
     response.headers["Cache-Control"] = "no-store"
-    return intents.review_view(row)
+    return intents.review_view(row, db)
 
 
 @router.get("/reviews/{review_id}")
@@ -323,7 +344,7 @@ def get_review(
     workspace_id: int, review_id: str, principal: Principal, db: Database, response: Response
 ) -> dict[str, Any]:
     read_access(db, principal, workspace_id, response)
-    return intents.review_view(intents.review(db, workspace_id, review_id))
+    return intents.review_view(intents.review(db, workspace_id, review_id), db)
 
 
 @router.post("/reviews/{review_id}/approval")
@@ -335,10 +356,30 @@ def approve(
     provider: Provider,
     db: Database,
     runtime: Runtime,
-    media: Store,
+    optimization_runtime: OptimizationRuntime,
+    media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    row = intents.review(db, workspace_id, review_id)
+    kind = opt.purpose(row)
+    if kind == "existing_campaign_optimize":
+        server_opt = opt.bind(optimization_runtime, principal, provider)
+        runtime_opt = server_opt.execution
+        optimization.approve_optimization(
+            db,
+            workspace_id,
+            review_id,
+            body.review_digest,
+            body.plan_digest,
+            principal.user.id,
+            runtime_opt,
+            server_opt.clock,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return {"state": "approved", "provider_dispatch_complete": False}
     server = bound(runtime, principal, provider)
+    media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
     if row.document.get("purpose") == "activate":
@@ -379,10 +420,23 @@ def start_run(
     provider: Provider,
     db: Database,
     runtime: Runtime,
-    media: Store,
+    optimization_runtime: OptimizationRuntime,
+    media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    row = intents.review(db, workspace_id, review_id)
+    kind = opt.purpose(row)
+    if kind == "existing_campaign_optimize":
+        server_opt = opt.bind(optimization_runtime, principal, provider)
+        runtime_opt = server_opt.execution
+        result = optimization.create_run(
+            db, workspace_id, review_id, principal.user.id, runtime_opt, server_opt.clock
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return intents.run_view(db, result)
     server = bound(runtime, principal, provider)
+    media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
     if row.document.get("purpose") == "activate":
@@ -437,10 +491,29 @@ def advance(
     provider: Provider,
     db: Database,
     runtime: Runtime,
-    media: Store,
+    optimization_runtime: OptimizationRuntime,
+    media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    run = intents.run(db, workspace_id, run_id)
+    row = intents.review(db, workspace_id, run.review_id)
+    kind = opt.purpose(row)
+    if kind == "existing_campaign_optimize":
+        server_opt = opt.bind(optimization_runtime, principal, provider)
+        runtime_opt = server_opt.execution
+        opt_claim = optimization.claim_step(
+            db, workspace_id, run_id, principal.user.id, runtime_opt, server_opt.clock
+        )
+        if opt_claim is not None:
+            optimization.execute_claim(
+                db, opt_claim, principal.user.id, runtime_opt, server_opt.clock
+            )
+        runtime_opt.authorize(db, workspace_id, principal.user.id)
+        response.headers["Cache-Control"] = "no-store"
+        return intents.run_view(db, intents.run(db, workspace_id, run_id))
     server = bound(runtime, principal, provider)
+    media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     run = intents.run(db, workspace_id, run_id)
     if intents.review(db, workspace_id, run.review_id).document.get("purpose") == "activate":
@@ -475,8 +548,25 @@ def reconcile(
     provider: Provider,
     db: Database,
     runtime: Runtime,
+    optimization_runtime: OptimizationRuntime,
     response: Response,
 ) -> dict[str, Any]:
+    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
+    run = intents.run(db, workspace_id, run_id)
+    row = intents.review(db, workspace_id, run.review_id)
+    kind = opt.purpose(row)
+    if kind == "existing_campaign_optimize":
+        server_opt = opt.bind(optimization_runtime, principal, provider)
+        runtime_opt = server_opt.execution
+        original = db.get(ProviderExecutionAttempt, body.attempt_id)
+        if original is None or original.workspace_id != workspace_id or original.run_id != run_id:
+            raise HTTPException(404, "original execution attempt unavailable")
+        optimization.reconcile_attempt(
+            db, workspace_id, body.attempt_id, runtime_opt, server_opt.clock
+        )
+        runtime_opt.authorize(db, workspace_id, principal.user.id)
+        response.headers["Cache-Control"] = "no-store"
+        return intents.run_view(db, intents.run(db, workspace_id, run_id))
     server = bound(runtime, principal, provider)
     server.creation.authorize(db, workspace_id, principal.user.id)
     run = intents.run(db, workspace_id, run_id)

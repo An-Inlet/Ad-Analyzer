@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from fastapi import HTTPException
 from pydantic import AwareDatetime, Field, model_validator
@@ -173,6 +173,10 @@ class OptimizationExposureReader(Protocol):
     ) -> ExposureEvidence: ...
 
 
+if TYPE_CHECKING:
+    from app.publication.replacement_contracts import ReplacementReader
+
+
 @dataclass(frozen=True)
 class OptimizationRuntime:
     environment: Environment
@@ -184,6 +188,7 @@ class OptimizationRuntime:
     tiktok: OptimizationTransport | None = None
     live_enabled: bool = False
     authorize: ExecutionAuthorizer = owner_authorizer
+    replacement_reader: "ReplacementReader | None" = None
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

@@ -165,3 +165,14 @@ def test_one_original_attempt_and_clamped_recomputed_delta() -> None:
     assert bounded_delta((value,), policy) == 50_000
     with pytest.raises(ValueError, match="distinct"):
         bounded_delta((value, value.model_copy(update={"id": uuid4().hex})), policy)
+
+
+def test_exact_source_freshness_boundary_becomes_insufficient() -> None:
+    request, capsules, now = evidence()
+    policy = request.policy.model_copy(update={"maximum_source_age_seconds": 125})
+    request = request.model_copy(update={"policy": policy})
+    capsules = tuple(c.model_copy(update={"policy_digest": policy.digest()}) for c in capsules)
+    boundary = capsules[2].acquisition_completed_at + timedelta(seconds=125)
+    result = compare(request, capsules, boundary)
+    assert result.status == "insufficient" and "latest_report_expired" in result.reasons
+    assert result.relative_cpa_improvement is None

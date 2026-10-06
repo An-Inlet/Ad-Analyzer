@@ -203,3 +203,47 @@ All changes remain local. The real terminal acquisition → comparison → post-
 baseline → changed customer preview, migration/export/erasure, and browser composition
 are still pending their separate implementation lanes and combined tests. No Full,
 live provider request, policy registration, deployment, or spend authorization ran.
+
+
+### Explicit Current Slice Limitation
+
+The current anchor must remain the latest held campaign-budget owner. Consequently
+only one original action per exact campaign cohort is eligible at a time. A feedback
+policy requiring more than one distinct original attempt is **unsupported** and the
+application returns `reported_feedback_historical_multi_action_profile_unavailable`.
+The bounded count is never inflated by repeated reports, receipt revisions, new jobs,
+or changing an objective. This slice can update a non-authorizing preview from one
+actual configuration-associated comparison; it does not yet accumulate historical
+action learning. Multiple original actions are not an added audit acceptance condition;
+this limitation is separate from completing the literal comparable-window, bounded,
+explained recommendation behavior and qualifying its production policy.
+
+A follow-on historical validator must separate admission head selection from retained
+comparison validity. A known subsequent action after the complete relevant windows
+may preserve historical as-of factual comparisons; an intervention inside those
+windows must block them. This needs two sequential actual actions and daily report
+journeys, including unknown/no-effect ambiguity, source/receipt/correction/session
+rechecks, rather than merely relaxing the current-held guard.
+
+### Actual Acquisition Composition Checkpoint
+
+After integrating acquisition commit `efd11ce` locally as `139cc45`, six focused suites
+passed **58 tests** on SQLite/PostgreSQL: contracts, local authority, admission,
+evaluator, real Meta wire acquisition and comparison composition. A subsequent
+inclusive-expiry boundary repair passed **9 evaluator tests**. Whole-tree Ruff/mypy
+(675 source files) passed. Logs: `/tmp/inlet-rf-six-suites.log` and
+`/tmp/inlet-rf-boundary.log` in this executor.
+
+The actual composition covers two distinct before/after reports per window, numeric
+CPA change without causal/delivery claims, correction-to-insufficient, explicit
+new actual acquisition round, same original opportunity, idempotent successor,
+original-session revocation, and actual HTTP read timeout producing a newer unknown
+receipt that denies older successful evidence. Attempts/receipts/held reservations
+are retained; the report worker issues no advertising mutation. The only fixture
+mutation is the separately approved original mocked optimization.
+
+The customer baseline/changed-preview journey exposed a real integration blocker:
+fixed reports publish CurrentPerformance while preserving rolling cadence, and the
+existing current-report reader requires the rolling dates/timestamp. The acquisition
+owner is repairing the typed fixed-completion eligibility path. This checkpoint
+therefore does **not** claim completed customer preview or archive acceptance yet.

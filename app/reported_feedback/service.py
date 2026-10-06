@@ -712,6 +712,8 @@ def apply_feedback_preview(
         or policy.comparison_policy_digest != runtime.window_policy.digest()
     ):
         raise HTTPException(409, "reported_feedback_not_configured")
+    if policy.minimum_distinct_original_attempts != 1:
+        raise HTTPException(409, "reported_feedback_historical_multi_action_profile_unavailable")
     row = db.scalar(
         select(ReportedActionComparison).where(
             ReportedActionComparison.id == intent.comparison_id,

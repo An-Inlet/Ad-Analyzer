@@ -4,14 +4,19 @@ from pathlib import Path
 
 import pytest
 from app.meta.models import MetaConnection
+from app.reported_feedback.contracts import FeedbackPreviewIntentV1
 from app.reported_feedback.models import ReportedFeedbackJob
-from app.reported_feedback.service import read_comparison_progress, request_comparison
+from app.reported_feedback.service import (
+    apply_feedback_preview,
+    read_comparison_progress,
+    request_comparison,
+)
 from app.settings import Settings
 from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from tests.reported_feedback_fixture import seeded
+from tests.reported_feedback_fixture import feedback_policy, seeded
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
 
@@ -89,3 +94,25 @@ def test_changed_objective_supersedes_same_original_without_older_fallback(
         db.commit()
         with pytest.raises(HTTPException):
             read_comparison_progress(db, principal, provider, wid, first.id, runtime)
+
+
+def test_unreachable_multiple_original_policy_is_explicitly_unsupported(
+    customer_engine: Engine, configuration: Settings, tmp_path: Path
+) -> None:
+    with Session(customer_engine) as db:
+        wid, principal, provider, runtime, _, _, _, _ = seeded(db, configuration, tmp_path)
+        runtime = replace(
+            runtime,
+            feedback_policy=feedback_policy().model_copy(
+                update={"minimum_distinct_original_attempts": 2}
+            ),
+        )
+        with pytest.raises(HTTPException, match="historical_multi_action_profile_unavailable"):
+            apply_feedback_preview(
+                db,
+                principal,
+                provider,
+                wid,
+                FeedbackPreviewIntentV1(comparison_id="1" * 32, baseline_preview_id="2" * 32),
+                runtime,
+            )

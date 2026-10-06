@@ -60,14 +60,14 @@ def summarize(
     if any(
         not 0
         <= (now - c.acquisition_completed_at).total_seconds()
-        <= policy.maximum_acquisition_age_seconds
+        < policy.maximum_acquisition_age_seconds
         for c in capsules
     ):
         reasons.add("acquisition_age_unavailable")
     if (
         not 0
         <= (now - capsules[-1].acquisition_completed_at).total_seconds()
-        <= policy.maximum_source_age_seconds
+        < policy.maximum_source_age_seconds
     ):
         reasons.add("latest_report_expired")
     if any(now >= c.expires_at for c in capsules):

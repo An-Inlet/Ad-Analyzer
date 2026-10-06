@@ -14,7 +14,11 @@ from app.meta.models import MetaConnection
 from app.meta.security import API_VERSION
 from app.publication import execution_mandates, optimization
 from app.publication.execution_models import ProviderExecutionMandate
-from app.reported_feedback.contracts import ComparisonIntentV1, ReportedWindowPolicyV1
+from app.reported_feedback.contracts import (
+    ComparisonIntentV1,
+    ReportedFeedbackPolicyV1,
+    ReportedWindowPolicyV1,
+)
 from app.reported_feedback.runtime import ReportedFeedbackRuntime
 from app.reported_feedback.service import request_comparison
 from app.settings import Settings
@@ -115,3 +119,23 @@ def seeded(db: Session, config: Settings, path: Path):  # type: ignore[no-untype
     progress = request_comparison(db, principal, provider, wid, intent, runtime)
     db.commit()
     return wid, principal, provider, runtime, intent, progress, clock, server
+
+
+def feedback_policy() -> ReportedFeedbackPolicyV1:
+    return ReportedFeedbackPolicyV1(
+        policy_id="c" * 32,
+        family="d" * 32,
+        revision=1,
+        environment="contract_test",
+        comparison_policy_digest=window_policy().digest(),
+        original_change="decrease",
+        favorable_direction="decrease",
+        unfavorable_direction="increase",
+        minimum_distinct_original_attempts=1,
+        neutral_band=Decimal("0.01"),
+        weight=Decimal("0.5"),
+        contribution_clamp=Decimal("0.5"),
+        aggregate_clamp=Decimal("0.5"),
+        maximum_preview_delta_micros=1_000_000,
+        lifetime_seconds=60,
+    )

@@ -3,11 +3,20 @@
 from datetime import timedelta
 from pathlib import Path
 
+import httpx
 import pytest
+from app.executors.meta_optimization import MetaOptimizationTransport
+from app.publication import optimization
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
     ProviderExecutionReceipt,
+    ProviderExecutionResponse,
     ProviderExposureReservation,
+)
+from app.publication.optimization_contracts import (
+    OptimizationContext,
+    OptimizationRequest,
+    OptimizationResponse,
 )
 from app.reported_feedback.models import (
     ReportedActionComparison,
@@ -21,6 +30,7 @@ from app.reported_feedback.service import (
 )
 from app.settings import Settings
 from fastapi import HTTPException
+from pydantic import SecretStr
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
@@ -92,6 +102,7 @@ def test_actual_correction_requires_explicit_new_reports_same_original_opportuni
             for model in (
                 ProviderExecutionAttempt,
                 ProviderExecutionReceipt,
+                ProviderExecutionResponse,
                 ProviderExposureReservation,
             )
         )
@@ -122,7 +133,66 @@ def test_actual_correction_requires_explicit_new_reports_same_original_opportuni
             for model in (
                 ProviderExecutionAttempt,
                 ProviderExecutionReceipt,
+                ProviderExecutionResponse,
                 ProviderExposureReservation,
             )
         )
         assert len(server.posts) == 1
+
+
+@pytest.mark.parametrize("change", ["original_session", "latest_unknown_receipt"])
+def test_final_delivery_rechecks_original_session_and_latest_receipt(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    with Session(customer_engine) as db:
+        wid, principal, runtime, job, _, _, clock, runner, _, _, server = acquisition_fixture(
+            db, configuration, tmp_path, monkeypatch
+        )
+        complete(runner, wid, clock[0])
+        complete(runner, wid, clock[0])
+        complete(runner, wid, clock[0])
+        clock[0] += timedelta(seconds=61)
+        complete(runner, wid, clock[0])
+        complete(runner, wid, clock[0])
+        result = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
+        db.commit()
+        row = db.get(ReportedActionComparison, result.id)
+        assert row is not None
+        if change == "original_session":
+            principal.session.revoked_at = int(clock[0].timestamp())
+            db.commit()
+        else:
+            original = db.get(ProviderExecutionAttempt, job.original_attempt_id)
+            assert original is not None
+            request = OptimizationRequest.model_validate(original.request)
+
+            def fail(req: httpx.Request) -> httpx.Response:
+                assert req.method == "GET"
+                raise httpx.ReadTimeout("offline unavailable current provider state")
+
+            adapter = MetaOptimizationTransport(transport=httpx.MockTransport(fail))
+            context = OptimizationContext(
+                scope=request.intent.scope,
+                access_token=SecretStr("offline-only"),
+                expires_at=clock[0] + timedelta(hours=1),
+            )
+            response_row = db.scalar(
+                select(ProviderExecutionResponse).where(
+                    ProviderExecutionResponse.attempt_id == original.id
+                )
+            )
+            assert response_row is not None
+            response = OptimizationResponse.model_validate(response_row.response)
+            receipt = adapter.read_back(request, response, context, clock[0])
+            assert receipt.outcome == "unknown"
+            optimization.record_receipt(db, wid, job.original_attempt_id, receipt, lambda: clock[0])
+        with pytest.raises(HTTPException):
+            read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
+        with pytest.raises(HTTPException):
+            validate_comparison_dependencies(db, row, clock[0])
+        assert len(server.posts) == 1
+        assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1

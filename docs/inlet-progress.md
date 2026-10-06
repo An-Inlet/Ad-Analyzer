@@ -4801,3 +4801,63 @@ migration plus hash compatibility independently pass **2 tests** in4.69s
 **648 files**, and diff checks pass. Generated schemas use disposable
 `inlet_candidate_migration_ci`; no active Full database changes. Local-only delivery;
 no push, PR, hosted CI, live provider call or Full run.
+
+### Initial Reported Efficiency Customer Preview — Local Consumer
+
+Branch `codex/inlet-initial-planning-ui`, shared contracts3c835fb and owned backend
+7428640/2175a5b/ef849d2 integrated locally. Added `/app/initial-planning`, owned
+intent-only capture/calibration/native-option/preview/read APIs, and persisted
+preview delivery. Customers explicitly confirm a reported-event CPA objective;
+server-owned observation cohorts and configured rule parameters are displayed.
+No browser reporting proof, prior action, learned effect, or financial certificate
+is fabricated. The real current Meta campaign budget owner can supply a nominal
+before/after amount only with matching separately consented limits and environment.
+No review handoff, execution approval, reservation or provider mutation is enabled.
+Missing current native context is rendered unavailable, never zero.
+
+Every native read is outside database transactions and followed by fresh original
+session, goal, report-completion, source, policy and database-clock validation.
+Amounts respect native currency quantum without rounding/clamping. Provider minimum/
+acceptance and remaining financial/action/cooldown capacity are explicitly unverified.
+Preview expiry is capped by original session and evidence/native/mandate lifetimes.
+An engineering retention bound128 per owned campaign/environment includes unswept
+expired rows; PostgreSQL workspace fencing serializes concurrent inserts. Original
+manual optimization remains unchanged; no numerical production policy is installed.
+
+Actual validation, SQLite and PostgreSQL:
+- Combined consumer API/HTTPS Chromium UI/real Meta MockHTTP catalog plus shared
+  capture/calibration/contracts and0075 migration: **73 passed,1 expected skip**,
+  61.48s; `/tmp/initial-consumer-final.log`. PostgreSQL Alembic downgrade/re-upgrade
+  passed; SQLite's PostgreSQL-only migration case skipped. Three existing Alembic
+  `path_separator` deprecation warnings occurred.
+- Added real PostgreSQL simultaneous preview requests at capacity1: exactly one
+  succeeds and one is rejected; actual API default policy/calibration/preview caps
+  and privacy erasure tests **2 passed** across both databases,6.41s;
+  `/tmp/initial-consumer-bound.log`.
+- Initial exact-amount suite10 passed and actual API/browser suite10 passed before
+  the final combined run. They exercise actual MetaSyncService wire publication,
+  retained observations, actual Shopify goal preview/confirmation, session/CSRF,
+  and concrete MetaOptimizationTransport reads. Financial readers are sentinels
+  that must never run. Actual session/generation changes during native IO reject
+  persistence, as do environment mismatch and unrepresentable budget precision.
+
+Test-only corrections during assembly: explicit Settings environment alias,
+expected frozen unavailable HTTP409, and SQLite foreign-key enforcement for actual
+cascade assertions. No production missing-table/foreign-key fallback was added.
+The page displays safe text, clears changed context and logout state, and does not
+retry requests. Full, hosted CI, push, PR, provider calls and live pilot were not run.
+Remaining source/calibration qualification and durable review-handoff provenance
+are documented in `docs/design/initial-planning-customer-consumer.md`.
+
+Root's bounded consumer review found that stored preview delivery had not yet
+compared the original actor/session with the incoming principal. Before freezing,
+added that equality guard and exact row/document/intent/cohort/native/timestamp
+bindings. An actual second valid session for the same owner now receives409 while
+the original session can still read its preview. Final consumer API/actual HTTPS
+browser/real Meta MockHTTP native suite: **22 passed**, no skips,43.43s;
+`/tmp/initial-consumer-session-final.log`. This includes PostgreSQL simultaneous
+capacity admission and SQLite with explicit foreign-key enforcement. Final whole
+Ruff, configured mypy **652 files**, JavaScript syntax and whitespace checks passed.
+A test-only concrete HTTP response-class identity assertion had failed despite a
+valid200 response; the test now checks the actual required status/body behavior.
+This package is frozen locally only, with no remote write or CI requested.

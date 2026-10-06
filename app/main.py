@@ -20,6 +20,7 @@ from app.api.customer_execution import router as customer_execution_router
 from app.api.customer_exports import router as customer_exports_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
+from app.api.customer_initial_planning import router as customer_initial_planning_router
 from app.api.customer_lifecycle import router as customer_lifecycle_router
 from app.api.customer_mandates import router as customer_mandates_router
 from app.api.customer_meta import router as customer_meta_router
@@ -158,6 +159,7 @@ app.include_router(customer_lifecycle_router)
 app.include_router(customer_exports_router)
 app.include_router(customer_execution_router)
 app.include_router(customer_plan_review_router)
+app.include_router(customer_initial_planning_router)
 app.include_router(customer_account_diagnostics_router)
 app.include_router(customer_session_automation_router)
 app.include_router(customer_social_review_router)

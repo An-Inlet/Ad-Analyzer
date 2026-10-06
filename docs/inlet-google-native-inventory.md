@@ -15,6 +15,8 @@ Responses are projected into typed snapshots; raw payloads and credentials are n
 
 `advertising_inventory_read_complete` and `billing_inventory_read_complete` mean the selected bounded reads completed and references matched. They do not claim an atomic provider snapshot or complete future portfolio. `reporting_watermark`, `unreported_upper_micros`, `unchanged_future_upper_micros`, and `proposed_owner_upper_micros` are typed as null only. `cap_semantics` can only be `unqualified`. A finite budget, zero observed spend, a lower current budget or a successful read cannot change those types. The result is not `PortfolioFacts` and cannot be registered as qualified evidence.
 
+Related design records: [native exposure assessment](design/google-native-exposure-qualification.md) and [joint-envelope contract proposal](design/google-joint-envelope-proposal.md). Neither registers a qualified profile or changes policy.
+
 ## Qualification And Repeat-Optimization Boundary
 
 A later qualified source needs an explicit accounting basis, enforced cap coverage for every account/owner and the whole mandate period, a demonstrated configuration-writer boundary, and a valid joint accounting model for reported, delayed, future and reserved exposure. Current snapshots alone do not prove those facts. The source must bind its result to the exact plan/target/native budget identity, account generation, mandate revision/currency/period, observation interval and evidence version. It must preserve unresolved earlier attempts and reservations.

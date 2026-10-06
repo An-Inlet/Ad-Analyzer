@@ -3781,3 +3781,26 @@ retracted lineage blocks. Pure association snapshots do not become directional
 learning. Checks actually run: PostgreSQL+SQLite hook regressions6 passed;
 strict contract tests3 passed; whole Ruff clean; whole mypy571 files clean;
 `git diff --check` clean. No Full, live calls, manual workflow dispatch or deployment.
+
+### Session Automation UI — Frozen-Port Consumer Checkpoint
+
+`codex/inlet-session-automation-ui`, isolated child332d7fc, adds separate Start,
+status/history recovery and Stop to Existing Campaigns without replacing manual
+review. Exact consented mandate and registered policy options come from server
+capabilities; readonly limits/environment plus explicit current-session consent
+are shown. No browser evidence/financial policy inputs or backend edits.
+
+Validation: actual HTTPS manual API browser journey **2 passed** (both databases).
+Combined manual and controlled automation JSON-port browsers **4 passed**. Added
+in-flight CSRF/session replacement regression **2 passed** (6.50s), including
+A→B→A late success/failure, lost Start/Stop no replay, history-only recovery,
+unavailable capability, owner denial and logout cleanup. The first added test
+reused a consumed login token; the fixture now exchanges a distinct synthetic token,
+preserving replay denial. Ruff, node syntax, clean mypy **571 files**, diff checks
+pass. Logs `/tmp/inlet-session-automation-ui-contract.log`,
+`/tmp/inlet-session-automation-ui-security.log`,
+`/tmp/inlet-session-automation-ui-types.log`.
+
+Actual automation backend routes remain in the scheduler owner's active package;
+this consumer checkpoint does not claim their qualification. Next: merge its frozen
+head and run the real API/DB automation browser journey. No live calls or Full run.

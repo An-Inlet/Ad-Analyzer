@@ -71,7 +71,17 @@ async function run() {
   await until(() => $('billing').textContent.startsWith('Active') && !$('retry').disabled, 'Canonical billing status not rendered');
   const beforeDisconnect = await (await api(root + '/goals/' + goals[0].id)).json();
   assert(Boolean(beforeDisconnect.baseline_snapshot_id), 'Confirmed snapshot exists before disconnect');
-  assert((await api(root + '/shopify', 'DELETE')).status === 204, 'Actual Shopify disconnect failed');
+  $('shopify-disconnect-open').click();
+  assert($('shopify-disconnect-review').textContent.includes('goal'), 'Disconnect must explain retained goal history');
+  $('shopify-disconnect-confirm').click();
+  await until(() => $('message').textContent.includes('Confirm the data effects') && !$('retry').disabled, 'Unchecked confirmation must reject');
+  assert((await (await api(root + '/shopify')).json()).length === 1, 'Unchecked confirmation cannot disconnect');
+  $('shopify-disconnect-cancel').click();
+  assert($('shopify-disconnect-review').hidden, 'Cancel closes confirmation');
+  $('shopify-disconnect-open').click();
+  $('shopify-disconnect-consent').checked = true;
+  $('shopify-disconnect-confirm').click();
+  await until(() => $('message').textContent.includes('Shopify disconnected') && !$('retry').disabled, 'Actual UI disconnect failed');
   assert((await api(root + '/shopify', 'DELETE')).status === 204, 'Repeated disconnect remains safe');
   assert((await api(root + '/commerce/snapshots/' + beforeDisconnect.baseline_snapshot_id)).status === 404, 'Disconnected measurement snapshot is erased');
   assert((await (await api(root + '/shopify')).json()).length === 0, 'Disconnected grant remains visible');

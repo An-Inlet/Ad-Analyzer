@@ -725,7 +725,7 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
     pytest.importorskip("psycopg")
     from app.ads import models as ads_models  # noqa: F401
     from app.database.session import Base
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import MetaData, create_engine, text
 
     assert any(table.name == "job_runs" for table in Base.metadata.tables.values())
 
@@ -741,7 +741,12 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
     )
     engine = create_engine(env["AD_ANALYZER_TEST_POSTGRES_URL"])
     try:
-        Base.metadata.drop_all(engine)
+        # The migration-created schema is authoritative. Model imports vary between
+        # full collection and focused/nested gates; a partial registry omits dependent
+        # tables and cannot construct a valid drop order. Preserve only Alembic's stamp.
+        application_schema = MetaData()
+        application_schema.reflect(engine, only=lambda name, _: name != "alembic_version")
+        application_schema.drop_all(engine)
         with engine.connect() as connection:
             version = connection.scalar(text("SELECT version_num FROM alembic_version"))
             assert version is not None

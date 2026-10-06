@@ -329,7 +329,7 @@ def test_management_route_enforces_owner_scope_and_csrf(
             self, customer_id: str, configuration_id: str, return_url: str, request_key: str
         ) -> str:
             assert configuration_id == "bpc_fixture"
-            assert return_url == ORIGIN + "/app/settings"
+            assert return_url == ORIGIN + f"/app/settings?workspace={wid}&billing_return=1"
             self.calls.append(customer_id)
             return "https://billing.stripe.com/session/fixture"
 
@@ -442,3 +442,88 @@ def test_delayed_terminal_subscription_event_cannot_replace_current_purchase(
         event = db.get(BillingEvent, "evt_old")
         assert event is not None and event.state == "processed"
     assert fixture.reads == ["sub_old", "sub_current"]
+
+
+@pytest.mark.parametrize("kind", ["checkout", "management"])
+@pytest.mark.parametrize("change", ["role", "session"])
+def test_billing_url_withheld_after_provider_wait_authorization_change(
+    customer_engine: Engine, monkeypatch: pytest.MonkeyPatch, kind: str, change: str
+) -> None:
+    import time
+    from collections.abc import Generator
+    from datetime import UTC
+
+    from app.api import customer_billing as api
+    from app.api.customer import router as auth_router
+    from app.billing.contracts import get_billing_transport
+    from app.customers.access import CSRF_COOKIE
+    from app.customers.identity import get_identity_provider
+    from app.customers.models import CustomerMembership, CustomerSession
+    from app.database.session import get_db
+    from app.settings import settings
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from tests.test_customer_identity import ORIGIN, FakeProvider, login
+
+    def invalidate() -> None:
+        with Session(customer_engine) as db:
+            if change == "role":
+                membership = db.get(CustomerMembership, (uid, wid))
+                assert membership
+                membership.role = "admin"  # Billing requires owner even though media permits admin.
+            else:
+                for session in db.scalars(
+                    select(CustomerSession).where(CustomerSession.user_id == uid)
+                ):
+                    session.revoked_at = int(time.time())
+            db.commit()
+
+    class WaitingBilling(FixtureBilling):
+        def checkout(
+            self, customer_id: str, price_id: str, idempotency_key: str, return_url: str
+        ) -> CheckoutResult:
+            invalidate()
+            return CheckoutResult(
+                id="cs_fixture",
+                url="https://checkout.stripe.com/c/pay/fixture",
+                expires_at=datetime.now(UTC) + timedelta(hours=1),
+            )
+
+        def portal(
+            self, customer_id: str, configuration_id: str, return_url: str, request_key: str
+        ) -> str:
+            invalidate()
+            return "https://billing.stripe.com/p/session/fixture"
+
+    monkeypatch.setattr(settings, "customer_app_origin", ORIGIN)
+    monkeypatch.setattr(settings, "billing_price_id", POLICY.price_id)
+    monkeypatch.setattr(settings, "billing_portal_configuration", "bpc_fixture")
+    app = FastAPI()
+    app.include_router(auth_router)
+    app.include_router(api.router)
+
+    def database() -> Generator[Session, None, None]:
+        with Session(customer_engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_identity_provider] = lambda: FakeProvider()
+    app.dependency_overrides[get_billing_transport] = lambda: WaitingBilling()
+    client = TestClient(app, base_url=ORIGIN)
+    uid = login(client, "billing-owner:wait")
+    with Session(customer_engine) as db:
+        wid, _ = setup(db, "billing-wait")
+        db.add(CustomerMembership(user_id=uid, workspace_id=wid, role="owner"))
+        db.add(
+            WorkspaceBilling(
+                workspace_id=wid, customer_request_key="fixture", customer_id="cus_fixture"
+            )
+        )
+        db.commit()
+    result = client.post(
+        f"/api/customer/v1/workspaces/{wid}/billing/{kind}",
+        headers={"Origin": ORIGIN, "X-CSRF-Token": client.cookies[CSRF_COOKIE]},
+    )
+    assert result.status_code == (403 if change == "role" else 401)
+    assert "url" not in result.json()

@@ -1032,3 +1032,24 @@ PublishPlan ports before dependent B15/B16 provider publication adapters.
 Review UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/99.
 Implementation and focused checks are at `b420478b5906e2183f1b36e8317506a239f9e119`;
 the following documentation-only commit records this PR link.
+
+### Shopify Portal Consent Navigation — 2026-10-06
+
+`codex/inlet-shopify-consent-ui` starts from PR99 head
+`292ac8d4cfa2d52b15d76d1dc8edce78b61f0c95` and includes PR95 browser coverage
+`54587ec`. Owner/admin Shopify domain controls now navigate through consent and the
+GET callback bridge, with verified workspace return, explicit scoped nonce cancellation,
+and safe Back/retry/session-change handling. Existing callback ownership/HMAC/session
+fences remain. No migration, scope expansion, provider calls, merge or deployment.
+
+Checks: 37 passed, 6 intentional SQLite variants of PostgreSQL-only checks skipped;
+Ruff, mypy (289 files), and diff check passed. Real Chromium/HTTPS/API/DB navigation
+passed on SQLite and PostgreSQL; provider consent HTTP and token/metadata transport are
+mocked. Full/CI pending. See `docs/inlet-shopify-consent-ui.md` for exact evidence and
+remaining disconnect UI/live qualification gaps.
+
+Consent-navigation draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/104.
+Implementation/checks are at `c6f32cfd11f56923ad34d0d0195d0493a1d7b4f5`; the following
+documentation-only commit records the PR link. Shopify toolkit search could not fetch
+its service; official Shopify OAuth documentation was verified through web retrieval.
+Toolkit telemetry was disabled; no user prompt was sent to its telemetry service.

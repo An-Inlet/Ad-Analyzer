@@ -34,6 +34,19 @@ async function run() {
   const wid = $('workspace').value, root = `/api/customer/v1/workspaces/${wid}`;
   const workspaces = await (await api('/api/customer/v1/workspaces')).json();
   assert(workspaces.length === 1 && workspaces[0].role === 'owner', 'Workspace retry must replay one owner membership');
+  const authorization = await api(root + '/shopify/authorize', 'POST', {shop:'browser-fixture.myshopify.com'});
+  assert(authorization.ok, 'Actual Shopify authorization failed');
+  const signed = await (await fetch('/__fixture__/shopify-sign', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(await authorization.json())})).json();
+  const invalid = {query:signed.query.map(([key,value]) => [key,key === 'hmac' ? '0'.repeat(64) : value])};
+  assert((await api('/api/customer/v1/shopify/callback', 'POST', invalid)).status === 422, 'Tampered Shopify callback must reject');
+  assert((await fetch('/api/customer/v1/shopify/callback', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(signed)})).status === 403, 'Shopify callback requires actual CSRF token');
+  const callback = await api('/api/customer/v1/shopify/callback', 'POST', signed);
+  assert(callback.ok && (await callback.json()).live_verified === false, 'Actual Shopify callback failed');
+  assert((await api('/api/customer/v1/shopify/callback', 'POST', signed)).status === 422, 'Callback replay must reject');
+  const connections = await (await api(root + '/shopify')).json();
+  assert(connections.length === 1 && connections[0].status === 'connected', 'Verified Shopify connection persisted');
+  $('workspace').dispatchEvent(new Event('change'));
+  await until(() => $('store').options.length === 1 && !$('retry').disabled, 'Imported Shopify store unavailable');
   const values = {target:'10000',target_month:'2026-11',baseline_month:'2026-09',budget:'100',budget_start:'2026-11-01',budget_end:'2026-12-01'};
   for (const [name,value] of Object.entries(values)) $('goal-form').elements.namedItem(name).value = value;
   $('goal-form').dispatchEvent(new Event('submit', {cancelable:true}));
@@ -56,6 +69,14 @@ async function run() {
   assert(reconcile.ok, 'Real billing dispatcher failed');
   $('workspace').dispatchEvent(new Event('change'));
   await until(() => $('billing').textContent.startsWith('Active') && !$('retry').disabled, 'Canonical billing status not rendered');
+  const beforeDisconnect = await (await api(root + '/goals/' + goals[0].id)).json();
+  assert(Boolean(beforeDisconnect.baseline_snapshot_id), 'Confirmed snapshot exists before disconnect');
+  assert((await api(root + '/shopify', 'DELETE')).status === 204, 'Actual Shopify disconnect failed');
+  assert((await api(root + '/shopify', 'DELETE')).status === 204, 'Repeated disconnect remains safe');
+  assert((await api(root + '/commerce/snapshots/' + beforeDisconnect.baseline_snapshot_id)).status === 404, 'Disconnected measurement snapshot is erased');
+  assert((await (await api(root + '/shopify')).json()).length === 0, 'Disconnected grant remains visible');
+  const invalidated = await (await api(root + '/goals/' + goals[0].id)).json();
+  assert(invalidated.assessment === 'baseline_unavailable', 'Disconnect must invalidate retained baseline');
   $('logout').click();
   await until(() => $('application').hidden && !$('retry').disabled, 'Logout failed');
   assert((await api('/api/customer/v1/session')).status === 401, 'Real session revoked');
@@ -64,6 +85,8 @@ async function run() {
   await until(() => !$('application').hidden && !$('retry').disabled, 'Second customer sign-in failed');
   assert($('workspace-content').hidden && $('billing').textContent === '' && $('goal-detail').textContent === '', 'Second customer cannot see prior state');
   assert((await api(root + '/goals')).status === 404, 'Second customer cannot access first customer goal');
+  assert((await api(root + '/shopify')).status === 404, 'Second customer cannot access Shopify ownership');
+  assert((await api('/api/customer/v1/shopify/callback', 'POST', signed)).status === 422, 'Other session cannot replay Shopify callback');
   document.body.dataset.apiJourney = 'passed';
   return {status:'passed', workspace_id:Number(wid), goal_id:goals[0].id};
 }

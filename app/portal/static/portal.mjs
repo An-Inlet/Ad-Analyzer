@@ -30,6 +30,13 @@ export function billingDestination(result, kind) {
   if (url.protocol !== 'https:' || url.hostname !== host || url.port || url.username || url.password) throw new Error('Billing returned an invalid destination.');
   return url.href;
 }
+export function shopifyDestination(result, shop) {
+  const domain = shop.trim().toLowerCase();
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com$/.test(domain)) throw new Error('Enter your store’s myshopify.com domain without a URL or path.');
+  const url = new URL(result.authorization_url);
+  if (url.protocol !== 'https:' || url.hostname !== domain || url.port || url.username || url.password || url.pathname !== '/admin/oauth/authorize' || url.hash) throw new Error('Shopify returned an invalid authorization destination.');
+  return url.href;
+}
 export function amount(value, currency) {
   if (!Number.isSafeInteger(value) || !/^[A-Z]{3}$/.test(currency || '')) return 'Not Available';
   return new Intl.NumberFormat('en-US', {style: 'currency', currency, currencyDisplay: 'code'}).format(value / 1e6);
@@ -96,8 +103,8 @@ if (typeof document !== 'undefined') {
   function clearWorkspace() {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'basis']) $(id).replaceChildren();
-    $('goal-form').reset();
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management']) show(id, false);
+    $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'shopify-setup']) show(id, false);
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -160,6 +167,10 @@ if (typeof document !== 'undefined') {
       workspaces = await api('/api/customer/v1/workspaces');
       $('workspace').replaceChildren(option('', 'Select A Workspace'), ...workspaces.map(w => option(w.id, `${w.name} · ${w.role}`)));
       show('application', true); show('signed-out', false); show('logout', true); say('Choose or create a workspace.');
+      const requested = new URLSearchParams(location.search).get('workspace');
+      if (location.search) history.replaceState(null, '', location.pathname);
+      if (requested && workspaces.some(w => String(w.id) === requested)) { $('workspace').value = requested; await loadWorkspace(); }
+
     } catch (error) { if (error instanceof StaleRequest) return; clearSession(); say(error.message, true); }
   }
   function editGoal() {
@@ -198,8 +209,23 @@ if (typeof document !== 'undefined') {
     const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await api(path + endpoint)]; } catch (error) { if (error instanceof StaleRequest || error.status === 401) throw error; return [name, 'Status unavailable']; } }));
     if (turn !== epoch) throw new StaleRequest();
     renderConnections([['Shopify', stores], ...results, ['Meta Ads', null]]);
+    const setup = await api(path + '/shopify/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    show('shopify-setup', true); show('shopify-connect', Boolean(setup.enabled && setup.can_manage));
+    $('shopify-setup-status').textContent = !setup.enabled ? 'Shopify connection setup is not configured.' : setup.can_manage ? 'An owner or admin can authorize this workspace’s store.' : 'Ask a workspace owner or admin to connect Shopify.';
+    const connected = await api(path + '/shopify');
+    if (turn !== epoch) throw new StaleRequest();
+    if (connected.length) { $('shopify-domain').value = connected[0].shop_domain; $('shopify-current').textContent = `${connected[0].shop_domain} · ${label(connected[0].status)}`; }
+
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
+  $('shopify-connect').onsubmit = event => { event.preventDefault(); guarded(async () => {
+    const shop = $('shopify-domain').value.trim().toLowerCase();
+    shopifyDestination({authorization_url: `https://${shop}/admin/oauth/authorize`}, shop);
+    const result = await api(root() + '/shopify/authorize', 'POST', {shop});
+    location.assign(shopifyDestination(result, shop));
+  }); };
+  window.addEventListener('pageshow', event => { if (event.persisted) guarded(session); });
   $('retry').onclick = () => guarded(session);
   // Auth is lazy and disabled by server configuration; no SDK/provider network by default.
   import('./auth.mjs').then(async ({prepareSignIn}) => {

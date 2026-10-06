@@ -2465,3 +2465,31 @@ and TikTok access-log filter test observing an empty ordinary-health log. The
 nested regression therefore fails and outer pytest continues. Dedicated isolated
 investigations are reproducing these; no assertions weakened and frozen tree untouched.
 These are actual observed failures, not a Full pass or a terminal aggregate result.
+
+## TikTok Access-Log Regression Isolation
+
+On isolated child of root `3a7577e`, reproduced the frozen nested failure without
+editing the Full worktree: create `logging.getLogger("uvicorn.access")` as earlier
+browser tests do, then call the repository's `logging.config.fileConfig("alembic.ini")`
+and execute `test_auth_code_callback_bridge_headers_and_actual_access_filter`.
+Alembic's existing-logger disabling left `logger.disabled=True`; `logger.handle`
+then suppressed both the sensitive callback and the ordinary-health positive
+control. Exact before failure is in `/tmp/inlet-tiktok-log-before.txt`.
+
+The test now explicitly enables its captured logger and restores the prior disabled
+state. Both incoming enabled/disabled states are parametrized. The actual callback
+query suppression and `GET /health` assertion are unchanged. Pytest monkeypatch
+restores the original external state after each case; the contaminated-process
+reproducer passed both cases and asserted its original disabled state was restored
+(`/tmp/inlet-tiktok-log-after.txt`). Separately verified actual `uvicorn.Config`
+re-enables the disabled access logger. No production logger/filter code changed.
+
+The ordered command, with the explicitly disposable PostgreSQL service enabled,
+was `pytest -xra tests/test_customer_browser_api_journey.py
+tests/test_inlet_integrated_migrations.py tests/test_customer_tiktok.py`:
+**20 passed, zero skips, six existing Alembic path-separator deprecation warnings**,
+24.39 seconds (`/tmp/inlet-tiktok-log-ordered-tests.txt`). This exercises actual
+HTTPS browser tests, populated migration downgrade/reupgrade, then TikTok cases
+in one process. Whole-tree Ruff, configured mypy (479 files), and diff check passed.
+No new Full or hosted CI result is claimed; the earlier frozen Full failure remains
+historical evidence until a repaired integrated tree is validated.

@@ -32,7 +32,8 @@ class SourceGrant(StrictModel):
 
 
 class SourceTransport(Protocol):
-    mode: Literal["fixture"]
+    @property
+    def mode(self) -> Literal["fixture", "provider_read"]: ...
 
     def authorize_url(self, state: str, redirect_uri: str) -> str: ...
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant: ...
@@ -57,6 +58,18 @@ class UnavailableSource:
 
 
 def get_source_transport(provider: ProviderName) -> SourceTransport:
+    from app.settings import settings
+    from app.tiktok.http import TikTokHTTPRead
+
+    if (
+        provider == "tiktok_ads"
+        and settings.tiktok_runtime_mode == "provider_read"
+        and settings.tiktok_app_secret
+    ):
+        try:
+            return TikTokHTTPRead(settings.tiktok_app_id, settings.tiktok_app_secret)
+        except ValueError:
+            pass
     return UnavailableSource()
 
 

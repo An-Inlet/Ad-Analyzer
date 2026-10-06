@@ -20,12 +20,12 @@ ACTIVATABLE = {
     "google_create_paused_ad_group": "adGroups",
     "google_create_exact_keyword": "adGroupCriteria",
     "google_create_paused_responsive_search_ad": "adGroupAds",
-    "meta_create_paused_campaign": "campaign",
-    "meta_create_paused_adset": "adset",
-    "meta_create_paused_ad": "ad",
-    "tiktok_create_disabled_campaign": "campaign",
-    "tiktok_create_disabled_adgroup": "adgroup",
-    "tiktok_create_disabled_video_ad": "ad",
+    "meta_create_paused_campaign": "campaigns",
+    "meta_create_paused_adset": "adsets",
+    "meta_create_paused_ad": "ads",
+    "tiktok_create_disabled_campaign": "campaigns",
+    "tiktok_create_disabled_adgroup": "adgroups",
+    "tiktok_create_disabled_video_ad": "ads",
 }
 
 
@@ -93,9 +93,9 @@ class ActivationPlan(StrictModel):
                 for t in self.targets
             )
             or ACTIVATABLE[self.targets[-1].original_request.step.operation.kind]
-            not in {"campaign", "campaigns"}
+            not in {"campaigns"}
             or sum(
-                ACTIVATABLE[t.original_request.step.operation.kind] in {"campaign", "campaigns"}
+                ACTIVATABLE[t.original_request.step.operation.kind] in {"campaigns"}
                 for t in self.targets
             )
             != 1

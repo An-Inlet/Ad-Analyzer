@@ -157,3 +157,41 @@ def test_changed_preflight_or_context_never_updates(change: str) -> None:
     with pytest.raises(GooglePublicationUnavailable):
         adapter.apply_once(request, context, NOW)
     assert server.activations == 0
+
+
+@pytest.mark.parametrize("provider", ["meta", "tiktok"])
+def test_activation_preserves_actual_social_receipt_namespaces(provider: str) -> None:
+    from app.publication.activation_contracts import ACTIVATABLE, ActivationPlan
+
+    from tests.test_social_publication_http import MetaServer, TikTokServer, graph, tiktok_graph
+
+    _, requests, receipts = (
+        graph(MetaServer()) if provider == "meta" else tiktok_graph(TikTokServer())
+    )
+    targets = []
+    for step_id, request in reversed(list(requests.items())):
+        if request.step.operation.kind not in ACTIVATABLE:
+            continue
+        receipt = receipts[step_id]
+        assert receipt.resource_name is not None and receipt.readback_digest is not None
+        targets.append(
+            ActivationTarget(
+                source_attempt_id="1" * 32,
+                source_receipt_id="2" * 32,
+                source_receipt_digest="a" * 64,
+                original_request=request,
+                resource_name=receipt.resource_name,
+                before_readback_digest=receipt.readback_digest,
+                before_status="PAUSED" if provider == "meta" else "DISABLE",
+                target_status="ACTIVE" if provider == "meta" else "ENABLE",
+            )
+        )
+    assert len(targets) == 3
+    plan = ActivationPlan(
+        account=ExecutionAccount.from_publication(targets[0].original_request.scope),
+        parent_run_id=targets[0].original_request.plan_id,
+        parent_plan_digest=targets[0].original_request.plan_digest,
+        targets=targets,
+    )
+    assert "/campaigns/" in plan.targets[-1].resource_name
+    assert all(t.resource_name == receipts[t.step_id].resource_name for t in plan.targets)

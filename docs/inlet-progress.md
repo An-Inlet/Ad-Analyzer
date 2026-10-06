@@ -1012,3 +1012,22 @@ Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
 journey; publication coordinator with fixture-only authority. B07 simulation mandates
 remain simulation and B14 review does not grant publication permission. No provider
 mutations, live credentials, merge or deployment were performed.
+
+
+### B15–B20 Acceptance Evidence Matrix (2026-10-06)
+
+Documentation-only branch `codex/inlet-acceptance-matrix` starts from frozen PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6`. Added
+[retained audit criteria and detailed engineering decomposition](inlet-b15-b20-acceptance.md)
+with exact candidate heads for PR95/97–100. Inspected relevant implementation,
+publication adapter proposal, real-browser harness and restore/learning tests.
+Distinguishes missing code from provider/operations qualification and owner decisions;
+credits neither fixture publication nor browser-origin API helpers as completed core
+customer journeys. Existing legacy learning remains recognized as reusable work.
+
+No application code, schema or settings changed. Validation is Markdown structure,
+local referenced-path inspection and `git diff --check`; no pytest/Full rerun or new
+provider call. Quoted acceptance wording comes from the integrating agent's retained
+Library audit read; original attachment bytes were not materialized here. Next: finish
+shared provider publication contracts/actual adapters and core task UI, then stable
+B17 evidence contracts and final integrated operational/pilot acceptance.

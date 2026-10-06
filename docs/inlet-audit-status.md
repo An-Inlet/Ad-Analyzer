@@ -20,9 +20,9 @@ suite is not completion of the audit's full customer/provider journey.
 | B12 | Klaviyo/HubSpot HTTP and conservative field projections implemented/tested | Durable pacing and verified Omnisend HTTP adapter implemented/tested; renewal, canonical identity mapping/retention consumer |
 | B13 | Test Stripe HTTP, webhooks, entitlements, management and safe recovery implemented/tested | Commercial configuration, complete browser journey and live qualification; legacy unknown keys fail closed |
 | B14 | Typed immutable offline review and bounded image validation implemented/tested | Video validation, production media storage, rendered review and preview/publication equivalence |
-| B15 | Not implemented | Google reviewed publication and partial-failure recovery after B14 |
-| B16 | Not implemented | Meta/TikTok actions and reviewed publication after shared contracts |
-| B17 | Not implemented | Mature comparable outcome evidence and bounded feedback |
+| B15 | Fixture publication coordinator exists on separate draft PR98; actual Google publication incomplete | Real compiler/HTTP/readback, partial-effect reconciliation, separate activation and authority |
+| B16 | Shared fixture foundation only; actual Meta/TikTok actions/publication incomplete | Each supported campaign type must complete its concrete provider journey |
+| B17 | Legacy learning/outcome components exist; Inlet action-effect feedback incomplete | Mature comparable action windows, bounded recommendation updates and customer explanations |
 | B18 | Portal plus actual HTTPS browser/API/database lifecycle tests pass | Actual browser/API/DB signup, goal and billing fixture journey passes; complete source setup, mandate editing, activity/support, export/closure |
 | B19 | Operational foundation exists; readiness HTTP status repair implemented/tested | Dependency readiness, exact-artifact checks, monitoring, backup/restore and release qualification |
 | B20 | Offline two-workspace fixtures cover specific cases | Unrelated real pilot businesses through complete launch workflows |
@@ -59,3 +59,13 @@ suite passed **214 tests, 8 intentional SQLite concurrency skips**, with Postgre
 counterparts executed. Twenty warnings are existing Alembic configuration
 deprecations. Ruff and mypy (287 files) passed. Full and hosted CI must still be
 run on the final candidate; these focused results do not replace them.
+
+
+## B15–B20 Detailed Acceptance Checkpoint
+
+See [the B15–B20 matrix](inlet-b15-b20-acceptance.md) for retained audit criteria,
+exact draft PR/head evidence and separate remaining code, qualification and decisions.
+That document includes PR95 browser-origin Shopify API limits, PR97 dependency
+readiness, PR98 fixture publication, PR99 rendered review and PR100 disposable native
+restore. These branches are not implicitly integrated into this base checkout. None
+of B15–B20 is complete; Full/CI and real environment acceptance remain separate.

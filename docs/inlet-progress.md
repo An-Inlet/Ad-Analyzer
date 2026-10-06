@@ -571,3 +571,27 @@ passed843 tests with zero skips and all gates at36c0155 (PR68 updated). B10 loca
 passed845 tests with six PowerShell skips and all gates at6f12be8; hosted CI37392693269
 is pending final account-isolation gate. Next: B12 read-only customer-data context using
 these explicit source identities; canonical Shopify revenue must remain unduplicated.
+
+## B12 — Initial Transient Customer Context Adapters
+
+Branch `codex/inlet-b12-customer-context` follows B11 `5900e69` / draft PR70.
+Prepared fixed read-request/projection adapters for Klaviyo profiles, HubSpot contact
+lifecycle and Omnisend contact channel status, plus transient canonical-customer
+enrichment. This is an initial B12 slice, not completed provider onboarding or full B12
+acceptance. No new schema, contact history, revenue ingress, identity guesses or private
+CRM gateway access. The concrete fixture mapping is intentionally unusable as live
+identity proof. Runtime OAuth/refresh/provider mapping, scheduler/UI integration and
+retained enrichment policy remain unfinished; see `inlet-customer-context-contract.md`.
+
+Eight focused tests initially passed across SQLite/PostgreSQL. Expanded Shopify
+regressions, Full and exact-head hosted evidence are recorded in the package PR. Ruff
+and mypy (236 files) pass. The parser drops personal/custom/revenue fields and rejects
+untrusted continuation URLs. Canonical joins recheck active ownership, current generation,
+existing customer facts and privacy suppression. Partial/cyclic reads cannot publish
+a partial result. Current source observations are not permission for targeting.
+
+B10 hosted CI37392693269 completed successfully: 851 tests, zero skips, all gates;
+PR69 has the terminal evidence. B11 Full/CI remain tracked in PR70. Next independent
+offline package: B13 checkout/subscription webhook and entitlement preparation with
+commercial configuration disabled pending owner pricing decisions. B12 live/retained
+context gaps remain open rather than being represented as working connections.

@@ -112,6 +112,7 @@ def connection(db: Session, m: Mandate, scope: AccountScope) -> GoogleCustomerCo
             GoogleCustomerConnection.status == "connected",
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if row is None or scope.platform != "google_ads":
         raise HTTPException(409, "Google customer scope unavailable")
@@ -127,6 +128,7 @@ def prepare(
     actor: str,
     now: datetime,
 ) -> MandateAction:
+    m = mandates.owned(db, m.workspace_id, m.id)
     row = connection(db, m, scope)
     account = db.get(AdvertisingAccount, scope.account_id)
     if account is None or account.external_account_id != state.customer_id:
@@ -185,10 +187,11 @@ def prepare(
 
 
 def change_from(a: MandateAction) -> GoogleChange:
-    payload = ActionDraft.model_validate(a.draft).payload
+    draft = ActionDraft.model_validate(a.draft)
+    payload = draft.payload
     if payload.get("schema") != "google_search_action_v1":
         raise HTTPException(409, "unsupported action schema")
-    return GoogleChange.model_validate(
+    change = GoogleChange.model_validate(
         {
             key: payload[key]
             for key in (
@@ -201,6 +204,44 @@ def change_from(a: MandateAction) -> GoogleChange:
             if key in payload
         }
     )
+    if (
+        draft.kind != change.kind
+        or draft.exposure_micros != change.modeled_exposure_micros
+        or draft.resource_key != "google-campaign:" + str(payload.get("campaign_id"))
+    ):
+        raise HTTPException(409, "Google action authorization mismatch")
+    for key, length in (("customer_id", 10), ("campaign_id", 32), ("budget_id", 32)):
+        value = payload.get(key)
+        if (
+            not isinstance(value, str)
+            or not value.isdigit()
+            or not 1 <= len(value) <= length
+            or (key == "customer_id" and len(value) != 10)
+        ):
+            raise HTTPException(409, "Google action resource mismatch")
+    return change
+
+
+def validate_bound_operation(d: ActionDraft, change: GoogleChange, current: GoogleState) -> None:
+    expected_change = max(
+        0,
+        (
+            change.new_budget_micros
+            if change.new_budget_micros is not None
+            else current.budget_micros
+        )
+        - current.budget_micros,
+    )
+    if (
+        d.payload["customer_id"] != current.customer_id
+        or d.payload["campaign_id"] != current.campaign_id
+        or d.payload["budget_id"] != current.budget_id
+        or d.positive_change_micros != expected_change
+        or current.channel != "SEARCH"
+        or current.shared_budget
+        or current.status == "REMOVED"
+    ):
+        raise HTTPException(409, "Google current state/accounting/resource mismatch")
 
 
 def request_preview(a: MandateAction) -> dict[str, Any]:
@@ -259,12 +300,17 @@ def run_fixture(
     # No arbitrary live mutation adapter can be substituted into this runtime path.
     if type(adapter) is not FixtureGoogleActions:
         raise HTTPException(409, "only offline fixture adapter is allowed")
+    m = mandates.owned(db, m.workspace_id, m.id)
+    a = mandates.action(db, m, a.id)
     d = ActionDraft.model_validate(a.draft)
     row = connection(db, m, d.account)
+    if row.external_account_id != d.payload.get("customer_id"):
+        raise HTTPException(409, "Google action account mismatch")
     if row.generation != d.payload.get("connection_generation"):
         raise HTTPException(409, "Google connection generation changed")
     change = change_from(a)
     current = adapter.read(str(d.payload["campaign_id"]), now)
+    validate_bound_operation(d, change, current)
     observed = evidence.model_copy(
         update={"state_digest": current.digest(), "observed_at": current.observed_at}
     )
@@ -273,9 +319,12 @@ def run_fixture(
     m = mandates.owned(db, m.workspace_id, m.id)
     a = mandates.action(db, m, a.id)
     row = connection(db, m, d.account)
+    if row.external_account_id != d.payload.get("customer_id"):
+        raise HTTPException(409, "Google action account mismatch")
     if row.generation != d.payload.get("connection_generation"):
         raise HTTPException(409, "Google connection generation changed")
     current = adapter.read(str(d.payload["campaign_id"]), now)
+    validate_bound_operation(d, change, current)
     observed = evidence.model_copy(
         update={"state_digest": current.digest(), "observed_at": current.observed_at}
     )
@@ -313,8 +362,12 @@ def reconcile_fixture(
 ) -> bool:
     if type(adapter) is not FixtureGoogleActions:
         raise HTTPException(409, "only offline fixture adapter is allowed")
+    m = mandates.owned(db, m.workspace_id, m.id)
+    a = mandates.action(db, m, a.id)
     d = ActionDraft.model_validate(a.draft)
     row = connection(db, m, d.account)
+    if row.external_account_id != d.payload.get("customer_id"):
+        raise HTTPException(409, "Google action account mismatch")
     if row.generation != d.payload.get("connection_generation"):
         raise HTTPException(409, "Google connection generation changed")
     change = change_from(a)

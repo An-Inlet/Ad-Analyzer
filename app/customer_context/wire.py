@@ -86,8 +86,22 @@ class ProfileReader:
                 for channel in ("email", "sms"):
                     marketing = subscriptions.get(channel, {}).get("marketing") or {}
                     current = status(marketing.get("consent"))
-                    if marketing.get("suppression") or marketing.get("list_suppressions"):
-                        current = "unsubscribed"
+                    # Consent and suppression are distinct. List suppression must
+                    # not become a channel-wide unsubscribe (nor global permission).
+                    scope = "unknown"
+                    if "suppression" in marketing and "list_suppressions" in marketing:
+                        global_suppressed = bool(marketing["suppression"])
+                        list_suppressed = bool(marketing["list_suppressions"])
+                        scope = (
+                            "global_and_list"
+                            if global_suppressed and list_suppressed
+                            else "global"
+                            if global_suppressed
+                            else "list"
+                            if list_suppressed
+                            else "none"
+                        )
+                    setattr(p, channel + "_suppression_scope", scope)
                     setattr(p, channel + "_status", current)
             elif self.provider == "hubspot":
                 p.lifecycle = lifecycle(row.get("properties", {}).get("lifecyclestage"))

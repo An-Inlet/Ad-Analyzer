@@ -263,6 +263,15 @@ def review(
     audit(db, m, "reviewed_exact_draft", actor, now, a)
 
 
+def reject_observed(db: Session, detail: str) -> None:
+    # Called only after validated evidence has updated the mandate high-water mark,
+    # and before any claim/dispatch side effect. These methods own their transaction.
+    # Keep the workspace lock until commit so another claimant cannot see an older
+    # spend value after this request is rejected and its request session closes.
+    db.commit()
+    raise HTTPException(409, detail)
+
+
 def preconditions(
     db: Session, m: Mandate, a: MandateAction, e: SyntheticEvidence, now: datetime
 ) -> tuple[MandateDefinition, ActionDraft]:
@@ -296,7 +305,7 @@ def preconditions(
         m.opening_micros = e.period_consumed_micros
     m.observed_micros = max(m.observed_micros, e.period_consumed_micros)
     if m.observed_micros + m.reserved_micros > p.total_cap_micros:
-        raise HTTPException(409, "observed exposure exceeds cap")
+        reject_observed(db, "observed exposure exceeds cap")
     return p, d
 
 
@@ -305,6 +314,8 @@ def claim(
 ) -> None:
     from app.billing.entitlements import paid_work
 
+    m = owned(db, m.workspace_id, m.id)
+    a = action(db, m, a.id)
     paid_work(db, m.workspace_id, now)
     if a.request_key is not None:
         if a.request_key != body.request_key:
@@ -325,9 +336,9 @@ def claim(
         or m.changes_used + d.positive_change_micros > p.positive_change_cap_micros
         or m.actions_used >= p.action_limit
     ):
-        raise HTTPException(409, "cumulative policy cap exceeded")
+        reject_observed(db, "cumulative policy cap exceeded")
     if m.last_action_at and now - utc(m.last_action_at) < timedelta(seconds=p.cooldown_seconds):
-        raise HTTPException(409, "policy cooldown")
+        reject_observed(db, "policy cooldown")
     # No second action against the same resource until the first is settled/cancelled.
     for pending in db.scalars(
         select(MandateAction).where(
@@ -337,7 +348,7 @@ def claim(
     ):
         prior = ActionDraft.model_validate(pending.draft)
         if (prior.account.account_id, prior.resource_key) == (d.account.account_id, d.resource_key):
-            raise HTTPException(409, "resource outcome unresolved")
+            reject_observed(db, "resource outcome unresolved")
     m.reserved_micros += d.exposure_micros
     m.changes_used += d.positive_change_micros
     m.actions_used += 1

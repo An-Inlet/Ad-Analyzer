@@ -3009,3 +3009,30 @@ Validation: 39 passed in 7.81s (29 pure synthetic boundary tests and 10 actual r
 collector cases across SQLite/PostgreSQL, including proof current imports cannot
 qualify). Ruff, mypy (506 files), and diff checks passed. No Full, manual CI dispatch,
 API, migration, production policy installation, provider calls or deployment.
+
+## B17 Read-Only Owned V3 Bridge (2026-10-06)
+
+Branch `codex/inlet-owned-outcomes-v3`, isolated child of PR185 `b100317`.
+The bridge reads actual owned current receipt/account/goal/source evidence in its
+own session, releases database locks before producer IO, then reauthorizes and
+rechecks latest receipt, source/privacy/goal and policy in a new fenced session.
+No caller transaction is committed. Actual default registries/timing remain
+unavailable and yield insufficient. The pure bridge supports future qualified
+server facts with strict authoritative interval separation, equal complete local
+windows/as-of and exact association arithmetic; it confers no causal attribution,
+recommendation or spending authority. Existing v2 persistence/history is untouched.
+No endpoint, migration or production producer is installed.
+
+`docs/design/b17-v3-feedback-contract.md` defines the proposed strict v2/v3 document
+union and concrete idempotent feedback/contribution/dependency schema, including
+privacy retraction and candidate invalidation integration. Persistence and decision
+policy remain unimplemented/uninstalled, pending root schema review.
+
+Validation: final new SQLite/PostgreSQL suite 14 passed (20.17s): actual receipt
+insufficiency, foreign ownership, unchanged v2 storage, synthetic qualified timing,
+zero/negative/large exact values, and independently committed goal/privacy/account/
+session/latest-receipt changes during producer IO. Separate-session workspace/goal
+locks prove no bridge locks survive into producer IO. Earlier combined v2/v3/pure
+suite 50 passed, 1 SQLite-specific skip (31.48s); final added receipt races and exact
+large arithmetic were covered in the final 14-case run. Ruff, mypy (508 files), and
+diff checks passed. No Full, manual CI dispatch, live call or deployment.

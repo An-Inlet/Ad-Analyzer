@@ -43,3 +43,13 @@ changing the mathematical checks; fixture/live environment mismatch fails closed
 See `b17-operational-maturity-interface.md` for the frozen interface and proposed v3,
 feedback and retraction interfaces. The missing independent source/timing producers,
 v3 assessment bridge and feedback/retraction consumer remain implementation work.
+
+## Subsequent Read-Only V3 Bridge
+
+`app/outcomes/owned_v3.py` now implements a reusable read-only owned bridge with
+short-lived snapshot sessions released before producer IO and a fresh fenced
+recheck afterward. Actual inputs remain insufficient; only explicit fixture timing
+and qualified synthetic reconciliation can demonstrate association arithmetic.
+V2/history remain unchanged. Persisted v3 dependency lineage, strict customer
+projection and feedback/contribution/retraction storage are still unimplemented;
+see `b17-v3-feedback-contract.md` for the proposal awaiting schema reservation.

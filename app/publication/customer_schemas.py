@@ -61,12 +61,20 @@ class GoogleConfigurationIntent(StrictModel):
     search_partners: bool = Field(strict=True, default=False)
 
 
+class GoogleTotalConfigurationIntent(StrictModel):
+    budget_kind: Literal["campaign_total_v1"]
+    total_budget_micros: int = Field(strict=True, gt=0, le=10**15)
+    max_cpc_micros: int = Field(strict=True, gt=0, le=10**15)
+    catalog_option_id: Digest
+    search_partners: bool = Field(strict=True, default=False)
+
+
 class CreationIntent(StrictModel):
     draft_id: Id
     draft_revision: int = Field(strict=True, ge=1)
     mandate_id: Id
     mandate_revision: int = Field(strict=True, ge=1)
-    google: GoogleConfigurationIntent
+    google: GoogleConfigurationIntent | GoogleTotalConfigurationIntent
 
 
 class ActivationIntent(StrictModel):

@@ -13,6 +13,8 @@ from app.publication.provider_contracts import (
     GoogleCreatePausedAdGroup,
     GoogleCreatePausedCampaign,
     GoogleCreatePausedResponsiveSearchAd,
+    GoogleCreateTotalBudget,
+    GoogleSearchTotalPublicationFields,
     GoogleSetConversionGoal,
     ProviderOperation,
     ProviderPublicationReview,
@@ -36,7 +38,11 @@ def compile_google(review: ProviderPublicationReview) -> ProviderPublishPlan:
             ProviderPublishStep(step_id=key, dependencies=dependencies, operation=operation)
         )
 
-    add("budget", GoogleCreateBudget(amount_micros=fields.daily_budget_micros), [])
+    total = isinstance(fields, GoogleSearchTotalPublicationFields)
+    if isinstance(fields, GoogleSearchTotalPublicationFields):
+        add("budget", GoogleCreateTotalBudget(total_amount_micros=fields.total_budget_micros), [])
+    else:
+        add("budget", GoogleCreateBudget(amount_micros=fields.daily_budget_micros), [])
     zone = ZoneInfo(fields.account_timezone)
     add(
         "campaign",
@@ -88,7 +94,12 @@ def compile_google(review: ProviderPublicationReview) -> ProviderPublishPlan:
         GoogleCreatePausedResponsiveSearchAd(group=ResourceRef(step_id="group"), content=content),
         [step.step_id for step in steps],
     )
-    return ProviderPublishPlan(review=review, review_digest=review.digest(), steps=steps)
+    return ProviderPublishPlan(
+        review=review,
+        review_digest=review.digest(),
+        steps=steps,
+        compiler_id="google_search_total_v25_v1" if total else "google_search_v25_v1",
+    )
 
 
 def materialize_google(

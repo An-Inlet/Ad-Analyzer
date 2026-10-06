@@ -37,8 +37,11 @@ def first() -> BoundProviderRequest:
     )
 
 
-def test_actual_http_mocked_full_google_dag_validate_mutate_readback() -> None:
-    plan = compile_google(review())
+@pytest.mark.parametrize("total_budget", [False, True])
+def test_actual_http_mocked_full_google_dag_validate_mutate_readback(total_budget: bool) -> None:
+    from tests.test_google_total_publication import total_review
+
+    plan = compile_google(total_review() if total_budget else review())
     requests: dict[str, BoundProviderRequest] = {}
     receipts: dict[str, ProviderReceipt] = {}
     calls: list[httpx.Request] = []

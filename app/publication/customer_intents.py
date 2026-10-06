@@ -20,7 +20,11 @@ from app.publication.customer_catalog import (
     GoogleCatalogRequest,
 )
 from app.publication.customer_runtime import CustomerExecutionRuntime
-from app.publication.customer_schemas import CreationIntent, PolicyIntent
+from app.publication.customer_schemas import (
+    CreationIntent,
+    GoogleTotalConfigurationIntent,
+    PolicyIntent,
+)
 from app.publication.execution_contracts import (
     ExecutionAccount,
     ProviderMandateBinding,
@@ -35,7 +39,11 @@ from app.publication.execution_models import (
     ProviderExecutionStep,
     ProviderExposureReservation,
 )
-from app.publication.provider_contracts import GoogleSearchPublicationFields
+from app.publication.provider_contracts import (
+    GooglePublicationFields,
+    GoogleSearchPublicationFields,
+    GoogleSearchTotalPublicationFields,
+)
 from app.sources.models import SourceConnection
 
 
@@ -172,7 +180,7 @@ def google_fields(
     media: MediaStore,
     runtime: CustomerExecutionRuntime,
     option: GoogleCatalogOption,
-) -> GoogleSearchPublicationFields:
+) -> GooglePublicationFields:
     draft, artifact = source_reviews.preview(db, wid, body.draft_id, media, runtime.clock())
     if draft.revision != body.draft_revision or draft.approved_by is None:
         raise unavailable("current_approved_creative_required")
@@ -191,11 +199,9 @@ def google_fields(
     if native is None or row is None or row.time_zone is None:
         raise unavailable("account_time_zone_unavailable")
     selected = body.google
-    return GoogleSearchPublicationFields(
+    values = dict(
         account_timezone=row.time_zone,
         login_customer_id=native.login_customer_id,
-        daily_budget_micros=selected.daily_budget_micros,
-        budget_semantics="average_daily_not_hard_cap",
         reservation_micros=definition.budget_micros,
         bidding="MANUAL_CPC",
         max_cpc_micros=selected.max_cpc_micros,
@@ -213,6 +219,21 @@ def google_fields(
         final_url_suffix="",
         activation_policy="separate_exact_approval",
         omission_policy="no_optional_assets_or_automation_requested",
+    )
+    if isinstance(selected, GoogleTotalConfigurationIntent):
+        return GoogleSearchTotalPublicationFields.model_validate(
+            {
+                **values,
+                "total_budget_micros": selected.total_budget_micros,
+                "budget_semantics": "native_total_budget_not_portfolio_proof",
+            }
+        )
+    return GoogleSearchPublicationFields.model_validate(
+        {
+            **values,
+            "daily_budget_micros": selected.daily_budget_micros,
+            "budget_semantics": "average_daily_not_hard_cap",
+        }
     )
 
 

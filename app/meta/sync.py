@@ -346,6 +346,9 @@ class MetaSyncService:
                 seconds=exc.retry_after if isinstance(exc, MetaError) else 60
             )
             if code == "meta_reconnect_required":
+                from app.lifecycle.privacy import bump_workspace_export_revision
+
+                bump_workspace_export_revision(self.session, workspace_id)
                 row.status = "reconnect_required"
                 staging.clear(self.session, row.id)
             if code in {

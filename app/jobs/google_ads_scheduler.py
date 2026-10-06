@@ -46,6 +46,7 @@ def _run_analysis_tick(engine: Any, outcome: Any | None) -> bool:
     if not isinstance(engine, Engine):
         return True
     from app.analysis.cadence import run_analysis_tick
+    from app.initial_planning.retention import run_retention_tick
     from app.jobs.customer_runtime import run_customer_tick
     from app.meta.sync import run_meta_tick
     from app.shopify.privacy import purge_expired_facts, run_privacy_tick
@@ -53,6 +54,7 @@ def _run_analysis_tick(engine: Any, outcome: Any | None) -> bool:
 
     successful = True
     for operation in (
+        run_retention_tick,
         purge_expired_facts,
         run_privacy_tick,
         run_shopify_tick,

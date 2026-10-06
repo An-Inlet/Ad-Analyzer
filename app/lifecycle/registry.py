@@ -12,6 +12,65 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "initial_observations": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "environment",
+            "completion_id",
+            "generation",
+            "privacy_revision",
+            "cohort_digest",
+            "captured_at",
+            "expires_at",
+            "retention_policy_digest",
+            "document_digest",
+        ),
+    ),
+    "initial_calibration_runs": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "environment",
+            "objective_digest",
+            "policy_digest",
+            "input_digest",
+            "created_at",
+            "expires_at",
+            "document_digest",
+        ),
+    ),
+    "initial_calibration_dependencies": TablePolicy(
+        "workspace",
+        ("calibration_id", "observation_id", "workspace_id", "account_id", "campaign_id"),
+    ),
+    "initial_plan_previews": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "calibration_id",
+            "observation_id",
+            "original_actor_id",
+            "goal_digest",
+            "source_generation",
+            "privacy_revision",
+            "completion_id",
+            "native_state_digest",
+            "mandate_digest",
+            "created_at",
+            "expires_at",
+            "document_digest",
+        ),
+    ),
     "campaign_performance_completions": TablePolicy(
         "workspace",
         (

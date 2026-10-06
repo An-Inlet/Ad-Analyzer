@@ -20,6 +20,14 @@ from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
 from app.crm.schemas import CrmEvent
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.contracts import (
+    CalibrationReportV1,
+    EfficiencyObjectiveV1,
+    InitialPreviewV1,
+    ObservationV1,
+    PreviewIntentV1,
+)
+from app.initial_planning.export import bind_initial_document
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
 from app.lifecycle.export_domains import SettlementEvidence
 from app.lifecycle.inventory import scalar
@@ -67,6 +75,9 @@ from app.shopify.security import utc
 # not arbitrary columns or provider transport responses. Typed historical fields use
 # their versioned product contracts and reject unknown/invalid persisted documents.
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
+    "initial_observations": ("document",),
+    "initial_calibration_runs": ("document", "objective"),
+    "initial_plan_previews": ("document", "intent"),
     "customer_billing_offer_bindings": ("profile",),
     "customer_workspace_billing": ("qualification",),
     "outcome_assessments_v3": ("document",),
@@ -143,6 +154,11 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "workspace_findings": ("message",),
 }
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
+    ("initial_observations", "document"): ObservationV1,
+    ("initial_calibration_runs", "document"): CalibrationReportV1,
+    ("initial_calibration_runs", "objective"): EfficiencyObjectiveV1,
+    ("initial_plan_previews", "document"): InitialPreviewV1,
+    ("initial_plan_previews", "intent"): PreviewIntentV1,
     ("customer_billing_offer_bindings", "profile"): OfferProfileV1,
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
     ("outcome_assessments_v3", "document"): OwnedV3Assessment,
@@ -288,6 +304,9 @@ def bounded_json(value: Any, depth: int = 0) -> Any:
 def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
+    if bind_initial_document(table, field, row, document):
+        return
+
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
     if isinstance(document, ManifestBasis):
         bind_manifest(row, document, raw)

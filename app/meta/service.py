@@ -274,6 +274,9 @@ class ConnectionService:
                 )
                 self.session.add(existing)
             else:
+                from app.lifecycle.privacy import bump_workspace_export_revision
+
+                bump_workspace_export_revision(self.session, workspace_id)
                 existing.generation += 1
             existing.encrypted_credentials = vault.seal(workspace_id, external_id, bundle)
             existing.status, existing.conversion_action_type = "connected", action_type or None

@@ -9,16 +9,17 @@ from typing import Any, BinaryIO
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, func, select, union_all
 from sqlalchemy.orm import Session
 
 from app.commerce.evidence import workspace_privacy_stamp
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider, denied
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
+from app.initial_planning.models import CalibrationRow, ObservationRow, PreviewRow
 from app.lifecycle.archive import encoded
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
-from app.lifecycle.privacy import workspace_export_revision
+from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.lifecycle.quiescing import owner
 from app.settings import settings
 from app.shopify.security import utc
@@ -45,13 +46,39 @@ class Authority:
         self.fence: str | None = None
         self.privacy_revision: int | None = None
         self.commerce_stamp: str | None = None
+        self.retention_deadline: datetime | None = None
 
     def capture_privacy(self, snapshot: Session) -> dict[str, Any]:
         self.privacy_revision = workspace_export_revision(snapshot, self.wid)
         self.commerce_stamp = workspace_privacy_stamp(snapshot, self.wid)
-        return {"workspace_revision": self.privacy_revision, "commerce_stamp": self.commerce_stamp}
+        deadlines = union_all(
+            *[
+                select(model.expires_at).where(model.workspace_id == self.wid)
+                for model in (ObservationRow, CalibrationRow, PreviewRow)
+            ]
+        ).subquery()
+        earliest = snapshot.scalar(select(func.min(deadlines.c.expires_at)))
+        self.retention_deadline = utc(earliest) if earliest is not None else None
+        self.check_retention(database_utc_now(snapshot))
+        return {
+            "workspace_revision": self.privacy_revision,
+            "commerce_stamp": self.commerce_stamp,
+            "retention_expires_at": self.retention_deadline.isoformat()
+            if self.retention_deadline is not None
+            else None,
+        }
+
+    def check_retention(self, database_now: datetime | None = None) -> None:
+        # DB-expired deletion may skip the counter bump, so a lagging app clock
+        # must never extend an archive's lifetime beyond the database deadline.
+        now = datetime.now(UTC)
+        if database_now is not None:
+            now = max(now, database_now)
+        if self.retention_deadline is not None and now >= self.retention_deadline:
+            raise HTTPException(409, "export data retention expired; build a new archive")
 
     def check(self) -> None:
+        self.check_retention()
         if not settings.customer_export_enabled:
             raise HTTPException(503, "customer exports await qualified deployment")
         # One fresh READ COMMITTED transaction per check; never the export snapshot/session.
@@ -125,6 +152,7 @@ class Authority:
             )
             if accepted is None:
                 raise denied()
+            self.check_retention(database_utc_now(db))
             if self.privacy_revision is not None and (
                 workspace_export_revision(db, self.wid) != self.privacy_revision
                 or workspace_privacy_stamp(db, self.wid) != self.commerce_stamp

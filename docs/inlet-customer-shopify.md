@@ -76,3 +76,19 @@ Final package checks: `pytest -o addopts='' -q tests/test_customer_shopify.py
  tests/test_inlet_integrated_migrations.py` with disposable PostgreSQL:
 **73 passed, 3 SQLite-only concurrency skips**. Ruff, mypy (268 files), and
 `git diff --check` pass. Full and hosted CI remain pending; no live verification.
+
+## Cross-Path Privacy Review
+
+PostgreSQL review reproduced the old privacy handler acquiring a native connection
+before the callback's workspace/nonce fence. Privacy handling now discovers current,
+pending-install and historical-alias owners, locks workspace IDs in sorted order,
+then processes native/store rows. A newly discovered owner forces retry without
+committing partial work. Uninstall and retention cleanup acquire nonce locks before
+store locks; a nonce expiring during a bounded callback cannot deadlock the sweeper.
+Concurrent uninstall and expiry-sweep regressions exercise actual PostgreSQL waits.
+The importer retains the existing `shopify_ownership_unavailable` response for
+suspended workspaces, distinct from a currently locked/busy workspace.
+
+Initial PR87 CI run37403352872 failed on that importer status regression and a
+nested existing browser deadline. It is not evidence for the repaired head. The
+integration browser deadline repair is inherited separately; new-head CI is required.

@@ -342,3 +342,112 @@ def test_postgres_import_skips_workspace_callback_fence(
             result = sync.ShopifySyncService(worker, settings, runtime).page(wid)
             assert result == {"status": "not_connected_or_busy", "imported": 0}
     assert runtime.requests == []
+
+
+def test_postgres_privacy_callback_share_workspace_fence(
+    customer_engine: Engine, configured: None
+) -> None:
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("row lock ordering is PostgreSQL-specific")
+    from datetime import UTC, datetime
+
+    from app.shopify.privacy import process_event
+
+    runtime = FixtureShopify()
+    owner, _, wid, _ = clients(customer_engine, runtime)
+    assert finish(owner, begin(owner, wid)).status_code == 200
+    query = begin(owner, wid)
+    runtime.entered.clear()
+    runtime.pause = True
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(finish, owner, query)
+        assert runtime.entered.wait(5)
+        reached = Event()
+        first_lock: list[str] = []
+
+        def attempting_lock(
+            conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+        ) -> None:
+            if "FOR UPDATE" in statement and not first_lock:
+                first_lock.append(statement)
+                reached.set()
+
+        event.listen(customer_engine, "before_cursor_execute", attempting_lock)
+
+        def erase() -> None:
+            with Session(customer_engine) as db:
+                process_event(db, settings, "app/uninstalled", SHOP, {}, datetime.now(UTC))
+
+        second = pool.submit(erase)
+        try:
+            assert reached.wait(5)
+            assert "FROM workspaces" in first_lock[0]
+            assert not second.done()
+        finally:
+            runtime.release.set()
+            event.remove(customer_engine, "before_cursor_execute", attempting_lock)
+        assert first.result(timeout=10).status_code == 200
+        second.result(timeout=10)
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 0
+        assert db.scalar(select(func.count()).select_from(ShopifyOAuthState)) == 0
+
+
+def test_postgres_expiry_purge_waits_without_holding_measurement_store(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("row lock ordering is PostgreSQL-specific")
+    from datetime import UTC, datetime, timedelta
+
+    from app.shopify.privacy import purge_expired_facts
+
+    runtime = FixtureShopify()
+    original = runtime.shop
+
+    def metadata(shop: str, token: str) -> dict[str, Any]:
+        result = original(shop, token)
+        result["shop"]["id"] = "gid://shopify/Shop/919"
+        return result
+
+    monkeypatch.setattr(runtime, "shop", metadata)
+    owner, _, wid, _ = clients(customer_engine, runtime)
+    assert finish(owner, begin(owner, wid)).json()["commerce_store_id"]
+    query = begin(owner, wid)
+    # The purge's as-of time crosses nonce expiry while the callback is in exchange.
+    with Session(customer_engine) as db:
+        pending = db.scalar(select(ShopifyOAuthState))
+        assert pending is not None
+        pending.expires_at = datetime.now(UTC) + timedelta(minutes=1)
+        db.commit()
+    runtime.entered.clear()
+    runtime.pause = True
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(finish, owner, query)
+        assert runtime.entered.wait(5)
+        reached = Event()
+        actions: list[str] = []
+
+        def attempting_purge(
+            conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+        ) -> None:
+            actions.append(statement)
+            if statement.startswith("DELETE FROM shopify_oauth_states"):
+                reached.set()
+
+        event.listen(customer_engine, "before_cursor_execute", attempting_purge)
+        second = pool.submit(
+            purge_expired_facts, customer_engine, now=datetime.now(UTC) + timedelta(minutes=2)
+        )
+        try:
+            assert reached.wait(5)
+            assert not any("FROM commerce_stores" in sql for sql in actions)
+            assert not second.done()
+        finally:
+            event.remove(customer_engine, "before_cursor_execute", attempting_purge)
+            runtime.release.set()
+        assert first.result(timeout=10).status_code == 200
+        second.result(timeout=10)
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 1
+        assert db.scalar(select(func.count()).select_from(ShopifyOAuthState)) == 0

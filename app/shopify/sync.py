@@ -46,8 +46,11 @@ class ShopifySyncService:
             .where(Workspace.id == workspace_id)
             .with_for_update(skip_locked=True, key_share=True)
         )
-        if workspace is None or workspace.status != "active":
+        if workspace is None:
             return {"status": "not_connected_or_busy", "imported": 0}
+        if workspace.status != "active":
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         row = self.session.scalar(
             select(ShopifyConnection)
             .where(ShopifyConnection.workspace_id == workspace_id)

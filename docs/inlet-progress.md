@@ -865,3 +865,10 @@ workspace-before-connection locks with customer callbacks. Final combined custom
 Shopify/legacy Shopify/privacy/integrated migration suite:73 passed,3 SQLite-only
 lock-semantics skips; PostgreSQL concurrency and populated migration roundtrip pass.
 Ruff, mypy268files and diff checks pass. Full and hosted CI remain pending.
+
+PR87 cross-path review reproduced privacy-handler connection-before-workspace locking.
+Fixed privacy owner fences plus nonce-before-store retention/uninstall cleanup; added
+PostgreSQL callback-vs-uninstall and expiry-sweep tests. Preserved native importer
+suspended-workspace status after original CI exposed regression. Expanded suite
+including native ownership:85 passed,5 SQLite lock-only skips. Original CI37403352872
+failed (importer status and nested browser20sdeadline); fresh head validation required.

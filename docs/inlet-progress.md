@@ -4414,3 +4414,28 @@ browser/API/vault/collector assembly with synthetic HTTP. Log:
 `/tmp/inlet-next-account-diagnostics-ui.log`. Whole Ruff, configured mypy617 files,
 JavaScript syntax and staged whitespace checks passed. Backend combined246-pass
 verification is recorded above. No live settings were enabled.
+
+### Meta Campaign Performance Completion — 2026-10-06
+
+Isolated `codex/inlet-campaign-performance` from root c5b58a0. Migration 0074 follows
+0073 and adds immutable owned completion metadata plus a composite-owned current
+reference. Meta's actual terminal campaign/day importer publishes both atomically with
+normalized metrics. The strict owned current reader recomputes the bounded manifest,
+checks generation/event/privacy/coverage/native identity and original owner session,
+and preserves unavailable metrics separately from observed zero. No historical metric
+bodies, causal/mature qualification, policy defaults, API/UI or execution registration.
+
+Frozen service/schema interfaces: `docs/design/campaign-performance-completion.md`.
+Google/TikTok producers remain unimplemented; they cannot inherit Meta event semantics.
+Next calibration/first-preview package still requires reviewed contracts and explicit
+numeric inputs. Current completion timestamps are import observations, not provider
+finality or an approved freshness threshold.
+
+Validation: initial actual Meta HTTP→DB→reader suite 16 passed SQLite/PostgreSQL.
+Expanded completion plus existing Meta connection/detail suites 48 passed (19.81s).
+Final completion/migration plus lifecycle/model registry suites 41 passed, one existing
+SQLite skip (22.77s). Actual 0074 update rejection, composite FK/cascade and roundtrip
+pass both databases. Whole Ruff and mypy 622 files clean. No Full, live calls, deployment,
+manual CI dispatch or runtime activation.
+Final targeted rerun after export projection assertions: 20 passed across both databases
+(13.77s); Ruff, mypy 622 and diff checks clean.

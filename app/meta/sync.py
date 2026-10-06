@@ -207,6 +207,9 @@ class MetaSyncService:
         self.session.execute(
             delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == row.id)
         )
+        from app.campaign_performance.service import publish_meta
+
+        publish_meta(self.session, row, row.window_start, row.window_end, now)
         row.covered_from = row.window_start
         row.covered_through = row.window_end
         row.last_sync_at, row.window_start, row.window_end, row.cursor = now, None, None, None

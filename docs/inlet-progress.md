@@ -985,6 +985,20 @@ Full intentionally queued with root; hosted CI pending draft PR creation. Remain
 CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
 live qualification are explicit in `docs/inlet-omnisend-runtime.md`.
 
+### Publication coordinator foundation (offline fixture only)
+
+Base:b3035a8e2df2d86fa38b91d5d717b76d71056aa5; branch codex/inlet-publication-core.
+Implemented strict review_v2/plan/DAG/request/receipt contracts, registered fixture
+compiler, current DB authority, one B07 simulation reservation, durable step fences,
+immutable receipt/request history, uncertainty reconciliation, cancellation and
+separate activation-review receipt. No production adapter or live activation exists.
+See docs/inlet-publication-core.md for precise remaining code and boundaries.
+
+Core checks:33 passed,1 SQLite skip for PostgreSQL-only concurrency; Ruff passed,
+mypy289 files passed. Broader B14/B07/B09 regression suite:102 passed,2 SQLite
+concurrency skips (both PostgreSQL cases passed), /tmp/inlet-publication-regression.log.
+Migration0040 upgrade and0039→0040→0039→0040 roundtrip passed, recorded in
+/tmp/inlet-publication-roundtrip.log. Full/CI pending.
 ## Combined Customer Foundation Candidate (2026-10-06)
 
 Branch `codex/inlet-release-foundation`, based on frozen PR86 ea4871b, integrates
@@ -1148,3 +1162,20 @@ Actual local PostgreSQL16.15 run: 82 tables,44 rows,two tenants restored; native
 No broad Full run, live backup configuration, intended-environment restore, PITR,
 key/media recovery, or post-snapshot privacy/revocation reconciliation claimed.
 Instructions and remaining operational qualification: `docs/inlet-restore-drill.md`.
+### Publication base synchronization
+
+Merged release-foundation5f9a0d0 into the publication branch, retaining both progress
+ledger sections. Only the ledger conflicted. Superseded local Full session63859
+was canceled (exit137), not passed; its wrapper and nested pytest/validation children
+were stopped together. No replacement Full started pending root coordination.
+
+## PR98 CI Migration Checkpoint Repair — 2026-10-06
+
+- CI37406849242/job112086207972 failed (3 failed, 1333 passed, 10 skipped): release
+  migration tests incorrectly treated0039 as the permanent latest head; nested Full
+  repeated the same two failures. No CI pass is claimed for that head.
+- Release branch roundtrip now explicitly targets0039, while the graph test requires
+  one current head descending through the exact0037/0038→0039 merge. This preserves
+  populated checkpoint coverage as future migrations are added.
+- Focused disposable PostgreSQL migration tests: 2 passed. Changed-file Ruff/mypy and
+  diff check passed. No replacement local Full started; coordinated validation pending.

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.goals.schemas import StrictModel
 from app.publication.contracts import fingerprint
+from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
 from app.publication.execution_contracts import (
     Environment,
     ExecutionAccount,
@@ -118,6 +119,7 @@ class CreationRuntime:
     google_context: Callable[[BoundProviderRequest], ProviderContext]
     social_context: Callable[[SocialBoundRequest], SocialProviderContext]
     live_enabled: bool = False
+    authorize: ExecutionAuthorizer = owner_authorizer
 
 
 class DispatchClaim(StrictModel):

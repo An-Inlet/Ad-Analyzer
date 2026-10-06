@@ -2208,4 +2208,10 @@ API/UI/runtime integration. Default runtime factories remain None.
 
 ### Durable Three-Provider Optimization Integration
 
-Integrated PR1603df38fc including actualGoogle157 and fresh session authorizer callbacks. Combined real mocked Google/Meta/TikTok budget/pause durable journeys, revoked-session races, PostgreSQL claims and repaired accounting35/period constraints50 passed2 SQLite-only skips; Ruff/configured mypy passed. /tmp/inlet-next-durable-optimization.log. Exact allowed targets, positive aggressiveness/cumulative change caps, original-attempt uncertainty and native-owner reservation retention remain enforced. Customer facade/catalog and concrete native qualification sources are separate unfinished packages.
+Integrated PR1603df38fc including actualGoogle157 and fresh session authorizer callbacks. Combined real mocked Google/Meta/TikTok budget/pause durable journeys, revoked-session races, PostgreSQL claims and repaired period accounting:50 passed2 SQLite-only skips; Ruff/configured mypy passed. /tmp/inlet-next-durable-optimization.log. Exact allowed targets, positive aggressiveness/cumulative change caps, original-attempt uncertainty and native-owner reservation retention remain enforced. Customer facade/catalog and concrete native qualification sources are separate unfinished packages.
+
+### Optimization Export And Browser Diagnostics Integration
+
+Integrated PR1639a83520 as0d89007. Combined optimization/previous owned archive and browser probe regression checks12 passed; Ruff and configured mypy451 passed. /tmp/inlet-next-optimization-export-probe.log. Actual local Chromium151 decoded both silent H.264 and AAC clips atreadyState4,width64,errornull; /tmp/inlet-next-real-browser-probe.log.
+
+Carried only bounded launch/request/stderr diagnostics and tests frombcf987d into the normal existing preflight. The manual diagnostic workflow mode was not imported; normal required Validation gates remain unchanged. Exact shell dispatch remains paused, without alternate dispatch or network bypass. Hosted Chromium154 behavior still requires the next normal authorized candidate CI evidence.

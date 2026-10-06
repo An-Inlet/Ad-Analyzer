@@ -2108,3 +2108,13 @@ provider/customer data, migration, deployment or advertising action was used.
 ### Owned Outcome And Measurement History Integration
 
 Integrated PR152c780d3 and migration0057, preserving newer CRM/activity/export links. Combined owned outcome, populated migration, actual Measurement History browser and route/model-registry checks24 passed1 SQLite-only concurrency skip; Ruff and configured mypy passed. /tmp/inlet-next-owned-outcomes.log. Actual assessments retain contract-test environment and insufficient maturity/effective-time status. Strict owned-outcome export remains pending integration; no measured-lift/live claim.
+
+### Shared Analysis Session And Settlement Integration
+
+PR155a2609d1 cherry-picked asd2cf458. Combined healthy customer scheduler, postclaim source/billing/closure revalidation and analysis admission checks49 passed1 SQLite-only concurrency skip; /tmp/inlet-next-analysis-session.log. This closes the reproduced cross-session self-deadlock without dropping postclaim authorization.
+
+Integrated PR1543def4ba authoritative settlement. Combined settlement/activation suite passed with PostgreSQL enabled; /tmp/inlet-next-settlement.log. Ruff and configured mypy430 passed. Requires original attempts authoritatively closed, exact current receipt set, terminal future-zero and complete reporting; no elapsed-time or target-state-only release. No default live reporting/terminal source and no production qualification.
+
+### Reviewed Portfolio Exposure Composition
+
+Integrated exposure5bcd0aa. Combined-root focused actual SQLite/PostgreSQL checks24 passed; Ruff and configured mypy passed. /tmp/inlet-next-exposure.log. Independent review repaired profile lifetime escaping into later dispatch and disagreement over prior-period held reservations; both have downstream regression coverage. Explicit server facts/profile ports remain unconfigured; no actual native cap or reporting-delay proof is invented, and no default live runtime is enabled.

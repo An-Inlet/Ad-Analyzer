@@ -1999,3 +1999,7 @@ Owner clarified conditional global stop: a verified GitHub plan/usage/resource l
 The unchanged0cf6706 artifact completed local Full with exit0. Initial pytest1813 passed46 skipped; final account-isolation/automation gate38 passed6 PowerShell skips in1014.99s. All intervening lint, types, PostgreSQL, migrations, read-only, security and privacy gates passed. Exact log:/tmp/inlet-mvp-candidate-full.log and its .exitcode file. Hosted37412515307 remains failed; no substitution of local evidence for hosted qualification.
 
 PR146 hosted run37415266510/job112112374138 failed early at real browser codec preflight: installed Google Chrome154.0.8037.57 and Chromium154.0.8037.0 both returned browser_no_result. No plan/quota error was reported. Agent investigating launch diagnostics; no weakened assertions or blind timeout extension authorized.
+
+### Exact Activation Adapter Integration
+
+Integrated PR145 d2c0487, including shared activation contracts and actual Google/Meta/TikTok status-only adapters. Original creation identity, request/readback digest and reviewed paused state remain bound; no budget or creative edits, inferred effect time, retry or automatic activation authority. Coordinator integration and exposure/settlement remain unfinished. Combined activation/publication/optimization HTTP checks:103 passed in2.27s; Ruff and configured mypy410 passed. Log:/tmp/inlet-next-activation-adapters.log. No live requests or extra hosted Full started.

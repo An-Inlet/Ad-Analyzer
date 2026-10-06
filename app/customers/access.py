@@ -128,8 +128,18 @@ def customer_workspace(db: Session, user_id: str, workspace_id: int) -> tuple[Wo
     return result
 
 
-def guard_customer_mutation(db: Database, principal: CustomerPrincipal, workspace_id: int) -> str:
-    """Lock current authorization through credential persistence/disconnection."""
+def guard_customer_mutation(
+    db: Database,
+    principal: CustomerPrincipal,
+    workspace_id: int,
+    *,
+    allowed_roles: frozenset[str] = frozenset({"owner", "admin"}),
+) -> str:
+    """Lock current authorization through the caller's mutation transaction.
+
+    ``allowed_roles`` is selected by trusted route code, never request payloads.
+    Existing callers retain the owner/admin default.
+    """
     db.scalar(
         select(Workspace)
         .where(Workspace.id == workspace_id)
@@ -168,7 +178,7 @@ def guard_customer_mutation(db: Database, principal: CustomerPrincipal, workspac
         .execution_options(populate_existing=True)
     )
     _, role = customer_workspace(db, user.id, workspace_id)
-    if role not in {"owner", "admin"}:
+    if role not in allowed_roles:
         raise HTTPException(403, "insufficient role")
     if session.expires_at <= int(time.time()):
         raise denied()
@@ -176,14 +186,19 @@ def guard_customer_mutation(db: Database, principal: CustomerPrincipal, workspac
 
 
 def lock_customer_mutation(
-    db: Session, principal: CustomerPrincipal, workspace_id: int, provider: IdentityProvider
+    db: Session,
+    principal: CustomerPrincipal,
+    workspace_id: int,
+    provider: IdentityProvider,
+    *,
+    allowed_roles: frozenset[str] = frozenset({"owner", "admin"}),
 ) -> None:
     """Fence local revocation, then refresh provider authority before product writes.
 
     Receive untrusted bodies before acquiring the canonical workspace/user/session/
     membership locks. The shared guard refreshes all rows under those locks.
     """
-    guard_customer_mutation(db, principal, workspace_id)
+    guard_customer_mutation(db, principal, workspace_id, allowed_roles=allowed_roles)
     if principal.user.issuer != provider.issuer:
         raise denied()
     provider.check_active(principal.user.subject, principal.session.authenticated_at)

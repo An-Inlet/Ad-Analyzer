@@ -83,6 +83,8 @@ def validate(db: Session, m: Mandate, d: MandateDefinition, now: datetime) -> No
     definition = goals.current(db, goal).definition
     if definition is None or definition["target_window"]["currency"] != d.currency:
         raise HTTPException(422, "mandate currency does not match goal")
+    if d.total_cap_micros > definition["budget_micros"]:
+        raise HTTPException(422, "mandate exceeds confirmed goal budget")
     for account in sorted(d.accounts, key=lambda a: a.account_id):
         try:
             ad, _ = validate_advertising_scope(

@@ -4625,3 +4625,81 @@ checks. Ruff, configured mypy625 and whitespace pass. Explicit script check need
 scripts/inlet_restore_fixture.py`; both pass (plain paths initially produced a
 module-name duplication configuration error, not a source defect).
 Local commits only; remote push/CI hold remains. No real backup/live environment claim.
+
+### Fresh Brand Offline Journey And Plan Review — Local Checkpoint
+
+Branch `codex/inlet-fresh-brand-pilot`, base `dc3c0d5`. The fresh browser journey
+exposed a missing visible planning-budget creation/approval step. Added standalone
+Plan Review using existing simulation mandate APIs, plus an owned CSRF-protected
+planning-context endpoint that derives exact UTC boundaries from the confirmed
+goal's timezone. Ambiguous/nonexistent local boundaries fail closed. Customers
+explicitly review editable amounts within the goal ceiling, save, and separately
+approve the exact revision. The fixed one-new-campaign profile is visibly a planning
+simulation; it grants no live spending or publication authority.
+
+Actual HTTPS/Chromium journeys start with zero customer/workspace rows and exercise
+visible signup/provisioning, configured immutable TEST Stripe offer checkout and
+scoped signed-event reconciliation, Google and Shopify OAuth/vault ownership,
+Shopify import/publication, structured goal preview/confirmation, planning review,
+separate campaign-content approval, native diagnostics, and truthful unavailable
+automation. A second visible identity cannot read the first workspace; returning
+as the first identity recovers persisted state without replaying checkout. Mocks
+are external transport/identity boundaries and deterministic clocks, with explicit
+worker advancement. No customer state is seeded to bridge journey stages. Google
+connection and inventory reads are covered, not Google campaign metrics import.
+No production execution approval, attempt, or automatic admission is created.
+
+Final checks actually run on SQLite and isolated PostgreSQL schemas:
+- Fresh browser plus planning-context suite: **11 passed, zero skips**,23.43s;
+  `/tmp/fresh-final.log`.
+- Existing portal/campaign-review/context regressions: **23 passed, zero skips**,
+  22.63s; `/tmp/fresh-regression.log`.
+- Whole Ruff clean; mypy **616 files** clean; JavaScript syntax and diff checks pass.
+
+No Full or live pilot was run. Freeform milestone handling, calibrated direction,
+strict native financial qualification, production execution, and live delivery
+remain separate acceptance work. This package has no migration. Detailed scope and
+harness boundaries are in `docs/design/fresh-brand-offline-pilot.md` and
+`docs/design/fresh-plan-review-ui.md`.
+
+Remote push/PR creation is temporarily held by the parent while an unexplained
+GitHub pre-run CI failure is diagnosed. It is not established quota evidence.
+This checkpoint is local only; no new hosted CI or remote write was requested.
+
+### Plan Review Original-Session And Goal-Ceiling Repair — Local Only
+
+Independent review reproduced stale-session/owner approval and an above-goal saved
+simulation. Customer simulation mutations now take the canonical current original
+session/role locks before mandate/action locks, with unchanged production default
+roles and preserved analyst drafting. Shared validation enforces the confirmed
+ceiling at create/edit/approve; zero and exact-ceiling simulations remain valid.
+
+Real PostgreSQL workspace-lock barriers reproduced both prior HTTP200 approval
+failures and now deny401/403 without approving the draft. Broader
+identity/mandate/context/fresh HTTPS customer checks:90passed,2SQLite-only lock-race
+skips(70.70s). Whole Ruff and clean mypy621 files passed. Focused new regression
+matrix and local repair details: `docs/inlet-plan-review-safety-repair.md`.
+No remote write, CI, live provider, financial gate change or Full run. Parent owns
+local integration and subsequent qualification.
+Final repaired-head focused matrix:28passed,2SQLite-only lock-race skips(21.31s).
+Logs preserved in `/tmp/inlet-plan-repair-{combined,final-focused,types}.log`;
+real PostgreSQL failing baseline in `/tmp/inlet-plan-repair-pg-baseline.log`.
+
+### Repaired Fresh Customer Plan Review — Local Integration
+
+Integrated local943ce8 and its independently reproduced/fixed authority defects7987f09.
+All simulation mutations now take the original-session and current-role fence before
+mandate/action locks. Trusted operation role sets preserve analyst drafting, owner-only
+approval and owner/admin stop; existing production guard defaults are unchanged.
+Shared service validation enforces confirmed-goal budget ceilings at create/edit/approve,
+including saved plans, with zero/exact-ceiling budgets retained. No broader period
+policy or live authority was added. Real PostgreSQL barriers reproduce the prior
+200-after-revocation/role-loss defect and now deny without changing draft state.
+
+Root fresh HTTPS browser, context, authority and identity suites **72 passed,
+2 SQLite-only PostgreSQL-lock skips in48.43s**; log `/tmp/inlet-next-fresh-plan.log`.
+Whole Ruff, mypy629, JavaScript syntax and staged whitespace passed. The visible
+signup→test purchase→connections/import→goal→plan/content review→diagnostics and
+second-identity path uses actual services with synthetic external boundaries, not
+seeded customer-state shortcuts. This is offline continuity, not live purchasing,
+automatic optimization or B20 live-pilot completion. Remote push/CI hold remains.

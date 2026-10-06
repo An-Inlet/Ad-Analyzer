@@ -4703,3 +4703,27 @@ signup→test purchase→connections/import→goal→plan/content review→diagn
 second-identity path uses actual services with synthetic external boundaries, not
 seeded customer-state shortcuts. This is offline continuity, not live purchasing,
 automatic optimization or B20 live-pilot completion. Remote push/CI hold remains.
+
+### B17 Initial Planning Contracts — Local Implementation In Progress
+
+Parent explicitly authorized the next local-only package after `85e52eb`: retained
+owned observations, reproducible calibration and exact initial recommendation preview.
+Frozen typed contracts from `3c835fb` integrated as `ad59454`. Root contract tests:
+**7 passed**; Ruff and mypy (4 source files) passed. This is an interface checkpoint,
+not implemented customer behavior or B17 acceptance completion.
+
+Implementation lanes share the frozen contract: prospective capture/calibration and
+migration 0075; lifecycle deletion/retention/export fencing; customer API/browser and
+native-state-bound preview. No implicit retention policy, numeric rule defaults or
+5/10/20 calibration. Replay must preserve actual observation availability, separate
+nonoverlapping windows and later revisions, and label results as descriptive sensitivity.
+Existing mature-feedback and live-emission gates remain unchanged.
+
+A preview cannot yet enter execution review: correction/erasure would also need to
+invalidate any handed-off review's forward authority while retaining attempted obligations.
+The package therefore reports `initial_preview_review_handoff_unavailable` explicitly;
+it does not substitute a manual or recommendation-only release for the original scope.
+
+Frozen `dc3c0d5` Full remains running separately (session65083; isolated candidate4
+log/database). The hosted pre-run failure annotation remains unresolved. No confirmed
+GitHub quota evidence has arrived. Pushes, PR creation and hosted CI remain held.

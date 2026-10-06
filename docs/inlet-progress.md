@@ -2412,3 +2412,46 @@ browser tests. This checkpoint alone does not provide a customer-facing journey 
 social dispatch authority. It does not enable a live runtime or remove any native
 qualification/spending blocker. DSA personal inputs await complete closure-safe
 privacy handling across every original/activation plan and request copy.
+
+## Exact Social Configuration Customer Journey — 2026-10-06
+
+Child `codex/inlet-social-review-journey` of frozen0059 foundation `a08db1b`.
+Preserves final credential-context/session fence `d5c0671` (local cherry-pick
+`d63cae6`). No migration beyond the already-reserved0059; root owns0060 integration.
+
+Implemented `/app/social-configuration` and owner/session/CSRF intent-only options,
+review, historical read and exact confirmation APIs. Actual private video and cover
+must decode before browser acknowledgement; changed selection invalidates it and
+logout clears object URLs/data. Missing runtime/rules/native qualification are
+honest blockers. No personal DSA fields are accepted and no default factory exists.
+
+Version2 persists strict complete nonpersonal configuration, its digest and the
+server-reviewed wording actually shown. Version1 remains valid typed history/export
+with unchanged hashes but cannot authorize a new forward action. Owned DB declaration
+reader and optional canonical approval reference bind the actual customer confirmation.
+Current source/owner/configuration guards run through creation and activation admission;
+referenced plans require a current server profile/catalog validator and live social
+legacy plans without a reference are denied. Golden hashes captured from frozen
+`a08db1b` prove legacy Google/social review/plan JSON, including explicit nulls,
+remains unchanged. No generic JSON export or inferred regulatory answer.
+
+Checks: guard/session/activation50passed (`/tmp/inlet-social-journey-guard.log`);
+assembled route/export/browser/review35passed (`/tmp/inlet-social-journey-final.log`);
+final wording/versioned-history/media browser+API+review/migration/golden suite15passed
+(`/tmp/inlet-social-wording-final.log`). Subsequent missing-validator/live-unreferenced/
+changed-profile/default503 focused guard/API9passed (`/tmp/inlet-social-guard-final.log`).
+Final API+actual HTTPS browser+assembled route checks17passed
+(`/tmp/inlet-social-customer-final.log`), followed by actual persisted legacy-v1
+approval/history compatibility API4passed (`/tmp/inlet-social-history-api-final.log`).
+Both SQLite and disposable PostgreSQL were exercised. Whole Ruff, clean mypy484,
+JS syntax and diff checks passed. These runs overlap; counts are not summed.
+No Full or CI dispatch was started by this package. Root owns assembled qualification.
+
+Remaining: existing customer execution creation intent still supports Google only;
+confirmed social configurations must be wired into that path with real current
+catalog/profile and native qualification producers before advertising social creation.
+The new screen confirms configuration only and does not publish or activate ads.
+DSA personal capture remains blocked until closure-safe privacy propagation across
+all original/activation copies is implemented. No live credential/provider calls,
+spending, merge or deployment. See `inlet-social-review-journey.md` for frozen ports
+and `inlet-social-declaration-privacy-lineage.md` for the actual finality dependency.

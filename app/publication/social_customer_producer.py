@@ -22,6 +22,7 @@ from app.publication.social_catalog import (
 from app.publication.social_compiler import compile_social
 from app.publication.social_contracts import (
     MetaImagePublicationFields,
+    SocialConfigurationApprovalRef,
     SocialPublicationReview,
     SocialPublishPlan,
     TikTokVideoPublicationFields,
@@ -58,7 +59,7 @@ class SocialPlanProducer:
         self.profiles = {p.digest(): type(p).model_validate(p.model_dump()) for p in profiles}
         self.declarations = declarations
 
-    def produce(
+    def _configuration(
         self,
         db: Session,
         artifact: ReviewArtifact,
@@ -70,7 +71,8 @@ class SocialPlanProducer:
         *,
         actor: str,
         cover_media_id: str | None = None,
-    ) -> SocialPublishPlan:
+        preview: bool = False,
+    ) -> MetaImagePublicationFields | TikTokVideoPublicationFields:
         artifact = ReviewArtifact.model_validate(artifact.model_dump())
         catalog = SocialCatalog.model_validate(catalog.model_dump())
         request = catalog_request(artifact, account)
@@ -102,23 +104,28 @@ class SocialPlanProducer:
         )
         fields: MetaImagePublicationFields | TikTokVideoPublicationFields
         if isinstance(option, MetaCatalogOption) and isinstance(profile, MetaConfigurationProfile):
-            if self.declarations is None:
-                raise ValueError("audited customer declaration required")
-            declaration = self.declarations(request, now)
-            if (
-                declaration.request_digest != request.digest()
-                or declaration.confirmed_at > now
-                or (
-                    profile.dsa_required
-                    and (
-                        not declaration.dsa_beneficiary
-                        or not declaration.dsa_beneficiary.strip()
-                        or not declaration.dsa_payor
-                        or not declaration.dsa_payor.strip()
+            declaration = None
+            if preview:
+                if profile.dsa_required:
+                    raise ValueError("personal_declaration_capture_unavailable")
+            else:
+                if self.declarations is None:
+                    raise ValueError("audited customer declaration required")
+                declaration = self.declarations(request, now)
+                if (
+                    declaration.request_digest != request.digest()
+                    or declaration.confirmed_at > now
+                    or (
+                        profile.dsa_required
+                        and (
+                            not declaration.dsa_beneficiary
+                            or not declaration.dsa_beneficiary.strip()
+                            or not declaration.dsa_payor
+                            or not declaration.dsa_payor.strip()
+                        )
                     )
-                )
-            ):
-                raise ValueError("current audited customer declaration required")
+                ):
+                    raise ValueError("current audited customer declaration required")
             fields = MetaImagePublicationFields.model_validate(
                 dict(
                     **common,
@@ -145,9 +152,15 @@ class SocialPlanProducer:
                     dynamic_creative=False,
                     is_adset_budget_sharing_enabled=False,
                     special_ad_categories=[],
-                    special_ad_category_declaration=declaration.special_ad_category_declaration,
-                    dsa_beneficiary=declaration.dsa_beneficiary,
-                    dsa_payor=declaration.dsa_payor,
+                    special_ad_category_declaration=(
+                        declaration.special_ad_category_declaration
+                        if declaration is not None
+                        else "none_applicable"
+                    ),
+                    dsa_beneficiary=declaration.dsa_beneficiary
+                    if declaration is not None
+                    else None,
+                    dsa_payor=declaration.dsa_payor if declaration is not None else None,
                     url_tags=profile.url_tags,
                     image=primary,
                 )
@@ -206,6 +219,65 @@ class SocialPlanProducer:
             )
         else:
             raise ValueError("configuration provider mismatch")
+        return fields
+
+    def configuration_for_review(
+        self,
+        db: Session,
+        artifact: ReviewArtifact,
+        account: ExecutionAccount,
+        option_id: str,
+        catalog: SocialCatalog,
+        media_store: MediaStore,
+        now: datetime,
+        *,
+        actor: str,
+        cover_media_id: str | None = None,
+    ) -> MetaImagePublicationFields | TikTokVideoPublicationFields:
+        """Non-authorizing preview; never invent an audit ID or personal declaration.
+
+        The customer service separately records an explicit answer and blocks
+        applicable/unsure. This method returns fields, never an executable plan.
+        """
+        return self._configuration(
+            db,
+            artifact,
+            account,
+            option_id,
+            catalog,
+            media_store,
+            now,
+            actor=actor,
+            cover_media_id=cover_media_id,
+            preview=True,
+        )
+
+    def produce(
+        self,
+        db: Session,
+        artifact: ReviewArtifact,
+        account: ExecutionAccount,
+        option_id: str,
+        catalog: SocialCatalog,
+        media_store: MediaStore,
+        now: datetime,
+        *,
+        actor: str,
+        cover_media_id: str | None = None,
+        configuration_review: SocialConfigurationApprovalRef | None = None,
+    ) -> SocialPublishPlan:
+        fields = self._configuration(
+            db,
+            artifact,
+            account,
+            option_id,
+            catalog,
+            media_store,
+            now,
+            actor=actor,
+            cover_media_id=cover_media_id,
+        )
+        source = artifact.definition
         scope = PublicationScope(
             **account.model_dump(),
             mandate_id=source.mandate_id,
@@ -217,6 +289,7 @@ class SocialPlanProducer:
                 source_digest=artifact.fingerprint(),
                 scope=scope,
                 configuration=fields,
+                configuration_review=configuration_review,
                 qualification_blockers=catalog.qualification_blockers,
             )
         )

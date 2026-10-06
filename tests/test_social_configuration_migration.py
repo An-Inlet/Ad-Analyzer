@@ -67,6 +67,7 @@ def test_populated_no_dsa_review_roundtrip(
                     wording_version="test-v1",
                     verified=True,
                     dsa_required=False,
+                    wording="Offline Test: Review This No-DSA Profile And Its Exact Media.",
                 ),
                 MetaNoDSAAnswer(special_category_answer="none_applicable"),
                 None,

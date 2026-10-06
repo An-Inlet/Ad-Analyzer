@@ -35,6 +35,7 @@ from app.publication.social_contracts import (
     SocialPublicationTransport,
     SocialPublishPlan,
 )
+from app.publication.social_review_contracts import SocialConfigurationDocument
 
 CreationPlan = Annotated[
     ProviderPublishPlan | SocialPublishPlan, Field(discriminator="schema_version")
@@ -120,6 +121,11 @@ class CreationRuntime:
     social_context: Callable[[SocialBoundRequest], SocialProviderContext]
     live_enabled: bool = False
     authorize: ExecutionAuthorizer = owner_authorizer
+    # Pure local validation of current reviewed profile/rules and already-refreshed
+    # catalog snapshot. Must not perform provider IO while economic locks are held.
+    social_configuration_current: Callable[[SocialConfigurationDocument, datetime], None] | None = (
+        None
+    )
 
 
 class DispatchClaim(StrictModel):

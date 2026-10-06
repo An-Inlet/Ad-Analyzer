@@ -5073,3 +5073,44 @@ assembled route boundary suite **12 passed** in10.96s, no skips
 (`/tmp/inlet-social-integration-final.log`). Whole Ruff, configured mypy **669 files**
 and diff checks pass. Local-only followup to the browser clock commit; no remote,
 Full, runtime permission or production changes.
+
+
+### Assembled 0076 Acceptance And Frozen Full Repairs — Local Only
+
+Code head1e337f9eff86353d068e46e2b9ed91c9a2bdec95, tree
+861f1b557d0c3610865694e31f747269baefb31a, includes shared/core0076,
+independent lifecycle/export, actual customer handoff and Full-failure repairs.
+Original preview bytes remain immutable. The additive handoff uses the actual
+generic runtime with matching planning context; no financial fixture becomes a
+production source. Retraction blocks every forward stage, including final emission;
+actual attempted receipt reconciliation and reservations survive evidence erasure.
+
+Root command with explicit disposable PostgreSQL enabled:
+`pytest -o addopts='' -q tests/test_initial_preview_review.py tests/test_initial_preview_review_api.py tests/test_initial_preview_review_contracts.py tests/test_initial_review_export.py tests/test_initial_review_lifecycle.py tests/test_initial_planning_browser.py tests/test_customer_optimization_ui.py`
+**57 passed,1 expected SQLite-only concurrency skip,231.62s**,
+`/tmp/inlet-next-0076-composed.log`. Whole Ruff and mypy670 passed at the assembled
+consumer/lifecycle snapshot before the later test-only repair commits.
+Fresh dedicated database inlet_oct06_0076_migration_ci: complete
+`bash scripts/validate.sh Migrations` head0076→base→head0076 **passed**,
+`/tmp/inlet-next-0076-roundtrip.log`.
+
+Independent unchanged98a27b6 native restore composition: **37 passed**,5 existing
+Alembic warnings97.79s, `/tmp/inlet-combined-0076-restore.log`, actual0076 schema
+and populated0075 graph; protected0076 provenance not populated by that native
+archive fixture. No fabricated cross-platform tombstone was added. Actual0076
+DDL/provenance graph acceptance remains covered by separate lifecycle tests.
+
+Frozen dc3 Full is terminal exit1: **6failed,3616passed,68skipped**6285.54s.
+Nested wrapper and historical migration failures are repaired; four social-browser
+failures were test-clock mismatch at real mandate expiry, reproduced then repaired
+without weakening expiry. Root exact repaired composition
+`pytest -o addopts='' -q tests/test_customer_social_review_ui.py tests/test_social_configuration_migration.py tests/test_campaign_performance.py tests/test_route_boundaries.py`
+**36passed,4warnings,40.75s**, `/tmp/inlet-next-full-repairs-final.log`.
+One preceding command named nonexistent test_customer_route_boundaries.py and
+collected zero tests (exit4), `/tmp/inlet-next-full-repairs.log`; it is not a pass.
+
+The current acceptance matrix now credits implemented/verified0076 behavior, not
+just its design. B17 operational action feedback is actively under implementation
+in isolated0077 branches; it is not integrated or accepted at this head. No current
+Full success, live qualification, production policy, spend, merge/deploy, push/PR
+or hosted-CI action is claimed. Remote hold and original launch scope remain.

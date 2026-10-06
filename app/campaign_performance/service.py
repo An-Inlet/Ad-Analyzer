@@ -15,6 +15,7 @@ from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
 from app.campaign_performance.contracts import CampaignPerformanceV1, CampaignPerformanceV2
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
 from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
+from app.initial_planning.invalidation import invalidate_account_calibrations
 from app.lifecycle.privacy import workspace_export_revision
 from app.meta.models import MetaConnection
 from app.meta.security import API_VERSION, PURCHASE_ACTIONS, utc
@@ -80,6 +81,7 @@ def publish_meta(
     account = db.get(AdvertisingAccount, source.account_id)
     if account is None or account.workspace_id != source.workspace_id or not account.time_zone:
         raise ValueError("campaign reporting account unavailable")
+    invalidate_account_calibrations(db, source.workspace_id, account.id)
     db.flush()
     digest, rows = manifest(db, account, start, end)
     item = PerformanceCompletion(

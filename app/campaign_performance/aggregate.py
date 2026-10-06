@@ -20,6 +20,7 @@ from app.campaign_performance.service import (
     unavailable,
 )
 from app.google_connections.models import GoogleCustomerConnection
+from app.initial_planning.invalidation import invalidate_account_calibrations
 from app.lifecycle.privacy import workspace_export_revision
 from app.meta.security import utc
 from app.sources.models import SourceConnection
@@ -86,6 +87,7 @@ def publish(
     account = db.get(AdvertisingAccount, source.account_id)
     if account is None or account.workspace_id != source.workspace_id:
         raise unavailable()
+    invalidate_account_calibrations(db, source.workspace_id, account.id)
     if declared is None or staged_contract is None:
         db.execute(
             delete(CurrentPerformance).where(

@@ -158,6 +158,9 @@ class CalibrationReportV1(Frozen):
     causal_lift: Literal["unavailable"] = "unavailable"
     spending_authorized: Literal[False] = False
 
+    def digest(self) -> str:
+        return fingerprint(self.schema_version, self.model_dump(mode="json"))
+
     @model_validator(mode="after")
     def valid_report(self) -> "CalibrationReportV1":
         if (
@@ -194,6 +197,9 @@ class InitialPreviewV1(Frozen):
     )
     spending_authorized: Literal[False] = False
     empirical_qualification: Literal[False] = False
+
+    def digest(self) -> str:
+        return fingerprint(self.schema_version, self.model_dump(mode="json"))
 
     @model_validator(mode="after")
     def exact_or_absent(self) -> "InitialPreviewV1":

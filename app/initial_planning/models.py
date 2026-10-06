@@ -148,3 +148,15 @@ class PreviewRow(OwnedColumns, Base):
     native_state_digest: Mapped[str | None] = mapped_column(String(64))
     mandate_digest: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+from app.database.session import Base as _Base  # noqa: E402
+from app.initial_planning.triggers import register  # noqa: E402
+
+for _name in (
+    "initial_observations",
+    "initial_calibration_runs",
+    "initial_calibration_dependencies",
+    "initial_plan_previews",
+):
+    register(_Base.metadata.tables[_name])

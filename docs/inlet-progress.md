@@ -2159,3 +2159,27 @@ qualification as open work.
 ### Two-Brand Offline Pilot Integration
 
 Integrated PR1589d4c02. Two independently API-provisioned brands share one database; composed API goal/review/source scopes, actual mocked Google creation/activation, unrelated-tenant denial and closure continuity verified. Combined new pilot and prior customer journey4 passed on SQLite/PostgreSQL; Ruff and configured mypy passed. /tmp/inlet-next-two-brand-pilot.log. Source/qualification fixtures and service-vs-customer-API boundaries are explicit; B20 live unrelated pilots and complete self-service execution remain open.
+
+## B17 Independent Descriptive Comparison And Stability
+
+Branch `codex/inlet-descriptive-comparisons`, based on `b050854`. Added separate
+owner/CSRF read-only POST `/api/customer/v1/workspaces/{id}/descriptive-comparisons`
+with `inlet.descriptive-comparison.v1`. Actual owned terminal Shopify publications
+can qualify equal-local-day as-of differences; repeated complete reconciliations
+report unchanged/revised observed partitions. Current goal/source revision,
+manifest bindings, privacy/retention and fresh authorization are checked under
+existing fences. Exact Decimal output; zero/negative baselines omit ratios.
+
+Maturity remains explicitly unqualified, action attribution unavailable, causal
+lift/recommendation update null and spending authority none. Existing owned action
+assessment v2 remains insufficient. No persistence, migration, provider calls or UI
+integration. The approved shared contract and narrow owner maturity-policy decision
+are documented in `docs/design/b17-owned-comparison-qualification.md`; no 7/30/90-day
+policy was invented or borrowed from the unrelated legacy cohort contract.
+
+Checks: 78 passed, 2 SQLite-only row-lock skips (PG variants passed), covering new
+descriptive API/producer, existing owned outcomes/pure comparator and assembled route
+boundaries. Ruff passed, configured mypy passed 442 files, diff check passed.
+Log `/tmp/inlet-descriptive-final.log`. No Full or CI dispatch. Remaining B17:
+approved maturity parameters, qualified effective-time producer and bounded explained
+recommendation updates; separate customer UI integration remains outstanding.

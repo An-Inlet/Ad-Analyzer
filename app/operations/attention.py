@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.ads.enums import JobRunStatus
 from app.ads.models import JobRun
+from app.analysis.enums import AnalysisRunStatus
+from app.analysis.models import AnalysisRun
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.goals.schemas import StrictModel
 from app.google_connections.models import GoogleCustomerConnection
@@ -34,6 +36,8 @@ STATEMENT_TIMEOUT_MS = 2000
 class Signal(StrictModel):
     code: Literal[
         "job_failed",
+        "analysis_failed",
+        "analysis_running_overdue",
         "job_running_overdue",
         "billing_event_overdue",
         "billing_snapshot_overdue",
@@ -80,13 +84,12 @@ class Attention(StrictModel):
             "storage_failures_not_recorded",
             "scheduler_heartbeat_not_recorded",
             "never_started_work_not_observed",
-            "local_analysis_runs_not_observed",
             "publication_step_age_not_recorded",
             "external_alert_delivery_not_configured",
         ]
     )
     provider_held_exposure: list[HeldExposure] = Field(default_factory=list, max_length=2)
-    signals: list[Signal] = Field(max_length=19)
+    signals: list[Signal] = Field(max_length=21)
 
 
 def utc(value: datetime) -> datetime:
@@ -140,6 +143,32 @@ def attention(db: Session, now: datetime) -> Attention:
             add("job_failed", started)
         elif state == JobRunStatus.RUNNING and utc(started) <= cutoff:
             add("job_running_overdue", started)
+
+    # Terminal recovery is local to workspace/cadence/account. An independent
+    # running row remains an observation even if a later run succeeded: this
+    # report cannot establish physical termination of the earlier worker.
+    analyses = rows(
+        select(
+            AnalysisRun.workspace_id,
+            AnalysisRun.cadence,
+            AnalysisRun.account_id,
+            AnalysisRun.status,
+            AnalysisRun.started_at,
+        )
+        .join(Workspace, Workspace.id == AnalysisRun.workspace_id)
+        .where(Workspace.status == "active")
+        .order_by(AnalysisRun.started_at.desc(), AnalysisRun.id.desc())
+    )
+    terminal_seen = set()
+    for wid, cadence, account, state, started in analyses:
+        analysis_identity = wid, cadence, account
+        if state == AnalysisRunStatus.RUNNING:
+            if utc(started) <= cutoff:
+                add("analysis_running_overdue", started)
+        elif analysis_identity not in terminal_seen:
+            terminal_seen.add(analysis_identity)
+            if state == AnalysisRunStatus.FAILED:
+                add("analysis_failed", started)
 
     events = rows(
         select(BillingEvent.received_at, BillingEvent.next_attempt_at)
@@ -284,7 +313,7 @@ def attention(db: Session, now: datetime) -> Attention:
             "preserve_reservation_reconcile_no_retry"
             if uncertain or code.startswith("provider_")
             else "inspect_local_job"
-            if code.startswith("job_")
+            if code.startswith(("job_", "analysis_"))
             else "inspect_billing_reconciliation"
             if code.startswith("billing_")
             else "review_connection"

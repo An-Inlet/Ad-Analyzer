@@ -39,10 +39,50 @@ class AnalysisRunRepository:
         outcome_date_from: date,
         outcome_date_to: date,
         started_at: datetime,
+        retry_failed: bool = False,
     ) -> tuple[AnalysisRun, bool]:
-        existing = self.get_by_run_key(workspace_id, run_key)
+        existing = self.session.scalar(
+            select(AnalysisRun)
+            .where(
+                AnalysisRun.workspace_id == workspace_id,
+                AnalysisRun.run_key == run_key,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         if existing is not None:
-            return existing, False
+            if not retry_failed or existing.status != AnalysisRunStatus.FAILED:
+                return existing, False
+            # Only a durably failed, rolled-back local attempt may be reclaimed.
+            # Bind retries to the original source and windows; never change scope.
+            if (
+                existing.account_id != account_id
+                or existing.source_job_run_id != source_job_run_id
+                or existing.cadence != cadence
+                or existing.schedule_policy_version != schedule_policy_version
+                or existing.metric_date_from != metric_date_from
+                or existing.metric_date_to != metric_date_to
+                or existing.outcome_date_from != outcome_date_from
+                or existing.outcome_date_to != outcome_date_to
+                or existing.finished_at is None
+            ):
+                return existing, False
+            existing.retry_count += 1
+            existing.retry_history = [
+                *existing.retry_history[-31:],
+                {
+                    "started_at": existing.started_at.isoformat(),
+                    "finished_at": existing.finished_at.isoformat(),
+                    "error_code": existing.error_code,
+                },
+            ]
+            existing.status = AnalysisRunStatus.RUNNING
+            existing.started_at = started_at
+            existing.finished_at = None
+            existing.error_code = None
+            existing.blocking_reasons = []
+            self.session.commit()
+            return existing, True
         row = AnalysisRun(
             workspace_id=workspace_id,
             account_id=account_id,

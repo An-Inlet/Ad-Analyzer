@@ -211,11 +211,25 @@ def test_backfill_completion_outbox_and_independent_dispatch(
     def failing(engine: Engine, job_id: int) -> None:
         raise RuntimeError("analysis offline")
 
-    assert deliver_analysis(customer_engine, failing) == 0
+    assert deliver_analysis(customer_engine, failing, now=NOW) == 0
     assert t.calls == calls
     delivered = []
-    assert deliver_analysis(customer_engine, lambda engine, job: delivered.append(job)) == 1
-    assert deliver_analysis(customer_engine, lambda engine, job: delivered.append(job)) == 0
+    assert (
+        deliver_analysis(
+            customer_engine,
+            lambda engine, job: delivered.append(job),
+            now=NOW + timedelta(minutes=5),
+        )
+        == 1
+    )
+    assert (
+        deliver_analysis(
+            customer_engine,
+            lambda engine, job: delivered.append(job),
+            now=NOW + timedelta(minutes=5),
+        )
+        == 0
+    )
     with Session(customer_engine) as db:
         connection = s.owned(db, wid, cid)
         # Continue seven-day windows down to the fixed 90-day floor.

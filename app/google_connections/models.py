@@ -77,3 +77,4 @@ class GoogleImportCompletion(Base):
         ForeignKey("job_runs.id", ondelete="CASCADE"), primary_key=True
     )
     state: Mapped[str] = mapped_column(String(16), default="pending")
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

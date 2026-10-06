@@ -53,6 +53,7 @@ def run_post_sync_analysis(
     source_job_run_id: int,
     *,
     as_of: datetime | None = None,
+    retry_failed: bool = False,
 ) -> AnalysisRun | None:
     """Run the lightweight analysis once for a successful, account-scoped sync."""
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -83,6 +84,7 @@ def run_post_sync_analysis(
             window_days=policy.post_sync.window_days,
             policy_version=policy.version,
             as_of=resolved_as_of,
+            retry_failed=retry_failed,
         )
 
 

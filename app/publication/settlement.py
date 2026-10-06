@@ -29,6 +29,7 @@ from app.publication.execution_models import (
     ProviderPeriodLedger,
 )
 from app.publication.provider_contracts import Digest, Id
+from app.publication.replacement_lineage import ancestors
 from app.publication.service import owner
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
@@ -157,11 +158,12 @@ def locked_snapshot(
         != (utc(ledger.starts_at), utc(ledger.ends_at))
     ):
         raise HTTPException(409, "reservation lineage changed")
+    inherited = ancestors(db, reservation)
     runs = list(
         db.scalars(
             select(ProviderExecutionRun)
             .where(
-                ProviderExecutionRun.reservation_id == reservation.id,
+                ProviderExecutionRun.reservation_id.in_([row.id for row, _ in inherited]),
                 ProviderExecutionRun.workspace_id == wid,
             )
             .order_by(ProviderExecutionRun.id)

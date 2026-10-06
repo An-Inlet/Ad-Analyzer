@@ -2310,3 +2310,39 @@ Next: freeze this successor for local Full; continue social audited configuratio
 native inventory/qualification and descriptive customer UI independently. Native
 spending/exposure sources, mature action comparisons, repeat-owner rebudgeting,
 commercial/live configuration and release/pilot gates remain open.
+
+## Repeat Optimization Reservation Replacement — 2026-10-06
+
+Branch `codex/inlet-repeat-optimization` starts at assembled c602a1b and includes
+context-fence repair d5c0671. Adds a separately approved repeat review, complete
+predecessor/request closure snapshot, server-only transition qualification port,
+atomic superseded→successor held reservation transfer and migration 0058. Original
+v1 plan/request serialization is unchanged. Default replacement reader is absent.
+
+Google, Meta and TikTok actual HTTP adapters were exercised via MockTransport through
+three sequential requests and terminal settlement. All original attempts remain in
+the chain. New coverage includes no-attempt inherited hold retention, changed/expired/
+missing proof, cancellation after qualification, rollback after partial transactional
+writes, PostgreSQL concurrent claims, unknown successor no replay, and strict audit
+export plus migration downgrade refusal. Lifecycle inventory explicitly protects the
+new table; no arbitrary JSON export or table-classification bypass.
+
+Independent review reproduced a late ancestor contradiction bug on both databases:
+unknown receipt appended after successor claim incorrectly allowed emission. Fixed
+by checking latest complete ancestor evidence again at final post-context claim.
+The two controlled baseline failures became passes; final-context injection variants
+also pass. Fresh authority/proof time is resampled after ancestor reads.
+
+Final post-repair command `pytest -o addopts='' -q tests/test_repeat_optimization.py
+ tests/test_execution_session_authorizer.py` passed 47 with 1 intentional SQLite-only
+row-lock concurrency skip. Ruff (`app tests migrations`), mypy (`app tests`, 467 files)
+and diff check passed. Broader repeat/migration/optimization/settlement/session run passed 109 with 1
+intentional SQLite concurrency skip before the final additional fresh-authority
+check (verified by the 47-pass run). Migration empty roundtrip and populated
+downgrade refusal passed. Full is pending integration and root coordination. No manual workflow dispatch.
+
+Remaining: no authoritative native original-request closure/transitional exposure
+source for any provider; no live factory or customer repeat-intent UI enabled.
+Contract scenarios cannot qualify live. Root must join parallel 0058/0059 using 0060.
+Separate personal DSA erasure requires an admission-time nonpersonal closure binding;
+this package does not persist personal declarations or relax spending semantics.

@@ -157,6 +157,27 @@ TABLES: dict[str, TablePolicy] = {
         None,
         True,
     ),
+    "provider_reservation_replacements": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "ledger_id",
+            "environment",
+            "budget_owner_key",
+            "predecessor_id",
+            "successor_id",
+            "successor_run_id",
+            "review_id",
+            "old_amount_micros",
+            "new_amount_micros",
+            "digest",
+            "actor",
+            "replaced_at",
+        ),
+        None,
+        True,
+    ),
     "provider_period_ledgers": TablePolicy(
         "workspace",
         (

@@ -4281,3 +4281,26 @@ retraction after IO blocks publication. Synthetic fixtures do not qualify live f
 Genuine maturity/timing/count producers, calibration and automatic first-action policy
 remain unavailable; B17 remains incomplete. The existing exact customer-reviewed
 initial budget intent is a manual bootstrap, not an automatic learning policy.
+
+### Provider Evidence Decision And Concrete Remaining Assembly
+
+PR214 (f0d8d6b; integrated9c76ff8) supplies the requested provider-by-provider matrix,
+using official documentation and distinguishing contradictions from unverified or
+inaccessible guarantees. Root independently reopened Google budget/overdelivery,
+TikTok Budget Manager and Shopify webhook references. No universal impossibility or
+Meta/TikTok completion semantics are inferred from absent documentation.
+
+The current strict total-spend contract is not demonstrated for arbitrary outside-writer
+accounts. The proposal recommends an explicitly recommendation-only initial release;
+customer-approved configuration control would require a separate versioned contract.
+Neither option is authorized or implemented by the document. Existing reviewed exact
+initial budget intent is a manual bootstrap; automatic first direction still lacks
+qualified objective inputs/calibration. Do not present safe hooks as completed learning.
+
+Actual assembly inspection found diagnostics require a consented mandate, while mandate
+creation requires unavailable execution runtime. Approved a concrete independent read
+journey: owned account/date request v2, existing real scoped vault/collector assembly,
+CSRF endpoint and customer UI, with no fabricated mandate, financial source or new
+generic execution port. Existing v1 request bytes remain unchanged. Result contains
+bounded counts/reasons only, financial bounds null, optimization unavailable. Backend
+and UI implementation are proceeding on isolated branches; no live provider calls.

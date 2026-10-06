@@ -69,6 +69,11 @@ jobs:
           echo "Customer portal checks require Chromium or Google Chrome on the runner." >&2
           exit 1
 
+      - name: Install bounded media decoder tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Require bounded media decoder tools
         run: |
           command -v ffmpeg

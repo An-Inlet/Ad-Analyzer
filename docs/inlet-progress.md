@@ -846,3 +846,11 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+### B19 Readiness HTTP Status Repair (2026-10-06)
+
+Invalid startup configuration previously returned /ready HTTP200 withnot_ready.
+It now returns503 and Cache-Control:no-store; valid startup configuration returns200,
+while /health remains200 liveness.17 deployment/configuration tests passed, Ruff/mypy270
+passed. This remains configuration readiness, not live DB/dependency health or a
+restore/release qualification. See inlet-audit-status.md for B01–B20 status.

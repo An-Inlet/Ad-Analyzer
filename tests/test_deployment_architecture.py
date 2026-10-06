@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import app.main as main
+import pytest
 from app.deployment import DeploymentProcess, validate_deployment_startup
 from app.main import app
 from app.settings import Settings
@@ -65,13 +67,21 @@ def test_deployment_startup_rejects_nonempty_allowlists() -> None:
     assert any(check.name == "production_allowlists" and not check.ok for check in result.checks)
 
 
-def test_readiness_endpoint_reports_configuration_without_external_calls() -> None:
+@pytest.mark.parametrize("ready", [True, False])
+def test_readiness_endpoint_reports_configuration_without_external_calls(
+    ready: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configuration = _settings() if ready else _settings(DATABASE_URL="sqlite:///local.db")
+    result = validate_deployment_startup(DeploymentProcess.WEB, configuration)
+    monkeypatch.setattr(main, "validate_deployment_startup", lambda _process: result)
     client = TestClient(app)
-
     response = client.get("/ready")
-
-    assert response.status_code == 200
+    assert response.status_code == (200 if ready else 503)
+    assert response.json()["status"] == ("ready" if ready else "not_ready")
     assert response.json()["write_access_enabled"] is False
+    assert response.headers["Cache-Control"] == "no-store"
+    # Liveness is independent of whether startup configuration can serve traffic.
+    assert client.get("/health").status_code == 200
 
 
 def test_compose_defines_separate_provider_neutral_processes() -> None:

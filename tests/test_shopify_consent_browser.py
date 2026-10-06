@@ -48,6 +48,41 @@ class Browser:
         self.origin = origin
         self.callbacks: list[str] = []
 
+    def consent_document(self, url: str) -> str:
+        parsed = urlsplit(url)
+        assert parsed.scheme == "https" and parsed.hostname == SHOP
+        assert parsed.path == "/admin/oauth/authorize"
+        params_in = parse_qs(parsed.query)
+        assert params_in["redirect_uri"] == [self.origin + "/api/customer/v1/shopify/callback"]
+        state = params_in["state"][0]
+        values = {
+            "shop": SHOP,
+            "state": state,
+            "code": "offline-consent-code",
+            "timestamp": str(int(time.time())),
+        }
+        secret = settings.shopify_client_secret
+        assert secret is not None
+        values["hmac"] = hmac.new(
+            secret.get_secret_value().encode(),
+            "&".join(f"{key}={value}" for key, value in sorted(values.items())).encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        callback = params_in["redirect_uri"][0] + "?" + urlencode(values)
+        self.callbacks.append(callback)
+        cancel = (
+            params_in["redirect_uri"][0]
+            + "?"
+            + urlencode({"error": "access_denied", "state": state})
+        )
+        body = (
+            "<!doctype html><title>Offline Shopify Consent</title>"
+            "<h1>Review Store Permissions</h1>"
+            f'<a id="consent-approve" href="{html.escape(callback)}">Approve</a>'
+            f'<a id="consent-cancel" href="{html.escape(cancel)}">Cancel</a>'
+        )
+        return body
+
     def call(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self.sequence += 1
         request_id = self.sequence
@@ -56,40 +91,7 @@ class Browser:
             reply = json.loads(self.socket.recv(timeout=15))
             if reply.get("method") == "Fetch.requestPaused":
                 event = reply["params"]
-                parsed = urlsplit(event["request"]["url"])
-                assert parsed.scheme == "https" and parsed.hostname == SHOP
-                assert parsed.path == "/admin/oauth/authorize"
-                params_in = parse_qs(parsed.query)
-                assert params_in["redirect_uri"] == [
-                    self.origin + "/api/customer/v1/shopify/callback"
-                ]
-                state = params_in["state"][0]
-                values = {
-                    "shop": SHOP,
-                    "state": state,
-                    "code": "offline-consent-code",
-                    "timestamp": str(int(time.time())),
-                }
-                secret = settings.shopify_client_secret
-                assert secret is not None
-                values["hmac"] = hmac.new(
-                    secret.get_secret_value().encode(),
-                    "&".join(f"{key}={value}" for key, value in sorted(values.items())).encode(),
-                    hashlib.sha256,
-                ).hexdigest()
-                callback = params_in["redirect_uri"][0] + "?" + urlencode(values)
-                self.callbacks.append(callback)
-                cancel = (
-                    params_in["redirect_uri"][0]
-                    + "?"
-                    + urlencode({"error": "access_denied", "state": state})
-                )
-                body = (
-                    "<!doctype html><title>Offline Shopify Consent</title>"
-                    "<h1>Review Store Permissions</h1>"
-                    f'<a id="consent-approve" href="{html.escape(callback)}">Approve</a>'
-                    f'<a id="consent-cancel" href="{html.escape(cancel)}">Cancel</a>'
-                )
+                body = self.consent_document(event["request"]["url"])
                 self.sequence += 1
                 self.socket.send(
                     json.dumps(

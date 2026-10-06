@@ -1332,3 +1332,95 @@ results must be attributed to its exact head, not the predecessor.
 Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
 PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
 freezing the successor for Full/CI.
+
+## Customer Connections: Shopify Disconnect And Google Account Selection
+
+Branch `codex/inlet-customer-connections`, based on PR104 head
+`fa70d8b5aa7d3f14c08a83cc622ba53409279591`. Shopify now has an explicit data-effects
+confirmation and disconnect control, tested against real API/database deletion and
+retained goal history. Google now has a configured consent button, same-window GET
+callback bridge, authorized non-manager selection and verified workspace return.
+Current session/role guards also run after provider exchange and before selection;
+retry is limited to current session/workspace attempts. No provider calls, advertising
+changes, activation, migration, merge or deployment occurred.
+
+Focused SQLite/PostgreSQL/API/Chromium checks: **56 passed, 6 intentional SQLite
+concurrency skips**. Node helpers **8 passed**; Ruff/mypy **290 files** and diff checks
+pass. Full/CI pending. Details, exact command and remaining engineering/live gates are
+in `docs/inlet-customer-connections-ui.md`. Google disconnect and other provider
+connection controls remain separate customer-facing engineering work.
+
+Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111.
+Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
+commit only records this PR link. Final Google browser rerun also passed both database
+variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.
+### B18 Visible Test Billing Journey (2026-10-06)
+
+Branch `codex/inlet-billing-browser`, isolated from frozen PR112 `3a3cca8`, adds safe
+server billing availability/status flags, owned-workspace return URLs, visible
+checkout/resume/status refresh/management and post-provider owner/session rechecks.
+Actual Chromium/API/DB journeys on SQLite/PostgreSQL use the real Stripe HTTP adapter
+with mocked provider responses and intercepted provider navigation. No real charges,
+price decisions, credentials, live requests, migration, merge or deployment.
+
+A delayed management response plus workspace switch reproduced controls permanently
+disabled by overlapping portal guards; a shared busy counter/original-state map now
+restores controls only once all tasks settle, with epoch/no-navigation coverage.
+Final focused billing/portal/Shopify/browser checks: **78 passed, 1 SQLite-only skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff/diff checks pass; targeted strict mypy
+passes 220 files. Whole-tree mypy has only the inherited GCS unused-ignore already
+fixed independently by root PR113 `7ae1d0d`; left untouched here. Full not started.
+See [billing journey evidence and limits](inlet-billing-browser.md) and
+`/tmp/inlet-billing-browser-final.log`. Next: final integration validation and remaining
+core-task/account controls; live purchasing stays a separate commercial/release gate.
+## B14 — Customer Draft Creation And Private Video Playback (2026-10-06)
+
+Branch `codex/inlet-draft-ui`, isolated child of PR112 `3a3cca8`. Narrow CI prerequisite
+`98e2b0e` installs FFmpeg before retained decoder checks; root integrated that commit
+separately. No changes were made to the frozen Full worktree.
+
+Customer campaign review now creates all three supported offline draft types from
+existing simulation mandates, uploads supplied media through the authorized API,
+reuses private validated media, and plays bounded private MP4 blobs. Saving never
+approves; playback failures block approval. Object URLs and form state are cleared
+on workspace/revision changes. See `docs/inlet-campaign-creation-ui.md`.
+
+Focused validation: 71 passed, one expected SQLite concurrency skip with PostgreSQL
+variant passing. Includes real HTTPS browser journey on both databases, actual
+synthetic MP4 upload/decode, Google/Meta/TikTok creation, exact revision approval,
+role/stale failures and media bounds. Ruff passes; scoped mypy passes. Whole mypy
+on the frozen parent reports its known unused GCS test ignore, already repaired by
+root on the next integration head. Broad Full and hosted CI remain root-owned.
+### Import-order-independent migration regression — 2026-10-06
+
+The missing-application-tables validation test depended on whatever ORM models
+pytest collection had imported. A focused invocation reproduced PostgreSQL
+DependentObjectsStillExist: web_analytics_events still referenced ad_groups, absent
+from the partial drop graph. The test now reflects the actual migration-created
+schema and drops its application tables in dependency order while retaining
+alembic_version. The existing guarded disposable-database validation remains first;
+no production reset behavior or validation gate is relaxed.
+
+Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
+upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
+hosted successor results remain separate and must be recorded after assembly.
+
+### Customer journey integration — 2026-10-06
+
+Child of PR112 `73725be`, preserving its active validation head. Combines PR111
+`960de15` connection consent/account selection/Shopify disconnect, PR114 `f151a80`
+visible test checkout/recovery/management, and PR116 `d217dba` supplied draft creation,
+private media upload and decoded video preview. Shared customer mutation locking
+converges on the same workspace/user/session/membership guard, with the stronger
+provider-aware wrapper retaining issuer, remote-active and post-wait expiry checks.
+The combined portal preserves both Google setup state and overlapping-task control
+restoration. No automatic campaign approval or live purchase/publication is enabled.
+
+Combined billing/connections/Shopify/authorization tests: 70 passed, 8 SQLite lock
+skips, PostgreSQL counterparts ran. Combined creation/review/video/threadpool/auth
+checks: 34 passed, 2 SQLite lock skips. Node portal suite: 9 passed. Ruff, mypy321
+and diff check passed. Initial test command used an incorrect connection-browser
+filename and collected no tests; the corrected command produced the 70-pass result.
+The independently reproduced migration reflection repair `1624b18` is included.
+Full/hosted CI are separate pending gates at the final integration head. Google
+ disconnect follow-up and closure/lifecycle packages remain separate candidates.

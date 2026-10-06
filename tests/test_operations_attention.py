@@ -302,7 +302,7 @@ def test_capped_evidence_never_claims_complete_health(customer_engine: Engine) -
             event.remove(customer_engine, "before_cursor_execute", record)
         assert result.evidence_truncated and result.counts_are_lower_bounds
         assert result.signals[0].observed_count == ROW_LIMIT
-        assert len(statements) == (12 if customer_engine.dialect.name == "postgresql" else 11)
+        assert len(statements) == (13 if customer_engine.dialect.name == "postgresql" else 12)
         assert all("LIMIT" in statement or "set_config" in statement for statement in statements)
         if customer_engine.dialect.name == "postgresql":
             assert db.scalar(select(func.current_setting("statement_timeout"))) == "2s"
@@ -345,3 +345,71 @@ def test_query_failure_remains_unavailable_and_sanitized(
     assert result.status_code == 503
     assert result.json() == {"detail": "database temporarily unavailable"}
     assert PRIVATE not in result.text and PRIVATE not in caplog.text
+
+
+def analysis_run(
+    db: Session, wid: int, cadence: str, state: str, started: datetime, key: str
+) -> None:
+    from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
+    from app.analysis.models import AnalysisRun
+
+    db.add(
+        AnalysisRun(
+            workspace_id=wid,
+            run_key=key,
+            cadence=AnalysisCadence(cadence),
+            status=AnalysisRunStatus(state),
+            scheduled_for=started,
+            started_at=started,
+            finished_at=None if state == "running" else started,
+            metric_date_from=started.date(),
+            metric_date_to=started.date(),
+            outcome_date_from=started.date(),
+            outcome_date_to=started.date(),
+            error_code="private_error" if state == "failed" else None,
+            decision_brief={"private": PRIVATE},
+            retry_history=[{"private": PRIVATE}],
+        )
+    )
+
+
+def test_analysis_failure_recovery_and_running_observation_are_separate(
+    customer_engine: Engine,
+) -> None:
+    with Session(customer_engine) as db:
+        wid = workspace(db, "analysis").id
+        closing = workspace(db, "closing-analysis", "closing").id
+        analysis_run(db, wid, "nightly", "failed", OLD, "recovered")
+        analysis_run(db, wid, "nightly", "succeeded", NOW, "successful")
+        analysis_run(db, wid, "weekly", "failed", OLD, "weekly-failed")
+        # Later success does not prove an earlier distinct running worker stopped.
+        analysis_run(db, wid, "nightly", "running", OLD, "still-running")
+        analysis_run(db, wid, "weekly", "running", NOW, "recent-running")
+        analysis_run(db, closing, "weekly", "failed", OLD, "closed-failure")
+        db.commit()
+        report = attention(db, NOW)
+        actual = {s.code: s for s in report.signals}
+        assert actual["analysis_failed"].observed_count == 1
+        assert actual["analysis_running_overdue"].observed_count == 1
+        assert actual["analysis_failed"].action == "inspect_local_job"
+        assert PRIVATE not in report.model_dump_json()
+        assert "private_error" not in report.model_dump_json()
+        assert "local_analysis_runs_not_observed" not in report.observation_gaps
+        assert "scheduler_heartbeat_not_recorded" in report.observation_gaps
+        analysis_run(db, wid, "weekly", "succeeded", NOW + timedelta(seconds=1), "weekly-recovered")
+        db.commit()
+        later = signals(db, NOW + timedelta(seconds=1))
+        assert "analysis_failed" not in later
+        assert later["analysis_running_overdue"].observed_count == 1
+
+
+def test_analysis_observation_bound_is_explicit(customer_engine: Engine) -> None:
+    with Session(customer_engine) as db:
+        wid = workspace(db, "analysis-bounded").id
+        for index in range(ROW_LIMIT + 1):
+            analysis_run(db, wid, "nightly", "running", OLD, f"run-{index}")
+        db.commit()
+        report = attention(db, NOW)
+        assert report.evidence_truncated and report.counts_are_lower_bounds
+        observed = next(s for s in report.signals if s.code == "analysis_running_overdue")
+        assert observed.observed_count == ROW_LIMIT

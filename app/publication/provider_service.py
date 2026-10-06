@@ -118,8 +118,8 @@ def prepare_google(
     db.commit()  # release lifecycle locks before bounded provider reads
     context = context_factory(review.scope)
     evidence = qualify_google(review, context, transport, now)
-    now = clock()
-    current = current_review(db, wid, draft_id, fields, actor, store, now)
+    current = current_review(db, wid, draft_id, fields, actor, store, clock())
+    now = clock()  # lifecycle locks may have waited beyond qualification expiry
     if (
         current.configuration_binding() != review.configuration_binding()
         or not evidence.observed_at <= now < evidence.expires_at
@@ -139,6 +139,10 @@ def prepare_google(
             ProviderReviewRecord.plan_digest == plan.digest(),
         )
     )
+    paid_work(db, wid, clock())
+    now = clock()  # final persistence check after database reads, including deduplication
+    if not evidence.observed_at <= now < evidence.expires_at:
+        raise HTTPException(409, "provider qualification became stale")
     if existing is not None:
         return existing
     qualification = ProviderQualificationRecord(
@@ -182,7 +186,7 @@ def checked_review(
     review_id: str,
     actor: str,
     store: MediaStore,
-    now: datetime,
+    clock: Callable[[], datetime],
 ) -> tuple[ProviderReviewRecord, ProviderPublishPlan]:
     # Read identifiers first, then acquire fixed workspace/source lock order and reload.
     row = db.scalar(
@@ -193,7 +197,7 @@ def checked_review(
     if row is None:
         raise HTTPException(404, "provider review unavailable")
     review = ProviderPublicationReview.model_validate(row.review)
-    current = current_review(db, wid, row.draft_id, review.configuration, actor, store, now)
+    current = current_review(db, wid, row.draft_id, review.configuration, actor, store, clock())
     row = db.scalar(
         select(ProviderReviewRecord)
         .where(
@@ -216,6 +220,7 @@ def checked_review(
         raise HTTPException(409, "provider qualification unavailable")
     evidence = GoogleQualificationEvidence.model_validate(evidence_row.evidence)
     plan = ProviderPublishPlan.model_validate(row.plan)
+    now = clock()  # sample after every potentially blocking lifecycle/review read
     if (
         review.digest() != row.review_digest
         or plan.digest() != row.plan_digest
@@ -248,12 +253,17 @@ def approve(
     plan_digest: str,
     actor: str,
     store: MediaStore,
-    now: datetime,
+    clock: Callable[[], datetime],
 ) -> ProviderReviewApproval:
-    row, _ = checked_review(db, wid, review_id, actor, store, now)
+    row, plan = checked_review(db, wid, review_id, actor, store, clock)
     if row.review_digest != review_digest or row.plan_digest != plan_digest:
         raise HTTPException(409, "exact provider review and plan required")
     approval = db.get(ProviderReviewApproval, row.id)
+    paid_work(db, wid, clock())
+    now = clock()
+    evidence = plan.review.qualification
+    if evidence is None or not evidence.observed_at <= now < evidence.expires_at:
+        raise HTTPException(409, "provider qualification became stale")
     if approval is None:
         approval = ProviderReviewApproval(
             review_id=row.id,
@@ -274,9 +284,9 @@ def publication_authority(
     review_id: str,
     actor: str,
     store: MediaStore,
-    now: datetime,
+    clock: Callable[[], datetime],
 ) -> None:
-    row, _ = checked_review(db, wid, review_id, actor, store, now)
+    row, _ = checked_review(db, wid, review_id, actor, store, clock)
     approval = db.get(ProviderReviewApproval, row.id)
     if (
         approval is None

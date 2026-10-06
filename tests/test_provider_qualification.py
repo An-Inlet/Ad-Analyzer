@@ -184,11 +184,13 @@ def test_persist_exact_review_approve_but_simulation_never_production_authority(
         wid, draft, actor, store = seeded(db, configuration, tmp_path)
         row = prepare(db, wid, draft, actor, store)
         before = row.review
-        approval = s.approve(db, wid, row.id, row.review_digest, row.plan_digest, actor, store, NOW)
+        approval = s.approve(
+            db, wid, row.id, row.review_digest, row.plan_digest, actor, store, lambda: NOW
+        )
         assert approval.review_id == row.id
         assert not s.view(row)["publication_eligible"]
         with pytest.raises(HTTPException, match="production publication mandate"):
-            s.publication_authority(db, wid, row.id, actor, store, NOW)
+            s.publication_authority(db, wid, row.id, actor, store, lambda: NOW)
         db.rollback()
         assert db.scalar(select(func.count()).select_from(MandateAction)) == 0
         newer = prepare(db, wid, draft, actor, store, NOW + timedelta(seconds=1))
@@ -228,7 +230,7 @@ def test_review_approval_rechecks_current_authority(
         else:
             wid += 999
         with pytest.raises(HTTPException):
-            s.approve(db, wid, row.id, digest, row.plan_digest, actor, store, now)
+            s.approve(db, wid, row.id, digest, row.plan_digest, actor, store, lambda: now)
 
 
 def test_reconnect_during_read_cannot_persist_qualification(
@@ -336,7 +338,9 @@ def test_populated_provider_migration_roundtrip(
         command.upgrade(config, "20261006_0043")
         with Session(engine) as db:
             row = prepare(db, wid, draft, actor, store)
-            s.approve(db, wid, row.id, row.review_digest, row.plan_digest, actor, store, NOW)
+            s.approve(
+                db, wid, row.id, row.review_digest, row.plan_digest, actor, store, lambda: NOW
+            )
             assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == 1
         command.downgrade(config, "20261006_0040")
         command.upgrade(config, "20261006_0043")
@@ -385,3 +389,138 @@ def test_database_rejects_cross_workspace_qualification_reference(
                 )
             )
             db.flush()
+
+
+@pytest.mark.parametrize("operation", ["prepare", "approve"])
+@pytest.mark.parametrize("lock_kind", ["workspace", "mandate", "native"])
+def test_expiry_while_waiting_for_lifecycle_lock(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    lock_kind: str,
+) -> None:
+    """A real PostgreSQL blocker crosses expiry; no timing/sleep assumption decides it."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from time import monotonic, sleep
+
+    from app.mandates.models import Mandate
+    from app.publication.provider_models import ProviderReviewApproval
+    from app.workspaces.models import Workspace
+    from sqlalchemy import text
+
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL row-lock regression")
+    with Session(customer_engine) as db:
+        wid, draft, actor, store = seeded(db, configuration, tmp_path)
+        row = prepare(db, wid, draft, actor, store) if operation == "approve" else None
+        row_id = row.id if row else ""
+        review_digest = row.review_digest if row else ""
+        plan_digest = row.plan_digest if row else ""
+    ready, proceed = Event(), Event()
+    now = [NOW if operation == "prepare" else NOW + timedelta(minutes=5, seconds=-1)]
+    original = s.current_review
+    calls = 0
+    backend = [0]
+
+    def barrier(*args: Any, **kwargs: Any) -> ProviderPublicationReview:
+        nonlocal calls
+        calls += 1
+        if calls == (2 if operation == "prepare" else 1):
+            ready.set()
+            assert proceed.wait(10)
+            backend[0] = int(args[0].scalar(text("select pg_backend_pid()")))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(s, "current_review", barrier)
+
+    def attempt() -> None:
+        with Session(customer_engine) as db:
+            if operation == "approve":
+                s.approve(db, wid, row_id, review_digest, plan_digest, actor, store, lambda: now[0])
+            else:
+                fields = review().configuration.model_copy(
+                    update={
+                        "reservation_micros": 40,
+                        "daily_budget_micros": 20,
+                        "account_timezone": "Pacific/Pago_Pago",
+                    }
+                )
+                rows = response_rows()
+                rows["customer"]["timeZone"] = "Pacific/Pago_Pago"
+                s.prepare_google(
+                    db,
+                    wid,
+                    draft,
+                    fields,
+                    actor,
+                    store,
+                    adapter(rows),
+                    lambda scope: ProviderContext(
+                        scope=scope,
+                        login_customer_id=None,
+                        access_token=SecretStr("mock"),
+                        expires_at=NOW + timedelta(hours=1),
+                    ),
+                    lambda: now[0],
+                )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(attempt)
+        try:
+            assert ready.wait(10)
+            with Session(customer_engine) as blocker:
+                if lock_kind == "workspace":
+                    blocker.scalar(select(Workspace).where(Workspace.id == wid).with_for_update())
+                elif lock_kind == "mandate":
+                    blocker.scalar(
+                        select(Mandate).where(Mandate.workspace_id == wid).with_for_update()
+                    )
+                else:
+                    blocker.scalar(
+                        select(GoogleCustomerConnection)
+                        .where(GoogleCustomerConnection.workspace_id == wid)
+                        .with_for_update()
+                    )
+                proceed.set()
+                deadline = monotonic() + 10
+                with customer_engine.connect() as observer:
+                    while not observer.scalar(
+                        text("select cardinality(pg_blocking_pids(:pid))"), {"pid": backend[0]}
+                    ):
+                        assert monotonic() < deadline, "worker never reached the held row lock"
+                        sleep(0.01)
+                now[0] = NOW + timedelta(minutes=5, seconds=1)
+                blocker.rollback()
+            with pytest.raises(HTTPException, match="qualification"):
+                future.result(timeout=10)
+        finally:
+            proceed.set()
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ProviderReviewApproval)) == 0
+        assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == (
+            1 if operation == "approve" else 0
+        )
+
+
+def test_approval_records_fresh_decision_time(
+    customer_engine: Engine, configuration: Settings, tmp_path: Any
+) -> None:
+    ticks = [NOW]
+
+    def clock() -> Any:
+        ticks.append(ticks[-1] + timedelta(seconds=1))
+        return ticks[-1]
+
+    with Session(customer_engine) as db:
+        wid, draft, actor, store = seeded(db, configuration, tmp_path)
+        row = prepare(db, wid, draft, actor, store)
+        approval = s.approve(
+            db, wid, row.id, row.review_digest, row.plan_digest, actor, store, clock
+        )
+        from app.shopify.security import utc
+
+        assert utc(approval.approved_at) == ticks[-1]
+        assert approval.approved_at != ticks[1]

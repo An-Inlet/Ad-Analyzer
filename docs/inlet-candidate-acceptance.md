@@ -15,7 +15,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Customer optimization API integrated; customer UI in progress. Native portfolio qualification, scheduler entrypoint and qualified repeat evidence sources remain |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Customer optimization API/UI integrated; native portfolio qualification, scheduler entrypoint and qualified repeat evidence sources remain |
 | B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named customer configuration/review integrated; live supported-profile qualification and creation consumer remain |
 | B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover customer configuration/review integrated; native catalog parser, live advertiser/history qualification and creation consumer remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
@@ -136,6 +136,7 @@ Newer integration packages are outside that frozen validation: PR174 adds owned
 named optimization discovery, mandate/topology consent and exact initial/repeat
 customer APIs (combined root checks: 49 passed); PR175 surfaces terminal provider
 rejections without raw error data or retries (combined root checks: 35 passed).
-The corresponding existing-campaign UI and social execution consumer are being
-validated separately. Production runtime factories remain disabled. Their focused
+The existing-campaign UI is integrated after 39 combined API/browser/route tests
+passed on SQLite and PostgreSQL (PR176). The social execution consumer is under
+combined integration validation. Production runtime factories remain disabled. Their focused
 passes are not a replacement for a final assembled Full and hosted pass.

@@ -2891,3 +2891,15 @@ that harness repair. Root owns assembled Full/hosted qualification. No Full or C
 workflow was launched for this package. Native spending/finality proof, TikTok native
 catalog decoding, DSA personal-data closure handling and live qualification remain
 open. See `inlet-social-execution-intents.md` for the exact ports and limits.
+
+### Integrated Social Execution And Cross-Flow Browser Evidence
+
+Integrated PR177 feature `12296ec` while preserving PR176's optimization navigation
+and dispatch. Combined social API/guard, Meta/TikTok execution browsers, existing
+Google execution browser, optimization browser and route-boundary suite passed
+**27 tests, no skips, in 250.88 seconds** on SQLite and disposable PostgreSQL.
+Log: `/tmp/inlet-next-social-execution-ui.log`. Ruff, mypy (496 source files), Node
+syntax and whitespace checks passed. Exact social creation and separate activation
+are now customer-accessible when the required server capabilities are supplied;
+production factories remain disabled and native qualification is unresolved.
+These newer customer flows are outside frozen `8efe196` Full/CI evidence.

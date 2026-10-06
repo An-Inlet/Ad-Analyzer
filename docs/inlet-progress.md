@@ -894,3 +894,20 @@ mypy passed (274 source files), git diff --check passed. Logs:
 Full intentionally queued with root; hosted CI pending draft PR creation. Remaining
 CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
 live qualification are explicit in `docs/inlet-omnisend-runtime.md`.
+
+## Durable CRM Renewal Package (2026-10-06)
+
+Branch `codex/inlet-crm-renewal` from PR93 head
+`a64cc424d52bb9de18e63bb0c129a91611ae33aa`. Existing pacing now orchestrates all three
+CRM adapters through committed token-issuance, encrypted-unverified-candidate and
+separately paced account-proof phases. A proved renewal preserves generation and cursor;
+a stale worker cannot replace reconnect state. Proof transient failures retry the pending
+candidate, never the rotating token. Token issuance uncertainty fails closed to attention;
+known invalid grants and terminal read authorization failures require reconnect. No schema
+migration, live grant, automatic profile enrollment or provider revoke was introduced.
+
+Checks: **148 passed, 3 SQLite-only concurrency skips**; corresponding PostgreSQL races
+ran. Two existing Alembic warnings. Ruff, mypy (275 files), diff check passed.
+Log `/tmp/inlet-renewal-final.log`. Full and hosted CI pending; root owns validation-slot
+coordination. Detailed state, scopes, backoff and remaining work are recorded in
+`docs/inlet-crm-renewal.md`.

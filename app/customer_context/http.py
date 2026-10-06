@@ -17,7 +17,7 @@ from urllib.parse import quote, urlencode, urlsplit
 import httpx
 from pydantic import SecretStr
 
-from app.customer_context.contracts import ContextPage, CustomerProvider
+from app.customer_context.contracts import ContextPage, CustomerProvider, RefreshCandidate
 from app.customer_context.wire import KLAVIYO_REVISION, OMNISEND_REVISION, ProfileReader
 from app.sources.contracts import SourceAccount, SourceGrant
 
@@ -45,6 +45,17 @@ class CRMHTTPLogFilter(logging.Filter):
 
 class CRMReadError(RuntimeError):
     """Sanitized error; never include credentials, raw payloads or customer identifiers."""
+
+
+class CRMProofRejected(CRMReadError):
+    """Current token fails authoritative identity/scope/client proof."""
+
+
+class CRMInvalidGrant(CRMReadError):
+    """Explicit OAuth invalid_grant response, distinct from malformed/client failures."""
+
+    def __init__(self) -> None:
+        super().__init__("crm_invalid_grant")
 
 
 class CRMAuthenticationUnavailable(CRMReadError):
@@ -105,6 +116,7 @@ def oauth_parameters(state: str, redirect: str, provider: CustomerProvider) -> N
 class CRMHTTP:
     mode: Literal["fixture", "provider_read"] = "provider_read"
     provider: CustomerProvider
+    scopes: frozenset[str] = frozenset()
     endpoints: frozenset[tuple[str, str]]
 
     def __init__(
@@ -146,6 +158,23 @@ class CRMHTTP:
                 ) as client,
                 client.stream(method, url, headers=headers, params=params, data=data) as response,
             ):
+                if (
+                    response.status_code == 400
+                    and data
+                    and data.get("grant_type") == "refresh_token"
+                ):
+                    raw_error = bytearray()
+                    for chunk in response.iter_bytes():
+                        raw_error.extend(chunk)
+                        if len(raw_error) > 16384:
+                            raise CRMReadError("crm_read_unavailable")
+                    try:
+                        error_body = json.loads(raw_error)
+                    except (ValueError, TypeError):
+                        raise CRMReadError("crm_read_unavailable") from None
+                    if isinstance(error_body, dict) and error_body.get("error") == "invalid_grant":
+                        raise CRMInvalidGrant()
+                    raise CRMReadError("crm_read_unavailable")
                 if response.status_code in {401, 403}:
                     raise CRMAuthenticationUnavailable()
                 if response.status_code == 429:
@@ -181,7 +210,7 @@ class CRMHTTP:
         # Account ownership is proved from the token for every page, never echoed
         # from caller input or a profile property. No mutable shared identity cache.
         if self.account(token).external_id != account_id:
-            raise CRMReadError("crm_account_mismatch")
+            raise CRMProofRejected("crm_account_mismatch")
         try:
             page = ProfileReader(self.provider, self).page(account_id, token, cursor, now)
             if cursor is not None and page.next_cursor == cursor:
@@ -211,7 +240,7 @@ class CRMHTTP:
                 raise CRMReadError("crm_grant_invalid")
             account = self.account(token)
             if expected_account is not None and account.external_id != expected_account:
-                raise CRMReadError("crm_account_mismatch")
+                raise CRMProofRejected("crm_account_mismatch")
             return SourceGrant(
                 access_token=SecretStr(token),
                 refresh_token=SecretStr(refresh),
@@ -220,6 +249,57 @@ class CRMHTTP:
             )
         except (ValueError, TypeError, OverflowError):
             raise CRMReadError("crm_grant_invalid") from None
+
+    def renewal_candidate(self, payload: dict[str, Any], previous_refresh: str) -> RefreshCandidate:
+        scopes: frozenset[str] | None = None
+        if self.provider != "hubspot":
+            scope = payload.get("scope")
+            expected = self.scopes
+            if self.provider == "omnisend" and "scope" not in payload:
+                scopes = expected  # Unchanged renewal grant under RFC 6749.
+            elif not isinstance(scope, str) or set(scope.split()) != expected:
+                raise CRMReadError("crm_scope_mismatch")
+            else:
+                scopes = frozenset(scope.split())
+        token = bounded(payload.get("access_token"))
+        refresh = bounded(payload.get("refresh_token", previous_refresh))
+        lifetime = payload.get("expires_in")
+        if str(payload.get("token_type", "")).lower() != "bearer" or (
+            lifetime is not None
+            and (type(lifetime) is not int or not 0 < lifetime <= 10_000_000_000)
+        ):
+            raise CRMReadError("crm_grant_invalid")
+        try:
+            return RefreshCandidate(
+                provider=self.provider,
+                access_token=SecretStr(token),
+                refresh_token=SecretStr(refresh),
+                expires_at=self.clock() + timedelta(seconds=lifetime)
+                if lifetime is not None
+                else None,
+                scopes=scopes,
+            )
+        except (ValueError, OverflowError, TypeError):
+            raise CRMReadError("crm_grant_invalid") from None
+
+    def issue_refresh(self, refresh_token: str) -> RefreshCandidate:
+        raise NotImplementedError
+
+    def prove_refresh(self, candidate: RefreshCandidate, account_id: str) -> SourceGrant:
+        if candidate.provider != self.provider or (
+            self.provider != "hubspot" and candidate.scopes != getattr(self, "scopes", None)
+        ):
+            raise CRMReadError("crm_scope_mismatch")
+        # HubSpot's account() introspection proves client, scope and token identity.
+        account = self.account(candidate.access_token.get_secret_value())
+        if account.external_id != account_id:
+            raise CRMProofRejected("crm_account_mismatch")
+        return SourceGrant(
+            access_token=candidate.access_token,
+            refresh_token=candidate.refresh_token,
+            expires_at=candidate.expires_at,
+            accounts=[account],
+        )
 
 
 class KlaviyoHTTPRead(CRMHTTP):
@@ -304,6 +384,13 @@ class KlaviyoHTTPRead(CRMHTTP):
         except (KeyError, TypeError, ValueError):
             raise CRMReadError("crm_account_unavailable") from None
 
+    def issue_refresh(self, refresh_token: str) -> RefreshCandidate:
+        previous = bounded(refresh_token)
+        return self.renewal_candidate(
+            self._oauth("token", {"grant_type": "refresh_token", "refresh_token": previous}),
+            previous,
+        )
+
     def refresh(self, refresh_token: str, account_id: str) -> SourceGrant:
         return self._grant(
             self._oauth(
@@ -384,8 +471,15 @@ class HubSpotHTTPRead(CRMHTTP):
             or not all(isinstance(scope, str) for scope in scopes)
             or set(scopes) != self.scopes
         ):
-            raise CRMReadError("crm_account_unavailable")
+            raise CRMProofRejected("crm_account_unavailable")
         return SourceAccount(external_id=str(hub), name="HubSpot Account")
+
+    def issue_refresh(self, refresh_token: str) -> RefreshCandidate:
+        previous = bounded(refresh_token)
+        return self.renewal_candidate(
+            self._oauth("token", {"grant_type": "refresh_token", "refresh_token": previous}),
+            previous,
+        )
 
     def refresh(self, refresh_token: str, account_id: str) -> SourceGrant:
         return self.grant(
@@ -461,7 +555,7 @@ class OmnisendHTTPRead(CRMHTTP):
         try:
             account = self.account(token)
             if expected_account is not None and account.external_id != expected_account:
-                raise CRMReadError("crm_account_mismatch")
+                raise CRMProofRejected("crm_account_mismatch")
             return SourceGrant(
                 access_token=SecretStr(token),
                 refresh_token=SecretStr(refresh) if refresh else None,
@@ -503,6 +597,12 @@ class OmnisendHTTPRead(CRMHTTP):
             if not isinstance(paging, dict) or type(paging.get("hasMore")) is not bool:
                 raise CRMReadError("crm_profile_response_invalid")
         return payload
+
+    def issue_refresh(self, refresh_token: str) -> RefreshCandidate:
+        previous = bounded(refresh_token)
+        return self.renewal_candidate(
+            self._oauth({"grant_type": "refresh_token", "refresh_token": previous}), previous
+        )
 
     def refresh(self, refresh_token: str, account_id: str) -> SourceGrant:
         previous = bounded(refresh_token)

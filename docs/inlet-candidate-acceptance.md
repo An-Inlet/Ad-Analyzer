@@ -13,16 +13,16 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B04 | Owned imports/jobs, connection generations, workspace-first closure locks; scheduler self-deadlock repaired | Final assembled isolation and unrelated live accounts |
 | B05 | Net Shopify merchandise sales, local windows, refunds, 13-month retention, terminal publications and privacy invalidation | Deployed historical coverage/completeness reconciliation |
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
-| B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation and settlement | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
+| B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Complete native portfolio qualification, customer/scheduler optimization entrypoints and same-owner rebudget protocol |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Complete native portfolio qualification, customer/scheduler optimization entrypoints and qualified repeat-operation evidence sources |
 | B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | Live supported-profile qualification and customer configuration |
 | B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Live advertiser/history qualification and customer configuration |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
 | B13 | Checkout/return/management, webhook reconciliation and entitlements | Commercial configuration, live purchase/cancel, external closure policy; original hosted billing failure cause unresolved |
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
-| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social named producer is integrated; durable customer confirmation/facade and provider capability proof remain |
+| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer and no-DSA confirmation storage integrated; exact customer facade and provider capability proof remain |
 | B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison and History UI integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google creation/activation customer API/UI and strict exports integrated; default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention, native restore drill | Green final Full/CI, intended-environment alerts/recovery/retention |
@@ -96,3 +96,20 @@ documented in `docs/design/google-native-exposure-qualification.md`. TikTok's
 missing authoritative list response schemas remain a concrete parser blocker,
 recorded in `docs/design/tiktok-catalog-response-evidence.md`. No invented provider
 fields or spending guarantees fill these gaps.
+
+## Latest Assembled Integration
+
+`ca404a9` joins migration 0058 (replacement audit) and 0059 (social configuration
+review) at 0060. Combined regression checks passed 54 tests with one SQLite-only
+concurrency skip; Ruff and configured mypy (484 files) passed. This is not Full.
+The repeat protocol has no qualified native source and does not enable live
+execution. It retains predecessor obligations, rejects late ancestor-receipt
+drift and prevents a canceled unattempted successor from locally releasing
+inherited exposure.
+
+Frozen c602a1b Full has observed a nested failure (four cases); its outer suite is
+still running. Two stale Shopify barrier probes and logger contamination were
+reproduced and repaired in the newer tree. The third native-import barrier failure
+has not reproduced independently; diagnostics and guaranteed cleanup were added
+without changing deadlines or blocking assertions. Combined affected modules
+passed 50 tests with six SQLite-only skips. New assembled Full is still required.

@@ -15,6 +15,7 @@ from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 
+from tests.feedback_historical_schema import without_feedback
 from tests.test_optimization_candidates import fixture
 from tests.test_shopify_sales import configuration as configuration
 
@@ -38,6 +39,7 @@ def test_derived_candidate_migration_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0062")
+        without_feedback(monkeypatch, engine)
         with Session(engine) as db:
             principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
             row = enqueue(db, principal, work, runtime)

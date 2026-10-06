@@ -3578,3 +3578,67 @@ Other six affected historical migration definitions13 passed,1 expected SQLite s
 fictitious stamped ORM history. All prior backfill/ownership assertions remain.
 Ruff check ., configured mypy546 and whitespace passed. Logs
 `/tmp/inlet-next-ci-fixtures.log` and `/tmp/inlet-next-historical-migrations.log`.
+## B17 Owned V3 Feedback Persistence And Retraction — 2026-10-06
+
+Branch `codex/inlet-feedback-contract`, worktree `/workspace/inlet-feedback-contract`,
+starts from frozen v3 bridge189 and candidate191 (integration base37e9b84).
+Migration0064 follows0062; root owns the subsequent integration join.
+
+Implemented separate strict v3 assessment storage, bounded owned multi-publication
+lineage, required-parameter association scoring, idempotent feedback, ABA-safe slot
+CAS and active-set recomputation without cached numeric totals. Production maturity
+and decision policies remain unset. Actual current sources produce no eligible
+feedback. There is no new customer route or live execution authority.
+
+Any dependency erasure removes the whole numeric assessment and dependent feedback.
+Retraction and slot replacement clear workspace-wide derived candidate caches even
+when anchored to another publication; unrelated brands and financial history survive.
+Triggers advance export privacy revisions. PostgreSQL raw mutation guards use NOWAIT
+workspace locking; contention fails transactionally without automatic retry.
+Existing source/privacy/receipt/closure invalidation composes through shared helpers.
+Strict lifecycle exports include the new owned types.
+
+Final focused command: `pytest -o addopts='' -q tests/test_feedback_policy.py
+ tests/test_feedback_storage.py tests/test_feedback_races.py
+ tests/test_feedback_migration.py tests/test_candidate_migration.py
+ tests/test_model_registry.py` with disposable PostgreSQL configured: **36 passed,
+1 SQLite row-lock skip, 6 existing Alembic configuration deprecation warnings**,59.56s.
+Tests include actual SQLite/PostgreSQL repeatable export-snapshot races, raw PostgreSQL
+NOWAIT contention plus explicit later retry, populated migration downgrade/reupgrade,
+slot replacement/replay, historical-dependency erasure, unrelated-brand isolation and
+actual closure rollback/commit. Earlier expanded regression run:67 passed,2 skipped
+(before final guard additions). Final Ruff changed-file checks and mypy529 files pass;
+`git diff --check` passes. No Full, CI dispatch, live provider or production DB calls.
+
+Remaining: genuine independently complete source and authoritative delivery timing,
+qualified/calibrated production policy values and customer v3 projection. These code
+and evidence gates are distinct; B17 acceptance remains incomplete. Raw conflicting
+mutations must retry explicitly in a fresh workspace-first transaction; no background
+blind retry is introduced. Shared model/export/lifecycle registrations require additive
+integration with other frozen packages.
+
+### 2026-10-06 — Retractable owned feedback assembled
+
+Integrated PR201a33c9b3: immutable owned v3 assessments and multi-publication
+dependencies, idempotent contributions/CAS slots, transactional full-document
+retraction, candidate invalidation and export revision fences. PostgreSQL raw
+delete contention fails immediately through workspace NOWAIT rather than inverted
+lock waits. Root feedback/storage/race/migration and candidate selection checks:
+61 passed,4 expected SQLite lock skips,3 Alembic warnings in75.40s. Ruff check .,
+configured mypy557 and whitespace passed (`/tmp/inlet-next-feedback.log`).
+No production maturity/decision values or genuine qualified sources enabled.
+
+Hosted frozen8efe196 failure mapping remains exact:
+- test_meta_customer_browser_consent_selection_disconnect[postgres]: deterministic
+  disabled-Retry click, addressed by PR199b04cab6 integrated6a41d9f; root bothDBpass.
+- test_full_validation_can_run_twice_against_same_disposable_database: wrapper
+  failed because nestedFull had the same MetaPGbrowser failure, targeted by the
+  same repair. This wrapper has NOT passed on the assembled successor yet.
+PR200 migration fixture repairs address separately reproduced later-code regressions,
+not an additional failure in that frozen hosted run. Focused green checks do not
+clear the historical failed Full/CI result. Local frozenFull final nested test remains
+running; first nested iteration progressed through primary pytest into latergates.
+
+08:50 disconnect report: shell/filesystem probes and running Full PIDs verified alive;
+no observed lost work. Remote preservation is verified only after successful push
+and exact remote hash comparison, not from local commits alone.

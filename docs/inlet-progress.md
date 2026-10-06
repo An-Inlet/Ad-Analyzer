@@ -2284,3 +2284,11 @@ boundaries. Ruff passed, configured mypy passed 442 files, diff check passed.
 Log `/tmp/inlet-descriptive-final.log`. No Full or CI dispatch. Remaining B17:
 approved maturity parameters, qualified effective-time producer and bounded explained
 recommendation updates; separate customer UI integration remains outstanding.
+
+## Google native inventory diagnostics — 2026-10-06
+
+Implemented an actual bounded injectable v25 read-only inventory collector on `codex/inlet-google-native-inventory`, exact base `fe710a9`. It reads all paginated campaign/budget owners (including removed/other-channel rows), observed native-calendar cost, billing setups and proposed/approved/adjusted/pending/future account-budget facts. Missing owners, changed topology, billing read failures and absent cost stay explicit. Output types force unqualified cap semantics and null reporting watermark/unreported/future/proposed upper bounds; no default factory, qualified profile or ledger/reservation mutation exists.
+
+`docs/inlet-google-native-inventory.md` records the actual composition contract, provider evidence and remaining billing-basis/writer-boundary owner decisions. Lower budgets, finite caps and late reports do not prove reusable residual exposure or settle earlier optimization attempts. Runtime persistence/composition and a qualified source remain concrete engineering work, not credential-only gates.
+
+Checks run: `pytest -o addopts='' -q tests/test_google_native_inventory.py tests/test_google_optimization_http.py tests/test_google_catalog_http.py tests/test_customer_execution_catalog.py` — 103 passed, no skips; whole `ruff check .` passed; `mypy app tests` passed 464 source files; `git diff --check` passed. All HTTP mocked. No Full, hosted CI, live API, operational enablement, merge or deployment claimed.

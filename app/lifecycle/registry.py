@@ -1043,6 +1043,7 @@ TABLES: dict[str, TablePolicy] = {
         ("connection_id", "meta_connections", "id"),
         False,
     ),
+    "operational_observations": TablePolicy("platform_global", (), None, False),
     "platform_automation_controls": TablePolicy("platform_global", (), None, False),
     # Provider evidence remains protected; export only scoped scalar facts.
     # Nested evidence/review/plan payloads require their own versioned serializers.

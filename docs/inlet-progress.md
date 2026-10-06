@@ -3930,3 +3930,16 @@ session/pongtimeout), but wrapper-owned exitfile and completeterminal log provep
 finished successfully. This is not a lost/assumedalive execution. Full log retained
 at `/tmp/inlet-oct06-candidate2-full.log`. Hosted37427571832 remains FAILED onthat
 exacttree; PR199targetedrepair is onnewintegration and awaits assembledFull/CI.
+
+### 2026-10-06 — Bounded Runtime Observation Integration
+
+Integrated PR206 commits 0fcf7bc and 27e89ce: bounded scheduler and private-media
+observations, independent non-masking storage, sanitized operator attention and
+migration 0070. The feature remains disabled by default. Root verification:
+241 passed, 3 expected SQLite-only skips, 3 Alembic warnings in 29.34s;
+`ruff check .`, configured mypy (582 files), and whitespace checks passed.
+Log: `/tmp/inlet-next-runtime-observations.log`. No live service probes occurred.
+
+The next frozen batch uses intermediate merge revision 0071 joining 0063, 0064,
+0066, 0068 and 0070. Session automation 0072 remains independent and unfinished;
+a later 0073 will join 0071 and 0072. This supersedes the earlier unused-0071 plan.

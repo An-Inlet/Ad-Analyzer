@@ -12,6 +12,9 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from app.campaign_review.contracts import MAX_MEDIA_BYTES, MediaStore
+from app.operations.media_observations import MediaComponent, ObservedMediaStore, now_utc
+from app.operations.observation_contracts import OperationalObservation
+from app.operations.observations import get_observation_sink, record_safely
 from app.settings import settings
 
 
@@ -85,7 +88,7 @@ class LocalMediaStore:
             os.close(directory)
 
 
-def get_media_store() -> MediaStore:
+def _get_media_store() -> MediaStore:
     if settings.media_storage_mode == "gcs" and settings.media_gcs_bucket:
         import google.cloud.storage as storage  # type: ignore[import-untyped]
 
@@ -106,3 +109,36 @@ def get_media_store() -> MediaStore:
         return LocalMediaStore(Path(settings.media_local_directory))
     except (ValueError, OSError):
         raise HTTPException(503, "private media storage unavailable") from None
+
+
+def get_media_store() -> MediaStore:
+    # Disabled storage is intentional configuration, not a failed storage operation.
+    if settings.media_storage_mode not in ("gcs", "local_dev"):
+        return _get_media_store()
+    component: MediaComponent = (
+        "private_media_gcs" if settings.media_storage_mode == "gcs" else "private_media_local"
+    )
+    sink = get_observation_sink()
+    try:
+        store = _get_media_store()
+    except Exception:
+        record_safely(
+            sink,
+            OperationalObservation(
+                component=component,
+                slot="latest_failure",
+                outcome="media_init_failed",
+                observed_at=now_utc(),
+            ),
+        )
+        raise
+    record_safely(
+        sink,
+        OperationalObservation(
+            component=component,
+            slot="latest_completion",
+            outcome="media_initialized",
+            observed_at=now_utc(),
+        ),
+    )
+    return store if sink is None else ObservedMediaStore(store, sink, component)

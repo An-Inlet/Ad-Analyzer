@@ -76,7 +76,7 @@ def test_latest_job_failure_recovery_and_stale_running_are_distinct(
         job(db, wid, "slow", JobRunStatus.SUCCEEDED, NOW)
         db.commit()
         assert attention(db, NOW).status == "no_attention_observed"
-        assert "storage_failures_not_recorded" in attention(db, NOW).observation_gaps
+        assert "storage_observations_incomplete" in attention(db, NOW).observation_gaps
 
 
 def test_billing_backoff_is_expected_until_explicit_overdue_threshold(
@@ -303,7 +303,7 @@ def test_capped_evidence_never_claims_complete_health(customer_engine: Engine) -
             event.remove(customer_engine, "before_cursor_execute", record)
         assert result.evidence_truncated and result.counts_are_lower_bounds
         assert result.signals[0].observed_count == ROW_LIMIT
-        assert len(statements) == (14 if customer_engine.dialect.name == "postgresql" else 13)
+        assert len(statements) == (15 if customer_engine.dialect.name == "postgresql" else 14)
         assert all("LIMIT" in statement or "set_config" in statement for statement in statements)
         if customer_engine.dialect.name == "postgresql":
             assert db.scalar(select(func.current_setting("statement_timeout"))) == "2s"
@@ -396,7 +396,7 @@ def test_analysis_failure_recovery_and_running_observation_are_separate(
         assert PRIVATE not in report.model_dump_json()
         assert "private_error" not in report.model_dump_json()
         assert "local_analysis_runs_not_observed" not in report.observation_gaps
-        assert "scheduler_heartbeat_not_recorded" in report.observation_gaps
+        assert "scheduler_observations_do_not_prove_worker_liveness" in report.observation_gaps
         analysis_run(db, wid, "weekly", "succeeded", NOW + timedelta(seconds=1), "weekly-recovered")
         db.commit()
         later = signals(db, NOW + timedelta(seconds=1))

@@ -1332,3 +1332,27 @@ results must be attributed to its exact head, not the predecessor.
 Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
 PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
 freezing the successor for Full/CI.
+
+### B19 Application Authentication For CRM Push — 2026-10-06
+
+Branch `codex/inlet-worker-auth`, isolated from PR112 frozen `73725be8c3ce8165d236f998cc850b41cea1f10c`.
+Added disabled-default expected push audience/service account configuration and a
+router dependency using actual Google signature verification. Customer/operator/IAP
+identities cannot substitute for worker identity. Strict bounded single-header JWT
+parsing, exact verified email/time/audience checks and bounded fixed certificate
+transport fail closed without exposing claims. Terraform requires an explicit
+nonsecret audience input before release and retains the existing subscription
+worker-URI audience without a resource self-reference.
+
+Focused worker/ingress/IAP/API/Terraform tests: **102 passed, zero skipped**, including
+SQLite and PostgreSQL customer-login denial and actual Google verifier tests with
+in-memory synthetic signing material/mocked HTTP. Whole-tree Ruff, mypy (316 files)
+and diff check passed. No Full, deployment, credentials, live provider requests or
+real push/IAM qualification. Terraform CLI unavailable; static tests do not establish
+plan/apply readiness. See `docs/inlet-worker-push-auth.md` for the compatibility gate,
+protocol source and remaining intended-environment verification.
+
+Draft review: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/119. Implementation
+commit `2e34c92d607538b740a12c5a5a793040a9fe1e15`; subsequent ledger-only commit
+records the assigned PR. Next gate is assembled exact-head Full/CI, followed by
+explicit release configuration and intended-environment push verification.

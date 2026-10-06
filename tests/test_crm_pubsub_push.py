@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from app.api import pubsub
+from app.crm.push_auth import require_crm_push_identity
 from app.database.session import get_db
 from app.main import app
 from fastapi.testclient import TestClient
@@ -55,6 +56,8 @@ def push_client(monkeypatch: pytest.MonkeyPatch) -> Generator[tuple[TestClient, 
     FakeProcessor.error = None
     FakeProcessor.payloads = []
     monkeypatch.setattr(pubsub, "CrmEventProcessor", FakeProcessor)
+    # Processor-only fixtures deliberately exclude the independently tested identity boundary.
+    app.dependency_overrides[require_crm_push_identity] = lambda: None
     app.dependency_overrides[get_db] = lambda: session
     try:
         yield TestClient(app, raise_server_exceptions=False), session

@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     BigInteger,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -157,3 +158,73 @@ class CommerceShopAlias(Base):
     store_id: Mapped[str] = mapped_column(
         ForeignKey("commerce_stores.id", ondelete="CASCADE"), primary_key=True
     )
+
+
+class CommerceEvidenceState(Base):
+    """Source control fence, distinct from mutable financial revisions."""
+
+    __tablename__ = "commerce_evidence_states"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["store_id", "workspace_id"],
+            ["commerce_stores.id", "commerce_stores.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("store_id", "workspace_id", name="uq_commerce_evidence_owner"),
+        CheckConstraint(
+            "generation > 0 AND privacy_epoch > 0 AND publication_revision >= 0",
+            name="ck_commerce_evidence_fence",
+        ),
+    )
+    store_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer)
+    generation: Mapped[int] = mapped_column(Integer, default=1)
+    privacy_epoch: Mapped[int] = mapped_column(Integer, default=1)
+    publication_revision: Mapped[int] = mapped_column(Integer, default=0)
+    history_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CommerceMeasurementPublication(Base):
+    """Frozen aggregate-only terminal import; removed on source privacy invalidation."""
+
+    __tablename__ = "commerce_measurement_publications"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["store_id", "workspace_id"],
+            ["commerce_evidence_states.store_id", "commerce_evidence_states.workspace_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("id", "workspace_id", name="uq_commerce_publication_owner"),
+        CheckConstraint(
+            "generation > 0 AND privacy_epoch > 0 "
+            "AND publication_revision > 0 AND source_revision >= 0",
+            name="ck_commerce_publication_revision",
+        ),
+        CheckConstraint(
+            "source_window_start <= source_window_end", name="ck_commerce_publication_window"
+        ),
+        UniqueConstraint(
+            "store_id",
+            "generation",
+            "publication_revision",
+            name="uq_commerce_publication_revision",
+        ),
+        UniqueConstraint(
+            "store_id", "completion_digest", name="uq_commerce_publication_completion"
+        ),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer)
+    store_id: Mapped[str] = mapped_column(String(32))
+    generation: Mapped[int] = mapped_column(Integer)
+    privacy_epoch: Mapped[int] = mapped_column(Integer)
+    publication_revision: Mapped[int] = mapped_column(Integer)
+    source_revision: Mapped[int] = mapped_column(Integer)
+    source_window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    source_window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    earliest_source_day: Mapped[date] = mapped_column(Date)
+    completion_digest: Mapped[str] = mapped_column(String(64))
+    manifest_digest: Mapped[str] = mapped_column(String(64))
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSON)

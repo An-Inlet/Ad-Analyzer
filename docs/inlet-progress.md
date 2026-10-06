@@ -1746,3 +1746,9 @@ checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This als
 qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
+
+## B17 Commerce Publication Package (2026-10-06)
+
+Isolated branch `codex/inlet-commerce-evidence` from frozen PR130 `0cf6706`;0051down0047. Implemented terminal-only aggregate commerce publications, source generation/privacy epoch, workspace-first read/import/privacy locking, per-workspace retention transactions, owned no-store GETs, and explicit lifecycle scalar classification. Closure retains history; source privacy still deletes; comparison maturity remains unavailable. No outcome tables or production receipt adapter yet.
+
+Checks: focused suite124 passed2 expected SQLite race skips (`/tmp/inlet-commerce-evidence-focused.log`); final publication/migration subset14 passed1 expected SQLite lock skip (`/tmp/inlet-commerce-publications-final.log`); Ruff, mypy365, diff check pass. Disposable PG populated migration roundtrip passed. No Full/live calls. Export global revision0053/helper owned by portal_repairs is a pending integration dependency; commerce helper alone is not a global privacy guarantee. Next: wire approved global revision bump after that concrete head, then owned receipt adapter only when scheduler read boundary is frozen. See `docs/inlet-commerce-publications.md`.

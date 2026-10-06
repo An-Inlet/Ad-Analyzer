@@ -35,6 +35,12 @@ class CommerceSyncService:
             or not syncing_allowed(self.session, workspace_id)
         ):
             return {"status": "disabled", "imported": 0}
+        from app.commerce.evidence import lock_workspace, publish, state
+
+        try:
+            lock_workspace(self.session, workspace_id, active=True)
+        except ShopifyError:
+            return {"status": "commerce_ownership_unavailable", "imported": 0}
         row = self.session.scalar(
             select(ShopifyConnection)
             .where(
@@ -72,6 +78,7 @@ class CommerceSyncService:
                     store.window_start = (
                         max(floor, utc(store.last_sync_at) - timedelta(days=7))
                         if store.last_sync_at
+                        and state(self.session, store, now).history_from is not None
                         else floor
                     )
                     store.window_end, store.cursor = now, None
@@ -101,6 +108,9 @@ class CommerceSyncService:
                         store.covered_from = start
                     store.last_sync_at = end
                     store.window_start, store.window_end = None, None
+                    from app.shopify.security import API_VERSION
+
+                    publish(self.session, store, start, end, now, API_VERSION)
                 self.session.add(
                     ShopifyAudit(
                         workspace_id=workspace_id,

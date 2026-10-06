@@ -319,36 +319,30 @@ def run_privacy_tick(engine: Engine) -> None:
 
 def purge_expired_facts(engine: Engine, *, now: datetime | None = None) -> None:
     now = utc(now or datetime.now(UTC))
-    with Session(engine) as session:
-        from app.commerce.privacy import purge_measurements
+    from app.commerce.evidence import lock_workspace
+    from app.commerce.privacy import purge_measurements
 
-        # Match callback nonce-before-store order. An authorization can expire while
-        # its bounded exchange holds the nonce lock, so don't wait for it holding stores.
-        session.execute(
-            delete(ShopifyOAuthState)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyOAuthState.expires_at < now)
-        )
-        purge_measurements(session, now)
-        # Retention applies even while imports are paused or access has been revoked.
-        session.execute(
-            delete(ShopifyOrder)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyOrder.created_at < now - timedelta(days=59))
-        )
-        session.execute(
-            delete(ShopifyTombstone)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyTombstone.created_at < now - timedelta(days=61))
-        )
-        session.execute(
-            delete(ShopifyPrivacyRequest)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyPrivacyRequest.completed_at < now - timedelta(days=30))
-        )
-        session.execute(
-            delete(ShopifyAudit)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyAudit.created_at < now - timedelta(days=90))
-        )
-        session.commit()
+    # Process one owner per transaction; closing owners still receive privacy maintenance.
+    with Session(engine) as discovery:
+        owners = list(discovery.scalars(select(Workspace.id).order_by(Workspace.id)))
+    for owner in owners:
+        with Session(engine) as session:
+            lock_workspace(session, owner)
+            session.execute(
+                delete(ShopifyOAuthState).where(
+                    ShopifyOAuthState.workspace_id == owner,
+                    ShopifyOAuthState.expires_at < now,
+                )
+            )
+            purge_measurements(session, now, workspace_id=owner)
+            for model, cutoff in (
+                (ShopifyOrder, ShopifyOrder.created_at < now - timedelta(days=59)),
+                (ShopifyTombstone, ShopifyTombstone.created_at < now - timedelta(days=61)),
+                (
+                    ShopifyPrivacyRequest,
+                    ShopifyPrivacyRequest.completed_at < now - timedelta(days=30),
+                ),
+                (ShopifyAudit, ShopifyAudit.created_at < now - timedelta(days=90)),
+            ):
+                session.execute(delete(model).where(model.workspace_id == owner, cutoff))
+            session.commit()

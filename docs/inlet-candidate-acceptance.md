@@ -34,17 +34,19 @@ pass is not evidence of a purchasable service or complete live acceptance.
 
 1. Verify the assembled accounting, closure, activation, strict export and durable
    optimization changes with the integrated Google customer execution journey.
-2. Validate the integrated session orchestration and directional consumers; complete
-   usable read-only account diagnostics independently of unavailable execution mandates.
+2. Session orchestration, directional consumers and concrete read-only account diagnostics
+   now pass focused integrated checks. Preserve these in final-artifact validation.
    An exact customer-reviewed first action exists; automatic initial direction does not.
 3. Resolve the concrete [provider evidence/product decision](design/provider-guarantee-product-decision.md).
    The strict financial contract is not demonstrated for arbitrary outside-writer accounts.
-   Preserve it unless the owner explicitly selects a separately specified launch scope;
-   do not add empty financial interfaces or treat access as a missing guarantee.
+   The owner decision is pending; acceptance and claims remain unchanged. Investigate
+   restricted native profiles under the original mandate while preserving current gates.
+   Inlet's own action obligation is distinct from universal outside-writer protection;
+   do not add that stronger promise, empty interfaces or invented financial facts.
 4. Supply qualified measurement maturity/effective-time evidence before claiming
    action comparisons. Current persisted assessments honestly remain insufficient.
-5. After the applicable policy/assembly work or explicit scope decision, freeze the
-   assembled candidate; run Full and normal authorized PR CI, resolve
+5. Collect frozen a4 terminal results and freeze the repaired assembled successor;
+   run Full and normal authorized PR CI, resolve
    actual failures, and complete the explicit offline pilot matrix. Then present
    concrete configuration/commercial/release and unrelated live-pilot gates.
 

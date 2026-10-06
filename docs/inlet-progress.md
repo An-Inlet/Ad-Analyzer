@@ -676,3 +676,41 @@ Node 22 and requires an installed compatible browser; missing dependencies fail
 explicitly instead of skipping. Local missing-dependency skips remain documented.
 Focused portal tests: 9 passed, including CI failure-policy tests and real local
 Chromium execution. Ruff/mypy253/diff-check pass. No external provider access.
+
+## Verified review repairs and runtime continuation (2026-10-06 01:36 UTC)
+
+Main fetched again:ea3591c5086fbf2cee8038bf9208ac7f0050de75, unchanged.
+
+- PR73 head7b7ab2963b79e23d99f945dc83624da6584cab93, basePR72
+  (4d1506ac60f4f68556383c709755fc4d3067a0c4): Full exit0,914 passed+6 local
+  PowerShell-only skips; all required gates passed. HostedCI37398286003 succeeded,
+  920 passed/zero skips. Actual merge checkout73fa85711a7c98bef8c8362a3ace8c686063e532,
+  treeeced2e4a3a064ccb3c13dcbe9c50661cca19ea4f equals head tree. Five original action
+  safety findings plus source starvation/suppression/checkout repairs and second
+  review retry sequences are regression-covered. See checkpoint file for mapping.
+- PR76 actual Stripe HTTP runtime head7ff793fb62959a3818f25a9a07ee69979d407914,
+  basePR73: Full exit0,932 passed+6 PowerShell-only skips; all required gates passed.
+  Hosted CI pending. Original implementation694e338 remains in ancestry;7ff793f
+  adds repaired base. Disabled default, test mode only; no live calls or charges.
+- PR74 Google runtime headf92d0ab30707554b1b85c6798f2c70d4ab6a137a, basePR76:
+  real REST exchange/refresh/paging plus90day delayed-conversion refresh.73 focused
+  tests passed. Main Full suite956+6 passed; final gate/hostedCI pending at checkpoint.
+- PR75 TikTok runtime head01aa869b7df73bcdf1dca5fc25391a43f0af4efc, basePR74:
+  real HTTP exchange/advertiser/inventory/report reads,89 focusedtests passed.
+  Full/CI pending. Conversion/revenue qualification and token lifecycle remain code.
+- Billing management branch head275e0ee179c2b6d84f1b2a14b3048b44b123c5ae,
+  basePR76: owner/CSRF management handoff and retired-subscription reconciliation;
+  80 focusedtests passed. Main Full suite942+6 passed, final gate pending; noPR yet.
+- Customer portal code8fa0714d9cb95b54749bb54ff62e19a2c286caf9 includes billing
+  management. Workspace/monthly-goal review-confirm/status/test billing journeys;
+  9 focused tests passed including Chromium, Node and CI dependency policy. Full
+  not yet run. Signup, connection setup and mandate editing remain implementation.
+
+No merge, deployment, live/provider calls, credentials, purchasing or advertising
+changes occurred. All new transports default disabled. Real HTTP code is mock-tested,
+not live-qualified. Upcoming packages:finish these validation runs and independent
+review; provider token renewal/revocation, old unknown billing-attempt recovery,
+Meta per-child performance and CRM actual transports, customer authentication/setup
+journeys, then remaining reviewed campaign/creative/publication/operational backlog.
+Prices/currency/catalog and live enablement remain owner decisions; no approvals
+needed for continuing authorized offline engineering. Public webpage remains owner-managed.

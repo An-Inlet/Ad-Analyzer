@@ -134,6 +134,14 @@ resource "google_cloud_run_v2_service" "worker" {
         container_port = 8000
       }
       env {
+        name  = "AD_ANALYZER_CRM_PUSH_OIDC_AUDIENCE"
+        value = var.worker_push_oidc_audience
+      }
+      env {
+        name  = "AD_ANALYZER_CRM_PUSH_SERVICE_ACCOUNT_EMAIL"
+        value = google_service_account.pubsub_push.email
+      }
+      env {
         name  = "APP_ENV"
         value = var.environment
       }

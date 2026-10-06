@@ -314,6 +314,12 @@ class Settings(BaseSettings):
     crm_webhook_secret: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_CRM_WEBHOOK_SECRET"
     )
+    crm_push_oidc_audience: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_OIDC_AUDIENCE"
+    )
+    crm_push_service_account_email: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_SERVICE_ACCOUNT_EMAIL"
+    )
     crm_pubsub_project_id: str = Field(
         default="", validation_alias="AD_ANALYZER_CRM_PUBSUB_PROJECT_ID"
     )

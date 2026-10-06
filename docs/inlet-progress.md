@@ -1304,10 +1304,31 @@ A crashed/unsubmitted worker cannot be automatically retried without additional
 terminal/no-effect evidence. No provider capability or production authority is
 inferred from the offline fixture.
 
-Validation: initial corrected commit-gap harness 1 failed / 2 passed / 3 PostgreSQL
-only skips; adding delayed-worker regression produced 3 failed / 2 passed / 3 skips
+Validation: initial corrected commit-gap harness 1 failed / 2 passed / 3 SQLite
+concurrency skips; adding delayed-worker regression produced 3 failed / 2 passed / 3 skips
 (SQLite and PostgreSQL both reproduced absent-readback retry). Repair combined suite
 38 passed / 4 SQLite concurrency skips. Final race/storage suite 40 passed / 3
 SQLite concurrency skips. Ruff and mypy (318 files) passed. Removed an obsolete GCS
 test import suppression exposed by clean mypy after integration. Full/hosted CI must
 run against the assembled successor; none is claimed by these focused results.
+
+
+### Reviewed foundation validation successor — 2026-10-06
+
+PR112 predecessor `3a3cca8` completed local Full with exit 1: 1,572 passed,
+35 skipped and 2 failures. The failures were the obsolete Meta first-connection
+Barrier(2) and the nested Full that encountered it. Hosted run 37408397594 failed
+before tests because FFmpeg was absent. Neither is reported as successful validation.
+
+The successor installs FFmpeg before retaining required tool checks. The Meta
+regression now holds the winning transaction, observes the losing PostgreSQL backend
+blocked by the winner with pg_blocking_pids, then releases it. It asserts exactly one
+connection/account/integration, the safe existing-account conflict, and the losing
+actor's pending grant. Focused first-connection/review-lock checks: 4 passed, 2 SQLite
+lock skips. Publication commit-gap and absent-readback repairs are included from
+PR113 `7ae1d0d`. Full and hosted CI are being rerun against this assembled successor;
+results must be attributed to its exact head, not the predecessor.
+
+Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
+PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
+freezing the successor for Full/CI.

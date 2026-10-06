@@ -90,6 +90,13 @@ class AdvertisingAccount(TimestampMixin, Base):
         UniqueConstraint("id", "platform", name="uq_ad_accounts_id_platform"),
         UniqueConstraint("id", "workspace_id", name="uq_ad_accounts_id_workspace"),
         Index("ix_ad_accounts_workspace_platform", "workspace_id", "platform"),
+        Index(
+            "uq_meta_external_account_owner",
+            "external_account_id",
+            unique=True,
+            postgresql_where=text("platform = 'meta_ads'"),
+            sqlite_where=text("platform = 'meta_ads'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

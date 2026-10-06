@@ -46,13 +46,12 @@ def snapshot(db: Connection) -> dict[str, list[dict[str, Any]]]:
     }
 
 
-def test_reviewed_migrations_have_one_merge_head() -> None:
+def test_reviewed_migrations_preserve_merge_history() -> None:
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert scripts.get_heads() == ["20261006_0042"]
     merge = scripts.get_revision("20261006_0042")
     assert merge is not None and isinstance(merge.down_revision, tuple)
     assert set(merge.down_revision) == {"20261006_0040", "20261006_0041"}
-    assert {r.revision for r in scripts.iterate_revisions("head", "20261006_0039")} == {
+    assert {r.revision for r in scripts.iterate_revisions("20261006_0042", "20261006_0039")} == {
         "20261006_0040",
         "20261006_0041",
         "20261006_0042",

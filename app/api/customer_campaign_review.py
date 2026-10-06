@@ -4,10 +4,11 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from app.campaign_review import service
 from app.campaign_review.contracts import (
-    MAX_IMAGE_BYTES,
+    MAX_MEDIA_BYTES,
     ExactApproval,
     MediaStore,
     RevisionEdit,
@@ -51,22 +52,30 @@ async def upload(
     try:
         async with asyncio.timeout(UPLOAD_TIMEOUT_SECONDS):
             async for chunk in request.stream():
-                if len(data) + len(chunk) > MAX_IMAGE_BYTES:
-                    raise HTTPException(413, "image size exceeds limit")
+                if len(data) + len(chunk) > MAX_MEDIA_BYTES:
+                    raise HTTPException(413, "media size exceeds limit")
                 data.extend(chunk)
     except TimeoutError:
         raise HTTPException(408, "media upload timed out") from None
-    lock_customer_mutation(db, principal, workspace_id, provider)
-    row = service.upload(db, workspace_id, principal.user.id, bytes(data), store, datetime.now(UTC))
-    return {
-        "media_id": row.id,
-        "sha256": row.sha256,
-        "mime": row.mime,
-        "width": row.width,
-        "height": row.height,
-        "size": row.size,
-        "storage_mode": "private_local_development",
-    }
+
+    def persist() -> dict[str, Any]:
+        # Serial ownership of this Session moves to one worker after body receipt.
+        # Decoder/storage IO must not block the ASGI event loop.
+        lock_customer_mutation(db, principal, workspace_id, provider)
+        row = service.upload(
+            db, workspace_id, principal.user.id, bytes(data), store, datetime.now(UTC)
+        )
+        return {
+            "media_id": row.id,
+            "sha256": row.sha256,
+            "mime": row.mime,
+            "width": row.width,
+            "height": row.height,
+            "size": row.size,
+            "storage_mode": "private",
+        }
+
+    return await run_in_threadpool(persist)
 
 
 @router.get("/workspaces/{workspace_id}/media/{media_id}")

@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from app.campaign_review.contracts import MAX_IMAGE_BYTES, MediaStore
+from app.campaign_review.contracts import MAX_MEDIA_BYTES, MediaStore
 from app.settings import settings
 
 
@@ -36,7 +36,7 @@ class LocalMediaStore:
     def put_if_absent(
         self, workspace_id: int, sha256: str, size: int, chunks: Iterable[bytes]
     ) -> None:
-        if not 0 < size <= MAX_IMAGE_BYTES:
+        if not 0 < size <= MAX_MEDIA_BYTES:
             raise ValueError("media size unavailable")
         directory = self._directory(workspace_id, sha256)
         temp = uuid4().hex
@@ -69,7 +69,7 @@ class LocalMediaStore:
             os.close(directory)
 
     def read_exact(self, workspace_id: int, sha256: str, size: int) -> bytes:
-        if not 0 < size <= MAX_IMAGE_BYTES:
+        if not 0 < size <= MAX_MEDIA_BYTES:
             raise ValueError("media size unavailable")
         directory = self._directory(workspace_id, sha256)
         try:

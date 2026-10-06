@@ -1179,3 +1179,25 @@ were stopped together. No replacement Full started pending root coordination.
   populated checkpoint coverage as future migrations are added.
 - Focused disposable PostgreSQL migration tests: 2 passed. Changed-file Ruff/mypy and
   diff check passed. No replacement local Full started; coordinated validation pending.
+## B14 — Bounded Offline Video Validation (2026-10-06)
+
+Branch: `codex/inlet-video-validation`, based on release foundation `5f9a0d0`.
+Actual MP4/H.264 and optional AAC are fully decoded with bounded byte-only worker
+processes. TikTok video drafts can be reviewed and approved offline; Meta remains
+image-only. Provider publication remains disabled. Media max is 64 MiB, images
+remain 8 MiB, and workspace library remains 128 MiB. No migration or provider calls.
+See `docs/inlet-video-validation.md` for exact controls and qualification gaps.
+
+Focused validation: 58 passed, one expected SQLite row-lock race skip; the same
+race and review flows run against disposable PostgreSQL. Real FFmpeg/FFprobe 7.1.5
+synthetic clips exercised valid silent/AAC videos, codecs, corruption/truncation,
+dimensions, pixels, rate, duration, both MIME mismatches, decoder absence/startup,
+output/time limits and process reaping. Ruff lint and strict mypy (290 files) pass.
+Whole-repository Ruff formatting check reports 32 pre-existing unformatted files;
+no unrelated formatting was changed. Root coordinates broad Full and CI evidence.
+
+Remaining integration: combine the separately reviewed authorization fix with a
+serial worker-thread upload service boundary (decoder can consume up to 44 seconds),
+and add customer video playback preview. Deployment image, load/concurrency,
+decoder isolation/patching, provider acceptance, and live behavior are unqualified.
+No claim that resource limits constitute an OS sandbox.

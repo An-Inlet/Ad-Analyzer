@@ -10,6 +10,7 @@ from pydantic import AwareDatetime, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.goals.schemas import StrictModel
+from app.optimization_candidates.review_contracts import CandidateReviewGuard, CandidateReviewWriter
 from app.publication.contracts import fingerprint
 from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
 from app.publication.execution_contracts import (
@@ -189,6 +190,8 @@ class OptimizationRuntime:
     live_enabled: bool = False
     authorize: ExecutionAuthorizer = owner_authorizer
     replacement_reader: "ReplacementReader | None" = None
+    candidate_review_guard: CandidateReviewGuard | None = None
+    candidate_review_writer: CandidateReviewWriter | None = None
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

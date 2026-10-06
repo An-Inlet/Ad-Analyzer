@@ -188,6 +188,8 @@ def prepare_optimization(
     if ledger.spent_high_water_micros > exposure.reported_spend_micros:
         raise HTTPException(409, "optimization reporting below recorded spend")
     if existing is not None:
+        persist_candidate_writer(db, existing, document, runtime)
+        db.commit()
         return existing
     row = ProviderExecutionReview(
         id=uuid4().hex,
@@ -204,8 +206,25 @@ def prepare_optimization(
         created_at=clock(),
     )
     db.add(row)
+    persist_candidate_writer(db, row, document, runtime)
     db.commit()
     return row
+
+
+def persist_candidate_writer(
+    db: Session,
+    row: ProviderExecutionReview,
+    document: OptimizationReview,
+    runtime: OptimizationRuntime,
+) -> None:
+    if runtime.candidate_review_writer is not None:
+        try:
+            db.flush()
+            runtime.candidate_review_writer(db, row, document)
+            db.flush()
+        except Exception:
+            db.rollback()
+            raise
 
 
 def checked_review(
@@ -223,6 +242,9 @@ def checked_review(
     )
     if row is None or row.document.get("purpose") != "existing_campaign_optimize":
         raise HTTPException(404, "optimization review unavailable")
+    from app.optimization_candidates.review_guard import check
+
+    check(db, row, actor, runtime, clock)
     document = parse_review(row.document)
     plan = document.plan
     ledger, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
@@ -274,6 +296,8 @@ def checked_review(
         if not document.replacement.observed_at <= clock() < document.replacement.expires_at:
             raise HTTPException(409, "replacement proof expired after ancestry locks")
         validate_document(document, policy, clock())
+    check(db, row, actor, runtime, clock)
+    validate_document(document, policy, clock())
     return row, document
 
 
@@ -294,6 +318,10 @@ def approve_optimization(
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
+    validate_document(document, policy, clock())
+    from app.optimization_candidates.review_guard import check
+
+    check(db, row, actor, runtime, clock)
     validate_document(document, policy, clock())
     if existing is None:
         existing = ProviderExecutionApproval(
@@ -333,6 +361,10 @@ def create_run(
     _, policy = current(
         db, wid, document.plan.intent.mandate, document.plan.intent.scope, actor, runtime, clock
     )
+    validate_document(document, policy, clock())
+    from app.optimization_candidates.review_guard import check
+
+    check(db, row, actor, runtime, clock)
     validate_document(document, policy, clock())
     run = ProviderExecutionRun(
         id=uuid4().hex, workspace_id=wid, review_id=row.id, state="ready", created_at=clock()
@@ -470,6 +502,10 @@ def claim_step(
         ledger.spent_high_water_micros = max(
             ledger.spent_high_water_micros, e.reported_spend_micros
         )
+        from app.optimization_candidates.review_guard import check_id
+
+        check_id(db, wid, run.review_id, actor, runtime, clock)
+        validate_document(document, policy, clock())
         run.state = "reserved"
         db.commit()
         run, document = locked_run(db, wid, run_id, actor, runtime, clock)
@@ -480,6 +516,10 @@ def claim_step(
     if step.state != "pending":
         return None
     _, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
+    validate_document(document, policy, clock())
+    from app.optimization_candidates.review_guard import check_id
+
+    check_id(db, wid, run.review_id, actor, runtime, clock)
     validate_document(document, policy, clock())
     attempt_id, fence = uuid4().hex, uuid4().hex
     request = plan.request(run.id, attempt_id, fence, clock())
@@ -924,6 +964,10 @@ def execute_claim(
     _, policy = current(
         db, claim.workspace_id, request.intent.mandate, request.intent.scope, actor, runtime, clock
     )
+    validate_document(document, policy, clock())
+    from app.optimization_candidates.review_guard import check_id
+
+    check_id(db, claim.workspace_id, run.review_id, actor, runtime, clock)
     validate_document(document, policy, clock())
     step.state = "emitting"
     db.commit()

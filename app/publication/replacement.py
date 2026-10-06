@@ -233,6 +233,7 @@ def prepare_repeat_optimization(
             created_at=clock(),
         )
         db.add(row)
+    o.persist_candidate_writer(db, row, document, runtime)
     db.commit()
     return row
 
@@ -296,7 +297,10 @@ def transfer(
         or not proof.observed_at <= clock() < proof.expires_at
     ):
         raise HTTPException(409, "replacement accounting or qualification changed")
-    o.validate_plan(plan, policy, clock())
+    from app.optimization_candidates.review_guard import check_id
+
+    check_id(db, wid, run.review_id, actor, runtime, clock)
+    o.validate_document(document, policy, clock())
     predecessor = db.get(ProviderExposureReservation, original.predecessor_id)
     assert predecessor is not None
     try:

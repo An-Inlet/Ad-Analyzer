@@ -35,6 +35,12 @@ from app.publication.execution_contracts import (
     NormalizedProviderReceipt,
     ProviderMandatePolicy,
 )
+from app.publication.optimization_contracts import (
+    OptimizationReceipt,
+    OptimizationRequest,
+    OptimizationResponse,
+)
+from app.publication.optimization_execution_contracts import OptimizationExecutionReview
 from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
@@ -128,18 +134,29 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
     ("provider_execution_reviews", "document"): TypeAdapter(
         Annotated[
-            CreationExecutionReview | ActivationExecutionReview,
+            CreationExecutionReview | ActivationExecutionReview | OptimizationExecutionReview,
             Field(discriminator="schema_version"),
         ]
     ),
     ("provider_exposure_reservations", "settled_evidence"): TypeAdapter(
         ExposureEvidence | SettlementEvidence
     ),
-    ("provider_execution_attempts", "request"): TypeAdapter(CreationRequest | ActivationRequest),
+    ("provider_execution_attempts", "request"): TypeAdapter(
+        CreationRequest | ActivationRequest | OptimizationRequest
+    ),
     ("provider_execution_responses", "response"): TypeAdapter(
         ActivationResponse | CreationResponse
     ),
-    ("provider_execution_receipts", "receipt"): TypeAdapter(CreationReceipt | ActivationReceipt),
+    ("provider_execution_receipts", "receipt"): TypeAdapter(
+        CreationReceipt | ActivationReceipt | OptimizationReceipt
+    ),
+}
+# Responses share an identical shape: their persisted domain-separated digest,
+# not union order, selects the strict schema.
+RESPONSE_ADAPTERS: dict[str, TypeAdapter[Any]] = {
+    "inlet.provider-response.v1": TypeAdapter(CreationResponse),
+    "inlet.activation-response.v1": TypeAdapter(ActivationResponse),
+    "inlet.optimization-response.v1": TypeAdapter(OptimizationResponse),
 }
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
@@ -239,6 +256,34 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, OptimizationExecutionReview):
+        scope = document.plan.intent.scope
+        if (
+            scope.workspace_id != row["workspace_id"]
+            or scope.account.account_id != row["account_id"]
+            or scope.account.connection_id != row["integration_id"]
+            or document.plan.intent.mandate.consent_id != row["consent_id"]
+            or document.digest() != row["digest"]
+            or document.plan.digest() != row["plan_digest"]
+            or row["source_draft_id"] is not None
+            or row["source_revision"] is not None
+        ):
+            raise ValueError("optimization review row ownership mismatch")
+    elif isinstance(document, OptimizationRequest):
+        if (
+            document.intent.scope.workspace_id != row["workspace_id"]
+            or document.action_id != row["run_id"]
+            or document.attempt_id != row["id"]
+            or row["step_id"] != "optimize"
+        ):
+            raise ValueError("optimization request row ownership mismatch")
+    elif isinstance(document, OptimizationReceipt):
+        if (
+            document.scope.workspace_id != row["workspace_id"]
+            or document.attempt_id != row["attempt_id"]
+            or fingerprint("inlet.optimization-receipt.v1", raw) != row["digest"]
+        ):
+            raise ValueError("optimization receipt row ownership mismatch")
     elif isinstance(document, ActivationExecutionReview):
         if (
             document.plan.account.workspace_id != row["workspace_id"]
@@ -307,6 +352,17 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                     bind_document(table, field, row, document, value)
                     value = document.model_dump(mode="json")
                 adapter = ADAPTERS.get((table, field))
+                if (table, field) == ("provider_execution_responses", "response"):
+                    adapter = next(
+                        (
+                            candidate
+                            for domain, candidate in RESPONSE_ADAPTERS.items()
+                            if fingerprint(domain, value) == row["digest"]
+                        ),
+                        None,
+                    )
+                    if adapter is None:
+                        raise ValueError("unsupported response digest")
                 if adapter is not None:
                     document = adapter.validate_python(value)
                     bind_document(table, field, row, document, value)

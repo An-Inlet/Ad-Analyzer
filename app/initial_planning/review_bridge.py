@@ -200,13 +200,22 @@ def prepare_preview_review(
     preview_id: str,
     expected_preview_digest: str,
 ) -> InitialPreviewReviewPrepared:
+    configured = runtime.optimization.initial_planning
+    if (
+        configured is None
+        or configured.configuration is None
+        or runtime.planning.configuration is None
+        or configured.configuration.digest() != runtime.planning.configuration.digest()
+        or runtime.optimization.execution.environment != runtime.planning.configuration.environment
+    ):
+        raise HTTPException(503, "initial_preview_forward_runtime_unavailable")
     with runtime.planning.session_factory() as db:
 
         def clock() -> datetime:
             return effective_now(db, runtime.planning)
 
         native = customer_optimization.bind(
-            replace(runtime.optimization, initial_planning=runtime.planning, clock=clock),
+            replace(runtime.optimization, clock=clock),
             principal,
             identity_provider,
         )

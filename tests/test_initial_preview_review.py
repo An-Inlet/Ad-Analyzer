@@ -1,7 +1,7 @@
 """Actual Meta HTTP/native preview through explicit offline financial qualification."""
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -32,6 +32,7 @@ def ready(engine: Engine, config: Settings, monkeypatch: pytest.MonkeyPatch, rep
     planning, raw, server, actor, token, wid = ready_preview_review(
         engine, config, monkeypatch, replicas
     )
+    planning = replace(planning, clock=lambda: datetime.now(UTC))
     document = InitialPreviewV1.model_validate(raw)
     _, _, provider = replicas
     assert planning.native is not None
@@ -98,6 +99,7 @@ def ready(engine: Engine, config: Settings, monkeypatch: pytest.MonkeyPatch, rep
             planning.native.execution, qualification_reader=qualify, exposure_reader=exposure
         ),
         initial_planning=planning,
+        clock=planning.clock,
     )
     runtime = InitialPreviewReviewRuntime(planning, native)
     with Session(engine) as db:
@@ -166,3 +168,293 @@ def test_erased_preview_blocks_generic_approval_without_deleting_review(
             )
         assert db.get(ProviderExecutionReview, result.review_id) is not None
         assert not server.posts
+
+
+@pytest.mark.parametrize("stage", ["approval", "admission", "claim", "emission"])
+def test_every_forward_gate_rechecks_retracted_provenance(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    stage: str,
+) -> None:
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    result = prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    bound = customer_optimization.bind(runtime.optimization, principal, provider)
+    clock = runtime.planning.clock
+    with Session(customer_engine) as db:
+        if stage != "approval":
+            optimization.approve_optimization(
+                db,
+                wid,
+                result.review_id,
+                result.review_digest,
+                result.plan_digest,
+                principal.user.id,
+                bound.execution,
+                clock,
+            )
+        if stage in {"claim", "emission"}:
+            run = optimization.create_run(
+                db, wid, result.review_id, principal.user.id, bound.execution, clock
+            )
+        if stage == "emission":
+            claim = optimization.claim_step(
+                db, wid, run.id, principal.user.id, bound.execution, clock
+            )
+            assert claim
+        db.execute(delete(PreviewRow).where(PreviewRow.id == preview.id))
+        db.commit()
+        with pytest.raises(HTTPException, match="retracted"):
+            if stage == "approval":
+                optimization.approve_optimization(
+                    db,
+                    wid,
+                    result.review_id,
+                    result.review_digest,
+                    result.plan_digest,
+                    principal.user.id,
+                    bound.execution,
+                    clock,
+                )
+            elif stage == "admission":
+                optimization.create_run(
+                    db, wid, result.review_id, principal.user.id, bound.execution, clock
+                )
+            elif stage == "claim":
+                optimization.claim_step(db, wid, run.id, principal.user.id, bound.execution, clock)
+            else:
+                assert claim is not None
+                optimization.execute_claim(db, claim, principal.user.id, bound.execution, clock)
+        assert not server.posts
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["qualification_missing", "erase_during_qualification", "expired_during_qualification"],
+)
+def test_actual_financial_io_never_bypasses_preview_recheck(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    change: str,
+) -> None:
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    qualify = runtime.optimization.execution.qualification_reader
+    clock = [runtime.planning.clock()]
+
+    def changed(*args: Any) -> Any:
+        if change == "qualification_missing":
+            raise HTTPException(409, "real qualification unavailable")
+        if change == "erase_during_qualification":
+            with Session(customer_engine) as other:
+                other.execute(delete(PreviewRow).where(PreviewRow.id == preview.id))
+                other.commit()
+        else:
+            clock[0] = preview.expires_at
+        return qualify(*args)
+
+    runtime = replace(
+        runtime,
+        planning=replace(runtime.planning, clock=lambda: clock[0]),
+        optimization=replace(
+            runtime.optimization,
+            execution=replace(runtime.optimization.execution, qualification_reader=changed),
+        ),
+    )
+    with pytest.raises(HTTPException):
+        prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 0
+    assert not server.posts
+
+
+def test_attempt_receipt_hold_and_reconcile_survive_preview_erasure(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+) -> None:
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    result = prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    bound = customer_optimization.bind(runtime.optimization, principal, provider)
+    clock = runtime.planning.clock
+    with Session(customer_engine) as db:
+        optimization.approve_optimization(
+            db,
+            wid,
+            result.review_id,
+            result.review_digest,
+            result.plan_digest,
+            principal.user.id,
+            bound.execution,
+            clock,
+        )
+        run = optimization.create_run(
+            db, wid, result.review_id, principal.user.id, bound.execution, clock
+        )
+        claim = optimization.claim_step(db, wid, run.id, principal.user.id, bound.execution, clock)
+        assert claim
+        receipt = optimization.execute_claim(db, claim, principal.user.id, bound.execution, clock)
+        assert receipt.outcome == "verified_target_state" and len(server.posts) == 1
+        db.execute(delete(PreviewRow).where(PreviewRow.id == preview.id))
+        db.commit()
+        recovered = optimization.reconcile_attempt(
+            db, wid, claim.attempt_id, bound.execution, clock
+        )
+        assert recovered.outcome == "verified_target_state"
+        assert len(server.posts) == 1
+        reservation = db.get(ProviderExposureReservation, run.reservation_id)
+        assert reservation is not None and reservation.state == "held"
+        assert (
+            optimization.read_owned_outcome_receipt(db, wid, claim.attempt_id, principal.user.id)
+            is not None
+        )
+
+
+def test_concurrent_handoffs_share_protected_origin(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("requires independent PostgreSQL transactions")
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    barrier = Barrier(2)
+    qualify = runtime.optimization.execution.qualification_reader
+
+    def synchronized(*args: Any) -> Any:
+        barrier.wait(timeout=20)
+        return qualify(*args)
+
+    runtime = replace(
+        runtime,
+        optimization=replace(
+            runtime.optimization,
+            execution=replace(runtime.optimization.execution, qualification_reader=synchronized),
+        ),
+    )
+
+    def invoke() -> Any:
+        return prepare_preview_review(
+            runtime, principal, provider, wid, preview.id, preview.digest()
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first, second = pool.submit(invoke), pool.submit(invoke)
+        a, b = first.result(timeout=40), second.result(timeout=40)
+    assert a == b and not server.posts
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 1
+
+
+def test_retraction_during_final_provider_io_blocks_emission(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+) -> None:
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    result = prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    bound = customer_optimization.bind(runtime.optimization, principal, provider)
+    clock = runtime.planning.clock
+    with Session(customer_engine) as db:
+        optimization.approve_optimization(
+            db,
+            wid,
+            result.review_id,
+            result.review_digest,
+            result.plan_digest,
+            principal.user.id,
+            bound.execution,
+            clock,
+        )
+        run = optimization.create_run(
+            db, wid, result.review_id, principal.user.id, bound.execution, clock
+        )
+        claim = optimization.claim_step(db, wid, run.id, principal.user.id, bound.execution, clock)
+        assert claim
+        context = bound.execution.context
+        deleted: list[bool] = []
+
+        def during_io(scope):  # type: ignore[no-untyped-def]
+            if not deleted:
+                with Session(customer_engine) as other:
+                    other.execute(delete(PreviewRow).where(PreviewRow.id == preview.id))
+                    other.commit()
+                deleted.append(True)
+            return context(scope)
+
+        changed = replace(bound.execution, context=during_io)
+        with pytest.raises(HTTPException, match="retracted"):
+            optimization.execute_claim(db, claim, principal.user.id, changed, clock)
+        assert deleted and not server.posts
+
+
+def test_missing_registered_guard_is_not_manual_authority(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+) -> None:
+    wid, preview, principal, provider, runtime, server, _ = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    result = prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    ordinary = customer_optimization.bind(
+        replace(runtime.optimization, initial_planning=None), principal, provider
+    )
+    with (
+        Session(customer_engine) as db,
+        pytest.raises(HTTPException, match="initial preview review authority unavailable"),
+    ):
+        optimization.approve_optimization(
+            db,
+            wid,
+            result.review_id,
+            result.review_digest,
+            result.plan_digest,
+            principal.user.id,
+            ordinary.execution,
+            runtime.planning.clock,
+        )
+    assert not server.posts
+
+
+@pytest.mark.parametrize("change", ["missing", "policy"])
+def test_forward_runtime_context_required_before_financial_io(
+    customer_engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    change: str,
+) -> None:
+    wid, preview, principal, provider, runtime, server, calls = ready(
+        customer_engine, configuration, monkeypatch, replicas
+    )
+    context = None
+    if change == "policy":
+        assert runtime.planning.configuration
+        context = replace(
+            runtime.planning,
+            configuration=runtime.planning.configuration.model_copy(update={"revision": 2}),
+        )
+    runtime = replace(runtime, optimization=replace(runtime.optimization, initial_planning=context))
+    with pytest.raises(HTTPException, match="initial_preview_forward_runtime_unavailable"):
+        prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
+    assert not calls and not server.posts

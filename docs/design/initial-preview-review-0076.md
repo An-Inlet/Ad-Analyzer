@@ -158,3 +158,31 @@ retry, marker downgrade rejection, child deletion/idempotency preservation, caps
 cascade and generic approval denial). Ruff and mypy666 passed. Additional final-dispatch,
 reconciliation, concurrency and real migration/lifecycle tests remain in progress; this
 checkpoint does not claim those complete. No live/remote/default runtime change.
+
+## Final Backend Verification
+
+The bridge requires the actual configured optimization runtime's initial-planning
+context to match the preview policy and environment before any financial reader runs.
+It does not install a replacement server context. The API consumer independently
+injects this same generic optimization dependency. Missing or mismatched configuration
+returns `initial_preview_forward_runtime_unavailable`.
+
+Focused backend tests passed on SQLite and PostgreSQL: **25 passed, 1 skipped**
+(135.65 seconds). Coverage includes retraction at approval, admission, claim and final
+emission; erasure during provider qualification/context reads; expiry during reads;
+missing guards; concurrent PostgreSQL handoff returning one review; and actual mocked
+Meta mutation/readback followed by historical reconciliation after preview erasure.
+The skip is the independent-session concurrency test on SQLite. Protected receipts
+and exposure reservations remain intact; erasure cannot authorize another mutation.
+
+After the runtime-coherence check, **6 focused tests passed** (24.71 seconds). Existing
+candidate-review and durable optimization regressions passed: **73 passed, 1 skipped**
+(159.38 seconds). Whole-repository Ruff and mypy (666 source files) passed. The test
+fixture uses fresh UTC time for downstream approval: its earlier fixed clock predated
+the bridge's new qualification and correctly failed the existing freshness check.
+No production freshness rule was weakened.
+
+These are offline tests with explicit contract-test financial qualification and mocked
+provider HTTP. They do not qualify live provider spending guarantees. Actual migration
+and lifecycle/export acceptance are separately verified by the integration lanes.
+Production runtime defaults, live gates and historical reconciliation remain unchanged.

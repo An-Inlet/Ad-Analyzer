@@ -100,6 +100,8 @@ def get_billing_transport() -> BillingTransport:
     from app.billing.stripe import StripeBilling
     from app.settings import settings
 
+    if settings.app_env == "production" and settings.billing_provider_mode != "stripe_live":
+        return UnavailableBilling()
     if (
         settings.billing_provider_mode not in {"stripe_test", "stripe_live"}
         or settings.billing_api_key is None

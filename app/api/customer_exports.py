@@ -19,6 +19,7 @@ from app.lifecycle.exports import SLOTS, Authority, Download
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.lifecycle.quiescing import owner
 from app.lifecycle.service import begin
+from app.settings import settings
 from app.shopify.security import utc
 
 router = APIRouter(prefix="/api/customer/v1", tags=["customer"])
@@ -79,6 +80,8 @@ def create(
     provider: Provider,
     db: Database,
 ) -> dict[str, Any]:
+    if not settings.customer_export_enabled:
+        raise HTTPException(503, "customer exports await qualified deployment")
     keys = request.headers.getlist("idempotency-key")
     if len(keys) != 1:
         raise HTTPException(422, "invalid idempotency key")
@@ -122,6 +125,8 @@ def status(
 def download(
     workspace_id: int, request_id: str, principal: Principal, provider: Provider, db: Database
 ) -> StreamingResponse:
+    if not settings.customer_export_enabled:
+        raise HTTPException(503, "customer exports await qualified deployment")
     engine = db.get_bind()
     if not isinstance(engine, Engine):
         raise HTTPException(503, "export database unavailable")

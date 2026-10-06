@@ -5,7 +5,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from app.campaign_review.contracts import ReviewArtifact
 from app.crm.schemas import CrmEvent
@@ -15,6 +15,17 @@ from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.publication.contracts import BoundRequest, PublishPlan, PublishReceipt
+from app.publication.coordinator_contracts import (
+    CreationExecutionReview,
+    CreationReceipt,
+    CreationRequest,
+    CreationResponse,
+)
+from app.publication.execution_contracts import (
+    ExposureEvidence,
+    NormalizedProviderReceipt,
+    ProviderMandatePolicy,
+)
 from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
@@ -35,6 +46,12 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "mandate_actions": ("draft",),
     "publication_plans": ("document",),
     "provider_reviews": ("review", "plan"),
+    "provider_execution_revisions": ("policy",),
+    "provider_execution_reviews": ("document",),
+    "provider_exposure_reservations": ("evidence", "settled_evidence"),
+    "provider_execution_attempts": ("request",),
+    "provider_execution_responses": ("response",),
+    "provider_execution_receipts": ("receipt", "projection"),
     "publication_steps": ("request", "receipt"),
     "publication_receipts": ("request", "receipt"),
     "recommendations": ("supporting_metrics", "planned_action"),
@@ -89,10 +106,20 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_plans", "document"): PublishPlan,
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
+    ("provider_execution_revisions", "policy"): ProviderMandatePolicy,
+    ("provider_execution_reviews", "document"): CreationExecutionReview,
+    ("provider_exposure_reservations", "evidence"): ExposureEvidence,
+    ("provider_exposure_reservations", "settled_evidence"): ExposureEvidence,
+    ("provider_execution_receipts", "projection"): NormalizedProviderReceipt,
     ("publication_steps", "request"): BoundRequest,
     ("publication_steps", "receipt"): PublishReceipt,
     ("publication_receipts", "request"): BoundRequest,
     ("publication_receipts", "receipt"): PublishReceipt,
+}
+ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("provider_execution_attempts", "request"): TypeAdapter(CreationRequest),
+    ("provider_execution_responses", "response"): TypeAdapter(CreationResponse),
+    ("provider_execution_receipts", "receipt"): TypeAdapter(CreationReceipt),
 }
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
@@ -136,9 +163,11 @@ SECRET_KEY = re.compile(
 
 def fields(table: str) -> tuple[str, ...]:
     return tuple(
-        dict.fromkeys(
+        field
+        for field in dict.fromkeys(
             (*TABLES[table].fields, *ADDITIONS.get(table, ()), *JSON_FIELDS.get(table, ()))
         )
+        if field not in INTERNAL
     )
 
 
@@ -179,6 +208,9 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                 value = bounded_json(value)
                 if model is not None:
                     value = model.model_validate(value).model_dump(mode="json")
+                adapter = ADAPTERS.get((table, field))
+                if adapter is not None:
+                    value = adapter.validate_python(value).model_dump(mode="json")
                 json.dumps(value, allow_nan=False)
             else:
                 value = scalar(value)

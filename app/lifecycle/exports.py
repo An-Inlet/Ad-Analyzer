@@ -20,6 +20,7 @@ from app.lifecycle.archive import encoded
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.lifecycle.privacy import workspace_export_revision
 from app.lifecycle.quiescing import owner
+from app.settings import settings
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
 
@@ -51,6 +52,8 @@ class Authority:
         return {"workspace_revision": self.privacy_revision, "commerce_stamp": self.commerce_stamp}
 
     def check(self) -> None:
+        if not settings.customer_export_enabled:
+            raise HTTPException(503, "customer exports await qualified deployment")
         # One fresh READ COMMITTED transaction per check; never the export snapshot/session.
         with Session(self.engine) as db:
             user = db.get(CustomerUser, self.user_id)

@@ -210,3 +210,47 @@ Parallel production coordinator and outcome-assessment schemas were still being
 integrated by the parent after this checkpoint. Their owned JSON must receive
 explicit versioned serializers (or remain visibly unsupported); the prior scalar
 allowlists alone do not establish complete customer data export.
+
+## Deployment Gate: No Mixed Destructive Writers
+
+`INLET_CUSTOMER_EXPORT_ENABLED` defaults to `false`. Creation and archive download
+return 503 while disabled; every generation/stream checkpoint also aborts when it
+is disabled. Owner receipt status remains readable. Offline tests explicitly enable
+the setting only against fixture identity/storage and disposable databases.
+
+A schema migration alone does **not** qualify privacy-safe exports: an old writer
+can delete data without incrementing the new column. There is no supported mixed
+old/new writer rolling-deployment qualification. Before a release owner enables
+exports, keep the flag off on every API instance, stop or drain old API/operator,
+importer, scheduler and privacy-worker processes and their transactions, migrate,
+then start only the same verified hook-enabled revision. Account for manual and
+scheduled processes that share the database. Verify source erasure/retention hook
+coverage and uniform running versions; uncertainty leaves exports disabled.
+Disabling the flag also interrupts existing streams at their next checkpoint.
+No live rollout, credentials, migrations or flag enablement are authorized by this
+implementation package.
+
+The coordinator followup merges rootnext `caff2a3` (including 0056 schema join).
+Its twelve production execution tables now use explicit scalar projections plus
+strict versioned policy, exact creation review, exposure, bound request, response,
+receipt and normalized projection serializers. Unknown/future JSON remains
+unsupported and sets supported-data completeness false. Internal control fields
+remain excluded even if a newly reviewed table's inventory scalar list contains
+them. Further outcome-assessment models still require separate classification.
+
+## Coordinator And Disabled-Runtime Followup
+
+Isolated `codex/inlet-export-coordinator` preserves PR140 at `4317cfe` and merges
+rootnext `caff2a3` at `5702597`. Actual coordinator creates an owned production
+review, bound attempt, response and verified receipt using the existing Google
+HTTP MockTransport. Both SQL engines then export the resulting policy/document/
+request/response/receipt/projection/exposure JSON through strict versioned schemas.
+Malformed/future payloads are omitted and explicitly marked unsupported.
+
+Focused export/coordinator/privacy/browser/registry/lifecycle tests: **81 passed,
+1 SQLite row-lock skip**, 97.86 seconds; log
+`/tmp/inlet-export-coordinator-focused.log`. Includes default-disabled config,
+creation/download rejection while disabled, interruption when disabled mid-stream,
+and existing real HTTPS browser/API/database journeys. Separate strict-domain
+suite: **10 passed**, both databases. Ruff passed; `mypy app tests` **387 files**
+passed; diff check passed. No new local Full, live provider call or rollout occurred.

@@ -27,7 +27,7 @@ async function api(path, method = 'GET', key = null) {
   if (version !== epoch) throw new Error('Workspace changed. Check your session again.');
   if (!response.ok) {
     if ([401, 403, 404].includes(response.status)) reset();
-    throw new Error(({401: 'Your session ended. Sign in from your workspace.', 403: 'Only a current workspace owner can export.', 404: 'This export is unavailable to your current account.', 409: 'Export is busy or cannot be built. Refresh its status before trying again.', 429: 'Export capacity is busy. Try again later.'})[response.status] || 'Export request failed. You can retry this request.');
+    throw new Error(({401: 'Your session ended. Sign in from your workspace.', 403: 'Only a current workspace owner can export.', 404: 'This export is unavailable to your current account.', 409: 'Export is busy or cannot be built. Refresh its status before trying again.', 429: 'Export capacity is busy. Try again later.', 503: 'Customer exports are temporarily unavailable.'})[response.status] || 'Export request failed. You can retry this request.');
   }
   const result = await response.json();
   if (version !== epoch) throw new Error('Workspace changed. Check your session again.');

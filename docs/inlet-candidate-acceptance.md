@@ -25,7 +25,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation, original-confirmer guards and customer creation/activation integrated; native provider capability proof remains |
 | B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison and History UI integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google creation/activation customer API/UI and strict exports integrated; default export gate and external closure/disposition remain |
-| B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated replacement/social-review restore and composed export/closure coverage in progress; green final Full/CI and intended-environment alerts/recovery/retention remain |
+| B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated financial/social restore and composed export/closure verified offline; green final Full/CI and intended-environment alerts/recovery/retention remain |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
 
 ## Current Critical Path

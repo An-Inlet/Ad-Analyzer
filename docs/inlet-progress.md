@@ -2914,3 +2914,56 @@ Root focused check passed **2 tests in 10.96 seconds**, SQLite and PostgreSQL;
 `/tmp/inlet-next-archive-closure.log`. Ruff, mypy (497 source files) and diff checks
 passed. No production code changed in this package. The native populated restore
 extension is separate and remains in progress. This is not live pilot evidence.
+
+## B19 Populated Native Restore Recovery — 2026-10-06
+
+Branch `codex/inlet-populated-restore`, based on `534a65c`; frozen validation head
+`8efe196` was untouched. The disposable drill now builds a valid contract-test
+financial graph through production mandate/optimization/replacement services: a
+synchronously completed mock predecessor with explicit terminal-request evidence,
+atomic qualified replacement, and a successor whose original request is unknown.
+It restores and checks retained 40,000,000-micros exposure, 1,000,000-micros reported
+high-water, 2,000,000-micros cumulative increases, original requests/fences, exact
+replacement audit hashes/scalars, and a second workspace's strict social approval.
+
+Available offline coordinator transport is injected after restore; fresh claiming,
+original-claim replay, further replacement and refund are denied without HTTP IO.
+Owner receipt/review access, scoped export sections and composite ownership FKs are
+checked. A final all-row/schema/sequence/privilege fingerprint proves those checks
+did not mutate evidence. The drill helper imports no tests, opens no real provider
+transport, and preserves disposable-target/identity/cleanup guards. Media bindings
+are metadata fixtures only: image bytes and production media recovery remain unqualified.
+
+Validation actually run: `pytest -o addopts='' -q tests/test_inlet_restore_drill.py`
+with explicit disposable PostgreSQL URL/marker and local test container: **29 passed,
+no skips**, including SQLite and PostgreSQL corruption/behavior checks, actual native
+custom-format dump/restore, and failure cleanup with unrelated sentinel preservation.
+Five existing Alembic path-separator deprecation warnings. Whole-repository Ruff passed;
+`mypy app tests` passed (490 source files, including imported drill helper); diff check
+passed. Logs: `/tmp/inlet-populated-restore-tests.log` and
+`/tmp/inlet-populated-restore-types.log`. The new SQLite test explicitly enables FK
+checks, which the shared lightweight fixture otherwise leaves off.
+
+No Full, live provider calls, credentials, cloud setup or production restore was run.
+Remaining: composed complete customer archive/closure is a separate package; intended-
+environment backup/media/key/PITR/RPO/RTO qualification and post-snapshot privacy/
+revocation reconciliation remain required. Synthetic finality/exposure proof is never
+native spending authority. See `docs/inlet-restore-drill.md` for boundaries.
+
+### Integrated Populated Native Restore Evidence
+
+Integrated PR179 (`a25dcd0`): the disposable native dump/restore now contains a
+valid closed predecessor, replacement audit, unknown successor attempt and retained
+40-million-micros hold, preserved charge counters, and exact social approval metadata.
+The restored available offline coordinator rejects replay/replacement/refund with
+zero provider I/O. Ownership foreign keys, receipt access, corrupted evidence and
+post-verification fingerprint stability are checked. No production/test import
+coupling was added to the self-contained drill.
+
+Root `tests/test_inlet_restore_drill.py` passed **29 tests, no skips, five existing
+Alembic configuration deprecation warnings, in 49.60 seconds**, using the explicit
+disposable PostgreSQL container. Log: `/tmp/inlet-next-populated-restore.log`.
+Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
+production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
+not qualified. Frozen `8efe196` local Full and normal CI are still running and do
+not cover this newer package.

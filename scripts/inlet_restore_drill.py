@@ -24,6 +24,12 @@ from app.customers.access import customer_workspace, customer_workspaces
 from app.customers.models import CustomerSession
 from app.settings import settings
 from fastapi import HTTPException
+from scripts.inlet_restore_fixture import (
+    seed_financial,
+    seed_social,
+    verify_owned_constraints,
+    verify_populated,
+)
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import MetaData, Table, create_engine, inspect, make_url, select, text
 from sqlalchemy.engine import URL, Connection, Engine
@@ -119,7 +125,7 @@ def seed(engine: Engine) -> None:
     stamps = {"created_at": now, "updated_at": now}
     with engine.begin() as db:
         for tenant in (1, 2):
-            wid, user = 900 + tenant, f"restore-user-{tenant}"
+            wid, user = 900 + tenant, str(tenant) * 32
             insert(
                 db,
                 "workspaces",
@@ -197,6 +203,9 @@ def seed(engine: Engine) -> None:
                 editor_id=user,
                 created_at=now,
             )
+
+    seed_financial(engine)
+    seed_social(engine)
 
 
 def normalized_text_casts(expression: str) -> str:
@@ -284,7 +293,7 @@ def fingerprint(db: Connection, schema: str) -> tuple[str, int, int]:
 def verify_isolation(engine: Engine) -> None:
     with Session(engine) as db:
         for tenant in (1, 2):
-            wid, user = 900 + tenant, f"restore-user-{tenant}"
+            wid, user = 900 + tenant, str(tenant) * 32
             if [row.id for row, _ in customer_workspaces(db, user)] != [wid]:
                 raise DrillError("restored customer membership isolation failed")
             customer_workspace(db, user, wid)
@@ -320,6 +329,8 @@ def verify_isolation(engine: Engine) -> None:
 
 
 def run_drill(container: str | None = None) -> dict[str, Any]:
+    if not __debug__:
+        raise DrillError("restore drill requires enabled verification assertions")
     url = target()
     tools = PostgresTools(url, container)
     schema = "inlet_restore_" + uuid4().hex
@@ -338,6 +349,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         command.upgrade(config, "head")
         seed(engine)
         verify_isolation(engine)
+        verify_populated(engine)
+        verify_owned_constraints(engine)
         with engine.connect() as db:
             before, table_count, row_count = fingerprint(db, schema)
         archive = tools.run("pg_dump", ["--format=custom", "--no-owner", f"--schema={schema}"])
@@ -364,6 +377,11 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
                 raise DrillError("restored migration revision mismatch")
         command.upgrade(config, "head")
         verify_isolation(engine)
+        verify_populated(engine)
+        verify_owned_constraints(engine)
+        with engine.connect() as db:
+            if fingerprint(db, schema) != (before, table_count, row_count):
+                raise DrillError("restored behavioral checks changed durable evidence")
         return {
             "status": "passed",
             "scope": "synthetic_disposable_postgresql",
@@ -373,6 +391,10 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
             "schema_data_privileges_sha256": before,
             "archive_bytes": len(archive),
             "isolation_verified": True,
+            "populated_financial_lineage_verified": True,
+            "social_approval_verified": True,
+            "unknown_attempt_replay_denied": True,
+            "media_objects_restored": False,
             "live_restore_qualified": False,
         }
     finally:

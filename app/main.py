@@ -13,6 +13,7 @@ from app.api.customer_ad_detail import router as customer_ad_detail_router
 from app.api.customer_billing import router as customer_billing_router
 from app.api.customer_campaign_review import router as customer_campaign_review_router
 from app.api.customer_commerce import router as customer_commerce_router
+from app.api.customer_exports import router as customer_exports_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
 from app.api.customer_lifecycle import router as customer_lifecycle_router
@@ -32,7 +33,6 @@ from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.database.models import register_models
 from app.deployment import DeploymentProcess, validate_deployment_startup
-from app.lifecycle import models as lifecycle_models  # noqa: F401
 from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
@@ -142,6 +142,7 @@ app.include_router(customer_google_router)
 app.include_router(customer_meta_router)
 app.include_router(customer_campaign_review_router)
 app.include_router(customer_lifecycle_router)
+app.include_router(customer_exports_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
 app.include_router(customer_shopify_router)

@@ -4,16 +4,16 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import AwareDatetime, Field
-from sqlalchemy import Select, and_, func, select
+from sqlalchemy import Select, and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.ads.enums import JobRunStatus
-from app.ads.models import JobRun
+from app.ads.enums import AdvertisingPlatform, JobRunStatus
+from app.ads.models import AdvertisingAccount, JobRun
 from app.analysis.enums import AnalysisRunStatus
 from app.analysis.models import AnalysisRun
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.goals.schemas import StrictModel
-from app.google_connections.models import GoogleCustomerConnection
+from app.google_connections.models import GoogleCustomerConnection, GoogleImportCompletion
 from app.mandates.models import MandateAction
 from app.meta.models import MetaConnection
 from app.publication.execution_models import (
@@ -26,7 +26,7 @@ from app.publication.execution_models import (
 from app.publication.models import PublicationStepRecord
 from app.shopify.models import ShopifyConnection
 from app.sources.models import SourceConnection
-from app.workspaces.models import Workspace
+from app.workspaces.models import Workspace, WorkspaceIntegration
 
 ROW_LIMIT = 500
 OVERDUE_SECONDS = 900
@@ -38,6 +38,7 @@ class Signal(StrictModel):
         "job_failed",
         "analysis_failed",
         "analysis_running_overdue",
+        "analysis_obligation_unstarted_overdue",
         "job_running_overdue",
         "billing_event_overdue",
         "billing_snapshot_overdue",
@@ -83,13 +84,14 @@ class Attention(StrictModel):
         default_factory=lambda: [
             "storage_failures_not_recorded",
             "scheduler_heartbeat_not_recorded",
-            "never_started_work_not_observed",
+            "work_without_persisted_analysis_obligation_not_observed",
+            "analysis_obligation_historical_generation_not_recorded",
             "publication_step_age_not_recorded",
             "external_alert_delivery_not_configured",
         ]
     )
     provider_held_exposure: list[HeldExposure] = Field(default_factory=list, max_length=2)
-    signals: list[Signal] = Field(max_length=21)
+    signals: list[Signal] = Field(max_length=22)
 
 
 def utc(value: datetime) -> datetime:
@@ -169,6 +171,82 @@ def attention(db: Session, now: datetime) -> Attention:
             terminal_seen.add(analysis_identity)
             if state == AnalysisRunStatus.FAILED:
                 add("analysis_failed", started)
+
+    # A current connection is not proof of a historical job's generation. Reauth/
+    # revocation retire pending outboxes; the generation-storage gap stays explicit.
+    google_current = exists().where(
+        GoogleCustomerConnection.workspace_id == JobRun.workspace_id,
+        GoogleCustomerConnection.integration_id == JobRun.connection_id,
+        GoogleCustomerConnection.account_id == JobRun.account_id,
+        GoogleCustomerConnection.external_account_id == AdvertisingAccount.external_account_id,
+        GoogleCustomerConnection.status == "connected",
+        GoogleCustomerConnection.generation > 0,
+    )
+    tiktok_current = exists().where(
+        SourceConnection.workspace_id == JobRun.workspace_id,
+        SourceConnection.integration_id == JobRun.connection_id,
+        SourceConnection.account_id == JobRun.account_id,
+        SourceConnection.external_id == AdvertisingAccount.external_account_id,
+        SourceConnection.provider == "tiktok_ads",
+        SourceConnection.status == "connected",
+        SourceConnection.generation > 0,
+    )
+    due = case(
+        (
+            GoogleImportCompletion.next_attempt_at > JobRun.finished_at,
+            GoogleImportCompletion.next_attempt_at,
+        ),
+        else_=JobRun.finished_at,
+    )
+    unstarted = rows(
+        select(due)
+        .select_from(GoogleImportCompletion)
+        .join(JobRun, JobRun.id == GoogleImportCompletion.job_id)
+        .join(Workspace, Workspace.id == JobRun.workspace_id)
+        .join(
+            AdvertisingAccount,
+            and_(
+                AdvertisingAccount.id == JobRun.account_id,
+                AdvertisingAccount.workspace_id == JobRun.workspace_id,
+                AdvertisingAccount.connection_id == JobRun.connection_id,
+                AdvertisingAccount.platform == JobRun.platform,
+            ),
+        )
+        .join(
+            WorkspaceIntegration,
+            and_(
+                WorkspaceIntegration.id == JobRun.connection_id,
+                WorkspaceIntegration.workspace_id == JobRun.workspace_id,
+            ),
+        )
+        .where(
+            Workspace.status == "active",
+            WorkspaceIntegration.status == "active",
+            GoogleImportCompletion.state == "pending",
+            JobRun.status == JobRunStatus.SUCCEEDED,
+            JobRun.finished_at.is_not(None),
+            due <= cutoff,
+            or_(
+                and_(
+                    JobRun.platform == AdvertisingPlatform.GOOGLE_ADS,
+                    WorkspaceIntegration.provider == "google_ads",
+                    google_current,
+                ),
+                and_(
+                    JobRun.platform == AdvertisingPlatform.TIKTOK_ADS,
+                    WorkspaceIntegration.provider == "tiktok_ads",
+                    tiktok_current,
+                ),
+            ),
+            ~exists().where(
+                AnalysisRun.workspace_id == JobRun.workspace_id,
+                AnalysisRun.source_job_run_id == JobRun.id,
+            ),
+        )
+        .order_by(due, JobRun.id)
+    )
+    for (observed_due,) in unstarted:
+        add("analysis_obligation_unstarted_overdue", observed_due)
 
     events = rows(
         select(BillingEvent.received_at, BillingEvent.next_attempt_at)

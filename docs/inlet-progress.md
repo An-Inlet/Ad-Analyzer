@@ -5315,3 +5315,25 @@ unchanged protected attempt/receipt/hold counts. Whole `ruff check .`, configure
 No Full, remote operation, live provider request, production policy qualification,
 new execution authority or spend. This does not report another worker's joint run
 as passed; that frozen run was still pending at this checkpoint.
+
+### 0077 Assembled Replacement Fence Repair
+
+At assembled2d3b9b1, actual browser repeated Apply exposed DELETE-trigger privacy
+revision invalidation. Core3b8092b fixes identical retries by returning the existing
+fully validated preview. Both actual HTTPS browser cases now pass with genuine
+workspace and original-session late-response checks retained.
+
+A different feedback policy still returned a newly saved preview whose baseline
+was immediately unreadable. Controlled both-database regression failed twice
+before repair. Apply now rereads the exact initial preview after the slot mutation
+and final original-session/source checks. Failure propagates before API commit;
+transaction rollback preserves the old slot, source privacy revision and readable
+baseline. No immutable source rebasing or export/privacy trigger weakening.
+
+Six focused guard+actual-browser cases pass, zero skips; Ruff, mypy702, JavaScript
+syntax/diff pass. Logs `/tmp/reported-feedback-replacement-baseline.log` (2 baseline
+failures), `/tmp/reported-feedback-replacement-fixed.log` (6pass). Limitation:
+changed-input replacement while deleting a retained slot is rejected. Separate
+immutable revision/current-pointer design is prepared at
+`/workspace/inlet-design/REPORTED-PREVIEW-REVISION-PROPOSAL.md`; no schema change in
+this repair. No Full, remote writes or live provider calls.

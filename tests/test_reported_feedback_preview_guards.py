@@ -80,3 +80,46 @@ def test_real_feedback_idempotent_not_compounded_and_retracted_with_retained_fin
             )
         )
         assert len(server.posts) == 1
+
+
+def test_changed_mapping_never_returns_a_preview_with_an_invalidated_baseline(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.initial_planning.preview import read_preview
+    from app.workspaces.models import Workspace
+
+    with Session(customer_engine) as db:
+        data, runtime, observation = acquired(db, configuration, tmp_path, monkeypatch)
+        wid, principal, _, job, _, _, _, _, _, _, server = data
+        runtime, initial = baseline(db, data, runtime, observation)
+        comparison = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
+        intent = FeedbackPreviewIntentV1(
+            comparison_id=comparison.id, baseline_preview_id=initial.id
+        )
+        first = apply_feedback_preview(db, principal, FakeProvider(), wid, intent, runtime)
+        db.commit()
+        space = db.get(Workspace, wid)
+        assert space and runtime.feedback_policy
+        before_revision = space.export_privacy_revision
+        changed = replace(
+            runtime,
+            feedback_policy=runtime.feedback_policy.model_copy(
+                update={"revision": 2, "maximum_preview_delta_micros": 1_000_000}
+            ),
+        )
+        # An unsupported destructive replacement must fail atomically, never return
+        # success for an immediately unreadable preview or disable privacy fencing.
+        with pytest.raises(HTTPException):
+            apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed)
+        db.rollback()
+        retained_space = db.get(Workspace, wid)
+        assert retained_space and retained_space.export_privacy_revision == before_revision
+        assert db.scalar(select(func.count()).select_from(ReportedFeedbackSlot)) == 1
+        assert (
+            read_preview(db, principal, FakeProvider(), wid, initial.id, runtime.initial) == initial
+        )
+        assert read_feedback_preview(db, principal, FakeProvider(), wid, first.id, runtime) == first
+        assert len(server.posts) == 1

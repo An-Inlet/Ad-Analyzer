@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 import uvicorn
 from app.api import customer as customer_api
+from app.api.customer_initial_planning import get_initial_planning_runtime
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerSession, CustomerUser
@@ -83,6 +84,7 @@ def test_actual_acquisition_calibration_feedback_browser(
             get_db: database,
             get_identity_provider: lambda: provider,
             get_reported_feedback_runtime: lambda: runtime_box[0],
+            get_initial_planning_runtime: lambda: runtime_box[0].initial,
         },
     )
     completed = threading.Event()

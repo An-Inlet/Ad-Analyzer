@@ -850,6 +850,12 @@ def apply_feedback_preview(
     db.flush()
     authorize(db, workspace_id, principal.user.id)
     local_job_current(db, job, runtime, effective_now(db, runtime.initial))
+    # Replacing a retained derived slot can advance the export/privacy fence.
+    # Never return a newly saved result whose exact initial evidence is already
+    # unavailable. The caller must roll back this transaction on rejection.
+    initial_preview.read_preview(
+        db, principal, provider, workspace_id, baseline.id, runtime.initial
+    )
     return validate_preview_dependencies(db, saved, effective_now(db, runtime.initial))
 
 

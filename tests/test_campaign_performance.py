@@ -244,12 +244,14 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
     migration = importlib.import_module("migrations.versions.20261006_0074_campaign_performance")
     observations = importlib.import_module("migrations.versions.20261006_0075_initial_planning")
     reviews = importlib.import_module("migrations.versions.20261006_0076_initial_preview_review")
+    feedback = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
     with customer_engine.begin() as connection:
         if customer_engine.dialect.name == "sqlite":
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
         # Exercise historical DDL only after removing its newer dependent schema.
         # Restore the current schema before invoking current importer hooks.
         with Operations.context(MigrationContext.configure(connection)):
+            feedback.downgrade()
             reviews.downgrade()
             observations.downgrade()
         Base.metadata.tables["campaign_performance_current"].drop(connection)
@@ -258,6 +260,7 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
             migration.upgrade()
             observations.upgrade()
             reviews.upgrade()
+            feedback.upgrade()
     with Session(customer_engine) as db:
         source, actor, auth, _, _, _, runner = setup(db, configuration, monkeypatch)
         cid = finish(db, source, runner)
@@ -280,9 +283,11 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
         customer_engine.begin() as connection,
         Operations.context(MigrationContext.configure(connection)),
     ):
+        feedback.downgrade()
         reviews.downgrade()
         observations.downgrade()
         migration.downgrade()
         migration.upgrade()
         observations.upgrade()
         reviews.upgrade()
+        feedback.upgrade()

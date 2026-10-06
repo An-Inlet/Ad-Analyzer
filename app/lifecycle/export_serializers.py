@@ -70,12 +70,23 @@ from app.publication.social_review_contracts import (
     LegacySocialConfigurationDocumentV1,
     SocialConfigurationDocument,
 )
+from app.reported_feedback.contracts import (
+    OperationalReportedComparisonV1,
+    ReportedAcquisitionRequestV1,
+    ReportedFeedbackPreviewV1,
+    ReportedWindowCapsuleV1,
+)
+from app.reported_feedback.export import bind_reported_document
 from app.shopify.security import utc
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
 # not arbitrary columns or provider transport responses. Typed historical fields use
 # their versioned product contracts and reject unknown/invalid persisted documents.
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
+    "reported_feedback_jobs": ("document",),
+    "reported_window_capsules": ("document",),
+    "reported_action_comparisons": ("document",),
+    "reported_feedback_slots": ("document",),
     "initial_observations": ("document",),
     "initial_calibration_runs": ("document", "objective"),
     "initial_plan_previews": ("document", "intent"),
@@ -155,6 +166,10 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "workspace_findings": ("message",),
 }
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
+    ("reported_feedback_jobs", "document"): ReportedAcquisitionRequestV1,
+    ("reported_window_capsules", "document"): ReportedWindowCapsuleV1,
+    ("reported_action_comparisons", "document"): OperationalReportedComparisonV1,
+    ("reported_feedback_slots", "document"): ReportedFeedbackPreviewV1,
     ("initial_observations", "document"): ObservationV1,
     ("initial_calibration_runs", "document"): CalibrationReportV1,
     ("initial_calibration_runs", "objective"): EfficiencyObjectiveV1,
@@ -305,6 +320,8 @@ def bounded_json(value: Any, depth: int = 0) -> Any:
 def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
+    if bind_reported_document(table, field, row, document):
+        return
     if bind_initial_document(table, field, row, document):
         return
 

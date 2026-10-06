@@ -184,3 +184,8 @@ class ReportedFeedbackSlot(Owned, Base):
     opportunity_digest: Mapped[str] = mapped_column(String(64))
     revision: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+from app.reported_feedback.triggers import register  # noqa: E402
+
+register(Base.metadata)

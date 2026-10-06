@@ -5138,3 +5138,70 @@ archive/closure and durable optimization suites on SQLite/PostgreSQL: **66 passe
 in86.14s, no skips (`/tmp/inlet-0076-early-final.log`). Whole Ruff, configured mypy
 **670 files**, and diff checks pass. Local-only commit; no push/PR/CI, additional
 Full or live provider calls. Existing frozen Full is separately monitored.
+### B17 Operational Reported Feedback: Lifecycle0077 — Local Only
+
+Isolated lifecycle child of assembled0076 `98a27b6`; consumes core contracts/services
+through upstream `e832d25` and Meta acquisition `efd11ce`. See
+[inlet-reported-feedback-lifecycle.md](inlet-reported-feedback-lifecycle.md).
+New0077 explicitly creates/classifies five erasable owned tables and expands the
+Meta phase constraint. Core numeric documents/dependencies are immutable; job
+progress stays writable without changing its original owned/session/policy input.
+Deleting any comparison/dependency/capsule conservatively retracts all workspace
+feedback slots, including indirect contributors. Semantic privacy/closure erases
+the graph; ordinary terminal correction preserves capsules/jobs but retracts
+comparisons before the next completion stamp. No protected financial writes.
+
+The existing independent housekeeping dispatcher now sweeps persisted expiries
+without configured capture policy or active-workspace admission. Capsule expiry
+also retires its request. Strict exports omit original-session digests, bind typed
+JSON to scalar scope/digests, include all expiry deadlines, and freshly validate
+both comparisons and slots using core validators under workspace fencing after
+identity IO. A cached archive does not bypass original authority or dependency
+revocation. Positive actual Meta acquisition→comparison→archive coverage revokes
+the original comparison session while exporting through a different still-valid
+owner session; delivery then fails closed. Acquisition uses an explicit offline
+future-window clock; this is not live maturity/report-finality qualification.
+
+Before freeze, a new migration test reproduced SQLite native staging loss under
+foreign_keys=ON during batch constraint rebuild: **1 failed,1 passed** (PostgreSQL
+preserved it). The migration now preserves exact metrics/checkpoint/cursor/page
+rows in connection-local temporary tables, restores in parent order, verifies
+bidirectional equality and foreign keys. Downgrade refuses any rf_* phase. Fixed
+actual migration/historical0074 dependency ordering: **5 passed,1 SQLite-only
+migration skip**, `/tmp/inlet-reported-migration-final.log`. No destructive shortcut
+or foreign-key disabling. Root historical-schema repair `1e337f9` was incorporated.
+
+Focused evidence, separate from any Full/aggregate qualification:
+
+- Structural lifecycle/strict export graph: **12 passed** both databases;
+  `/tmp/inlet-reported-lifecycle-tests.log`. Actual offline Meta receipt/hold,
+  synthetic insufficient comparison/slot documents; no fabricated stability claim.
+- Final broad focused command below: **143 passed,3 expected SQLite-only skips**,
+  four existing Alembic warnings,401.68s; `/tmp/inlet-reported-lifecycle-combined.log`.
+  This ran while the final comparison-only export validator integration was being
+  completed separately; it is not an immutable whole-tree qualification.
+- Final changed export/dependency path plus actual composition and PostgreSQL
+  fail-fast raw-deletion lock test: **7 passed,1 SQLite lock skip**,65.48s;
+  `/tmp/inlet-reported-export-final.log`. SQLite archive uses a real file/WAL engine.
+- `ruff check .`, configured `mypy` (**694 files**), and `git diff --check` pass.
+
+Commands use only dedicated `inlet_initial_restore_test_20261006`, never candidate4:
+
+```sh
+AD_ANALYZER_TEST_POSTGRES_URL=postgresql+psycopg://postgres@127.0.0.1:55432/inlet_initial_restore_test_20261006 \
+AD_ANALYZER_CI_DISPOSABLE_POSTGRES=true /workspace/inlet-venv/bin/pytest -o addopts='' -q \
+  tests/test_reported_feedback_lifecycle.py tests/test_reported_feedback_migration.py \
+  tests/test_reported_feedback_acquisition.py tests/test_reported_feedback_service.py \
+  tests/test_reported_feedback_evaluator.py tests/test_customer_exports.py \
+  tests/test_initial_planning_lifecycle.py tests/test_customer_quiescing.py
+AD_ANALYZER_TEST_POSTGRES_URL=postgresql+psycopg://postgres@127.0.0.1:55432/inlet_initial_restore_test_20261006 \
+AD_ANALYZER_CI_DISPOSABLE_POSTGRES=true /workspace/inlet-venv/bin/pytest -o addopts='' -q \
+  tests/test_reported_feedback_exports.py tests/test_reported_feedback_composition.py \
+  tests/test_reported_feedback_lifecycle.py::test_raw_erasure_fails_fast_behind_workspace_fence
+```
+
+Earlier fixture-only failures were a missing Workspace.client_name and unclassified
+owned job checkpoint fields; both corrected and relevant regressions passed. This
+package does not claim positive multi-original operational learning or a populated
+feedback-slot customer handoff; the core/consumer composed journey remains separate.
+No Full, remote push/CI, live calls, policy defaults, deployment or spend authority.

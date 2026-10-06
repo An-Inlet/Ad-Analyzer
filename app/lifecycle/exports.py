@@ -21,6 +21,13 @@ from app.lifecycle.archive import encoded
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.lifecycle.quiescing import owner
+from app.reported_feedback.export import numeric_dependency_stamp
+from app.reported_feedback.models import (
+    ReportedActionComparison,
+    ReportedFeedbackJob,
+    ReportedFeedbackSlot,
+    ReportedWindowCapsule,
+)
 from app.settings import settings
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
@@ -47,14 +54,24 @@ class Authority:
         self.privacy_revision: int | None = None
         self.commerce_stamp: str | None = None
         self.retention_deadline: datetime | None = None
+        self.reported_stamp: str | None = None
 
     def capture_privacy(self, snapshot: Session) -> dict[str, Any]:
         self.privacy_revision = workspace_export_revision(snapshot, self.wid)
         self.commerce_stamp = workspace_privacy_stamp(snapshot, self.wid)
+        self.reported_stamp = numeric_dependency_stamp(snapshot, self.wid, validate=False)
         deadlines = union_all(
             *[
                 select(model.expires_at).where(model.workspace_id == self.wid)
-                for model in (ObservationRow, CalibrationRow, PreviewRow)
+                for model in (
+                    ObservationRow,
+                    CalibrationRow,
+                    PreviewRow,
+                    ReportedFeedbackJob,
+                    ReportedWindowCapsule,
+                    ReportedActionComparison,
+                    ReportedFeedbackSlot,
+                )
             ]
         ).subquery()
         earliest = snapshot.scalar(select(func.min(deadlines.c.expires_at)))
@@ -63,6 +80,7 @@ class Authority:
         return {
             "workspace_revision": self.privacy_revision,
             "commerce_stamp": self.commerce_stamp,
+            "reported_feedback_stamp": self.reported_stamp,
             "retention_expires_at": self.retention_deadline.isoformat()
             if self.retention_deadline is not None
             else None,
@@ -152,6 +170,16 @@ class Authority:
             )
             if accepted is None:
                 raise denied()
+            if self.reported_stamp is not None:
+                # After external identity IO, acquire the same workspace-first
+                # fence as all graph writers before the fresh local dependency read.
+                db.scalar(
+                    select(Workspace.id)
+                    .where(Workspace.id == self.wid)
+                    .with_for_update(key_share=True, nowait=True)
+                )
+                if numeric_dependency_stamp(db, self.wid, validate=True) != self.reported_stamp:
+                    raise HTTPException(409, "export feedback changed; build a new archive")
             self.check_retention(database_utc_now(db))
             if self.privacy_revision is not None and (
                 workspace_export_revision(db, self.wid) != self.privacy_revision

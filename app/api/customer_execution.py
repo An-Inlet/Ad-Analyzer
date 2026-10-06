@@ -44,6 +44,8 @@ from app.publication.execution_models import (
 )
 from app.publication.provider_contracts import ProviderPublishPlan
 from app.publication.service import owner
+from app.publication.social_catalog import MetaConfigurationProfile
+from app.publication.social_execution_intents import refresh_social_execution
 
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/execution", tags=["customer"])
 Runtime = Annotated[CustomerExecutionRuntime | None, Depends(get_customer_execution_runtime)]
@@ -85,24 +87,37 @@ def capabilities(
     available = runtime is not None and (
         runtime.creation.environment != "live" or runtime.creation.live_enabled
     )
+
+    def configured(platform: str) -> bool:
+        if not available or runtime is None:
+            return False
+        if platform == "google_ads":
+            return runtime.catalog is not None
+        social = runtime.social_review
+        return bool(
+            social
+            and social.environment == runtime.creation.environment
+            and any(
+                p.kind.startswith(platform.removesuffix("_ads"))
+                and not (isinstance(p, MetaConfigurationProfile) and p.dsa_required)
+                for p in social.profiles
+            )
+        )
+
     return {
         "environment": runtime.creation.environment if runtime else None,
         "providers": [
             {
                 "platform": platform,
-                "available": bool(
-                    available and runtime and runtime.catalog and platform == "google_ads"
-                ),
-                "reason": (
-                    None
-                    if available and runtime and runtime.catalog
-                    else "named_configuration_catalog_unavailable"
-                )
-                if platform == "google_ads" and available
+                "available": configured(platform),
+                "reason": None
+                if configured(platform)
                 else (
-                    "provider_configuration_producer_unavailable"
-                    if available
-                    else "provider_execution_not_configured"
+                    "provider_execution_not_configured"
+                    if not available
+                    else "named_configuration_catalog_unavailable"
+                    if platform == "google_ads"
+                    else "provider_configuration_producer_unavailable"
                 ),
             }
             for platform in ("google_ads", "meta_ads", "tiktok_ads")
@@ -324,6 +339,11 @@ def prepare_activation(
     if server.activation is None:
         raise intents.unavailable("activation_runtime_unavailable")
     server.creation.authorize(db, workspace_id, principal.user.id)
+    parent = intents.run(db, workspace_id, body.parent_run_id)
+    original = intents.review(db, workspace_id, parent.review_id)
+    server = refresh_social_execution(db, workspace_id, original, principal.user.id, media, server)
+    if server.activation is None:
+        raise intents.unavailable("activation_runtime_unavailable")
     binding = intents.binding(db, workspace_id, body.mandate_id, body.mandate_revision)
     row = activation_review.prepare_activation(
         db,
@@ -382,6 +402,7 @@ def approve(
     media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
+    server = refresh_social_execution(db, workspace_id, row, principal.user.id, media, server)
     if row.document.get("purpose") == "activate":
         if server.activation is None:
             raise intents.unavailable("activation_runtime_unavailable")
@@ -439,6 +460,7 @@ def start_run(
     media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
+    server = refresh_social_execution(db, workspace_id, row, principal.user.id, media, server)
     if row.document.get("purpose") == "activate":
         if server.activation is None:
             raise intents.unavailable("activation_runtime_unavailable")
@@ -516,7 +538,9 @@ def advance(
     media = media_factory()
     server.creation.authorize(db, workspace_id, principal.user.id)
     run = intents.run(db, workspace_id, run_id)
-    if intents.review(db, workspace_id, run.review_id).document.get("purpose") == "activate":
+    row = intents.review(db, workspace_id, run.review_id)
+    server = refresh_social_execution(db, workspace_id, row, principal.user.id, media, server)
+    if row.document.get("purpose") == "activate":
         if server.activation is None:
             raise intents.unavailable("activation_runtime_unavailable")
         claim = activation.claim_step(

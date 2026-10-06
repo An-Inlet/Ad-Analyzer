@@ -10,6 +10,7 @@ from app.publication.contracts import PublicationScope
 from app.publication.coordinator_contracts import CreationRuntime
 from app.publication.customer_catalog import GoogleCatalogReader
 from app.publication.provider_contracts import ProviderContext
+from app.publication.social_review_runtime import SocialReviewRuntime
 
 
 def utc_now() -> datetime:
@@ -24,6 +25,7 @@ class CustomerExecutionRuntime:
     google_context: Callable[[PublicationScope], ProviderContext]
     catalog: GoogleCatalogReader | None = None
     clock: Callable[[], datetime] = utc_now
+    social_review: SocialReviewRuntime | None = None
 
 
 def get_customer_execution_runtime() -> CustomerExecutionRuntime | None:

@@ -4,7 +4,7 @@ Inventory baseline: PR130 `0cf6706ca9e12e8ccdba77f10c2247fd976e3593`.
 This is application-route evidence, not deployment/IAM qualification. No new
 runtime authorization or deployment permissions were introduced by this package.
 
-The assembled application has 79 protected method/path combinations: 41 operator
+The assembled application has 80 protected method/path combinations: 42 operator
 API, 37 dashboard and one worker. Tests enumerate effective FastAPI include
 contexts, including hidden routes. OpenAPI alone omits dashboard/worker handlers
 and therefore cannot establish this inventory. The test also rejects any unclassified
@@ -29,6 +29,7 @@ API route or unexpected static/documentation mount.
 | GET | `/api/v1/campaigns/{campaign_id}/metrics` | operator |
 | GET | `/api/v1/job-runs` | operator |
 | GET | `/api/v1/job-runs/latest` | operator |
+| GET | `/api/v1/operations/attention` | operator |
 | GET | `/api/v1/operations/sync-health` | operator |
 | GET | `/api/v1/recommendations` | operator |
 | GET | `/api/v1/sync-status` | operator |
@@ -147,7 +148,7 @@ existing signature/ingress tests remain authoritative for those details.
 
 ## Negative Coverage
 
-Each of the 79 protected routes is requested using a session created through the
+Each of the 80 protected routes is requested using a session created through the
 actual customer login API. All routes must reject before the database dependency
 can be entered. Both SQLite and PostgreSQL session stores run four configurations:
 configured production, missing production auth configuration, configured local

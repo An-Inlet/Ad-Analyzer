@@ -1804,3 +1804,29 @@ Validation: combined assembled-boundary/IAP/operator API/Google push/ingress tes
 **90 passed, zero skipped**. Whole-tree Ruff, mypy (359 source files) and diff check
 passed. No Full, live calls, IAM/configuration changes or deployment qualification.
 Exact assembled successor validation remains required.
+
+### B19 Persisted Operator Attention Evidence — 2026-10-06
+
+Branch `codex/inlet-operations-attention` from root-next `f77553b` adds
+`GET /api/v1/operations/attention` to the existing operator bearer router. Its
+versioned aggregate contract uses fixed codes/severity/actions and timestamps,
+without identifiers, raw errors, provider payloads or mixed-currency totals. It
+observes latest sampled job failures/stale execution, overdue billing reconciliation,
+connection attention, and unknown publication/action outcomes including closing
+workspaces. Future backoff remains expected until 15 minutes past due. Reservation
+state is never released, and no provider/storage operation or alert is emitted.
+
+Nine bounded SELECTs each evaluate at most 500 scalar rows, with a sentinel for
+explicit truncation/lower-bound counts. PostgreSQL applies a two-second
+transaction-local statement timeout. Database failures stay sanitized 503 rather
+than reporting no attention. Storage, heartbeat, never-started work, local analysis
+history, independent publication-step age and external alert delivery gaps remain
+explicit. This is not deployed monitoring or a complete health assertion.
+
+Final operations/boundary/existing API suite: **54 passed, zero skipped**, including
+SQLite and PostgreSQL. Tests verify recovery, backoff thresholds, sanitized terminal
+uncertainty, reservation preservation after closure, query/result bounds, database
+failure sanitization, no-store responses and actual customer-session denial. Whole-tree
+Ruff, mypy (363 files) and diff check passed. Updated runbook and exact route inventory
+(now 80 protected method/path pairs). No Full, schema change, live calls, IAM or alert
+provisioning. External destination/escalation and deployment qualification remain gates.

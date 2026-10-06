@@ -221,3 +221,14 @@ impossible claim, financial hold release, qualification registration, replacemen
 or settlement reader is implemented/enabled by it. Independent transition/portfolio proofs,
 U/F/P, financial basis mapping and preventive writer guarantees remain missing. Native
 unknown-request lookup is still unavailable. Credentials alone cannot fill those gaps.
+
+## Social Successful Original Update Review
+
+The [endpoint-specific Meta/TikTok review](social-original-update-response-semantics.md)
+found no sufficiently documented terminality assertion in the retrieved sources. Official
+SDKs confirm supported update methods and generic responses, but relevant Meta references
+were rate-limited and TikTok manual-update references returned empty bodies. Generic SDK
+success/code-zero or an echoed body is insufficient. This is not proof that the exact
+budget endpoints are asynchronous. Endpoint-qualified original capture/owned readers
+remain missing code conditional on reviewed semantics; no social mapping or financial
+qualification was added. Unknown/timeouts and all financial gates are preserved.

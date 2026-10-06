@@ -302,3 +302,143 @@ def test_pending_event_backoff_precedes_batch_limit(customer_engine: Engine) -> 
     assert run(factory, POLICY, fixture, NOW, limit=1)["failed"] == 0
     fixture.fail = False
     assert run(factory, POLICY, fixture, NOW + timedelta(minutes=1), limit=1)["events"] == 1
+
+
+def test_management_route_enforces_owner_scope_and_csrf(
+    customer_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from collections.abc import Generator
+
+    from app.api import customer_billing as api
+    from app.api.customer import router as auth_router
+    from app.billing.contracts import get_billing_transport
+    from app.customers.access import CSRF_COOKIE
+    from app.customers.identity import get_identity_provider
+    from app.customers.models import CustomerMembership
+    from app.database.session import get_db
+    from app.settings import settings
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from tests.test_customer_identity import ORIGIN, FakeProvider, login
+
+    class ManagedFixture(FixtureBilling):
+        calls: list[str] = []
+
+        def portal(
+            self, customer_id: str, configuration_id: str, return_url: str, request_key: str
+        ) -> str:
+            assert configuration_id == "bpc_fixture"
+            assert return_url == ORIGIN + "/app/settings"
+            self.calls.append(customer_id)
+            return "https://billing.stripe.com/session/fixture"
+
+    fixture = ManagedFixture()
+    monkeypatch.setattr(settings, "customer_app_origin", ORIGIN)
+    monkeypatch.setattr(settings, "billing_portal_configuration", "bpc_fixture")
+    app = FastAPI()
+    app.include_router(auth_router)
+    app.include_router(api.router)
+
+    def database() -> Generator[Session, None, None]:
+        with Session(customer_engine) as db:
+            yield db
+
+    app.dependency_overrides[get_db] = database
+    app.dependency_overrides[get_identity_provider] = lambda: FakeProvider()
+    app.dependency_overrides[get_billing_transport] = lambda: fixture
+    owner = TestClient(app, base_url=ORIGIN)
+    member = TestClient(app, base_url=ORIGIN)
+    outsider = TestClient(app, base_url=ORIGIN)
+    uid, mid = login(owner, "owner:1"), login(member, "member:1")
+    login(outsider, "outsider:1")
+    with Session(customer_engine) as db:
+        wid, _ = setup(db, "portal")
+        db.add_all(
+            [
+                CustomerMembership(user_id=uid, workspace_id=wid, role="owner", status="active"),
+                CustomerMembership(user_id=mid, workspace_id=wid, role="viewer", status="active"),
+                WorkspaceBilling(
+                    workspace_id=wid, customer_request_key="fixture", customer_id="cus_owned"
+                ),
+            ]
+        )
+        db.commit()
+    path = f"/api/customer/v1/workspaces/{wid}/billing/management"
+
+    def headers(client: TestClient) -> dict[str, str]:
+        return {"Origin": ORIGIN, "X-CSRF-Token": client.cookies[CSRF_COOKIE]}
+
+    assert owner.post(path).status_code == 403
+    assert member.post(path, headers=headers(member)).status_code == 403
+    assert outsider.post(path, headers=headers(outsider)).status_code == 404
+    assert fixture.calls == []
+    result = owner.post(path, headers=headers(owner))
+    assert result.status_code == 200 and result.headers["cache-control"] == "no-store"
+    assert fixture.calls == ["cus_owned"]
+    with Session(customer_engine) as db:
+        membership = db.get(CustomerMembership, (uid, wid))
+        assert membership is not None
+        membership.status = "suspended"
+        db.commit()
+    assert owner.post(path, headers=headers(owner)).status_code == 404
+    assert fixture.calls == ["cus_owned"]
+
+
+@pytest.mark.parametrize("terminal", ["canceled", "incomplete_expired"])
+def test_delayed_terminal_subscription_event_cannot_replace_current_purchase(
+    customer_engine: Engine, terminal: str
+) -> None:
+    from app.billing.dispatcher import run
+    from sqlalchemy.orm import sessionmaker
+
+    class HistoryFixture(FixtureBilling):
+        reads: list[str] = []
+
+        def current(
+            self, customer_id: str, subscription_id: str, now: datetime
+        ) -> SubscriptionState:
+            self.reads.append(subscription_id)
+            return self.state.model_copy(
+                update={
+                    "subscription_id": subscription_id,
+                    "observed_at": now,
+                    "status": terminal if subscription_id == "sub_old" else "active",
+                }
+            )
+
+    fixture = HistoryFixture()
+    with Session(customer_engine) as db:
+        wid, _ = setup(db, "delayed-terminal")
+        db.add(
+            WorkspaceBilling(
+                workspace_id=wid,
+                customer_request_key="history",
+                customer_id="cus_fixture",
+                subscription_id="sub_current",
+                status="active",
+            )
+        )
+        db.add(
+            BillingEvent(
+                id="evt_old",
+                body_hash="c" * 64,
+                customer_id="cus_fixture",
+                subscription_id="sub_old",
+                event_type="customer.subscription.updated",
+                received_at=NOW,
+            )
+        )
+        db.commit()
+    assert run(sessionmaker(customer_engine), POLICY, fixture, NOW, 1)["events"] == 1
+    with Session(customer_engine) as db:
+        saved = db.get(WorkspaceBilling, wid)
+        assert (
+            saved is not None
+            and saved.subscription_id == "sub_current"
+            and saved.status == "active"
+        )
+        require_entitlement(db, wid, POLICY, NOW)
+        event = db.get(BillingEvent, "evt_old")
+        assert event is not None and event.state == "processed"
+    assert fixture.reads == ["sub_old", "sub_current"]

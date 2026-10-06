@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.billing import service
-from app.billing.contracts import BillingTransport, get_billing_transport
+from app.billing.contracts import BillingTransport, UnavailableBilling, get_billing_transport
 from app.billing.entitlements import policy
 from app.billing.models import WorkspaceBilling
 from app.billing.webhooks import receive
@@ -17,14 +17,16 @@ Transport = Annotated[BillingTransport, Depends(get_billing_transport)]
 
 @router.get("/api/customer/v1/workspaces/{workspace_id}/billing")
 def status(
-    workspace_id: int, principal: Principal, db: Database, response: Response
+    workspace_id: int, principal: Principal, db: Database, response: Response, transport: Transport
 ) -> dict[str, Any]:
     customer_workspace(db, principal.user.id, workspace_id)
     response.headers["Cache-Control"] = "no-store"
     row = db.get(WorkspaceBilling, workspace_id)
     return {
         "status": row.status if row else "unconfigured",
-        "mode": "fixture",
+        "mode": "unavailable"
+        if isinstance(transport, UnavailableBilling)
+        else transport.mode,
         "live_verified": False,
         "period_end": row.period_end if row else None,
         "cancel_at_period_end": row.cancel_at_period_end if row else False,
@@ -72,3 +74,25 @@ async def webhook(request: Request, db: Database) -> dict[str, bool]:
             datetime.now(UTC),
         )
     }
+
+
+@router.post("/api/customer/v1/workspaces/{workspace_id}/billing/management")
+def management(
+    workspace_id: int,
+    principal: MutationPrincipal,
+    db: Database,
+    response: Response,
+    transport: Transport,
+) -> dict[str, str]:
+    _, role = customer_workspace(db, principal.user.id, workspace_id)
+    if role != "owner":
+        raise HTTPException(403, "workspace owner required")
+    response.headers["Cache-Control"] = "no-store"
+    return service.management(
+        db,
+        workspace_id,
+        transport,
+        settings.billing_portal_configuration,
+        settings.customer_app_origin + "/app/settings",
+        datetime.now(UTC),
+    )

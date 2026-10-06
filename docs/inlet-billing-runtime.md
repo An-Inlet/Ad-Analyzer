@@ -27,3 +27,25 @@ The checkout contract permits a null URL; the service preserves the recovered
 session ID before canonical reconciliation. Stripe may prune idempotency keys
 when at least 24 hours old. The adapter stops POST replays at 23 hours; this is a
 safety limit, not a completed recovery experience.
+
+## Management endpoint candidate
+
+`POST /api/customer/v1/workspaces/{workspace_id}/billing/management` now checks
+current owner membership and CSRF, uses only the workspace's stored Stripe customer
+and server-selected portal configuration/return URL, and returns a non-cacheable
+short-lived portal URL. The adapter validates returned customer and configuration.
+No browser-supplied customer/price/portal configuration is accepted. Creating a portal
+session does not itself change subscription state; canonical refresh/webhook processing
+continues to determine entitlements. Portal feature configuration is still a release
+input; this implementation did not provision it or authorize charges.
+
+Validation:36 focused HTTP+billing tests passed (including SQLite/PostgreSQL membership,
+CSRF and suspension checks), Ruff/mypy pass. Full and hosted CI pending. Additional
+source: https://docs.stripe.com/customer-management/integrate-customer-portal .
+
+Delayed events for a different, now-terminal subscription are now acknowledged only
+after canonical provider reads prove customer identity, terminal status and freshness,
+and refresh the actual current subscription. No event payload status can replace the
+current purchase. Tests cover canceled and incomplete-expired predecessors with current
+entitlement preserved. Combined HTTP, billing and review regressions:80 passed on
+SQLite/disposable PostgreSQL, no skips. Ruff/mypy and diffcheck pass. Full pending.

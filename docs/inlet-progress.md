@@ -1070,3 +1070,8 @@ concurrency skips**. Node helpers **8 passed**; Ruff/mypy **290 files** and diff
 pass. Full/CI pending. Details, exact command and remaining engineering/live gates are
 in `docs/inlet-customer-connections-ui.md`. Google disconnect and other provider
 connection controls remain separate customer-facing engineering work.
+
+Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111.
+Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
+commit only records this PR link. Final Google browser rerun also passed both database
+variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.

@@ -3531,3 +3531,15 @@ At08:45 parent reported another transport disconnect notification. Executor comm
 filesystem read/write probe and in-flight root test progression succeeded immediately;
 no observed work loss, process death or quota signal. Frozen local final focused gate
 nested pytest remains active,20min elapsed with10min CPU at this checkpoint.
+
+### 2026-10-06 — Original-bound receipt recovery and closure classification
+
+Integrated PR19820efeaac: default-off GET-only original-bound receipt reader and
+actual bounded scheduler path independent of current sales offer. Missing/invalid
+current offer still blocks forward entitlement; no-ID unknown checkout stays
+unresolved without request replay/key replacement. Root combined140 passed2failed:
+new Google completion table was absent from lifecycle local-work suffix registry,
+so both closure API cases correctly refused incomplete classification. Added explicit
+protected_publication classification; final receipt/quiescing suite41 passed in24.98s.
+Ruff check ., configured mypy545 and whitespace passed. Logs
+`/tmp/inlet-next-billing-receipts.log` and `/tmp/inlet-next-receipts-quiescing.log`.

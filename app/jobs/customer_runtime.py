@@ -16,6 +16,8 @@ from app.automation import AutomationControlKey, AutomationControlService, maste
 from app.billing.contracts import BillingTransport, get_billing_transport
 from app.billing.dispatcher import run as run_billing
 from app.billing.entitlements import paid_work, policy
+from app.billing.receipt_dispatcher import run as run_billing_receipts
+from app.billing.receipt_reader import get_billing_receipt_reader
 from app.google_connections.contracts import GoogleReadTransport, get_transport
 from app.google_connections.dispatcher import deliver_analysis, run_imports
 from app.google_connections.models import GoogleCustomerConnection, GoogleImportCompletion
@@ -147,10 +149,18 @@ def run_customer_tick(
             logger.warning("customer_runtime_stage_failed stage=%s", name)
 
     if configuration.customer_billing_scheduler_enabled:
-        stage(
-            "billing",
-            lambda: run_billing(lambda: Session(engine), policy(), billing_factory(), current),
-        )
+        if configuration.billing_receipt_read_enabled:
+            stage(
+                "billing",
+                lambda: run_billing_receipts(
+                    lambda: Session(engine), get_billing_receipt_reader()
+                ),
+            )
+        else:
+            stage(
+                "billing",
+                lambda: run_billing(lambda: Session(engine), policy(), billing_factory(), current),
+            )
     if (
         configuration.customer_google_scheduler_enabled
         or configuration.customer_tiktok_scheduler_enabled

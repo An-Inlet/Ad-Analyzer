@@ -1082,3 +1082,13 @@ were stopped together. No replacement Full started pending root coordination.
 - Explicitly missing next code: production mandate consent/authority, durable provider
   claim/receipt projection, exact activation and uncertainty-aware settlement. Existing
   simulation approval never supplies production authority. No live operations enabled.
+
+## Shared Meta/TikTok Publication Types — 2026-10-06
+
+- Isolated `codex/inlet-social-contracts` from PR108 e4c1392. Additive social contracts
+  leave existing Google and fixture schemas/hashes unchanged. Frozen typed operations,
+  media binding, resource-kind namespaces, review/plan/request/receipt and transport ports.
+- Contract/compiler/Google adapter focused regression: 41 passed. Whole-tree Ruff
+  passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
+- No live factory or production permission. Unknown provider combination eligibility
+  remains explicit qualification work, and B16 is not complete.

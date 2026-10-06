@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, Protocol
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, ConfigDict, Field, SecretStr
 
 from app.goals.schemas import StrictModel
 
@@ -63,3 +63,14 @@ class FixtureIdentityMapping:
         self.mappings = {m.source_id: m for m in mappings}
         if len(self.mappings) != len(mappings):
             raise ValueError("duplicate source identity mapping")
+
+
+class RefreshCandidate(StrictModel):
+    """Unverified renewal credentials; never authorize profile reads with this object."""
+
+    model_config = ConfigDict(frozen=True)
+    provider: CustomerProvider
+    access_token: SecretStr
+    refresh_token: SecretStr | None = None
+    expires_at: AwareDatetime | None = None
+    scopes: frozenset[str] | None = None

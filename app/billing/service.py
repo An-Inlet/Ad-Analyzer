@@ -9,8 +9,15 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.billing.contracts import BillingPolicy, BillingTransport, UnavailableBilling
+from app.billing.contracts import (
+    BillingManagementTransport,
+    BillingPolicy,
+    BillingTransport,
+    SubscriptionState,
+    UnavailableBilling,
+)
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.stripe import BillingReconciliationRequired
 from app.mandates.service import workspace_lock
 from app.shopify.security import utc
 
@@ -43,6 +50,8 @@ def checkout(
     transport: BillingTransport,
     return_url: str,
     now: datetime,
+    *,
+    _state_retries: int = 0,
 ) -> dict[str, Any]:
     ready(transport)
     redirect = urlsplit(return_url)
@@ -61,6 +70,10 @@ def checkout(
     if customer is None:
         try:
             customer = transport.customer(wid, key)
+        except BillingReconciliationRequired:
+            raise HTTPException(
+                409, "billing customer recovery unresolved; retry reconciliation"
+            ) from None
         except Exception:
             raise HTTPException(502, "billing customer pending; retry safely") from None
         if re.fullmatch(r"cus_[A-Za-z0-9_]{1,128}", customer) is None:
@@ -75,7 +88,28 @@ def checkout(
         raise HTTPException(409, "existing subscription requires billing management")
     if row.checkout_id is not None:
         outcome = resolve_checkout(db, row, policy, transport, now)
+        resolved_identity = (
+            row.customer_id,
+            row.checkout_key,
+            row.checkout_id,
+            row.subscription_id,
+        )
         db.commit()
+        # Canonical lookup committed and released the lock. Another caller may
+        # already have installed a replacement: reload before retiring anything.
+        row = owned(db, wid, now)
+        if (
+            row.customer_id,
+            row.checkout_key,
+            row.checkout_id,
+            row.subscription_id,
+        ) != resolved_identity:
+            db.rollback()
+            if _state_retries >= 2:
+                raise HTTPException(409, "checkout changed; retry current billing state")
+            return checkout(
+                db, wid, policy, transport, return_url, now, _state_retries=_state_retries + 1
+            )
         if outcome == "complete":
             if row.status not in {"canceled", "incomplete_expired"}:
                 raise HTTPException(409, "checkout completed; subscription reconciled")
@@ -87,7 +121,8 @@ def checkout(
                 None,
                 None,
             )
-            db.commit()
+            # Retirement and installation of the new durable key share this
+            # locked transaction; there must be no commit in between.
         if outcome == "open":
             if row.checkout_price != policy.price_id:
                 raise HTTPException(409, "checkout already pending for another plan")
@@ -111,6 +146,8 @@ def checkout(
     db.commit()
     try:
         result = transport.checkout(customer, policy.price_id, checkout_key, return_url)
+    except BillingReconciliationRequired:
+        raise HTTPException(409, "checkout recovery unresolved; retry reconciliation") from None
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
     if result.url is not None:
@@ -156,11 +193,18 @@ def reconcile(
     if event.state == "processed":
         return False
     try:
-        if row.subscription_id is not None and row.subscription_id != event.subscription_id:
-            outcome = resolve_checkout(db, row, policy, transport, now)
-            if outcome != "complete" or row.subscription_id != event.subscription_id:
-                raise HTTPException(409, "subscription identity requires reconciliation")
-        refresh(db, wid, policy, transport, now, subscription_id=event.subscription_id)
+        target = event.subscription_id
+        if row.subscription_id is not None and row.subscription_id != target:
+            notified = verified_current(transport, row.customer_id, target, now)
+            if notified.status in {"canceled", "incomplete_expired"}:
+                # Delayed events for a terminal subscription cannot replace a
+                # current purchase. Read the current purchase before acknowledging.
+                target = row.subscription_id
+            else:
+                outcome = resolve_checkout(db, row, policy, transport, now)
+                if outcome != "complete" or row.subscription_id != target:
+                    raise HTTPException(409, "subscription identity requires reconciliation")
+        refresh(db, wid, policy, transport, now, subscription_id=target)
     except HTTPException:
         event.error_code = "provider_read_unavailable"
         event.next_attempt_at = now + timedelta(minutes=1)
@@ -215,18 +259,7 @@ def refresh(
         raise HTTPException(409, "billing identity unavailable")
     if row.subscription_id is not None and row.subscription_id != subscription_id:
         raise HTTPException(409, "billing identity conflict")
-    try:
-        state = transport.current(row.customer_id, subscription_id, now)
-    except Exception:
-        raise HTTPException(502, "billing verification unavailable") from None
-    if (
-        state.customer_id != row.customer_id
-        or state.subscription_id != subscription_id
-        or state.observed_at < now - timedelta(seconds=30)
-        or state.observed_at > now
-        or state.livemode
-    ):
-        raise HTTPException(409, "billing verification mismatch")
+    state = verified_current(transport, row.customer_id, subscription_id, now)
     row.subscription_id, row.price_id = state.subscription_id, state.price_id
     row.status, row.period_end = state.status, state.period_end
     row.cancel_at_period_end, row.verified_at = state.cancel_at_period_end, state.observed_at
@@ -292,3 +325,60 @@ def resolve_checkout(
             )
     row.next_attempt_at = now + timedelta(seconds=policy.max_snapshot_age_seconds // 2)
     return state.status
+
+
+def management(
+    db: Session,
+    wid: int,
+    transport: BillingTransport,
+    configuration_id: str,
+    return_url: str,
+    now: datetime,
+) -> dict[str, str]:
+    ready(transport)
+    if not isinstance(transport, BillingManagementTransport):
+        raise HTTPException(503, "billing management unavailable")
+    location = urlsplit(return_url)
+    if (
+        location.scheme != "https"
+        or not location.hostname
+        or location.username
+        or location.fragment
+        or not re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", configuration_id)
+    ):
+        raise HTTPException(503, "billing management configuration unavailable")
+    row = owned(db, wid, now)
+    if row.customer_id is None:
+        raise HTTPException(409, "billing customer unavailable")
+    customer = row.customer_id
+    # A portal session creates no subscription or charge. Each request gets its
+    # own short-lived session; provider-side subscription changes reconcile later.
+    db.commit()
+    try:
+        url = transport.portal(
+            customer, configuration_id, return_url, f"{int(now.timestamp())}_{uuid4().hex}"
+        )
+    except Exception:
+        raise HTTPException(502, "billing management unavailable") from None
+    location = urlsplit(url)
+    if location.scheme != "https" or location.netloc != "billing.stripe.com":
+        raise HTTPException(502, "billing management location unavailable")
+    return {"mode": transport.mode, "url": url}
+
+
+def verified_current(
+    transport: BillingTransport, customer_id: str, subscription_id: str, now: datetime
+) -> SubscriptionState:
+    try:
+        state = transport.current(customer_id, subscription_id, now)
+    except Exception:
+        raise HTTPException(502, "billing verification unavailable") from None
+    if (
+        state.customer_id != customer_id
+        or state.subscription_id != subscription_id
+        or state.observed_at < now - timedelta(seconds=30)
+        or state.observed_at > now
+        or state.livemode
+    ):
+        raise HTTPException(409, "billing verification mismatch")
+    return state

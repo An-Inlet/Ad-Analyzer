@@ -28,8 +28,10 @@ or order-creation method exists, so repeated source purchases cannot add sales.
 Omnisend reads only current contacts/channel status. It does not fetch synchronized
 Shopify orders, infer order-state history from event definitions, or claim a full event
 history export. Fixed request paths and validated cursor values prevent response links
-from becoming arbitrary fetch destinations. Runtime transport remains unavailable until
-provider authorization, mapping semantics and real-account validation are qualified.
+from becoming arbitrary fetch destinations. Disabled-default Klaviyo and HubSpot HTTP transport preparation is documented in
+`docs/inlet-crm-http-runtime.md`. Omnisend transport enablement remains unavailable
+until its account identity/OAuth contract is qualified. Live canonical enrichment
+for all three still requires verified mapping semantics and real-account validation.
 
 Official references checked 2026-10-06:
 - [Klaviyo profiles](https://developers.klaviyo.com/en/reference/get_profiles): profiles:read,

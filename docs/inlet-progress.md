@@ -675,6 +675,146 @@ Not a completed B13 acceptance or live payment result.
   `/tmp/inlet-scheduler-all-focused.log`; Ruff and mypy253 files passed.
 - Disposable PostgreSQL upgrade plus0035→0034→0035 roundtrip passed.
 - Full and hosted CI still pending for the final scheduler head. No external calls.
+### TikTok Deleted History Review Repair (2026-10-06)
+
+Dependent branch `codex/inlet-tiktok-history` from PR75 head01aa869 adds explicit
+all-status inventory and dimension-specific report filters. Actual HTTP mock →
+page staging → database publication tests reproduce the former deleted-history
+loss, then verify retained spend across deletion, pagination and workspace isolation.
+49 focused tests pass on SQLite/disposable PostgreSQL; Ruff/mypy/diff checks pass.
+Full/CI pending. See `docs/inlet-tiktok-history-repair.md` for precise primary-source
+verification limits and live qualification gate. No live calls, merge or deployment.
+
+## CRM HTTP Runtime Preparation — 2026-10-06
+
+Branch `codex/inlet-crm-runtime` from PR75 head
+`01aa869b7df73bcdf1dca5fc25391a43f0af4efc`. Implemented disabled-default Klaviyo
+PKCE/read/refresh/revoke and HubSpot OAuth v3/introspection/read/refresh HTTP paths.
+Provider account identity precedes every profile page; no new profile persistence or
+canonical matching shortcut. Explicit PKCE arguments and encrypted per-attempt state
+survive replicas without mutable adapter context. Omnisend current contacts[] and
+hasMore projection fixed against official docs; its factory remains blocked pending
+verified brand-response identity and OAuth scope parameter. Detailed code/live gaps
+and sources: `docs/inlet-crm-http-runtime.md`. Focused suite 85 passed with SQLite and
+PostgreSQL; Ruff/mypy255/diff-check pass. Full/CI pending root review. No live calls.
+
+### Source Status Follow-Up For TikTok Lifecycle
+
+At the parallel TikTok lifecycle package's request, shared source views now provide
+safe customer-facing status_label/next_action fields for provider_error and
+reconnect_required. Provider rejection asks the owner to review provider access or
+configuration and reconnect; it is not mislabeled as proved revocation. No tokens or
+raw provider message is exposed. Other provider/status responses are unchanged.
+Focused status test passed; Ruff/mypy256/diff-check passed. This small follow-up can
+be cherry-picked independently of the CRM transport package.
+
+### TikTok Lifecycle And Typed Provider Failures
+
+Branch `codex/inlet-tiktok-lifecycle`, base PR80 head
+`392d08672a718f1d6450441a6fa141943862abb9`: terminal HTTP authorization and local
+expiry require reconnect; unknown valid numeric provider rejection pauses reads
+with a distinct review label; transient failures preserve staging/backoff. Terminal
+transitions fence generations and discard only scoped pending analysis, preserving
+published data. Unused unqualified refresh material is no longer retained.
+105 focused tests passed with disposable PostgreSQL enabled; Ruff, mypy253 and
+diff-check passed. Full/hosted checks pending. See `inlet-tiktok-lifecycle.md` for
+primary-source evidence limits and remaining advertiser renewal/revoke qualification.
+No live API calls, activation, merge or deployment occurred.
+## Customer Portal Preparation — 2026-10-06
+
+Branch `codex/inlet-customer-portal`, base billing-management
+`a8a35fccf871cf2870336a0850eebf58346df409`. Added separate `/app` customer shell,
+functional workspace creation/selection, monthly goal save/edit/baseline review and
+exact-revision confirmation, scoped status/mandate review, and owner test-billing
+handoffs. Public website unchanged. Existing sessions required; no invented signup
+or production purchase claim. Details, test evidence and explicit gaps are in
+`docs/inlet-customer-portal.md`. Focused pytest: 6 passed (actual Chromium mocked-API
+journey plus 5 Node contracts); Ruff/mypy253/diff-check pass. Root owns Full/CI.
+Next: browser identity journey, connections setup, mandate lifecycle UI, readable
+progress; provider/runtime preparation is still independent work.
+
+### Customer Portal Readable Review Refinement
+
+Merged billing-management `275e0ee179c2b6d84f1b2a14b3048b44b123c5ae`. Replaced
+raw data panels with labeled goal/baseline/budget summaries, connection tables and
+simulation mandate reviews. Baseline history/import warnings are human readable;
+missing data is distinct from zero. Internal review IDs and revisions remain in
+API requests only. Current sales progress is explicitly unavailable. Focused
+pytest: 6 passed including Chromium readable-review assertions and six Node
+contracts; Ruff/mypy253/diff-check pass. Full remains assigned to root.
+
+### Portal CI Dependency Enforcement
+
+Google Chrome binaries are now supported alongside Chromium. Hosted CI sets up
+Node 22 and requires an installed compatible browser; missing dependencies fail
+explicitly instead of skipping. Local missing-dependency skips remain documented.
+Focused portal tests: 9 passed, including CI failure-policy tests and real local
+Chromium execution. Ruff/mypy253/diff-check pass. No external provider access.
+
+## Verified review repairs and runtime continuation (2026-10-06 01:36 UTC)
+
+Main fetched again:ea3591c5086fbf2cee8038bf9208ac7f0050de75, unchanged.
+
+- PR73 head7b7ab2963b79e23d99f945dc83624da6584cab93, basePR72
+  (4d1506ac60f4f68556383c709755fc4d3067a0c4): Full exit0,914 passed+6 local
+  PowerShell-only skips; all required gates passed. HostedCI37398286003 succeeded,
+  920 passed/zero skips. Actual merge checkout73fa85711a7c98bef8c8362a3ace8c686063e532,
+  treeeced2e4a3a064ccb3c13dcbe9c50661cca19ea4f equals head tree. Five original action
+  safety findings plus source starvation/suppression/checkout repairs and second
+  review retry sequences are regression-covered. See checkpoint file for mapping.
+- PR76 actual Stripe HTTP runtime head7ff793fb62959a3818f25a9a07ee69979d407914,
+  basePR73: Full exit0,932 passed+6 PowerShell-only skips; all required gates passed.
+  Hosted CI pending. Original implementation694e338 remains in ancestry;7ff793f
+  adds repaired base. Disabled default, test mode only; no live calls or charges.
+- PR74 Google runtime headf92d0ab30707554b1b85c6798f2c70d4ab6a137a, basePR76:
+  real REST exchange/refresh/paging plus90day delayed-conversion refresh.73 focused
+  tests passed. Main Full suite956+6 passed; final gate/hostedCI pending at checkpoint.
+- PR75 TikTok runtime head01aa869b7df73bcdf1dca5fc25391a43f0af4efc, basePR74:
+  real HTTP exchange/advertiser/inventory/report reads,89 focusedtests passed.
+  Full/CI pending. Conversion/revenue qualification and token lifecycle remain code.
+- Billing management branch head275e0ee179c2b6d84f1b2a14b3048b44b123c5ae,
+  basePR76: owner/CSRF management handoff and retired-subscription reconciliation;
+  80 focusedtests passed. Main Full suite942+6 passed, final gate pending; noPR yet.
+- Customer portal code8fa0714d9cb95b54749bb54ff62e19a2c286caf9 includes billing
+  management. Workspace/monthly-goal review-confirm/status/test billing journeys;
+  9 focused tests passed including Chromium, Node and CI dependency policy. Full
+  not yet run. Signup, connection setup and mandate editing remain implementation.
+
+No merge, deployment, live/provider calls, credentials, purchasing or advertising
+changes occurred. All new transports default disabled. Real HTTP code is mock-tested,
+not live-qualified. Upcoming packages:finish these validation runs and independent
+review; provider token renewal/revocation, old unknown billing-attempt recovery,
+Meta per-child performance and CRM actual transports, customer authentication/setup
+journeys, then remaining reviewed campaign/creative/publication/operational backlog.
+Prices/currency/catalog and live enablement remain owner decisions; no approvals
+needed for continuing authorized offline engineering. Public webpage remains owner-managed.
+
+## PR78 Review Repairs — Candidate
+
+Branch `codex/inlet-portal-repairs` starts from PR78 head
+`8b4b727c926b06baa1b68b2a3c40dcf144c55ff6`. See
+[repair behavior and evidence](inlet-portal-review-repairs.md).
+Customer DOM and memory are erased on session changes, logout, expired sessions
+and workspace reload; stale asynchronous replies cannot restore prior data.
+Goal creation now requires a customer/workspace-scoped, input-bound idempotency
+key with atomic receipt/goal/revision persistence and concurrency protection.
+The portal reuses uncertain save keys within the current session/workspace.
+Cross-reload discovery remains via the goal list, not persisted browser payloads.
+Focused checks: 54 passed (SQLite, PostgreSQL and Chromium), no skips; Ruff,
+mypy (250 files), and diff whitespace check passed.
+Full validation/CI pending; no live calls, purchase, merge or deployment.
+### 2026-10-06 Billing Recovery Review Package
+
+PR77-based `codex/inlet-billing-recovery` fixes the reproduced PostgreSQL replacement
+checkout race and adds read-only reconciliation of expired uncertain Stripe attempts.
+95 focused SQLite/PostgreSQL tests passed, one SQLite row-lock skip; Ruff/mypy249/
+format/diff passed. Full/CI pending. See `inlet-billing-recovery.md` for exact scope,
+primary contract references and legacy-key limitation. No live requests or activation.
+
+Earlier runtime validation is now terminal: PR75 Full989+6 local PowerShell skips,
+CI995; PR76 Full932+6, CI938; PR77 Full942+6, CI948; all gates passed. PR78 Full951+6
+passed, CI still finishing. Known subsequent findings are tracked in PR79–84 and
+this billing repair; these green baseline checks do not close newer findings.
 
 #### PR83 TikTok outbox review repair
 
@@ -692,3 +832,17 @@ Ruff/mypy253 files/diffcheck passed. Log:/tmp/inlet-scheduler-tiktok-final.log.
 The prior head96cca816 Full remains running in its untouched worktree; this repair
 was made in isolated/workspace/inlet-scheduler-repair so old validation is not
 silently attributed to the new code. Final-head Full/CI remain pending.
+### Klaviyo Nullable Channel Regression — 2026-10-06
+
+Isolated branch `codex/inlet-crm-nullable-fix` from PR82 head
+`6080164d7f2ca66d0d8599ff9faa4346de64c425` preserves the ongoing Full run's tree.
+The pinned 2026-07-15 schema permits null email/SMS subscription channels:
+https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/apis/get_profiles.json
+A mixed page with subscribed email and null SMS reproduced
+`crm_profile_response_invalid` before the fix. Nullable channels now project unknown
+consent and suppression, retaining valid neighboring channels and profiles. The HTTP
+regression covers both channel directions, both null, nullable marketing and ordinary
+subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with disposable
+PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
+head remains separate evidence; this correction has not independently run Full or
+called a live provider.

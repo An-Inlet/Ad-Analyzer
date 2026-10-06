@@ -24,7 +24,10 @@ def test_customer_and_checkout_wire_contract() -> None:
         assert request.headers["idempotency-key"] == KEY
         body = parse_qs(request.content.decode())
         if request.url.path == "/v1/customers":
-            assert body == {"metadata[inlet_workspace_id]": ["42"]}
+            assert body == {
+                "metadata[inlet_workspace_id]": ["42"],
+                "metadata[inlet_customer_request]": [KEY],
+            }
             return httpx.Response(200, json={"id": "cus_test", "livemode": False})
         assert body["customer"] == ["cus_test"]
         assert body["line_items[0][price]"] == ["price_test"]
@@ -92,7 +95,7 @@ def test_expired_retry_and_live_key_do_not_reach_transport() -> None:
         clock=lambda: NOW + timedelta(hours=23),
     )
     with pytest.raises(BillingProviderError, match="requires_reconciliation"):
-        wire.customer(42, KEY)
+        wire.request("POST", "/v1/customers", key=KEY)
     with pytest.raises(ValueError):
         StripeBilling(SecretStr("sk_live_synthetic"), "2025-03-31.basil")
 
@@ -173,3 +176,38 @@ def test_bounded_response_and_transport_failure(fault: str) -> None:
     with pytest.raises(BillingProviderError) as error:
         wire.customer(42, KEY)
     assert "private" not in str(error.value)
+
+
+@pytest.mark.parametrize("fault", [None, "owner", "url", "configuration"])
+def test_portal_request_and_response_scope(fault: str | None) -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/billing_portal/sessions"
+        form = parse_qs(request.content.decode())
+        assert form["customer"] == ["cus_test"]
+        assert form["configuration"] == ["bpc_test"]
+        assert form["return_url"] == ["https://inlet.example/app/settings"]
+        return httpx.Response(
+            200,
+            json={
+                "livemode": False,
+                "customer": "cus_other" if fault == "owner" else "cus_test",
+                "configuration": "bpc_other" if fault == "configuration" else "bpc_test",
+                "url": "https://other.example"
+                if fault == "url"
+                else "https://billing.stripe.com/session/test",
+            },
+        )
+
+    wire = StripeBilling(
+        SecretStr("sk_test_synthetic"),
+        "2025-03-31.basil",
+        http_transport=httpx.MockTransport(respond),
+        clock=lambda: NOW,
+    )
+    if fault:
+        with pytest.raises(BillingProviderError):
+            wire.portal("cus_test", "bpc_test", "https://inlet.example/app/settings", KEY)
+    else:
+        assert wire.portal(
+            "cus_test", "bpc_test", "https://inlet.example/app/settings", KEY
+        ).startswith("https://billing.stripe.com/")

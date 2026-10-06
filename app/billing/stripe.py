@@ -21,6 +21,17 @@ class BillingProviderError(RuntimeError):
     pass
 
 
+class BillingReconciliationRequired(BillingProviderError):
+    """An uncertain attempt must never be blindly recreated."""
+
+
+def attempt_stamp(key: str) -> int:
+    match = re.fullmatch(r"([0-9]{10,12})_([a-f0-9]{32})", key)
+    if match is None:
+        raise BillingReconciliationRequired("billing_attempt_requires_reconciliation")
+    return int(match[1])
+
+
 def identifier(value: str, prefix: str) -> str:
     if re.fullmatch(prefix + r"_[A-Za-z0-9_]{1,128}", value) is None:
         raise BillingProviderError("billing_resource_invalid")
@@ -55,6 +66,9 @@ class StripeBilling:
         path: str,
         data: dict[str, str] | None = None,
         key: str | None = None,
+        *,
+        params: dict[str, str] | None = None,
+        collection: Literal["resources", "line_items"] | None = None,
     ) -> dict[str, Any]:
         headers = {
             "Authorization": "Bearer " + self.key.get_secret_value(),
@@ -63,13 +77,8 @@ class StripeBilling:
         if key is not None:
             # Stripe can prune old idempotency keys. Never resubmit an unresolved
             # mutation after that safe retry window or with an unaged legacy key.
-            stamp, _, nonce = key.partition("_")
-            if (
-                not stamp.isdigit()
-                or len(nonce) != 32
-                or not 0 <= self.clock().timestamp() - int(stamp) < 23 * 3600
-            ):
-                raise BillingProviderError("billing_attempt_requires_reconciliation")
+            if not 0 <= self.clock().timestamp() - attempt_stamp(key) < 23 * 3600:
+                raise BillingReconciliationRequired("billing_attempt_requires_reconciliation")
             headers["Idempotency-Key"] = key
         try:
             with (
@@ -80,7 +89,11 @@ class StripeBilling:
                     trust_env=False,
                 ) as client,
                 client.stream(
-                    method, "https://api.stripe.com" + path, headers=headers, data=data
+                    method,
+                    "https://api.stripe.com" + path,
+                    headers=headers,
+                    data=data,
+                    params=params,
                 ) as response,
             ):
                 if response.status_code in {401, 403}:
@@ -95,17 +108,40 @@ class StripeBilling:
                     if len(body) > 2_000_000:
                         raise BillingProviderError("billing_response_too_large")
                 result = json.loads(body)
-                if not isinstance(result, dict) or result.get("livemode") is not False:
-                    raise BillingProviderError("billing_live_or_invalid_response_blocked")
+                if not isinstance(result, dict):
+                    raise BillingProviderError("billing_response_invalid")
+                if collection is None:
+                    if result.get("livemode") is not False:
+                        raise BillingProviderError("billing_live_or_invalid_response_blocked")
+                else:
+                    rows = result.get("data")
+                    if (
+                        result.get("object") not in {"list", "search_result"}
+                        or type(result.get("has_more")) is not bool
+                        or not isinstance(rows, list)
+                        or len(rows) > 100
+                    ):
+                        raise BillingProviderError("billing_collection_invalid")
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            raise BillingProviderError("billing_collection_invalid")
+                        checked = row.get("price") if collection == "line_items" else row
+                        if not isinstance(checked, dict) or checked.get("livemode") is not False:
+                            raise BillingProviderError("billing_live_or_invalid_response_blocked")
                 return result
         except (httpx.HTTPError, ValueError, TypeError):
             raise BillingProviderError("billing_transport_or_response_unavailable") from None
 
     def customer(self, workspace_id: int, idempotency_key: str) -> str:
+        if self.expired_attempt(idempotency_key):
+            return self.recover_customer(workspace_id, idempotency_key)
         body = self.request(
             "POST",
             "/v1/customers",
-            {"metadata[inlet_workspace_id]": str(workspace_id)},
+            {
+                "metadata[inlet_workspace_id]": str(workspace_id),
+                "metadata[inlet_customer_request]": idempotency_key,
+            },
             idempotency_key,
         )
         return identifier(body["id"], "cus")
@@ -113,20 +149,23 @@ class StripeBilling:
     def checkout(
         self, customer_id: str, price_id: str, idempotency_key: str, return_url: str
     ) -> CheckoutResult:
-        body = self.request(
-            "POST",
-            "/v1/checkout/sessions",
-            {
-                "customer": identifier(customer_id, "cus"),
-                "mode": "subscription",
-                "line_items[0][price]": identifier(price_id, "price"),
-                "line_items[0][quantity]": "1",
-                "success_url": return_url,
-                "cancel_url": return_url,
-                "metadata[inlet_checkout_request]": idempotency_key,
-            },
-            idempotency_key,
-        )
+        if self.expired_attempt(idempotency_key):
+            body = self.recover_checkout(customer_id, price_id, idempotency_key)
+        else:
+            body = self.request(
+                "POST",
+                "/v1/checkout/sessions",
+                {
+                    "customer": identifier(customer_id, "cus"),
+                    "mode": "subscription",
+                    "line_items[0][price]": identifier(price_id, "price"),
+                    "line_items[0][quantity]": "1",
+                    "success_url": return_url,
+                    "cancel_url": return_url,
+                    "metadata[inlet_checkout_request]": idempotency_key,
+                },
+                idempotency_key,
+            )
         if body.get("customer") != customer_id or body.get("mode") != "subscription":
             raise BillingProviderError("billing_checkout_identity_mismatch")
         return CheckoutResult(
@@ -134,6 +173,100 @@ class StripeBilling:
             url=body["url"],
             expires_at=datetime.fromtimestamp(body["expires_at"], UTC),
         )
+
+    def expired_attempt(self, key: str) -> bool:
+        age = self.clock().timestamp() - attempt_stamp(key)
+        if age < 0:
+            raise BillingReconciliationRequired("billing_attempt_requires_reconciliation")
+        return age >= 23 * 3600
+
+    def recover_customer(self, workspace_id: int, key: str) -> str:
+        # Search is eventually consistent: an empty result is never proof that
+        # creation failed and NEVER authorizes another POST or a fresh key.
+        query = (
+            f"metadata['inlet_workspace_id']:'{workspace_id}' AND "
+            f"metadata['inlet_customer_request']:'{key}'"
+        )
+        result = self.request(
+            "GET",
+            "/v1/customers/search",
+            params={"query": query, "limit": "2"},
+            collection="resources",
+        )
+        rows = result["data"]
+        if result["has_more"] or len(rows) != 1:
+            raise BillingReconciliationRequired("billing_customer_reconciliation_unresolved")
+        body = self.request("GET", "/v1/customers/" + identifier(rows[0]["id"], "cus"))
+        metadata = body.get("metadata", {})
+        if (
+            body.get("id") != rows[0]["id"]
+            or not isinstance(metadata, dict)
+            or metadata.get("inlet_workspace_id") != str(workspace_id)
+            or metadata.get("inlet_customer_request") != key
+        ):
+            raise BillingReconciliationRequired("billing_customer_reconciliation_mismatch")
+        return identifier(body["id"], "cus")
+
+    def recover_checkout(self, customer: str, price: str, key: str) -> dict[str, Any]:
+        customer, price = identifier(customer, "cus"), identifier(price, "price")
+        params = {
+            "customer": customer,
+            "limit": "100",
+            "created[gte]": str(max(0, attempt_stamp(key) - 60)),
+            "created[lte]": str(int(self.clock().timestamp())),
+        }
+        matches: set[str] = set()
+        seen: set[str] = set()
+        for _ in range(100):
+            page = self.request(
+                "GET", "/v1/checkout/sessions", params=params, collection="resources"
+            )
+            rows = page["data"]
+            for row in rows:
+                cid = identifier(row["id"], "cs")
+                if row.get("customer") != customer or cid in seen:
+                    raise BillingReconciliationRequired("billing_checkout_reconciliation_mismatch")
+                seen.add(cid)
+                metadata = row.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    raise BillingReconciliationRequired("billing_checkout_reconciliation_mismatch")
+                if metadata.get("inlet_checkout_request") == key:
+                    matches.add(cid)
+            if not page["has_more"]:
+                break
+            if not rows:
+                raise BillingReconciliationRequired("billing_checkout_reconciliation_unresolved")
+            params["starting_after"] = rows[-1]["id"]
+        else:
+            raise BillingReconciliationRequired("billing_checkout_reconciliation_unresolved")
+        if len(matches) != 1:
+            raise BillingReconciliationRequired("billing_checkout_reconciliation_unresolved")
+        cid = matches.pop()
+        body = self.request("GET", "/v1/checkout/sessions/" + cid)
+        metadata = body.get("metadata")
+        if (
+            body.get("id") != cid
+            or body.get("customer") != customer
+            or body.get("mode") != "subscription"
+            or not isinstance(metadata, dict)
+            or metadata.get("inlet_checkout_request") != key
+        ):
+            raise BillingReconciliationRequired("billing_checkout_reconciliation_mismatch")
+        items = self.request(
+            "GET",
+            "/v1/checkout/sessions/" + cid + "/line_items",
+            params={"limit": "2"},
+            collection="line_items",
+        )
+        if (
+            items["has_more"]
+            or len(items["data"]) != 1
+            or type(items["data"][0].get("quantity")) is not int
+            or items["data"][0]["quantity"] != 1
+            or items["data"][0]["price"].get("id") != price
+        ):
+            raise BillingReconciliationRequired("billing_checkout_price_mismatch")
+        return body
 
     def checkout_state(self, customer_id: str, checkout_id: str, now: datetime) -> CheckoutState:
         body = self.request("GET", "/v1/checkout/sessions/" + identifier(checkout_id, "cs"))
@@ -189,7 +322,7 @@ class StripeBilling:
             },
             request_key,
         )
-        if body.get("customer") != customer_id:
+        if body.get("customer") != customer_id or body.get("configuration") != configuration_id:
             raise BillingProviderError("billing_portal_identity_mismatch")
         url = str(body["url"])
         from urllib.parse import urlsplit

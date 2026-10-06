@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
-from app.ads.models import Ad, AdGroup, Campaign, DailyMetric
+from app.ads.models import Ad, AdGroup, Campaign, DailyMetric, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdCreate, AdGroupCreate, CampaignCreate, DailyMetricCreate
 from app.google_connections.models import GoogleImportCompletion
@@ -17,6 +17,12 @@ from app.imports.scope import AdvertisingImportScope, validate_advertising_scope
 from app.sources import service
 from app.sources.contracts import AdvertisingPage, SourceTransport
 from app.sources.models import SourceConnection
+from app.tiktok.http import (
+    TikTokAuthorizationUnavailable,
+    TikTokProviderRejected,
+    TikTokReadError,
+    TikTokTransientError,
+)
 
 
 def _publish(
@@ -132,6 +138,31 @@ class SourceReadUnavailable(HTTPException):
         super().__init__(502, "source read unavailable")
 
 
+def _stop_reads(db: Session, row: SourceConnection, *, provider_code: int | None = None) -> None:
+    # tick holds workspace/connection locks; old generation work cannot publish.
+    db.execute(
+        delete(GoogleImportCompletion).where(
+            GoogleImportCompletion.state == "pending",
+            GoogleImportCompletion.job_id.in_(
+                select(JobRun.id).where(
+                    JobRun.workspace_id == row.workspace_id,
+                    JobRun.connection_id == row.integration_id,
+                    JobRun.account_id == row.account_id,
+                )
+            ),
+        )
+    )
+    if provider_code is None:
+        row.status, row.error_code = "reconnect_required", "authorization_unavailable"
+        row.encrypted_grant = None
+    else:
+        row.status, row.error_code = "provider_error", f"provider_rejected_{provider_code}"
+    row.cursor, row.staged = None, {}
+    row.generation += 1
+    row.next_attempt_at = None
+    db.commit()
+
+
 def tick(
     db: Session,
     workspace_id: int,
@@ -145,7 +176,7 @@ def tick(
     paid_work(db, workspace_id, now)
     service.ready(transport)
     row = service.owned(db, workspace_id, "tiktok_ads", connection_id)
-    if row.generation != generation or row.account_id is None:
+    if row.generation != generation or row.account_id is None or row.status != "connected":
         raise HTTPException(409, "source generation unavailable")
     scope = AdvertisingImportScope(
         workspace_id, row.integration_id, row.account_id, AdvertisingPlatform.TIKTOK_ADS
@@ -154,13 +185,28 @@ def tick(
     try:
         token = service.token(row, now)
     except HTTPException:
-        row.status, row.error_code = "reconnect_required", "token_expired_or_unavailable"
-        db.commit()
+        _stop_reads(db, row)
         raise
     try:
         raw_page = transport.read(
             row.external_id, token, row.window_start, row.window_end, row.cursor
         )
+    except TikTokAuthorizationUnavailable:
+        _stop_reads(db, row)
+        raise HTTPException(409, "source requires fresh consent") from None
+    except TikTokProviderRejected as exc:
+        _stop_reads(db, row, provider_code=exc.provider_code)
+        raise HTTPException(
+            409, "source provider rejected request; review access before reconnecting"
+        ) from None
+    except TikTokReadError as exc:
+        if not isinstance(exc, TikTokTransientError):
+            # Semantic/provider rejection is not a retryable page. Dispatcher
+            # resets staging after rollback and rechecks the current generation.
+            raise HTTPException(409, "source provider rejected import") from None
+        row.error_code, row.next_attempt_at = "read_unavailable", now + timedelta(minutes=5)
+        db.commit()
+        raise SourceReadUnavailable() from None
     except Exception:
         row.error_code, row.next_attempt_at = "read_unavailable", now + timedelta(minutes=5)
         db.commit()

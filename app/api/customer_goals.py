@@ -2,9 +2,8 @@
 
 from datetime import UTC, datetime
 from typing import Annotated, Any
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from sqlalchemy import func, select
 
 from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
@@ -37,15 +36,17 @@ def access(
 def create(
     workspace_id: int,
     body: DraftInput,
+    idempotency_key: Annotated[
+        str, Header(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+    ],
     principal: MutationPrincipal,
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
     access(db, principal.user.id, workspace_id, response, edit=True)
-    item = Goal(id=uuid4().hex, workspace_id=workspace_id, revision=0)
-    db.add(item)
-    db.flush()
-    service.revise(db, item, body.definition, principal.user.id, datetime.now(UTC))
+    item = service.create(
+        db, workspace_id, principal.user.id, idempotency_key, body.definition, datetime.now(UTC)
+    )
     db.commit()
     return service.serialize(db, item)
 

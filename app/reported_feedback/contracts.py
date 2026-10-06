@@ -254,6 +254,9 @@ class ReportedFeedbackPolicyV1(Committed):
 
 
 class ReportedFeedbackPreviewV1(Committed):
+    environment: Literal["contract_test", "live"]
+    cohort: CohortV1
+    policy: ReportedFeedbackPolicyV1
     id: Id
     comparison_id: Id
     comparison_digest: Digest
@@ -279,7 +282,9 @@ class ReportedFeedbackPreviewV1(Committed):
     @model_validator(mode="after")
     def exact_delta(self) -> "ReportedFeedbackPreviewV1":
         if (
-            self.baseline_budget_micros + self.delta_micros != self.proposed_budget_micros
+            self.policy.environment != self.environment
+            or self.policy_digest != self.policy.digest()
+            or self.baseline_budget_micros + self.delta_micros != self.proposed_budget_micros
             or self.created_at >= self.expires_at
         ):
             raise ValueError("bounded non-compounding preview required")

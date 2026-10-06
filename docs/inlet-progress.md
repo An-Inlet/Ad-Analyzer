@@ -3336,3 +3336,16 @@ Frozen8efe196 localFull primary2639 passed59 skipped; subsequent Ruff, mypy,
 PostgreSQL transaction/migration roundtrip, read-only/security/privacy gates completed.
 Final focused gate includes another nestedFull regression and remains running.
 Hosted run37427571832 remains nonterminal.
+
+### 2026-10-06 — Commercial offer qualification integrated
+
+Integrated PR193 frozen43b7e38. Exact immutable offer binding, configured-price and
+provider-object qualification, paid invoice/payment/charge lineage, original-key
+config-drift recovery and failed-fresh-qualification entitlement invalidation are
+implemented. No prices, production allowance or live settings enabled. Root checks:
+111 passed, one expected SQLite lock skip,13 migration warnings in91.76s, including
+browser purchase/recovery and retained settlement (`/tmp/inlet-next-billing-offer.log`).
+Ruff check . passed after formatting-only0063 SQL literal split; configured mypy524
+files and whitespace passed. Additional production assembly binding is being audited;
+unsupported commercial shapes still require code if selected. Offline fixtures do not
+qualify a live purchasable release.

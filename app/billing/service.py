@@ -9,15 +9,17 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.billing import repository
+from app.billing import offer_bindings, repository
 from app.billing.contracts import (
     BillingManagementTransport,
     BillingPolicy,
     BillingTransport,
+    BoundBillingTransport,
     SubscriptionState,
     UnavailableBilling,
 )
 from app.billing.models import WorkspaceBilling
+from app.billing.offers import BoundOfferV1, OfferQualificationV1, configured_offer, digest
 from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 from app.billing.stripe import BillingReconciliationRequired
 from app.mandates.service import workspace_lock
@@ -69,12 +71,29 @@ def checkout(
         or redirect.fragment
     ):
         raise HTTPException(503, "billing return unavailable")
+    profile = None
+    if scope.qualified:
+        try:
+            profile = configured_offer()
+        except ValueError:
+            raise HTTPException(503, "commercial offer unavailable") from None
+        if (
+            profile.scope != scope
+            or profile.price_id != policy.price_id
+            or not isinstance(transport, BoundBillingTransport)
+        ):
+            raise HTTPException(503, "commercial offer transport unavailable")
     row = owned(db, wid, now, scope=scope)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
     key, customer = row.customer_request_key, row.customer_id
     db.commit()  # Durable idempotency key exists before the provider boundary.
     if customer is None:
+        if profile is not None and isinstance(transport, BoundBillingTransport):
+            try:
+                transport.qualify_offer(profile)
+            except Exception:
+                raise HTTPException(503, "commercial offer unqualified") from None
         try:
             customer = transport.customer(wid, key)
         except BillingReconciliationRequired:
@@ -131,7 +150,12 @@ def checkout(
             # Retirement and installation of the new durable key share this
             # locked transaction; there must be no commit in between.
         if outcome == "open":
-            if row.checkout_price != policy.price_id:
+            if row.checkout_price != policy.price_id or (
+                profile is not None
+                and (old_offer := offer_bindings.binding(db, row, "checkout_offer_binding_id"))
+                is not None
+                and digest(old_offer.profile) != digest(profile)
+            ):
                 raise HTTPException(409, "checkout already pending for another plan")
             if (
                 not row.checkout_url
@@ -142,22 +166,40 @@ def checkout(
             return {"mode": transport.mode, "url": row.checkout_url, "id": row.checkout_id}
         # Only canonical expired/no-subscription proof permits a new idempotency key.
         row = owned(db, wid, scope=scope)
-    if row.checkout_key is None:
+    new_checkout = row.checkout_key is None
+    if new_checkout:
+        row.checkout_offer_binding_id = None
         row.checkout_key, row.checkout_price = (
             f"{int(now.timestamp())}_{uuid4().hex}",
             policy.price_id,
         )
-    if row.checkout_price != policy.price_id:
+    bound = offer_bindings.binding(db, row, "checkout_offer_binding_id")
+    if profile is not None and bound is None:
+        # Existing unbound request is unknown, never silently retrofit new economics.
+        if not new_checkout or row.checkout_price != policy.price_id or row.checkout_id is not None:
+            raise HTTPException(409, "pending checkout offer unavailable")
+        bound = offer_bindings.install(db, row, profile, now)
+    if profile is None and row.checkout_price != policy.price_id:
         raise HTTPException(409, "pending checkout must be reconciled")
     checkout_key = row.checkout_key
+    if checkout_key is None:
+        raise HTTPException(409, "checkout request unavailable")
     db.commit()
     try:
-        result = transport.checkout(customer, policy.price_id, checkout_key, return_url)
+        if bound is not None and isinstance(transport, BoundBillingTransport):
+            result = transport.checkout_bound(
+                bound,
+                customer,
+                return_url,
+                recover_only=profile is None or digest(profile) != digest(bound.profile),
+            )
+        else:
+            result = transport.checkout(customer, policy.price_id, checkout_key, return_url)
     except BillingReconciliationRequired:
         raise HTTPException(409, "checkout recovery unresolved; retry reconciliation") from None
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
-    if result.scope != scope:
+    if result.scope != scope or (bound is not None and result.binding_digest != digest(bound)):
         raise HTTPException(409, "checkout environment mismatch")
     if result.url is not None:
         location = urlsplit(result.url)
@@ -205,7 +247,9 @@ def reconcile(
     try:
         target = event.subscription_id
         if row.subscription_id is not None and row.subscription_id != target:
-            notified = verified_current(transport, row.customer_id, target, now)
+            notified = verified_current(
+                transport, row.customer_id, target, now, historical_terminal=True
+            )
             if notified.status in {"canceled", "incomplete_expired"}:
                 # Delayed events for a terminal subscription cannot replace a
                 # current purchase. Read the current purchase before acknowledging.
@@ -216,6 +260,8 @@ def reconcile(
                     raise HTTPException(409, "subscription identity requires reconciliation")
         refresh(db, wid, policy, transport, now, subscription_id=target)
     except HTTPException:
+        if scope.qualified:
+            row.error_code = "commercial_qualification_unavailable"
         event.error_code = "provider_read_unavailable"
         event.next_attempt_at = now + timedelta(minutes=1)
         row.next_attempt_at = event.next_attempt_at
@@ -237,6 +283,20 @@ def require_entitlement(
     scope: BillingScopeV1 = LEGACY_TEST_SCOPE,
 ) -> None:
     row = owned(db, wid, scope=scope)
+    if scope.qualified:
+        try:
+            profile = configured_offer()
+            bound = offer_bindings.binding(db, row, "subscription_offer_binding_id")
+            q = OfferQualificationV1.model_validate(row.qualification)
+            if (
+                bound is None
+                or digest(bound.profile) != digest(profile)
+                or row.qualification_digest != digest(q)
+            ):
+                raise ValueError
+            offer_bindings.qualified(row, bound, q)
+        except (ValueError, HTTPException):
+            raise HTTPException(402, "qualified paid offer unavailable") from None
     allowed = {"active", "trialing"} if policy.trial_allowed else {"active"}
     if (
         row.status not in allowed
@@ -271,10 +331,26 @@ def refresh(
         raise HTTPException(409, "billing identity unavailable")
     if row.subscription_id is not None and row.subscription_id != subscription_id:
         raise HTTPException(409, "billing identity conflict")
-    state = verified_current(transport, row.customer_id, subscription_id, now)
+    bound = offer_bindings.binding(
+        db,
+        row,
+        "subscription_offer_binding_id"
+        if row.subscription_id is not None
+        else "checkout_offer_binding_id",
+    )
+    state = verified_current(transport, row.customer_id, subscription_id, now, bound=bound)
     row.subscription_id, row.price_id = state.subscription_id, state.price_id
     row.status, row.period_end = state.status, state.period_end
     row.cancel_at_period_end, row.verified_at = state.cancel_at_period_end, state.observed_at
+    if scope.qualified:
+        if bound is None:
+            raise HTTPException(409, "commercial binding unavailable")
+        row.subscription_offer_binding_id = bound.id
+        row.qualification, row.qualification_digest = None, None
+        if state.qualification is not None:
+            offer_bindings.qualified(row, bound, state.qualification)
+            row.qualification = state.qualification.model_dump(mode="json")
+            row.qualification_digest = digest(state.qualification)
     row.error_code = None if state.price_id == policy.price_id else "unrecognized_price"
     row.next_attempt_at = now + timedelta(seconds=policy.max_snapshot_age_seconds // 2)
 
@@ -292,7 +368,13 @@ def resolve_checkout(
     if row.checkout_id is None or row.customer_id is None:
         raise HTTPException(409, "checkout identity unavailable")
     try:
-        state = transport.checkout_state(row.customer_id, row.checkout_id, now)
+        bound = offer_bindings.binding(db, row, "checkout_offer_binding_id")
+        if scope.qualified:
+            if bound is None or not isinstance(transport, BoundBillingTransport):
+                raise HTTPException(409, "commercial binding unavailable")
+            state = transport.checkout_state_bound(bound, row.customer_id, row.checkout_id, now)
+        else:
+            state = transport.checkout_state(row.customer_id, row.checkout_id, now)
     except Exception:
         raise HTTPException(502, "checkout reconciliation unavailable") from None
     if (
@@ -367,13 +449,21 @@ def management(
     if row.customer_id is None:
         raise HTTPException(409, "billing customer unavailable")
     customer = row.customer_id
+    bound = offer_bindings.binding(db, row, "subscription_offer_binding_id")
     # A portal session creates no subscription or charge. Each request gets its
     # own short-lived session; provider-side subscription changes reconcile later.
     db.commit()
     try:
-        url = transport.portal(
-            customer, configuration_id, return_url, f"{int(now.timestamp())}_{uuid4().hex}"
-        )
+        if scope.qualified:
+            if bound is None or not isinstance(transport, BoundBillingTransport):
+                raise HTTPException(409, "commercial binding unavailable")
+            url = transport.portal_bound(
+                bound, customer, return_url, f"{int(now.timestamp())}_{uuid4().hex}"
+            )
+        else:
+            url = transport.portal(
+                customer, configuration_id, return_url, f"{int(now.timestamp())}_{uuid4().hex}"
+            )
     except Exception:
         raise HTTPException(502, "billing management unavailable") from None
     location = urlsplit(url)
@@ -383,10 +473,25 @@ def management(
 
 
 def verified_current(
-    transport: BillingTransport, customer_id: str, subscription_id: str, now: datetime
+    transport: BillingTransport,
+    customer_id: str,
+    subscription_id: str,
+    now: datetime,
+    *,
+    bound: BoundOfferV1 | None = None,
+    historical_terminal: bool = False,
 ) -> SubscriptionState:
     try:
-        state = transport.current(customer_id, subscription_id, now)
+        if historical_terminal:
+            state = transport.current(customer_id, subscription_id, now)
+            if state.status not in {"canceled", "incomplete_expired"}:
+                raise HTTPException(409, "historical subscription not terminal")
+        elif repository.transport_scope(transport).qualified:
+            if bound is None or not isinstance(transport, BoundBillingTransport):
+                raise HTTPException(409, "commercial binding unavailable")
+            state = transport.current_bound(bound, customer_id, subscription_id, now)
+        else:
+            state = transport.current(customer_id, subscription_id, now)
     except Exception:
         raise HTTPException(502, "billing verification unavailable") from None
     if (
@@ -395,6 +500,7 @@ def verified_current(
         or state.observed_at < now - timedelta(seconds=30)
         or state.observed_at > now
         or state.scope != repository.transport_scope(transport)
+        or (bound is not None and state.binding_digest != digest(bound))
     ):
         raise HTTPException(409, "billing verification mismatch")
     return state

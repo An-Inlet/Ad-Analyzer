@@ -215,6 +215,9 @@ class Settings(BaseSettings):
     billing_provider_mode: str = Field(
         default="disabled", alias="AD_ANALYZER_BILLING_PROVIDER_MODE"
     )
+    billing_offer_profile: str | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_OFFER_PROFILE"
+    )
     billing_live_max_accounts: int | None = Field(
         default=None, ge=1, le=100, alias="AD_ANALYZER_BILLING_LIVE_MAX_ACCOUNTS"
     )

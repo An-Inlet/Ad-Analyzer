@@ -89,6 +89,7 @@ class MetaImagePublicationFields(SocialFields):
     facebook_positions: list[Literal["feed"]] = Field(min_length=1, max_length=1)
     advantage_audience: Literal[0]
     dynamic_creative: Literal[False]
+    is_adset_budget_sharing_enabled: Literal[False]
     special_ad_categories: list[str] = Field(max_length=0)
     special_ad_category_declaration: Literal["none_applicable"]
     dsa_beneficiary: str | None = Field(max_length=200)
@@ -129,6 +130,7 @@ class TikTokVideoPublicationFields(SocialFields):
     bid_type: Literal["BID_TYPE_NO_BID"]
     pacing: Literal["PACING_MODE_SMOOTH"]
     schedule_type: Literal["SCHEDULE_START_END"]
+    schedule_wire_timezone: Literal["UTC"]
     click_attribution_window: Literal["ONE_DAY", "SEVEN_DAYS"]
     view_attribution_window: Literal["OFF", "ONE_DAY"]
     engaged_view_attribution_window: Literal["OFF", "ONE_DAY"]

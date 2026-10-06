@@ -62,6 +62,7 @@ def meta_fields() -> MetaImagePublicationFields:
         facebook_positions=["feed"],
         advantage_audience=0,
         dynamic_creative=False,
+        is_adset_budget_sharing_enabled=False,
         special_ad_categories=[],
         special_ad_category_declaration="none_applicable",
         dsa_beneficiary=None,

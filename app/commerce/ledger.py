@@ -48,6 +48,9 @@ def identity_key(vault: Vault, store: CommerceStore, kind: str, source_id: objec
 
 
 def lock_store(session: Session, store_id: str, workspace_id: int) -> CommerceStore:
+    from app.commerce.evidence import lock_workspace
+
+    lock_workspace(session, workspace_id, active=True)
     store = session.scalar(
         select(CommerceStore)
         .where(
@@ -125,8 +128,10 @@ def bind_store(
     configuration: Settings,
     now: datetime,
 ) -> CommerceStore:
+    from app.commerce.evidence import invalidate, lock_workspace
     from app.shopify.privacy_identity import preserve
 
+    lock_workspace(session, row.workspace_id, active=True)
     preserve(session, row)
     vault = Vault(configuration)
     key = vault.digest("commerce_shop", resource_id(shop_id, "Shop"))
@@ -165,6 +170,7 @@ def bind_store(
     store.next_attempt_at, store.error_code = None, None
     store.last_sync_at = None  # Reconnect must reconcile before reporting current completeness.
     row.commerce_store_id = store.id
+    invalidate(session, store, now, rebind=True)
     return store
 
 

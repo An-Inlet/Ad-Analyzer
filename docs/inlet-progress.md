@@ -1830,3 +1830,10 @@ failure sanitization, no-store responses and actual customer-session denial. Who
 Ruff, mypy (363 files) and diff check passed. Updated runbook and exact route inventory
 (now 80 protected method/path pairs). No Full, schema change, live calls, IAM or alert
 provisioning. External destination/escalation and deployment qualification remain gates.
+## B17 Commerce Publication Package (2026-10-06)
+
+Isolated branch `codex/inlet-commerce-evidence` from frozen PR130 `0cf6706`;0051down0047. Implemented terminal-only aggregate commerce publications, source generation/privacy epoch, workspace-first read/import/privacy locking, per-workspace retention transactions, owned no-store GETs, and explicit lifecycle scalar classification. Closure retains history; source privacy still deletes; comparison maturity remains unavailable. No outcome tables or production receipt adapter yet.
+
+Checks: focused suite124 passed2 expected SQLite race skips (`/tmp/inlet-commerce-evidence-focused.log`); final publication/migration subset14 passed1 expected SQLite lock skip (`/tmp/inlet-commerce-publications-final.log`); Ruff, mypy365, diff check pass. Disposable PG populated migration roundtrip passed. No Full/live calls. Export global revision0053/helper owned by portal_repairs is a pending integration dependency; commerce helper alone is not a global privacy guarantee. Next: wire approved global revision bump after that concrete head, then owned receipt adapter only when scheduler read boundary is frozen. See `docs/inlet-commerce-publications.md`.
+
+B17 export-fence followup: shared0053 model/helper cherry-picked from portal_repairs24fe23b (export-only serializer absent on this base omitted). Commerce invalidate now atomically bumps `Workspace.export_privacy_revision`; focused erasure/rebind/disconnect/retention assertions15 passed1 SQLite skip; combined0051+0053 populated roundtrip1 passed; Ruff/mypy367 pass. Archive capture/delivery and other-source invalidation are export-package work. PR136 https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/136 remains draft; root owns migration merge and Full qualification.

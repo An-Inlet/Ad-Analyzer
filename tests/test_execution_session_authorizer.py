@@ -1,5 +1,6 @@
 import time
 from dataclasses import replace
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -122,3 +123,135 @@ def test_session_revoked_during_optimization_preflight_cannot_emit(
         with pytest.raises(HTTPException) as denied:
             o.execute_claim(db, claim, actor, runtime, lambda: NOW)
         assert denied.value.status_code == 401 and server.posts == []
+
+
+@pytest.mark.parametrize("interruption", ["revoke", "expire"])
+@pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+def test_revocation_in_final_optimization_context_blocks_emission(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    provider: str,
+    interruption: str,
+) -> None:
+    with Session(customer_engine) as db:
+        wid, actor, binding, scope, target, action, runtime, server = optimization_ready(
+            db, configuration, tmp_path, provider
+        )
+        authorize, token = guard(db, actor)
+        runtime = replace(runtime, authorize=authorize)
+        row = o.prepare_optimization(
+            db, wid, binding, scope, target, action, "a" * 64, actor, runtime, lambda: NOW
+        )
+        o.approve_optimization(
+            db, wid, row.id, row.digest, row.plan_digest, actor, runtime, lambda: NOW
+        )
+        run = o.create_run(db, wid, row.id, actor, runtime, lambda: NOW)
+        claim = o.claim_step(db, wid, run.id, actor, runtime, lambda: NOW)
+        assert claim is not None
+        context = runtime.context
+        calls = 0
+        now = NOW
+
+        def resolve(scope):  # type: ignore[no-untyped-def]
+            nonlocal calls, now
+            calls += 1
+            result = context(scope)
+            if calls == 3:  # read-current, validate-only, then emission credential lookup
+                if interruption == "revoke":
+                    revoke(customer_engine, token)
+                else:
+                    now += timedelta(minutes=10)
+            return result
+
+        runtime = replace(runtime, context=resolve)
+        with pytest.raises(HTTPException) as denied:
+            o.execute_claim(db, claim, actor, runtime, lambda: now)
+        assert denied.value.status_code == (401 if interruption == "revoke" else 409)
+        assert (server.writes if provider == "google_ads" else server.posts) == []
+
+
+def test_revocation_in_creation_context_blocks_emission(
+    customer_engine: Engine, configuration: Settings, tmp_path: Path
+) -> None:
+    with Session(customer_engine) as db:
+        server = GoogleServer()
+        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+        authorize, token = guard(db, actor)
+        runtime = replace(runtime, authorize=authorize)
+        claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+        assert claim is not None
+        context = runtime.google_context
+
+        def resolve(request):  # type: ignore[no-untyped-def]
+            result = context(request)
+            revoke(customer_engine, token)
+            return result
+
+        runtime = replace(runtime, google_context=resolve)
+        # Reject forged claim lineage before resolving any credentials.
+        with pytest.raises(HTTPException) as forged:
+            c.execute_claim(
+                db,
+                claim.model_copy(update={"attempt_id": "f" * 32}),
+                actor,
+                store,
+                runtime,
+                lambda: NOW,
+            )
+        assert forged.value.status_code == 409
+        db.rollback()
+        with pytest.raises(HTTPException) as denied:
+            c.execute_claim(db, claim, actor, store, runtime, lambda: NOW)
+        assert denied.value.status_code == 401 and server.posts == 0
+
+
+def test_revocation_in_final_activation_context_blocks_emission(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.publication import activation as a
+    from app.publication import activation_review as r
+
+    from tests.test_activation_coordinator import runtime_for
+    from tests.test_activation_review import activation_ready
+    from tests.test_google_activation import Server
+
+    with Session(customer_engine) as db:
+        server = Server()
+        wid, parent, actor, store, review, binding = activation_ready(
+            db, configuration, tmp_path, server
+        )
+        row = r.prepare_activation(db, wid, parent, binding, actor, store, review, lambda: NOW)
+        r.approve_activation(
+            db, wid, row.id, row.digest, row.plan_digest, actor, store, review, lambda: NOW
+        )
+        run = r.create_run(db, wid, row.id, actor, store, review, lambda: NOW)
+        authorize, token = guard(db, actor)
+        review = replace(review, creation=replace(review.creation, authorize=authorize))
+        runtime = runtime_for(review, server)
+        claim = a.claim_step(db, wid, run.id, actor, store, runtime, lambda: NOW)
+        assert claim is not None
+        preflight = a.preflight_graph
+        context = runtime.context
+        completed = False
+
+        def checked(*args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal completed
+            preflight(*args, **kwargs)
+            completed = True
+
+        def resolve(request):  # type: ignore[no-untyped-def]
+            result = context(request)
+            if completed:
+                revoke(customer_engine, token)
+            return result
+
+        monkeypatch.setattr(a, "preflight_graph", checked)
+        runtime = replace(runtime, context=resolve)
+        count = server.activations
+        with pytest.raises(HTTPException) as denied:
+            a.execute_claim(db, claim, actor, store, runtime, lambda: NOW)
+        assert denied.value.status_code == 401 and server.activations == count

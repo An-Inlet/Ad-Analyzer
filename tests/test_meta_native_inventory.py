@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 import pytest
 from app.collectors.meta_native_inventory import (
+    MetaInventoryRequest,
     MetaNativeInventory,
     MetaNativeInventoryContext,
     MetaNativeInventoryHTTP,
@@ -43,7 +44,7 @@ def request() -> MetaNativeInventoryRequest:
     )
 
 
-def context(req: MetaNativeInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
+def context(req: MetaInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
     return MetaNativeInventoryContext(
         scope=req.account,
         request_digest=req.digest(),
@@ -245,7 +246,7 @@ def test_exact_owned_topology_and_shape(change: str) -> None:
 def test_current_context_rechecked_after_blocking_http(change: str) -> None:
     server = Server()
 
-    def fresh(req: MetaNativeInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
+    def fresh(req: MetaInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
         result = context(req, now)
         if server.calls:
             if change == "generation":
@@ -319,7 +320,7 @@ def test_expiry_during_context_resolution_is_checked_before_first_http() -> None
     server = Server()
     clock = [NOW]
 
-    def slow(req: MetaNativeInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
+    def slow(req: MetaInventoryRequest, now: datetime) -> MetaNativeInventoryContext:
         clock[0] += timedelta(minutes=6)
         return context(req, now)
 

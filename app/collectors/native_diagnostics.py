@@ -6,11 +6,14 @@ from typing import Any
 
 import httpx
 from fastapi import HTTPException
-from pydantic import Field, SecretStr
+from pydantic import AwareDatetime, Field, SecretStr, TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount
+from app.automation.catalog import AutomationControlKey
+from app.automation.service import AutomationControlService
+from app.billing.entitlements import paid_work
 from app.collectors import google_native_inventory as google
 from app.collectors import meta_native_inventory as meta
 from app.collectors import tiktok_native_inventory as tiktok
@@ -20,18 +23,17 @@ from app.google_connections.models import GoogleCustomerConnection
 from app.google_connections.security import Vault as GoogleVault
 from app.meta.models import MetaConnection
 from app.meta.security import Vault as MetaVault
+from app.publication import customer_intents
 from app.publication import execution_mandates as mandates
 from app.publication.execution_authorization import ExecutionAuthorizer
-from app.publication.execution_contracts import ProviderMandateBinding
+from app.publication.execution_contracts import ExecutionAccount, ProviderMandateBinding
 from app.settings import settings
 from app.shopify.security import utc
 from app.sources.models import SourceConnection
 from app.sources.security import SourceVault
 
 InventoryRequest = (
-    google.GoogleNativeInventoryRequest
-    | meta.MetaNativeInventoryRequest
-    | tiktok.TikTokNativeInventoryRequest
+    google.GoogleInventoryRequest | meta.MetaInventoryRequest | tiktok.TikTokInventoryRequest
 )
 Inventory = google.GoogleNativeInventory | meta.MetaNativeInventory | tiktok.TikTokNativeInventory
 
@@ -41,6 +43,18 @@ class NativeDiagnosticRequest(StrictModel):
     actor: str = Field(min_length=1, max_length=256)
     mandate: ProviderMandateBinding
     account_id: int = Field(gt=0)
+
+
+class AccountDiagnosticRequest(StrictModel):
+    expected_account: ExecutionAccount
+    workspace_id: int = Field(strict=True, gt=0)
+    actor: str = Field(min_length=1, max_length=256)
+    account_id: int = Field(strict=True, gt=0)
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+
+
+DiagnosticRequest = NativeDiagnosticRequest | AccountDiagnosticRequest
 
 
 class NativeDiagnosticService:
@@ -63,44 +77,83 @@ class NativeDiagnosticService:
         self.sessions, self.authorize = session_factory, authorize
         self.transports, self.google_oauth, self.clock = dict(transports), google_oauth, clock
 
-    def _snapshot(
-        self, request: NativeDiagnosticRequest
-    ) -> tuple[InventoryRequest, dict[str, Any]]:
+    def _snapshot(self, request: DiagnosticRequest) -> tuple[InventoryRequest, dict[str, Any]]:
         with self.sessions() as db:
             self.authorize(db, request.workspace_id, request.actor)
-            _, policy = mandates.checked(
-                db, request.workspace_id, request.mandate, request.actor, self.clock
-            )
-            selected = [a for a in policy.accounts if a.account.account_id == request.account_id]
-            if len(selected) != 1:
-                raise HTTPException(404, "diagnostic account unavailable")
-            scope = selected[0]
-            account = db.get(AdvertisingAccount, request.account_id)
-            if account is None or (account.currency_code, account.time_zone) != (
-                policy.currency,
-                policy.time_zone,
-            ):
-                raise HTTPException(409, "diagnostic money context changed")
-            provider = scope.account.platform
-            cls: (
-                type[google.GoogleNativeInventoryRequest]
-                | type[meta.MetaNativeInventoryRequest]
-                | type[tiktok.TikTokNativeInventoryRequest]
-            )
-            if provider == "google_ads":
-                cls = google.GoogleNativeInventoryRequest
-            elif provider == "meta_ads":
-                cls = meta.MetaNativeInventoryRequest
+            native_request: InventoryRequest
+            if isinstance(request, AccountDiagnosticRequest):
+                if not timedelta(0) < request.ends_at - request.starts_at <= timedelta(days=366):
+                    raise HTTPException(422, "diagnostic period exceeds bound")
+                if request.ends_at > self.clock():
+                    raise HTTPException(422, "diagnostic period must not be in the future")
+                if not AutomationControlService(db).master_enabled(
+                    AutomationControlKey.ALL_DATA_SYNCS
+                ):
+                    raise HTTPException(409, "diagnostic reads paused")
+                paid_work(db, request.workspace_id, self.clock())
+                scope = customer_intents.account(db, request.workspace_id, request.account_id)
+                if scope != request.expected_account:
+                    raise HTTPException(409, "diagnostic account changed")
+                account = db.get(AdvertisingAccount, request.account_id)
+                if account is None:
+                    raise HTTPException(404, "diagnostic account unavailable")
+                provider = scope.account.platform
+                observation_type: (
+                    type[google.GoogleAccountObservationRequestV2]
+                    | type[meta.MetaAccountObservationRequestV2]
+                    | type[tiktok.TikTokAccountObservationRequestV2]
+                )
+                if provider == "google_ads":
+                    observation_type = google.GoogleAccountObservationRequestV2
+                elif provider == "meta_ads":
+                    observation_type = meta.MetaAccountObservationRequestV2
+                else:
+                    observation_type = tiktok.TikTokAccountObservationRequestV2
+                native_request = observation_type(
+                    account=scope,
+                    currency=account.currency_code,
+                    time_zone=account.time_zone,
+                    period_start=request.starts_at,
+                    period_end=request.ends_at,
+                )
+                self.authorize(db, request.workspace_id, request.actor)
+                paid_work(db, request.workspace_id, self.clock())
             else:
-                cls = tiktok.TikTokNativeInventoryRequest
-            native_request = cls(
-                account=scope,
-                mandate=request.mandate,
-                currency=policy.currency,
-                time_zone=policy.time_zone,
-                period_start=policy.starts_at,
-                period_end=policy.ends_at,
-            )
+                _, policy = mandates.checked(
+                    db, request.workspace_id, request.mandate, request.actor, self.clock
+                )
+                selected = [
+                    a for a in policy.accounts if a.account.account_id == request.account_id
+                ]
+                if len(selected) != 1:
+                    raise HTTPException(404, "diagnostic account unavailable")
+                scope = selected[0]
+                account = db.get(AdvertisingAccount, request.account_id)
+                if account is None or (account.currency_code, account.time_zone) != (
+                    policy.currency,
+                    policy.time_zone,
+                ):
+                    raise HTTPException(409, "diagnostic money context changed")
+                provider = scope.account.platform
+                cls: (
+                    type[google.GoogleNativeInventoryRequest]
+                    | type[meta.MetaNativeInventoryRequest]
+                    | type[tiktok.TikTokNativeInventoryRequest]
+                )
+                if provider == "google_ads":
+                    cls = google.GoogleNativeInventoryRequest
+                elif provider == "meta_ads":
+                    cls = meta.MetaNativeInventoryRequest
+                else:
+                    cls = tiktok.TikTokNativeInventoryRequest
+                native_request = cls(
+                    account=scope,
+                    mandate=request.mandate,
+                    currency=policy.currency,
+                    time_zone=policy.time_zone,
+                    period_start=policy.starts_at,
+                    period_end=policy.ends_at,
+                )
             # checked() has already locked/validated exact account, integration and generation.
             if provider == "google_ads":
                 g = db.scalar(
@@ -143,8 +196,8 @@ class NativeDiagnosticService:
                 bundle = SourceVault().open(t.workspace_id, t.provider, t.id, t.encrypted_grant)
             return native_request, bundle
 
-    def read(self, request: NativeDiagnosticRequest, now: datetime) -> Inventory:
-        request = NativeDiagnosticRequest.model_validate(request.model_dump())
+    def read(self, request: DiagnosticRequest, now: datetime) -> Inventory:
+        request = TypeAdapter(DiagnosticRequest).validate_python(request.model_dump())
         original, _ = self._snapshot(request)
         provider = original.account.account.platform
         transport = self.transports.get(provider)
@@ -204,13 +257,18 @@ class NativeDiagnosticService:
             )
 
         result: Inventory
-        if isinstance(original, google.GoogleNativeInventoryRequest):
+        if isinstance(
+            original,
+            (google.GoogleNativeInventoryRequest, google.GoogleAccountObservationRequestV2),
+        ):
             result = google.GoogleNativeInventoryHTTP(
                 lambda r, n: google.GoogleNativeInventoryContext(**values(r, n)),
                 transport=transport,
                 clock=self.clock,
             )(original, now)
-        elif isinstance(original, meta.MetaNativeInventoryRequest):
+        elif isinstance(
+            original, (meta.MetaNativeInventoryRequest, meta.MetaAccountObservationRequestV2)
+        ):
             result = meta.MetaNativeInventoryHTTP(
                 lambda r, n: meta.MetaNativeInventoryContext(**values(r, n)),
                 transport=transport,

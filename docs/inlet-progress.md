@@ -1034,6 +1034,29 @@ ledger sections. Only the ledger conflicted. Superseded local Full session63859
 was canceled (exit137), not passed; its wrapper and nested pytest/validation children
 were stopped together. No replacement Full started pending root coordination.
 
+## Provider Publication Shared Contracts — 2026-10-06
+
+- Branch `codex/inlet-google-publication` from PR98 merge `bc3aadc`.
+- Separate strict provider review/plan/request/receipt types and deterministic Google
+  Search paused DAG compiler. Original fixture hashes and simulation mandate remain
+  untouched. Real HTTP adapter and provider coordinator integration still pending.
+- Focused contract tests: 10 passed; Ruff passed; mypy three changed files passed;
+  `git diff --check` passed. No Full requested or started for this new branch.
+- Current Google v25 primary API references pinned in `inlet-provider-publication.md`.
+  No live provider calls or publication authorization.
+
+## Actual Google Publication HTTP Adapter — 2026-10-06
+
+- Added fixed-endpoint v25 Google executor with validate-only, one-shot typed
+  mutations, exact readback and no-replay reconciliation. MockTransport graph tests
+  use the actual serializer/client path; no fixture adapter substitution.
+- Validation: provider/compiler/HTTP focused tests 27 passed; whole-tree Ruff passed;
+  whole-tree mypy 298 source files passed. Full remains unrun pending coordinated
+  validation. No migration or runtime activation in this package.
+- Unacknowledged timeout stays unknown, preserving the coordinator's unresolved
+  exposure requirement. Provider runtime factory stays unavailable. Production
+  authority, qualification reads, persisted provider review/coordinator/UI, separate
+  activation and settlement remain implementation work; B15 is not complete.
 ## PR98 CI Migration Checkpoint Repair — 2026-10-06
 
 - CI37406849242/job112086207972 failed (3 failed, 1333 passed, 10 skipped): release

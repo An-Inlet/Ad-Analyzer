@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from app.ads.models import AdvertisingAccount
-from app.api.customer_execution import router
+from app.api.customer_execution import get_execution_media_factory, router
 from app.campaign_review.storage import get_media_store
 from app.collectors.google_catalog import GoogleCatalogContext, GoogleCatalogHTTP
 from app.customers.models import CustomerUser
@@ -141,6 +141,7 @@ def install(client: TestClient, runtime: CustomerExecutionRuntime | None, media:
     client.app.include_router(router)  # type: ignore[attr-defined]
     client.app.dependency_overrides[get_customer_execution_runtime] = lambda: runtime  # type: ignore[attr-defined]
     client.app.dependency_overrides[get_media_store] = lambda: media  # type: ignore[attr-defined]
+    client.app.dependency_overrides[get_execution_media_factory] = lambda: lambda: media  # type: ignore[attr-defined]
 
 
 def test_default_runtime_and_forged_authority_are_denied(

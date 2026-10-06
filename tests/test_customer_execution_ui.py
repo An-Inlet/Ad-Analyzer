@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 import uvicorn
+from app.api.customer_execution import get_execution_media_factory
 from app.campaign_review.storage import get_media_store
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerUser
@@ -76,6 +77,7 @@ def test_execution_real_browser(
             get_identity_provider: lambda: FakeProvider(),
             get_customer_execution_runtime: lambda: runtime,
             get_media_store: lambda: media,
+            get_execution_media_factory: lambda: lambda: media,
         },
     )
     completed = threading.Event()

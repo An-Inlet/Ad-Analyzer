@@ -84,3 +84,33 @@ Production factories, operator live enablement, provider permissions, Google cap
 qualification, real customer-data/live environment testing, completed social
 configuration journeys and settled spending remain separate gates. No migration
 or new spending policy is introduced. Root owns integration and Full qualification.
+
+## Existing Campaign Optimization API
+
+The separate `/execution/optimization` API adds owner/session/CSRF-protected named
+server target options, optimization-only mandate creation/editing, topology-checked
+separate consent, and initial/repeat exact reviews. Ordinary budget limits remain
+editable; target identity, complete affected-target digest, currency and time zone
+come from the owned server catalog. Shared approval/admission/advance/reconciliation
+routes dispatch explicitly by purpose and review schema. Optimization needs no
+creative media store; creation/activation resolve their media factory only when used.
+
+`ConfiguredOptimizationCatalog` is a bounded, explicit server inventory plus actual
+adapter current-state reads. It is not automatic discovery of all provider campaigns,
+nor proof of spend bounds or original-request finality. Each offered choice binds the
+current goal, account generation, native topology and observed state. The response's
+`complete` describes this configured offered inventory; catalogs above the bound fail
+rather than truncate. Production runtime/catalog factories remain unconfigured. Native
+qualification, exposure and repeat closure/transition sources remain separate gates.
+
+The API does not accept raw provider IDs, topology, runtime selectors or proof payloads.
+Initial and repeat intent accept only a named choice, owned mandate revision, absolute
+budget or pause, and (repeat only) an owned predecessor. Only existing budget mode is
+used; neither resume nor changing daily/lifetime semantics is supported. Unknown
+reviews never fall through to creation. Original-session revocation during discovery
+or qualification blocks preparation. Holdings and ledger usage remain durable across
+repeat, pause and local cancellation; aggressiveness never raises the overall cap.
+
+No customer optimization screen is added by this backend package. Customer operation
+still needs the corresponding UI and production qualification; configured inventory
+fixtures are not evidence of a self-service live product.

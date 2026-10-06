@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
@@ -14,10 +15,18 @@ from app.campaign_review.contracts import (
 )
 from app.campaign_review.models import MediaObject
 from app.campaign_review.storage import get_media_store
-from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
+from app.customers.access import (
+    Database,
+    MutationPrincipal,
+    Principal,
+    Provider,
+    customer_workspace,
+    lock_customer_mutation,
+)
 
 router = APIRouter(prefix="/api/customer/v1", tags=["customer"])
 Store = Annotated[MediaStore, Depends(get_media_store)]
+UPLOAD_TIMEOUT_SECONDS = 30
 
 
 def access(db: Database, user: str, wid: int, write: bool) -> None:
@@ -31,6 +40,7 @@ async def upload(
     workspace_id: int,
     request: Request,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     store: Store,
     response: Response,
@@ -38,10 +48,15 @@ async def upload(
     access(db, principal.user.id, workspace_id, True)
     response.headers["Cache-Control"] = "no-store"
     data = bytearray()
-    async for chunk in request.stream():
-        if len(data) + len(chunk) > MAX_IMAGE_BYTES:
-            raise HTTPException(413, "image size exceeds limit")
-        data.extend(chunk)
+    try:
+        async with asyncio.timeout(UPLOAD_TIMEOUT_SECONDS):
+            async for chunk in request.stream():
+                if len(data) + len(chunk) > MAX_IMAGE_BYTES:
+                    raise HTTPException(413, "image size exceeds limit")
+                data.extend(chunk)
+    except TimeoutError:
+        raise HTTPException(408, "media upload timed out") from None
+    lock_customer_mutation(db, principal, workspace_id, provider)
     row = service.upload(db, workspace_id, principal.user.id, bytes(data), store, datetime.now(UTC))
     return {
         "media_id": row.id,
@@ -76,11 +91,12 @@ def create(
     workspace_id: int,
     body: RevisionInput,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     store: Store,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, True)
+    lock_customer_mutation(db, principal, workspace_id, provider)
     response.headers["Cache-Control"] = "no-store"
     return service.view(
         service.revise(db, workspace_id, body, principal.user.id, store, datetime.now(UTC))
@@ -93,11 +109,12 @@ def edit(
     draft_id: str,
     body: RevisionEdit,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     store: Store,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, True)
+    lock_customer_mutation(db, principal, workspace_id, provider)
     response.headers["Cache-Control"] = "no-store"
     return service.view(
         service.revise(
@@ -134,11 +151,12 @@ def approve(
     draft_id: str,
     body: ExactApproval,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     store: Store,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, True)
+    lock_customer_mutation(db, principal, workspace_id, provider)
     response.headers["Cache-Control"] = "no-store"
     return service.view(
         service.approve(

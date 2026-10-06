@@ -126,3 +126,60 @@ def customer_workspace(db: Session, user_id: str, workspace_id: int) -> tuple[Wo
     if result is None:
         raise HTTPException(status_code=404, detail="workspace not found")
     return result
+
+
+def lock_customer_mutation(
+    db: Session, principal: CustomerPrincipal, workspace_id: int, provider: IdentityProvider
+) -> None:
+    """Reauthorize at the mutation boundary, then fence local revocation until commit.
+
+    Canonical order matches customer Shopify and login: workspace, user, session,
+    membership. Call after receiving a body, before taking product/account locks.
+    Never hold these locks while waiting for an untrusted request body.
+    """
+    db.scalar(
+        select(Workspace)
+        .where(Workspace.id == workspace_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    user = db.scalar(
+        select(CustomerUser)
+        .where(CustomerUser.id == principal.user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    session = db.scalar(
+        select(CustomerSession)
+        .where(CustomerSession.digest == principal.session.digest)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if (
+        user is None
+        or user.status != "active"
+        or user.issuer != provider.issuer
+        or session is None
+        or session.user_id != user.id
+        or session.revoked_at is not None
+        or session.expires_at <= int(time.time())
+    ):
+        raise denied()
+    membership = db.scalar(
+        select(CustomerMembership)
+        .where(
+            CustomerMembership.user_id == user.id,
+            CustomerMembership.workspace_id == workspace_id,
+        )
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if membership is None or membership.status != "active":
+        raise HTTPException(404, "workspace not found")
+    _, role = customer_workspace(db, user.id, workspace_id)
+    if role not in {"owner", "admin"}:
+        raise HTTPException(403, "insufficient role")
+    provider.check_active(user.subject, session.authenticated_at)
+    # Row locks fence revocation, but time can advance during lock/provider waits.
+    if session.expires_at <= int(time.time()):
+        raise denied()

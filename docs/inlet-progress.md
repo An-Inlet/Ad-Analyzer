@@ -1012,3 +1012,27 @@ Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
 journey; publication coordinator with fixture-only authority. B07 simulation mandates
 remain simulation and B14 review does not grant publication permission. No provider
 mutations, live credentials, merge or deployment were performed.
+
+## Customer Media And Review Authorization Races (2026-10-06)
+
+Branch `codex/inlet-review-authorization`, based on PR94 5f9a0d0. A paused actual
+ASGI upload reproduced successful200 after session revocation, membership removal
+or provider suspension on both SQLite and PostgreSQL (six failing regressions).
+PostgreSQL approval requests blocked behind the workspace lock also reproduced200
+following committed session/membership revocation (two failing regressions).
+Initial reproduction attempts had fixture/barrier mistakes, corrected before claiming
+these results: missing synthetic workspace client_name, then a barrier that did not
+recognize FOR NO KEY UPDATE. Corrected logs are `/tmp/inlet-review-auth-before-corrected.log`
+and `/tmp/inlet-review-approval-before-corrected.log`.
+
+Writes now recheck current workspace/user/session/membership and provider identity
+under canonical workspace→user→session→membership locks before product locks. Upload
+receives at most8MiB within30seconds before acquiring those locks; timeout408 leaves
+no media row/object. Create/edit/approval use the same guard. Local revocations are
+fenced through commit; remote provider revocation remains a point-in-time check.
+Session expiry is checked again after membership/provider waits because time cannot
+be fenced with row locks. Independent review confirmed lock-order compatibility and
+identified that final expiry check, now covered by regression tests.
+
+Combined authorization/media/Shopify/identity suite:108passed,9 SQLite-only concurrency
+skips; PostgreSQL counterparts ran. Ruff and mypy288 passed. Final focused rerun:12passed,2 SQLite-only lock skips. HostedCI pending; no Full or live provider calls. No migration or deployment.

@@ -41,9 +41,11 @@ def bump_workspace_export_revision(db: Session, workspace_id: int) -> None:
     Every destructive customer-data writer must join this contract.
     """
     _lock_workspace(db, workspace_id)
+    from app.initial_planning.invalidation import erase_workspace_observations
     from app.optimization_candidates.invalidation import erase_workspace_candidates
 
     erase_workspace_candidates(db, workspace_id)
+    erase_workspace_observations(db, workspace_id)
     advance_workspace_export_revision(db, workspace_id)
 
 

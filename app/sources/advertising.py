@@ -140,6 +140,9 @@ class SourceReadUnavailable(HTTPException):
 
 def _stop_reads(db: Session, row: SourceConnection, *, provider_code: int | None = None) -> None:
     # tick holds workspace/connection locks; old generation work cannot publish.
+    from app.lifecycle.privacy import bump_workspace_export_revision
+
+    bump_workspace_export_revision(db, row.workspace_id)
     db.execute(
         delete(GoogleImportCompletion).where(
             GoogleImportCompletion.state == "pending",

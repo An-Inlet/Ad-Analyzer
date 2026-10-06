@@ -335,6 +335,9 @@ def select_account(
         )
         db.add(existing)
     else:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(db, grant.workspace_id)
         discard_pending_analysis(db, existing)
         discard_context_checkpoint(db, existing)
         existing.generation += 1
@@ -396,6 +399,9 @@ def discard_context_checkpoint(db: Session, row: SourceConnection) -> None:
 
 def disconnect(db: Session, row: SourceConnection) -> None:
     row = owned(db, row.workspace_id, cast(ProviderName, row.provider), row.id)
+    from app.lifecycle.privacy import bump_workspace_export_revision
+
+    bump_workspace_export_revision(db, row.workspace_id)
     discard_pending_analysis(db, row)
     discard_context_checkpoint(db, row)
     integration = db.get(WorkspaceIntegration, row.integration_id)

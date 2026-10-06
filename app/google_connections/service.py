@@ -236,6 +236,9 @@ def choose(
         )
         db.add(existing)
     else:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(db, wid)
         discard_pending_analysis(db, existing)
         existing.generation += 1
         existing.cursor, existing.staged = None, {}
@@ -286,6 +289,9 @@ def discard_pending_analysis(db: Session, row: GoogleCustomerConnection) -> None
 def disconnect(db: Session, row: GoogleCustomerConnection) -> None:
     # Refresh under the same lock even for callers holding a stale ORM instance.
     row = owned(db, row.workspace_id, row.id)
+    from app.lifecycle.privacy import bump_workspace_export_revision
+
+    bump_workspace_export_revision(db, row.workspace_id)
     integration = db.get(WorkspaceIntegration, row.integration_id)
     assert integration is not None
     discard_pending_analysis(db, row)
@@ -335,6 +341,9 @@ def tick(
             row.login_customer_id,
         )
     except GoogleAuthorizationUnavailable:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(db, wid)
         # The workspace/connection lock is held across the read; obsolete queued
         # generations are rejected before any IO and cannot invalidate new consent.
         discard_pending_analysis(db, row)

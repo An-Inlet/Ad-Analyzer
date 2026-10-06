@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -15,9 +16,11 @@ from uuid import uuid4
 
 import pytest
 import uvicorn
+from app.ads.models import Campaign, DailyMetric
 from app.customers.identity import get_identity_provider
-from app.customers.models import CustomerMembership, CustomerUser
+from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.database.session import Base, get_db
+from app.google_connections import service as google_service
 from app.google_connections.contracts import Account, get_transport
 from app.google_connections.models import GoogleCustomerConnection
 from app.main import app
@@ -29,7 +32,7 @@ from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_portal import portal_executable
-from tests.test_google_customer_connections import FixtureTransport, setup
+from tests.test_google_customer_connections import FixtureTransport, connect, setup
 from tests.test_google_customer_connections import configured as configured
 from tests.test_shopify_consent_browser import Browser
 
@@ -278,6 +281,78 @@ def test_google_navigation_selection_cancel_retry_and_current_role(
         assert transport.calls == 3  # Only grant exchanges; no advertising reads or writes.
         history = browser.call("Page.getNavigationHistory")
         assert all("code=" not in entry["url"] for entry in history["entries"])
+        with factory() as db:
+            row = db.scalar(select(GoogleCustomerConnection))
+            assert row is not None
+            cid, generation = row.id, row.generation
+            google_service.tick(db, wid, cid, generation, transport, datetime.now(UTC))
+            google_service.tick(db, wid, cid, generation, transport, datetime.now(UTC))
+            metrics = db.scalar(select(func.count()).select_from(DailyMetric))
+            campaigns = db.scalar(select(func.count()).select_from(Campaign))
+            assert metrics and campaigns
+            session = db.scalar(
+                select(CustomerSession).where(
+                    CustomerSession.user_id == actor, CustomerSession.revoked_at.is_(None)
+                )
+            )
+            assert session is not None
+            sibling, _ = connect(db, wid, session.digest, transport)
+            sibling_id, sibling_grant = sibling.id, sibling.encrypted_grant
+        calls_before_disconnect = transport.calls
+        workspace()
+        browser.wait("document.getElementById('google-disconnect-account').options.length === 2")
+        browser.evaluate(
+            f"document.getElementById('google-disconnect-account').value='{cid}';document.getElementById('google-disconnect-open').click()"
+        )
+        assert "does not delete Google data" in browser.evaluate(
+            "document.getElementById('google-disconnect-effects').textContent"
+        )
+        browser.evaluate("document.getElementById('google-disconnect-confirm').click()")
+        browser.wait(
+            "document.getElementById('message').textContent.includes('confirm the data effects')"
+        )
+        browser.evaluate("document.getElementById('google-disconnect-cancel').click()")
+        assert browser.evaluate("document.getElementById('google-disconnect-review').hidden")
+        browser.evaluate(
+            "document.getElementById('google-disconnect-open').click();document.getElementById('google-disconnect-consent').checked=true"
+        )
+        with factory() as db:
+            membership = db.get(CustomerMembership, (actor, wid))
+            assert membership is not None
+            membership.role = "viewer"
+            db.commit()
+        browser.evaluate("document.getElementById('google-disconnect-confirm').click()")
+        browser.wait(
+            "document.getElementById('message').textContent.includes('does not permit') && "
+            "!document.getElementById('retry').disabled"
+        )
+        with factory() as db:
+            row = db.get(GoogleCustomerConnection, cid)
+            assert row is not None and row.status == "connected"
+            membership = db.get(CustomerMembership, (actor, wid))
+            assert membership is not None
+            membership.role = "owner"
+            db.commit()
+        browser.evaluate("document.getElementById('google-disconnect-confirm').click()")
+        browser.wait(
+            "document.getElementById('message').textContent.includes('Google Ads disconnected') && "
+            "!document.getElementById('retry').disabled"
+        )
+        assert (
+            browser.evaluate("document.getElementById('google-disconnect-account').options.length")
+            == 1
+        )
+        with factory() as db:
+            row = db.get(GoogleCustomerConnection, cid)
+            assert row is not None and row.status == "disconnected"
+            assert row.encrypted_grant is None and row.generation == generation + 1
+            assert row.cursor is None and row.staged == {} and row.next_attempt_at is None
+            assert db.scalar(select(func.count()).select_from(DailyMetric)) == metrics
+            assert db.scalar(select(func.count()).select_from(Campaign)) == campaigns
+            retained_sibling = db.get(GoogleCustomerConnection, sibling_id)
+            assert retained_sibling is not None and retained_sibling.status == "connected"
+            assert retained_sibling.encrypted_grant == sibling_grant
+        assert transport.calls == calls_before_disconnect
     finally:
         if browser:
             browser.context.close()

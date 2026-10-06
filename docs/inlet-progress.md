@@ -1075,3 +1075,26 @@ Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111
 Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
 commit only records this PR link. Final Google browser rerun also passed both database
 variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.
+
+## Google Disconnect Customer Controls
+
+Branch `codex/inlet-google-disconnect` is an isolated child of frozen PR111 head
+`960de15cee97de54b88e3cb2bc33e59217c60915`. Owners/admins now select a connected Google
+account and acknowledge concrete data/advertising effects before disconnecting. Current
+session and role are revalidated transactionally. Imports stop and the local grant is
+removed; historical metrics remain and Google campaigns/spending are unchanged.
+
+Verification: focused SQLite/PostgreSQL/API/Chromium **55 passed**; final Google API
+regression rerun **17 passed**; Node helpers **8 passed**; Ruff, mypy **290 files** and
+diff checks pass. Browser verification includes retained imported metrics, removed
+local authorization, blocked role loss and an untouched sibling connection. No live
+provider operations, migrations, merge or deployment. Full/CI pending.
+
+Next recommended package is TikTok customer consent/selection/disconnect, after freezing
+shared source post-exchange guard and retry/lock interfaces with CRM ownership. Remaining
+source/Meta UI gaps and concrete ports are documented in `docs/inlet-google-disconnect-ui.md`.
+
+Google disconnect draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/120.
+Tested implementation: `7571ed2052f475b9235de6d94d09453b31921b2e`; the following commit
+only records this PR link. Parent subsequently selected Meta customer connections as
+the next isolated interface proposal, before TikTok/CRM implementation.

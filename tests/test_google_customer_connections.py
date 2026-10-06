@@ -313,6 +313,20 @@ def test_customer_api_session_csrf_roles_and_callback_replay(
         db.commit()
     assert owner.get(prefix + "/connections").status_code == 200
     assert owner.delete(prefix + "/connections/" + cid, headers=headers).status_code == 403
+    with Session(customer_engine) as db:
+        connection = db.get(GoogleCustomerConnection, cid)
+        assert connection is not None and connection.status == "connected"
+        membership = db.get(CustomerMembership, (uid, wid))
+        assert membership is not None
+        membership.role = "owner"
+        current = db.scalar(select(CustomerSession).where(CustomerSession.user_id == uid))
+        assert current is not None
+        current.revoked_at = 1
+        db.commit()
+    assert owner.delete(prefix + "/connections/" + cid, headers=headers).status_code == 401
+    with Session(customer_engine) as db:
+        connection = db.get(GoogleCustomerConnection, cid)
+        assert connection is not None and connection.status == "connected"
 
 
 def test_google_wire_manager_context_paging_and_token_request() -> None:

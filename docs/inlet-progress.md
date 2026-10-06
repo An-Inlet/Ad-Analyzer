@@ -4750,3 +4750,30 @@ rejects the social fixture's100m mandate against its inherited50m goal budget
 (`/tmp/inlet-social-historical-after.log`). This is reported to the planning owner
 for legitimate fixture correction; the count repair does not bypass that check.
 Local commit only: no push, PR, workflow dispatch or hosted CI.
+
+### Owned Initial Observations And Lifecycle — Root Verification
+
+Integrated core `7428640` plus actual-completion age/database-clock repair `2175a5b`,
+bounded derived storage `ef849d2`, lifecycle `58326d4`, and historical 0074 fixture
+ordering `0b17525`. Root suite covering initial observation/calibration/lifecycle,
+existing three-provider performance, export privacy and customer closure:
+**165 passed, 4 expected SQLite-only skips, 6 Alembic warnings in 126.13s**.
+Log: `/tmp/inlet-next-initial-core-lifecycle.log`. Whole Ruff and mypy648 passed.
+
+Complete fresh PostgreSQL migration validation **head0075 → base → head0075 passed**
+on dedicated `inlet_oct06_0075_migration_ci`; `/tmp/inlet-next-0075-roundtrip.log`.
+Independent review reproduced and then cleared the delayed-capture qualification
+error. Its composed erasure/disconnect/expiry and populated migration checks:
+**9 passed**, no skips; `/tmp/inlet-calibration-review-composed.log`.
+
+No production retention or numerical policy is installed. Reports are reproducible
+reported-efficiency sensitivity, never empirical/causal qualification. Customer API/UI
+integration is still pending at this checkpoint; review handoff remains unavailable.
+
+Frozen `dc3c0d5` Full first nested suite failed: **1 failed, 3616 passed, 73 skipped
+in 2879.887s**. Preserved report: `/tmp/inlet-dc3-nested-full-0.xml`. Its historical
+social migration test projected newer ORM columns before they existed. Local test-only
+repair `7c4e333` was independently reproduced and verified on the frozen predecessor;
+the outer Full continues unchanged. Current-root social fixtures also need a legitimate
+confirmed goal budget matching their existing mandate; that separate test adjustment
+is underway. No frozen-run success or later validation gates are claimed.

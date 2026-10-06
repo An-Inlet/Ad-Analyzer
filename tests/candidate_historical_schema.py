@@ -14,6 +14,7 @@ def without_candidates(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> None:
     assert "optimization_candidate_jobs" not in inspect(engine).get_table_names()
     without_candidate_reviews(monkeypatch, engine)
     without_google_capture(monkeypatch, engine)
+    without_initial_planning(monkeypatch, engine)
 
     def workspace(db: Session, wid: int) -> None:
         pass
@@ -66,3 +67,18 @@ def without_google_capture(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> N
         pass
 
     monkeypatch.setattr(google_completion, "capture_response", capture)
+
+
+def without_initial_planning(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> None:
+    """Pre0075 has no observations/calibrations for the new privacy hook to erase."""
+    tables = inspect(engine).get_table_names()
+    assert "initial_calibration_runs" not in tables
+    assert "initial_observations" not in tables
+    assert "initial_calibration_dependencies" not in tables
+    assert "initial_plan_previews" not in tables
+    from app.initial_planning import invalidation as initial_invalidation
+
+    def erase(db: Session, workspace_id: int) -> None:
+        pass
+
+    monkeypatch.setattr(initial_invalidation, "erase_workspace_observations", erase)

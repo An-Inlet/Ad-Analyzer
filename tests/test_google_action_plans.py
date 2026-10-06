@@ -26,9 +26,9 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 def setup(
-    db: Session, config: Settings, *, days: int = 1
+    db: Session, config: Settings, *, days: int = 1, goal_budget_micros: int = 50_000_000
 ) -> tuple[Mandate, AccountScope, g.GoogleState]:
-    mandate = seed(db, config, days=days)
+    mandate = seed(db, config, days=days, goal_budget_micros=goal_budget_micros)
     policy = m.policy(db, mandate)
     policy.allowed_actions.append("negative_keyword")
     m.edit(db, mandate, mandate.revision, policy, "owner", NOW)

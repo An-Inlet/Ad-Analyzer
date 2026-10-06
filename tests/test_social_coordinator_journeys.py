@@ -184,7 +184,8 @@ def ready(
     video: bytes | None,
     server: SocialServer,
 ) -> tuple[int, str, str, LocalMediaStore, CreationRuntime, Any]:
-    policy, actor = setup(db, config, path)
+    # Confirm the matching goal ceiling before constructing the social mandate.
+    policy, actor = setup(db, config, path, goal_budget_micros=100_000_000)
     wid = policy.workspace_id
     old = db.scalar(select(Mandate).where(Mandate.workspace_id == wid))
     assert old is not None

@@ -44,13 +44,21 @@ def definition(store_id: str) -> GoalDefinition:
     )
 
 
-def seed(db: Session, config: Settings, slug: str = "alpha") -> Goal:
+def seed(
+    db: Session, config: Settings, slug: str = "alpha", *, goal_budget_micros: int = 50_000_000
+) -> Goal:
     row, store = setup(db, config, slug)
     apply_order(db, store, row, source(), [agreement()], config, NOW)
     goal = Goal(id=uuid4().hex, workspace_id=row.workspace_id, revision=0)
     db.add(goal)
     db.flush()
-    service.revise(db, goal, definition(store.id), "offline-user", NOW)
+    service.revise(
+        db,
+        goal,
+        definition(store.id).model_copy(update={"budget_micros": goal_budget_micros}),
+        "offline-user",
+        NOW,
+    )
     if db.get(UsagePolicy, "global") is None:
         db.add(UsagePolicy(scope="global", call_limit=1000, cost_limit_micros=0, version=1))
     db.commit()

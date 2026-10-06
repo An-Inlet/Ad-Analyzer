@@ -121,9 +121,16 @@ def test_unqualified_provider_configuration_rejected(row: str, field: str, value
 
 
 def seeded(
-    db: Session, settings: Settings, path: Any, *, total_budget: bool = False
+    db: Session,
+    settings: Settings,
+    path: Any,
+    *,
+    total_budget: bool = False,
+    goal_budget_micros: int = 50_000_000,
 ) -> tuple[int, str, str, LocalMediaStore]:
-    mandate, scope, _ = setup(db, settings, days=10 if total_budget else 1)
+    mandate, scope, _ = setup(
+        db, settings, days=10 if total_budget else 1, goal_budget_micros=goal_budget_micros
+    )
     actor = uuid4().hex
     db.add(CustomerUser(id=actor, issuer="mock", subject=actor, email="mock@example.invalid"))
     db.flush()

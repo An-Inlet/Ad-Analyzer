@@ -4777,3 +4777,27 @@ repair `7c4e333` was independently reproduced and verified on the frozen predece
 the outer Full continues unchanged. Current-root social fixtures also need a legitimate
 confirmed goal budget matching their existing mandate; that separate test adjustment
 is underway. No frozen-run success or later validation gates are claimed.
+
+### Social Fixture Goal Ceiling And Historical Cleanup Compatibility — Local Only
+
+Current social tests now request a100m goal budget at initial goal revision creation,
+then use the real confirmation path before the existing100m simulation mandate.
+The optional `goal_budget_micros` parameter passes through existing seed helpers;
+all other callers retain the50m default. No immutable goal revision is rewritten,
+no app ceiling is weakened, and no production code changes.
+
+The historical migration helper now explicitly asserts all later initial-planning
+observation/calibration/preview tables absent before stubbing only the new workspace
+erasure hook. This lets real historical fixtures continue without introducing a
+runtime missing-table fallback. The earlier scalar historical run-count repair
+remains in place.
+
+After integrating root `f5115e0`, focused SQLite/PostgreSQL social coordinator,
+customer producer, default customer goal and execution mandate tests produced
+**99 passed**; the batch's single historical failure occurred before its helper
+repair (`/tmp/inlet-social-budget-fixture.log`,150.09s). The repaired historical
+migration plus hash compatibility independently pass **2 tests** in4.69s
+(`/tmp/inlet-social-budget-migration-final.log`). Whole Ruff, configured mypy
+**648 files**, and diff checks pass. Generated schemas use disposable
+`inlet_candidate_migration_ci`; no active Full database changes. Local-only delivery;
+no push, PR, hosted CI, live provider call or Full run.

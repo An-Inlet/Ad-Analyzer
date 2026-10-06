@@ -20,9 +20,16 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 def setup(
-    db: Session, config: Settings, path: Any, *, total_budget: bool = False
+    db: Session,
+    config: Settings,
+    path: Any,
+    *,
+    total_budget: bool = False,
+    goal_budget_micros: int = 50_000_000,
 ) -> tuple[ProviderMandatePolicy, str]:
-    wid, _, actor, _ = seeded(db, config, path, total_budget=total_budget)
+    wid, _, actor, _ = seeded(
+        db, config, path, total_budget=total_budget, goal_budget_micros=goal_budget_micros
+    )
     old = db.scalar(select(Mandate).where(Mandate.workspace_id == wid))
     assert old is not None
     source = simulation.policy(db, old)

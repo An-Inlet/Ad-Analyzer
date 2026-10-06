@@ -30,8 +30,15 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
 
 
-def seed(db: Session, config: Settings, slug: str = "alpha", *, days: int = 1) -> Mandate:
-    g = seed_goal(db, config, slug)
+def seed(
+    db: Session,
+    config: Settings,
+    slug: str = "alpha",
+    *,
+    days: int = 1,
+    goal_budget_micros: int = 50_000_000,
+) -> Mandate:
+    g = seed_goal(db, config, slug, goal_budget_micros=goal_budget_micros)
     p = goals.preview(db, g, NOW)
     goals.confirm(
         db,

@@ -4002,3 +4002,26 @@ Root also identified potential same-workspace starvation in unfinished0072: an o
 revoked-session run could remain the earliest due item. The scheduler owner reproduced
 it and added non-authorizing deferral; both database regressions pass. The package is
 not yet frozen/integrated; final combined checks and actual backend UI remain pending.
+
+### Session Automatic Decision Ports — 2026-10-06
+
+Branch `codex/inlet-session-automation`, base `c2e43b9`: freeze strict original-session
+Start/status/stop/capabilities schemas and distinct automatic admission authority
+union in `app/session_automation/contracts.py`; implementation contract in
+`docs/design/session-automation-interfaces.md`. No routes, authority records,
+worker or enabled policy yet; migration0072 reserved down0068. Next package
+implements actual owned customer intent and durable all-provider offline journey.
+No human approval fabrication, logout-independent delegation, new campaign,
+activation or emergency pause is permitted by these types.
+
+Candidate final evidence hook now requires a current local lineage checker for
+registered feedback-dependent schemas before storing suggestions; missing or
+retracted lineage blocks. Pure association snapshots do not become directional
+learning. Checks actually run: PostgreSQL+SQLite hook regressions6 passed;
+strict contract tests3 passed; whole Ruff clean; whole mypy571 files clean;
+`git diff --check` clean. No Full, live calls, manual workflow dispatch or deployment.
+
+Root integrated frozen automation interface commits6c95a43 and332d7fc independently
+of unfinished0072. Candidate/final-evidence/contracts/review bridge checks:84 passed,
+1 expected PostgreSQL-only race skip on SQLite in115.81s. Ruff, configured mypy586
+and staged whitespace passed. Log `/tmp/inlet-next-automation-ports.log`.

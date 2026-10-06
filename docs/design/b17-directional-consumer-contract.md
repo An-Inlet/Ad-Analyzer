@@ -119,6 +119,17 @@ policy and original opportunity under the final workspace fence after IO, recomp
 the result and rejects any changed commitment/expiry. It performs no provider IO or
 commit. Changed evidence cannot recreate a candidate erased by feedback retraction.
 
+`CandidateEvidence.observation_count` must never receive the snapshot contribution
+count. The adapter additionally requires a qualified underlying observation-basis
+record, with explicit count kind, exact distinct completion commitments and source
+qualification. A profile may define distinct independently reconciled completions as
+its count metric; that does not mean statistically independent causal samples. The
+candidate policy's minimum must be calibrated against that exact declared metric.
+If the underlying count semantics/provenance cannot be proved, the adapter blocks.
+The active-contribution threshold remains a separate directional-policy predicate.
+A future count-metric change requires a versioned contract, not silent reinterpretation
+of the existing observation_count field. No policy approval manufactures this evidence.
+
 The existing candidate compiler still bounds money by current mandate, aggressiveness,
 positive-change cap and action limits. Recommendation eligibility is not financial
 qualification, customer consent, review approval or automatic-session permission.

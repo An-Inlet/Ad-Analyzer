@@ -95,6 +95,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
 INTERNAL = {
+    "export_privacy_revision",
     "request_key",
     "key_digest",
     "request_digest",

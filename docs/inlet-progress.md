@@ -1012,3 +1012,19 @@ Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
 journey; publication coordinator with fixture-only authority. B07 simulation mandates
 remain simulation and B14 review does not grant publication permission. No provider
 mutations, live credentials, merge or deployment were performed.
+
+### B14 Rendered Review UI — 2026-10-06
+
+Branch `codex/inlet-campaign-review-ui` from PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6` adds the actual rendered customer review
+at `/app/campaign-review`, scoped recent-draft listing, exact-digest acknowledgment/
+approval, supplied-copy editing into a new unapproved revision, and explicit media
+and publication states. Static images must load successfully before approval; no
+arbitrary URL fetch, provider publication, new migration or live call is introduced.
+
+Focused review/UI/portal checks: 53 passed, 1 intentional SQLite race skip; Ruff,
+mypy (288 files), and diff check passed. Real HTTPS Chromium/API journeys passed on
+SQLite and PostgreSQL, including failed image reads, stale approval and revoked role.
+See `docs/inlet-campaign-review-ui.md` for behavior and remaining gaps. Full/CI pending.
+Next packages remain bounded video validation/private media lifecycle and concrete
+PublishPlan ports before dependent B15/B16 provider publication adapters.

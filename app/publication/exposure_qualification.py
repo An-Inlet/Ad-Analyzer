@@ -6,7 +6,7 @@ The caller retains coordinator authorization and post-claim revalidation duties.
 """
 
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import HTTPException
@@ -137,7 +137,6 @@ class PortfolioExposureReader:
                 select(ProviderExposureReservation)
                 .where(
                     ProviderExposureReservation.workspace_id == policy.workspace_id,
-                    ProviderExposureReservation.ledger_id == ledger.id,
                     ProviderExposureReservation.environment == binding.environment,
                     ProviderExposureReservation.state == "held",
                 )
@@ -152,6 +151,7 @@ class PortfolioExposureReader:
             retained = next((r for r in held if r.id == retained_id), None)
             if (
                 retained is None
+                or retained.ledger_id != ledger.id
                 or retained.budget_owner_key != facts.budget_owner_key
                 or retained.amount_micros != facts.proposed_owner_upper_micros
             ):
@@ -201,7 +201,13 @@ class PortfolioExposureReader:
             period_start=policy.starts_at,
             period_end=policy.ends_at,
             observed_at=facts.observed_at,
-            expires_at=facts.expires_at,
+            expires_at=min(
+                facts.expires_at,
+                facts.observed_at
+                + timedelta(seconds=min(policy.freshness_seconds, profile.maximum_age_seconds)),
+            )
+            if qualified and profile
+            else facts.expires_at,
             reporting_watermark=min(f.reporting_watermark for f in facts.accounts),
             completeness="complete" if complete else "incomplete",
             qualification_id=facts.qualification_id,

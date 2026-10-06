@@ -16,17 +16,21 @@ lineage is rejected. A fresh clock after source read prevents expired facts bein
 accepted after a wait. Facts readers must not release the transaction or perform
 provider mutations. Coordinator post-claim checks remain required.
 
-Creation counts all held same-ledger reservations. Activation may exclude only its
+Creation counts all held workspace/environment reservations, including unresolved
+holds from previous periods, matching the coordinator inventory. Activation may exclude only its
 exact owned/environment/ledger held reservation, whose owner key and amount match
 the proposed bound, and includes that amount once as the proposed owner component.
 No reservation is released or changed by this reader. Expired periods or aggressiveness
 settings grant no additional authority.
 
-Focused actual SQLite/PostgreSQL coordinator fixtures:20 passed. Tests cover retained
+Focused actual SQLite/PostgreSQL coordinator fixtures:24 passed. Tests cover retained
 reservation accounting, unknown profile/bounds, incomplete data, regressed spend,
 foreign/duplicate accounts, currency/plan mismatch and expiry during read. Initial
 fixture incorrectly expected create_run to allocate a reservation; corrected to use
-the actual durable claim. Ruff and configured mypy412 pass. No Full/live qualification.
+the actual durable claim. Ruff and configured mypy412 pass. Independent review found and repaired two
+composition defects: emitted evidence now expires by the qualification profile
+lifetime, and previous-period holds are counted conservatively while never eligible
+for activation exclusion. Downstream expiry and retained-history regressions pass. No Full/live qualification.
 
 Concrete provider portfolio completeness/native cap/reporting-delay sources remain
 an engineering and live-qualification gap; an injected contract scenario is not a

@@ -3763,3 +3763,21 @@ separate start intent/admission/run authority, no fake humanapproval, no logout-
 independent grant and defaults disabled pending real sources/policies. B19 bounded
 operational observations reserves0070down0060. Finalrootjoin0073 will join0063/0064/
 0066/0070/0072. Prior proposed0065/67/69/71 were nevercreated.
+
+### Session Automatic Decision Ports — 2026-10-06
+
+Branch `codex/inlet-session-automation`, base `c2e43b9`: freeze strict original-session
+Start/status/stop/capabilities schemas and distinct automatic admission authority
+union in `app/session_automation/contracts.py`; implementation contract in
+`docs/design/session-automation-interfaces.md`. No routes, authority records,
+worker or enabled policy yet; migration0072 reserved down0068. Next package
+implements actual owned customer intent and durable all-provider offline journey.
+No human approval fabrication, logout-independent delegation, new campaign,
+activation or emergency pause is permitted by these types.
+
+Candidate final evidence hook now requires a current local lineage checker for
+registered feedback-dependent schemas before storing suggestions; missing or
+retracted lineage blocks. Pure association snapshots do not become directional
+learning. Checks actually run: PostgreSQL+SQLite hook regressions6 passed;
+strict contract tests3 passed; whole Ruff clean; whole mypy571 files clean;
+`git diff --check` clean. No Full, live calls, manual workflow dispatch or deployment.

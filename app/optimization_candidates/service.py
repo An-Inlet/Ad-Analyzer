@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Protocol
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -20,6 +21,7 @@ from app.goals import service as goals
 from app.optimization_candidates.compiler import compile_candidate
 from app.optimization_candidates.contracts import (
     CandidateDecision,
+    CandidateObservation,
     CandidatePolicy,
     CandidateReadPort,
     CandidateScope,
@@ -47,6 +49,18 @@ ACTUAL_UNQUALIFIED_SCHEMAS = frozenset(
 )
 
 
+class FinalEvidenceCurrent(Protocol):
+    """Pure local final lineage check; no commits, network calls or authority grants."""
+
+    def __call__(
+        self,
+        db: Session,
+        work: CandidateWork | CandidateWorkV2,
+        observation: CandidateObservation,
+        /,
+    ) -> None: ...
+
+
 @dataclass(frozen=True)
 class CandidateRuntime:
     environment: Environment
@@ -56,6 +70,8 @@ class CandidateRuntime:
     clock: Clock = lambda: datetime.now(UTC)
     # Registry is server-owned; no genuine measured-learning profile ships enabled.
     learning_profiles: frozenset[tuple[str, str, int, str]] = frozenset()
+    feedback_dependent_schemas: frozenset[str] = frozenset()
+    final_evidence_current: FinalEvidenceCurrent | None = None
 
 
 def get_candidate_runtime() -> CandidateRuntime | None:
@@ -344,6 +360,18 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 return "superseded"
             if isinstance(work, CandidateWorkV2) and runtime.clock() >= work.selection.expires_at:
                 raise HTTPException(409, "candidate selection expired during result lock")
+            if evidence.source_schema in runtime.feedback_dependent_schemas:
+                if runtime.final_evidence_current is None:
+                    raise HTTPException(409, "current feedback lineage reader unavailable")
+                runtime.final_evidence_current(db, work, observation)
+                # This callback is local/noncommitting; resample authority and time
+                # after any dependency locks it needed before storing derived data.
+                policy, positive, actions = current(db, work, principal_for(db, row), runtime)
+                if (
+                    isinstance(work, CandidateWorkV2)
+                    and runtime.clock() >= work.selection.expires_at
+                ):
+                    raise HTTPException(409, "candidate selection expired during evidence check")
             decision = compile_candidate(
                 observation, work.policy, policy, positive, actions, runtime.clock()
             )

@@ -18,6 +18,7 @@ from app.database.session import Base
 from app.lifecycle.contracts import LifecycleBlockerV1, LifecycleScopeV1
 from app.lifecycle.inventory import inventory, predicate
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
+from app.workspaces.locking import lock_workspace_row
 from app.workspaces.models import Workspace
 
 
@@ -28,12 +29,7 @@ def owner(
     wid: int,
 ) -> Workspace:
     """Dedicated receipt/closure authority; never grants normal access to closing workspaces."""
-    workspace = db.scalar(
-        select(Workspace)
-        .where(Workspace.id == wid)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
+    workspace = lock_workspace_row(db, wid)
     user = db.scalar(
         select(CustomerUser)
         .where(CustomerUser.id == principal.user.id)

@@ -25,6 +25,7 @@ from app.recommendations import (
     RecommendationGenerationService,
     RecommendationScopeType,
 )
+from app.workspaces.locking import require_active_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,9 @@ class AnalysisRunService:
         if not claimed:
             return row
         try:
+            # Claim commits durably; reacquire authority before any local output.
+            # Keep this workspace lock through result persistence.
+            require_active_workspace(self.session, workspace_id)
             summary = self._analyze(
                 workspace_id=workspace_id,
                 account_id=account_id,

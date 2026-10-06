@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.models import AnalysisRun
+from app.workspaces.locking import require_active_workspace
 
 
 class AnalysisRunRepository:
@@ -41,6 +42,7 @@ class AnalysisRunRepository:
         started_at: datetime,
         retry_failed: bool = False,
     ) -> tuple[AnalysisRun, bool]:
+        require_active_workspace(self.session, workspace_id)
         existing = self.session.scalar(
             select(AnalysisRun)
             .where(
@@ -149,6 +151,7 @@ class AnalysisRunRepository:
         unattributed_journey_count: int,
         blocking_reasons: Sequence[str],
     ) -> AnalysisRun:
+        require_active_workspace(self.session, row.workspace_id)
         row.status = AnalysisRunStatus.SUCCEEDED
         row.finished_at = finished_at
         row.accounts_analyzed = accounts_analyzed

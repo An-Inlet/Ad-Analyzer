@@ -2284,3 +2284,29 @@ boundaries. Ruff passed, configured mypy passed 442 files, diff check passed.
 Log `/tmp/inlet-descriptive-final.log`. No Full or CI dispatch. Remaining B17:
 approved maturity parameters, qualified effective-time producer and bounded explained
 recommendation updates; separate customer UI integration remains outstanding.
+
+## Assembled Customer Execution And Comparison Checkpoint
+
+Integrated PR165 (named Google catalog, original-session-bound execution consent,
+exact paused creation, separate activation, receipts/recovery) and PR164 (owned
+read-only descriptive comparisons; maturity remains unqualified). Source commits
+9ac2bb4/db58bb9; integration code head fe710a9. Conflicts were additive route imports
+and progress entries only. No schema migration or live runtime enabled.
+
+Combined command: `pytest -q tests/test_customer_execution_api.py
+ tests/test_customer_execution_ui.py tests/test_customer_execution_catalog.py
+ tests/test_google_catalog_http.py tests/test_descriptive_comparisons.py
+ tests/test_route_boundaries.py tests/test_provider_period_accounting.py` using
+local disposable PostgreSQL. Exit0, 110 collected:108 passed/2 SQLite-only skips;
+log `/tmp/inlet-next-customer-descriptive.log`, exit file alongside it. Whole Ruff,
+configured mypy466 files and diff check passed. These are focused checks, not Full.
+
+PR130 now points to earlier assembled e512529. Normal hosted CI run37421671069
+passed actual browser H.264/AAC preflight and was running the complete pytest suite
+at this checkpoint. The denied manual dispatch remains paused. No quota exhaustion
+was reported. Latest customer/comparison integration is not part of that run.
+
+Next: freeze this successor for local Full; continue social audited configuration,
+native inventory/qualification and descriptive customer UI independently. Native
+spending/exposure sources, mature action comparisons, repeat-owner rebudgeting,
+commercial/live configuration and release/pilot gates remain open.

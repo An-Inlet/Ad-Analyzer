@@ -100,8 +100,15 @@ def run(
                 counts["refreshes"] += 1
             except Exception:
                 db.rollback()
+                # Reacquire the canonical workspace lock after the failed read
+                # transaction, preserving closing-workspace financial evidence.
+                db.scalar(
+                    select(Workspace).where(Workspace.id == wid).with_for_update(key_share=True)
+                )
                 row = repository.billing(db, wid, scope)
                 if row is not None:
+                    if scope.qualified:
+                        row.error_code = "commercial_qualification_unavailable"
                     row.next_attempt_at = now + timedelta(minutes=1)
                     db.commit()
                 counts["failed"] += 1

@@ -12,6 +12,7 @@ from app.billing.contracts import (
     get_billing_transport,
 )
 from app.billing.entitlements import policy
+from app.billing.offers import configured_offer
 from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1, configured_scope
 from app.billing.webhooks import receive
 from app.customers.access import (
@@ -27,6 +28,18 @@ from app.shopify.security import utc
 
 router = APIRouter(tags=["customer"])
 Transport = Annotated[BillingTransport, Depends(get_billing_transport)]
+
+
+def portal_configuration() -> str:
+    if (
+        settings.billing_provider_mode in {"stripe_test", "stripe_live"}
+        and settings.billing_offer_profile is not None
+    ):
+        try:
+            return configured_offer().portal.configuration_id
+        except ValueError:
+            return ""
+    return settings.billing_portal_configuration
 
 
 @router.get("/api/customer/v1/workspaces/{workspace_id}/billing")
@@ -71,7 +84,7 @@ def status(
             and row
             and row.customer_id
             and isinstance(transport, BillingManagementTransport)
-            and re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", settings.billing_portal_configuration)
+            and re.fullmatch(r"bpc_[A-Za-z0-9_]{1,128}", portal_configuration())
         ),
         "checkout_pending": bool(row and row.checkout_key and not row.subscription_id),
         "verification_current": verified,
@@ -183,7 +196,7 @@ def management(
         db,
         workspace_id,
         transport,
-        settings.billing_portal_configuration,
+        portal_configuration(),
         settings.customer_app_origin + f"/app/settings?workspace={workspace_id}&billing_return=1",
         datetime.now(UTC),
     )

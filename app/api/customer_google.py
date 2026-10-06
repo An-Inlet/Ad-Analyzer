@@ -136,6 +136,7 @@ def disconnect(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    guard_customer_mutation(db, principal, workspace_id)
     access(db, principal.user.id, workspace_id, response, write=True)
     row = s.owned(db, workspace_id, connection_id)
     s.disconnect(db, row)

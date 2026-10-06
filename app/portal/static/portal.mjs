@@ -223,8 +223,20 @@ if (typeof document !== 'undefined') {
       if (!pending) pendingGoals.set(path, {body: encoded, key: crypto.randomUUID()});
       headers = {'Idempotency-Key': pendingGoals.get(path).key};
     }
-    const item = await api(path + '/goals' + (selectedGoal ? '/' + selectedGoal.id : ''), selectedGoal ? 'PUT' : 'POST', {...(selectedGoal ? {expected_revision: selectedGoal.revision} : {}), definition}, headers);
-    pendingGoals.delete(path);
+    const creationKey = headers['Idempotency-Key'];
+    const settleCreation = () => {
+      if (creationKey && pendingGoals.get(path)?.key === creationKey) pendingGoals.delete(path);
+    };
+    let item;
+    try {
+      item = await api(path + '/goals' + (selectedGoal ? '/' + selectedGoal.id : ''), selectedGoal ? 'PUT' : 'POST', {...(selectedGoal ? {expected_revision: selectedGoal.revision} : {}), definition}, headers);
+    } catch (error) {
+      // This endpoint validates input before committing. Transport/5xx uncertainty
+      // must retain the key, and edits must never settle another creation attempt.
+      if (error.status === 422) settleCreation();
+      throw error;
+    }
+    settleCreation();
     await loadWorkspace(); $('goal').value = item.id; editGoal(); say('Goal draft saved. Review its baseline before confirming.');
   }); };
   $('preview').onclick = () => guarded(async () => {

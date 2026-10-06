@@ -2967,3 +2967,24 @@ Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
 production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
 not qualified. Frozen `8efe196` local Full and normal CI are still running and do
 not cover this newer package.
+
+## B17 Retained Reconciliation Observations (2026-10-06)
+
+Branch `codex/inlet-b17-readiness`, isolated base `1c82e03`. Added an internal,
+read-only owned collector with explicit incremental-terminal assurance, maximum 16
+retained publications/400 local days, current goal/source/privacy fences, completion
+lineage verification, per-day observed changes and retention/truncation reporting.
+No maturity or action attribution qualification, recommendation update, spending
+permission, endpoint, migration or provider call is enabled. See
+`docs/design/b17-production-readiness.md` for the exact remaining production code,
+policy calibration decision and next disabled-default registry/evaluator contract.
+
+Validation: existing outcome/descriptive/learning suite 72 passed, 2 SQLite-specific
+skips (31.28s). New collector tests 10 passed across SQLite/PostgreSQL (9.57s),
+including actual terminal imports, 16-observation cap, revisions, old retention
+exclusion, privacy deletion, invalid completion binding, missing coverage, foreign
+workspace, stale publication/goal and final fresh authorization rejection. Related
+combined run before fixture corrections had 48 passed/2 skips and two new fixture
+failures; those were corrected (valid sync interval and actual fixture sales delta),
+then all 10 collector cases rerun successfully. Ruff, mypy (504 files), and
+`git diff --check` passed. No Full, CI dispatch, live qualification or deployment.

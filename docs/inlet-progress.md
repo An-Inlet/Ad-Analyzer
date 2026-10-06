@@ -1487,3 +1487,8 @@ migration roundtrips and conflict refusal included. Actual two-writer PG test as
 the named partial-index conflict and rollback, not only a query recheck. Ruff/mypy
 **326 files**/diff pass. Full/CI pending. No live provider/customer data access,
 advertising actions, merge or deployment. See `docs/inlet-meta-ownership-repair.md`.
+
+Retained Meta ownership draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/133.
+Tested implementation: `d6a98b54aebed24416700638a675700a7d765e43`; final ownership-only
+rerun **7 passed, 1 intentional SQLite concurrency skip**. Following commit only records
+this PR link. Parent will join migration0049 with the next unfrozen candidate.

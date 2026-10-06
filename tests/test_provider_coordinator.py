@@ -145,8 +145,8 @@ def ready(
             unreported_upper_micros=0,
             unchanged_future_upper_micros=0,
             proposed_owner_upper_micros=40,
-            existing_reservations_micros=held,
-            portfolio_upper_micros=held + 40,
+            existing_reservations_micros=int(held),
+            portfolio_upper_micros=int(held) + 40,
         )
 
     def unused(_: httpx.Request) -> httpx.Response:

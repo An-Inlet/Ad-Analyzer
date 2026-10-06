@@ -1012,3 +1012,17 @@ Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
 journey; publication coordinator with fixture-only authority. B07 simulation mandates
 remain simulation and B14 review does not grant publication permission. No provider
 mutations, live credentials, merge or deployment were performed.
+
+## B19 Database Dependency Readiness (2026-10-06)
+
+Branch `codex/inlet-dependency-readiness`, based on PR94 5f9a0d0. A configured but
+unreachable database now yields503/not_ready on /ready; invalid configuration skips
+the connection entirely. A fresh NullPool read-only SELECT1 avoids waiting on the
+application pool; connection and statement timeouts are independently limited to2s
+and1s (not an absolute DNS/network wall-clock promise). Responses reveal no driver
+errors, address or credentials. /health stays liveness, with no dependency probe.
+
+Focused dependency/deployment/managed-configuration suite:23passed, including a real
+connection to explicitly guarded disposable PostgreSQL and sanitized failure/resource
+cleanup assertions. Ruff and mypy passed. Full/hostedCI pending. This does not prove
+schema compatibility, live production health, capacity or release readiness.

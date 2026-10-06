@@ -645,3 +645,13 @@ billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skip
 (before three additional HTTP error cases, separately passed). Ruff, mypy and
 `git diff --check` pass. Full validation has not run for this runtime candidate.
 Not a completed B13 acceptance or live payment result.
+
+### TikTok Deleted History Review Repair (2026-10-06)
+
+Dependent branch `codex/inlet-tiktok-history` from PR75 head01aa869 adds explicit
+all-status inventory and dimension-specific report filters. Actual HTTP mock →
+page staging → database publication tests reproduce the former deleted-history
+loss, then verify retained spend across deletion, pagination and workspace isolation.
+49 focused tests pass on SQLite/disposable PostgreSQL; Ruff/mypy/diff checks pass.
+Full/CI pending. See `docs/inlet-tiktok-history-repair.md` for precise primary-source
+verification limits and live qualification gate. No live calls, merge or deployment.

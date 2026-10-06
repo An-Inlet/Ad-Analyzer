@@ -242,13 +242,19 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
     from sqlalchemy.exc import DBAPIError
 
     migration = importlib.import_module("migrations.versions.20261006_0074_campaign_performance")
+    observations = importlib.import_module("migrations.versions.20261006_0075_initial_planning")
     with customer_engine.begin() as connection:
         if customer_engine.dialect.name == "sqlite":
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        # Exercise historical DDL only after removing its newer dependent schema.
+        # Restore the current schema before invoking current importer hooks.
+        with Operations.context(MigrationContext.configure(connection)):
+            observations.downgrade()
         Base.metadata.tables["campaign_performance_current"].drop(connection)
         Base.metadata.tables["campaign_performance_completions"].drop(connection)
         with Operations.context(MigrationContext.configure(connection)):
             migration.upgrade()
+            observations.upgrade()
     with Session(customer_engine) as db:
         source, actor, auth, _, _, _, runner = setup(db, configuration, monkeypatch)
         cid = finish(db, source, runner)
@@ -271,5 +277,7 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
         customer_engine.begin() as connection,
         Operations.context(MigrationContext.configure(connection)),
     ):
+        observations.downgrade()
         migration.downgrade()
         migration.upgrade()
+        observations.upgrade()

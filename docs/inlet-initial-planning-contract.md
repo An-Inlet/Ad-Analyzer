@@ -46,3 +46,17 @@ Final frozen-backend combined rerun after that fixture fix: **39 passed, 1 skipp
 in18.43s; skip is the intentionally PostgreSQL-only actual Alembic roundtrip case on
 SQLite. The PostgreSQL migration case passed. Three pre-existing Alembic
 `path_separator` deprecation warnings were emitted. Working tree was clean at2175a5b.
+
+### Historical 0074 Fixture Compatibility
+
+Reproduced the historical test's direct DROP failure under PostgreSQL:
+`DependentObjectsStillExist`, from the new observation completion/account/workspace FK.
+Before:1 passed/1 failed. The fixture now downgrades0075 before0074 historical DDL and
+restores0075 before current importer execution; final roundtrip uses the same dependency
+order. Application code and constraints are unchanged. After:2 passed; Ruff/mypy643 pass.
+
+The two existing performance modules ran to completion:60 passed,2 failed at
+`verify_registry()` because this isolated backend branch intentionally does not yet
+contain the separately owned lifecycle table registration. Both failures are the same
+registry composition gap, not migration/importer failures. Lifecycle integration must
+rerun those cases; no application missing-table fallback was added.

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.ads.enums import JobRunStatus
 from app.ads.models import JobRun
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.repository import customer_join
 from app.goals.schemas import StrictModel
 from app.google_connections.models import GoogleCustomerConnection
 from app.mandates.models import MandateAction
@@ -143,7 +144,7 @@ def attention(db: Session, now: datetime) -> Attention:
 
     events = rows(
         select(BillingEvent.received_at, BillingEvent.next_attempt_at)
-        .join(WorkspaceBilling, WorkspaceBilling.customer_id == BillingEvent.customer_id)
+        .join(WorkspaceBilling, customer_join())
         .join(Workspace, Workspace.id == WorkspaceBilling.workspace_id)
         .where(Workspace.status == "active", BillingEvent.state == "pending")
         .order_by(BillingEvent.received_at, BillingEvent.id)

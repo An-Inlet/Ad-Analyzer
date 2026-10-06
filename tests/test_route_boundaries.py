@@ -50,6 +50,7 @@ PUBLIC = {
 }
 SIGNED_INGRESS = {
     ("POST", "/api/billing/stripe/events"),
+    ("POST", "/api/billing/stripe/{environment}/events"),
     ("POST", "/v1/crm/workspaces/{workspace_id}/connections/{connection_id}/events"),
 }
 STATIC_AND_DOCS = {

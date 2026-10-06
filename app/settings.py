@@ -215,6 +215,16 @@ class Settings(BaseSettings):
     billing_provider_mode: str = Field(
         default="disabled", alias="AD_ANALYZER_BILLING_PROVIDER_MODE"
     )
+    billing_live_max_accounts: int | None = Field(
+        default=None, ge=1, le=100, alias="AD_ANALYZER_BILLING_LIVE_MAX_ACCOUNTS"
+    )
+    billing_live_enabled: bool = Field(default=False, alias="AD_ANALYZER_BILLING_LIVE_ENABLED")
+    billing_merchant_account_id: str = Field(
+        default="", alias="AD_ANALYZER_BILLING_MERCHANT_ACCOUNT_ID"
+    )
+    billing_live_webhook_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_LIVE_WEBHOOK_SECRET"
+    )
     billing_api_key: SecretStr | None = Field(default=None, alias="AD_ANALYZER_BILLING_API_KEY")
     billing_api_version: str = Field(default="", alias="AD_ANALYZER_BILLING_API_VERSION")
     billing_portal_configuration: str = Field(

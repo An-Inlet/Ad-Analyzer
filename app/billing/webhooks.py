@@ -12,9 +12,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.billing.models import BillingEvent
+from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 
 
-def verify(payload: bytes, signature: str, secret: str, now: datetime) -> dict[str, Any]:
+def verify(
+    payload: bytes,
+    signature: str,
+    secret: str,
+    now: datetime,
+    *,
+    scope: BillingScopeV1 = LEGACY_TEST_SCOPE,
+) -> dict[str, Any]:
     if len(payload) > 262144 or len(signature) > 2048 or not secret:
         raise HTTPException(400, "invalid billing event")
     parts: dict[str, list[str]] = {}
@@ -35,15 +43,27 @@ def verify(payload: bytes, signature: str, secret: str, now: datetime) -> dict[s
         if not any(hmac.compare_digest(expected, value) for value in parts.get("v1", [])):
             raise ValueError
         event = json.loads(payload)
-        if not isinstance(event, dict) or event.get("livemode") is not False:
+        if not isinstance(event, dict) or event.get("livemode") is not (
+            scope.environment == "live"
+        ):
+            raise ValueError
+        if event.get("account") is not None and event["account"] != scope.merchant_account_id:
             raise ValueError
         return event
     except (KeyError, ValueError, TypeError):
         raise HTTPException(400, "invalid billing event") from None
 
 
-def receive(db: Session, payload: bytes, signature: str, secret: str, now: datetime) -> bool:
-    event = verify(payload, signature, secret, now)
+def receive(
+    db: Session,
+    payload: bytes,
+    signature: str,
+    secret: str,
+    now: datetime,
+    *,
+    scope: BillingScopeV1 = LEGACY_TEST_SCOPE,
+) -> bool:
+    event = verify(payload, signature, secret, now, scope=scope)
     supported = {
         "customer.subscription.created",
         "customer.subscription.updated",
@@ -67,7 +87,7 @@ def receive(db: Session, payload: bytes, signature: str, secret: str, now: datet
     except (KeyError, ValueError, TypeError):
         raise HTTPException(400, "invalid billing resource") from None
     digest = hashlib.sha256(payload).hexdigest()
-    existing = db.get(BillingEvent, eid)
+    existing = db.get(BillingEvent, scope.key(eid))
     if existing is not None:
         if existing.body_hash != digest:
             raise HTTPException(409, "conflicting billing event")
@@ -77,6 +97,7 @@ def receive(db: Session, payload: bytes, signature: str, secret: str, now: datet
             db.add(
                 BillingEvent(
                     id=eid,
+                    **scope.columns(),
                     body_hash=digest,
                     customer_id=customer,
                     subscription_id=subscription,
@@ -87,7 +108,7 @@ def receive(db: Session, payload: bytes, signature: str, secret: str, now: datet
             )
             db.flush()
     except IntegrityError:
-        existing = db.get(BillingEvent, eid, populate_existing=True)
+        existing = db.get(BillingEvent, scope.key(eid), populate_existing=True)
         if existing is None or existing.body_hash != digest:
             raise HTTPException(409, "conflicting billing event") from None
         return False

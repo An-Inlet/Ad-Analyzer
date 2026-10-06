@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from app.billing import service
+from app.billing import repository, service
 from app.billing.contracts import (
     BillingManagementTransport,
     BillingTransport,
@@ -12,7 +12,7 @@ from app.billing.contracts import (
     get_billing_transport,
 )
 from app.billing.entitlements import policy
-from app.billing.models import WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1, configured_scope
 from app.billing.webhooks import receive
 from app.customers.access import (
     Database,
@@ -35,12 +35,16 @@ def status(
 ) -> dict[str, Any]:
     _, role = customer_workspace(db, principal.user.id, workspace_id)
     response.headers["Cache-Control"] = "no-store"
-    row = db.get(WorkspaceBilling, workspace_id)
+    scope = repository.transport_scope(transport)
+    row = repository.billing(db, workspace_id, scope)
     try:
         configured_policy = policy()
     except HTTPException:
         configured_policy = None
-    available = not isinstance(transport, UnavailableBilling) and transport.mode == "stripe_test"
+    available = not isinstance(transport, UnavailableBilling) and transport.mode in {
+        "stripe_test",
+        "stripe_live",
+    }
     owner = role == "owner"
     existing = row is not None and row.status in {
         "active",
@@ -75,6 +79,7 @@ def status(
         "status": row.status if row else "unconfigured",
         "mode": "unavailable" if isinstance(transport, UnavailableBilling) else transport.mode,
         "live_verified": False,
+        "scope": scope.model_dump(),
         "period_end": row.period_end if row else None,
         "cancel_at_period_end": row.cancel_at_period_end if row else False,
         "enforcement_enabled": settings.billing_required,
@@ -110,7 +115,39 @@ def checkout(
 
 @router.post("/api/billing/stripe/events")
 async def webhook(request: Request, db: Database) -> dict[str, bool]:
-    if settings.billing_webhook_secret is None:
+    # Historical endpoint is permanently test-only, even after deployment switches modes.
+    scope = LEGACY_TEST_SCOPE
+    if settings.billing_provider_mode == "stripe_test":
+        try:
+            scope = configured_scope()
+        except ValueError:
+            raise HTTPException(503, "billing webhook unavailable") from None
+    return await receive_webhook(request, db, scope, live=False)
+
+
+@router.post("/api/billing/stripe/{environment}/events")
+async def scoped_webhook(environment: str, request: Request, db: Database) -> dict[str, bool]:
+    try:
+        if environment not in {"test", "live"}:
+            raise ValueError
+        scope = BillingScopeV1(
+            environment="live" if environment == "live" else "test",
+            merchant_account_id=settings.billing_merchant_account_id,
+        )
+        if not scope.qualified:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(503, "billing webhook unavailable") from None
+    # Receipt-only lane remains available with its dedicated secret when forward
+    # billing is disabled. It never grants entitlement or calls the provider.
+    return await receive_webhook(request, db, scope, live=environment == "live")
+
+
+async def receive_webhook(
+    request: Request, db: Database, scope: BillingScopeV1, *, live: bool
+) -> dict[str, bool]:
+    secret = settings.billing_live_webhook_secret if live else settings.billing_webhook_secret
+    if secret is None:
         raise HTTPException(503, "billing webhook unavailable")
     body = bytearray()
     async for chunk in request.stream():
@@ -122,8 +159,9 @@ async def webhook(request: Request, db: Database) -> dict[str, bool]:
             db,
             bytes(body),
             request.headers.get("Stripe-Signature", ""),
-            settings.billing_webhook_secret.get_secret_value(),
+            secret.get_secret_value(),
             datetime.now(UTC),
+            scope=scope,
         )
     }
 

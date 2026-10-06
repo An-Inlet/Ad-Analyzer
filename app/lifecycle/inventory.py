@@ -43,6 +43,19 @@ def predicate(name: str, scope: LifecycleScopeV1) -> ColumnElement[bool]:
                 select(Base.metadata.tables["ad_sets"].c.id).where(predicate("ad_sets", scope))
             ),
         )
+    if name == "customer_billing_events":
+        billing = Base.metadata.tables["customer_workspace_billing"]
+        return (
+            select(billing.c.workspace_id)
+            .where(
+                billing.c.workspace_id == scope.workspace_id,
+                billing.c.customer_id == table.c.customer_id,
+                billing.c.provider == table.c.provider,
+                billing.c.environment == table.c.environment,
+                billing.c.merchant_account_id == table.c.merchant_account_id,
+            )
+            .exists()
+        )
     if policy.parent is not None:
         local, parent, remote = policy.parent
         parent_table = Base.metadata.tables[parent]

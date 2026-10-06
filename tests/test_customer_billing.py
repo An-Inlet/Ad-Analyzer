@@ -16,6 +16,7 @@ from app.billing.contracts import (
     UnavailableBilling,
 )
 from app.billing.models import BillingEvent, WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.billing.service import checkout, reconcile, require_entitlement
 from app.billing.webhooks import receive
 from fastapi import HTTPException
@@ -131,7 +132,7 @@ def test_checkout_uncertainty_reuses_durable_key_and_current_events(
         reconcile(db, wid, "evt_old", POLICY, fixture, NOW)
         with pytest.raises(HTTPException, match="entitlement"):
             require_entitlement(db, wid, POLICY, NOW)
-        assert db.get(WorkspaceBilling, wid).status == "canceled"  # type: ignore[union-attr]
+        assert db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid)).status == "canceled"  # type: ignore[union-attr]
         changed = payload("evt_new", status="canceled")
         with pytest.raises(HTTPException, match="conflicting"):
             receive(db, changed, signature(changed), SECRET, NOW)
@@ -154,7 +155,7 @@ def test_signature_failure_and_retryable_verification(customer_engine: Engine) -
         fixture.fail = True
         with pytest.raises(HTTPException, match="verification unavailable"):
             reconcile(db, wid, "evt_retry", POLICY, fixture, NOW)
-        row = db.get(BillingEvent, "evt_retry")
+        row = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_retry"))
         assert row is not None and row.state == "pending"
         fixture.fail = False
         reconcile(db, wid, "evt_retry", POLICY, fixture, NOW)
@@ -432,14 +433,14 @@ def test_delayed_terminal_subscription_event_cannot_replace_current_purchase(
         db.commit()
     assert run(sessionmaker(customer_engine), POLICY, fixture, NOW, 1)["events"] == 1
     with Session(customer_engine) as db:
-        saved = db.get(WorkspaceBilling, wid)
+        saved = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
         assert (
             saved is not None
             and saved.subscription_id == "sub_current"
             and saved.status == "active"
         )
         require_entitlement(db, wid, POLICY, NOW)
-        event = db.get(BillingEvent, "evt_old")
+        event = db.get(BillingEvent, LEGACY_TEST_SCOPE.key("evt_old"))
         assert event is not None and event.state == "processed"
     assert fixture.reads == ["sub_old", "sub_current"]
 

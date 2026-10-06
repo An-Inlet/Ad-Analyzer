@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Literal, Protocol, runtime_checkable
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime, Field, model_validator
 
+from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 from app.goals.schemas import StrictModel
 
 
@@ -13,7 +14,18 @@ class BillingPolicy(StrictModel):
     max_snapshot_age_seconds: int = Field(strict=True, ge=60, le=3600, default=300)
 
 
-class SubscriptionState(StrictModel):
+class ScopedBillingResult(StrictModel):
+    scope: BillingScopeV1 = LEGACY_TEST_SCOPE
+    livemode: bool = Field(strict=True, default=False)
+
+    @model_validator(mode="after")
+    def exact_mode(self) -> "ScopedBillingResult":
+        if self.livemode != (self.scope.environment == "live"):
+            raise ValueError("billing response environment mismatch")
+        return self
+
+
+class SubscriptionState(ScopedBillingResult):
     customer_id: str = Field(pattern=r"^cus_[A-Za-z0-9_]{1,128}$")
     subscription_id: str = Field(pattern=r"^sub_[A-Za-z0-9_]{1,128}$")
     price_id: str = Field(pattern=r"^price_[A-Za-z0-9_]{1,128}$")
@@ -30,27 +42,25 @@ class SubscriptionState(StrictModel):
     period_end: AwareDatetime
     cancel_at_period_end: bool
     observed_at: AwareDatetime
-    livemode: Literal[False] = False
 
 
-class CheckoutResult(StrictModel):
+class CheckoutResult(ScopedBillingResult):
     id: str = Field(pattern=r"^cs_[A-Za-z0-9_]{1,128}$")
     url: str | None = Field(default=None, max_length=2048)
     expires_at: AwareDatetime
 
 
-class CheckoutState(StrictModel):
+class CheckoutState(ScopedBillingResult):
     id: str = Field(pattern=r"^cs_[A-Za-z0-9_]{1,128}$")
     customer_id: str = Field(pattern=r"^cus_[A-Za-z0-9_]{1,128}$")
     status: Literal["open", "complete", "expired"]
     subscription_id: str | None = Field(default=None, pattern=r"^sub_[A-Za-z0-9_]{1,128}$")
     observed_at: AwareDatetime
-    livemode: Literal[False] = False
 
 
 class BillingTransport(Protocol):
     @property
-    def mode(self) -> Literal["fixture", "stripe_test"]: ...
+    def mode(self) -> Literal["fixture", "stripe_test", "stripe_live"]: ...
 
     def customer(self, workspace_id: int, idempotency_key: str) -> str: ...
     def checkout(
@@ -65,6 +75,7 @@ class BillingTransport(Protocol):
 
 
 class UnavailableBilling:
+    scope = LEGACY_TEST_SCOPE
     mode: Literal["fixture"] = "fixture"
 
     def customer(self, workspace_id: int, idempotency_key: str) -> str:
@@ -86,10 +97,16 @@ def get_billing_transport() -> BillingTransport:
     from app.billing.stripe import StripeBilling
     from app.settings import settings
 
-    if settings.billing_provider_mode != "stripe_test" or settings.billing_api_key is None:
+    if (
+        settings.billing_provider_mode not in {"stripe_test", "stripe_live"}
+        or settings.billing_api_key is None
+    ):
         return UnavailableBilling()
     try:
-        return StripeBilling(settings.billing_api_key, settings.billing_api_version)
+        from app.billing.scope import configured_scope
+
+        scope = configured_scope()
+        return StripeBilling(settings.billing_api_key, settings.billing_api_version, scope=scope)
     except ValueError:
         return UnavailableBilling()
 

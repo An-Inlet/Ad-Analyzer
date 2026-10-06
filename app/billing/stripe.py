@@ -1,8 +1,7 @@
-"""Real Stripe HTTP adapter, test-mode-only; default factory remains disabled.
+"""Scoped Stripe HTTP adapter; qualified test/live runtimes are disabled by default.
 
-No requests occur at import/construction. Tests inject httpx.MockTransport. Release
-configuration must explicitly select stripe_test, an API version and a test API key.
-Live secret keys and live response objects are rejected independently of settings.
+No IO at construction. Every qualified call first verifies the authenticated account;
+response livemode and key family must match the immutable configured scope.
 """
 
 import json
@@ -15,6 +14,7 @@ import httpx
 from pydantic import SecretStr
 
 from app.billing.contracts import CheckoutResult, CheckoutState, SubscriptionState
+from app.billing.scope import LEGACY_TEST_SCOPE, BillingScopeV1
 
 
 class BillingProviderError(RuntimeError):
@@ -39,20 +39,23 @@ def identifier(value: str, prefix: str) -> str:
 
 
 class StripeBilling:
-    mode: Literal["stripe_test"] = "stripe_test"
+    mode: Literal["stripe_test", "stripe_live"] = "stripe_test"
 
     def __init__(
         self,
         key: SecretStr,
         version: str,
         *,
+        scope: BillingScopeV1 = LEGACY_TEST_SCOPE,
         http_transport: httpx.BaseTransport | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
-        if not key.get_secret_value().startswith("sk_test_") or not re.fullmatch(
-            r"20\d{2}-\d{2}-\d{2}(?:\.[a-z]+)?", version
-        ):
-            raise ValueError("test billing configuration unavailable")
+        self.scope = scope
+        self.mode = "stripe_live" if scope.environment == "live" else "stripe_test"
+        if not key.get_secret_value().startswith(
+            "sk_" + scope.environment + "_"
+        ) or not re.fullmatch(r"20\d{2}-\d{2}-\d{2}(?:\.[a-z]+)?", version):
+            raise ValueError("billing configuration unavailable")
         self.key, self.version, self.http_transport, self.clock = (
             key,
             version,
@@ -70,6 +73,13 @@ class StripeBilling:
         params: dict[str, str] | None = None,
         collection: Literal["resources", "line_items"] | None = None,
     ) -> dict[str, Any]:
+        if path != "/v1/account" and self.scope.qualified:
+            account = self.request("GET", "/v1/account")
+            if (
+                account.get("object") != "account"
+                or account.get("id") != self.scope.merchant_account_id
+            ):
+                raise BillingProviderError("billing_merchant_mismatch")
         headers = {
             "Authorization": "Bearer " + self.key.get_secret_value(),
             "Stripe-Version": self.version,
@@ -110,8 +120,10 @@ class StripeBilling:
                 result = json.loads(body)
                 if not isinstance(result, dict):
                     raise BillingProviderError("billing_response_invalid")
-                if collection is None:
-                    if result.get("livemode") is not False:
+                if path == "/v1/account" and method == "GET":
+                    pass
+                elif collection is None:
+                    if result.get("livemode") is not (self.scope.environment == "live"):
                         raise BillingProviderError("billing_live_or_invalid_response_blocked")
                 else:
                     rows = result.get("data")
@@ -126,7 +138,9 @@ class StripeBilling:
                         if not isinstance(row, dict):
                             raise BillingProviderError("billing_collection_invalid")
                         checked = row.get("price") if collection == "line_items" else row
-                        if not isinstance(checked, dict) or checked.get("livemode") is not False:
+                        if not isinstance(checked, dict) or checked.get("livemode") is not (
+                            self.scope.environment == "live"
+                        ):
                             raise BillingProviderError("billing_live_or_invalid_response_blocked")
                 return result
         except (httpx.HTTPError, ValueError, TypeError):
@@ -169,6 +183,8 @@ class StripeBilling:
         if body.get("customer") != customer_id or body.get("mode") != "subscription":
             raise BillingProviderError("billing_checkout_identity_mismatch")
         return CheckoutResult(
+            scope=self.scope,
+            livemode=self.scope.environment == "live",
             id=body["id"],
             url=body["url"],
             expires_at=datetime.fromtimestamp(body["expires_at"], UTC),
@@ -282,7 +298,8 @@ class StripeBilling:
             status=body["status"],
             subscription_id=body.get("subscription"),
             observed_at=now,
-            livemode=False,
+            scope=self.scope,
+            livemode=self.scope.environment == "live",
         )
 
     def current(self, customer_id: str, subscription_id: str, now: datetime) -> SubscriptionState:
@@ -306,7 +323,8 @@ class StripeBilling:
             period_end=datetime.fromtimestamp(period_end, UTC),
             cancel_at_period_end=body["cancel_at_period_end"],
             observed_at=now,
-            livemode=False,
+            scope=self.scope,
+            livemode=self.scope.environment == "live",
         )
 
     def portal(

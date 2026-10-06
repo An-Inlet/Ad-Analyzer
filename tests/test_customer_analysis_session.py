@@ -11,6 +11,7 @@ from app.analysis.models import AnalysisRun
 from app.analysis.repository import AnalysisRunRepository
 from app.analysis.service import AnalysisRunService
 from app.billing.models import WorkspaceBilling
+from app.billing.scope import LEGACY_TEST_SCOPE
 from app.google_connections.dispatcher import run_imports
 from app.google_connections.models import GoogleImportCompletion
 from app.jobs import customer_runtime as runtime
@@ -113,7 +114,7 @@ def test_post_claim_revalidates_customer_source_and_paid_authority(
                         assert integration is not None
                         integration.status = "revoked"
                     else:
-                        billing = db.get(WorkspaceBilling, wid)
+                        billing = db.get(WorkspaceBilling, LEGACY_TEST_SCOPE.key(wid))
                         assert billing is not None
                         billing.status = "past_due"
                     db.commit()

@@ -12,6 +12,30 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "initial_preview_reviews": TablePolicy(
+        "workspace",
+        (
+            "review_id",
+            "workspace_id",
+            "preview_id",
+            "preview_workspace_id",
+            "preview_account_id",
+            "preview_campaign_id",
+            "actor_id",
+            "environment",
+            "preview_digest",
+            "intent_digest",
+            "policy_digest",
+            "evidence_digest",
+            "native_state_digest",
+            "mandate_digest",
+            "review_digest",
+            "plan_digest",
+            "expires_at",
+            "created_at",
+        ),
+        protected=True,
+    ),
     "initial_observations": TablePolicy(
         "workspace",
         (
@@ -346,6 +370,8 @@ TABLES: dict[str, TablePolicy] = {
     "provider_execution_reviews": TablePolicy(
         "workspace",
         (
+            "initial_preview_provenance_required",
+            "initial_preview_origin_id",
             "id",
             "workspace_id",
             "consent_id",

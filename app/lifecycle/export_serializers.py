@@ -28,6 +28,7 @@ from app.initial_planning.contracts import (
     PreviewIntentV1,
 )
 from app.initial_planning.export import bind_initial_document
+from app.initial_planning.review_export import export_review_link
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
 from app.lifecycle.export_domains import SettlementEvidence
 from app.lifecycle.inventory import scalar
@@ -512,6 +513,11 @@ def bind_document(
 
 
 def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    if table == "initial_preview_reviews":
+        try:
+            return export_review_link(row), []
+        except (ValueError, TypeError, KeyError, ValidationError):
+            return {}, list(fields(table))
     output, missing = {}, []
     for field in fields(table):
         value = row[field]

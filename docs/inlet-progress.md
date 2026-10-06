@@ -4943,3 +4943,20 @@ frozendc3 run before commit. Dynamic terminal results belong in a later ledger e
 
 Docs only: relative file links and whitespace checked; pytest/Ruff/mypy not rerun,
 since no code changed. No Full, remote operation, provider call or policy activation.
+### Initial Preview Review Lifecycle And Strict Export — Local Only
+
+Registered0076's protected hash-only provenance link with explicit workspace scope,
+strict scalar export and original-session exclusion. Protected execution review
+exports include the initial-origin/required marker; nullable retraction never
+asserts current authority. No aggregate payload or credential copy was added.
+
+Actual Meta mocked-HTTP preview→qualified contract review fixtures passed against
+metadata and actual0076 schemas on SQLite/PostgreSQL: immutable protected origin,
+review deletion denial, nullable pointer erasure, no reattachment, deleted-child
+retry denial, scoped/session-safe export and cached ordinary-marker refresh denial.
+Actual migration downgrade refuses retained protected provenance. Combined new
+and existing initial lifecycle/export/backend suite:45passed,1SQLite-only lock-race
+skip(96.84s). Whole Ruff and clean mypy669 passed; whitespace clean. Evidence:
+`/tmp/inlet-initial-handoff-combined.log`, `/tmp/inlet-initial-handoff-types.log`.
+See `docs/inlet-initial-review-lifecycle.md`. Parent/backend owner retains attempted
+historical reconciliation/settlement qualification. No remote/Full/live action.

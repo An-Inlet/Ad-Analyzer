@@ -2130,3 +2130,32 @@ Integrated PR1531e0c19f test package on assembled successor. Actual Meta/TikTok 
 ### Strict Owned Execution And Outcome Export Integration
 
 Integrated PR159c87a7ff. Actual create→activate→settle→archive, owned outcome export, strict row/digest bindings, privacy cascade after first stream chunk and existing export checks76 passed1 SQLite-only lock-contention skip; Ruff and configured mypy437 passed. /tmp/inlet-next-strict-export.log. Unknown JSON is not dumped; export remains disabled by default. Upcoming durable optimization adds more typed domains and requires a follow-up serializer delta before final freeze.
+## B20 Offline Two-Brand Cross-Workflow Acceptance
+
+Branch `codex/inlet-two-brand-pilot`, based on `6eef6d8`. Added one composed
+same-database test, parameterized over SQLite/PostgreSQL: two API-provisioned owners,
+Shopify/Google/Klaviyo versus Shopify/Meta/HubSpot, actual mocked CRM HTTP account
+proof through customer APIs, confirmed goals, exact Google/Meta draft approval,
+cross-tenant reads/callback rejection, Brand A durable Google creation and separate
+activation through actual MockTransport adapters, then owned closure/receipt history
+and Brand B continuity. Existing shared Shopify fixture now accepts optional unique
+shop/domain IDs without changing defaults. No production code or migration changes.
+
+`docs/inlet-offline-pilot-matrix.md` identifies the exact evidence and gaps. Native
+ad installation/Shopify baseline are fixtures; qualification/exposure inputs remain
+contract-test evidence. Google execution is a direct coordinator call because
+customer dispatch APIs are absent. Brand B social dispatch and mature measured
+outcomes retain their separate existing suite evidence, not claimed composed here.
+This does not finish B18 self-serve execution or B20 unrelated real pilots.
+
+Checks actually run: six passed, zero skipped in 13.16s across the new two-brand
+scenario, previous assembled customer journey, and original durable Google creation
+case (both databases). Ruff passed; repository-configured mypy passed 433 files;
+`git diff --check` passed. Log: `/tmp/inlet-pilot-final.log`. No Full, CI dispatch,
+live provider, merge or deployment operations. Next: integrate/review this bounded
+acceptance evidence, then retain customer coordinator UI and intended-environment
+qualification as open work.
+
+### Two-Brand Offline Pilot Integration
+
+Integrated PR1589d4c02. Two independently API-provisioned brands share one database; composed API goal/review/source scopes, actual mocked Google creation/activation, unrelated-tenant denial and closure continuity verified. Combined new pilot and prior customer journey4 passed on SQLite/PostgreSQL; Ruff and configured mypy passed. /tmp/inlet-next-two-brand-pilot.log. Source/qualification fixtures and service-vs-customer-API boundaries are explicit; B20 live unrelated pilots and complete self-service execution remain open.

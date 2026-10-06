@@ -53,10 +53,16 @@ class JourneyClock(datetime):
         return cls.fromtimestamp(NOW.timestamp(), tz or NOW.tzinfo)
 
 
-def install_fixture_baseline(db: Session, wid: int, configuration: Settings) -> str:
+def install_fixture_baseline(
+    db: Session,
+    wid: int,
+    configuration: Settings,
+    *,
+    shop: str = "journey-fixture.myshopify.com",
+    shop_id: str = "123",
+) -> str:
     """Explicit fixture installation, then the real binding/ledger code path."""
     configuration.shopify_measurement_enabled = True
-    shop = "journey-fixture.myshopify.com"
     bundle = credentials(
         {
             "access_token": "offline-journey",
@@ -78,7 +84,7 @@ def install_fixture_baseline(db: Session, wid: int, configuration: Settings) -> 
     db.add(row)
     db.flush()
     bind_shopify(db, row)
-    store = bind_store(db, row, "gid://shopify/Shop/123", configuration, NOW)
+    store = bind_store(db, row, f"gid://shopify/Shop/{shop_id}", configuration, NOW)
     store.covered_from, store.last_sync_at = retention_floor(NOW), NOW
     apply_order(db, store, row, source(), [agreement()], configuration, NOW)
     db.commit()

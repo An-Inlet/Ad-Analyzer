@@ -121,6 +121,10 @@ def begin(
 def authorization(
     db: Session, provider: ProviderName, nonce: str, sid: str, now: datetime
 ) -> SourceAuthorization:
+    peek = db.get(SourceAuthorization, digest(nonce), populate_existing=True)
+    if peek is None or peek.session_digest != sid or peek.provider != provider:
+        raise HTTPException(404, "authorization unavailable")
+    workspace_lock(db, peek.workspace_id)
     row = db.scalar(
         select(SourceAuthorization)
         .where(
@@ -130,6 +134,7 @@ def authorization(
             SourceAuthorization.expires_at > now,
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if row is None:
         raise HTTPException(404, "authorization unavailable")

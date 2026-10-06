@@ -13,11 +13,13 @@ from app.ads.schemas import CampaignCreate
 from app.automation import AutomationControlKey, AutomationControlService
 from app.imports.native import bind_meta
 from app.imports.scope import ImportScopeError
+from app.meta import staging
 from app.meta.client import MetaClient, unpack_page
 from app.meta.locking import lock_workspace
 from app.meta.models import (
     MetaAudit,
     MetaConnection,
+    MetaDetailCheckpoint,
     MetaOAuthState,
     MetaPendingGrant,
     MetaStagedMetric,
@@ -241,6 +243,9 @@ class MetaSyncService:
             )
             .with_for_update(skip_locked=True)
         )
+        if row is not None and row.status != "connected":
+            staging.clear(self.session, row.id)
+            self.session.commit()
         if row is None or row.status != "connected":
             return {"status": "not_connected_or_busy", "imported": 0}
         if row.next_attempt_at and utc(row.next_attempt_at) > now:
@@ -264,9 +269,13 @@ class MetaSyncService:
         if account is None:
             return {"status": "meta_account_mismatch", "imported": 0}
         try:
-            bind_meta(self.session, row)
+            with self.session.begin_nested():
+                bind_meta(self.session, row)
         except ImportScopeError:
-            self.session.rollback()
+            # Keep workspace/native locks while removing the rejected generation.
+            # A full rollback here could erase a concurrent reconnect's new checkpoint.
+            staging.clear(self.session, row.id)
+            self.session.commit()
             return {"status": "meta_ownership_unavailable", "imported": 0}
         row.last_attempt_at = now
         try:
@@ -283,26 +292,39 @@ class MetaSyncService:
                 token = ConnectionService(self.session, self.settings, self.client).access_token(
                     row, now
                 )
-                data = self.client.page(
-                    row.external_account_id,
-                    token,
-                    row.phase,
-                    row.cursor,
-                    row.window_start,
-                    row.window_end,
-                )
-                items, cursor = unpack_page(data, row.cursor)
-                imported = self._page(row, account, items)
-                status = "syncing"
-                if cursor:
-                    row.cursor = cursor
-                elif row.phase == "campaigns":
-                    row.phase, row.cursor = "adsets", None
-                elif row.phase == "adsets":
-                    row.phase, row.cursor = "insights", None
+                checkpoint = self.session.get(MetaDetailCheckpoint, row.id)
+                if checkpoint is not None and not self.settings.meta_detail_enabled:
+                    staging.clear(self.session, row.id)
+                    checkpoint = None
+                if checkpoint is not None:
+                    complete = staging.advance(
+                        self.session, row, account, checkpoint, self.client, token
+                    )
+                    imported = self._publish(row, now) if complete else 0
+                    status = "complete" if complete else "syncing"
                 else:
-                    imported = self._publish(row, now)
-                    status = "complete"
+                    data = self.client.page(
+                        row.external_account_id,
+                        token,
+                        row.phase,
+                        row.cursor,
+                        row.window_start,
+                        row.window_end,
+                    )
+                    items, cursor = unpack_page(data, row.cursor)
+                    imported = self._page(row, account, items)
+                    status = "syncing"
+                    if cursor:
+                        row.cursor = cursor
+                    elif row.phase == "campaigns":
+                        row.phase, row.cursor = "adsets", None
+                    elif row.phase == "adsets":
+                        row.phase, row.cursor = "insights", None
+                    elif self.settings.meta_detail_enabled:
+                        staging.begin(self.session, row)
+                    else:
+                        imported = self._publish(row, now)
+                        status = "complete"
                 row.error_code, row.next_attempt_at = None, None
                 self.session.add(
                     MetaAudit(
@@ -322,7 +344,15 @@ class MetaSyncService:
             )
             if code == "meta_reconnect_required":
                 row.status = "reconnect_required"
-            if code in {"meta_campaign_inventory_changed", "meta_invalid_cursor"}:
+                staging.clear(self.session, row.id)
+            if code in {
+                "meta_campaign_inventory_changed",
+                "meta_invalid_cursor",
+                "meta_detail_checkpoint_stale",
+                "meta_detail_capacity_exceeded",
+                "meta_detail_invalid_snapshot",
+            }:
+                staging.clear(self.session, row.id)
                 row.phase, row.cursor = "campaigns", None
                 self.session.execute(
                     delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == row.id)

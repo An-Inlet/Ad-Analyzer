@@ -509,3 +509,20 @@ backlog work and retain this gap in the launch checklist; do not call the produc
 
 B07 local Full at `7e31642` passed: 818 tests, six PowerShell skips; migration round-trip,
 Ruff, mypy and boundary gates pass. Hosted run37390420054 remains pending here.
+
+## B09 — Bounded Google Search Action Preparation
+
+Branch `codex/inlet-b09-google-actions` follows B08 `aa4dcff` / draft PR67. Added typed
+current-resource state and budget/status/negative-keyword changes, server-derived
+validate-only request previews and exact review for negative-keyword additions. The
+concrete fixture executor uses B07 durable claims/dispatch/reconciliation, checks B08
+connection generation and never retries uncertain submission. Matching resulting settings
+retains modeled exposure until the mandate period closes. No migration or live writer.
+The existing fail-closed live Google boundary remains unchanged.
+
+Focused acceptance covers SQLite/PostgreSQL and runs alongside B07 races. Exact checks
+and hosted CI results belong to the package PR. This is offline action preparation,
+not B09 live verification. Campaign matrix approval, provider-specific bound validation
+and real authorized read-back remain launch gates. Next independent package: B10 Meta
+child metric/state detail and aggregation correctness, then TikTok and customer-data
+adapters. `inlet-google-actions-contract.md` records the shared action boundary.

@@ -238,7 +238,9 @@ def draft(db: Session, m: Mandate, d: ActionDraft, actor: str, now: datetime) ->
         workspace_id=m.workspace_id,
         draft=d.model_dump(mode="json"),
         digest=digest,
-        state="awaiting_review" if d.kind in {"new_campaign", "creative"} else "eligible",
+        state="awaiting_review"
+        if d.kind in {"new_campaign", "creative", "negative_keyword"}
+        else "eligible",
     )
     db.add(a)
     db.flush()
@@ -286,7 +288,7 @@ def preconditions(
         raise HTTPException(409, "stale or unavailable simulation evidence")
     if e.state_digest != d.expected_state_digest or e.bound_micros > d.exposure_micros:
         raise HTTPException(409, "current state or exposure changed")
-    if d.kind in {"new_campaign", "creative"} and a.reviewed_by is None:
+    if d.kind in {"new_campaign", "creative", "negative_keyword"} and a.reviewed_by is None:
         raise HTTPException(409, "exact draft review required")
     if set(e.covered_account_ids) != {x.account_id for x in p.accounts}:
         raise HTTPException(409, "incomplete scope observation")

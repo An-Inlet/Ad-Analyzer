@@ -30,8 +30,8 @@ class MandateDefinition(StrictModel):
     cooldown_seconds: int = Field(strict=True, ge=0, le=86400)
     freshness_seconds: int = Field(strict=True, ge=1, le=3600)
     allowed_actions: list[
-        Literal["budget_change", "pause", "resume", "new_campaign", "creative"]
-    ] = Field(min_length=1, max_length=5)
+        Literal["budget_change", "pause", "resume", "new_campaign", "creative", "negative_keyword"]
+    ] = Field(min_length=1, max_length=6)
 
     @model_validator(mode="after")
     def valid(self) -> "MandateDefinition":
@@ -59,7 +59,9 @@ class RevisionInput(StrictModel):
 
 class ActionDraft(StrictModel):
     account: AccountScope
-    kind: Literal["budget_change", "pause", "resume", "new_campaign", "creative"]
+    kind: Literal[
+        "budget_change", "pause", "resume", "new_campaign", "creative", "negative_keyword"
+    ]
     resource_key: str = Field(min_length=1, max_length=128)
     # Reviewable synthetic draft; no fetching assets or accepting executable code.
     payload: dict[str, str | int | bool] = Field(min_length=1, max_length=30)

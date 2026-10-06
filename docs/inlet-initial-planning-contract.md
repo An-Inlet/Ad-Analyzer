@@ -41,3 +41,8 @@ the final clock regression; the added lagging-clock regression passed on both da
 (2 passed). A first combined attempt found a missing test-only NOW import; it was fixed
 and that exact regression reran successfully. Actual PostgreSQL0075 downgrade/re-upgrade
 passed. Full Ruff and mypy (643 source files) passed. No Full or remote run was started.
+
+Final frozen-backend combined rerun after that fixture fix: **39 passed, 1 skipped**
+in18.43s; skip is the intentionally PostgreSQL-only actual Alembic roundtrip case on
+SQLite. The PostgreSQL migration case passed. Three pre-existing Alembic
+`path_separator` deprecation warnings were emitted. Working tree was clean at2175a5b.

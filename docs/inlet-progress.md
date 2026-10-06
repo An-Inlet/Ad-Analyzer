@@ -1093,3 +1093,8 @@ provider operations, migrations, merge or deployment. Full/CI pending.
 Next recommended package is TikTok customer consent/selection/disconnect, after freezing
 shared source post-exchange guard and retry/lock interfaces with CRM ownership. Remaining
 source/Meta UI gaps and concrete ports are documented in `docs/inlet-google-disconnect-ui.md`.
+
+Google disconnect draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/120.
+Tested implementation: `7571ed2052f475b9235de6d94d09453b31921b2e`; the following commit
+only records this PR link. Parent subsequently selected Meta customer connections as
+the next isolated interface proposal, before TikTok/CRM implementation.

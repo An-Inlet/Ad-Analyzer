@@ -5,6 +5,7 @@ import hmac
 import time
 from collections.abc import Generator
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from threading import Event
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -232,9 +233,12 @@ def test_config_disabled_and_callback_relay_preserves_signed_pairs(
     )
     relay = owner.get("/api/customer/v1/shopify/callback?host=%3Cscript%3Eprivate%3C/script%3E")
     assert "private" not in relay.text
-    assert "URLSearchParams(location.search).entries()" in relay.text
-    assert "history.replaceState" in relay.text and "sessionStorage" not in relay.text
-    assert "sha256-" in relay.headers["content-security-policy"]
+    script = Path("app/portal/static/shopify-callback.mjs").read_text()
+    assert "URLSearchParams(location.search).entries()" in script
+    assert "history.replaceState" in script and "sessionStorage" not in script
+    assert "shopify-callback.mjs" in relay.text
+    assert "script-src 'self'" in relay.headers["content-security-policy"]
+    assert "unsafe-inline" not in relay.headers["content-security-policy"]
     monkeypatch.setattr(settings, "shopify_customer_enabled", True)
     for origin in ("http://inlet.example", ORIGIN + "/evil", "https://user@inlet.example"):
         monkeypatch.setattr(settings, "customer_app_origin", origin)
@@ -501,3 +505,20 @@ def test_postgres_login_email_refresh_and_rotation_precede_callback(
         session = db.get(CustomerSession, digest(owner.cookies[SESSION_COOKIE]))
         assert session is not None and session.revoked_at is not None
         assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 0
+
+
+def test_cancel_only_current_owned_attempt(customer_engine: Engine, configured: None) -> None:
+    runtime = FixtureShopify()
+    owner, stranger, wid, _ = clients(customer_engine, runtime)
+    first = dict(begin(owner, wid))["state"]
+    second = dict(begin(owner, wid))["state"]
+    url = "/api/customer/v1/shopify/cancel"
+    assert owner.post(url, json={"state": second}).status_code == 403
+    assert stranger.post(url, json={"state": second}, headers=headers(stranger)).status_code == 404
+    assert owner.post(url, json={"state": first}, headers=headers(owner)).status_code == 404
+    assert owner.post(url, json={"state": second}, headers=headers(owner)).json() == {
+        "workspace_id": wid
+    }
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ShopifyOAuthState)) == 0
+    assert runtime.token_calls == 0

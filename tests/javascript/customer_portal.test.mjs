@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -43,4 +43,11 @@ test('summaries distinguish missing amounts and baseline history from zero sales
   assert.deepEqual(goalSummary(null), [['Goal', 'No Goal Definition Yet']]);
   const fetcher = async () => ({ok:false,status:409,json:async()=>({detail:{code:'baseline_unavailable',reasons:['missing_history','stale_source']}})});
   await assert.rejects(request('/api/customer/v1/workspaces','GET',undefined,{},fetcher), error => error.message.includes('Historical data is missing') && error.message.includes('too old') && !error.message.includes('stale_source'));
+});
+
+test('Shopify authorization destination stays at the exact merchant HTTPS consent endpoint', () => {
+  const shop = 'store.myshopify.com';
+  assert.equal(shopifyDestination({authorization_url:'https://store.myshopify.com/admin/oauth/authorize?state=fixture'}, shop), 'https://store.myshopify.com/admin/oauth/authorize?state=fixture');
+  for (const url of ['http://store.myshopify.com/admin/oauth/authorize', 'https://other.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com.evil.test/admin/oauth/authorize', 'https://store.myshopify.com:444/admin/oauth/authorize', 'https://user@store.myshopify.com/admin/oauth/authorize', 'https://store.myshopify.com/other']) assert.throws(() => shopifyDestination({authorization_url:url}, shop));
+  assert.throws(() => shopifyDestination({authorization_url:'https://evil.test/admin/oauth/authorize'}, 'https://evil.test'));
 });

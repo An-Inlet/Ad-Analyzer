@@ -1036,3 +1036,43 @@ identified that final expiry check, now covered by regression tests.
 
 Combined authorization/media/Shopify/identity suite:108passed,9 SQLite-only concurrency
 skips; PostgreSQL counterparts ran. Ruff and mypy288 passed. Final focused rerun:12passed,2 SQLite-only lock skips. HostedCI pending; no Full or live provider calls. No migration or deployment.
+### B14 Rendered Review UI — 2026-10-06
+
+Branch `codex/inlet-campaign-review-ui` from PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6` adds the actual rendered customer review
+at `/app/campaign-review`, scoped recent-draft listing, exact-digest acknowledgment/
+approval, supplied-copy editing into a new unapproved revision, and explicit media
+and publication states. Static images must load successfully before approval; no
+arbitrary URL fetch, provider publication, new migration or live call is introduced.
+
+Focused review/UI/portal checks: 53 passed, 1 intentional SQLite race skip; Ruff,
+mypy (288 files), and diff check passed. Real HTTPS Chromium/API journeys passed on
+SQLite and PostgreSQL, including failed image reads, stale approval and revoked role.
+See `docs/inlet-campaign-review-ui.md` for behavior and remaining gaps. Full/CI pending.
+Next packages remain bounded video validation/private media lifecycle and concrete
+PublishPlan ports before dependent B15/B16 provider publication adapters.
+
+Review UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/99.
+Implementation and focused checks are at `b420478b5906e2183f1b36e8317506a239f9e119`;
+the following documentation-only commit records this PR link.
+
+### Shopify Portal Consent Navigation — 2026-10-06
+
+`codex/inlet-shopify-consent-ui` starts from PR99 head
+`292ac8d4cfa2d52b15d76d1dc8edce78b61f0c95` and includes PR95 browser coverage
+`54587ec`. Owner/admin Shopify domain controls now navigate through consent and the
+GET callback bridge, with verified workspace return, explicit scoped nonce cancellation,
+and safe Back/retry/session-change handling. Existing callback ownership/HMAC/session
+fences remain. No migration, scope expansion, provider calls, merge or deployment.
+
+Checks: 37 passed, 6 intentional SQLite variants of PostgreSQL-only checks skipped;
+Ruff, mypy (289 files), and diff check passed. Real Chromium/HTTPS/API/DB navigation
+passed on SQLite and PostgreSQL; provider consent HTTP and token/metadata transport are
+mocked. Full/CI pending. See `docs/inlet-shopify-consent-ui.md` for exact evidence and
+remaining disconnect UI/live qualification gaps.
+
+Consent-navigation draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/104.
+Implementation/checks are at `c6f32cfd11f56923ad34d0d0195d0493a1d7b4f5`; the following
+documentation-only commit records the PR link. Shopify toolkit search could not fetch
+its service; official Shopify OAuth documentation was verified through web retrieval.
+Toolkit telemetry was disabled; no user prompt was sent to its telemetry service.

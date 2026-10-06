@@ -194,3 +194,33 @@ def library(
             .limit(100)
         )
     ]
+
+
+@router.get("/workspaces/{workspace_id}/campaign-drafts")
+def drafts(
+    workspace_id: int, principal: Principal, db: Database, response: Response
+) -> list[dict[str, Any]]:
+    from app.campaign_review.models import CampaignDraft, CampaignRevision
+
+    access(db, principal.user.id, workspace_id, False)
+    response.headers["Cache-Control"] = "no-store"
+    rows = db.scalars(
+        select(CampaignRevision)
+        .join(
+            CampaignDraft,
+            (CampaignDraft.id == CampaignRevision.draft_id)
+            & (CampaignDraft.workspace_id == CampaignRevision.workspace_id)
+            & (CampaignDraft.revision == CampaignRevision.revision),
+        )
+        .where(CampaignDraft.workspace_id == workspace_id)
+        .order_by(CampaignRevision.created_at.desc(), CampaignRevision.draft_id)
+        .limit(100)
+    )
+    return [
+        {
+            "draft_id": row.draft_id,
+            "revision": row.revision,
+            "name": row.artifact["definition"]["content"]["name"],
+        }
+        for row in rows
+    ]

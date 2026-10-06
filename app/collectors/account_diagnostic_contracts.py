@@ -1,11 +1,24 @@
 """Customer observation intents and safe diagnostics; never spending authority."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from pydantic import AwareDatetime, Field, model_validator
 
 from app.goals.schemas import StrictModel
+
+
+def validate_observation_period(starts_at: datetime, ends_at: datetime) -> None:
+    """Leave conversion room for any account timezone and exclusive end dates."""
+    try:
+        lower = datetime.min.replace(tzinfo=UTC) + timedelta(days=1)
+        upper = datetime.max.replace(tzinfo=UTC) - timedelta(days=1)
+        if not all(lower <= value.astimezone(UTC) <= upper for value in (starts_at, ends_at)):
+            raise ValueError("diagnostic period cannot be represented in account timezones")
+    except (OverflowError, ValueError):
+        raise ValueError("diagnostic period cannot be represented in account timezones") from None
+    if not timedelta(0) < ends_at - starts_at <= timedelta(days=366):
+        raise ValueError("diagnostic period exceeds bound")
 
 
 class AccountDiagnosticIntentV1(StrictModel):
@@ -15,8 +28,7 @@ class AccountDiagnosticIntentV1(StrictModel):
 
     @model_validator(mode="after")
     def bounded(self) -> "AccountDiagnosticIntentV1":
-        if not timedelta(0) < self.ends_at - self.starts_at <= timedelta(days=366):
-            raise ValueError("diagnostic period exceeds bound")
+        validate_observation_period(self.starts_at, self.ends_at)
         return self
 
 

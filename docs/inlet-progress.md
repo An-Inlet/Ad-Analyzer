@@ -4414,3 +4414,21 @@ browser/API/vault/collector assembly with synthetic HTTP. Log:
 `/tmp/inlet-next-account-diagnostics-ui.log`. Whole Ruff, configured mypy617 files,
 JavaScript syntax and staged whitespace checks passed. Backend combined246-pass
 verification is recorded above. No live settings were enabled.
+
+### Independent Diagnostics Date Repair — PR218
+
+Independent review reproduced Google overflow after reads for an unrepresentable
+UTC/account-timezone date. Shared customer/internal account intents now reject
+unrepresentable edges before transport construction while preserving ordinary
+historical dates,366-day bounds and historical native v1 hashes. Source cd4a053:
+158 diagnostic/API/assembly/browser tests passed across both databases; root exact
+edge/compatibility checks12 passed (61 deselected) in7.22s, log
+`/tmp/inlet-next-diagnostic-date-repair.log`. Ruff, mypy617 and staged whitespace
+passed. No additional P1/P2 was established in that bounded review. No live calls.
+
+Original acceptance remains unchanged while the owner considers launch scope.
+Restricted Google and social profiles are being assessed separately from an
+unsupported universal outside-writer guarantee. Next concrete offline slices are
+reviewed PAUSED Google Search total-budget compiler/readback and immutable current
+campaign-report completion/reader (Meta first, migration0074 reserved after0073).
+Neither enables automatic execution or claims mature learning.

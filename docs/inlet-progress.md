@@ -2967,3 +2967,34 @@ Ruff, mypy (497 source files) and diff checks passed. Media-object recovery,
 production backup/key restoration, PITR/RPO/RTO and post-snapshot revocations are
 not qualified. Frozen `8efe196` local Full and normal CI are still running and do
 not cover this newer package.
+
+## Continued Offline Engineering And Recovered Executor — 07:43 UTC
+
+The exec server briefly rejected process creation with `transport disconnected`.
+One bounded retry succeeded. Verified readable/writable workspace, clean root at
+`fad1d005670443efa7d407f7754c3f7de0338337`, identical remote branch hash, and the
+still-running outer/nested Full processes. No GitHub quota evidence or lasting
+executor blocker was found. Main remains exact audit baseline `ea3591c`.
+
+Frozen `8efe196` Full and normal hosted run 37427571832 remain in progress; no
+terminal result or successor freeze yet. The second nested Full subprocess has
+started, but that does not establish outer-suite or final-gate success.
+
+Independent review reproduced PR177's stale approval-context race in both database
+browser cases: configuration A's late review can become approvable after selecting B.
+Saved configuration labels also fail to distinguish identity/measurement/cover
+choices. A repair with request-context invalidation and explicit owned distinctions
+is underway; `/tmp/inlet-review-context-baseline.log` records the two failing cases.
+Backend exact-plan/ownership validation was not identified as bypassed.
+
+The repeat-accounting review reproduced admission of a 33rd reservation beyond the
+32-node ancestry reader bound. Admission repair and both-database settlement
+regressions are underway. Automatic candidate selection, worker dispatch and a
+revocable background authority contract remain separate missing work; existing
+manual UI and reservation transfer do not supply them.
+
+Additional packages define missing engineering separately from access: bounded
+unqualified native Meta inventory; owned retained reconciliation observations with
+no maturity verdict; sanitized analysis-run attention; and an environment-separated
+production billing lane. Migration 0061 (down 0060) is reserved for billing scope.
+No prices, live keys, provider access, spending or release approval were inferred.

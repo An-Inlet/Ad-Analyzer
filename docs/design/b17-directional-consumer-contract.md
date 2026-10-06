@@ -195,3 +195,43 @@ original CustomerPrincipal in both post-IO transform/final checker and automatic
 producer. Root owns those additive seams; no inferred owner or no-op authorization is
 accepted. Existing contracts remain unchanged. Genuine independent source/timing,
 calibration and first-action policy remain missing gates/code as described above.
+
+## Authenticated Candidate And Epoch Binding
+
+The successor `app/directional_feedback/adapter.py` now completes the first slice's
+candidate integration using the shared authenticated seams. `bind()` installs a local
+post-native-read evidence transform and mandatory current-evidence checker. Both use
+the original job principal and actual owned active contribution, assessment and latest
+original-action lineage. Retraction after native IO blocks result publication. Native
+state and scope remain unchanged. Live learning-profile registration remains a separate
+explicit requirement; binding this adapter does not install one.
+
+`epoch_producer()` supplies an authorized-only reader. It requires the exact completed
+candidate and original session, rechecks retained inputs, and emits the stable original
+attempt/request/native-owner opportunity commitment. Changing calibration, candidate
+policy revision or observation clock changes audit evidence without minting another
+spending opportunity. The generic observation count contains only separately qualified
+distinct independent reconciliation completions, never contribution count or a claim
+of independent causal samples.
+
+The runnable tests use actual queued Google HTTP reads through MockTransport and actual
+SQLite/PostgreSQL persistence. Qualification, timing and calibration remain explicitly
+synthetic contract facts. They do not establish provider finality or production policy.
+
+## First-Action Product Boundary
+
+A customer with no qualified previous intervention cannot use this feedback policy.
+The existing explicit reviewed budget/pause path can execute a customer's first exact
+intent under a spending mandate; it is not an automatic evidence-derived recommendation.
+A truthful first-action automatic policy needs a separate named objective and factual
+input contract, explicit intervention mapping, calibrated thresholds/step parameters,
+and the same approved cap/native ownership/semantic-opportunity gates. None may be
+inferred from the draft aggressiveness percentages or from absence of feedback.
+
+Recommended next concrete choice: retain the reviewed first-action path while preparing
+an offline calibration artifact for a separately named baseline policy. The artifact
+must name the business metric, comparable coverage, loss/uncertainty bounds and tested
+parameter sensitivity before numeric values are approved. No particular numeric value
+is justified by current retained fixtures. Missing production assembly includes genuine
+qualified facts/timing producers, registered calibrated profiles, and this first-action
+policy; current disabled defaults are not completion of those requirements.

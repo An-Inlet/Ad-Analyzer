@@ -4126,3 +4126,17 @@ owner, browser authority field, source qualification or production enabling chan
 Checks: focused authorized/legacy all3/atomic rollback16 passed across SQLite and
 PostgreSQL; final authorized callback/missing-reader suite8 passed after availability
 hardening; whole Ruff clean, mypy582 files clean, diff check clean. No Full/live calls.
+
+### Authenticated Directional Candidate Adapter — 2026-10-06
+
+Successor of PR211, integrating root authenticated candidate hooks1e7b742 and authorized
+epoch8f384ff. Added actual queued native-read→owned feedback transform→final-current
+check and exact original-session epoch binding. No new schema, authority or production
+registration. Recalibration cannot create a fresh original-action opportunity; committed
+contribution retraction after HTTP read prevents a candidate. Qualification fixtures are
+synthetic; independent source/timing, calibration and first-action policy remain missing
+production work. See design/b17-directional-consumer-contract.md for the explicit split.
+Validation: new adapter plus directional reader/evaluator14 passed on SQLite/PostgreSQL
+(37.35s); shared authenticated candidate and epoch boundary suites24 passed (29.39s).
+Whole Ruff clean; mypy605 source files clean; two added files format check and git diff
+check clean. No Full, CI dispatch, live provider call, deployment or activation.

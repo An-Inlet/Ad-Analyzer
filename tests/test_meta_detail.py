@@ -241,9 +241,46 @@ def test_customer_detail_report_ownership_and_revocation(
     response = viewer.get(path)
     assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
     assert response.json()["spend_micros"] == 100_000_000 and len(response.json()["ads"]) == 2
+    result = response.json()
+    assert result["ads"][0]["performance"] == {
+        "impressions": 1000,
+        "clicks": 20,
+        "spend_micros": 60_000_000,
+        "conversions": "3.000000",
+        "conversion_value_micros": 150_120_000,
+    }
+    assert result["ad_sets"][0]["performance"]["spend_micros"] == 100_000_000
+    assert result["comparison_is_informational"] is True
+    assert result["common_coverage_and_eligibility_verified"] is False
+    assert viewer.get(path + "&offset=100").json()["ads"] == []
     with Session(customer_engine) as db:
         integration = db.get(WorkspaceIntegration, iid)
         assert integration is not None
         integration.status = "revoked"
         db.commit()
     assert viewer.get(path).status_code == 404
+
+
+def test_equal_account_totals_do_not_claim_parent_day_agreement(
+    customer_engine: Engine,
+    configuration: Settings,
+) -> None:
+    from datetime import timedelta
+
+    with Session(customer_engine) as db:
+        connection = connected(db, configuration, event="purchase")
+        complete(db, configuration, connection, metric=insight(spend="100"))
+        scope = AdvertisingImportScope(
+            connection.workspace_id,
+            connection.workspace_integration_id or 0,
+            connection.account_id,
+            AdvertisingPlatform.META_ADS,
+        )
+        snapshot = batch(configuration)
+        snapshot.start = DAY - timedelta(days=1)
+        snapshot.metrics[-1].metric_date = snapshot.start
+        assert publish(db, scope, snapshot) == 3  # Differences are valid evidence, not rejection.
+        report = detail_report(db, scope, snapshot.start, DAY)
+        assert set(report["comparison"].values()) == {100_000_000}
+        assert report["children_reconcile"] is False
+        assert report["spend_micros"] == 100_000_000

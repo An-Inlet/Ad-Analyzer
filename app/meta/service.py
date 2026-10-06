@@ -264,6 +264,9 @@ class ConnectionService:
             existing.window_start, existing.window_end, existing.cursor = None, None, None
             existing.phase = "campaigns"
             if existing.id:
+                from app.meta.staging import clear
+
+                clear(self.session, existing.id)
                 self.session.execute(
                     delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == existing.id)
                 )
@@ -302,6 +305,9 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.meta.staging import clear
+
+            clear(self.session, row.id)
             revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)
         for model in (MetaOAuthState, MetaPendingGrant):

@@ -5337,3 +5337,12 @@ changed-input replacement while deleting a retained slot is rejected. Separate
 immutable revision/current-pointer design is prepared at
 `/workspace/inlet-design/REPORTED-PREVIEW-REVISION-PROPOSAL.md`; no schema change in
 this repair. No Full, remote writes or live provider calls.
+
+### Reported Comparison Static Route Classification
+
+Verified `/app/reported-comparison` returns only its static FileResponse shell.
+Customer values are fetched through the original-session/owned APIs; the public
+HTML contains no customer state. Added this GET to the explicit PUBLIC route
+inventory alongside Initial Planning and Measurement History. Full route-boundary
+file:9pass, zero skips; Ruff/mypy702/diff pass. Log
+`/tmp/reported-feedback-route-boundaries.log`. No product authorization change.

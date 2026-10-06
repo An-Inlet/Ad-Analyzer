@@ -151,9 +151,10 @@ candidate preparation/selection, native diagnostics and exact successful Google
 original-response evidence, operational maturity evaluation and retractable feedback.
 These focused packages do not qualify the live product.
 
-Missing ordinary code includes candidate-to-review and mandate-derived automatic
-execution orchestration, independent commerce publication/authority assembly and
-measured-feedback decision consumption. Genuine delivery-time evidence, calibrated
+Candidate-to-review orchestration, independent commerce publication/authority
+assembly and scoped association-feedback consumption are now integrated and tested.
+Mandate-derived automatic execution remains under implementation in separate 0072;
+directional feedback production remains unavailable. Genuine delivery-time evidence, calibrated
 maturity/action policy and native financial/transition bounds remain unavailable or
 unqualified. Provider limitations are explicit in the spending-source matrix;
 credentials cannot supply absent preventive-writer or reporting-finality guarantees.
@@ -166,3 +167,11 @@ is likewise repaired and source-reviewed. These reviews did not independently ru
 the reported tests. Original exact frozen hosted validation failed two tests from
 the Meta Retry harness race; PR199 repairs its deterministic cause. Final assembled
 Full/hosted qualification remains pending and earlier failures remain recorded.
+
+The frozen 8efe196 local Full subsequently finished with exit 0 (primary suite:
+2639 passed, 59 skipped; all later gates completed). Its hosted run remains failed.
+The successor joins billing, feedback, captured Google completion, candidate review
+and default-disabled runtime observations at migration 0071. Root combined migration,
+native restore and registry checks passed: 13 passed, 1 expected SQLite skip.
+Neither these focused checks nor the older successful local Full validate the
+successor's entire assembled tree; a new frozen Full and normal hosted CI are required.

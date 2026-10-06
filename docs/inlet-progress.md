@@ -3943,3 +3943,14 @@ Log: `/tmp/inlet-next-runtime-observations.log`. No live service probes occurred
 The next frozen batch uses intermediate merge revision 0071 joining 0063, 0064,
 0066, 0068 and 0070. Session automation 0072 remains independent and unfinished;
 a later 0073 will join 0071 and 0072. This supersedes the earlier unused-0071 plan.
+
+### 2026-10-06 — Successor Migration Join 0071
+
+Joined 0063/0064/0066/0068/0070 without changing their migrations. Combined actual
+migration, populated preservation, native Google restore and registry checks:
+13 passed, 1 expected SQLite migration skip, 40 existing warnings in 34.25s.
+Log `/tmp/inlet-next-0071-join.log`. `./scripts/validate.sh Migrations` passed
+upgrade head / downgrade base / upgrade head on newly created disposable database
+`inlet_oct06_candidate3_ci`; log `/tmp/inlet-next-0071-roundtrip.log`.
+Ruff, configured mypy (582 files) and whitespace passed. This is the completed
+batch for the next frozen candidate; unfinished 0072/PR207 are excluded.

@@ -1,5 +1,6 @@
 """Real portal/navigation/GET bridge; consent HTTP is intercepted before any network."""
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -29,6 +30,7 @@ from app.shopify import client as shopify_http
 from app.shopify.models import ShopifyConnection, ShopifyOAuthState
 from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.types import Receive, Scope, Send
 from websockets.sync.client import connect
 
 from tests.test_customer_browser_api_journey import localhost_certificate
@@ -216,10 +218,28 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         "dependency_overrides",
         {get_db: database, get_identity_provider: lambda: FakeProvider()},
     )
+    initial_probe, release_probe = threading.Event(), threading.Event()
+
+    async def delayed_initial_session(scope: Scope, receive: Receive, send: Send) -> None:
+        # Reproduce login finishing while the portal's startup probe still disables Retry.
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "GET"
+            and scope["path"] == "/api/customer/v1/session"
+            and not initial_probe.is_set()
+        ):
+            initial_probe.set()
+            assert await asyncio.to_thread(release_probe.wait, 15)
+        await app(scope, receive, send)
+
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
         uvicorn.Config(
-            app, log_level="critical", lifespan="off", ssl_certfile=str(cert), ssl_keyfile=str(key)
+            delayed_initial_session,
+            log_level="critical",
+            lifespan="off",
+            ssl_certfile=str(cert),
+            ssl_keyfile=str(key),
         )
     )
     thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
@@ -275,6 +295,8 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         )
         browser.call("Page.navigate", {"url": origin + "/app"})
         browser.wait("document.getElementById('retry') !== null")
+        assert initial_probe.wait(10)
+        assert browser.evaluate("document.getElementById('retry').disabled")
 
         def login(current: Browser, token: str) -> None:
             assert (
@@ -287,6 +309,11 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             )
 
         login(browser, "consent-owner:first")
+        release_probe.set()
+        browser.wait(
+            "typeof document.getElementById('retry').onclick === 'function' && "
+            "!document.getElementById('retry').disabled"
+        )
         browser.evaluate("document.getElementById('retry').click()")
 
         def workspace(current: Browser) -> None:
@@ -371,6 +398,7 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             for entry in history["entries"]
         )
     finally:
+        release_probe.set()
         if browser:
             browser.context.close()
         if second:

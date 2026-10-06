@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from app.campaign_review.contracts import MAX_IMAGE_BYTES, MediaStore
+from app.campaign_review.contracts import MAX_MEDIA_BYTES, MediaStore
 from app.settings import settings
 
 
@@ -36,7 +36,7 @@ class LocalMediaStore:
     def put_if_absent(
         self, workspace_id: int, sha256: str, size: int, chunks: Iterable[bytes]
     ) -> None:
-        if not 0 < size <= MAX_IMAGE_BYTES:
+        if not 0 < size <= MAX_MEDIA_BYTES:
             raise ValueError("media size unavailable")
         directory = self._directory(workspace_id, sha256)
         temp = uuid4().hex
@@ -69,7 +69,7 @@ class LocalMediaStore:
             os.close(directory)
 
     def read_exact(self, workspace_id: int, sha256: str, size: int) -> bytes:
-        if not 0 < size <= MAX_IMAGE_BYTES:
+        if not 0 < size <= MAX_MEDIA_BYTES:
             raise ValueError("media size unavailable")
         directory = self._directory(workspace_id, sha256)
         try:
@@ -86,6 +86,20 @@ class LocalMediaStore:
 
 
 def get_media_store() -> MediaStore:
+    if settings.media_storage_mode == "gcs" and settings.media_gcs_bucket:
+        import google.cloud.storage as storage  # type: ignore[import-untyped]
+
+        from app.campaign_review.gcs_storage import GCSMediaStore
+
+        try:
+            if os.environ.get("STORAGE_EMULATOR_HOST"):
+                raise ValueError("storage emulator is not a production media backend")
+            return GCSMediaStore(
+                settings.media_gcs_bucket,
+                storage.Client(client_options={"api_endpoint": "https://storage.googleapis.com"}),
+            )
+        except Exception:
+            raise HTTPException(503, "private media storage unavailable") from None
     if settings.media_storage_mode != "local_dev" or not settings.media_local_directory:
         raise HTTPException(503, "private media storage unavailable")
     try:

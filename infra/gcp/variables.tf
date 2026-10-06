@@ -88,3 +88,9 @@ variable "database_name" {
   type        = string
   description = "Database name supplied outside the repository."
 }
+
+variable "worker_push_oidc_audience" {
+  type        = string
+  default     = ""
+  description = "Explicit expected push OIDC audience, exactly matching the worker URI used by the subscription. Empty disables application push authentication. Configure before enabling delivery; do not self-reference the worker resource."
+}

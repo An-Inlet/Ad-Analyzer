@@ -10,7 +10,10 @@ from pydantic import AwareDatetime, Field, ValidationInfo, field_validator, mode
 from app.goals.schemas import StrictModel
 from app.mandates.schemas import AccountScope
 
+MAX_MEDIA_BYTES = 64 * 1024 * 1024
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_VIDEO_BYTES = 64 * 1024 * 1024
+MAX_MEDIA_BYTES = MAX_VIDEO_BYTES
 MAX_PIXELS = 16_000_000
 MAX_LIBRARY_BYTES = 128 * 1024 * 1024
 

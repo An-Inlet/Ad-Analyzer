@@ -57,3 +57,12 @@ Official sources checked 2026-10-06:
 - [Rate limits and errors](https://developers.klaviyo.com/en/docs/rate_limits_and_error_handling):
   OAuth quota is per account/app installation; 429 Retry-After is seconds. No immediate
   retry before the specified interval.
+
+## Renewal Follow-Up (2026-10-06)
+
+The durable boundary now supports Klaviyo, HubSpot and Omnisend and handles staged
+renewal without resetting acknowledged cursors. Every renewal proof consumes its own
+quota slot. Terminal authorization/identity failure retires the scoped checkpoint;
+unknown token issuance is not replayed. See [inlet-crm-renewal.md](inlet-crm-renewal.md)
+for current interfaces and failure behavior. Earlier scope limitations in this record
+describe the original pacing package, not the new renewal implementation.

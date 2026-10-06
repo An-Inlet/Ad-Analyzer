@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from typing import Any
@@ -13,6 +14,7 @@ from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
 from app.imports.native import bind_meta, revoke_native_integration
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.models import (
     MetaAudit,
     MetaConnection,
@@ -59,11 +61,12 @@ class ConnectionService:
     def get(self, workspace_id: int, *, lock: bool = False) -> MetaConnection | None:
         query = select(MetaConnection).where(MetaConnection.workspace_id == workspace_id)
         if lock:
+            lock_workspace(self.session, workspace_id)
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
-    def begin(self, workspace_id: int, actor: str, now: datetime) -> str:
-        if not configuration_ready(self.settings):
+    def begin(self, workspace_id: int, actor: str, now: datetime, *, customer: bool = False) -> str:
+        if not configuration_ready(self.settings, customer=customer):
             raise MetaError("meta_configuration_required")
         vault = Vault(self.settings)
         digest = vault.digest("actor", actor)
@@ -180,6 +183,7 @@ class ConnectionService:
             MetaPendingGrant.expires_at > now,
         )
         if lock:
+            lock_workspace(self.session, workspace_id)
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
@@ -204,6 +208,8 @@ class ConnectionService:
         action_type: str,
         role: str,
         now: datetime,
+        *,
+        before_persist: Callable[[], None] | None = None,
     ) -> MetaConnection:
         if action_type not in CONVERSION_ACTIONS:
             raise MetaError("meta_invalid_conversion_event")
@@ -226,7 +232,21 @@ class ConnectionService:
         bundle = vault.open(
             workspace_id, "grant:" + grant.actor_digest, grant.encrypted_credentials
         )
+        grant_id = grant.id
+        generation = (existing.id, existing.generation) if existing else None
+        if before_persist:
+            self.session.commit()  # Release customer locks before provider IO.
         details = account_metadata(self.client.account(external_id, bundle["access_token"]))
+        if before_persist:
+            before_persist()
+            grant = self.grant(workspace_id, actor, now, lock=True)
+            existing = self.get(workspace_id, lock=True)
+            if (
+                grant is None
+                or grant.id != grant_id
+                or ((existing.id, existing.generation) if existing else None) != generation
+            ):
+                raise MetaError("meta_authorization_expired")
         if details["account_id"] != external_id:
             raise MetaError("meta_account_not_authorized")
         try:
@@ -261,6 +281,9 @@ class ConnectionService:
             existing.window_start, existing.window_end, existing.cursor = None, None, None
             existing.phase = "campaigns"
             if existing.id:
+                from app.meta.staging import clear
+
+                clear(self.session, existing.id)
                 self.session.execute(
                     delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == existing.id)
                 )
@@ -299,6 +322,9 @@ class ConnectionService:
     def disconnect(self, workspace_id: int, role: str) -> None:
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.meta.staging import clear
+
+            clear(self.session, row.id)
             revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)
         for model in (MetaOAuthState, MetaPendingGrant):

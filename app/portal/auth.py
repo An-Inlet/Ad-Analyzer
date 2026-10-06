@@ -71,5 +71,6 @@ def customer_content_security_policy() -> str:
         frame = f"frame-src https://{config.firebase['authDomain']}"
     return (
         f"default-src 'self'; {script}; style-src 'self'; {connect}; {frame}; "
-        "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        "media-src 'self' blob:; object-src 'none'; base-uri 'none'; "
+        "frame-ancestors 'none'; form-action 'self'"
     )

@@ -1,9 +1,12 @@
 """Production portal DOM against real HTTPS APIs/database, with offline provider seams.
 
-Only the Firebase SDK and Shopify installation are fixtures. Browser fetch is not
-replaced. TLS material is generated temporarily for this localhost-only test.
+Only provider responses are fixtures. Shopify authorization, callback, import and
+disconnect run through real customer APIs and services. Browser fetch is not replaced.
+TLS material is generated temporarily for this localhost-only test.
 """
 
+import hashlib
+import hmac
 import ipaddress
 import json
 import socket
@@ -12,16 +15,22 @@ import threading
 import time
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
+from urllib.request import Request
 
 import pytest
 import uvicorn
-from app.api import customer_billing, customer_goals
+from app.api import customer_billing, customer_goals, customer_shopify
 from app.billing.contracts import get_billing_transport
 from app.billing.dispatcher import run as billing_run
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.commerce import reporting
+from app.commerce.ledger import MEASUREMENT_SCOPES
+from app.commerce.models import CommerceEntry, CommerceOrder, CommerceSnapshot, CommerceStore
+from app.commerce.sync import CommerceSyncService
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.database.session import Base, get_db
@@ -29,6 +38,8 @@ from app.goals import service as goals
 from app.goals.models import Goal, GoalCreation
 from app.main import app
 from app.settings import Settings, settings
+from app.shopify import client as shopify_http
+from app.shopify.models import ShopifyConnection, ShopifyOAuthState
 from app.workspaces.models import Workspace
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -40,12 +51,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.responses import JSONResponse, Response
 from starlette.types import Message, Receive, Scope, Send
 
-from tests.test_commerce_measurement import NOW
+from tests.test_commerce_measurement import NOW, agreement, source
 from tests.test_customer_billing import POLICY, SECRET, FixtureBilling, payload, signature
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_portal import portal_executable
-from tests.test_inlet_customer_journey import JourneyClock, install_fixture_baseline
+from tests.test_inlet_customer_journey import JourneyClock
 from tests.test_shopify_sales import configuration as configuration
 
 SDK = """
@@ -114,7 +125,67 @@ def test_real_browser_customer_api_journey(
         "billing_webhook_secret": SecretStr(SECRET),
     }.items():
         monkeypatch.setattr(settings, name, value)
-    for module in (customer_billing, customer_goals, goals, reporting):
+    for name in Settings.model_fields:
+        if name.startswith("shopify_"):
+            monkeypatch.setattr(settings, name, getattr(configuration, name))
+    monkeypatch.setattr(settings, "shopify_customer_enabled", True)
+    monkeypatch.setattr(settings, "shopify_measurement_enabled", True)
+    provider_calls: list[str] = []
+
+    class ProviderHTTP:
+        def open(self, request: Request, timeout: int) -> BytesIO:
+            assert timeout == 15
+            parsed = urlsplit(request.full_url)
+            assert parsed.scheme == "https" and parsed.hostname == "browser-fixture.myshopify.com"
+            assert isinstance(request.data, bytes)
+            body = json.loads(request.data)
+            if parsed.path == "/admin/oauth/access_token":
+                assert body["code"] == "offline-browser-code"
+                provider_calls.append("token")
+                result: dict[str, Any] = {
+                    "access_token": "offline-access",
+                    "refresh_token": "offline-refresh",
+                    "expires_in": 3600,
+                    "scope": ",".join(sorted(MEASUREMENT_SCOPES)),
+                }
+            else:
+                assert parsed.path.endswith("/graphql.json")
+                query = body["query"]
+                page = {"hasNextPage": False, "endCursor": None}
+                if "AnalyzerShop" in query:
+                    provider_calls.append("shop")
+                    result = {
+                        "data": {
+                            "shop": {
+                                "id": "gid://shopify/Shop/123",
+                                "name": "Browser Store",
+                                "myshopifyDomain": parsed.hostname,
+                                "currencyCode": "USD",
+                                "ianaTimezone": "UTC",
+                            },
+                            "currentAppInstallation": {
+                                "accessScopes": [
+                                    {"handle": scope} for scope in sorted(MEASUREMENT_SCOPES)
+                                ]
+                            },
+                        }
+                    }
+                elif "InletMeasurementOrders" in query:
+                    provider_calls.append("orders")
+                    result = {"data": {"orders": {"nodes": [source()], "pageInfo": page}}}
+                elif "InletAgreements" in query:
+                    provider_calls.append("agreements")
+                    fact = agreement()
+                    fact["sales"] = {"nodes": fact["sales"], "pageInfo": page}
+                    result = {
+                        "data": {"order": {"agreements": {"nodes": [fact], "pageInfo": page}}}
+                    }
+                else:
+                    raise AssertionError("Unexpected provider HTTP request")
+            return BytesIO(json.dumps(result).encode())
+
+    monkeypatch.setattr(shopify_http, "build_opener", lambda *_: ProviderHTTP())
+    for module in (customer_billing, customer_goals, customer_shopify, goals, reporting):
         monkeypatch.setattr(module, "datetime", JourneyClock)
     # The portal intentionally performs concurrent reads. A StaticPool in-memory
     # SQLite connection would let separate request sessions share one transaction.
@@ -145,7 +216,6 @@ def test_real_browser_customer_api_journey(
     result: list[dict[str, Any]] = []
     responses: list[tuple[str, str, int, int]] = []
     interrupted: set[str] = set()
-    installed: set[int] = set()
     event = payload("evt_browser_journey")
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
@@ -158,6 +228,35 @@ def test_real_browser_customer_api_journey(
                 Path("tests/javascript/customer_portal_api_browser.mjs").read_text(),
                 media_type="text/javascript",
             )(scope, receive, send)
+            return
+        if path == "/__fixture__/shopify-sign":
+            raw = bytearray()
+            while True:
+                incoming = await receive()
+                raw.extend(incoming.get("body", b""))
+                if not incoming.get("more_body", False):
+                    break
+            url = urlsplit(json.loads(raw)["authorization_url"])
+            assert url.hostname == "browser-fixture.myshopify.com"
+            params = parse_qs(url.query)
+            assert params["redirect_uri"] == [origin + "/api/customer/v1/shopify/callback"]
+            values = {
+                "code": "offline-browser-code",
+                "state": params["state"][0],
+                "shop": url.hostname,
+                "timestamp": str(int(NOW.timestamp())),
+                "host": "offline-signed-host",
+            }
+            secret = settings.shopify_client_secret
+            assert secret is not None
+            signature_value = hmac.new(
+                secret.get_secret_value().encode(),
+                "&".join(f"{key}={values[key]}" for key in sorted(values)).encode(),
+                hashlib.sha256,
+            ).hexdigest()
+            await JSONResponse({"query": [*values.items(), ("hmac", signature_value)]})(
+                scope, receive, send
+            )
             return
         if path == "/__fixture__/billing-event":
             await JSONResponse({"body": event.decode(), "signature": signature(event)})(
@@ -190,12 +289,12 @@ def test_real_browser_customer_api_journey(
         start = next(m for m in messages if m["type"] == "http.response.start")
         body = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
         status = start["status"]
-        if method == "POST" and path == "/api/customer/v1/workspaces" and status in (200, 201):
-            wid = json.loads(body)["id"]
-            if wid not in installed:
-                with factory() as db:
-                    install_fixture_baseline(db, wid, configuration)
-                installed.add(wid)
+        if method == "POST" and path == "/api/customer/v1/shopify/callback" and status == 200:
+            with factory() as db:
+                synced = CommerceSyncService(db, settings).page(
+                    json.loads(body)["workspace_id"], now=NOW
+                )
+                assert synced == {"status": "complete", "imported": 1}, synced
         if path == "/app":
             body = body.replace(
                 b"</body>", b'<script type="module" src="/__fixture__/driver.mjs"></script></body>'
@@ -261,6 +360,13 @@ def test_real_browser_customer_api_journey(
             assert db.scalar(select(func.count()).select_from(GoalCreation)) == 1
             goal = db.get(Goal, result[0]["goal_id"])
             assert goal is not None and goal.confirmed_preview_id is not None
+            # Disconnect purges imported facts/snapshots while retaining a revoked identity.
+            assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 0
+            assert db.scalar(select(func.count()).select_from(ShopifyOAuthState)) == 0
+            for model in (CommerceEntry, CommerceOrder, CommerceSnapshot):
+                assert db.scalar(select(func.count()).select_from(model)) == 0
+            store = db.scalar(select(CommerceStore).where(CommerceStore.workspace_id == wid))
+            assert store is not None and store.status == "revoked"
             row = db.get(WorkspaceBilling, wid)
             assert row is not None and row.status == "active"
             billing_event = db.get(BillingEvent, "evt_browser_journey")
@@ -281,6 +387,8 @@ def test_real_browser_customer_api_journey(
             )
             == 3
         )
+        assert provider_calls == ["token", "shop", "orders", "agreements"]
+        assert ("DELETE", f"/api/customer/v1/workspaces/{wid}/shopify", 204, 204) in responses
         assert ("DELETE", "/api/customer/v1/session", 204, 204) in responses
         assert any(path.endswith("/goals") and actual == 404 for _, path, actual, _ in responses)
     finally:

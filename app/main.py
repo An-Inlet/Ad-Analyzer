@@ -15,7 +15,9 @@ from app.api.customer_campaign_review import router as customer_campaign_review_
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
+from app.api.customer_lifecycle import router as customer_lifecycle_router
 from app.api.customer_mandates import router as customer_mandates_router
+from app.api.customer_meta import router as customer_meta_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_sources import router as customer_sources_router
 from app.api.intelligence import router as intelligence_api_router
@@ -28,11 +30,14 @@ from app.dashboard.intelligence import router as intelligence_dashboard_router
 from app.dashboard.meta import router as meta_dashboard_router
 from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
+from app.database.models import register_models
 from app.deployment import DeploymentProcess, validate_deployment_startup
+from app.lifecycle import models as lifecycle_models  # noqa: F401
 from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
+from app.readiness import database_available
 from app.shopify.logging import install_access_filter
 
 
@@ -55,8 +60,11 @@ class ReadinessResponse(BaseModel):
 
     status: str
     database_configured: bool
+    database_available: bool
     write_access_enabled: bool
 
+
+register_models()
 
 app = FastAPI(
     title="Ad Analyzer",
@@ -83,14 +91,16 @@ def read_health() -> HealthResponse:
 
 @app.get("/ready", response_model=ReadinessResponse)
 def read_ready(response: Response) -> ReadinessResponse:
-    """Return startup readiness without contacting external services."""
+    """Require valid startup configuration and a read-only database dependency probe."""
     result = validate_deployment_startup(DeploymentProcess.WEB)
-    response.status_code = 200 if result.ok else 503
+    available = result.ok and database_available()
+    response.status_code = 200 if available else 503
     response.headers["Cache-Control"] = "no-store"
     database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
     return ReadinessResponse(
-        status="ready" if result.ok else "not_ready",
+        status="ready" if available else "not_ready",
         database_configured=database_configured,
+        database_available=available,
         write_access_enabled=False,
     )
 
@@ -126,7 +136,9 @@ app.include_router(customer_commerce_router)
 app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)
+app.include_router(customer_meta_router)
 app.include_router(customer_campaign_review_router)
+app.include_router(customer_lifecycle_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
 app.include_router(customer_shopify_router)

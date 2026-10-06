@@ -227,10 +227,13 @@ def test_crash_before_emission_requires_authoritative_no_effect(
         new = s.dispatch_next(
             db, wid, pid, "publication-one", actor, authority, adapter, NOW + timedelta(seconds=4)
         )
-        assert new is not None and new.fence != request.fence and adapter.calls == 1
-        stale = adapter.reconcile(request, NOW + timedelta(seconds=5))
-        with pytest.raises(HTTPException, match="fence mismatch"):
-            s.record_receipt(db, wid, pid, stale, NOW + timedelta(seconds=5))
+        assert new is None and adapter.calls == 0
+        # Disabling the artificial outage still cannot establish worker quiescence.
+        unresolved = adapter.reconcile(request, NOW + timedelta(seconds=5))
+        assert unresolved.outcome == "unknown"
+        s.record_receipt(db, wid, pid, unresolved, NOW + timedelta(seconds=5))
+        step = db.get(PublicationStepRecord, (pid, request.step.step_id))
+        assert step is not None and step.fence == request.fence
 
 
 @pytest.mark.parametrize("after_dispatch", [False, True])

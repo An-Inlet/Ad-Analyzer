@@ -63,6 +63,9 @@ def run(
                 .limit(limit)
             )
         )
+    from app.lifecycle.billing_receipts import retain_pending
+
+    retain_pending(factory, limit)
     counts = {"events": 0, "refreshes": 0, "failed": 0}
     for wid, event_id in pending:
         with factory() as db:

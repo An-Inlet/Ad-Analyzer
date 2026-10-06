@@ -233,9 +233,34 @@ def prepare(
 
 
 def locked(
-    db: Session, wid: int, plan_id: str
+    db: Session, wid: int, plan_id: str, *, receipt_only: bool = False
 ) -> tuple[PublicationPlanRecord, PublishPlan, Mandate, MandateAction]:
-    mandates.workspace_lock(db, wid)
+    from app.lifecycle.models import LifecycleRequest
+    from app.workspaces.models import Workspace
+
+    workspace = db.scalar(
+        select(Workspace)
+        .where(Workspace.id == wid)
+        .with_for_update(key_share=True)
+        .execution_options(populate_existing=True)
+    )
+    closing = workspace is not None and workspace.status == "closing"
+    if closing and receipt_only:
+        if (
+            db.scalar(
+                select(LifecycleRequest.id)
+                .where(
+                    LifecycleRequest.workspace_id == wid,
+                    LifecycleRequest.operation == "close",
+                    LifecycleRequest.state == "blocked",
+                )
+                .limit(1)
+            )
+            is None
+        ):
+            raise HTTPException(409, "closure receipt scope unavailable")
+    else:
+        mandates.workspace_lock(db, wid)
     peek = db.scalar(
         select(PublicationPlanRecord)
         .where(PublicationPlanRecord.id == plan_id, PublicationPlanRecord.workspace_id == wid)
@@ -249,8 +274,18 @@ def locked(
     # Server compiler remains the authority for allowed operations and exact reviewed fields.
     if compile_registered(plan.compiler_id, plan.review).digest() != peek.digest:
         raise HTTPException(409, "publication compiler mismatch")
-    mandate = mandates.owned(db, wid, plan.scope.mandate_id)
-    lock_source(db, plan)
+    if closing:
+        mandate = db.scalar(
+            select(Mandate)
+            .where(Mandate.id == plan.scope.mandate_id, Mandate.workspace_id == wid)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if mandate is None:
+            raise HTTPException(404, "mandate not found")
+    else:
+        mandate = mandates.owned(db, wid, plan.scope.mandate_id)
+        lock_source(db, plan)
     record = db.scalar(
         select(PublicationPlanRecord)
         .where(PublicationPlanRecord.id == plan_id)
@@ -353,6 +388,18 @@ def claim_next(
         )
         record, plan, mandate, action = locked(db, wid, plan_id)
         authority.validate(db, plan, actor, now)
+        # dispatch commits the mandate marker. A stop may win before we reacquire
+        # the workspace fence, so no earlier authorization survives this boundary.
+        if (
+            not record.approved_by
+            or record.state in {"cancelled", "cancel_requested"}
+            or action.cancel_requested
+            or action.state != "dispatching"
+            or record.request_key not in {None, request_key}
+        ):
+            raise HTTPException(409, "publication cancelled or dispatch changed")
+        owner(db, wid, record.approved_by)
+        mandates.preconditions(db, mandate, action, authority.evidence(db, mandate, plan, now), now)
     rows = {
         r.step_id: r
         for r in db.scalars(
@@ -410,7 +457,7 @@ def record_receipt(
     db: Session, wid: int, plan_id: str, receipt: PublishReceipt, now: datetime
 ) -> None:
     receipt = PublishReceipt.model_validate(receipt.model_dump(mode="json"))
-    record, plan, _, _ = locked(db, wid, plan_id)
+    record, plan, _, _ = locked(db, wid, plan_id, receipt_only=True)
     row = db.get(PublicationStepRecord, (plan_id, receipt.step_id))
     if row is None or row.request is None:
         raise HTTPException(409, "no publication attempt")
@@ -431,6 +478,30 @@ def record_receipt(
         ):
             raise HTTPException(409, "conflicting verified receipt")
         return
+    from app.workspaces.models import Workspace
+
+    closing = db.get(Workspace, wid).status == "closing"  # type: ignore[union-attr]
+    if closing:
+        for prior in db.scalars(
+            select(PublicationReceiptRecord).where(
+                PublicationReceiptRecord.plan_id == plan_id,
+                PublicationReceiptRecord.step_id == receipt.step_id,
+                PublicationReceiptRecord.workspace_id == wid,
+            )
+        ):
+            previous = PublishReceipt.model_validate(prior.receipt)
+            definitive = {"verified_effect", "verified_no_effect"}
+            if (
+                previous.fence == receipt.fence
+                and previous.request_digest == receipt.request_digest
+                and previous.outcome in definitive
+                and receipt.outcome in definitive
+                and (
+                    previous.outcome != receipt.outcome
+                    or previous.resource_id != receipt.resource_id
+                )
+            ):
+                raise HTTPException(409, "conflicting closure receipt")
     digest = fingerprint("inlet.publication-receipt.v1", receipt.model_dump(mode="json"))
     if (
         db.scalar(
@@ -454,6 +525,10 @@ def record_receipt(
                 recorded_at=now,
             )
         )
+    if closing:
+        # Append evidence only. Never restart creation/activation or settle unknown exposure.
+        db.commit()
+        return
     row.state = {
         "verified_effect": "verified",
         "verified_no_effect": "pending",

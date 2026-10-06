@@ -90,7 +90,9 @@ class FixturePublicationTransport:
         elif request.digest() in self.resources:
             return self.resources[request.digest()].model_copy(update={"observed_at": now})
         else:
-            outcome = "verified_no_effect"
+            # An absent resource cannot prove a claimed worker will never submit.
+            # Preserve its original fence until an effect is actually observed.
+            outcome = "unknown"
         return PublishReceipt.model_validate(
             {
                 "scope": request.scope.model_dump(),

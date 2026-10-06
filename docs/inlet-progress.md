@@ -658,3 +658,13 @@ hasMore projection fixed against official docs; its factory remains blocked pend
 verified brand-response identity and OAuth scope parameter. Detailed code/live gaps
 and sources: `docs/inlet-crm-http-runtime.md`. Focused suite 85 passed with SQLite and
 PostgreSQL; Ruff/mypy255/diff-check pass. Full/CI pending root review. No live calls.
+
+### Source Status Follow-Up For TikTok Lifecycle
+
+At the parallel TikTok lifecycle package's request, shared source views now provide
+safe customer-facing status_label/next_action fields for provider_error and
+reconnect_required. Provider rejection asks the owner to review provider access or
+configuration and reconnect; it is not mislabeled as proved revocation. No tokens or
+raw provider message is exposed. Other provider/status responses are unchanged.
+Focused status test passed; Ruff/mypy256/diff-check passed. This small follow-up can
+be cherry-picked independently of the CRM transport package.

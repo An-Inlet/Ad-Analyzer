@@ -1746,3 +1746,18 @@ checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This als
 qualifies the combined PR126/128 session-readiness and PR131 target-discovery
 repairs without timing retries or weakened product assertions. See the current
 `docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.
+
+### B19 Packaged Schema Revision Readiness
+
+A reachable database previously satisfied readiness regardless of its migration
+revision. The successor candidate now requires its recorded Alembic heads to match
+the heads packaged with the running artifact. Missing, older, unknown or extra
+heads return503 while liveness remains200. `database_available` remains separate
+from the additive `schema_revision_current` field. Read-only probes use fresh
+connections and existing connection/statement/lock limits; no migrations are run.
+This checks revision compatibility, not arbitrary schema drift, capacity or provider
+availability. The deployment image already packages the migrations directory.
+
+Focused readiness/deployment suite:21passed including actual disposable PostgreSQL
+missing/current/older/extra revision cases. Ruff, whole mypy362files and diffchecks
+passed. The frozen1300cf6706 Full/CI does not cover this successor change.

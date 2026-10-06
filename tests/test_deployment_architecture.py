@@ -75,6 +75,7 @@ def test_readiness_endpoint_reports_configuration_without_external_calls(
     result = validate_deployment_startup(DeploymentProcess.WEB, configuration)
     monkeypatch.setattr(main, "validate_deployment_startup", lambda _process: result)
     monkeypatch.setattr(main, "database_available", lambda: True)
+    monkeypatch.setattr(main, "database_schema_current", lambda: True)
     client = TestClient(app)
     response = client.get("/ready")
     assert response.status_code == (200 if ready else 503)

@@ -46,7 +46,9 @@ class VerifiedCustomerMapping(StrictModel):
 
 
 class ContextReader(Protocol):
-    mode: Literal["fixture"]
+    @property
+    def mode(self) -> Literal["fixture", "provider_read"]: ...
+
     provider: CustomerProvider
 
     def page(

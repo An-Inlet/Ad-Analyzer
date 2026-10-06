@@ -1,5 +1,8 @@
 """Session-bound source selection shared by TikTok and later customer-data adapters."""
 
+import base64
+import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, cast
@@ -20,6 +23,7 @@ from app.mandates.service import workspace_lock
 from app.settings import settings
 from app.shopify.security import utc
 from app.sources.contracts import (
+    PKCESourceTransport,
     ProviderName,
     SourceAccount,
     SourceTransport,
@@ -53,12 +57,18 @@ def redirect(provider: ProviderName) -> str:
     return origin + f"/api/customer/v1/sources/{provider}/callback"
 
 
-def ready(transport: SourceTransport) -> None:
+def ready(transport: SourceTransport, provider: ProviderName | None = None) -> None:
     if isinstance(transport, UnavailableSource) or transport.mode not in {
         "fixture",
         "provider_read",
     }:
         raise HTTPException(503, "source transport unavailable")
+    if (
+        provider in {"klaviyo", "hubspot", "omnisend"}
+        and transport.mode == "provider_read"
+        and getattr(transport, "provider", None) != provider
+    ):
+        raise HTTPException(503, "source provider mismatch")
     SourceVault()
 
 
@@ -70,10 +80,21 @@ def begin(
     transport: SourceTransport,
     now: datetime,
 ) -> str:
-    ready(transport)
+    ready(transport, provider)
     workspace_lock(db, wid)
     nonce = secrets.token_urlsafe(32)
-    location = transport.authorize_url(nonce, redirect(provider))
+    context = None
+    if isinstance(transport, PKCESourceTransport):
+        verifier = secrets.token_urlsafe(32)
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
+        location = transport.authorize_url_pkce(nonce, redirect(provider), challenge)
+        context = SourceVault().seal(wid, provider, digest(nonce), {"pkce_verifier": verifier})
+    else:
+        location = transport.authorize_url(nonce, redirect(provider))
     url = urlsplit(location)
     if url.scheme != "https" or url.hostname not in HOSTS[provider] or url.username or url.password:
         raise HTTPException(503, "source authorization unavailable")
@@ -84,9 +105,10 @@ def begin(
             provider=provider,
             workspace_id=wid,
             session_digest=sid,
-            expires_at=now + timedelta(minutes=10),
+            expires_at=now + timedelta(minutes=5 if context is not None else 10),
             state="pending",
             accounts=[],
+            encrypted_grant=context,
         )
     )
     db.commit()
@@ -120,14 +142,29 @@ def finish(
     transport: SourceTransport,
     now: datetime,
 ) -> SourceAuthorization:
-    ready(transport)
+    ready(transport, provider)
     row = authorization(db, provider, nonce, sid, now)
     if row.state != "pending":
         raise HTTPException(409, "authorization already consumed")
-    row.state = "exchanging"
+    verifier = None
+    if isinstance(transport, PKCESourceTransport):
+        if not row.encrypted_grant:
+            raise HTTPException(409, "authorization context unavailable")
+        verifier = (
+            SourceVault()
+            .open(row.workspace_id, provider, row.digest, row.encrypted_grant)
+            .get("pkce_verifier")
+        )
+        if not isinstance(verifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", verifier):
+            raise HTTPException(409, "authorization context unavailable")
+    row.state, row.encrypted_grant = "exchanging", None
     db.commit()
     try:
-        grant = transport.exchange(code, redirect(provider))
+        grant = (
+            transport.exchange_pkce(code, redirect(provider), verifier)
+            if isinstance(transport, PKCESourceTransport) and verifier is not None
+            else transport.exchange(code, redirect(provider))
+        )
     except Exception:
         raise HTTPException(502, "source authorization unavailable; restart connection") from None
     if grant.expires_at is not None and grant.expires_at <= now:

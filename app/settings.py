@@ -173,6 +173,18 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    klaviyo_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_KLAVIYO_RUNTIME_MODE")
+    klaviyo_client_id: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_CLIENT_ID")
+    klaviyo_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_KLAVIYO_CLIENT_SECRET"
+    )
+    klaviyo_api_revision: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_API_REVISION")
+    hubspot_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_HUBSPOT_RUNTIME_MODE")
+    hubspot_client_id: str = Field(default="", alias="AD_ANALYZER_HUBSPOT_CLIENT_ID")
+    hubspot_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_HUBSPOT_CLIENT_SECRET"
+    )
+
     tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
     tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
     tiktok_app_secret: SecretStr | None = Field(default=None, alias="AD_ANALYZER_TIKTOK_APP_SECRET")

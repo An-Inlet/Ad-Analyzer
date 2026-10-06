@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, runtime_checkable
 from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, Field, SecretStr, field_validator
@@ -42,6 +42,14 @@ class SourceTransport(Protocol):
     ) -> dict[str, Any]: ...
 
 
+@runtime_checkable
+class PKCESourceTransport(Protocol):
+    """Optional explicit per-attempt capability; adapters hold no verifier state."""
+
+    def authorize_url_pkce(self, state: str, redirect_uri: str, code_challenge: str) -> str: ...
+    def exchange_pkce(self, code: str, redirect_uri: str, code_verifier: str) -> SourceGrant: ...
+
+
 class UnavailableSource:
     mode: Literal["fixture"] = "fixture"
 
@@ -70,6 +78,10 @@ def get_source_transport(provider: ProviderName) -> SourceTransport:
             return TikTokHTTPRead(settings.tiktok_app_id, settings.tiktok_app_secret)
         except ValueError:
             pass
+    if provider in {"klaviyo", "hubspot", "omnisend"}:
+        from app.customer_context.factory import crm_transport
+
+        return crm_transport(provider)
     return UnavailableSource()
 
 

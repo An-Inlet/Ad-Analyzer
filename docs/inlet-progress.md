@@ -685,6 +685,18 @@ loss, then verify retained spend across deletion, pagination and workspace isola
 Full/CI pending. See `docs/inlet-tiktok-history-repair.md` for precise primary-source
 verification limits and live qualification gate. No live calls, merge or deployment.
 
+## CRM HTTP Runtime Preparation — 2026-10-06
+
+Branch `codex/inlet-crm-runtime` from PR75 head
+`01aa869b7df73bcdf1dca5fc25391a43f0af4efc`. Implemented disabled-default Klaviyo
+PKCE/read/refresh/revoke and HubSpot OAuth v3/introspection/read/refresh HTTP paths.
+Provider account identity precedes every profile page; no new profile persistence or
+canonical matching shortcut. Explicit PKCE arguments and encrypted per-attempt state
+survive replicas without mutable adapter context. Omnisend current contacts[] and
+hasMore projection fixed against official docs; its factory remains blocked pending
+verified brand-response identity and OAuth scope parameter. Detailed code/live gaps
+and sources: `docs/inlet-crm-http-runtime.md`. Focused suite 85 passed with SQLite and
+PostgreSQL; Ruff/mypy255/diff-check pass. Full/CI pending root review. No live calls.
 
 ### Source Status Follow-Up For TikTok Lifecycle
 

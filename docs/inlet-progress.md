@@ -658,3 +658,13 @@ or production purchase claim. Details, test evidence and explicit gaps are in
 journey plus 5 Node contracts); Ruff/mypy253/diff-check pass. Root owns Full/CI.
 Next: browser identity journey, connections setup, mandate lifecycle UI, readable
 progress; provider/runtime preparation is still independent work.
+
+### Customer Portal Readable Review Refinement
+
+Merged billing-management `275e0ee179c2b6d84f1b2a14b3048b44b123c5ae`. Replaced
+raw data panels with labeled goal/baseline/budget summaries, connection tables and
+simulation mandate reviews. Baseline history/import warnings are human readable;
+missing data is distinct from zero. Internal review IDs and revisions remain in
+API requests only. Current sales progress is explicitly unavailable. Focused
+pytest: 6 passed including Chromium readable-review assertions and six Node
+contracts; Ruff/mypy253/diff-check pass. Full remains assigned to root.

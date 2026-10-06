@@ -16,7 +16,7 @@ globalThis.fetch = async (path, options) => {
   } else if (path.endsWith('/commerce/stores')) value = [{id:storeId,status:'active',currency:'USD',time_zone:'America/New_York'}];
   else if (path.endsWith('/billing')) value = {status:'unconfigured',mode:'unavailable'};
   else if (path.endsWith('/preview')) value = {preview_id:'p'.repeat(32),snapshot_id:'b'.repeat(32),revision:goals[0].revision};
-  else if (path.includes('/commerce/snapshots/')) value = {quality:'complete',total_micros:1000000};
+  else if (path.includes('/commerce/snapshots/')) value = {quality:'complete',net_sales_micros:1000000000,currency:'USD',orders:10,window:{start:'2026-01-01',end:'2026-02-01',time_basis:'calendar_month'},reasons:[]};
   else if (path.endsWith('/confirm')) { goals[0].confirmation_recorded = true; value = goals[0]; }
   else if (path.endsWith('/goals') && options.method === 'POST') { value = {id:goalId,revision:1,definition:body.definition,assessment:'draft',confirmation_recorded:false}; goals = [value]; }
   else if (path.endsWith('/goals')) value = goals;
@@ -44,6 +44,10 @@ try {
   assert(goals.length === 1 && goals[0].definition.store_id === storeId,'Saved scoped goal');
   assert(goals[0].definition.budget_micros === 100000000,'Exact budget');
   $('preview').click(); await wait(); assert(!$('review').hidden,'Baseline review visible');
+  for (const expected of ['Target Sales','USD 10,000.00','January 2027','Total Budget','USD 100.00','Historical Baseline','Ready To Review','USD 1,000.00','January 2026']) assert($('review-data').textContent.replace(/\s/g, ' ').includes(expected), 'Readable review: ' + expected);
+  assert(!$('review-data').textContent.includes('net_sales_micros') && !$('review-data').textContent.includes(storeId),'No implementation fields in review');
+  assert($('connections').textContent.includes('Not Connected'),'Readable connection status');
+  assert($('goal-detail').textContent.includes('Current sales progress is not available'),'Unknown progress explicit');
   $('goal-form').elements.namedItem('target').value = '11000'; $('goal-form').dispatchEvent(new Event('input',{bubbles:true}));
   assert($('review').hidden && $('preview').hidden,'Editing invalidates reviewed revision');
   $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();

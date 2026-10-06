@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -33,4 +33,14 @@ test('API errors do not display provider payloads and conflicts stay conflicts',
   const fetcher = async () => ({ok:false,status:409,json:async()=>({detail:'secret-provider-payload'})});
   await assert.rejects(request('/api/customer/v1/workspaces','GET',undefined,{},fetcher), error => error.status === 409 && !error.message.includes('secret-provider'));
   await assert.rejects(request('//evil.test/api/customer/v1/workspaces','GET',undefined,{},fetcher));
+});
+
+test('summaries distinguish missing amounts and baseline history from zero sales', async () => {
+  assert.equal(amount(null, 'USD'), 'Not Available');
+  assert.match(amount(0, 'USD'), /0\.00/);
+  assert.match(baselineWarnings(['missing_history'])[0], /missing.*baseline month/);
+  assert.match(baselineWarnings(['incomplete_window'])[0], /not been fully imported/);
+  assert.deepEqual(goalSummary(null), [['Goal', 'No Goal Definition Yet']]);
+  const fetcher = async () => ({ok:false,status:409,json:async()=>({detail:{code:'baseline_unavailable',reasons:['missing_history','stale_source']}})});
+  await assert.rejects(request('/api/customer/v1/workspaces','GET',undefined,{},fetcher), error => error.message.includes('Historical data is missing') && error.message.includes('too old') && !error.message.includes('stale_source'));
 });

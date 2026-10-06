@@ -8,6 +8,8 @@ the owner-managed public webpage and the existing operator dashboard.
 
 `/app` and `/app/settings` serve the same customer shell. The shell contains no
 customer data; existing customer APIs authorize every read and mutation.
+Billing-management follow-up `275e0ee179c2b6d84f1b2a14b3048b44b123c5ae` was merged before the readable-summary refinement.
+
 An existing verified customer session can:
 
 - List/select owned or member workspaces, create a workspace with a stable retry
@@ -36,7 +38,7 @@ no framing and no-referrer. Session failures hide customer content. Existing API
 membership and role enforcement remains authoritative.
 
 Checks run: `pytest tests/test_customer_portal.py` (6 passed, including Chromium
-DOM journey and Node contract suite); embedded Node suite has 5 passing tests.
+DOM journey and Node contract suite); embedded Node suite has 6 passing tests.
 `ruff check .`, `mypy` (253 files), and `git diff --check` passed. Browser fixture
 uses synthetic fetch responses and localhost only; it verifies workspace creation,
 malicious workspace text escaping, goal save/edit/review/confirm, review invalidation,
@@ -53,7 +55,9 @@ Browser identity signup/sign-in is not implemented: the UI honestly requires an
 existing verified session and never asks customers to paste credentials/tokens.
 Natural-language milestone interpretation, cumulative goal editing, connection
 setup/OAuth callbacks, Meta status, mandate creation/edit/approval and readable
-progress charts remain UI work. Current detailed status/review uses structured
-JSON panels. Billing is test-only; real purchasing requires product policy,
+progress charts remain UI work. Customer-facing summaries use labeled currency,
+month, status and budget values; baseline readiness and known missing-history
+reasons are shown without raw field names or record identifiers. Current target
+sales progress remains explicitly unavailable; no chart values are invented. Billing is test-only; real purchasing requires product policy,
 configuration, provider verification and release approval. No ad actions,
 publication, deployment, credentials or live calls occurred in this package.

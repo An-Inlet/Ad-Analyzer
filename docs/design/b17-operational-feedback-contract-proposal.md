@@ -1,7 +1,7 @@
 # B17 Operational Reported Feedback: Proposed Implementation Contract
 
-Proposal against `31a412d`; migration reservation `0077` down `0076`. No code or
-production policy is installed by this proposal. Read the complete
+Proposal against `31a412d`; migration reservation `0077` down `0076`. The frozen contracts and local service implementation checkpoints below are not a
+production runtime or a completed acceptance claim. Read the complete
 [basis](b17-operational-feedback-next-package.md). Strict v3/directional schemas,
 qualification, execution and financial gates remain unchanged.
 
@@ -53,12 +53,11 @@ New package `app/reported_feedback`, distinct from `outcome_feedback`:
   preview commitment, before/after CPA, policy/explanation, bounded recomputed delta,
   resulting preview and expiry. `spending_authority=none`; review handoff unavailable.
 
-Service entrypoints (caller IDs/intent only):
-`request_comparison(db, principal, identity, attempt_id, objective_id, runtime)`;
-`advance_fixed_window(engine, runtime, now)`;
-`read_comparison(db, principal, identity, request_id, runtime)`;
-`apply_feedback_preview(db, principal, identity, comparison_id, baseline_preview_id,
-runtime)`. Reads/application check the original session, goal, source, latest receipt,
+Service entrypoints (caller IDs/intent only) use the exact signatures in `ports.py`:
+`request_comparison(db, principal, provider, workspace_id, intent, runtime)`,
+`read_comparison_progress` and `read_comparison` with an owned request ID,
+`reobserve_comparison` with the insufficient predecessor request ID, and
+`apply_feedback_preview` with `FeedbackPreviewIntentV1`. Reads/application check the original session, goal, source, latest receipt,
 policy and every dependency with effective application/database clocks. No request
 accepts policy parameters, timing proof, metrics, cohort or desired direction.
 
@@ -114,12 +113,14 @@ Five minimal table families, each scalar scope bound with compound foreign keys:
 5. `reported_feedback_slots`: one current contribution/preview document per original
    attempt+family+cohort; FK to comparison and exact owned initial baseline preview.
    Required revision/digest and expiry; policy revision/correction do not create a
-   second active slot. Recompute from bounded active slots, never compound a prior
+   second active slot. Recompute from bounded current comparisons, never compound a prior
    feedback-adjusted preview. If baseline preview is retracted, dependent slot vanishes.
 
-Corrections discovered by same-window acquisition compare exact retained day values,
-retract all dependent numeric comparisons/slots and restart stability qualification
-from the changed report. Conservative workspace-derived invalidation is acceptable
+Corrections discovered by same-window acquisition compare exact retained day values
+and retract dependent numeric comparisons/slots. Insufficient stability requires an
+explicit customer re-observation intent: a new bounded actual acquisition round commits
+`supersedes_request_id` while preserving the original opportunity. No counter reset,
+recapture, automatic retry, or independently counted action is implied. Conservative workspace-derived invalidation is acceptable
 for source/privacy/receipt change; it must leave protected attempts/holds/receipts
 untouched. Existing0075 invalidation/export revision functions gain narrow additive
 hooks. DB cascade/trigger guards preserve erasure under direct dependency deletion;
@@ -180,3 +181,25 @@ and may legitimately disappear at the next import.
 Freeze validation: four focused contract regressions; whole-tree Ruff/mypy and diff
 checks. These verify contracts, not operational integration. Model registry, migration,
 triggers, acquisition/service and customer consumer remain implementation work.
+
+
+## Local Implementation Checkpoints (Not Acceptance Completion)
+
+- `8aaf345`: local original-session/member/source/receipt guards; eight SQLite/PostgreSQL
+  helper tests passed; whole-tree Ruff/mypy passed.
+- `d4e92eb`: actual injected Meta campaign-budget request/receipt admission fixture and
+  idempotent owned acquisition requests; two SQLite/PostgreSQL admission tests passed.
+- `62b1da7`: preview commits required environment/cohort and the complete explicit
+  feedback policy, so serializers and customers can bind scope and numeric parameters.
+- `f1922ad`: evaluator and concrete comparison/re-observation/preview service functions;
+  22 focused contract/evaluator/authority/admission tests passed. Eight evaluator cases
+  cover daily missingness, corrections, spacing, age, zero conversions, duplicate
+  acquisitions, unique original actions and bounded recomputation.
+- `b5411c4`: explicit current-opportunity retirement, no chronological tie or older
+  fallback after successor deletion; 12 admission/fencing tests passed on both databases.
+  Whole-tree Ruff and mypy (672 source files) passed; `git diff --check` passed.
+
+All changes remain local. The real terminal acquisition → comparison → post-acquisition
+baseline → changed customer preview, migration/export/erasure, and browser composition
+are still pending their separate implementation lanes and combined tests. No Full,
+live provider request, policy registration, deployment, or spend authorization ran.

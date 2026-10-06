@@ -2310,3 +2310,26 @@ Next: freeze this successor for local Full; continue social audited configuratio
 native inventory/qualification and descriptive customer UI independently. Native
 spending/exposure sources, mature action comparisons, repeat-owner rebudgeting,
 commercial/live configuration and release/pilot gates remain open.
+
+## Spending Review And Social Producer Integration
+
+The parent supplied a bounded independent source review of exact c602a1b on
+2026-10-06: both accounting findings closed, no new material issue in that scope.
+Stable account identities stay pinned through settlement/consent races;
+incompatible-currency unresolved holds reject before composition; positive
+optimization changes retain canceled/settled history. This review did not run tests
+or qualify providers. Held native owners continue to block unsupported repeat
+rebudgeting until an explicit safe replacement protocol is implemented.
+
+Integrated PR166 de9843b/bc5befb as edbb6d9/5786f72: separate social named catalog
+contracts, bounded actual Meta discovery adapter and canonical private-media
+producer. Root focused social catalog/MetaHTTP/producer suite passed36tests,0skips
+(`/tmp/inlet-next-social-catalog.log`); whole Ruff/mypy472/diff passed. Durable
+customer declarations, actual TikTok native response parsing and facade remain
+blocked; no runtime enabled.
+
+Frozen Full c602a1b tree ad37922d2b9fb2ac5d3be01d575d290d492c060e remains running in
+separate worktree. Hosted PR130 e512529 tree37b1831dc312b68b1b51aa48d67e1ea5c195a7c4;
+fetched synthetic merge f3e12aa8a0d17726491972b970c0d7e41cdc32ba has the identical
+tree. Actual hosted checkout still to confirm from completed job log. CI remains
+running, not a terminal pass.

@@ -1346,3 +1346,12 @@ no production reset behavior or validation gate is relaxed.
 Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
 upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
 hosted successor results remain separate and must be recorded after assembly.
+
+PR112 `73725be` local Full60224 terminated exit1: **1,578 passed, 38 skipped,
+1 failed**. Its nested Full failed the missing-application-tables test because the
+focused gate's partial ORM registry omitted publication dependencies on
+mandate_actions. The isolated reproduction omitted measurement dependencies on
+ad_groups; both demonstrate the same import-dependent drop graph. Reflection repair
+`1624b18` preserves the test's missing-table/rebuild behavior and Alembic stamp.
+Hosted37409558917 remains in progress at this record; its outcome is not inferred
+from the local run. A fresh local Full will validate the repaired head separately.

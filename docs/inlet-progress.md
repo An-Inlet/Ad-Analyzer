@@ -4226,3 +4226,58 @@ confirms descriptive associations only; no mature learning acceptance. B17 remai
 incomplete while genuine maturity/directional sources and calibrated policies are
 unavailable. New adapter fixtures and no-defect reviews must not be labeled learning
 completion. No successor candidate is frozen yet.
+
+## B17 Disabled Directional Reader And Evaluator — 2026-10-06
+
+Branch `codex/inlet-directional-runtime`, child of docs-onlyPR209/c222c73 (root
+b9d2dce ancestry). Added strict required-parameter policy/profile/facts/opportunity/
+result contracts, pure calibrated-association mapping, disabled registries and actual
+owned feedback/plan reader. Original action resolution uses current held reservation
+and validated durable ancestry, never timestamp sorting or favorable old fallback.
+Exact candidate numeric-policy digest is bound to calibration. Qualified completion
+count is separate from contribution count; no causal or spending authority is inferred.
+
+First expanded reader/evaluator/snapshot/feedback suite:20 passed across SQLite and
+PostgreSQL (34.65s); Ruff and mypy587 files passed. Regression includes real repeat
+claim with a newer held original and no receipt, which blocks the old feedback head.
+Final contract boundary rerun (facts commitment/live-fixture guard) recorded in the
+next freeze report. No migration, Full, live profile, source call or numeric default.
+
+This is the first implementation slice. Candidate adapter and authenticated final /
+automatic epoch seams remain separately coordinated next work. Source/timing guarantees,
+real calibration and an initial-action policy are not supplied by this feedback loop;
+brands with no qualified original action remain blocked here.
+Final contract boundary rerun:8 passed (15.69s), including explicit contract-fixture
+rejection in live mode, missing calibrated parameters, distinct completion thresholds,
+cohort contradiction, absent producers and current-snapshot retraction. Final Ruff,
+mypy587 files and diff whitespace checks passed. Adapter remains unimplemented in this
+frozen first slice; no direction reaches a candidate or executor yet.
+
+### Authenticated Directional Candidate Adapter — 2026-10-06
+
+Successor of PR211, integrating root authenticated candidate hooks1e7b742 and authorized
+epoch8f384ff. Added actual queued native-read→owned feedback transform→final-current
+check and exact original-session epoch binding. No new schema, authority or production
+registration. Recalibration cannot create a fresh original-action opportunity; committed
+contribution retraction after HTTP read prevents a candidate. Qualification fixtures are
+synthetic; independent source/timing, calibration and first-action policy remain missing
+production work. See design/b17-directional-consumer-contract.md for the explicit split.
+Validation: new adapter plus directional reader/evaluator14 passed on SQLite/PostgreSQL
+(37.35s); shared authenticated candidate and epoch boundary suites24 passed (29.39s).
+Whole Ruff clean; mypy605 source files clean; two added files format check and git diff
+check clean. No Full, CI dispatch, live provider call, deployment or activation.
+
+### Directional Consumer Integrated Without A Learning Completion Claim
+
+Integrated PR209 contract b71b3c7/c222c73, PR211 owned evaluator/reader7ca025c and
+PR213 authenticated adapterdd48bd8. Root actual queued native-read / original-session /
+stable-epoch / retraction / feedback composition suite42 passed in71.84s. Ruff,
+configured mypy609 and staged whitespace passed. Log
+`/tmp/inlet-next-directional-adapter.log`.
+
+This closes directional consumer wiring: original intervention cohort and latest
+original request are owned, recalibration cannot mint an opportunity, and committed
+retraction after IO blocks publication. Synthetic fixtures do not qualify live facts.
+Genuine maturity/timing/count producers, calibration and automatic first-action policy
+remain unavailable; B17 remains incomplete. The existing exact customer-reviewed
+initial budget intent is a manual bootstrap, not an automatic learning policy.

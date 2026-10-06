@@ -27,6 +27,7 @@ from app.mandates import service as mandates
 from app.mandates.schemas import AccountScope
 from app.meta.models import MetaConnection
 from app.settings import Settings, settings
+from app.sources.models import SourceConnection
 from app.workspaces.models import WorkspaceIntegration
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, select
@@ -35,6 +36,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
 
 from tests.test_campaign_review import definition, png
+from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import ISSUER, FakeProvider
@@ -52,6 +54,7 @@ def test_review_shell_and_assets() -> None:
         assert "Publication Blocked" in response.text
         assert "Approve This Offline Plan" in response.text
         assert "unsafe-inline" not in response.headers["content-security-policy"]
+        assert "media-src 'self' blob:" in response.headers["content-security-policy"]
         assert response.headers["cache-control"] == "no-store"
         assert client.get("/app/assets/campaign-review.mjs").status_code == 200
         assert client.get("/app/assets/campaign-review.css").status_code == 200
@@ -63,6 +66,7 @@ def test_review_browser_real_api(
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    encoded: Any,
 ) -> None:
     chromium = portal_executable(
         "chromium", "chromium-browser", "google-chrome", "google-chrome-stable"
@@ -80,6 +84,7 @@ def test_review_browser_real_api(
         Base.metadata.create_all(engine)
     factory = sessionmaker(engine)
     store = LocalMediaStore(tmp_path / "media")
+    video_bytes = encoded()
     actor = uuid4().hex
     with factory() as db:
         mandate, account, _ = setup(db, configuration)
@@ -125,12 +130,53 @@ def test_review_browser_real_api(
         policy.accounts.append(
             AccountScope(platform="meta_ads", connection_id=integration.id, account_id=meta.id)
         )
+        tiktok = WorkspaceIntegration(
+            workspace_id=mandate.workspace_id,
+            integration_key="review-video",
+            provider="tiktok_ads",
+            display_name="TikTok",
+            status="active",
+            configuration={},
+        )
+        db.add(tiktok)
+        db.flush()
+        video_account = AdvertisingAccount(
+            workspace_id=mandate.workspace_id,
+            connection_id=tiktok.id,
+            platform=AdvertisingPlatform.TIKTOK_ADS,
+            external_account_id="202",
+            name="TikTok",
+            currency_code="USD",
+            time_zone="UTC",
+        )
+        db.add(video_account)
+        db.flush()
+        db.add(
+            SourceConnection(
+                id=uuid4().hex,
+                workspace_id=mandate.workspace_id,
+                integration_id=tiktok.id,
+                account_id=video_account.id,
+                provider="tiktok_ads",
+                external_id="202",
+                status="connected",
+                generation=1,
+                window_start=NOW.date(),
+                window_end=NOW.date(),
+                staged={},
+            )
+        )
+        policy.accounts.append(
+            AccountScope(
+                platform="tiktok_ads", connection_id=tiktok.id, account_id=video_account.id
+            )
+        )
         mandates.edit(db, mandate, mandate.revision, policy, actor, NOW)
         mandates.approve(db, mandate, mandate.revision, actor, NOW)
         db.commit()
         image = service.upload(db, mandate.workspace_id, actor, png(), store, NOW)
         image_definition = definition(db, mandate, account).model_dump(mode="json")
-        image_definition["account"] = policy.accounts[-1].model_dump()
+        image_definition["account"] = policy.accounts[1].model_dump()
         image_definition["content"] = {
             "kind": "meta_website_sales_image_v1",
             "objective": "website_sales",
@@ -186,6 +232,9 @@ def test_review_browser_real_api(
                 .replace("__IMAGE_DRAFT__", image_draft_id)
             )
             await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if path == "/__fixture__/video":
+            await Response(video_bytes, media_type="video/mp4")(scope, receive, send)
             return
         if path == "/__fixture__/media-denied":
             media_denied = not media_denied

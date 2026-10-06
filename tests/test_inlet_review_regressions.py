@@ -399,8 +399,10 @@ class TrackedCheckout:
         return self.subscriptions[subscription_id].model_copy(update={"observed_at": now})
 
 
+@pytest.mark.parametrize("missing_url", [False, True])
 def test_uncertain_expired_checkout_is_recovered_before_attempt_retirement(
     customer_engine: Engine,
+    missing_url: bool,
 ) -> None:
     from datetime import timedelta
 
@@ -419,6 +421,11 @@ def test_uncertain_expired_checkout_is_recovered_before_attempt_retirement(
         fixture.states["cs_session1"] = fixture.states["cs_session1"].model_copy(
             update={"status": "expired"}
         )
+        if missing_url:
+            fixture.results = {
+                key: value.model_copy(update={"url": None})
+                for key, value in fixture.results.items()
+            }
         fixture.unavailable = True
         with pytest.raises(HTTPException, match="reconciliation unavailable"):
             billing.checkout(

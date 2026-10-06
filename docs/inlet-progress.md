@@ -635,3 +635,13 @@ descriptions now record this correction. B12 Full862+6/hosted868+0 and B13 Full8
 882+0 completed with all gates; these baseline passes do not resolve new review findings.
 Next: verify repair package, complete actual provider transport/runtime code with mocked
 HTTP/SDK tests and disabled defaults, then customer purchasing/onboarding and B14 onward.
+
+## Provider runtime candidate (2026-10-06)
+
+Started real Stripe HTTP adapter/runtime selection on `codex/inlet-provider-runtime`
+from PR73. Disabled by default; no live calls. See `docs/inlet-billing-runtime.md`
+for actual implementation and missing code. Mock HTTP suite: 16 passed. Combined
+billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skips
+(before three additional HTTP error cases, separately passed). Ruff, mypy and
+`git diff --check` pass. Full validation has not run for this runtime candidate.
+Not a completed B13 acceptance or live payment result.

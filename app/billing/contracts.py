@@ -35,7 +35,7 @@ class SubscriptionState(StrictModel):
 
 class CheckoutResult(StrictModel):
     id: str = Field(pattern=r"^cs_[A-Za-z0-9_]{1,128}$")
-    url: str = Field(max_length=2048)
+    url: str | None = Field(default=None, max_length=2048)
     expires_at: AwareDatetime
 
 
@@ -49,7 +49,8 @@ class CheckoutState(StrictModel):
 
 
 class BillingTransport(Protocol):
-    mode: Literal["fixture"]
+    @property
+    def mode(self) -> Literal["fixture", "stripe_test"]: ...
 
     def customer(self, workspace_id: int, idempotency_key: str) -> str: ...
     def checkout(
@@ -82,4 +83,12 @@ class UnavailableBilling:
 
 
 def get_billing_transport() -> BillingTransport:
-    return UnavailableBilling()
+    from app.billing.stripe import StripeBilling
+    from app.settings import settings
+
+    if settings.billing_provider_mode != "stripe_test" or settings.billing_api_key is None:
+        return UnavailableBilling()
+    try:
+        return StripeBilling(settings.billing_api_key, settings.billing_api_version)
+    except ValueError:
+        return UnavailableBilling()

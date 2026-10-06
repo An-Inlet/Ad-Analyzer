@@ -27,8 +27,7 @@ malformed/repeated pages, invalid cursor/token/scope, missing offline consent,
 response bounds, timeout and 301/400/401/403/429/500 sanitized failures.
 
 Remaining implementation/acceptance gaps: provider token revocation lifecycle (local
-disconnect already invalidates generations), rolling late-conversion refresh (current
-import still advances new days), customer portal OAuth/reconnect journeys, deployment
+disconnect already invalidates generations), customer portal OAuth/reconnect journeys, deployment
 scheduler qualification, and live authorized account reconciliation. API version
 availability and provider approval must be verified at release. Token refresh is
 per-page without a shared cache; retries remain job-level and bounded by scheduler
@@ -39,7 +38,19 @@ Official references consulted October 6, 2026:
 - https://developers.google.com/google-ads/api/rest/auth
 - https://developers.google.com/identity/protocols/oauth2/web-server
 
-Validation: 31 focused tests passed (22 HTTP contracts plus 9 existing customer
+Validation: 33 focused tests passed (22 HTTP contracts plus 11 customer
 connection cases, including explicit disposable PostgreSQL variants); Ruff passed;
 mypy passed across 248 source files; `git diff --check` passed. Full validation and
 hosted CI have not been run for this isolated branch.
+
+
+Late-conversion followup: once caught up through account-local yesterday, refresh
+90 days newest-first in seven-day windows. Phase stays `refresh` until the fixed
+snapshot window is covered; new days are caught up before starting another cycle.
+Refresh pages remain immediately due, and the next completed cycle is delayed an
+hour. Atomic window replacement updates positive conversions/revenue and downward
+corrections to zero, without touching another customer account. Regression coverage
+runs on SQLite and PostgreSQL. The 90-day horizon follows the existing B08 history
+floor; longer provider adjustment windows remain a release policy qualification.
+`last_sync_at` continues to mean the last completed window, not complete-cycle
+freshness; the phase indicates ongoing refresh.

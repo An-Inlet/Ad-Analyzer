@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
 import pytest
-from app.ads.models import DailyMetric, JobRun
+from app.ads.models import Campaign, DailyMetric, JobRun
 from app.customers.models import CustomerSession, CustomerUser
 from app.google_connections import service as s
 from app.google_connections.contracts import (
@@ -226,7 +226,8 @@ def test_backfill_completion_outbox_and_independent_dispatch(
         assert connection.phase == "current"
         calls = t.calls
         assert s.tick(db, wid, cid, connection.generation, t, NOW) is None
-        assert t.calls == calls
+        assert t.calls == calls + 1
+        assert connection.phase == "refresh"
         assert db.scalar(select(func.count()).select_from(GoogleImportCompletion)) == 13
         assert len(delivered) == 1
 
@@ -391,3 +392,104 @@ def test_google_wire_manager_context_paging_and_token_request() -> None:
     )
     assert last.next_cursor is None and last.metrics[0].conversions == "1.250000"
     assert last.metrics[0].conversion_value_micros == 3_500_000
+
+
+def test_late_conversion_refresh_covers_window_and_catches_new_days(
+    customer_engine: Engine, configured: None
+) -> None:
+    from decimal import Decimal
+
+    class Delayed(FixtureTransport):
+        conversions = "0"
+        windows: list[tuple[date, date]] = []
+
+        def page(
+            self,
+            refresh_token: str,
+            account_id: str,
+            start: date,
+            end: date,
+            cursor: str | None,
+            login_customer_id: str | None = None,
+        ) -> Page:
+            self.windows.append((start, end))
+            return Page(
+                external_account_id=account_id,
+                campaigns=[
+                    CampaignRow(external_id="1", name="Fixture", status="ENABLED", channel="SEARCH")
+                ],
+                metrics=[
+                    MetricRow(
+                        campaign_external_id="1",
+                        day=end,
+                        impressions=100,
+                        clicks=100,
+                        cost_micros=100_000_000,
+                        conversions=self.conversions,
+                        conversion_value_micros=int(Decimal(self.conversions) * 10_000_000),
+                    )
+                ],
+            )
+
+    with Session(customer_engine) as db:
+        transport = Delayed()
+        wid, sid = setup(db, "late")
+        row, _ = connect(db, wid, sid, transport)
+        other_wid, other_sid = setup(db, "other")
+        other, _ = connect(db, other_wid, other_sid, transport)
+        yesterday = NOW.date() - timedelta(days=1)
+        for connection in (row, other):
+            connection.phase = "current"
+            connection.window_start = yesterday
+            connection.window_end = yesterday
+        db.commit()
+        s.tick(db, wid, row.id, row.generation, transport, NOW)
+        s.tick(db, other_wid, other.id, other.generation, transport, NOW)
+        other_metric = db.scalar(
+            select(DailyMetric).where(
+                DailyMetric.campaign_id.in_(
+                    select(Campaign.id).where(Campaign.account_id == other.account_id)
+                )
+            )
+        )
+        assert other_metric is not None and other_metric.conversions == 0
+        transport.conversions = "10"
+        transport.windows = []
+        s.tick(db, wid, row.id, row.generation, transport, NOW)
+        assert row.phase == "refresh"
+        current = db.scalar(
+            select(DailyMetric).where(
+                DailyMetric.metric_date == yesterday, DailyMetric.id != other_metric.id
+            )
+        )
+        assert current is not None and current.conversions == 10
+        assert current.conversion_value_micros == 100_000_000
+        for _ in range(12):
+            s.tick(db, wid, row.id, row.generation, transport, NOW)
+        assert row.phase == "current"
+        assert len(transport.windows) == 13
+        assert transport.windows[-1][0] == yesterday - timedelta(days=89)
+        assert all((end - start).days <= 6 for start, end in transport.windows)
+        db.refresh(other_metric)
+        assert other_metric.conversions == 0
+        s.tick(db, wid, row.id, row.generation, transport, NOW + timedelta(days=2))
+        assert transport.windows[-1] == (
+            yesterday + timedelta(days=1),
+            yesterday + timedelta(days=2),
+        )
+
+        transport.conversions = "0"
+        s.tick(db, wid, row.id, row.generation, transport, NOW + timedelta(days=2))
+        corrected = db.scalar(
+            select(DailyMetric)
+            .join(Campaign, DailyMetric.campaign_id == Campaign.id)
+            .where(
+                Campaign.account_id == row.account_id,
+                DailyMetric.metric_date == yesterday + timedelta(days=2),
+            )
+        )
+        assert corrected is not None and corrected.conversions == 0
+        assert corrected.conversion_value_micros == 0
+        assert row.phase == "refresh"
+        db.refresh(other_metric)
+        assert other_metric.conversions == 0

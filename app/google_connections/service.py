@@ -253,10 +253,16 @@ def tick(
     if row.window_start > row.window_end:
         end = now.astimezone(ZoneInfo(account.time_zone or "UTC")).date() - timedelta(days=1)
         if row.window_start > end:
-            row.next_attempt_at = now + timedelta(hours=1)
-            db.commit()
-            return None
-        row.window_end = min(end, row.window_start + timedelta(days=6))
+            # Caught up: revisit delayed attribution newest-first in bounded windows.
+            # The snapshot end stays fixed while the refresh cycle is in progress.
+            if row.phase != "current":
+                raise HTTPException(409, "invalid import window")
+            row.phase = "refresh"
+            row.backfill_through = end
+            row.window_start = max(row.history_floor, end - timedelta(days=6))
+            row.window_end = end
+        else:
+            row.window_end = min(end, row.window_start + timedelta(days=6))
     token = Vault().open(wid, cid, row.encrypted_grant)
     try:
         page = transport.page(
@@ -367,6 +373,15 @@ def tick(
             row.backfill_through + timedelta(days=1),
             row.backfill_through,
         )
+    elif row.phase == "refresh":
+        floor = max(row.history_floor, row.backfill_through - timedelta(days=89))
+        if row.window_start > floor:
+            row.window_end = row.window_start - timedelta(days=1)
+            row.window_start = max(floor, row.window_end - timedelta(days=6))
+        else:
+            row.phase = "current"
+            row.window_start = row.backfill_through + timedelta(days=1)
+            row.window_end = row.backfill_through
     else:
         row.window_start = row.window_end + timedelta(days=1)
     row.next_attempt_at = now if row.phase != "current" else now + timedelta(hours=1)

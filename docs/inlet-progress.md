@@ -1355,3 +1355,19 @@ ad_groups; both demonstrate the same import-dependent drop graph. Reflection rep
 `1624b18` preserves the test's missing-table/rebuild behavior and Alembic stamp.
 Hosted37409558917 remains in progress at this record; its outcome is not inferred
 from the local run. A fresh local Full will validate the repaired head separately.
+
+### Shared ORM metadata bootstrap — 2026-10-06
+
+Added one explicit model-module registry used by Alembic, web startup, scheduler
+runtime loading, CRM worker startup and pytest bootstrap. Registration declares
+metadata only and performs no database connection, schema mutation or provider IO.
+A coverage test requires every domain models.py module to be registered, including
+future lifecycle/provider modules when integrated. Cross-domain foreign-key checks
+cover the publication and measurement dependencies behind the earlier partial-registry
+failures. The migration reflection repair remains: the actual migrated schema is
+still authoritative when intentionally removing application tables on a guarded
+ disposable database.
+
+Checks: 11 focused tests passed, including the real PostgreSQL missing-table/rebuild
+regression and CRM push tests. Ruff, mypy321 and diff check passed. This package is
+separate from frozen PR112/PR118 validation; Full/CI evidence remains pending.

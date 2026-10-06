@@ -28,6 +28,7 @@ from app.dashboard.intelligence import router as intelligence_dashboard_router
 from app.dashboard.meta import router as meta_dashboard_router
 from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
+from app.database.models import register_models
 from app.deployment import DeploymentProcess, validate_deployment_startup
 from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
@@ -59,6 +60,8 @@ class ReadinessResponse(BaseModel):
     database_available: bool
     write_access_enabled: bool
 
+
+register_models()
 
 app = FastAPI(
     title="Ad Analyzer",

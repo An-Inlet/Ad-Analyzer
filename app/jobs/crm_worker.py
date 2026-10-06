@@ -5,6 +5,7 @@ import logging
 import google.cloud.pubsub_v1 as pubsub_v1  # type: ignore[import-untyped]
 
 from app.crm.worker import handle_message
+from app.database.models import register_models
 from app.database.session import SessionLocal
 from app.settings import settings
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     if not settings.crm_pubsub_project_id or not settings.crm_pubsub_subscription_id:
         raise RuntimeError("CRM subscription is not configured")
+    register_models()
     subscriber = pubsub_v1.SubscriberClient()
     path = subscriber.subscription_path(
         settings.crm_pubsub_project_id, settings.crm_pubsub_subscription_id

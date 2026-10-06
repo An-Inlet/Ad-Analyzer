@@ -26,6 +26,22 @@ class TikTokReadError(RuntimeError):
     """A provider failure safe to expose without raw bodies or credentials."""
 
 
+class TikTokTransientError(TikTokReadError):
+    """Timeout, rate limit or provider outage; the same page can be retried."""
+
+
+class TikTokAuthorizationUnavailable(TikTokReadError):
+    """The current authenticated advertiser request is no longer authorized."""
+
+
+class TikTokProviderRejected(TikTokReadError):
+    def __init__(self, code: int) -> None:
+        if type(code) is not int or not 1 <= code <= 2**31 - 1:
+            raise ValueError("invalid provider code")
+        self.provider_code = code
+        super().__init__("tiktok_provider_rejected")
+
+
 class TikTokHTTPRead(TikTokReadAdapter):
     mode: Literal["fixture", "provider_read"] = "provider_read"
 
@@ -59,22 +75,25 @@ class TikTokHTTPRead(TikTokReadAdapter):
             else None
         )
         try:
-            with httpx.Client(
-                transport=self.transport,
-                timeout=httpx.Timeout(30, connect=5),
-                follow_redirects=False,
-                trust_env=False,
-            ) as client, client.stream(
-                method,
-                "https://business-api.tiktok.com" + path,
-                params=query,
-                json=params if method == "POST" else None,
-                headers=headers,
-            ) as response:
-                if response.status_code in {401, 403}:
-                    raise TikTokReadError("tiktok_authorization_unavailable")
-                if response.status_code == 429:
-                    raise TikTokReadError("tiktok_rate_limited")
+            with (
+                httpx.Client(
+                    transport=self.transport,
+                    timeout=httpx.Timeout(30, connect=5),
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as client,
+                client.stream(
+                    method,
+                    "https://business-api.tiktok.com" + path,
+                    params=query,
+                    json=params if method == "POST" else None,
+                    headers=headers,
+                ) as response,
+            ):
+                if response.status_code in {401, 403} and token is not None:
+                    raise TikTokAuthorizationUnavailable("tiktok_authorization_unavailable")
+                if response.status_code == 429 or response.status_code >= 500:
+                    raise TikTokTransientError("tiktok_read_temporarily_unavailable")
                 if not 200 <= response.status_code < 300:
                     raise TikTokReadError("tiktok_read_unavailable")
                 raw = bytearray()
@@ -86,14 +105,18 @@ class TikTokHTTPRead(TikTokReadAdapter):
                 if (
                     not isinstance(result, dict)
                     or type(result.get("code")) is not int
-                    or result["code"] != 0
+                    or not 0 <= result["code"] <= 2**31 - 1
                 ):
-                    raise TikTokReadError("tiktok_provider_rejected")
+                    raise TikTokReadError("tiktok_response_invalid")
+                if result["code"] != 0:
+                    raise TikTokProviderRejected(result["code"])
                 if not isinstance(result.get("data"), dict):
                     raise TikTokReadError("tiktok_response_invalid")
                 return result
-        except (httpx.HTTPError, ValueError, TypeError):
-            raise TikTokReadError("tiktok_read_unavailable") from None
+        except httpx.HTTPError:
+            raise TikTokTransientError("tiktok_read_temporarily_unavailable") from None
+        except (ValueError, TypeError):
+            raise TikTokReadError("tiktok_response_invalid") from None
 
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant:
         # Capture optional provider lifetime without inventing a permanent grant.
@@ -116,11 +139,8 @@ class TikTokHTTPRead(TikTokReadAdapter):
                 if type(ttl) is not int or not 0 < ttl <= 366 * 86400:
                     raise TikTokReadError("tiktok_lifetime_invalid")
                 grant.expires_at = self.clock() + timedelta(seconds=ttl)
-            refresh = grant_data.get("refresh_token")
-            if refresh is not None:
-                if not isinstance(refresh, str) or not 1 <= len(refresh) <= 8192:
-                    raise TikTokReadError("tiktok_token_invalid")
-                grant.refresh_token = SecretStr(refresh)
+            # No advertiser refresh protocol is qualified here. Do not retain
+            # unused creator/unknown refresh material returned by a provider.
             return grant
         except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError):
             raise TikTokReadError("tiktok_response_invalid") from None

@@ -675,3 +675,36 @@ Not a completed B13 acceptance or live payment result.
   `/tmp/inlet-scheduler-all-focused.log`; Ruff and mypy253 files passed.
 - Disposable PostgreSQL upgrade plus0035→0034→0035 roundtrip passed.
 - Full and hosted CI still pending for the final scheduler head. No external calls.
+### TikTok Deleted History Review Repair (2026-10-06)
+
+Dependent branch `codex/inlet-tiktok-history` from PR75 head01aa869 adds explicit
+all-status inventory and dimension-specific report filters. Actual HTTP mock →
+page staging → database publication tests reproduce the former deleted-history
+loss, then verify retained spend across deletion, pagination and workspace isolation.
+49 focused tests pass on SQLite/disposable PostgreSQL; Ruff/mypy/diff checks pass.
+Full/CI pending. See `docs/inlet-tiktok-history-repair.md` for precise primary-source
+verification limits and live qualification gate. No live calls, merge or deployment.
+
+
+### Source Status Follow-Up For TikTok Lifecycle
+
+At the parallel TikTok lifecycle package's request, shared source views now provide
+safe customer-facing status_label/next_action fields for provider_error and
+reconnect_required. Provider rejection asks the owner to review provider access or
+configuration and reconnect; it is not mislabeled as proved revocation. No tokens or
+raw provider message is exposed. Other provider/status responses are unchanged.
+Focused status test passed; Ruff/mypy256/diff-check passed. This small follow-up can
+be cherry-picked independently of the CRM transport package.
+
+### TikTok Lifecycle And Typed Provider Failures
+
+Branch `codex/inlet-tiktok-lifecycle`, base PR80 head
+`392d08672a718f1d6450441a6fa141943862abb9`: terminal HTTP authorization and local
+expiry require reconnect; unknown valid numeric provider rejection pauses reads
+with a distinct review label; transient failures preserve staging/backoff. Terminal
+transitions fence generations and discard only scoped pending analysis, preserving
+published data. Unused unqualified refresh material is no longer retained.
+105 focused tests passed with disposable PostgreSQL enabled; Ruff, mypy253 and
+diff-check passed. Full/hosted checks pending. See `inlet-tiktok-lifecycle.md` for
+primary-source evidence limits and remaining advertiser renewal/revoke qualification.
+No live API calls, activation, merge or deployment occurred.

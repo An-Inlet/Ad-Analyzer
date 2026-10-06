@@ -275,7 +275,7 @@ def disconnect(db: Session, row: SourceConnection) -> None:
 
 
 def view(row: SourceConnection) -> dict[str, Any]:
-    return {
+    result: dict[str, Any] = {
         "id": row.id,
         "workspace_id": row.workspace_id,
         "provider": row.provider,
@@ -288,3 +288,15 @@ def view(row: SourceConnection) -> dict[str, Any]:
         "mode": get_source_transport(cast(ProviderName, row.provider)).mode,
         "live_verified": False,
     }
+    if row.provider == "tiktok_ads" and row.status in {"provider_error", "reconnect_required"}:
+        result["status_label"] = (
+            "Provider Request Rejected"
+            if row.status == "provider_error"
+            else "Reconnection Required"
+        )
+        result["next_action"] = (
+            "Review provider access or configuration, then reconnect"
+            if row.status == "provider_error"
+            else "Reconnect this account to resume imports"
+        )
+    return result

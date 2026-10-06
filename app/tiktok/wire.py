@@ -1,5 +1,6 @@
 """Injected-IO TikTok API v1.3 read adapter; never instantiated by runtime defaults."""
 
+import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
@@ -103,6 +104,8 @@ class TikTokReadAdapter:
         }
         if phase in {"campaigns", "groups", "ads"}:
             edge = {"campaigns": "campaign/get", "groups": "adgroup/get", "ads": "ad/get"}[phase]
+            # Historical facts still reference deleted parents. Fetch their inventory too.
+            params["filtering"] = {"primary_status": "STATUS_ALL"}
         else:
             edge = "report/integrated/get"
             level, idfield = {
@@ -118,6 +121,13 @@ class TikTokReadAdapter:
                 start_date=start.isoformat(),
                 end_date=end.isoformat(),
                 enable_total_metrics=False,
+                filtering=[
+                    {
+                        "field_name": idfield.removesuffix("_id") + "_status",
+                        "filter_type": "IN",
+                        "filter_value": json.dumps(["STATUS_ALL"]),
+                    }
+                ],
             )
         response = self._call("GET", edge, params, token)
         rows = response.get("list")

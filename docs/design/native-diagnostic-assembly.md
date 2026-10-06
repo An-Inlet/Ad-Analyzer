@@ -62,7 +62,50 @@ lambda alone does not close the production credential mapping gap. If the curren
 provider library lacks a safe read-only token-context operation, add an explicitly
 scoped internal helper rather than call a write endpoint or invent refresh semantics.
 
-This interface awaits root review before assembly edits; TikTok collector may proceed
-independently. Financial qualification, source semantic profiles, preventive writer
+Root approved this interface before assembly edits. Financial qualification, source semantic profiles, preventive writer
 mechanism and terminal-request proof remain absent as recorded in the
 [readiness matrix](production-spending-source-readiness.md).
+
+## Implemented Assembly (Offline Verification)
+
+`app/collectors/native_diagnostics.py` now implements the approved port. Construction
+requires an independent SQLAlchemy session factory, a server-bound current authorizer,
+explicit provider HTTP transports and a clock. There is deliberately no application
+factory, route or scheduled activation. Customer assembly should supply the existing
+`customer_authority.bind_authority` closure; the request actor alone is not authentication.
+The service selects a canonical account only from the exact persisted consented policy,
+checks paid/current-goal/account/integration/native generation, and requires persisted
+account currency/timezone to agree. Each short private session closes without commit
+before OAuth or advertising HTTP; no caller transaction is accepted or committed.
+
+Current encrypted Google refresh grants, Meta bundles and TikTok source bundles are
+opened with their actual provider vaults and workspace/connection bindings. Google uses
+an additive internal `GoogleHTTPRead.access_context` helper, with actual documented
+`expires_in`, fixed OAuth endpoint and existing sanitized bounded HTTP. Its access token
+is retained only within one diagnostic call and only while the same current refresh
+material remains valid. Every context callback still rechecks current authority and
+vault material. There is no persistent token cache or credential write. The helper
+follows Google's [refresh/access-token protocol](https://developers.google.com/identity/protocols/oauth2/web-server#offline).
+Missing, malformed, expired or wrong-context credentials fail closed. Meta preserves
+the existing five-minute remaining-lifetime requirement. A TikTok grant without a
+provider expiry receives only a five-minute **local context validity** limit; this is
+not an assertion about its native token lifetime or renewal contract.
+
+All three actual HTTP collectors now re-resolve context before and after blocking reads;
+Google previously validated a cached context between pages. OAuth refresh gets an
+additional exact authorization/generation check after its HTTP response. Final return
+rechecks the persisted request, current session/owner and observation expiry. Revocation
+cannot undo an already-issued read, but it prevents further reads and release of a
+completed diagnostic after the guard observes the change.
+
+`tests/test_native_diagnostic_assembly.py` uses actual SQLite/PostgreSQL records, encrypted
+vaults, the customer-session authority closure and MockTransport provider/OAuth responses.
+It covers session/role changes, connection identity/generation changes during IO, expired
+and cross-workspace vault material, stale mandate/foreign selection and unavailable
+transports. This is offline implementation evidence, not live provider qualification.
+
+The result remains the collectors' original typed diagnostic union. U/F/P and reporting
+watermarks remain null; no qualified `PortfolioFacts`, native prevention, request finality,
+financial settlement, automatic target discovery or optimizer authority is produced.
+Operator/customer diagnostic presentation and explicit deployment assembly remain further
+engineering; approved provider access alone does not create a spending proof source.

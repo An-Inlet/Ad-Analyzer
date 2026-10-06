@@ -161,3 +161,20 @@ documented TikTok inventory; current-generation diagnostic assembly
 and named target discovery; then a qualified-source specification only if actual native
 semantics and prevention evidence support it. Parallel accounting/customer work remains
 independent. No live authority, Full run or deployment follows from this assessment.
+
+## Diagnostic Assembly Follow-Up
+
+The initial-head gaps above now have two bounded offline implementations:
+[TikTok regular inventory](../../app/collectors/tiktok_native_inventory.py) and
+[server-owned diagnostics](../../app/collectors/native_diagnostics.py). The latter maps
+persisted exact mandate/account ownership, current customer authorization, native grant
+generation and actual encrypted vaults to all three HTTP collectors. Google refresh is
+explicit and ephemeral; no application factory or diagnostic presentation is enabled.
+See the [assembly contract and verification scope](native-diagnostic-assembly.md).
+
+These close diagnostic collection/context-mapping code gaps only. Portfolio financial
+qualification, complete historical liabilities, preventative writer enforcement,
+original-request terminality, production mutation assembly/profile registration,
+automatic target discovery and qualified evidence caching remain missing or unqualified.
+Nothing in these follow-ups converts null U/F/P into zero or makes access approval
+sufficient to enable optimization.

@@ -182,10 +182,17 @@ class GoogleNativeInventoryHTTP:
         if context.request_digest != request.digest():
             raise GoogleNativeInventoryUnavailable("native_inventory_context_invalid")
         deadline = monotonic() + 60
+        expires = min(context.expires_at, now + timedelta(minutes=5))
 
         def check() -> None:
+            nonlocal context, expires
             current = self.clock()
-            if current < now or monotonic() >= deadline:
+            context = self.context_reader(request, current)
+            if context.request_digest != request.digest():
+                raise GoogleNativeInventoryUnavailable("native_inventory_context_invalid")
+            expires = min(expires, context.expires_at)
+            current = self.clock()
+            if not now <= current < expires or monotonic() >= deadline:
                 raise GoogleNativeInventoryUnavailable("native_inventory_expired")
             try:
                 self._wire.check(request.account, context, current)
@@ -448,7 +455,7 @@ class GoogleNativeInventoryHTTP:
                 request=request,
                 observation_started_at=now,
                 observed_at=observed,
-                expires_at=min(context.expires_at, now + timedelta(minutes=5)),
+                expires_at=expires,
                 campaigns=campaigns,
                 campaign_budgets=budgets,
                 account_budgets=account_budgets,

@@ -138,6 +138,14 @@ class GoogleHTTPRead:
             raise GoogleReadError("google_scope_unavailable")
         return result
 
+    def access_context(self, refresh_token: str) -> tuple[SecretStr, int]:
+        """Internal read-only refresh; callers must revalidate ownership after IO."""
+        result = self._token(refresh_token=refresh_token, grant_type="refresh_token")
+        seconds = result.get("expires_in")
+        if type(seconds) is not int or not 0 < seconds <= 86400:
+            raise GoogleReadError("google_token_invalid")
+        return SecretStr(result["access_token"]), seconds
+
     def _search(
         self, token: str, aid: str, login: str | None, query: str, cursor: str = ""
     ) -> tuple[list[dict[str, Any]], str]:

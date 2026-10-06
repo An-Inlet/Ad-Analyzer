@@ -10,7 +10,12 @@ from app.publication.execution_models import (
     ProviderExposureReservation,
     ProviderReservationReplacement,
 )
-from app.publication.replacement_contracts import RepeatOptimizationReview, ReplacementAuditDocument
+from app.publication.replacement_contracts import (
+    MAX_RESERVATION_CHAIN,
+    RepeatOptimizationReview,
+    ReplacementAuditDocument,
+    ReplacementSnapshot,
+)
 
 
 def ancestors(
@@ -25,7 +30,7 @@ def ancestors(
     seen: set[str] = set()
     row = current
     while True:
-        if row.id in seen or len(seen) >= 32:
+        if row.id in seen or len(seen) >= MAX_RESERVATION_CHAIN:
             raise HTTPException(409, "replacement ancestry unavailable")
         seen.add(row.id)
         current_exposure = ExposureEvidence.model_validate(current.evidence)
@@ -115,3 +120,11 @@ def ancestors(
                 ):
                     raise HTTPException(409, "original inherited evidence changed")
     return rows
+
+
+def require_successor_capacity(snapshot: ReplacementSnapshot) -> None:
+    """Reserve room for the successor without narrowing historical readers."""
+    if len(snapshot.ancestry) >= MAX_RESERVATION_CHAIN:
+        raise HTTPException(
+            409, "replacement history capacity reached; terminal settlement required"
+        )

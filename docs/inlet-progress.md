@@ -2998,3 +2998,52 @@ unqualified native Meta inventory; owned retained reconciliation observations wi
 no maturity verdict; sanitized analysis-run attention; and an environment-separated
 production billing lane. Migration 0061 (down 0060) is reserved for billing scope.
 No prices, live keys, provider access, spending or release approval were inferred.
+## Repeat Accounting Readiness And Capacity Repair — 2026-10-06
+
+Isolated `codex/inlet-repeat-readiness` from assembled `1c82e03` assessed current
+manual customer repeat APIs/UI, durable accounting, native proof producers and the
+missing autonomous candidate/scheduler path. Detailed capability/missing-code matrix,
+recurring effect semantics, proposed trusted worker ports and a minimal separate
+background-delegation decision are in `docs/design/repeat-optimization-readiness.md`.
+No worker authority, factory, source qualification or live dispatch was enabled.
+
+Concrete defect: a readable 32-reservation chain could admit a 33rd reservation which
+historical settlement could not traverse. Baseline SQLite regression built the exact
+32-chain and failed because successor preparation did not reject it. Added shared
+capacity admission checks before preparation/approval/transfer without reducing the
+historical reader bound or truncating audit. At capacity, late original uncertainty
+still retains exposure; later original-fence read-only reconciliation and separately
+qualified terminal settlement remain usable.
+
+Checks: exact-limit/late-evidence/terminal-settlement test passed on SQLite and
+PostgreSQL (2 passed). Core repeat and current customer optimization API cases passed
+53 with 1 intentional SQLite row-lock skip during the combined run. That run also
+had two new-test clock errors: the supposed later reconciliation reused the original
+observation timestamp/content and correctly could not supersede a newer unknown
+receipt. Advancing the test clock one second repaired those fixtures; final isolated
+capacity rerun passed both. Product code did not change for that fixture correction.
+Ruff (`app tests migrations`), mypy (`app tests`, 498 files) and diff check passed.
+No Full, provider access, workflow dispatch or deployment.
+
+Next: freeze typed non-authorizing candidate/queue contracts, then implement offline
+policy selection and durable orchestration. Native terminal/transition guarantees
+remain missing implementations/evidence, not credentials-only gates. Background
+worker provenance must not impersonate per-action human review or weaken the original
+interactive session checks. Root owns the authorization decision and integration.
+
+### Repeat History Admission Repair Integrated
+
+PR181 (`ce5b66d`) fixes the reproduced 32-to-33 reservation ancestry edge: further
+successors are rejected before preparation, approval and transfer, while historical
+readers retain their existing maximum and allow reconciliation/settlement. Root
+combined history-capacity, repeat-optimization and customer optimization API suite
+passed **55 tests with one SQLite-only lock skip in 142.63 seconds**; PostgreSQL
+counterpart ran. Log: `/tmp/inlet-next-repeat-capacity.log`. Ruff, configured mypy
+(502 source files) and diff checks passed. No exposure release, larger spending cap
+or automatic authority was introduced.
+
+Bounded Full diagnosis at 07:45 UTC: the second nested pytest process was active,
+its CPU time increased, and candidate-database sessions showed no lock wait in the
+sample. The first nested Full had advanced successfully to the second iteration.
+This is progress evidence, not terminal Full or hosted qualification. The frozen
+candidate remains unchanged and all required gates remain enabled.

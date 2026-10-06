@@ -116,37 +116,9 @@ def disconnect(
 
 @router.get("/google/callback")
 def browser_callback() -> Response:
-    # The existing Strict session cookie is not sent on the cross-site redirect.
-    # Relay from this same-origin document; POST checks session, Origin, CSRF and state.
-    from fastapi.responses import HTMLResponse
+    from app.customers.oauth import callback_relay
 
-    html = """<!doctype html><html lang="en"><meta charset="utf-8">
-<title>Connect Google Ads — Inlet</title><h1>Connect Google Ads</h1>
-<p id="result">Completing authorization…</p>
-<script>
-const params = new URLSearchParams(location.search);
-history.replaceState(null, '', location.pathname);
-sessionStorage.setItem('inlet-google-state', params.get('state') || '');
-const csrf = document.cookie.split('; ').find(x => x.startsWith('__Host-inlet_csrf='));
-fetch(location.pathname, {method:'POST', credentials:'same-origin',
-  headers:{'Content-Type':'application/json','X-CSRF-Token':csrf ? csrf.split('=')[1] : ''},
-  body:JSON.stringify({state:params.get('state'),code:params.get('code')})})
-.then(async r => {const data = await r.json();
-  document.getElementById('result').textContent = r.ok
-    ? 'Authorization received. Return to Connections to select an account.'
-    : 'Connection unavailable. Return to Connections and try again.';
-}).catch(() => {
-  document.getElementById('result').textContent='Connection unavailable. Please restart.';
-});
-</script></html>"""
-    return HTMLResponse(
-        html,
-        headers={
-            "Cache-Control": "no-store",
-            "Referrer-Policy": "no-referrer",
-            "X-Frame-Options": "DENY",
-        },
-    )
+    return callback_relay()
 
 
 class PendingSelection(StrictModel):

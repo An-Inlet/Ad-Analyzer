@@ -173,6 +173,10 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    source_token_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="AD_ANALYZER_SOURCE_TOKEN_ENCRYPTION_KEY"
+    )
+
     google_customer_encryption_key: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_GOOGLE_CUSTOMER_ENCRYPTION_KEY"
     )

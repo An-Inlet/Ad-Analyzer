@@ -15,6 +15,7 @@ from app.measurement import models as measurement_models  # noqa: F401
 from app.meta import models as meta_models  # noqa: F401
 from app.settings import settings
 from app.shopify import models as shopify_models  # noqa: F401
+from app.sources import models as source_models  # noqa: F401
 from sqlalchemy import engine_from_config, pool
 
 config = context.config

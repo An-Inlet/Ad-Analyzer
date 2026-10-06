@@ -3763,3 +3763,30 @@ separate start intent/admission/run authority, no fake humanapproval, no logout-
 independent grant and defaults disabled pending real sources/policies. B19 bounded
 operational observations reserves0070down0060. Finalrootjoin0073 will join0063/0064/
 0066/0070/0072. Prior proposed0065/67/69/71 were nevercreated.
+
+## B17 Canonical Feedback Consumer And Composed Retraction — 2026-10-06
+
+Branch `codex/inlet-feedback-snapshot`, worktree `/workspace/inlet-feedback-snapshot`,
+base `c2e43b9236a5affeca7516d37783ec80bbc0a3f0`. Added server-only canonical
+scope, owned apply orchestration and a bounded provenance-rich association snapshot
+over actual persisted feedback. It rechecks current session/receipt/goal/source/plan
+and policy. Empty, unavailable and nonempty zero scores are distinct. Initial grouping
+supports existing-campaign optimization only; activation mapping and directional
+candidate consumption remain missing code. Default policies stay None; actual
+unqualified inputs cannot create eligible feedback.
+
+New snapshot cases passed across SQLite/PostgreSQL; combined snapshot/policy/storage
+suite: **36 passed** (89.26s). New composed0064→candidate→0068 tests: **4 passed**
+(14.23s), including final-context retraction after claim and protected0066 response /
+financial hold preservation with actual mocked Google emission and reconciliation.
+Derived numeric/dependency records are explicitly schema fixtures, not qualified facts.
+
+Final focused command covered `test_feedback_snapshot`, `test_feedback_review_composition`,
+`test_feedback_races`, `test_feedback_migration`, `test_candidate_review_migration` and
+`test_google_completion_restore`: **17 passed, 2 skipped**, 8 existing Alembic config
+warnings (32.42s). Skips: SQLite row-lock test and native Google restore because native
+PostgreSQL tooling/container was not configured.0064 and0068 migration roundtrips did
+run; no new native0066 restore success is claimed. Final Ruff, mypy **570 files**, and
+`git diff --check` passed. No migration, Full, manual dispatch, live call or policy
+activation. A transient exec transport disconnect recovered on one harmless retry;
+no quota signal occurred. See `docs/design/b17-feedback-decision-wiring.md`.

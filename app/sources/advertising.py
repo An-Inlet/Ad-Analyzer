@@ -133,6 +133,9 @@ def tick(
     transport: SourceTransport,
     now: datetime,
 ) -> int | None:
+    from app.billing.entitlements import paid_work
+
+    paid_work(db, workspace_id, now)
     service.ready(transport)
     row = service.owned(db, workspace_id, "tiktok_ads", connection_id)
     if row.generation != generation or row.account_id is None:

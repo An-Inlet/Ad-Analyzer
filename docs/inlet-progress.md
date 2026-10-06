@@ -3497,3 +3497,29 @@ Frozen8efe196 localFull remains in final focused gate nestedFull; normal hosted
 run37427571832 remains in pytest. Neither has terminal result. No gate weakened or
 manual dispatch attempted. Google evidence PR195 is ready but not integrated; feedback
 0064 and independent Shopify acquisition continue. Final merge0067 waits on0064/0066.
+
+### Independent Publication V2 And Original-Session Authority
+
+Dependent child `codex/inlet-independent-publications` implements actual bounded
+Shopify acquisition -> fresh original-session/source/privacy authority -> atomic
+owned v2 publication -> authenticated provenance read -> strict archive export.
+The same publication ownership FK and source-wide erasure remove both versions;
+no schema migration is added. V2 commits the exact aggregate acquisition with a
+new domain-separated completion digest, acquisition interval (no source watermark),
+and unresolved/unqualified state. No maturity/producer/default runtime is enabled.
+
+Legacy v1 stored bytes/digests remain unchanged. SQL version filters preserve v1
+latest/default measurement, descriptive/reconciliation and candidate source fences
+when a v2 revision is added. Genuine source/privacy changes still deny/erase.
+Historical v2 read needs current session/ownership/source/privacy/retention, not an
+unchanged token or incremental source revision. Acquiring/publishing does recheck
+those exact source bindings. No token refresh or Shopify HTTP runs under DB locks.
+
+First focused DB validation: **38 passed** on SQLite and disposable PostgreSQL
+in 55.61 seconds, including actual tar archive, late stored-session/role/provider/
+privacy/source changes, v1 coexistence/candidate validity, erased/closed-source and
+retention deletion, unsupported JSON/digest rejection and final-commit revocation.
+Ruff, clean mypy (**544 source files**) and diff checks passed. Logs:
+`/tmp/inlet-independent-owned-freeze.log`,
+`/tmp/inlet-independent-owned-freeze-types2.log`.
+Feedback resolver integration and wider regression are the next validation step.

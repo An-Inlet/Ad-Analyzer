@@ -218,9 +218,11 @@ def publish(
                 "entry_count": counts.get(day.isoformat(), 0) if complete else None,
             }
         )
+    from app.commerce.publication_contracts import version_filter
+
     previous = db.scalar(
         select(CommerceMeasurementPublication)
-        .where(CommerceMeasurementPublication.store_id == store.id)
+        .where(CommerceMeasurementPublication.store_id == store.id, version_filter())
         .order_by(CommerceMeasurementPublication.publication_revision.desc())
         .limit(1)
     )
@@ -295,8 +297,16 @@ def read_publication(
         CommerceMeasurementPublication.workspace_id == workspace_id,
         CommerceMeasurementPublication.store_id == store.id,
     )
+    from app.commerce.publication_contracts import (
+        IndependentManifest,
+        parse_publication,
+        version_filter,
+    )
+
     if publication_id is not None:
         query = query.where(CommerceMeasurementPublication.id == publication_id)
+    else:
+        query = query.where(version_filter())
     row = db.scalar(
         query.order_by(CommerceMeasurementPublication.publication_revision.desc()).limit(1)
     )
@@ -316,11 +326,16 @@ def read_publication(
         raise ShopifyError("commerce_publication_outside_retention")
     if digest(row.manifest) != row.manifest_digest:
         raise ShopifyError("commerce_publication_invalid")
+    try:
+        document = parse_publication(row)
+    except (ValueError, TypeError, KeyError):
+        raise ShopifyError("commerce_publication_invalid") from None
     return {
         "publication_id": row.id,
         "manifest_digest": row.manifest_digest,
         "manifest": json.loads(json.dumps(row.manifest)),
         "import_in_progress": store.window_end is not None,
         "comparison_available": False,
-        "stale_source": evaluated_at - utc(row.source_window_end) > timedelta(hours=24),
+        "stale_source": isinstance(document, IndependentManifest)
+        or evaluated_at - utc(row.source_window_end) > timedelta(hours=24),
     }

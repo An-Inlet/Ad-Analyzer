@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.commerce.evidence import digest, lock_workspace
 from app.commerce.ledger import DEFINITION
+from app.commerce.publication_contracts import version_filter
 from app.goals.models import Goal, GoalRevision
 from app.goals.schemas import GoalDefinition
 from app.outcomes.contracts import Code, Digest, Frozen, Window
@@ -279,7 +280,7 @@ def _snapshot(
     validate_manifest(row)
     latest = db.scalar(
         select(type(row).id)
-        .where(type(row).workspace_id == wid, type(row).store_id == store.id)
+        .where(type(row).workspace_id == wid, type(row).store_id == store.id, version_filter())
         .order_by(type(row).publication_revision.desc())
         .limit(1)
     )

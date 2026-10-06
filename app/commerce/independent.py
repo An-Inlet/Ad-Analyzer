@@ -146,7 +146,7 @@ class _Scan:
         key = permit.identifier_key.get_secret_value()
         binding = (
             domain,
-            permit.shop_id,
+            permit.shop_id or "",
             permit.shop_key,
             hashlib.sha256(key.encode()).hexdigest(),
         )
@@ -217,12 +217,16 @@ class _Scan:
         data = self.query(AUTHORITY, {})
         permit = self.permit()
         shop = data["shop"]
-        if (shop["id"], shop["currencyCode"], shop["ianaTimezone"]) != (
-            permit.shop_id,
+        identity = _identity(shop["id"], "Shop")
+        if (shop["currencyCode"], shop["ianaTimezone"]) != (
             self.request.scope.currency,
             self.request.scope.time_zone,
-        ):
+        ) or (permit.shop_id is not None and identity != permit.shop_id):
             raise ScanUnavailable("acquisition_shop_mismatch")
+        if permit.shop_id is None:
+            vault = _HashOnlyVault(permit.identifier_key.get_secret_value())
+            if vault.digest("commerce_shop", identity.rsplit("/", 1)[1]) != permit.shop_key:
+                raise ScanUnavailable("acquisition_shop_mismatch")
         scopes = data["currentAppInstallation"]["accessScopes"]
         if not isinstance(scopes, list) or len(scopes) > 250:
             raise ScanUnavailable("acquisition_scope_invalid")

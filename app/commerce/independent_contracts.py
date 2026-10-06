@@ -46,7 +46,9 @@ class ScanPermit(Frozen):
     request_digest: Digest
     expires_at: AwareDatetime
     shop_domain: str = Field(exclude=True, repr=False)
-    shop_id: str = Field(pattern=r"^gid://shopify/Shop/[0-9]{1,24}$", exclude=True, repr=False)
+    shop_id: str | None = Field(
+        default=None, pattern=r"^gid://shopify/Shop/[0-9]{1,24}$", exclude=True, repr=False
+    )
     shop_key: Digest = Field(exclude=True, repr=False)
     token: SecretStr = Field(exclude=True, repr=False)
     identifier_key: SecretStr = Field(exclude=True, repr=False)

@@ -202,7 +202,9 @@ def test_actual_uvicorn_access_capture_excludes_oauth_queries_preserves_normal_e
     logger = logging.getLogger("uvicorn.access")
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
-    level = logger.level
+    level, disabled = logger.level, logger.disabled
+    # Earlier migration tests configure logging with disable_existing_loggers.
+    logger.disabled = False
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
     install_access_filter()
@@ -227,6 +229,7 @@ def test_actual_uvicorn_access_capture_excludes_oauth_queries_preserves_normal_e
     finally:
         logger.removeHandler(handler)
         logger.setLevel(level)
+        logger.disabled = disabled
 
 
 @pytest.mark.parametrize(

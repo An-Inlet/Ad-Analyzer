@@ -27,3 +27,12 @@ lifecycle, billing management, detailed Meta reporting, portal and operational c
 These are implementation work, not merely credential gates. Safe recovery after provider idempotency-key retention expires, retired-subscription event handling, actual provider HTTP/SDK adapters and runtime wiring remain follow-up code requirements; the current checkout transport is still unavailable by default. Real provider adapter code
 and runtime wiring must be completed with injected HTTP/SDK tests and disabled defaults;
 actual provider access, advertising changes, purchases and deployment remain unauthorized.
+
+### Validation follow-up
+
+The first full run at `5a09cec` failed: the access-log regression inherited
+`logger.disabled=True` from earlier migration logging configuration. The nested
+repeat-validation test failed for the same cause (908 passed, 6 skipped, 2 failed
+in the outer run). The regression now explicitly enables the logger and restores
+its previous disabled flag. Its focused test, Ruff and mypy pass. A full rerun is
+in progress; no terminal success is claimed for this revision yet.

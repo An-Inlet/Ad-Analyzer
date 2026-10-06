@@ -2221,3 +2221,43 @@ Carried only bounded launch/request/stderr diagnostics and tests frombcf987d int
 Implemented the frozen opaque-selection catalog port from `9c2d9f6e460f45cb0ca42202102212ecfb8bf0db` on isolated branch `codex/inlet-google-catalog`. The actual injectable v25 read-only HTTP producer verifies customer identity, discovers named owned purchase goals with their complete eligible action sets, and resolves exact country/language constants. Bounded pagination, duplicate/foreign reference rejection, expiry, sanitized errors/private HTTP logging and excluded credential fields are covered. Native resource IDs stay server-side; no default factory or live permission was added. See `docs/inlet-google-catalog-http.md` for the integration contract and primary sources.
 
 Validation: `pytest -q tests/test_google_catalog_http.py tests/test_customer_execution_catalog.py tests/test_google_publication_http.py tests/test_provider_publication_contracts.py` passed all 72 tests (no skips); whole-tree `ruff check .` passed; `mypy app tests` passed 432 source files; `git diff --check` passed. All HTTP was mocked. No Full, hosted CI, live provider qualification, deployment or merge is claimed. Explicit credential resolver/runtime composition remains separate work. Native portfolio spending bounds remain unqualified and require the evidence/semantics work recorded in the exposure assessment; catalog discovery grants no publication/spending authority.
+
+### B18 First Customer Execution Journey
+
+Branch `codex/inlet-customer-execution` adds owner+CSRF intent APIs and the separate
+Campaign Execution page. Customers review editable proposed limits, separately
+consent, select named Google purchase measurement, review exact creative/config,
+approve paused creation, advance durable steps, inspect owned receipts and approve
+activation separately. Original-session authorization is bound into shared runtime
+callbacks across locks/IO; Google preparation now uses the same initial/reentry
+callback. A revoked session cannot persist a new review or receive an admitted
+in-flight result, while required original provider receipts remain durable.
+
+Dependencies integrated: frozen catalog port9c2d9f6, actual named Google discovery
+2d61f56, shared session authorizer/durable optimization3df38fc, and accounting repair
+a68adb8. No edits to accounting rules or new migration. Default customer execution
+runtime remainsNone; Meta/TikTok expose explicit missing configuration-producer
+blockers. All proof, account generation, reservation bounds and provider plans are
+server-owned. Pasted provider resource IDs are not part of the customer UI.
+
+Final focused suite110passed/8expectedSQLite-only concurrency/FK skips
+(`/tmp/inlet-customer-execution-qualified.log`), covering actual API+HTTPS browser
+SQLite/PostgreSQL paths, real named discovery/qualification HTTP adapters with
+MockTransport, separate consent/approval, unknown no-replay, original-session
+revocation during reads/admitted dispatch, accounting and route guards. Final
+browser-only recovery/revoke/logout refinement2passed
+(`/tmp/inlet-customer-execution-ui-final.log`). Whole Ruff/mypy454files, JS syntax,
+single Alembic head0057 and diff checks passed.
+
+Initial broader checks exposed two test-harness issues, both repaired without
+weakening guards: provider qualification migration seeded current ORM at0040
+before the workspace privacy column, and its prepare lock barrier preceded the
+old source function rather than the new workspace-first authorizer. The fixture
+now seeds athead and exercises populated0040↔head; the barrier now observes the
+actual authorizer lock via PostgreSQL blocking evidence. Targeted repair7passed/
+6SQLite skips, then the full focused suite passed.
+
+Root owns integration/Full. No live advertising, credential factory, deployment or
+production qualification occurred. Next: integrate social named configuration
+producers, actual live cap/permission qualification and broader customer pilot
+checks. Existing activation is observed target state, not causal time or settlement.

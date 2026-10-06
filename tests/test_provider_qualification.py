@@ -332,10 +332,11 @@ def test_populated_provider_migration_roundtrip(
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
     try:
-        command.upgrade(config, "20261006_0040")
+        command.upgrade(config, "head")
         with Session(engine) as db:
             wid, draft, actor, store = seeded(db, configuration, tmp_path)
-        command.upgrade(config, "20261006_0043")
+        command.downgrade(config, "20261006_0040")
+        command.upgrade(config, "head")
         with Session(engine) as db:
             row = prepare(db, wid, draft, actor, store)
             s.approve(
@@ -343,7 +344,7 @@ def test_populated_provider_migration_roundtrip(
             )
             assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == 1
         command.downgrade(config, "20261006_0040")
-        command.upgrade(config, "20261006_0043")
+        command.upgrade(config, "head")
         with Session(engine) as db:
             assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == 0
             assert db.get(CustomerUser, actor) is not None
@@ -434,7 +435,19 @@ def test_expiry_while_waiting_for_lifecycle_lock(
             backend[0] = int(args[0].scalar(text("select pg_backend_pid()")))
         return original(*args, **kwargs)
 
-    monkeypatch.setattr(s, "current_review", barrier)
+    if operation == "approve":
+        monkeypatch.setattr(s, "current_review", barrier)
+
+    def authorize(db: Session, workspace_id: int, actor_id: str) -> None:
+        nonlocal calls
+        from app.publication.execution_authorization import owner_authorizer
+
+        calls += 1
+        if calls == 2:
+            ready.set()
+            assert proceed.wait(10)
+            backend[0] = int(db.scalar(text("select pg_backend_pid()")))
+        owner_authorizer(db, workspace_id, actor_id)
 
     def attempt() -> None:
         with Session(customer_engine) as db:
@@ -465,6 +478,7 @@ def test_expiry_while_waiting_for_lifecycle_lock(
                         expires_at=NOW + timedelta(hours=1),
                     ),
                     lambda: now[0],
+                    authorize=authorize,
                 )
 
     with ThreadPoolExecutor(max_workers=1) as pool:

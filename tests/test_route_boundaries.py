@@ -35,6 +35,8 @@ PUBLIC = {
     ("GET", "/app/workspace-export"),
     ("GET", "/app/activity"),
     ("GET", "/app/measurement-history"),
+    ("GET", "/app/execution"),
+    ("GET", "/app/execution/{workspace_id}/{run_id}"),
     ("GET", "/app/workspace-closure"),
     ("GET", "/app/workspace-closure/{workspace_id}/{request_id}"),
     ("GET", "/api/customer/v1/auth-config"),

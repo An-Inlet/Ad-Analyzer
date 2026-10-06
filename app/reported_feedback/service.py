@@ -417,7 +417,7 @@ def read_comparison(
     )
     if old is not None:
         if utc(old.expires_at) > now:
-            result = _validate_comparison(db, old, now)
+            result = validate_comparison_dependencies(db, old, now)
             bind_authority(principal, provider)(db, workspace_id, principal.user.id)
             local_job_current(db, row, runtime, effective_now(db, runtime.initial))
             if effective_now(db, runtime.initial) >= result.expires_at:
@@ -461,7 +461,7 @@ def read_comparison(
     return result
 
 
-def _validate_comparison(
+def validate_comparison_dependencies(
     db: Session, row: ReportedActionComparison, now: datetime
 ) -> OperationalReportedComparisonV1:
     value = OperationalReportedComparisonV1.model_validate(row.document)
@@ -606,7 +606,7 @@ def _active_set(
         raise HTTPException(409, "reported_feedback_contribution_capacity")
     unique: dict[str, OperationalReportedComparisonV1] = {}
     for row in rows:
-        value = _validate_comparison(db, row, now)
+        value = validate_comparison_dependencies(db, row, now)
         if value.anchor.cohort != cohort or value.policy_digest != policy.comparison_policy_digest:
             continue
         if value.status != "operational_reported_as_of":
@@ -722,7 +722,7 @@ def apply_feedback_preview(
         raise HTTPException(404, "reported_feedback_comparison_not_found")
     job, _ = _owned_job(db, principal, provider, workspace_id, row.job_id, runtime)
     now = effective_now(db, runtime.initial)
-    comparison = _validate_comparison(db, row, now)
+    comparison = validate_comparison_dependencies(db, row, now)
     baseline = initial_preview.read_preview(
         db, principal, provider, workspace_id, intent.baseline_preview_id, runtime.initial
     )

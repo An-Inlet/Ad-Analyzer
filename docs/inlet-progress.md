@@ -3954,3 +3954,15 @@ upgrade head / downgrade base / upgrade head on newly created disposable databas
 `inlet_oct06_candidate3_ci`; log `/tmp/inlet-next-0071-roundtrip.log`.
 Ruff, configured mypy (582 files) and whitespace passed. This is the completed
 batch for the next frozen candidate; unfinished 0072/PR207 are excluded.
+
+### 2026-10-06 09:29 UTC — Successor Frozen And Remotely Preserved
+
+Candidate and integration branches both pushed and verified remotely at
+`a4fcd3a35d585d11def78261382234e081fb8f6b`, tree
+`67f18fa0b05ae6ce5637f73591cba66774f5928d`. Draft PR130 updated.
+Main remains `ea3591c5086fbf2cee8038bf9208ac7f0050de75`.
+Normal PR-triggered CI run37443239927 is in progress (no manual dispatch).
+Local Full session30802 reached pytest after fresh migration; database
+`inlet_oct06_candidate3_ci`, log `/tmp/inlet-oct06-candidate3-full.log`, terminal
+wrapper result will be `/tmp/inlet-oct06-candidate3-full.exitcode`. No terminal
+success is claimed. Candidate worktree is clean and frozen while 0072 continues.

@@ -1,7 +1,7 @@
 # Integrated Inlet Candidate Acceptance
 
 This is the current implementation view of `codex/inlet-mvp-next`; draft PR130 is
-now tracking the assembled successor (e512529 at the latest hosted run). Main remains `ea3591c`. Nothing has been merged,
+tracking frozen `8efe196`, while the integration branch contains newer focused packages. Main remains `ea3591c`. Nothing has been merged,
 deployed, purchased or qualified against live provider accounts. An offline test
 pass is not evidence of a purchasable service or complete live acceptance.
 
@@ -15,17 +15,17 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Complete native portfolio qualification, customer/scheduler optimization entrypoints and qualified repeat-operation evidence sources |
-| B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | Live supported-profile qualification and customer configuration |
-| B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Live advertiser/history qualification and customer configuration |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Customer optimization API integrated; customer UI in progress. Native portfolio qualification, scheduler entrypoint and qualified repeat evidence sources remain |
+| B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named customer configuration/review integrated; live supported-profile qualification and creation consumer remain |
+| B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover customer configuration/review integrated; native catalog parser, live advertiser/history qualification and creation consumer remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
 | B13 | Checkout/return/management, webhook reconciliation and entitlements | Commercial configuration, live purchase/cancel, external closure policy; original hosted billing failure cause unresolved |
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
-| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer and no-DSA confirmation storage integrated; exact customer facade and provider capability proof remain |
+| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation and original-confirmer session guards integrated; customer creation/activation consumer in progress, provider capability proof remains |
 | B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison and History UI integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google creation/activation customer API/UI and strict exports integrated; default export gate and external closure/disposition remain |
-| B19 | Readiness/schema checks, route/model registry, operator attention, native restore drill | Green final Full/CI, intended-environment alerts/recovery/retention |
+| B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated replacement/social-review restore and composed export/closure coverage in progress; green final Full/CI and intended-environment alerts/recovery/retention remain |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
 
 ## Current Critical Path
@@ -107,9 +107,35 @@ execution. It retains predecessor obligations, rejects late ancestor-receipt
 drift and prevents a canceled unattempted successor from locally releasing
 inherited exposure.
 
-Frozen c602a1b Full has observed a nested failure (four cases); its outer suite is
-still running. Two stale Shopify barrier probes and logger contamination were
+Frozen c602a1b Full terminated with exit 1: 2511 passed, 58 skipped and four
+failures (nested Full, two Shopify probes and TikTok logger fixture). Two stale Shopify barrier probes and logger contamination were
 reproduced and repaired in the newer tree. The third native-import barrier failure
 has not reproduced independently; diagnostics and guaranteed cleanup were added
 without changing deadlines or blocking assertions. Combined affected modules
-passed 50 tests with six SQLite-only skips. New assembled Full is still required.
+passed 50 tests with six SQLite-only skips. The replacement assembled Full is
+running on exact `8efe196`, not yet qualified.
+
+
+## Current Frozen Validation And Newer Focused Packages
+
+Frozen `8efe19668d4920df6607ddd60140ab8ab0779049` has tree
+`11252fdbc785c270b49a1340dff95506d7391405`. Local Full log is
+`/tmp/inlet-oct06-candidate2-full.log`; normal PR130 run `37427571832` is running
+pytest after successful browser decoder preflight and migration upgrade. Neither
+has a terminal result yet. The synthetic merge has the same tree; completed
+hosted checkout evidence remains to be checked.
+
+Preceding hosted `e512529` failed: 2426 passed, 51 skipped, five failures. Its
+nested report included CRM HubSpot/PostgreSQL and Meta/PostgreSQL browser failures
+whose exact assertions were lost to the old diagnostic bound. Both passed the
+hosted outer suite and an unchanged local Chrome 154 reproduction (eight ordered
+browser cases); their hosted-only cause remains unresolved. The new candidate
+retains bounded nested failure and skip evidence through normal CI artifacts.
+
+Newer integration packages are outside that frozen validation: PR174 adds owned
+named optimization discovery, mandate/topology consent and exact initial/repeat
+customer APIs (combined root checks: 49 passed); PR175 surfaces terminal provider
+rejections without raw error data or retries (combined root checks: 35 passed).
+The corresponding existing-campaign UI and social execution consumer are being
+validated separately. Production runtime factories remain disabled. Their focused
+passes are not a replacement for a final assembled Full and hosted pass.

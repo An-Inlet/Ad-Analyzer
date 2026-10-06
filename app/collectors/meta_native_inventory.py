@@ -78,6 +78,8 @@ class MetaNativeInventory(StrictModel):
     campaigns: list[MetaNativeOwner] = Field(max_length=200)
     adsets: list[MetaNativeOwner] = Field(max_length=200)
     advertising_inventory_read_complete: bool
+    status_scope: Literal["sdk_known_effective_statuses_only"] = "sdk_known_effective_statuses_only"
+    all_effective_statuses_complete: Literal[False] = False
     # All counters are observations, not a period attribution or residual calculation.
     accounting_basis: Literal["unqualified"] = "unqualified"
     unit_semantics: Literal["native_integer_unqualified"] = "native_integer_unqualified"

@@ -4432,3 +4432,43 @@ unsupported universal outside-writer guarantee. Next concrete offline slices are
 reviewed PAUSED Google Search total-budget compiler/readback and immutable current
 campaign-report completion/reader (Meta first, migration0074 reserved after0073).
 Neither enables automatic execution or claims mature learning.
+
+### Fresh Brand Offline Journey And Plan Review — Local Checkpoint
+
+Branch `codex/inlet-fresh-brand-pilot`, base `dc3c0d5`. The fresh browser journey
+exposed a missing visible planning-budget creation/approval step. Added standalone
+Plan Review using existing simulation mandate APIs, plus an owned CSRF-protected
+planning-context endpoint that derives exact UTC boundaries from the confirmed
+goal's timezone. Ambiguous/nonexistent local boundaries fail closed. Customers
+explicitly review editable amounts within the goal ceiling, save, and separately
+approve the exact revision. The fixed one-new-campaign profile is visibly a planning
+simulation; it grants no live spending or publication authority.
+
+Actual HTTPS/Chromium journeys start with zero customer/workspace rows and exercise
+visible signup/provisioning, configured immutable TEST Stripe offer checkout and
+scoped signed-event reconciliation, Google and Shopify OAuth/vault ownership,
+Shopify import/publication, structured goal preview/confirmation, planning review,
+separate campaign-content approval, native diagnostics, and truthful unavailable
+automation. A second visible identity cannot read the first workspace; returning
+as the first identity recovers persisted state without replaying checkout. Mocks
+are external transport/identity boundaries and deterministic clocks, with explicit
+worker advancement. No customer state is seeded to bridge journey stages. Google
+connection and inventory reads are covered, not Google campaign metrics import.
+No production execution approval, attempt, or automatic admission is created.
+
+Final checks actually run on SQLite and isolated PostgreSQL schemas:
+- Fresh browser plus planning-context suite: **11 passed, zero skips**,23.43s;
+  `/tmp/fresh-final.log`.
+- Existing portal/campaign-review/context regressions: **23 passed, zero skips**,
+  22.63s; `/tmp/fresh-regression.log`.
+- Whole Ruff clean; mypy **616 files** clean; JavaScript syntax and diff checks pass.
+
+No Full or live pilot was run. Freeform milestone handling, calibrated direction,
+strict native financial qualification, production execution, and live delivery
+remain separate acceptance work. This package has no migration. Detailed scope and
+harness boundaries are in `docs/design/fresh-brand-offline-pilot.md` and
+`docs/design/fresh-plan-review-ui.md`.
+
+Remote push/PR creation is temporarily held by the parent while an unexplained
+GitHub pre-run CI failure is diagnosed. It is not established quota evidence.
+This checkpoint is local only; no new hosted CI or remote write was requested.

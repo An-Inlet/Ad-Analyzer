@@ -61,3 +61,8 @@ def customer_optimization() -> FileResponse:
 @router.get("/app/account-diagnostics", include_in_schema=False)
 def customer_account_diagnostics() -> FileResponse:
     return FileResponse(STATIC / "account-diagnostics.html", media_type="text/html")
+
+
+@router.get("/app/plan-review", include_in_schema=False)
+def customer_plan_review() -> FileResponse:
+    return FileResponse(STATIC / "plan-review.html", media_type="text/html")

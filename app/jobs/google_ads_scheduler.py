@@ -15,10 +15,12 @@ SUCCESS_EXIT_CODE = 0
 
 def _load_runtime() -> tuple[Any, Any, Any]:
     """Load settings, database, and worker code inside sanitized startup handling."""
+    from app.database.models import register_models
     from app.database.session import engine
     from app.jobs.reliability import run_cycle
     from app.settings import settings
 
+    register_models()
     return settings, engine, run_cycle
 
 

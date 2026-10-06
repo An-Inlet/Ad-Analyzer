@@ -1,25 +1,8 @@
 from logging.config import fileConfig
 
-import app.billing.models  # noqa: F401
-import app.campaign_review.models  # noqa: F401
-import app.customer_context.models  # noqa: F401
-import app.google_connections.models  # noqa: F401
-import app.publication.models  # noqa: F401
 from alembic import context
-from app.ads import models  # noqa: F401
-from app.analysis import models as analysis_models  # noqa: F401
-from app.automation import models as automation_models  # noqa: F401
-from app.customers import models as customer_models  # noqa: F401
-from app.database.session import Base
-from app.goals import models as goal_models  # noqa: F401
-from app.imports import models as import_models  # noqa: F401
-from app.intelligence import models as intelligence_models  # noqa: F401
-from app.mandates import models as mandate_models  # noqa: F401
-from app.measurement import models as measurement_models  # noqa: F401
-from app.meta import models as meta_models  # noqa: F401
+from app.database.models import register_models
 from app.settings import settings
-from app.shopify import models as shopify_models  # noqa: F401
-from app.sources import models as source_models  # noqa: F401
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
@@ -31,7 +14,7 @@ config.set_main_option(
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+target_metadata = register_models()
 
 
 def run_migrations_offline() -> None:

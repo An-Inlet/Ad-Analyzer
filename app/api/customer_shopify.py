@@ -1,7 +1,5 @@
 """Customer-owned Shopify authorization, isolated from operator credentials."""
 
-import base64
-import hashlib
 import time
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -9,7 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.customers.access import (
     CustomerPrincipal,
@@ -24,7 +22,7 @@ from app.goals.schemas import StrictModel
 from app.settings import settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyConnection, ShopifyOAuthState
-from app.shopify.security import ShopifyError, configuration_ready, verify_callback
+from app.shopify.security import ShopifyError, Vault, configuration_ready, verify_callback
 from app.shopify.service import ConnectionService
 from app.workspaces.models import Workspace
 
@@ -207,33 +205,71 @@ def callback(
         raise
 
 
+class Cancellation(StrictModel):
+    state: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+@router.get("/workspaces/{workspace_id}/shopify/setup")
+def setup_status(workspace_id: int, principal: Principal, db: Database) -> dict[str, bool]:
+    _, role = customer_workspace(db, principal.user.id, workspace_id)
+    return {
+        "enabled": configuration_ready(settings, customer=True),
+        "can_manage": role in {"owner", "admin"},
+    }
+
+
+@router.post("/shopify/cancel")
+def cancel(body: Cancellation, principal: MutationPrincipal, db: Database) -> dict[str, int]:
+    ready()
+    vault = Vault(settings)
+    nonce = vault.digest("oauth_state", body.state)
+    actor = vault.digest("oauth_actor", "customer:" + principal.session.digest)
+    pending = db.scalar(
+        select(ShopifyOAuthState).where(
+            ShopifyOAuthState.digest == nonce,
+            ShopifyOAuthState.actor_digest == actor,
+            ShopifyOAuthState.expires_at > datetime.now(UTC),
+        )
+    )
+    if pending is None:
+        raise HTTPException(404, "authorization attempt unavailable")
+    wid = pending.workspace_id
+    guard(db, principal, wid)
+    result = db.scalar(
+        delete(ShopifyOAuthState)
+        .execution_options(synchronize_session="fetch")
+        .where(
+            ShopifyOAuthState.digest == nonce,
+            ShopifyOAuthState.actor_digest == actor,
+            ShopifyOAuthState.workspace_id == wid,
+            ShopifyOAuthState.expires_at > datetime.now(UTC),
+        )
+        .returning(ShopifyOAuthState.digest)
+    )
+    if result is None:
+        raise HTTPException(409, "authorization attempt changed")
+    db.commit()
+    return {"workspace_id": wid}
+
+
 @router.get("/shopify/callback")
 def browser_callback() -> Response:
-    # All query material stays in browser memory. No interpolation into HTML/JS.
-    html = """<!doctype html><html lang="en"><meta charset="utf-8">
-<title>Connect Shopify — Inlet</title><h1>Connect Shopify</h1>
-<p id="result">Completing authorization…</p><script>
-const query = [...new URLSearchParams(location.search).entries()];
-history.replaceState(null, '', location.pathname);
-const csrf = document.cookie.split('; ').find(x => x.startsWith('__Host-inlet_csrf='));
-fetch(location.pathname, {method:'POST', credentials:'same-origin',
- headers:{'Content-Type':'application/json','X-CSRF-Token':csrf ? csrf.split('=')[1] : ''},
- body:JSON.stringify({query})})
-.then(r => {document.getElementById('result').textContent = r.ok
- ? 'Store connected. Return to Inlet.'
- : 'Connection unavailable. Restart authorization in Inlet.';})
-.catch(() => {document.getElementById('result').textContent=
- 'Connection unavailable. Restart in Inlet.';});
-</script></html>"""
-    script = html.split("<script>", 1)[1].split("</script>", 1)[0]
-    digest = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
+    # The external module strips query material before any exchange or navigation.
     return HTMLResponse(
-        html,
+        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect Shopify · Inlet</title><link rel="stylesheet" href="/app/assets/portal.css">
+<script type="module" src="/app/assets/shopify-callback.mjs"></script></head>
+<body><main><h1>Connect Shopify</h1><p id="result" role="status">Completing authorization…</p>
+<button id="cancel-attempt" hidden>Cancel This Connection Attempt</button>
+<a id="return-workspace" href="/app">Return To Inlet</a></main></body></html>""",
         headers={
             "Cache-Control": "no-store",
             "Referrer-Policy": "no-referrer",
             "X-Frame-Options": "DENY",
-            "Content-Security-Policy": "default-src 'none'; connect-src 'self'; "
-            f"script-src 'sha256-{digest}'; base-uri 'none'; frame-ancestors 'none'",
+            "Content-Security-Policy": (
+                "default-src 'none'; connect-src 'self'; script-src 'self'; "
+                "style-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+            ),
         },
     )

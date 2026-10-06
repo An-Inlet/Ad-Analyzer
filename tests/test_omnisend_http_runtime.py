@@ -342,3 +342,108 @@ def test_page_cycle_network_failure_body_limit_and_endpoint_allowlist() -> None:
     )
     with pytest.raises(CRMReadError, match="response_exceeds_bounds"):
         oversized.account(TOKEN)
+
+
+@pytest.mark.parametrize("identifier_type,channel", [("email", "email"), ("phone", "sms")])
+@pytest.mark.parametrize(
+    "unknown",
+    [{}, {"channels": None}, {"channels": {}}, {"channels": {"email": None, "sms": None}}],
+)
+def test_mixed_known_and_unknown_identifier_remains_unknown(
+    identifier_type: str, channel: str, unknown: dict[str, Any]
+) -> None:
+    io = OmnisendIO()
+    io.profiles = {
+        "contacts": [
+            {
+                "id": "mixed",
+                "identifiers": [
+                    {"type": identifier_type, "channels": {channel: {"status": "subscribed"}}},
+                    {"type": identifier_type, **unknown},
+                ],
+            }
+        ],
+        "paging": {"hasMore": False},
+    }
+    page = adapter(io).page("brand_123", TOKEN, None, NOW)
+    assert getattr(page.profiles[0], channel + "_status") == "unknown"
+
+
+@pytest.mark.parametrize(
+    "hint,header,expected",
+    [
+        (180, None, 180),
+        (180, "240", 240),
+        (240, "180", 240),
+        (-1, None, 60),
+        (True, None, 60),
+        ("180", None, 60),
+        (None, None, 60),
+        (1.5, None, 60),
+        (10**40, None, 86400),
+    ],
+)
+def test_omnisend_problem_retry_delay(hint: Any, header: str | None, expected: int) -> None:
+    from app.customer_context.http import CRMRateLimited
+
+    runtime = adapter(OmnisendIO())
+    runtime.transport = httpx.MockTransport(
+        lambda _: httpx.Response(
+            429,
+            headers={"Retry-After": header} if header else {},
+            json={
+                "type": "https://problems.omnisend.com/rate-limit-exceeded",
+                "status": 429,
+                "retryAfter": hint,
+            },
+        )
+    )
+    with pytest.raises(CRMRateLimited) as result:
+        runtime.page("brand_123", TOKEN, None, NOW)
+    assert result.value.retry_after == expected
+
+
+@pytest.mark.parametrize("body", [b"invalid json", b"[180]", b"x" * 17000])
+def test_omnisend_invalid_problem_preserves_header(body: bytes) -> None:
+    from app.customer_context.http import CRMRateLimited
+
+    runtime = adapter(OmnisendIO())
+    runtime.transport = httpx.MockTransport(
+        lambda _: httpx.Response(
+            429,
+            headers={"Retry-After": "240"},
+            content=body,
+        )
+    )
+    with pytest.raises(CRMRateLimited) as result:
+        runtime.page("brand_123", TOKEN, None, NOW)
+    assert result.value.retry_after == 240
+
+
+def test_omnisend_problem_stream_failure_keeps_cooldown_and_closes() -> None:
+    from collections.abc import Iterator
+
+    from app.customer_context.http import CRMRateLimited
+
+    class BrokenBody(httpx.SyncByteStream):
+        closed = False
+
+        def __iter__(self) -> Iterator[bytes]:
+            yield b'{"retryAfter":'
+            raise httpx.ReadError("synthetic interrupted error body")
+
+        def close(self) -> None:
+            self.closed = True
+
+    body = BrokenBody()
+    runtime = adapter(OmnisendIO())
+    runtime.transport = httpx.MockTransport(
+        lambda _: httpx.Response(
+            429,
+            headers={"Retry-After": "240"},
+            stream=body,
+        )
+    )
+    with pytest.raises(CRMRateLimited) as result:
+        runtime.page("brand_123", TOKEN, None, NOW)
+    assert result.value.retry_after == 240 and body.closed

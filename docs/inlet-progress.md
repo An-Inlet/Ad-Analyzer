@@ -1496,3 +1496,8 @@ Focused discovery + Google/Shopify/Meta Chromium journeys on SQLite/PostgreSQL:
 **9 passed** (`tests/test_browser_targets.py`, `tests/test_google_connections_browser.py`,
 `tests/test_shopify_consent_browser.py`, `tests/test_meta_customer_browser.py`). The
 billing startup failure remains reported separately for its dedicated repair.
+
+Target discovery draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/131.
+Tested repair commit: `3ac72a67c9b5d0bdba5a50bfe2a4897a64505647`. The following
+commit only records this link. PR128 initial-session/Retry repair is independent;
+parent will validate the combined candidate before Full.

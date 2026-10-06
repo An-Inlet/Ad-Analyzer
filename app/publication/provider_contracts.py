@@ -5,7 +5,7 @@ provider extensions must add typed operations, never arbitrary HTTP dictionaries
 """
 
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal, Protocol
 from zoneinfo import ZoneInfo
 
@@ -72,6 +72,56 @@ class GoogleSearchPublicationFields(StrictModel):
         return self
 
 
+class GoogleSearchTotalPublicationFields(StrictModel):
+    kind: Literal["google_search_total_v25_v1"] = "google_search_total_v25_v1"
+    account_timezone: str = Field(min_length=1, max_length=64)
+    login_customer_id: str | None = Field(pattern=r"^[0-9]{10}$")
+    total_budget_micros: Micros
+    budget_semantics: Literal["native_total_budget_not_portfolio_proof"]
+    reservation_micros: Micros
+    bidding: Literal["MANUAL_CPC"]
+    max_cpc_micros: Micros
+    custom_conversion_goal: str = Field(
+        pattern=r"^customers/[0-9]{10}/customConversionGoals/[0-9]+$"
+    )
+    conversion_actions: list[str] = Field(min_length=1, max_length=20)
+    country_targets: dict[str, str] = Field(min_length=1, max_length=20)
+    language_targets: dict[str, str] = Field(min_length=1, max_length=10)
+    google_search: Literal[True]
+    search_partners: bool = Field(strict=True)
+    content_network: Literal[False]
+    positive_geo_target: Literal["PRESENCE"]
+    negative_geo_target: Literal["PRESENCE"]
+    political_advertising: Literal["DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING"]
+    tracking_url_template: str = Field(max_length=2048)
+    final_url_suffix: str = Field(max_length=2048)
+    activation_policy: Literal["separate_exact_approval"]
+    omission_policy: Literal["no_optional_assets_or_automation_requested"]
+
+    @model_validator(mode="after")
+    def references(self) -> "GoogleSearchTotalPublicationFields":
+        ZoneInfo(self.account_timezone)
+        for value in self.country_targets.values():
+            if not re.fullmatch(r"geoTargetConstants/[0-9]+", value):
+                raise ValueError("invalid geo target")
+        for value in self.language_targets.values():
+            if not re.fullmatch(r"languageConstants/[0-9]+", value):
+                raise ValueError("invalid language target")
+        if len(set(self.conversion_actions)) != len(self.conversion_actions):
+            raise ValueError("duplicate conversion action")
+        if any(
+            not re.fullmatch(r"customers/[0-9]{10}/conversionActions/[0-9]+", v)
+            for v in self.conversion_actions
+        ):
+            raise ValueError("invalid conversion action")
+        return self
+
+
+GooglePublicationFields = Annotated[
+    GoogleSearchPublicationFields | GoogleSearchTotalPublicationFields, Field(discriminator="kind")
+]
+
+
 class GoogleQualificationEvidence(StrictModel):
     """Server persisted read evidence, not a customer assertion or spending authority."""
 
@@ -98,7 +148,7 @@ class ProviderPublicationReview(StrictModel):
     source: ReviewArtifact
     source_digest: Digest
     scope: PublicationScope
-    configuration: GoogleSearchPublicationFields
+    configuration: GooglePublicationFields
     qualification_blockers: list[str] = Field(max_length=20)
     qualification: GoogleQualificationEvidence | None = None
 
@@ -140,8 +190,17 @@ class ProviderPublicationReview(StrictModel):
         days = (end.date() - start.date()).days + 1
         # Conservative daily overdelivery allowance; activation still requires qualified
         # provider limits and a production mandate. Never reinterpret daily as a hard cap.
-        if fields.reservation_micros < 2 * days * fields.daily_budget_micros:
-            raise ValueError("reservation cannot cover conservative daily exposure")
+        if isinstance(fields, GoogleSearchPublicationFields):
+            if fields.reservation_micros < 2 * days * fields.daily_budget_micros:
+                raise ValueError("reservation cannot cover conservative daily exposure")
+        else:
+            elapsed = end.astimezone(UTC) - start.astimezone(UTC)
+            # Google documents 3–90 days but does not define boundary/DST rounding.
+            # Support only the conservative interior; never claim provider rejection.
+            if not 4 <= days <= 89 or not timedelta(days=3) <= elapsed <= timedelta(days=90):
+                raise ValueError("inlet_total_budget_duration_boundary_unqualified")
+            if fields.total_budget_micros > fields.reservation_micros:
+                raise ValueError("total budget exceeds reviewed reservation")
         if self.qualification is not None and (
             self.qualification.scope != scope
             or self.qualification.binding_digest != self.configuration_binding()
@@ -181,11 +240,19 @@ class GoogleCreateBudget(StrictModel):
     explicitly_shared: Literal[False] = False
 
 
+class GoogleCreateTotalBudget(StrictModel):
+    kind: Literal["google_create_total_budget_v1"] = "google_create_total_budget_v1"
+    total_amount_micros: Micros
+    delivery_method: Literal["STANDARD"] = "STANDARD"
+    period: Literal["CUSTOM_PERIOD"] = "CUSTOM_PERIOD"
+    explicitly_shared: Literal[False] = False
+
+
 class GoogleCreatePausedCampaign(StrictModel):
     kind: Literal["google_create_paused_campaign"] = "google_create_paused_campaign"
     name: str = Field(min_length=1, max_length=120)
     budget: ResourceRef
-    configuration: GoogleSearchPublicationFields
+    configuration: GooglePublicationFields
     starts_local: str = Field(pattern=r"^\d{4}-\d{2}-\d{2} 00:00:00$")
     ends_local: str = Field(pattern=r"^\d{4}-\d{2}-\d{2} 23:59:59$")
     status: Literal["PAUSED"] = "PAUSED"
@@ -231,6 +298,7 @@ class GoogleCreatePausedResponsiveSearchAd(StrictModel):
 
 ProviderOperation = Annotated[
     GoogleCreateBudget
+    | GoogleCreateTotalBudget
     | GoogleCreatePausedCampaign
     | GoogleSetConversionGoal
     | GoogleCreateCampaignCriterion
@@ -253,7 +321,9 @@ class ProviderPublishStep(StrictModel):
 
 class ProviderPublishPlan(StrictModel):
     schema_version: Literal["inlet.provider-publish-plan.v1"] = "inlet.provider-publish-plan.v1"
-    compiler_id: Literal["google_search_v25_v1"] = "google_search_v25_v1"
+    compiler_id: Literal["google_search_v25_v1", "google_search_total_v25_v1"] = (
+        "google_search_v25_v1"
+    )
     api_version: Literal["v25"] = "v25"
     review: ProviderPublicationReview
     review_digest: Digest
@@ -264,6 +334,25 @@ class ProviderPublishPlan(StrictModel):
     def dag(self) -> "ProviderPublishPlan":
         if self.review.digest() != self.review_digest:
             raise ValueError("provider review mismatch")
+        total = isinstance(self.review.configuration, GoogleSearchTotalPublicationFields)
+        expected_compiler = "google_search_total_v25_v1" if total else "google_search_v25_v1"
+        budgets = [
+            step.operation
+            for step in self.steps
+            if isinstance(step.operation, (GoogleCreateBudget, GoogleCreateTotalBudget))
+        ]
+        if (
+            self.compiler_id != expected_compiler
+            or len(budgets) != 1
+            or isinstance(budgets[0], GoogleCreateTotalBudget) != total
+        ):
+            raise ValueError("compiler and budget configuration mismatch")
+        if any(
+            isinstance(step.operation, GoogleCreatePausedCampaign)
+            and step.operation.configuration != self.review.configuration
+            for step in self.steps
+        ):
+            raise ValueError("campaign configuration mismatch")
         seen: set[str] = set()
         for step in self.steps:
             if (

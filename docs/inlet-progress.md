@@ -3349,3 +3349,94 @@ Ruff check . passed after formatting-only0063 SQL literal split; configured mypy
 files and whitespace passed. Additional production assembly binding is being audited;
 unsupported commercial shapes still require code if selected. Offline fixtures do not
 qualify a live purchasable release.
+## 2026-10-06 — Nonemitting Optimization Candidate Queue (0062)
+
+Branch: `codex/inlet-optimization-candidates`, child of repeat-readiness
+`ce5b66de93d14de74dae41646a1bc2dd3e833602`. Draft PR pending parent connector action.
+
+Implemented strict server candidate/evidence/policy contracts, bounded budget
+compiler and durable owner/original-session-bound read jobs. Numeric policy and
+learning registries default unconfigured. Runtime factory returns None. Jobs
+recheck account/mandate/goal/source/receipt/privacy/session after source I/O;
+lease/fence/backoff apply only to non-emitting reads. All outputs require fresh
+separate execution admission and grant no spending authority. Current descriptive
+v2/v3 assessments cannot be promoted into measured learning by registration.
+
+Migration0062 down0060, canonical registry, strict export and local-work/closure
+classification are explicit. Privacy, commerce correction/new publication and
+receipt append erase derived jobs/results transactionally while retaining all
+financial/receipt history. Historical pre0062 fixture helper asserts table
+absence and no-ops only new candidate erasure hooks; production has no missing
+schema fallback. See `docs/design/nonemitting-optimization-candidates.md` for
+interfaces, exact limits and remaining automatic-optimization code.
+
+Checks actually run:
+
+- Current-head candidate/commerce/owned-outcome/closure suites: **91 passed,
+  1 expected SQLite concurrency skip** (72.31s).
+- Expanded candidate suite plus populated0062 roundtrip and historical replacement,
+  owned-outcome, commerce-publication and social-configuration migrations:
+  **41 passed** (41.34s), both database backends for parametrized tests.
+- Added final two-tenant fairness regression: **2 passed** (SQLite/PostgreSQL;
+  36 deselected), one failed source backs off while another completes.
+- Ruff whole repository: pass. Mypy app/tests: **511 files pass**. Diff check: pass.
+- Intermediate failures were fixed: wrong platform-control accessor; test principal
+  detachment/FK setup/expected native amount/clock/issuer; no interrupted or failed
+  run is counted as passing. One attempted test selection used a nonexistent
+  filename and collected no tests; corrected selection produced91pass result.
+
+No Full, live calls, workflow dispatch, merge or deployment. Actual native
+exposure/finality/transition sources, attributed learning, automatic target policy,
+emitting scheduler and explicit long-lived delegation remain missing. This is
+non-authorizing candidate groundwork, not completed autonomous optimization.
+
+## 2026-10-06 — Session-Bound Candidate Selection And Provenance
+
+Branch `codex/inlet-candidate-selection`, isolated child of PR191 frozen83e1362.
+Shared contract approved before implementation; no schema0064 or feedback edits.
+
+Added server-only current-mandate target discovery/selection and atomic v2 job
+admission. Exact observed native budget owners must match the full approved target
+set. No child substitution, inferred target expansion, performance ranking or
+numerical defaults. Repeated catalog content checks and current session, role,
+mandate, source/privacy/policy and post-lock clock checks fence admission. Insert
+rollback is atomic; fresh clock after flushed writes rejects expiry before commit.
+Worker rejects v2 observation state drift before storing a suggestion.
+
+Separate `CandidateWorkV2` stores selection/catalog/state/manifest provenance.
+Original CandidateWork v1 bytes/digest remain unchanged; one discriminated parser
+serves storage and strict export. No emitting authority, provider mutation,
+reservation or approval is created. Default selection factory returns None.
+See `docs/design/candidate-selection-orchestration.md` for exact ports/limitations.
+
+Validation actually run:
+
+- Initial combined selection/candidate suite:61 passed,3 expected SQLite row-lock skips.
+- Expanded selection/candidate/populated0062 migration suite:66 passed,3 expected
+  SQLite skips (74.02s); includes actual Google/Meta/TikTok MockHTTP catalogs to
+  durable v2 jobs and nonemitting result, old v1 compatibility/export, role/privacy/
+  expiry during controlled PostgreSQL workspace-lock waits, owner-only selection,
+  dedup/order, contradictory snapshots, foreign scope, tamper and insert rollback.
+- Final fresh-clock refinement selection suite:29 passed,3 expected SQLite skips
+  (26.76s), including expiry during a flushed insertion rolling back all jobs.
+- Ruff whole repository, mypy514 app/test files, diff check:pass.
+- Test fixture errors corrected during development: invalid membership role name,
+  wrong mocked Google amount property and imported type reference; failed runs are
+  not counted as passing. No Full, live call, dispatch, merge or deploy.
+
+Remaining: actual production runtime assembly/source registry and mature attributed
+direction/numerical decision policy, native exposure/finality/transition sources,
+automatic emitting scheduler and explicit long-lived delegation. Catalog readback
+has no provider CAS; later external changes require fresh worker/execution checks.
+This package closes structural candidate assembly/provenance only.
+
+### 2026-10-06 — Candidate preparation and selection integration
+
+Integrated PR19183e1362 and PR1941aed881: owned non-emitting candidate queue plus
+server-side exact native-owner selection, versioned provenance, original-session
+authority and atomic batch admission. Billing/candidate export registrations merged
+additively with discriminated v1/v2 parser. Root checks88 passed,3 expected SQLite
+row-lock skips in128.81s (`/tmp/inlet-next-candidate-selection.log`), Ruff check .,
+configured mypy536 files and whitespace passed. Migration0062 is a separate branch
+from0061/0063 until final0067 merge; assembled migration/Full checks remain pending.
+These packages do not complete automatic emitting optimization or qualified learning.

@@ -24,6 +24,8 @@ from app.lifecycle.export_domains import SettlementEvidence
 from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
+from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
+from app.optimization_candidates.selection_contracts import WORK_ADAPTER, CandidateWorkV2
 from app.outcomes.owned_contracts import OwnedAssessment
 from app.publication.activation_contracts import (
     ActivationReceipt,
@@ -63,6 +65,8 @@ from app.shopify.security import utc
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "customer_billing_offer_bindings": ("profile",),
     "customer_workspace_billing": ("qualification",),
+    "optimization_candidate_jobs": ("work",),
+    "optimization_candidate_results": ("decision",),
     "action_outcome_assessments": ("assessment",),
     "analysis_runs": ("blocking_reasons", "decision_brief", "retry_history"),
     "commerce_snapshots": ("result",),
@@ -134,6 +138,7 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("customer_billing_offer_bindings", "profile"): OfferProfileV1,
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
+    ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
@@ -190,7 +195,10 @@ RESPONSE_ADAPTERS: dict[str, TypeAdapter[Any]] = {
 }
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
+ADAPTERS[("optimization_candidate_jobs", "work")] = WORK_ADAPTER
+
 INTERNAL = {
+    "auth_session_digest",
     "export_privacy_revision",
     "request_key",
     "key_digest",
@@ -296,6 +304,27 @@ def bind_document(
             or any(row[key] != value for key, value in document.scope.columns().items())
         ):
             raise ValueError("billing qualification row mismatch")
+    elif isinstance(document, (CandidateWork, CandidateWorkV2)):
+        if (
+            document.scope.account.workspace_id != row["workspace_id"]
+            or document.policy.environment != row["environment"]
+            or document.scope.source.publication_id != row["publication_id"]
+            or document.scope.source.attempt_id != row["attempt_id"]
+            or (
+                isinstance(document, CandidateWorkV2)
+                and document.selection.actor_id != row["actor_id"]
+            )
+            or document.digest() != row["input_digest"]
+        ):
+            raise ValueError("candidate work ownership mismatch")
+    elif isinstance(document, CandidateDecision):
+        if (
+            document.scope.account.workspace_id != row["workspace_id"]
+            or document.digest() != row["decision_digest"]
+            or document.policy_digest != row["policy_digest"]
+            or document.evidence_digest != row["evidence_digest"]
+        ):
+            raise ValueError("candidate result ownership mismatch")
     elif isinstance(document, (SocialConfigurationDocument, LegacySocialConfigurationDocumentV1)):
         account = document.request.account
         if (

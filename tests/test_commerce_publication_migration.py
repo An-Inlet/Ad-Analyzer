@@ -50,6 +50,9 @@ def test_publication_migration_roundtrip(
             ).one()
         command.upgrade(config, "20261006_0051")
         command.upgrade(config, "20261006_0053")
+        from tests.candidate_historical_schema import without_candidates
+
+        without_candidates(monkeypatch, engine)
         with Session(engine) as db:
             complete(db, configuration)
             assert db.scalar(select(CommerceMeasurementPublication.id)) is not None

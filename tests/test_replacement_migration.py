@@ -44,6 +44,9 @@ def test_replacement_migration_preserves_populated_obligations(
         command.downgrade(config, "20261006_0057")
         assert "provider_reservation_replacements" not in inspect(engine).get_table_names()
         command.upgrade(config, "20261006_0058")
+        from tests.candidate_historical_schema import without_candidates
+
+        without_candidates(monkeypatch, engine)
         with Session(engine) as db:
             wid, actor, old, run, row, runtime, _ = prepared(db, configuration, tmp_path)
             r.transfer(

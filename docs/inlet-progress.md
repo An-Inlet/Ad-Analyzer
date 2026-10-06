@@ -2310,3 +2310,29 @@ Next: freeze this successor for local Full; continue social audited configuratio
 native inventory/qualification and descriptive customer UI independently. Native
 spending/exposure sources, mature action comparisons, repeat-owner rebudgeting,
 commercial/live configuration and release/pilot gates remain open.
+
+## B17 Descriptive History UI And Owner Decision Bundle
+
+Branch `codex/inlet-descriptive-history`, based on `c602a1b`. Measurement History
+adds an owner-only confirmed-goal/date-window form against the existing descriptive
+endpoint. Exact Decimal values are formatted without Number precision loss, with
+explicit as-of/unqualified/unattributed/no-causal/no-recommendation/no-spend labels.
+No prior history selector is invented; the UI does not request stability without
+an owned listing. Session/source changes and erasure clear values; epochs reject
+late responses and fresh server authorization rejects role loss. Viewer measurement
+reads remain available.
+
+`docs/design/b17-maturity-owner-decision.md` proposes independent operational-maturity
+and action-time evidence contracts and a genuine unresolved owner worksheet. Every
+numeric lag/count/separation/tolerance/freshness choice remains unset. Operational
+as-of maturity is recommended as a product direction only; authoritative finality is
+not supplied by current Shopify evidence. Delivery-linked launch claims remain the
+requirement; configuration observations are separately descriptive. No action
+maturity producer is enabled, and no policy approval is inferred from approving code.
+
+Checks: 42 passed, 1 SQLite-only row-lock skip (PG variant passed), including real
+HTTPS Chromium→API→SQLite/PG comparisons, role downgrade, stale response clearing,
+privacy erasure, exact large values, backend boundaries and assembled route inventory.
+Ruff passed, configured mypy passed 466 files, diff check passed. Log:
+`/tmp/inlet-descriptive-history-final.log`. No Full, CI dispatch, migrations, live
+provider calls, spending, merge or deployment.

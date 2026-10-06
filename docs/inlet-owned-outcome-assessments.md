@@ -75,3 +75,23 @@ loopback HTTPS browsers. No live provider calls, customer data, production
 migrations or real advertising effects have been exercised. Production exposure,
 authoritative activation intervals, approved maturity rules and a qualified
 comparison producer remain prerequisites for a future comparison-capable version.
+
+## Descriptive History Form (Separate From Action Assessments)
+
+Measurement History now offers current owners a confirmed-goal selector and two
+half-open local date windows after loading the latest owned publication. It calls
+the separately versioned read-only descriptive comparison endpoint. Exact Decimal
+micros are formatted using BigInt rather than lossy JavaScript number conversion.
+Results explicitly retain Maturity Unqualified, Action Attribution Unavailable,
+null causal/recommendation claims and no spending authority. This does not expose
+or enable a mature action assessment.
+
+A prior-publication selector is not fabricated: the existing customer source API
+provides latest/known-ID reads, not an owned history listing. This UI therefore does
+not request reconciliation stability. Backend stability remains available through
+its separately scoped contract. Source/session changes and erasure clear displayed
+values; stale responses are ignored. Role changes are rechecked by the API and clear
+comparisons; viewers can still load their owned measurement publications.
+
+The unresolved maturity and timing decision is documented in
+`design/b17-maturity-owner-decision.md`. No numeric policy was selected by this UI.

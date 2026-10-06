@@ -104,3 +104,20 @@ media, nested secret omission with incomplete flag, row/data/archive/deadline
 bounds, build revocation, stream expiry/revocation, ASGI send failure cleanup,
 closing workspace access, admin denial, and PostgreSQL concurrent claim contention.
 This is backend evidence, not a live environment or full-suite pass.
+
+## Customer Export Page
+
+`/app/workspace-export` adds an owner workspace selector, request creation, native
+browser TAR download and generation-status refresh. Native download avoids loading
+a 192 MiB archive into JavaScript memory. It displays supported-data/media/all-data
+completeness separately and never claims successful delivery. Receipt links also
+work for locally closing workspaces after authorization. Request keys survive an
+ambiguous network retry in the current page/workspace; they are not persisted
+across reloads. Account changes clear rendered data, request links and pending keys.
+
+Focused page checks: **2 passed**, including actual Chromium DOM with mocked HTTP
+responses (lost response keeps key, receipt/status, unconfirmed delivery, account
+switch and empty workspace), plus shell security headers. Backend HTTP/database
+coverage above uses real APIs and SQL. These are complementary tests, not a claim
+that this Chromium fixture exercises the real API. Ruff passed; mypy **335 files**
+passed. Logs `/tmp/inlet-export-ui-focused2.log`, `/tmp/inlet-export-mypy2.log`.

@@ -18,3 +18,8 @@ def customer_application() -> FileResponse:
 @router.get("/app/campaign-review", include_in_schema=False)
 def customer_campaign_review() -> FileResponse:
     return FileResponse(STATIC / "campaign-review.html", media_type="text/html")
+
+
+@router.get("/app/workspace-export", include_in_schema=False)
+def customer_workspace_export() -> FileResponse:
+    return FileResponse(STATIC / "workspace-export.html", media_type="text/html")

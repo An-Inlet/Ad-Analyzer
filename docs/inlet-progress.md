@@ -5205,3 +5205,38 @@ owned job checkpoint fields; both corrected and relevant regressions passed. Thi
 package does not claim positive multi-original operational learning or a populated
 feedback-slot customer handoff; the core/consumer composed journey remains separate.
 No Full, remote push/CI, live calls, policy defaults, deployment or spend authority.
+### 2026-10-06 — 0077 Operational Comparison Customer Consumer
+
+Local `codex/inlet-reported-feedback-ui`, based on frozen `b5595a0` with core
+`8aaf345`, `d4e92eb`, `62b1da7`, `f1922ad` integrated as local equivalents.
+Added the standalone Reported Action Comparisons page, History/Workspace links,
+and owner/original-session/CSRF APIs for bounded owned action/baseline discovery,
+request/history/status/detail, explicit re-observation, and explained preview
+update/read. Service transactions commit on successful POST; detail commits its
+immutable local assessment/dependencies. No provider I/O runs in these endpoints.
+Existing 0076 initial-preview/review UI is untouched.
+
+The UI displays explicit configured comparison and feedback parameters, both
+windows' spend/events/CPA, missing dates, acquisition observations, revision
+agreement and configuration-observation uncertainty. An insufficient comparison
+cannot update a preview. The update shows baseline/delta/result, both CPAs, exact
+applied policy and distinct original-action count. It grants no review handoff or
+spending authority; no production parameters are installed. Original-session and
+workspace/input changes clear derived state, including late async responses.
+
+Checks actually run: **13 passed**, no skips, with SQLite and PostgreSQL enabled
+(`tests/test_reported_feedback_customer_api.py`, customer browser, contracts).
+Actual API coverage resolves a real mocked-HTTP Meta action receipt, discovers its
+owned campaign, admits/replays one original-session job, reads history/status,
+rejects another valid session and incomplete detail/re-observation, and adds no
+provider mutation beyond the fixture's original action. Actual HTTPS default-off
+browser checks use real auth/APIs. Configured rich rendering/re-observation/apply
+and stale-response browser cases use explicitly controlled JSON projections and
+are NOT the final acquisition-to-feedback integration. Whole Ruff, mypy **675
+files**, JavaScript syntax and diff checks pass.
+
+Log `/tmp/reported-feedback-consumer-final.log`. No Full, remote calls/writes,
+CI, live provider access, deployment or production qualification. Remaining
+composed acceptance: root's actual Meta fixed-window acquisition through core
+capsules/comparison to this API/UI's genuinely computed updated preview. Core
+migration/lifecycle/aggregate retraction remains owned by the 0077 backend lane.

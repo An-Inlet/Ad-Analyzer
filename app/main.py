@@ -27,6 +27,7 @@ from app.api.customer_meta import router as customer_meta_router
 from app.api.customer_optimization import router as customer_optimization_router
 from app.api.customer_outcomes import router as customer_outcomes_router
 from app.api.customer_plan_review import router as customer_plan_review_router
+from app.api.customer_reported_feedback import router as customer_reported_feedback_router
 from app.api.customer_session_automation import router as customer_session_automation_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_social_execution import router as customer_social_execution_router
@@ -160,6 +161,7 @@ app.include_router(customer_exports_router)
 app.include_router(customer_execution_router)
 app.include_router(customer_plan_review_router)
 app.include_router(customer_initial_planning_router)
+app.include_router(customer_reported_feedback_router)
 app.include_router(customer_account_diagnostics_router)
 app.include_router(customer_session_automation_router)
 app.include_router(customer_social_review_router)

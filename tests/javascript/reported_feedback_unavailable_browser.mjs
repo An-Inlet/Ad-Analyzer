@@ -1,0 +1,8 @@
+const $=id=>document.getElementById('rf-'+id),assert=(ok,msg)=>{if(!ok)throw Error(msg);};
+const until=async(fn,message)=>{const end=Date.now()+15000;while(!await fn()){if(Date.now()>end)throw Error(message+' · '+$('message').textContent);await new Promise(r=>setTimeout(r,20));}};
+try{
+const login=await fetch('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'reported-browser:first'})});assert(login.ok,'actual sign in');
+await import('/app/assets/reported-comparison.mjs');await until(()=>!$('refresh').disabled&&$('workspace').options.length===2,'owned workspace');$('workspace').value='__WORKSPACE__';$('workspace').dispatchEvent(new Event('change'));await until(()=>!$('refresh').disabled&&$('availability').textContent.includes('No operational comparison parameters'),'honest unavailable default');assert($('request').disabled&&$('apply').disabled&&$('reobserve').disabled,'no default comparison, recommendation or acquisition');assert($('action').options.length===1&&$('baseline').options.length===1&&$('history').options.length===1,'no fabricated evidence choices');assert($('comparison').hidden&&$('result').hidden,'no synthetic report/preview');assert($('policy').hidden,'no fabricated numeric policy');
+$('logout').click();await until(()=>$('message').textContent==='Signed out.','logout');assert($('selection').hidden&&!$('availability').textContent&&!$('parameters').textContent,'logout clears context');
+await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
+}catch(error){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}

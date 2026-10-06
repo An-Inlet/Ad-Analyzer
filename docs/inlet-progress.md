@@ -2454,3 +2454,14 @@ unverified weeks4–5 shorthand; phase comparisons are not delivery forecasts.
 ## Meta/TikTok native spending evidence assessment — 2026-10-06
 
 Added [the bounded official-source eligibility matrix](design/meta-tiktok-native-exposure-assessment.md). TikTok documents editable/resettable account caps and lifetime controls; its credits-adjusted delayed net-cost metric and request-log identifier do not prove a strict portfolio envelope or original-request finality. Meta's official SDK identifies concrete mutable cap fields; inaccessible help/API semantics remain explicit gaps rather than third-party assumptions. The assessment specifies missing native enforcement, counting-period/adjustment, complete ownership, writer prevention and terminal-request evidence. No currently reviewed source qualifies the strict ceiling or safe reservation release. No runtime contracts, provider calls, credentials or authority changes. Relative links and staged diff check passed; no tests required for prose.
+
+## Frozen Full Nested Failure — Investigation In Progress
+
+The c602a1b frozen Full has not terminated, but its first nested Full reported
+2507passed/62skipped/4failed (2573tests,1247.354seconds). Preserved JUnit:
+`/tmp/inlet-oct06-nested-0.xml`. Failures: Shopify duplicate/disconnect callback
+barrier, Shopify expiry-purge barrier, Shopify connection-revocation/import barrier,
+and TikTok access-log filter test observing an empty ordinary-health log. The
+nested regression therefore fails and outer pytest continues. Dedicated isolated
+investigations are reproducing these; no assertions weakened and frozen tree untouched.
+These are actual observed failures, not a Full pass or a terminal aggregate result.

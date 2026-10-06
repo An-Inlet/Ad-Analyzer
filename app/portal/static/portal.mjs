@@ -37,6 +37,14 @@ export function shopifyDestination(result, shop) {
   if (url.protocol !== 'https:' || url.hostname !== domain || url.port || url.username || url.password || url.pathname !== '/admin/oauth/authorize' || url.hash) throw new Error('Shopify returned an invalid authorization destination.');
   return url.href;
 }
+export function googleDestination(result, configuration, origin) {
+  const url = new URL(result.authorization_url);
+  const expected = {client_id: configuration.client_id, redirect_uri: origin + '/api/customer/v1/google/callback', response_type: 'code', scope: 'https://www.googleapis.com/auth/adwords', access_type: 'offline', prompt: 'consent'};
+  if (configuration.redirect_uri !== expected.redirect_uri || url.protocol !== 'https:' || url.hostname !== 'accounts.google.com' || url.port || url.username || url.password || url.pathname !== '/o/oauth2/v2/auth' || url.hash) throw new Error('Google returned an invalid authorization destination.');
+  for (const [key, value] of Object.entries(expected)) if (!value || url.searchParams.getAll(key).length !== 1 || url.searchParams.get(key) !== value) throw new Error('Google authorization configuration changed. Reload before trying again.');
+  if ([...url.searchParams.keys()].some(key => !Object.hasOwn(expected, key) && key !== 'state') || url.searchParams.getAll('state').length !== 1 || !/^[A-Za-z0-9_-]{43}$/.test(url.searchParams.get('state') || '')) throw new Error('Google authorization request is invalid.');
+  return url.href;
+}
 export function amount(value, currency) {
   if (!Number.isSafeInteger(value) || !/^[A-Z]{3}$/.test(currency || '')) return 'Not Available';
   return new Intl.NumberFormat('en-US', {style: 'currency', currency, currencyDisplay: 'code'}).format(value / 1e6);
@@ -85,7 +93,7 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
-  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0;
+  let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null;
   let signupKey = null, signupBody = null;
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
@@ -104,7 +112,8 @@ if (typeof document !== 'undefined') {
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
-    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'shopify-setup']) show(id, false);
+    googleSetup = null; $('shopify-disconnect-consent').checked = false;
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management', 'shopify-setup', 'shopify-disconnect-open', 'shopify-disconnect-review', 'google-setup', 'google-authorize']) show(id, false);
   }
   function clearSession() {
     clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
@@ -133,7 +142,7 @@ if (typeof document !== 'undefined') {
         const state = connection ? label(connection.status) : Array.isArray(connections) ? 'Not Connected' : 'Status Unavailable';
         const imported = connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString('en-US', {timeZone:'UTC'}) + ' UTC' : 'No Import Recorded';
         const attention = connection?.error_code ? 'Import Needs Attention' : connection?.live_verified === false ? 'Live Connection Not Verified' : connection ? 'No Reported Import Error' : 'Setup Not Available Here';
-        for (const value of [name + (rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
+        for (const value of [name + (connection?.external_account_id ? ` · ${connection.external_account_id}` : rows.length > 1 ? ` ${index + 1}` : ''), state, imported, attention]) row.append(textNode('td', value));
         table.append(row);
       }
     }
@@ -216,9 +225,26 @@ if (typeof document !== 'undefined') {
     const connected = await api(path + '/shopify');
     if (turn !== epoch) throw new StaleRequest();
     if (connected.length) { $('shopify-domain').value = connected[0].shop_domain; $('shopify-current').textContent = `${connected[0].shop_domain} · ${label(connected[0].status)}`; }
+    show('shopify-disconnect-open', Boolean(connected.length && setup.can_manage));
+    googleSetup = await api(path + '/google/setup');
+    if (turn !== epoch) throw new StaleRequest();
+    show('google-setup', true); show('google-authorize', Boolean(googleSetup.enabled && googleSetup.can_manage));
+    $('google-setup-status').textContent = !googleSetup.enabled ? 'Google Ads connection setup is not configured.' : googleSetup.can_manage ? 'An owner or admin can connect an advertising account.' : 'Ask a workspace owner or admin to connect Google Ads.';
 
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
+  $('shopify-disconnect-open').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', true); };
+  $('shopify-disconnect-cancel').onclick = () => { $('shopify-disconnect-consent').checked = false; show('shopify-disconnect-review', false); };
+  $('shopify-disconnect-confirm').onclick = () => guarded(async () => {
+    if (!$('shopify-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Shopify.');
+    await api(root() + '/shopify', 'DELETE'); await loadWorkspace();
+    say('Shopify disconnected and imported data removed. Saved goal history remains; reconnect and import before reconfirming.');
+  });
+  $('google-authorize').onclick = () => guarded(async () => {
+    if (!googleSetup?.enabled || !googleSetup.can_manage) throw new Error('Google Ads setup is unavailable for this session.');
+    const result = await api(root() + '/google/authorize', 'POST');
+    location.assign(googleDestination(result, googleSetup, location.origin));
+  });
   $('shopify-connect').onsubmit = event => { event.preventDefault(); guarded(async () => {
     const shop = $('shopify-domain').value.trim().toLowerCase();
     shopifyDestination({authorization_url: `https://${shop}/admin/oauth/authorize`}, shop);

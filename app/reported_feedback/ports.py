@@ -111,6 +111,7 @@ class ClaimFixedWindow(Protocol):
         runtime: ReportedFeedbackRuntime,
         *,
         rolling_due: bool,
+        authorized_job_id: str | None = None,
     ) -> FixedWindowLeaseV1 | None: ...
 
 

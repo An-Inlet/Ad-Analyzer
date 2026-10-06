@@ -41,7 +41,10 @@ class MetaConnection(Base):
         ),
         UniqueConstraint("id", "workspace_id", name="uq_meta_connection_workspace"),
         CheckConstraint("status IN ('connected','reconnect_required')", name="ck_meta_status"),
-        CheckConstraint("phase IN ('campaigns','adsets','insights')", name="ck_meta_sync_phase"),
+        CheckConstraint(
+            "phase IN ('campaigns','adsets','insights','rf_campaigns','rf_adsets','rf_insights')",
+            name="ck_meta_sync_phase",
+        ),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_integration_id: Mapped[int | None] = mapped_column(Integer)

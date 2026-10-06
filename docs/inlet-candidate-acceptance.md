@@ -1,7 +1,9 @@
 # Integrated Inlet Candidate Acceptance
 
 This is the current implementation view of `codex/inlet-mvp-next`; draft PR130 is
-tracking frozen `8efe196`, while the integration branch contains newer focused packages. Main remains `ea3591c`. Nothing has been merged,
+tracking frozen `a4fcd3a35d585d11def78261382234e081fb8f6b` (migration 0071).
+Local Full and normal hosted run 37443239927 are running; session automation 0072
+and its UI remain outside that frozen candidate. Main remains `ea3591c`. Nothing has been merged,
 deployed, purchased or qualified against live provider accounts. An offline test
 pass is not evidence of a purchasable service or complete live acceptance.
 
@@ -15,7 +17,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Owned candidate queue/selection and exact Google original-response evidence integrated; candidate-to-review and automatic emitting orchestration remain under implementation; native financial/transition producers remain unqualified |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Owned candidate queue/selection and exact Google original-response evidence integrated; candidate-to-review is implemented; session-bound automatic orchestration remains under implementation; native financial/transition producers remain unqualified |
 | B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named configuration, customer creation and separate activation integrated; live supported-profile qualification remains |
 | B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover configuration, customer creation and separate activation integrated; native catalog parser and live advertiser/history qualification remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
@@ -23,7 +25,7 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
 | B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation, original-confirmer guards and customer creation/activation integrated; native provider capability proof remains |
-| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned reconciliation observations, disabled parameterized maturity evaluator, v3 association bridge and retractable bounded feedback implemented; independent Shopify acquisition is unqualified, publication adapter in progress, genuine delivery timing/calibrated policy and learning consumer wiring remain |
+| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned reconciliation observations, disabled parameterized maturity evaluator, v3 association bridge and retractable bounded feedback implemented; owned independent Shopify acquisition/publication and canonical association-feedback consumer are implemented; genuine delivery timing, calibrated maturity and directional policy/consumer remain unavailable or unfinished |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google/social creation and optimization UI integrated; both approval-context findings repaired and independently source-reviewed. Production assembly, default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated financial/social restore and composed export/closure verified offline; green final Full/CI and intended-environment alerts/recovery/retention remain |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
@@ -116,14 +118,14 @@ passed 50 tests with six SQLite-only skips. The replacement assembled Full is
 running on exact `8efe196`, not yet qualified.
 
 
-## Current Frozen Validation And Newer Focused Packages
+## Prior Frozen Validation And Newer Focused Packages
 
 Frozen `8efe19668d4920df6607ddd60140ab8ab0779049` has tree
 `11252fdbc785c270b49a1340dff95506d7391405`. Local Full log is
-`/tmp/inlet-oct06-candidate2-full.log`; normal PR130 run `37427571832` is running
-pytest after successful browser decoder preflight and migration upgrade. Neither
-has a terminal result yet. The synthetic merge has the same tree; completed
-hosted checkout evidence remains to be checked.
+`/tmp/inlet-oct06-candidate2-full.log`; local Full finished with exit 0.
+Normal PR130 run `37427571832` failed on the Meta startup race and nested wrapper.
+Actual hosted checkout `80e432a072d4970fd4fe50c23b1a913257e99250` has the same
+frozen tree. The repaired successor requires its own terminal validation.
 
 Preceding hosted `e512529` failed: 2426 passed, 51 skipped, five failures. Its
 nested report included CRM HubSpot/PostgreSQL and Meta/PostgreSQL browser failures

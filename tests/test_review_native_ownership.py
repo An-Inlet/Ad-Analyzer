@@ -141,10 +141,15 @@ def test_postgres_revocation_serializes_with_inflight_shopify_import(
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         imported = pool.submit(import_page)
-        assert collecting.wait(5)
-        revocation = pool.submit(revoke)
-        assert revoking.wait(5)
         try:
+            if not collecting.wait(5):
+                # Preserve a real worker exception/early status instead of losing it
+                # behind an unset fixture event. Do not retry or extend the deadline.
+                if imported.done():
+                    pytest.fail(f"import ended before provider barrier: {imported.result()!r}")
+                pytest.fail("import worker still running before provider barrier at 5s")
+            revocation = pool.submit(revoke)
+            assert revoking.wait(5)
             assert not revoked.wait(0.2)
         finally:
             release.set()

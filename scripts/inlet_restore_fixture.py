@@ -827,3 +827,139 @@ def verify_owned_constraints(engine: Engine) -> None:
             else:
                 transaction.rollback()
                 raise AssertionError("restored financial or social ownership constraint missing")
+
+
+def seed_performance(engine: Engine) -> None:
+    """Synthetic staged source facts; execute the real terminal Meta publisher, no HTTP."""
+    from decimal import Decimal
+
+    from app.ads.models import Campaign
+    from app.meta.models import MetaConnection, MetaStagedMetric
+    from app.meta.sync import MetaSyncService
+    from app.settings import Settings
+
+    with Session(engine) as db:
+        owner_authorizer(db, 902, "2" * 32)
+        account = db.scalars(
+            select(AdvertisingAccount).where(AdvertisingAccount.workspace_id == 902)
+        ).one()
+        source = MetaConnection(
+            workspace_id=902,
+            workspace_integration_id=account.connection_id,
+            account_id=account.id,
+            external_account_id=account.external_account_id,
+            encrypted_credentials="synthetic-unusable",
+            conversion_action_type="purchase",
+            window_start=NOW.date(),
+            window_end=NOW.date(),
+            phase="insights",
+        )
+        campaign = Campaign(
+            account_id=account.id,
+            platform=AdvertisingPlatform.META_ADS,
+            external_campaign_id="456",
+            name="Synthetic reported campaign",
+        )
+        db.add_all([source, campaign])
+        db.flush()
+        db.add(
+            MetaStagedMetric(
+                connection_id=source.id,
+                campaign_id=campaign.id,
+                metric_date=NOW.date(),
+                impressions=1000,
+                clicks=100,
+                cost_micros=100_000_000,
+                conversions=Decimal("10"),
+                conversion_value_micros=250_000_000,
+            )
+        )
+        db.flush()
+        assert MetaSyncService(db, Settings())._publish(source, NOW) == 1
+        db.commit()
+
+
+def verify_performance(engine: Engine) -> None:
+    from app.ads.models import Campaign
+    from app.campaign_performance import service
+    from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+    from app.lifecycle.contracts import LifecycleScopeV1
+    from app.lifecycle.inventory import export_section
+
+    with Session(engine) as db:
+        completion = db.scalars(select(PerformanceCompletion)).one()
+        current = db.scalars(select(CurrentPerformance)).one()
+        campaign = db.scalars(
+            select(Campaign).where(Campaign.account_id == completion.account_id)
+        ).one()
+        assert current.completion_id == completion.id and current.workspace_id == 902
+        result = service.read_current(
+            db,
+            902,
+            "2" * 32,
+            completion.account_id,
+            campaign.id,
+            completion.id,
+            owner_authorizer,
+        )
+        assert result.spend_micros == 100_000_000 and result.conversions == "10.000000"
+        assert result.conversion_value_micros == 250_000_000
+        assert result.reported_day_count == 1 and completion.row_count == 1
+        assert result.maturity == "unqualified" and not result.spending_authorized
+        for table in ("campaign_performance_completions", "campaign_performance_current"):
+            assert len(export_section(db, LifecycleScopeV1(workspace_id=902), table)["rows"]) == 1
+            assert export_section(db, LifecycleScopeV1(workspace_id=901), table)["rows"] == []
+        try:
+            service.read_current(
+                db,
+                901,
+                "1" * 32,
+                completion.account_id,
+                campaign.id,
+                completion.id,
+                owner_authorizer,
+            )
+        except HTTPException as error:
+            assert error.status_code == 409
+        else:
+            raise AssertionError("restored foreign performance visible")
+
+
+def verify_performance_constraints(engine: Engine) -> None:
+    """Real migrated database only: immutable trigger and cascading privacy erasure."""
+    from sqlalchemy import MetaData, Table, text
+    from sqlalchemy.exc import DBAPIError, IntegrityError
+
+    for statement in (
+        "UPDATE campaign_performance_completions SET row_count=row_count",
+        "UPDATE campaign_performance_current SET workspace_id=901",
+        "UPDATE campaign_performance_current SET account_id="
+        "(SELECT id FROM advertising_accounts WHERE workspace_id=901)",
+        "INSERT INTO campaign_performance_completions SELECT "
+        "* FROM campaign_performance_completions",  # Original receipt cannot be overwritten.
+    ):
+        with engine.connect() as db:
+            transaction = db.begin()
+            try:
+                db.execute(text(statement))
+            except DBAPIError:
+                transaction.rollback()
+            else:
+                transaction.rollback()
+                raise AssertionError("restored performance immutability or ownership missing")
+    with engine.connect() as db:
+        transaction = db.begin()
+        table = Table("campaign_performance_completions", MetaData(), autoload_with=db)
+        original = dict(db.execute(select(table)).mappings().one())
+        try:
+            db.execute(table.insert().values(**{**original, "id": "f" * 32, "workspace_id": 901}))
+        except IntegrityError:
+            transaction.rollback()
+        else:
+            transaction.rollback()
+            raise AssertionError("restored completion/account composite ownership missing")
+    with engine.connect() as db:
+        transaction = db.begin()
+        db.execute(text("DELETE FROM campaign_performance_completions"))
+        assert db.scalar(text("SELECT count(*) FROM campaign_performance_current")) == 0
+        transaction.rollback()

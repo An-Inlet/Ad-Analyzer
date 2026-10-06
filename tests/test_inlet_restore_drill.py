@@ -145,6 +145,7 @@ def test_native_synthetic_backup_restore_preserves_isolation(
         else:
             result = drill.run_drill(container)
             assert result["status"] == "passed" and result["workspaces"] == 2
+            assert result["campaign_performance_verified"] is True
             assert result["tables_verified"] > 20 and result["rows_verified"] >= 16
             assert result["archive_bytes"] > 0 and result["isolation_verified"] is True
             assert result["live_restore_qualified"] is False
@@ -247,3 +248,22 @@ def test_populated_restore_graph_and_behavior(customer_engine: Any, tamper: str 
     else:
         verify_populated(customer_engine)
         verify_owned_constraints(customer_engine)
+
+
+@pytest.mark.parametrize("tamper", [False, True])
+def test_performance_restore_fixture(customer_engine: Any, tamper: bool) -> None:
+    from app.ads.models import DailyMetric
+    from fastapi import HTTPException
+    from scripts.inlet_restore_fixture import verify_performance
+    from sqlalchemy import update
+    from sqlalchemy.orm import Session
+
+    drill.seed(customer_engine)
+    if tamper:
+        with Session(customer_engine) as db:
+            db.execute(update(DailyMetric).values(clicks=999))
+            db.commit()
+        with pytest.raises(HTTPException, match="current campaign reporting evidence unavailable"):
+            verify_performance(customer_engine)
+    else:
+        verify_performance(customer_engine)

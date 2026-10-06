@@ -26,8 +26,11 @@ from app.settings import settings
 from fastapi import HTTPException
 from scripts.inlet_restore_fixture import (
     seed_financial,
+    seed_performance,
     seed_social,
     verify_owned_constraints,
+    verify_performance,
+    verify_performance_constraints,
     verify_populated,
 )
 from scripts.reset_disposable_postgres import validate_disposable_url
@@ -206,6 +209,7 @@ def seed(engine: Engine) -> None:
 
     seed_financial(engine)
     seed_social(engine)
+    seed_performance(engine)
 
 
 def normalized_text_casts(expression: str) -> str:
@@ -351,6 +355,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         verify_isolation(engine)
         verify_populated(engine)
         verify_owned_constraints(engine)
+        verify_performance(engine)
+        verify_performance_constraints(engine)
         with engine.connect() as db:
             before, table_count, row_count = fingerprint(db, schema)
         archive = tools.run("pg_dump", ["--format=custom", "--no-owner", f"--schema={schema}"])
@@ -379,6 +385,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         verify_isolation(engine)
         verify_populated(engine)
         verify_owned_constraints(engine)
+        verify_performance(engine)
+        verify_performance_constraints(engine)
         with engine.connect() as db:
             if fingerprint(db, schema) != (before, table_count, row_count):
                 raise DrillError("restored behavioral checks changed durable evidence")
@@ -393,6 +401,7 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
             "isolation_verified": True,
             "populated_financial_lineage_verified": True,
             "social_approval_verified": True,
+            "campaign_performance_verified": True,
             "unknown_attempt_replay_denied": True,
             "media_objects_restored": False,
             "live_restore_qualified": False,

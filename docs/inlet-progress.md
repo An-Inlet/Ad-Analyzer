@@ -4611,3 +4611,17 @@ an over-goal planning budget (six failing security assertions across both DBs).
 Repairs are active separately; the successful fresh-browser path does not clear
 these findings. No live spending follows from this simulation path. Frozen Full
 snapshot is not modified; its result will not substitute for these new regressions.
+
+### Local Populated Performance Restore Verification
+
+Integrated local5363542 fixture/drill extension. Root real PostgreSQL dump/restore
+suite **33 passed**, five Alembic deprecation warnings, in68.50s; log
+`/tmp/inlet-next-performance-restore.log`. Separate disposable database
+`inlet_root_performance_restore_test_20261006`; active Full database untouched.
+Restored current reader/digest, foreign exclusion, immutable completion trigger,
+composite references and deletion cascade pass alongside prior financial/social
+checks. Ruff, configured mypy625 and whitespace pass. Explicit script check needs
+`mypy --explicit-package-bases scripts/inlet_restore_drill.py
+scripts/inlet_restore_fixture.py`; both pass (plain paths initially produced a
+module-name duplication configuration error, not a source defect).
+Local commits only; remote push/CI hold remains. No real backup/live environment claim.

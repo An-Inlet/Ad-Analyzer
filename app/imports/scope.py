@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount
 from app.settings import Settings
+from app.workspaces.locking import lock_workspace_row
 from app.workspaces.models import Workspace, WorkspaceIntegration
 
 
@@ -40,6 +41,9 @@ def validate_advertising_scope(
     session: Session,
     scope: AdvertisingImportScope,
 ) -> tuple[AdvertisingAccount, WorkspaceIntegration]:
+    workspace = lock_workspace_row(session, scope.workspace_id)
+    if workspace is None or workspace.status != "active":
+        raise ImportScopeError("import ownership unavailable")
     row = (
         session.execute(
             select(AdvertisingAccount, WorkspaceIntegration)
@@ -55,7 +59,7 @@ def validate_advertising_scope(
                 WorkspaceIntegration.status == "active",
                 Workspace.status == "active",
             )
-            .with_for_update()
+            .with_for_update(of=(AdvertisingAccount, WorkspaceIntegration))
             .execution_options(populate_existing=True)
         )
         .tuples()

@@ -188,7 +188,7 @@ def test_fixed_profile_reads_project_out_personal_and_revenue_fields() -> None:
         (
             "omnisend",
             {
-                "data": [
+                "contacts": [
                     {
                         "id": "c",
                         "identifiers": [
@@ -200,7 +200,7 @@ def test_fixed_profile_reads_project_out_personal_and_revenue_fields() -> None:
                         "customProperties": {"revenue": 999},
                     }
                 ],
-                "paging": {"cursors": {"after": "next"}},
+                "paging": {"hasMore": True, "cursors": {"after": "next"}},
             },
             "subscribed",
         ),
@@ -226,7 +226,7 @@ def test_conflicting_channels_and_custom_lifecycle_stay_unknown() -> None:
         "omnisend",
         IO(
             {
-                "data": [
+                "contacts": [
                     {
                         "id": "a",
                         "identifiers": [

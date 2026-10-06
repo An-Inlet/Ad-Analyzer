@@ -645,3 +645,16 @@ billing/review/initial HTTP tests with disposable PostgreSQL: 63 passed, no skip
 (before three additional HTTP error cases, separately passed). Ruff, mypy and
 `git diff --check` pass. Full validation has not run for this runtime candidate.
 Not a completed B13 acceptance or live payment result.
+
+## CRM HTTP Runtime Preparation — 2026-10-06
+
+Branch `codex/inlet-crm-runtime` from PR75 head
+`01aa869b7df73bcdf1dca5fc25391a43f0af4efc`. Implemented disabled-default Klaviyo
+PKCE/read/refresh/revoke and HubSpot OAuth v3/introspection/read/refresh HTTP paths.
+Provider account identity precedes every profile page; no new profile persistence or
+canonical matching shortcut. Explicit PKCE arguments and encrypted per-attempt state
+survive replicas without mutable adapter context. Omnisend current contacts[] and
+hasMore projection fixed against official docs; its factory remains blocked pending
+verified brand-response identity and OAuth scope parameter. Detailed code/live gaps
+and sources: `docs/inlet-crm-http-runtime.md`. Focused suite 85 passed with SQLite and
+PostgreSQL; Ruff/mypy255/diff-check pass. Full/CI pending root review. No live calls.

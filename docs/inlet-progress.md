@@ -1332,3 +1332,17 @@ results must be attributed to its exact head, not the predecessor.
 Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
 PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
 freezing the successor for Full/CI.
+
+### Import-order-independent migration regression — 2026-10-06
+
+The missing-application-tables validation test depended on whatever ORM models
+pytest collection had imported. A focused invocation reproduced PostgreSQL
+DependentObjectsStillExist: web_analytics_events still referenced ad_groups, absent
+from the partial drop graph. The test now reflects the actual migration-created
+schema and drops its application tables in dependency order while retaining
+alembic_version. The existing guarded disposable-database validation remains first;
+no production reset behavior or validation gate is relaxed.
+
+Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
+upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
+hosted successor results remain separate and must be recorded after assembly.

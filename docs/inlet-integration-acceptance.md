@@ -28,7 +28,7 @@ exercised through deterministic fixtures/HTTP mocks, never live credentials.
   editing a different goal: integrated PR81 e97d600.
 - TikTok outbox analysis must bind SourceConnection rather than Google connection:
   integrated PR83 ad4e9f2.
-- Klaviyo explicitly nullable subscription channels: isolated PR82 follow-up pending.
+- Klaviyo explicitly nullable subscription channels: integrated follow-up c2e09c1; valid null means unknown, not unsubscribed.
 - Actual customer API journey and customer Shopify onboarding routes: in progress.
 
 ## Launch Boundary

@@ -832,3 +832,17 @@ Ruff/mypy253 files/diffcheck passed. Log:/tmp/inlet-scheduler-tiktok-final.log.
 The prior head96cca816 Full remains running in its untouched worktree; this repair
 was made in isolated/workspace/inlet-scheduler-repair so old validation is not
 silently attributed to the new code. Final-head Full/CI remain pending.
+### Klaviyo Nullable Channel Regression — 2026-10-06
+
+Isolated branch `codex/inlet-crm-nullable-fix` from PR82 head
+`6080164d7f2ca66d0d8599ff9faa4346de64c425` preserves the ongoing Full run's tree.
+The pinned 2026-07-15 schema permits null email/SMS subscription channels:
+https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/apis/get_profiles.json
+A mixed page with subscribed email and null SMS reproduced
+`crm_profile_response_invalid` before the fix. Nullable channels now project unknown
+consent and suppression, retaining valid neighboring channels and profiles. The HTTP
+regression covers both channel directions, both null, nullable marketing and ordinary
+subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with disposable
+PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
+head remains separate evidence; this correction has not independently run Full or
+called a live provider.

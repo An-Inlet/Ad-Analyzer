@@ -90,7 +90,9 @@ class ProfileReader:
             if self.provider == "klaviyo":
                 subscriptions = row.get("attributes", {}).get("subscriptions") or {}
                 for channel in ("email", "sms"):
-                    marketing = subscriptions.get(channel, {}).get("marketing") or {}
+                    channel_data = subscriptions.get(channel)
+                    # Nullable channels mean no provided consent, not an unsubscribe.
+                    marketing = {} if channel_data is None else channel_data.get("marketing") or {}
                     current = status(marketing.get("consent"))
                     # Consent and suppression are distinct. List suppression must
                     # not become a channel-wide unsubscribe (nor global permission).

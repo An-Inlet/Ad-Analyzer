@@ -106,6 +106,7 @@ def prepare_creation(
     clock: Clock,
 ) -> ProviderExecutionReview:
     gate(runtime, binding.environment)
+    runtime.authorize(db, wid, actor)
     _, policy = mandates.checked(db, wid, binding, actor, clock)
     source_current(db, wid, plan, actor, store, clock)
     if "create_paused" not in policy.allowed_purposes:
@@ -114,6 +115,7 @@ def prepare_creation(
     qualification = runtime.qualification_reader(plan, clock())
     exposure = runtime.exposure_reader(db, binding, plan, clock())
     db.commit()  # any read-side transaction is released before lock reacquisition
+    runtime.authorize(db, wid, actor)
     ledger, policy = mandates.checked(db, wid, binding, actor, clock)
     source_current(db, wid, plan, actor, store, clock)
     document = CreationExecutionReview(
@@ -168,6 +170,7 @@ def checked_review(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> tuple[ProviderExecutionReview, CreationExecutionReview]:
+    runtime.authorize(db, wid, actor)
     row = db.scalar(
         select(ProviderExecutionReview).where(
             ProviderExecutionReview.id == review_id, ProviderExecutionReview.workspace_id == wid
@@ -728,6 +731,10 @@ def read_owned_outcome_receipt(
         from app.publication.activation import read_owned_outcome_receipt as activation_receipt
 
         return activation_receipt(db, workspace_id, attempt_id, actor)
+    if purpose is not None and purpose.get("purpose") == "existing_campaign_optimize":
+        from app.publication.optimization import read_owned_outcome_receipt as optimization_receipt
+
+        return optimization_receipt(db, workspace_id, attempt_id, actor)
     run, document, attempt, request = evidence_lock(db, workspace_id, attempt_id)
     owner(db, workspace_id, actor)
     latest = db.scalar(

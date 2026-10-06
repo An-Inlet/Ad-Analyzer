@@ -238,6 +238,7 @@ def current(
     clock: creation.Clock,
 ) -> None:
     creation.gate(runtime.creation, binding.environment)
+    runtime.creation.authorize(db, wid, actor)
     _, policy = mandates.checked(db, wid, binding, actor, clock)
     creation.source_current(db, wid, original, actor, store, clock)
     master = db.get(

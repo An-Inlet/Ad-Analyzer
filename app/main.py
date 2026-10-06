@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -78,9 +78,11 @@ def read_health() -> HealthResponse:
 
 
 @app.get("/ready", response_model=ReadinessResponse)
-def read_ready() -> ReadinessResponse:
+def read_ready(response: Response) -> ReadinessResponse:
     """Return startup readiness without contacting external services."""
     result = validate_deployment_startup(DeploymentProcess.WEB)
+    response.status_code = 200 if result.ok else 503
+    response.headers["Cache-Control"] = "no-store"
     database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
     return ReadinessResponse(
         status="ready" if result.ok else "not_ready",

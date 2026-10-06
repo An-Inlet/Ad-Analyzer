@@ -9,7 +9,7 @@ from app.campaign_review.storage import get_media_store
 from app.settings import settings
 from fastapi import HTTPException
 from google.api_core.exceptions import PreconditionFailed
-from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud import storage
 
 DATA = b"private media fixture"
 SHA = hashlib.sha256(DATA).hexdigest()

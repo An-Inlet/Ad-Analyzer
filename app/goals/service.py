@@ -1,5 +1,7 @@
 """Scoped goal state transitions. Callers authorize membership and commit."""
 
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -7,13 +9,66 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.commerce.models import CommerceSnapshot
 from app.commerce.reporting import measurement
-from app.goals.models import Goal, GoalConfirmation, GoalPreview, GoalRevision
+from app.goals.models import Goal, GoalConfirmation, GoalCreation, GoalPreview, GoalRevision
 from app.goals.schemas import ConfirmInput, GoalDefinition
 from app.shopify.security import ShopifyError, utc
+
+
+def create(
+    db: Session,
+    workspace_id: int,
+    user_id: str,
+    request_key: str,
+    definition: GoalDefinition | None,
+    now: datetime,
+) -> Goal:
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            definition.model_dump(mode="json") if definition else None,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    identity = (workspace_id, user_id, request_key)
+    receipt = db.get(GoalCreation, identity)
+    if receipt is None:
+        # SQLite's legacy driver does not start a transaction for SELECT/SAVEPOINT.
+        # Ensure releasing our savepoint cannot commit ahead of the API transaction.
+        if db.get_bind().dialect.name == "sqlite":
+            connection = db.connection()
+            driver = connection.connection.driver_connection
+            assert driver is not None
+            if not driver.in_transaction:
+                connection.exec_driver_sql("BEGIN")
+        try:
+            # The unique receipt arbitrates concurrent attempts. Its losing savepoint
+            # removes both goal and revision; no orphan or duplicate can commit.
+            with db.begin_nested():
+                item = Goal(id=uuid4().hex, workspace_id=workspace_id, revision=0)
+                db.add(item)
+                db.flush()
+                revise(db, item, definition, user_id, now)
+                receipt = GoalCreation(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    request_key=request_key,
+                    fingerprint=fingerprint,
+                    goal_id=item.id,
+                )
+                db.add(receipt)
+                db.flush()
+        except IntegrityError:
+            receipt = db.get(GoalCreation, identity)
+            if receipt is None:
+                raise
+    if receipt.fingerprint != fingerprint:
+        raise HTTPException(409, "creation key is bound to different input")
+    return owned(db, workspace_id, receipt.goal_id)
 
 
 def owned(db: Session, workspace_id: int, goal_id: str) -> Goal:

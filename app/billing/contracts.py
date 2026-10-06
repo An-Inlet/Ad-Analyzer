@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Protocol
+from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import AwareDatetime, Field
 
@@ -92,3 +92,10 @@ def get_billing_transport() -> BillingTransport:
         return StripeBilling(settings.billing_api_key, settings.billing_api_version)
     except ValueError:
         return UnavailableBilling()
+
+
+@runtime_checkable
+class BillingManagementTransport(Protocol):
+    def portal(
+        self, customer_id: str, configuration_id: str, return_url: str, request_key: str
+    ) -> str: ...

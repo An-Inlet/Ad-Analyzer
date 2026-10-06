@@ -189,7 +189,7 @@ class StripeBilling:
             },
             request_key,
         )
-        if body.get("customer") != customer_id:
+        if body.get("customer") != customer_id or body.get("configuration") != configuration_id:
             raise BillingProviderError("billing_portal_identity_mismatch")
         url = str(body["url"])
         from urllib.parse import urlsplit

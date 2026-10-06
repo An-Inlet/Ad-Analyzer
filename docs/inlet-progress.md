@@ -1910,3 +1910,34 @@ Ruff/whole mypy382passed. Exact logs: `/tmp/inlet-next-coordinator.log` and
 Merge0054 joins Meta ownership and commerce/global privacy histories;0056 then joins
 provider execution0048. New tables remain explicitly classified in lifecycle
 inventory. No successor Full is claimed; frozen130 evidence remains separate.
+
+### B17 Owned Assessments And Measurement History (0057)
+
+Branch `codex/inlet-owned-outcomes` starts at integrated caff2a3. The actual frozen
+coordinator reader now feeds workspace-owned immutable assessments backed by a real
+retained terminal commerce publication. Creation accepts identifiers/date windows,
+not customer-supplied provider evidence. Current owner/session checks, CSRF, latest
+receipt resolution, source generation/privacy fences, fresh retention clocks and
+publication CASCADE deletion apply. Superseded unknown/conflict evidence never
+resurrects earlier success. All installed-producer assessments remain insufficient;
+there is no maturity/activation/causal/spending authority claim.
+
+Measurement History is a separate authenticated application journey linked from
+Settings, showing actual source as-of/currency/timezone/daily coverage and missing
+maturity. Real HTTPS browser journeys exercise sales, confirmed zeros, literal
+untrusted names, erasure clearing and session revocation on SQLite/PostgreSQL.
+Migration0057→0056→0057 is verified with populated original receipt/publication
+fixtures in a guarded disposable PostgreSQL schema. Derived assessment payloads
+are classified separately from protected provider audit facts.
+
+Checks actually completed: 85passed/2expectedSQLite concurrency skips in the
+combined owned-assessment/migration/browser/pure-evidence/commerce/coordinator/
+route suite (`/tmp/inlet-owned-focused.log`); privacy-erasure waiting-replica race
+1passed/1SQLite skip (`/tmp/inlet-owned-race-final.log`); existing commerce projection
+and lifecycle overlay20passed/1SQLite skip (`/tmp/inlet-owned-lifecycle.log`). Whole
+Ruff, mypy389files, JavaScript syntax and whitespace checks passed. No Full started.
+
+Next: export owner must integrate the strict `OwnedAssessment` JSON serializer;
+root owns integration/Full qualification. Production exposure, authoritative effect
+time, approved maturity policy and qualified comparisons remain open. No live
+provider/customer data, migration, deployment or advertising action was used.

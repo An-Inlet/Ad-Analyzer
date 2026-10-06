@@ -28,6 +28,7 @@ MODEL_MODULES = (
     "app.mandates.models",
     "app.measurement.models",
     "app.meta.models",
+    "app.outcomes.models",
     "app.publication.execution_models",
     "app.publication.models",
     "app.publication.provider_models",

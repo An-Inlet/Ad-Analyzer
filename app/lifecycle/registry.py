@@ -12,6 +12,27 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "action_outcome_assessments": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "attempt_id",
+            "receipt_id",
+            "receipt_sequence",
+            "receipt_digest",
+            "projection_digest",
+            "publication_id",
+            "generation",
+            "privacy_epoch",
+            "environment",
+            "policy_id",
+            "policy_digest",
+            "input_digest",
+            "assessment_digest",
+            "created_at",
+        ),
+    ),
     "commerce_measurement_publications": TablePolicy(
         "workspace",
         (

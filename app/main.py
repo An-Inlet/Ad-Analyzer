@@ -18,6 +18,7 @@ from app.api.customer_google import router as customer_google_router
 from app.api.customer_lifecycle import router as customer_lifecycle_router
 from app.api.customer_mandates import router as customer_mandates_router
 from app.api.customer_meta import router as customer_meta_router
+from app.api.customer_outcomes import router as customer_outcomes_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_sources import router as customer_sources_router
 from app.api.intelligence import router as intelligence_api_router
@@ -136,6 +137,7 @@ app.include_router(portal_router)
 app.include_router(browser_auth_router)
 app.mount("/app/assets", StaticFiles(directory=portal_static), name="customer-assets")
 app.include_router(customer_commerce_router)
+app.include_router(customer_outcomes_router)
 app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)

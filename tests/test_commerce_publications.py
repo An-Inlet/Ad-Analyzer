@@ -18,6 +18,7 @@ from app.commerce.privacy import purge_measurements
 from app.commerce.sync import CommerceSyncService
 from app.customers.models import CustomerMembership
 from app.lifecycle.inventory import verify_registry
+from app.lifecycle.privacy import workspace_export_revision
 from app.settings import Settings
 from app.shopify.privacy import process_event
 from app.shopify.security import ShopifyError
@@ -115,6 +116,7 @@ def test_erasure_closing_owner_disconnect_rebind_and_retention(
     with Session(customer_engine) as db:
         wid, sid, pid = complete(db, configuration)
         stamp = workspace_privacy_stamp(db, wid)
+        export_revision = workspace_export_revision(db, wid)
         owner = db.get(Workspace, wid)
         assert owner is not None
         owner.status = "closing"
@@ -124,6 +126,7 @@ def test_erasure_closing_owner_disconnect_rebind_and_retention(
         process_event(db, configuration, "orders/delete", SHOP, {"id": 1}, NOW)
         assert db.get(CommerceMeasurementPublication, pid) is None
         assert workspace_privacy_stamp(db, wid) != stamp
+        assert workspace_export_revision(db, wid) > export_revision
         assert db.get(Workspace, wid).status == "closing"  # type: ignore[union-attr]
         db.rollback()
     with Session(customer_engine) as db:
@@ -131,21 +134,27 @@ def test_erasure_closing_owner_disconnect_rebind_and_retention(
         before = db.get(CommerceEvidenceState, sid2)
         assert before is not None
         generation = before.generation
+        export_revision = workspace_export_revision(db, wid2)
         row = ConnectionService(db, configuration).get(wid2)
         assert row is not None
         bind_store(db, row, "gid://shopify/Shop/123", configuration, NOW + timedelta(hours=1))
         db.commit()
         assert db.get(CommerceMeasurementPublication, pid2) is None
         assert db.get(CommerceEvidenceState, sid2).generation > generation  # type: ignore[union-attr]
+        assert workspace_export_revision(db, wid2) > export_revision
+        export_revision = workspace_export_revision(db, wid2)
         ConnectionService(db, configuration).disconnect(wid2, "owner")
+        assert workspace_export_revision(db, wid2) > export_revision
         assert db.scalar(select(func.count()).select_from(CommerceMeasurementPublication)) == 0
     with Session(customer_engine) as db:
         wid3, sid3, pid3 = complete(db, configuration, slug="gamma")
         stamp3 = workspace_privacy_stamp(db, wid3)
+        export_revision = workspace_export_revision(db, wid3)
         purge_measurements(db, NOW + timedelta(days=2))
         db.commit()
         assert db.get(CommerceMeasurementPublication, pid3) is None
         assert workspace_privacy_stamp(db, wid3) != stamp3
+        assert workspace_export_revision(db, wid3) > export_revision
 
 
 def test_owned_read_route_logout_and_scope(

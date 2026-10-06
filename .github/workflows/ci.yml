@@ -69,6 +69,13 @@ jobs:
           echo "Customer portal checks require Chromium or Google Chrome on the runner." >&2
           exit 1
 
+      - name: Require bounded media decoder tools
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -version
+          ffprobe -version
+
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
 

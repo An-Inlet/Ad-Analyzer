@@ -1517,3 +1517,25 @@ the next isolated interface proposal, before TikTok/CRM implementation.
   passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
 - No live factory or production permission. Unknown provider combination eligibility
   remains explicit qualification work, and B16 is not complete.
+## B17 — First Pure Outcome-Evidence Consumer (2026-10-06)
+
+Isolated branch `codex/inlet-outcome-evidence`, based on reviewed foundation
+`73725be`. Implements frozen nested consumer inputs, deterministic canonical
+hashing/comparison, strict scope/metric/window/coverage/maturity gates, observational
+deltas only, and no percentage from zero/negative baselines. Invalidated or unknown
+privacy and foreign scopes redact values. Actual existing CommerceSnapshot rows
+project to conservative store-total context, explicitly missing historical manifest,
+source generation and refund maturity qualification.
+
+There are no routes, DB writes/migrations, scheduler methods, provider requests,
+production receipt adapters or new retention. Scheduler confirmed its normalized
+production projection is forthcoming; committed shared types are required before
+integration. This first module is not B17 completion or a fixture replacement for
+real lineage. Concrete next producer contract and proposal are under `docs/design`.
+
+Validation includes pure deterministic scope/maturity/currency/attribution/DST/
+correction/privacy cases and actual persisted commerce snapshots plus disconnect
+invalidation on SQLite and isolated disposable PostgreSQL: **31 passed**. Ruff,
+strict mypy (324 files), and diff checks passed. The earlier broad commerce subset
+also exposed the known predecessor reflection test failure, already separately
+repaired by root at `f698dea`; frozen root worktrees were not changed.

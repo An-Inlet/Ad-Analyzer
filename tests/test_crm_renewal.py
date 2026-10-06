@@ -473,3 +473,83 @@ def test_disconnect_wipes_unverified_renewal_candidate(
         with pytest.raises(HTTPException):
             read_page(db, wid, cid, 1, runtime, NOW + timedelta(seconds=5))
     assert len(io.calls) == 1
+
+
+@pytest.mark.parametrize("provider", ["klaviyo", "hubspot", "omnisend"])
+@pytest.mark.parametrize("backoff", [False, True])
+def test_pending_candidate_bound_to_issuing_oauth_client(
+    customer_engine: Engine, configured: None, provider: str, backoff: bool
+) -> None:
+    io = RenewalIO(provider)
+    runtime = reader(io)
+    with Session(customer_engine) as db:
+        wid, cid = connect(db, io, expiry=NOW.isoformat())
+        read_page(db, wid, cid, 1, runtime, NOW)
+        if backoff:
+            io.proof_status = 429
+            assert isinstance(
+                read_page(db, wid, cid, 1, runtime, NOW + timedelta(seconds=5)), DeferredRead
+            )
+        alternate = reader(io)
+        alternate.client_id = "different-configured-client"
+        count = len(io.calls)
+        with pytest.raises(HTTPException, match="client changed"):
+            read_page(db, wid, cid, 1, alternate, NOW + timedelta(seconds=40))
+        assert len(io.calls) == count
+        row = db.get(SourceConnection, cid)
+        assert row and row.status == "reconnect_required" and row.encrypted_grant is None
+        assert db.get(CRMCheckpoint, cid) is None
+
+
+@pytest.mark.parametrize("phase", ["read", "issue", "proof"])
+def test_omnisend_body_delay_is_durable_for_all_phases(
+    customer_engine: Engine, configured: None, phase: str
+) -> None:
+    io = RenewalIO("omnisend")
+    runtime = reader(io)
+    with Session(customer_engine) as db:
+        wid, cid = connect(db, io, expiry=NOW.isoformat() if phase != "read" else None)
+        peer = connect(db, io, name="peer")
+        if phase == "proof":
+            read_page(db, wid, cid, 1, runtime, NOW)
+        runtime.transport = httpx.MockTransport(
+            lambda _: httpx.Response(429, json={"retryAfter": 180})
+        )
+        if phase == "issue":
+            with pytest.raises(HTTPException, match="outcome unknown"):
+                read_page(db, wid, cid, 1, runtime, NOW + timedelta(seconds=5))
+            row = db.get(SourceConnection, cid)
+            assert row and row.status == "provider_error" and row.error_code == "renewal_uncertain"
+        else:
+            delayed = read_page(db, wid, cid, 1, runtime, NOW + timedelta(seconds=5))
+            assert isinstance(delayed, DeferredRead)
+            assert delayed.due_at == NOW + timedelta(seconds=185)
+        count = len(io.calls)
+        peer_delay = read_page(db, *peer, 1, reader(io), NOW + timedelta(seconds=126))
+        assert isinstance(peer_delay, DeferredRead)
+        assert peer_delay.due_at == NOW + timedelta(seconds=185)
+        assert len(io.calls) == count
+
+
+def test_omnisend_clients_share_brand_quota_only(
+    customer_engine: Engine, configured: None
+) -> None:
+    io = RenewalIO("omnisend")
+    other_io = RenewalIO("omnisend")
+    other_io.account = "other-brand"
+    first, second = reader(io), reader(io)
+    second.client_id = "second-client"
+    unrelated = reader(other_io)
+    unrelated.client_id = "second-client"
+    first.transport = httpx.MockTransport(lambda _: httpx.Response(429, json={"retryAfter": 180}))
+    with Session(customer_engine) as db:
+        one = connect(db, io)
+        two = connect(db, io, name="second-client")
+        other = connect(db, other_io, name="other-brand")
+        assert isinstance(read_page(db, *one, 1, first, NOW), DeferredRead)
+        delayed = read_page(db, *two, 1, second, NOW + timedelta(seconds=126))
+        assert isinstance(delayed, DeferredRead) and delayed.due_at == NOW + timedelta(seconds=180)
+        assert not io.calls
+        assert isinstance(
+            read_page(db, *other, 1, unrelated, NOW + timedelta(seconds=126)), PageDelivery
+        )

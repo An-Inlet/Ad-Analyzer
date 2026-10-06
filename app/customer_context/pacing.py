@@ -78,7 +78,12 @@ def quota_key(reader: CRMHTTP, row: SourceConnection) -> str:
     secret = settings.source_token_encryption_key
     if secret is None:
         raise HTTPException(503, "source encryption unavailable")
-    payload = json.dumps(["crm-quota-v1", row.provider, reader.client_id, row.external_id])
+    # Omnisend documents one brand limit across OAuth clients/integrations.
+    payload = json.dumps(
+        ["crm-quota-brand-v2", row.provider, row.external_id]
+        if row.provider == "omnisend"
+        else ["crm-quota-v1", row.provider, reader.client_id, row.external_id]
+    )
     return hmac.new(
         secret.get_secret_value().encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
@@ -168,6 +173,7 @@ def read_page(
     if not isinstance(reader, (KlaviyoHTTPRead, HubSpotHTTPRead, OmnisendHTTPRead)):
         raise HTTPException(503, "paced customer context unavailable")
     provider = reader.provider
+    issuing_client_id = reader.client_id
     prune_expired_quotas(db, now)
     row = connection(db, workspace_id, connection_id, generation, provider)
     vault = SourceVault()
@@ -227,6 +233,13 @@ def read_page(
         raise HTTPException(409, "customer renewal unavailable; reconnect required")
     pending = None
     if phase == "proof":
+        if (
+            progress.get("candidate_client_id") != issuing_client_id
+            or progress.get("candidate_quota_key") != quota_key(reader, row)
+        ):
+            needs_attention(db, row)
+            db.commit()
+            raise HTTPException(409, "customer renewal client changed; reconnect required")
         try:
             pending = RefreshCandidate.model_validate(progress["candidate"])
         except ValueError:
@@ -271,16 +284,22 @@ def read_page(
     except CRMReadError as exc:
         failure = exc
     completed = max(now, reader.clock())
-    row = connection(db, workspace_id, connection_id, generation, provider)
-    checkpoint = db.get(CRMCheckpoint, connection_id, populate_existing=True)
-    limit = quota(db, key, now)
+    # Provider account cooldown outlives any individual source generation. Commit
+    # a quota-only transaction before acquiring source locks: stale lifecycle
+    # acceptance must not discard Retry-After or invert source -> quota lock order.
+    limit = quota(db, key, completed)
     if limit.fence == fence:
         limit.lease_until, limit.fence = None, None
         limit.due_at = max(utc(limit.due_at), completed + SPACING)
-        if isinstance(failure, CRMRateLimited):
-            limit.due_at = max(
-                utc(limit.due_at), completed + timedelta(seconds=failure.retry_after)
-            )
+    if isinstance(failure, CRMRateLimited):
+        # A late response can extend cooldown, but cannot release a newer lease.
+        limit.due_at = max(
+            utc(limit.due_at), completed + timedelta(seconds=failure.retry_after)
+        )
+    quota_due = utc(limit.due_at)
+    db.commit()
+    row = connection(db, workspace_id, connection_id, generation, provider)
+    checkpoint = db.get(CRMCheckpoint, connection_id, populate_existing=True)
     if (
         checkpoint is None
         or checkpoint.fence != fence
@@ -322,7 +341,7 @@ def read_page(
         checkpoint.state = "proof_ready" if phase == "proof" else "ready"
         checkpoint.encrypted_progress = vault.seal(workspace_id, provider, context(row), progress)
         delay = failure.retry_after if isinstance(failure, CRMRateLimited) else 60
-        due = max(utc(limit.due_at), completed + timedelta(seconds=delay))
+        due = max(quota_due, completed + timedelta(seconds=delay))
         row.next_attempt_at, row.error_code = due, "crm_read_backoff"
         db.commit()
         if isinstance(failure, (CRMRateLimited, CRMAuthenticationUnavailable)) or phase == "proof":
@@ -332,6 +351,8 @@ def read_page(
     if phase == "issue":
         assert issued is not None
         progress["candidate"] = candidate_payload(issued)
+        progress["candidate_client_id"] = issuing_client_id
+        progress["candidate_quota_key"] = key
         checkpoint.state = "proof_ready"
     elif phase == "proof":
         assert proved is not None
@@ -357,6 +378,8 @@ def read_page(
         )
         checkpoint.grant_digest = digest(row.encrypted_grant)
         progress.pop("candidate")
+        progress.pop("candidate_client_id")
+        progress.pop("candidate_quota_key")
         progress.pop("refresh_required", None)
         progress["auth_retried"] = True
         checkpoint.state = "ready"
@@ -370,7 +393,7 @@ def read_page(
         db.commit()
         return PageDelivery(page, receipt)
     checkpoint.encrypted_progress = vault.seal(workspace_id, provider, context(row), progress)
-    due = utc(limit.due_at)
+    due = quota_due
     row.next_attempt_at = due
     db.commit()
     return DeferredRead(due)

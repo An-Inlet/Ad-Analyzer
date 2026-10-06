@@ -178,9 +178,26 @@ class CRMHTTP:
                 if response.status_code in {401, 403}:
                     raise CRMAuthenticationUnavailable()
                 if response.status_code == 429:
-                    raise CRMRateLimited(
-                        retry_seconds(response.headers.get("Retry-After"), self.clock())
-                    )
+                    delay = retry_seconds(response.headers.get("Retry-After"), self.clock())
+                    if self.provider == "omnisend":
+                        # Omnisend also documents retryAfter seconds in the problem
+                        # body. Preserve the header/default if parsing or streaming fails.
+                        raw_hint = bytearray()
+                        try:
+                            for chunk in response.iter_bytes(chunk_size=16385):
+                                raw_hint.extend(chunk)
+                                if len(raw_hint) > 16384:
+                                    break
+                            if len(raw_hint) <= 16384:
+                                problem = json.loads(raw_hint)
+                                hint = (
+                                    problem.get("retryAfter") if isinstance(problem, dict) else None
+                                )
+                                if type(hint) is int and hint >= 0:
+                                    delay = max(delay, min(hint, 86400))
+                        except (httpx.HTTPError, ValueError, TypeError, OverflowError):
+                            pass
+                    raise CRMRateLimited(delay)
                 if not 200 <= response.status_code < 300:
                     raise CRMReadError("crm_read_unavailable")
                 raw = bytearray()

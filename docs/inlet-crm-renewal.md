@@ -88,3 +88,43 @@ Remaining: real grants and provider qualification, approved canonical customer m
 and retention, scheduler enrollment, and provider revoke orchestration. This package
 implements durable renewal/read lifecycle only; it does not imply B12 or SaaS launch
 acceptance.
+
+## Review Repairs: Shared Cooldown And Client Binding
+
+A synchronized PostgreSQL fixture reproduced a 429 with Retry-After 3600 lost
+when a customer reconnected before the response returned: another workspace using
+the same provider account could read after the 120-second lease. Completion now
+commits a quota-only transaction before reacquiring source locks. Every observed
+429 extends the original account quota conservatively, even after the old lease
+fence is superseded; only the matching fence can release a lease. Stale responses
+still cannot install credentials, candidates, or cursors. This separate transaction
+avoids reversing the source-then-quota lock order used when dispatching requests.
+
+Pending renewal candidates now include their issuing OAuth client ID and original
+account quota HMAC inside encrypted checkpoint progress. Proof and proof retries
+require both identities to match the configured reader. A changed client or missing
+binding requests reconnect before HTTP; there is no invented Klaviyo/Omnisend token
+introspection. HubSpot's authoritative introspection checks remain. Same-client
+rotation retains cursor/generation continuity. No schema migration is required.
+
+Omnisend's [official contact contract](https://api-docs.omnisend.com/reference/contacts)
+maps email identifiers to email and phone identifiers to SMS. A typed identifier
+with absent, null, or empty channels now contributes unknown status to that channel,
+so a second subscribed identifier cannot erase that uncertainty. Existing explicit
+conflicts remain unknown; address and phone values are not retained.
+
+The [Omnisend rate-limit contract](https://api-docs.omnisend.com/reference/rate-limit-timeouts-errors)
+and [pinned official SDK parser](https://github.com/omnisend/wp-omnisend/blob/fdfc72021e90d3fb333e7c1b2d77017dc69f850d/omnisend/includes/Internal/class-apiresponse.php#L151-L153)
+also document a JSON `retryAfter` delay. On actual HTTP 429, the adapter accepts a
+nonnegative integer from at most 16 KiB of response bytes, caps it at 86400 seconds,
+and uses the maximum of that value and the bounded header/default. Invalid values,
+malformed/oversized bodies and stream errors preserve the header/default. Token
+issuance 429 remains uncertain and is never blindly retried.
+
+Omnisend quotas now use a brand-only HMAC namespace (`crm-quota-brand-v2`), matching
+the documented limit shared across OAuth clients and integrations. Other providers
+retain their existing client/account key. Candidate client binding remains separate.
+No production runtime has been enabled by this work. **Deployment requires quiescing
+old workers and honoring any outstanding cooldown before enabling the new binary**:
+legacy app-partitioned keys cannot provide safe mixed-version rolling operation.
+This is a live rollout gate, not an assertion that old quotas have been migrated.

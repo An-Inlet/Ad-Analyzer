@@ -984,3 +984,18 @@ mypy passed (274 source files), git diff --check passed. Logs:
 Full intentionally queued with root; hosted CI pending draft PR creation. Remaining
 CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
 live qualification are explicit in `docs/inlet-omnisend-runtime.md`.
+
+### Publication coordinator foundation (offline fixture only)
+
+Base:b3035a8e2df2d86fa38b91d5d717b76d71056aa5; branch codex/inlet-publication-core.
+Implemented strict review_v2/plan/DAG/request/receipt contracts, registered fixture
+compiler, current DB authority, one B07 simulation reservation, durable step fences,
+immutable receipt/request history, uncertainty reconciliation, cancellation and
+separate activation-review receipt. No production adapter or live activation exists.
+See docs/inlet-publication-core.md for precise remaining code and boundaries.
+
+Core checks:33 passed,1 SQLite skip for PostgreSQL-only concurrency; Ruff passed,
+mypy289 files passed. Broader B14/B07/B09 regression suite:102 passed,2 SQLite
+concurrency skips (both PostgreSQL cases passed), /tmp/inlet-publication-regression.log.
+Migration0040 upgrade and0039→0040→0039→0040 roundtrip passed, recorded in
+/tmp/inlet-publication-roundtrip.log. Full/CI pending.

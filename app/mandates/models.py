@@ -64,6 +64,7 @@ class MandateAction(Base):
             ["spending_mandates.id", "spending_mandates.workspace_id"],
             ondelete="CASCADE",
         ),
+        UniqueConstraint("id", "workspace_id", name="uq_mandate_action_scope"),
         UniqueConstraint("mandate_id", "digest", name="uq_mandate_action_draft"),
         UniqueConstraint("mandate_id", "request_key", name="uq_mandate_claim_request"),
     )

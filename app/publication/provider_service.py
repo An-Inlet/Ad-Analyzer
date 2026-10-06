@@ -18,6 +18,7 @@ from app.executors.google_publication import GooglePublicationHTTP
 from app.google_connections.models import GoogleCustomerConnection
 from app.mandates import service as mandates
 from app.publication.contracts import PublicationScope
+from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
 from app.publication.google_compiler import compile_google
 from app.publication.google_qualification import qualify_google
 from app.publication.provider_contracts import (
@@ -106,6 +107,8 @@ def prepare_google(
     transport: GooglePublicationHTTP,
     context_factory: Callable[[PublicationScope], ProviderContext],
     clock: Callable[[], datetime],
+    *,
+    authorize: ExecutionAuthorizer = owner_authorizer,
 ) -> ProviderReviewRecord:
     """Transport/context are injected by server runtime; no route accepts caller evidence.
 
@@ -113,11 +116,13 @@ def prepare_google(
     persisting. A reconnect, changed source or revoked entitlement during IO aborts.
     Each refresh creates new immutable evidence and review; existing approvals stay bound.
     """
+    authorize(db, wid, actor)
     now = clock()
     review = current_review(db, wid, draft_id, fields, actor, store, now)
     db.commit()  # release lifecycle locks before bounded provider reads
     context = context_factory(review.scope)
     evidence = qualify_google(review, context, transport, now)
+    authorize(db, wid, actor)
     current = current_review(db, wid, draft_id, fields, actor, store, clock())
     now = clock()  # lifecycle locks may have waited beyond qualification expiry
     if (

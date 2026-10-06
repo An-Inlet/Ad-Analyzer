@@ -39,3 +39,9 @@ def customer_activity() -> FileResponse:
 @router.get("/app/measurement-history", include_in_schema=False)
 def customer_measurement_history() -> FileResponse:
     return FileResponse(STATIC / "measurement-history.html", media_type="text/html")
+
+
+@router.get("/app/execution", include_in_schema=False)
+@router.get("/app/execution/{workspace_id}/{run_id}", include_in_schema=False)
+def customer_execution() -> FileResponse:
+    return FileResponse(STATIC / "execution.html", media_type="text/html")

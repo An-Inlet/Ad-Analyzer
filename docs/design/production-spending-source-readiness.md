@@ -206,3 +206,18 @@ lookup, `ReplacementReader`, `SettlementReader`, or U/F/P source. Existing gener
 acknowledgments remain insufficient. Strict financial qualification remains blocked by
 the exact residual, transition and preventive-writer guarantees listed above, rather than
 by missing account credentials alone.
+
+## Narrow Google Original Request Terminality — Implemented Offline
+
+The approved [batch terminal reader](../../app/publication/google_request_terminal.py)
+now maps exact retained Google v25 successful original single-update responses to
+`authoritative_request_terminal`, with full current owned snapshot/ancestor/request/fence/
+environment and evidence-epoch validation. This supersedes the earlier absence of a
+mapping for that precise successful-response subset. It does not cover unsupported
+providers, legacy acknowledgments or lost/timed-out responses, even when readback matches.
+
+The assertion is completion of the original configuration operation only. No later-effect-
+impossible claim, financial hold release, qualification registration, replacement reader
+or settlement reader is implemented/enabled by it. Independent transition/portfolio proofs,
+U/F/P, financial basis mapping and preventive writer guarantees remain missing. Native
+unknown-request lookup is still unavailable. Credentials alone cannot fill those gaps.

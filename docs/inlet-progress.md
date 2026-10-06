@@ -3763,3 +3763,48 @@ separate start intent/admission/run authority, no fake humanapproval, no logout-
 independent grant and defaults disabled pending real sources/policies. B19 bounded
 operational observations reserves0070down0060. Finalrootjoin0073 will join0063/0064/
 0066/0070/0072. Prior proposed0065/67/69/71 were nevercreated.
+
+### Narrow Google Original Request Terminal Producer — Offline Complete
+
+`codex/inlet-google-request-terminal`, isolated child06dab9a. Added a server-owned
+read-only batch producer mapping exact retained Google v25 single-update success captures
+to `ClosedOriginalRequest.basis=authoritative_request_terminal`. Assertion remains original
+configuration request completion, never delivery/cost finality or later-effect-impossible.
+Mandatory current server authorization and consent/account checks precede reconstruction
+of the full persisted ancestor/receipt/accounting snapshot. Any unsupported or missing
+capture rejects the entire result; no partial closure set, source registration, provider
+IO, schema migration, hold update or caller commit is performed.
+
+Actual two-request Google chains verify exact mapping on SQLite/PostgreSQL. A timed-out
+original whose readback succeeds still rejects, as does a mixed lineage with legacy
+acknowledgment lacking capture. Tests also reject omitted ancestors, altered fences,
+environments, unsupported providers, foreign actor/revoked authority, corrupt capture,
+future recorded evidence and changed high-water snapshot epoch. Future/expired batch
+validation and forbidden later-effect basis are covered. Closure-only batch cannot become
+ReplacementEvidence; actual repeat admission remains blocked with no transition source.
+Held/superseded financial amounts remain unchanged.
+
+Validation: `pytest -o addopts='' -q tests/test_google_request_terminal.py
+ tests/test_google_completion_evidence.py tests/test_repeat_optimization.py`:
+75 passed,1 SQLite-only row-lock concurrency skip in150.87s. Whole Ruff and mypy559 pass;
+diffcheck clean. Logs `/tmp/inlet-terminal-final-tests.log`, `/tmp/inlet-terminal-mypy.log`.
+Dedicated disposableDB inlet_meta_browser_ci; no Full/live calls/default factories.
+Source matrix explicitly preserves unknown-request lookup, U/F/P, compatible financial
+basis and preventive-writer gaps. Those are not replaced by this narrow closure source.
+
+### 2026-10-06 — Concrete Google synchronous request terminal producer
+
+Integrated PR2036f38e20: mandatory-authorized reconstruction of complete owned
+replacement snapshot maps exact durable successful Google synchronous single-update
+captures to authoritative_request_terminal. This reviewed narrow inference concerns
+configuration request completion, not delivery/cost/future exposure. Missing/legacy/
+timed-out/unsupported ancestors reject the whole batch; transition and portfolio
+proofs remain mandatory, default registration disabled, no holds released.
+Root75 passed,1 expected SQLite row-lock skip in106.63s
+(`/tmp/inlet-next-google-terminal.log`), Ruff check ., configured mypy569 and whitespace
+passed. No schema or provider calls.
+
+A later read-only executor call explicitly failed with transport disconnected; one
+bounded retry restored shell/read-write access, root remained clean before this
+package and frozenFull processes remained alive. Affected agents independently
+recovered preserved work. No quota signal or verified process/data loss.

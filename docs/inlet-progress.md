@@ -1373,3 +1373,21 @@ fixed independently by root PR113 `7ae1d0d`; left untouched here. Full not start
 See [billing journey evidence and limits](inlet-billing-browser.md) and
 `/tmp/inlet-billing-browser-final.log`. Next: final integration validation and remaining
 core-task/account controls; live purchasing stays a separate commercial/release gate.
+## B14 — Customer Draft Creation And Private Video Playback (2026-10-06)
+
+Branch `codex/inlet-draft-ui`, isolated child of PR112 `3a3cca8`. Narrow CI prerequisite
+`98e2b0e` installs FFmpeg before retained decoder checks; root integrated that commit
+separately. No changes were made to the frozen Full worktree.
+
+Customer campaign review now creates all three supported offline draft types from
+existing simulation mandates, uploads supplied media through the authorized API,
+reuses private validated media, and plays bounded private MP4 blobs. Saving never
+approves; playback failures block approval. Object URLs and form state are cleared
+on workspace/revision changes. See `docs/inlet-campaign-creation-ui.md`.
+
+Focused validation: 71 passed, one expected SQLite concurrency skip with PostgreSQL
+variant passing. Includes real HTTPS browser journey on both databases, actual
+synthetic MP4 upload/decode, Google/Meta/TikTok creation, exact revision approval,
+role/stale failures and media bounds. Ruff passes; scoped mypy passes. Whole mypy
+on the frozen parent reports its known unused GCS test ignore, already repaired by
+root on the next integration head. Broad Full and hosted CI remain root-owned.

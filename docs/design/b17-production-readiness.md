@@ -53,3 +53,17 @@ and qualified synthetic reconciliation can demonstrate association arithmetic.
 V2/history remain unchanged. Persisted v3 dependency lineage, strict customer
 projection and feedback/contribution/retraction storage are still unimplemented;
 see `b17-v3-feedback-contract.md` for the proposal awaiting schema reservation.
+
+## Subsequent Disabled Feedback Persistence
+
+The proposed storage is now implemented offline in `app/outcome_feedback` and
+`app/outcomes/feedback.py`, with migration0064, owned multi-publication lineage,
+strict export serialization, idempotent contribution CAS, deterministic active-set
+recomputation and transactional retraction of derived numeric data and candidate
+caches. Raw mutation triggers fence workspace ownership and advance the export privacy
+counter. See `b17-v3-feedback-contract.md` for bounds and concurrency semantics.
+This supersedes earlier statements that feedback storage is unimplemented; it does
+not enable production policies or qualify existing sources. Genuine independent
+reconciliation, authoritative action timing, calibrated policy values and a customer
+v3 projection remain outstanding. Current default actual assessments cannot produce
+eligible feedback. B17 acceptance is therefore still incomplete.

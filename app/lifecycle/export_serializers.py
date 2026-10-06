@@ -17,7 +17,9 @@ from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
+from app.outcomes.feedback import FeedbackContribution
 from app.outcomes.owned_contracts import OwnedAssessment
+from app.outcomes.owned_v3 import OwnedV3Assessment
 from app.publication.activation_contracts import (
     ActivationReceipt,
     ActivationRequest,
@@ -53,6 +55,8 @@ from app.publication.social_review_contracts import (
 # not arbitrary columns or provider transport responses. Typed historical fields use
 # their versioned product contracts and reject unknown/invalid persisted documents.
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
+    "outcome_assessments_v3": ("document",),
+    "outcome_feedback_records": ("document",),
     "optimization_candidate_jobs": ("work",),
     "optimization_candidate_results": ("decision",),
     "action_outcome_assessments": ("assessment",),
@@ -124,6 +128,8 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
     "workspace_findings": ("message",),
 }
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
+    ("outcome_assessments_v3", "document"): OwnedV3Assessment,
+    ("outcome_feedback_records", "document"): FeedbackContribution,
     ("optimization_candidate_jobs", "work"): CandidateWork,
     ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
@@ -260,7 +266,32 @@ def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
-    if isinstance(document, CandidateWork):
+    if isinstance(document, OwnedV3Assessment):
+        if (
+            document.context.scope.workspace_id != row["workspace_id"]
+            or document.context.environment != row["environment"]
+            or document.receipt.attempt_id != row["attempt_id"]
+            or document.receipt.receipt_id != row["receipt_id"]
+            or document.receipt.sequence != row["receipt_sequence"]
+            or document.context.scope.store_id != row["store_id"]
+            or document.context.scope.generation != row["generation"]
+            or document.context.scope.privacy_epoch != row["privacy_epoch"]
+            or document.input_digest != row["input_digest"]
+            or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
+        ):
+            raise ValueError("v3 assessment ownership mismatch")
+    elif isinstance(document, FeedbackContribution):
+        if (
+            document.status != "eligible"
+            or document.workspace_id != row["workspace_id"]
+            or document.environment != row["environment"]
+            or document.original_attempt_id != row["attempt_id"]
+            or document.assessment_digest != row["assessment_digest"]
+            or document.policy_digest != row["policy_digest"]
+            or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
+        ):
+            raise ValueError("feedback ownership mismatch")
+    elif isinstance(document, CandidateWork):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.policy.environment != row["environment"]
@@ -400,16 +431,15 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
         value = row[field]
         try:
             if field in JSON_FIELDS.get(table, ()) and value is not None:
-                if (
-                    table == "action_outcome_assessments"
-                    and field == "assessment"
-                    and len(
-                        json.dumps(
-                            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-                        ).encode()
-                    )
-                    > 256 * 1024
-                ):
+                if (table, field) in {
+                    ("action_outcome_assessments", "assessment"),
+                    ("outcome_assessments_v3", "document"),
+                    ("outcome_feedback_records", "document"),
+                } and len(
+                    json.dumps(
+                        value, sort_keys=True, separators=(",", ":"), allow_nan=False
+                    ).encode()
+                ) > 256 * 1024:
                     raise ValueError("assessment exceeds export bound")
                 model = TYPED.get((table, field))
                 if table in {"intelligence_records", "intelligence_revisions"}:

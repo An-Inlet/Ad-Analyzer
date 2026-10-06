@@ -3109,3 +3109,42 @@ No Full, live calls, workflow dispatch, merge or deployment. Actual native
 exposure/finality/transition sources, attributed learning, automatic target policy,
 emitting scheduler and explicit long-lived delegation remain missing. This is
 non-authorizing candidate groundwork, not completed autonomous optimization.
+
+## B17 Owned V3 Feedback Persistence And Retraction — 2026-10-06
+
+Branch `codex/inlet-feedback-contract`, worktree `/workspace/inlet-feedback-contract`,
+starts from frozen v3 bridge189 and candidate191 (integration base37e9b84).
+Migration0064 follows0062; root owns the subsequent integration join.
+
+Implemented separate strict v3 assessment storage, bounded owned multi-publication
+lineage, required-parameter association scoring, idempotent feedback, ABA-safe slot
+CAS and active-set recomputation without cached numeric totals. Production maturity
+and decision policies remain unset. Actual current sources produce no eligible
+feedback. There is no new customer route or live execution authority.
+
+Any dependency erasure removes the whole numeric assessment and dependent feedback.
+Retraction and slot replacement clear workspace-wide derived candidate caches even
+when anchored to another publication; unrelated brands and financial history survive.
+Triggers advance export privacy revisions. PostgreSQL raw mutation guards use NOWAIT
+workspace locking; contention fails transactionally without automatic retry.
+Existing source/privacy/receipt/closure invalidation composes through shared helpers.
+Strict lifecycle exports include the new owned types.
+
+Final focused command: `pytest -o addopts='' -q tests/test_feedback_policy.py
+ tests/test_feedback_storage.py tests/test_feedback_races.py
+ tests/test_feedback_migration.py tests/test_candidate_migration.py
+ tests/test_model_registry.py` with disposable PostgreSQL configured: **36 passed,
+1 SQLite row-lock skip, 6 existing Alembic configuration deprecation warnings**,59.56s.
+Tests include actual SQLite/PostgreSQL repeatable export-snapshot races, raw PostgreSQL
+NOWAIT contention plus explicit later retry, populated migration downgrade/reupgrade,
+slot replacement/replay, historical-dependency erasure, unrelated-brand isolation and
+actual closure rollback/commit. Earlier expanded regression run:67 passed,2 skipped
+(before final guard additions). Final Ruff changed-file checks and mypy529 files pass;
+`git diff --check` passes. No Full, CI dispatch, live provider or production DB calls.
+
+Remaining: genuine independently complete source and authoritative delivery timing,
+qualified/calibrated production policy values and customer v3 projection. These code
+and evidence gates are distinct; B17 acceptance remains incomplete. Raw conflicting
+mutations must retry explicitly in a fresh workspace-first transaction; no background
+blind retry is introduced. Shared model/export/lifecycle registrations require additive
+integration with other frozen packages.

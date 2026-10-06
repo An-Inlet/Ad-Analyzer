@@ -1,4 +1,4 @@
-# Owned V3 Bridge And Proposed Feedback Storage
+# Owned V3 Bridge And Feedback Storage
 
 ## Implemented Read-Only Bridge
 
@@ -87,12 +87,45 @@ assessment data inside a tombstone. Retain only permitted minimal non-derived au
 reason metadata; immutable financial reservations/settlements/provider receipts are
 handled by their existing retention rules and are not deleted by feedback invalidation.
 
+## Implemented Offline Persistence And Retraction
+
+Migration `20261006_0064` follows `20261006_0062`. The new
+`app/outcome_feedback` package persists strict v3 documents separately from v2,
+with 1–33 exact owned publication dependencies, composite ownership foreign keys,
+feedback records and contribution slots. Storage rechecks current receipt, source,
+privacy, goal, session and installed maturity policy under the workspace fence.
+Registered policies remain disabled by default. No customer endpoint or numeric
+production policy is added.
+
+`app/outcomes/feedback.py` implements required-parameter association scoring and
+active-set recomputation. Replacement compares slot ID, revision and current feedback
+digest; exact replay is idempotent. The service bounds active recomputation to 64
+contributions and rejects excess rather than truncating. There is no aggregate cache
+or repeated compounding. Association scores confer no spending or execution authority.
+
+Deleting or changing any dependency deletes the entire numeric parent and sibling
+lineage. Parent, feedback or slot retraction erases all candidate jobs/results in that
+workspace, including caches anchored to another publication. Slot replacement also
+invalidates those caches. Triggers advance the workspace export privacy revision so
+an already-open export snapshot cannot release erased numeric data. Source/privacy/
+receipt/closure invalidation composes through existing candidate helpers. Financial
+receipts, reservations and settlement history remain untouched.
+
+PostgreSQL BEFORE triggers acquire the workspace fence with `FOR UPDATE NOWAIT`.
+Workspace-first service callers retain normal behavior. A raw derived-row mutation
+contending with an existing workspace fence fails immediately and rolls back rather
+than waiting in inverted lock order; this package adds no automatic retry. An explicit
+new transaction may retry after acquiring the workspace fence. SQLite uses its existing
+single-writer transaction behavior. The migration and metadata-created schemas have
+the same triggers. Actual PostgreSQL contention, populated downgrade/reupgrade and
+SQLite/PostgreSQL repeatable export-snapshot races are covered offline.
+
 ## Remaining Engineering And Decisions
 
-Still missing: genuine independently complete source reconciliation, authoritative
-provider delivery-time producer, persisted v3 dependencies/strict history projection,
-feedback consumer and retraction-aware recomputation. The decision policy and maturity
-parameters remain uninstalled. Root must review schema/retention/contribution semantics
-before migration reservation; owner parameter approval cannot substitute for any of
-this code. No numeric production maturity default or causal decision policy is proposed
-without qualifying evidence and calibration.
+Still missing: qualified independently complete source reconciliation, authoritative
+provider delivery timing, customer v3 history projection and a separately qualified
+decision policy. Current actual inputs remain insufficient and install no contribution.
+Synthetic contract fixtures exercise the qualified branch without claiming live facts.
+Policy values remain uninstalled; owner parameter approval cannot substitute for
+missing producer code, calibration or live qualification. No numeric production
+maturity default or causal decision policy is proposed.

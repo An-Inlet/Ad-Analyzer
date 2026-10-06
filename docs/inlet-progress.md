@@ -1053,3 +1053,25 @@ Implementation/checks are at `c6f32cfd11f56923ad34d0d0195d0493a1d7b4f5`; the fol
 documentation-only commit records the PR link. Shopify toolkit search could not fetch
 its service; official Shopify OAuth documentation was verified through web retrieval.
 Toolkit telemetry was disabled; no user prompt was sent to its telemetry service.
+
+## Customer Connections: Shopify Disconnect And Google Account Selection
+
+Branch `codex/inlet-customer-connections`, based on PR104 head
+`fa70d8b5aa7d3f14c08a83cc622ba53409279591`. Shopify now has an explicit data-effects
+confirmation and disconnect control, tested against real API/database deletion and
+retained goal history. Google now has a configured consent button, same-window GET
+callback bridge, authorized non-manager selection and verified workspace return.
+Current session/role guards also run after provider exchange and before selection;
+retry is limited to current session/workspace attempts. No provider calls, advertising
+changes, activation, migration, merge or deployment occurred.
+
+Focused SQLite/PostgreSQL/API/Chromium checks: **56 passed, 6 intentional SQLite
+concurrency skips**. Node helpers **8 passed**; Ruff/mypy **290 files** and diff checks
+pass. Full/CI pending. Details, exact command and remaining engineering/live gates are
+in `docs/inlet-customer-connections-ui.md`. Google disconnect and other provider
+connection controls remain separate customer-facing engineering work.
+
+Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111.
+Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
+commit only records this PR link. Final Google browser rerun also passed both database
+variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.

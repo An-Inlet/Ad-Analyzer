@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_meta_connection import FakeMeta, complete, connected, insight, page
 from tests.test_meta_connection import configuration as configuration
@@ -152,9 +153,9 @@ def test_read_transport_uses_exact_levels_without_breakdown(configuration: Setti
 
 
 def test_populated_migration_preserves_campaign_rows_and_parent_constraints(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    migration_customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return
     from alembic import command
     from alembic.config import Config
@@ -162,7 +163,7 @@ def test_populated_migration_preserves_campaign_rows_and_parent_constraints(
     from sqlalchemy import text
     from sqlalchemy.exc import IntegrityError
 
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         connection = connected(db, configuration, event="purchase")
         complete(db, configuration, connection, metric=insight(spend="100"))
         wid, iid, aid = (
@@ -170,15 +171,14 @@ def test_populated_migration_preserves_campaign_rows_and_parent_constraints(
             connection.workspace_integration_id,
             connection.account_id,
         )
-    with customer_engine.connect() as schema_connection:
+    with migration_customer_engine.connect() as schema_connection:
         schema = schema_connection.scalar(text("SELECT current_schema()"))
-    url = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    url = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", url.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261005_0028")
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         scope = AdvertisingImportScope(wid, iid or 0, aid, AdvertisingPlatform.META_ADS)
         assert detail_report(db, scope, DAY, DAY)["spend_micros"] == 100_000_000
         publish(db, scope, batch(configuration))

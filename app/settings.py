@@ -222,6 +222,12 @@ class Settings(BaseSettings):
         default=None, ge=1, le=100, alias="AD_ANALYZER_BILLING_LIVE_MAX_ACCOUNTS"
     )
     billing_live_enabled: bool = Field(default=False, alias="AD_ANALYZER_BILLING_LIVE_ENABLED")
+    billing_receipt_read_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_BILLING_RECEIPT_READ_ENABLED"
+    )
+    billing_receipt_environment: str = Field(
+        default="", alias="AD_ANALYZER_BILLING_RECEIPT_ENVIRONMENT"
+    )
     billing_merchant_account_id: str = Field(
         default="", alias="AD_ANALYZER_BILLING_MERCHANT_ACCOUNT_ID"
     )

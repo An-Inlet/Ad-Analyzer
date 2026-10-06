@@ -17,6 +17,7 @@ from app.settings import Settings
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_meta_connection import NOW, campaign, complete, connected, insight, page
 from tests.test_meta_connection import configuration as configuration
@@ -268,11 +269,11 @@ def test_transient_failure_resumes_last_cursor_without_reloading_inventory(
 
 
 def test_populated_checkpoint_migration_and_database_scope_constraints(
-    customer_engine: Engine,
+    migration_customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         pytest.skip("PostgreSQL migration and compound ownership constraints")
     from alembic import command
     from alembic.config import Config
@@ -280,10 +281,10 @@ def test_populated_checkpoint_migration_and_database_scope_constraints(
     from sqlalchemy import inspect, text
     from sqlalchemy.exc import IntegrityError
 
-    _, _http = setup_import(customer_engine, configuration, monkeypatch)
+    _, _http = setup_import(migration_customer_engine, configuration, monkeypatch)
     for _ in range(4):
-        sync.run_meta_tick(customer_engine)
-    with Session(customer_engine) as db:
+        sync.run_meta_tick(migration_customer_engine)
+    with Session(migration_customer_engine) as db:
         checkpoint = db.scalar(select(MetaDetailCheckpoint))
         assert checkpoint is not None
         other = connected(db, configuration, slug="other", number="102")
@@ -296,16 +297,15 @@ def test_populated_checkpoint_migration_and_database_scope_constraints(
                 setattr(checkpoint, field, value)
                 db.flush()
         assert spend(db) == [("campaign", 7_000_000)]
-    with customer_engine.connect() as db:
+    with migration_customer_engine.connect() as db:
         schema = db.scalar(text("SELECT current_schema()"))
-    url = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    url = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", url.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261006_0039")
-    assert "meta_detail_checkpoints" not in inspect(customer_engine).get_table_names()
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    assert "meta_detail_checkpoints" not in inspect(migration_customer_engine).get_table_names()
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         assert spend(db) == [("campaign", 7_000_000)]
         assert db.scalar(select(MetaDetailCheckpoint)) is None
 

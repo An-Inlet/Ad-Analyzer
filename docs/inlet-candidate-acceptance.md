@@ -15,16 +15,16 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B06 | Editable goals, versioned confirmation and immutable baseline reviews | Qualified connected baseline and intended-environment customer journey |
 | B07 | Simulation plus separate production consent/ledger; exact review, held exposure, activation, settlement and atomic repeat-reservation transfer | Consented account-set pinning and mixed-currency hold rejection tested; actual native exposure sources and draft aggressiveness validation remain |
 | B08 | Google connection, import, refresh/disconnect and customer UI | Live permissions, callbacks and history reconciliation |
-| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Customer optimization API/UI integrated; automatic candidate/scheduler orchestration, production runtime assembly, native portfolio and original-request/transition producers remain missing code and qualification |
+| B09 | Actual Google optimization adapter and durable shared optimization coordinator integrated | Owned candidate queue/selection and exact Google original-response evidence integrated; candidate-to-review and automatic emitting orchestration remain under implementation; native financial/transition producers remain unqualified |
 | B10 | Meta reporting, customer connection UI, retained-account ownership and concrete adapters | No-DSA named configuration, customer creation and separate activation integrated; live supported-profile qualification remains |
 | B11 | TikTok import/connection UI, actual creation and activation adapters/journeys | Named video/cover configuration, customer creation and separate activation integrated; native catalog parser and live advertiser/history qualification remain |
 | B12 | Klaviyo, HubSpot, Omnisend transport, pacing, guarded customer OAuth/selection/disconnect | Live permissions/data-purpose qualification; no persistent gateway enrichment implied |
-| B13 | Checkout/return/management, webhook reconciliation and entitlements | Production-mode adapter, webhook and persisted environment separation are missing code; commercial configuration, live purchase/cancel and external closure policy also remain |
+| B13 | Checkout/return/management, webhook reconciliation and entitlements | Scoped production adapter/webhooks, offer qualification, enforced production paid-work gate and GET-only historical receipt recovery implemented; commercial decisions, intended-environment purchase/cancel and external closure remain |
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
 | B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social producer, no-DSA exact confirmation, original-confirmer guards and customer creation/activation integrated; native provider capability proof remains |
-| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Descriptive History UI is not action learning; owned reconciliation producer, parameterized maturity evaluator/registry, delivery timing adapter, comparison assessment bridge, bounded recommendation feedback and correction invalidation remain engineering work |
-| B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google/social creation and optimization UI integrated; reproduced social approval-context race and indistinguishable configuration labels are under repair. Runtime assembly, default export gate and external closure/disposition remain |
+| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned reconciliation observations, disabled parameterized maturity evaluator, v3 association bridge and retractable bounded feedback implemented; independent Shopify acquisition is unqualified, publication adapter in progress, genuine delivery timing/calibrated policy and learning consumer wiring remain |
+| B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google/social creation and optimization UI integrated; both approval-context findings repaired and independently source-reviewed. Production assembly, default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention including terminal source rejection, native restore drill | Populated financial/social restore and composed export/closure verified offline; green final Full/CI and intended-environment alerts/recovery/retention remain |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
 
@@ -32,8 +32,8 @@ pass is not evidence of a purchasable service or complete live acceptance.
 
 1. Verify the assembled accounting, closure, activation, strict export and durable
    optimization changes with the integrated Google customer execution journey.
-2. Complete social named configuration and audited declaration/cover-review paths;
-   preserve explicit disabled states where native evidence remains unavailable.
+2. Complete candidate-to-review/automatic mandate orchestration and measured-feedback
+   consumer wiring; preserve named social configuration and exact media-review repairs.
 3. Supply actual qualified portfolio/native-cap/reporting and terminal-request
    facts. Current server ports and contract scenarios are not concrete live sources.
    Preserve the strict spending ceiling; no daily-budget or reporting-SLO shortcut.
@@ -144,22 +144,25 @@ passes are not a replacement for a final assembled Full and hosted pass.
 
 ## Remaining Engineering Is Not An Access Request
 
-A current source review at `1c82e03` identifies missing production runtime assembly
-and proof producers, automatic optimization orchestration, a production-mode billing
-lane, and the mature-action-learning pipeline. Supplying credentials or choosing
-policy values does not implement those paths. Native inventory diagnostics are
-explicitly unqualified observations; they cannot manufacture a preventive spending
-bound, reporting finality or original-request closure. Bounded engineering packages
-are continuing while exact-artifact validation runs.
+The earlier review at `1c82e03` identified gaps since partly implemented. Current
+integration includes production billing scope and offer qualification, mandatory
+production paid-work enforcement, original-bound GET-only receipt recovery, owned
+candidate preparation/selection, native diagnostics and exact successful Google
+original-response evidence, operational maturity evaluation and retractable feedback.
+These focused packages do not qualify the live product.
 
-Repeat optimization already has atomic reservation replacement and retained ancestor
-accounting, but native terminal/transition sources and automatic orchestration remain.
-A newly identified ancestry-limit admission edge is being reproduced. Action learning
-currently produces insufficient or descriptive results; synthetic comparable tests
-are not a production mature-outcome producer or bounded feedback consumer.
+Missing ordinary code includes candidate-to-review and mandate-derived automatic
+execution orchestration, independent commerce publication/authority assembly and
+measured-feedback decision consumption. Genuine delivery-time evidence, calibrated
+maturity/action policy and native financial/transition bounds remain unavailable or
+unqualified. Provider limitations are explicit in the spending-source matrix;
+credentials cannot supply absent preventive-writer or reporting-finality guarantees.
+Unknown original requests remain unknown. Diagnostic acquisition and captured
+configuration completion alone never authorize replacement, release or spending.
 
-The social execution page has two independently reviewed customer-approval defects:
-a late review can survive a configuration selection change, and saved configurations
-with different identity/measurement/media may have indistinguishable labels. The
-late-response case reproduced in both database-backed browser tests. Backend ownership
-and exact-plan checks remain; the customer approval context still requires repair.
+The repeat ancestry32→33 defect and both social approval-context findings are fixed,
+regression-tested and independently source-reviewed. The production billing bypass
+is likewise repaired and source-reviewed. These reviews did not independently run
+the reported tests. Original exact frozen hosted validation failed two tests from
+the Meta Retry harness race; PR199 repairs its deterministic cause. Final assembled
+Full/hosted qualification remains pending and earlier failures remain recorded.

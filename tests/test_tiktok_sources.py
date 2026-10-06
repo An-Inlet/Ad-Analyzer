@@ -21,6 +21,7 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_google_customer_connections import setup
@@ -346,25 +347,24 @@ def test_customer_sources_api_scope_csrf_and_expiry(
 
 
 def test_source_migration_refuses_to_orphan_tiktok_accounts(
-    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+    migration_customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return
     from alembic import command
     from alembic.config import Config
     from sqlalchemy import text
 
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         wid, sid = setup(db, "one")
         row, _ = connect(db, wid, sid, TikTokFixture())
         cid = row.id
-    with customer_engine.connect() as connection:
+    with migration_customer_engine.connect() as connection:
         schema = connection.scalar(text("SELECT current_schema()"))
-    url = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    url = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", url.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     with pytest.raises(RuntimeError, match="preservation plan"):
         command.downgrade(config, "20261006_0029")
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         assert db.get(SourceConnection, cid) is not None

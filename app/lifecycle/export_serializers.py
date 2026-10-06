@@ -27,7 +27,9 @@ from app.lifecycle.registry import TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
 from app.optimization_candidates.selection_contracts import WORK_ADAPTER, CandidateWorkV2
+from app.outcomes.feedback import FeedbackContribution
 from app.outcomes.owned_contracts import OwnedAssessment
+from app.outcomes.owned_v3 import OwnedV3Assessment
 from app.publication.activation_contracts import (
     ActivationReceipt,
     ActivationRequest,
@@ -46,6 +48,7 @@ from app.publication.execution_contracts import (
     NormalizedProviderReceipt,
     ProviderMandatePolicy,
 )
+from app.publication.google_completion_contracts import GoogleCompletionDocument
 from app.publication.optimization_contracts import (
     OptimizationReceipt,
     OptimizationRequest,
@@ -66,8 +69,11 @@ from app.shopify.security import utc
 JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "customer_billing_offer_bindings": ("profile",),
     "customer_workspace_billing": ("qualification",),
+    "outcome_assessments_v3": ("document",),
+    "outcome_feedback_records": ("document",),
     "optimization_candidate_jobs": ("work",),
     "optimization_candidate_results": ("decision",),
+    "google_original_completions": ("document",),
     "action_outcome_assessments": ("assessment",),
     "analysis_runs": ("blocking_reasons", "decision_brief", "retry_history"),
     "commerce_snapshots": ("result",),
@@ -139,8 +145,11 @@ ADDITIONS: dict[str, tuple[str, ...]] = {
 TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("customer_billing_offer_bindings", "profile"): OfferProfileV1,
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
+    ("outcome_assessments_v3", "document"): OwnedV3Assessment,
+    ("outcome_feedback_records", "document"): FeedbackContribution,
     ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
+    ("google_original_completions", "document"): GoogleCompletionDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
     ("customer_goal_revisions", "definition"): GoalDefinition,
@@ -308,6 +317,31 @@ def bind_document(
             or any(row[key] != value for key, value in document.scope.columns().items())
         ):
             raise ValueError("billing qualification row mismatch")
+    elif isinstance(document, OwnedV3Assessment):
+        if (
+            document.context.scope.workspace_id != row["workspace_id"]
+            or document.context.environment != row["environment"]
+            or document.receipt.attempt_id != row["attempt_id"]
+            or document.receipt.receipt_id != row["receipt_id"]
+            or document.receipt.sequence != row["receipt_sequence"]
+            or document.context.scope.store_id != row["store_id"]
+            or document.context.scope.generation != row["generation"]
+            or document.context.scope.privacy_epoch != row["privacy_epoch"]
+            or document.input_digest != row["input_digest"]
+            or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
+        ):
+            raise ValueError("v3 assessment ownership mismatch")
+    elif isinstance(document, FeedbackContribution):
+        if (
+            document.status != "eligible"
+            or document.workspace_id != row["workspace_id"]
+            or document.environment != row["environment"]
+            or document.original_attempt_id != row["attempt_id"]
+            or document.assessment_digest != row["assessment_digest"]
+            or document.policy_digest != row["policy_digest"]
+            or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
+        ):
+            raise ValueError("feedback ownership mismatch")
     elif isinstance(document, (CandidateWork, CandidateWorkV2)):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
@@ -359,6 +393,15 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, GoogleCompletionDocument):
+        capture = document.capture
+        expected = {
+            "attempt_id": capture.attempt_id,
+            "workspace_id": capture.account.workspace_id,
+            "digest": document.digest(),
+        }
+        if any(row[key] != value for key, value in expected.items()):
+            raise ValueError("original response row ownership mismatch")
     elif isinstance(document, ReplacementAuditDocument):
         expected = {
             "workspace_id": document.snapshot.workspace_id,
@@ -452,16 +495,15 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
         value = row[field]
         try:
             if field in JSON_FIELDS.get(table, ()) and value is not None:
-                if (
-                    table == "action_outcome_assessments"
-                    and field == "assessment"
-                    and len(
-                        json.dumps(
-                            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-                        ).encode()
-                    )
-                    > 256 * 1024
-                ):
+                if (table, field) in {
+                    ("action_outcome_assessments", "assessment"),
+                    ("outcome_assessments_v3", "document"),
+                    ("outcome_feedback_records", "document"),
+                } and len(
+                    json.dumps(
+                        value, sort_keys=True, separators=(",", ":"), allow_nan=False
+                    ).encode()
+                ) > 256 * 1024:
                     raise ValueError("assessment exceeds export bound")
                 model = TYPED.get((table, field))
                 if table in {"intelligence_records", "intelligence_revisions"}:

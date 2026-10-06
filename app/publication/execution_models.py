@@ -404,3 +404,24 @@ class ProviderReservationReplacement(Base):
     digest: Mapped[str] = mapped_column(String(64))
     actor: Mapped[str] = mapped_column(ForeignKey("customer_users.id", ondelete="RESTRICT"))
     replaced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class GoogleOriginalCompletion(Base):
+    """Append-only successful original response evidence; no terminality classification."""
+
+    __tablename__ = "google_original_completions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["attempt_id", "workspace_id"],
+            ["provider_execution_attempts.id", "provider_execution_attempts.workspace_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("fence", name="uq_google_completion_fence"),
+    )
+    attempt_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    fence: Mapped[str] = mapped_column(String(32), nullable=False)
+    request_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

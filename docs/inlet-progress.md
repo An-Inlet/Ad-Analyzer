@@ -3523,3 +3523,233 @@ Ruff, clean mypy (**544 source files**) and diff checks passed. Logs:
 `/tmp/inlet-independent-owned-freeze.log`,
 `/tmp/inlet-independent-owned-freeze-types2.log`.
 Feedback resolver integration and wider regression are the next validation step.
+### Original Google Response Capture — Offline Complete, Not Financial Finality
+
+`codex/inlet-google-completion-evidence`, isolated child of docs PR192 `36e3402`.
+Added sanitized typed capture only for exact successful original Google v25 single-update
+budget/PAUSED responses, plus owned append-only durable reader. Shared normalized response
+JSON remains unchanged; no ClosedOriginalRequest mapping, financial proof, hold release or
+factory enabled. Timeout/unknown/legacy acknowledgment cannot manufacture capture.
+Migration0066 down0060 creates the separate scoped record and refuses populated downgrade.
+The registry protects it; typed exports, actual customer closure and native PostgreSQL
+backup/restore preserve the original request/fence linkage and held financial obligations.
+
+Primary v25 service schema read/pinned to googleapis7c0638cf893464ba844aeb04683026406eb3f8ca.
+The source matrix documents remaining unknown-request, delivery/cost residual and preventive
+writer guarantees; a completed configuration operation is not settled spend or financial
+finality. No live provider calls or widened write authority.
+
+Validation: focused composed HTTP/durable/export/lifecycle/native restore suite112 passed,
+1 SQLite-only row-lock concurrency skip; additional actual closure-retention checks2 passed
+(SQLite/PostgreSQL). Whole Ruff and mypy507 pass; diffcheck clean. Native restore exercised
+real pg_dump/pg_restore, empty migration roundtrip, populated downgrade refusal, foreign
+workspace FK rejection and original attempt retention. Initial export test exposed internal
+scalar projection mismatch; fixed without widening export allowlists. An initial new unit
+fixture used the wrong clock and was corrected. Logs `/tmp/inlet-completion-tests.log` and
+`/tmp/inlet-completion-mypy.log`. No Full performed. Both runtime qualification and any
+mapping into authoritative request closure remain deliberately separate review/code work.
+
+### 2026-10-06 — Durable Google original-response evidence integrated
+
+Integrated PR192/195 (36e3402/18466e2): exact successful synchronous original
+response capture, protected owned durable record/reader, strict export, closure
+retention and native dump/restore. No ClosedOriginalRequest mapping, money release,
+fallback for unknown responses or production qualification. Root first command used
+a nonexistent test filename and collected no tests; corrected combined suite69
+passed with one restore failure caused by current candidate helpers on isolated0066
+schema. The fixture now preserves its exact0066 roundtrip, then upgrades all actual
+heads before composed current-code population. Native restore rerun1 passed,5 Alembic
+warnings in19.01s. Whole Ruff and configured mypy541 files passed; whitespace passed.
+Logs `/tmp/inlet-next-google-completion.log` and `...-restore.log`.
+
+Independent source review closed PR196 at ac2a601/integrated56514e7; no independent
+test execution claimed. Corrected documentation: connection setup/Google selection
+use separate connection limits, not paid_work. No new paid setup requirement added.
+
+Frozen8efe196 HOSTED TERMINAL FAILURE: run37427571832/job112150604656 checked out
+80e432a072d4970fd4fe50c23b1a913257e99250 (same frozen tree11252fdb). Outer2 failed,
+2643 passed,53 skipped,85 warnings in5113.53s. Meta consent PostgreSQL browser failed
+workspace options/enabled readiness; same Meta failure in nested suite1 failed,
+2643 passed,54 skipped, causing outer nestedFull wrapper failure. Media preflight
+and upgrade passed; later gates skipped. Bounded diagnostics upload succeeded,
+artifact11399840346. Complete log `/tmp/inlet-pr130-8efe-hosted.log` retained; focused
+root-cause investigation assigned without timeout relaxation. Local frozenFull remains
+in its final focused nested regression, primary2639pass59skip and intervening gates
+passed; no terminal local result yet. No manual dispatch, merge, release or quota signal.
+
+Schema plan update: candidate-to-review provenance0068down0062 approved; final root
+merge0069 will join0063,0064,0066,0068. Proposed0067/0065 were never created.
+
+### 2026-10-06 — Unstarted analysis obligation attention integrated
+
+Integrated PR19071c4550: bounded overdue analysis obligations from owned completed
+imports without a corresponding AnalysisRun; fixed inspect-local-job reason only,
+no automatic retry or fabricated historical generation. Root checks67 passed in48.16s
+(`/tmp/inlet-next-analysis-obligation.log`), Ruff check ., configured mypy542 and
+whitespace passed. Initial command named a nonexistent test module and collected
+no tests; corrected command used actual attention/activity modules.
+
+At08:45 parent reported another transport disconnect notification. Executor commands,
+filesystem read/write probe and in-flight root test progression succeeded immediately;
+no observed work loss, process death or quota signal. Frozen local final focused gate
+nested pytest remains active,20min elapsed with10min CPU at this checkpoint.
+
+### 2026-10-06 — Original-bound receipt recovery and closure classification
+
+Integrated PR19820efeaac: default-off GET-only original-bound receipt reader and
+actual bounded scheduler path independent of current sales offer. Missing/invalid
+current offer still blocks forward entitlement; no-ID unknown checkout stays
+unresolved without request replay/key replacement. Root combined140 passed2failed:
+new Google completion table was absent from lifecycle local-work suffix registry,
+so both closure API cases correctly refused incomplete classification. Added explicit
+protected_publication classification; final receipt/quiescing suite41 passed in24.98s.
+Ruff check ., configured mypy545 and whitespace passed. Logs
+`/tmp/inlet-next-billing-receipts.log` and `/tmp/inlet-next-receipts-quiescing.log`.
+### Frozen CI Meta Browser Startup Repair
+
+`codex/inlet-meta-browser-ci-repair`, isolated from frozen8efe196. Hosted run37427571832,
+job112150604656 checked out merge80e432a072d4970fd4fe50c23b1a913257e99250 (8efe196 into
+main ea3591c). Its outer and nested Full failures identify the first Meta workspace
+selection, immediately after login and Retry. Candidate worktree/Full database untouched.
+
+Deterministic isolated PostgreSQL reproduction held the initial anonymous session GET
+while login completed: sanitized DOM before Retry was disabled=true/bound=true/options0;
+HTTP statuses were POST/session200 then initial GET/session401; final DOM was Retryenabled
+with options0 and no second session/workspace request. The synthetic disabled click was
+dropped. This is the Meta browser fixture synchronization gap already guarded in Google
+and Shopify fixtures, not a reproduced product defect. Repro log:
+`/tmp/inlet-meta-browser-repro.log` (only selected DOM flags and method/path/status).
+
+The repaired harness preserves the forced overlap, releases the initial probe and waits
+for the bound enabled Retry control before one click. No timeouts relaxed, tests deselected,
+product behavior changed or live providers contacted. Actual Meta consent/cancel/back/retry/
+selection/role/session/disconnect browser journey passes both SQLite and PostgreSQL:
+2 passed in14.25s. Dedicated disposableDB inlet_meta_browser_ci. Whole Ruff and mypy485
+pass; diffcheck clean. Logs `/tmp/inlet-meta-browser-repair-tests.log` and
+`/tmp/inlet-meta-browser-repair-mypy.log`. No Full run by this repair package.
+
+### 2026-10-06 — Hosted browser race and historical fixture repairs integrated
+
+Integrated PR199b04cab6 and PR200dcbdba4. Meta harness baseline deterministically
+clicked disabled Retry while initial session probe was pending: no retry request
+was sent. Test now holds/releases that probe and waits for bound+enabled control
+before the one click; no product change/timeout relaxation/deselection. Root Meta
+browser plus primary privacy migration regression4 passed,3 warnings in13.23s.
+Other six affected historical migration definitions13 passed,1 expected SQLite skip,
+20 warnings in12.96s. Fixtures use real migrated disposable schemas rather than
+fictitious stamped ORM history. All prior backfill/ownership assertions remain.
+Ruff check ., configured mypy546 and whitespace passed. Logs
+`/tmp/inlet-next-ci-fixtures.log` and `/tmp/inlet-next-historical-migrations.log`.
+## B17 Owned V3 Feedback Persistence And Retraction — 2026-10-06
+
+Branch `codex/inlet-feedback-contract`, worktree `/workspace/inlet-feedback-contract`,
+starts from frozen v3 bridge189 and candidate191 (integration base37e9b84).
+Migration0064 follows0062; root owns the subsequent integration join.
+
+Implemented separate strict v3 assessment storage, bounded owned multi-publication
+lineage, required-parameter association scoring, idempotent feedback, ABA-safe slot
+CAS and active-set recomputation without cached numeric totals. Production maturity
+and decision policies remain unset. Actual current sources produce no eligible
+feedback. There is no new customer route or live execution authority.
+
+Any dependency erasure removes the whole numeric assessment and dependent feedback.
+Retraction and slot replacement clear workspace-wide derived candidate caches even
+when anchored to another publication; unrelated brands and financial history survive.
+Triggers advance export privacy revisions. PostgreSQL raw mutation guards use NOWAIT
+workspace locking; contention fails transactionally without automatic retry.
+Existing source/privacy/receipt/closure invalidation composes through shared helpers.
+Strict lifecycle exports include the new owned types.
+
+Final focused command: `pytest -o addopts='' -q tests/test_feedback_policy.py
+ tests/test_feedback_storage.py tests/test_feedback_races.py
+ tests/test_feedback_migration.py tests/test_candidate_migration.py
+ tests/test_model_registry.py` with disposable PostgreSQL configured: **36 passed,
+1 SQLite row-lock skip, 6 existing Alembic configuration deprecation warnings**,59.56s.
+Tests include actual SQLite/PostgreSQL repeatable export-snapshot races, raw PostgreSQL
+NOWAIT contention plus explicit later retry, populated migration downgrade/reupgrade,
+slot replacement/replay, historical-dependency erasure, unrelated-brand isolation and
+actual closure rollback/commit. Earlier expanded regression run:67 passed,2 skipped
+(before final guard additions). Final Ruff changed-file checks and mypy529 files pass;
+`git diff --check` passes. No Full, CI dispatch, live provider or production DB calls.
+
+Remaining: genuine independently complete source and authoritative delivery timing,
+qualified/calibrated production policy values and customer v3 projection. These code
+and evidence gates are distinct; B17 acceptance remains incomplete. Raw conflicting
+mutations must retry explicitly in a fresh workspace-first transaction; no background
+blind retry is introduced. Shared model/export/lifecycle registrations require additive
+integration with other frozen packages.
+
+### 2026-10-06 — Retractable owned feedback assembled
+
+Integrated PR201a33c9b3: immutable owned v3 assessments and multi-publication
+dependencies, idempotent contributions/CAS slots, transactional full-document
+retraction, candidate invalidation and export revision fences. PostgreSQL raw
+delete contention fails immediately through workspace NOWAIT rather than inverted
+lock waits. Root feedback/storage/race/migration and candidate selection checks:
+61 passed,4 expected SQLite lock skips,3 Alembic warnings in75.40s. Ruff check .,
+configured mypy557 and whitespace passed (`/tmp/inlet-next-feedback.log`).
+No production maturity/decision values or genuine qualified sources enabled.
+
+Hosted frozen8efe196 failure mapping remains exact:
+- test_meta_customer_browser_consent_selection_disconnect[postgres]: deterministic
+  disabled-Retry click, addressed by PR199b04cab6 integrated6a41d9f; root bothDBpass.
+- test_full_validation_can_run_twice_against_same_disposable_database: wrapper
+  failed because nestedFull had the same MetaPGbrowser failure, targeted by the
+  same repair. This wrapper has NOT passed on the assembled successor yet.
+PR200 migration fixture repairs address separately reproduced later-code regressions,
+not an additional failure in that frozen hosted run. Focused green checks do not
+clear the historical failed Full/CI result. Local frozenFull final nested test remains
+running; first nested iteration progressed through primary pytest into latergates.
+
+08:50 disconnect report: shell/filesystem probes and running Full PIDs verified alive;
+no observed lost work. Remote preservation is verified only after successful push
+and exact remote hash comparison, not from local commits alone.
+### Independent Shopify Full-History Acquisition — Offline, Unqualified
+
+Branch `codex/inlet-independent-acquisition`, isolated from `9e56413`; typed
+interface frozen first at `084c119`. `IndependentAcquirer` now executes fixed
+GraphQL requests through an injected HTTP transport and freshly traverses all
+accessible order/agreement/sale pages from an empty cursor. It reuses the existing
+merchandise metric, including refunds on processing date from ancient orders,
+retaining only requested-window aggregate output. Actual granted scopes and shop
+identity/basis are checked at both ends. Bounded I/O, strict parent/cursor checks,
+order mutation checks and fresh injected authority/privacy/retention fences fail
+closed. No database write, scheduler or default runtime was added.
+
+`ScanCompletion` always reports correction unresolved, snapshot/finality unavailable
+and maturity unqualified. No completion is cast to eligible maturity evidence;
+production maturity/producer registries remain None. A DB-backed original-session
+and privacy authority adapter and reviewed versioned publication/export integration
+remain required. The feedback owner confirmed existing owned publication FKs can
+support a strict new manifest variant, but no persistence edits or migration were
+made. See `docs/inlet-independent-acquisition.md` and the research proposal.
+
+Validation: **38 focused contract/MockTransport tests passed** in 0.31 seconds,
+covering ancient-order refunds, actual granted scopes, complete nested/multiple
+pages, cross-parent responses, mutations, privacy/session/generation/retention
+changes, zero, tax exclusions, DST, throttles/errors, byte/request/order/deadline
+bounds and sanitized logs. All five GraphQL operations passed connected Shopify
+schema validation (tool exposes no API-version selector; not claimed as pinned
+schema validation). Whole Ruff, clean mypy (**523 source files**) and diff checks
+passed. No live Shopify or advertising calls, credentials or Full run.
+
+Wider existing commerce/maturity regression on SQLite/disposable PostgreSQL:
+**110 passed, 1 failed**, two Alembic deprecation warnings. Failure is existing
+`test_privacy_migration_backfills_existing_measurement_identity[postgres]` during
+billing-table downgrade: `pk_customer_workspace_billing` constraint absent.
+This acquisition package changes no billing or migration code; parent notified for
+assembled qualification. Logs: `/tmp/inlet-independent-tests-final.log`,
+`/tmp/inlet-independent-regressions.log`, `/tmp/inlet-independent-mypy-final.log`.
+
+### 2026-10-06 — Independent bounded Shopify acquisition integrated
+
+Integrated PR197084c119/df2cad9: fresh bounded all-history HTTP enumeration with
+actual granted-history scope proof, ancient-order refunds on processing date, nested
+parent/cursor validation, mutation checks and current privacy/session/retention
+fences. Independent acquisition remains unresolved/unqualified for maturity; DB
+publication/authority/export successor is in progress. Root109 passed,3 Alembic
+warnings in29.13s across acquisition, commerce measurement and maturity evaluation
+(`/tmp/inlet-next-independent-acquisition.log`). Ruff check ., configured mypy561
+and whitespace passed. Updated current acceptance matrix to distinguish newly
+implemented billing/feedback/selection from remaining ordinary code and genuinely
+unavailable provider guarantees. Main reconfirmed ea3591c5086fbf2cee8038bf9208ac7f0050de75.

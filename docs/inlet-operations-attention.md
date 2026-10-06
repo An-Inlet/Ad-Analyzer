@@ -66,13 +66,13 @@ settlement is outside this endpoint. This package does not enable live execution
 
 Two additional bounded queries cover held reservations and current relevant steps.
 They use workspace-bound joins and separate environments, and share the existing
-500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 21 fixed
+500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 22 fixed
 code/environment signals and two exposure summaries can be emitted. A capped sample
 cannot establish absence of uncertainty outside its rows.
 
 ## Bounds And Gaps
 
-There are eleven fixed read queries, each materializing at most 501 scalar-only rows;
+There are thirteen fixed read queries, each materializing at most 501 scalar-only rows;
 500 are evaluated and the extra row detects truncation. PostgreSQL requests also
 set a transaction-local two-second statement timeout. The request session closes
 without committing. Timeout/database failures use the existing sanitized 503
@@ -88,8 +88,8 @@ release gate. There is no query parameter allowing callers to expand the cap.
 
 `no_attention_observed` means only that these sampled persisted states produced no
 signal. It is deliberately not a global healthy state. The response always exposes
-observation gaps: storage failures have no durable record; scheduler heartbeats and
-never-started work are not observed; analysis rows use bounded persisted-state
+observation gaps: storage failures have no durable record; scheduler heartbeats and work without a persisted analysis obligation are not
+observed; historical obligation generations are not recorded; analysis rows use bounded persisted-state
 observations rather than heartbeats; publication steps lack an independent age field; external alert delivery is
 not configured. No storage call is made merely to manufacture a health result.
 
@@ -113,3 +113,39 @@ unknown → verified same-attempt receipt → later unknown, including cancellat
 workspace closure. It tests dispatch/emission threshold boundaries, verified-no-effect
 review, separate live/contract-test held counts, ledger-end warnings, truncation and
 unchanged reservation state. No real provider calls or production grants are involved.
+
+
+## Unstarted Post-Import Analysis Obligations
+
+`analysis_obligation_unstarted_overdue` is a warning with `inspect_local_job` action.
+It observes a pending GoogleImportCompletion (also used by TikTok imports), a
+succeeded/finished exact owned source JobRun, active workspace/integration and
+matching connected native account, with no AnalysisRun for the same workspace and
+source job. The due time is the later of source completion and recorded retry time;
+only times at least900seconds old are observed. Future backoff, missing completion,
+delivered obligations, closed/revoked/disconnected or mismatched ownership are
+excluded. A recorded analysis run, regardless of outcome, prevents an “unstarted”
+label and leaves existing analysis observations to explain its state.
+
+The query selects only due timestamps, orders deterministically and uses the shared
+500-row plus one-probe cap and PostgreSQL two-second statement timeout. No grants,
+provider responses, customer payloads or raw errors are loaded. Truncation remains
+explicit. Inspection does not mean the work is currently authorized: entitlement,
+controls or source changes may intentionally prevent analysis. The signal neither
+replays imports nor retries analysis, and never infers process termination.
+
+JobRun/outbox rows do not persist their native generation. Current connection
+presence cannot prove an old job belonged to that generation. The signal relies on
+existing workspace/connection-fenced reauthorization/revocation paths retiring
+pending obligations, and exposes `analysis_obligation_historical_generation_not_recorded`
+as a remaining gap. Actual Google reauthorization/disconnect and TikTok terminal
+stop-read tests verify retirement and preserve unrelated workspace obligations.
+Work with no durable obligation—including a scheduler that never started—remains
+unobserved. Storage failures, scheduler checkpoints and external alert delivery
+remain separate gaps; this package adds no migration or telemetry table.
+
+Package validation: the combined new-obligation, existing attention and provider
+attention suite passed **63 tests with zero skips** on SQLite/PostgreSQL. After
+test-only type narrowing, the final obligation suite passed **28 tests with zero
+skips**. Whole-tree Ruff, configured mypy (502 source files), and diff check passed.
+No Full, live environment, provider requests or external alert delivery was run.

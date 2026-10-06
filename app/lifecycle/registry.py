@@ -12,6 +12,70 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "google_original_completions": TablePolicy(
+        "workspace",
+        ("attempt_id", "workspace_id", "fence", "request_digest", "digest", "recorded_at"),
+        None,
+        True,
+    ),
+    "outcome_assessments_v3": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "store_id",
+            "environment",
+            "attempt_id",
+            "receipt_id",
+            "receipt_sequence",
+            "generation",
+            "privacy_epoch",
+            "input_digest",
+            "document_digest",
+            "created_at",
+        ),
+    ),
+    "outcome_assessment_v3_evidence": TablePolicy(
+        "workspace",
+        (
+            "assessment_id",
+            "ordinal",
+            "workspace_id",
+            "publication_id",
+            "manifest_digest",
+            "completion_digest",
+        ),
+    ),
+    "outcome_feedback_records": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "environment",
+            "attempt_id",
+            "assessment_id",
+            "assessment_digest",
+            "policy_family",
+            "policy_digest",
+            "scope_digest",
+            "document_digest",
+            "state",
+            "created_at",
+        ),
+    ),
+    "outcome_contribution_slots": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "environment",
+            "attempt_id",
+            "policy_family",
+            "scope_digest",
+            "feedback_id",
+            "revision",
+        ),
+    ),
     "customer_social_configuration_reviews": TablePolicy(
         "workspace",
         (

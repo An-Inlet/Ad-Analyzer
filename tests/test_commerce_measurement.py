@@ -35,6 +35,7 @@ from app.workspaces.models import WorkspaceIntegration
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import FakeShopify, connected
 from tests.test_shopify_sales import configuration as configuration
@@ -814,7 +815,7 @@ def test_disabling_measurement_does_not_bypass_erasure_on_oauth_reconnect(
 
 
 def test_privacy_migration_backfills_existing_measurement_identity(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    migration_customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from alembic import command
     from alembic.config import Config
@@ -826,7 +827,7 @@ def test_privacy_migration_backfills_existing_measurement_identity(
 
     from tests.test_shopify_sales import order as legacy_order
 
-    with Session(customer_engine) as db:
+    with Session(migration_customer_engine) as db:
         row, store = setup(db, configuration)
         apply_order(db, store, row, source(), [agreement()], configuration, NOW)
         values = normalized_order(db, row, legacy_order(1), Vault(configuration))
@@ -836,17 +837,16 @@ def test_privacy_migration_backfills_existing_measurement_identity(
         sid, domain, legacy_id = store.id, row.shop_domain, legacy.id
         expected_key = identity_key(Vault(configuration), store, "order", 1)
         assert db.get(CommerceShopAlias, (domain, sid)) is not None
-    if customer_engine.dialect.name != "postgresql":
+    if migration_customer_engine.dialect.name != "postgresql":
         return  # Schema migration target is PostgreSQL; both dialects verify binding above.
-    with customer_engine.connect() as connection:
+    with migration_customer_engine.connect() as connection:
         schema = connection.scalar(text("SELECT current_schema()"))
-    scoped = customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
+    scoped = migration_customer_engine.url.update_query_dict({"options": f"-csearch_path={schema}"})
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
-    command.stamp(config, "head")
     command.downgrade(config, "20261005_0023")
-    command.upgrade(config, "head")
-    with Session(customer_engine) as db:
+    command.upgrade(config, "heads")
+    with Session(migration_customer_engine) as db:
         restored_legacy = db.get(ShopifyOrder, legacy_id)
         assert restored_legacy is not None and restored_legacy.commerce_order_key == expected_key
         assert db.get(CommerceShopAlias, (domain, sid)) is not None

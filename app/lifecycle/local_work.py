@@ -92,6 +92,7 @@ WORK_FAMILIES = {
     "provider_execution_runs": "protected_publication",
     "provider_execution_steps": "protected_publication",
     "provider_execution_attempts": "protected_publication",
+    "google_original_completions": "protected_publication",
     "customer_lifecycle_steps": "closing_compatible_maintenance",
 }
 

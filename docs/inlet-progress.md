@@ -1818,3 +1818,21 @@ and Google publication tests **92 passed, zero skipped**; Ruff, mypy app/tests
 None and live exposure remains rejected. Coordinator integration/live portfolio
 qualification/activation/settlement remain separate work. No live calls, spending,
 merge or deployment. See `docs/inlet-google-optimization-http.md`.
+
+## Durable optimization and customer-session fencing checkpoint
+
+Added actual Google/Meta/TikTok one-action optimization coordination under separate
+production consent, exact review/approval, current native budget-owner/state/exposure,
+one original attempt and retained uncertainty. Shared owned receipt projection now
+supports optimization without inferred treatment time. Cumulative positive changes
+remain charged across cancellation, settlement and policy revisions; same-owner held
+exposure blocks subsequent changes. Server-bound session authorizers revalidate the
+original API principal across provider reads/internal commits before protected writes.
+
+Checks: 100 passed/1 SQLite concurrency skip across new durable/session tests and
+creation/activation/settlement regressions; separate optimization concurrency1passed/
+1SQLite skip; whole Ruff/mypy/diff passed. No Full/workflow dispatch/live operation.
+Branch `codex/inlet-durable-optimization`; additive Google contracts e932238/c7a9713,
+plan/runtime ports950f6f4 and actual Google adapter15797fd992 are ancestors. Missing:
+concrete live exposure/terminal sources, safe ongoing rebudgeting, and actual customer
+API/UI/runtime integration. Default runtime factories remain None.

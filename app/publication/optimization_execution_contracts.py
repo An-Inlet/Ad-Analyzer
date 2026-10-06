@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.goals.schemas import StrictModel
 from app.publication.contracts import fingerprint
+from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
 from app.publication.execution_contracts import (
     Environment,
     ExecutionAccount,
@@ -182,6 +183,7 @@ class OptimizationRuntime:
     meta: OptimizationTransport | None = None
     tiktok: OptimizationTransport | None = None
     live_enabled: bool = False
+    authorize: ExecutionAuthorizer = owner_authorizer
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

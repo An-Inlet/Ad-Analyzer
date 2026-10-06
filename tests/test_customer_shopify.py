@@ -451,3 +451,53 @@ def test_postgres_expiry_purge_waits_without_holding_measurement_store(
     with Session(customer_engine) as db:
         assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 1
         assert db.scalar(select(func.count()).select_from(ShopifyOAuthState)) == 0
+
+
+def test_postgres_login_email_refresh_and_rotation_precede_callback(
+    customer_engine: Engine, configured: None
+) -> None:
+    if customer_engine.dialect.name != "postgresql":
+        pytest.skip("row lock ordering is PostgreSQL-specific")
+    runtime = FixtureShopify()
+    owner, _, wid, provider = clients(customer_engine, runtime)
+    query = begin(owner, wid)
+    rotating = TestClient(owner.app, base_url=ORIGIN)
+    rotating.cookies.update(owner.cookies)
+    provider.email = "updated-contact@example.test"
+    user_updated, callback_waiting, proceed = Event(), Event(), Event()
+
+    def after_sql(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+    ) -> None:
+        if statement.startswith("UPDATE customer_users SET email"):
+            user_updated.set()
+            assert proceed.wait(10)
+
+    def before_sql(
+        conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
+    ) -> None:
+        if "FROM customer_users" in statement and "FOR UPDATE" in statement:
+            callback_waiting.set()
+
+    event.listen(customer_engine, "after_cursor_execute", after_sql)
+    event.listen(customer_engine, "before_cursor_execute", before_sql)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            refreshed = pool.submit(login, rotating, "owner:rotated-token")
+            assert user_updated.wait(5)
+            callback = pool.submit(finish, owner, query)
+            try:
+                assert callback_waiting.wait(5)
+            finally:
+                proceed.set()
+            assert refreshed.result(timeout=10)
+            assert callback.result(timeout=10).status_code == 401
+    finally:
+        proceed.set()
+        event.remove(customer_engine, "after_cursor_execute", after_sql)
+        event.remove(customer_engine, "before_cursor_execute", before_sql)
+    assert runtime.token_calls == 0
+    with Session(customer_engine) as db:
+        session = db.get(CustomerSession, digest(owner.cookies[SESSION_COOKIE]))
+        assert session is not None and session.revoked_at is not None
+        assert db.scalar(select(func.count()).select_from(ShopifyConnection)) == 0

@@ -955,3 +955,10 @@ all gates; actual checkout3e700ed48e4b841d9fe2b493e3158c5cb2cb2ee2 tree equals h
 PR79 hosted CI37401087556/job112068198895 passed1,022 tests/all gates; actual checkout
 040a5b424712203c90ea9e39b972445cb46ad42e tree equals head24ad1ae. PR79 local Full
 was not run. Both PR bodies record terminal CI evidence; no live qualification.
+PR87 login rotation follow-up: actual PostgreSQL concurrent email-refresh login and
+customer callback reproduced DeadlockDetected at ef0aaab. Guard now locks User before
+Session, matching login; callback observes rotated/revoked oldsession and performs no
+Shopify exchange. Bounded review found logout Session-only and provisioning User then
+fresh-workspace/replay-read compatible. CustomerShopify/identity/provisioning/native
+ownership suite:75 passed,6 SQLite-only lock skips; Ruff/mypy268files/diffpass.
+Prior ef0 Full/CI are superseded by this lock repair, not acceptance of repairedhead.

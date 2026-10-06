@@ -36,8 +36,8 @@ is distinct from local disconnect.
 
 ## Concurrent Callbacks And Revocation
 
-Customer callback locks workspace, current session/user/membership, then OAuth
-state. It deletes the nonce and keeps the transaction open across bounded token
+Customer callback locks workspace, user, session, membership, then OAuth
+state. This matches login email refresh followed by session rotation. It deletes the nonce and keeps the transaction open across bounded token
 exchange and shop verification. Before credential persistence, current customer
 access and upstream identity status are checked again. Nonce consumption and
 credential persistence commit atomically. A duplicate callback waits, then rejects
@@ -92,3 +92,15 @@ suspended workspaces, distinct from a currently locked/busy workspace.
 Initial PR87 CI run37403352872 failed on that importer status regression and a
 nested existing browser deadline. It is not evidence for the repaired head. The
 integration browser deadline repair is inherited separately; new-head CI is required.
+
+
+## Login Rotation Lock Review
+
+A PostgreSQL regression reproduced `DeadlockDetected` at the earlier ef0aaab head
+when login refreshed the user's email and rotated the old session concurrently with
+a callback. The guard now acquires User before Session. An in-flight login can finish
+rotation; the callback then sees its revoked session, returns 401, and never exchanges
+the Shopify code. Logout locks only Session; provisioning locks User before inserting
+a fresh workspace (or reads an existing replay without row locks). These paths do not
+reverse the corrected shared-row order. Callback/identity/provisioning/native-ownership
+regressions qualify the change on disposable PostgreSQL; no live provider calls.

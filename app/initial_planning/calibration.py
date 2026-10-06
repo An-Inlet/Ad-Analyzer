@@ -14,6 +14,7 @@ from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
+from app.goals.schemas import GoalDefinition
 from app.initial_planning.capture import configuration, read_observation, unavailable
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
@@ -73,6 +74,9 @@ def current_objective(
     goals.expect(goal, objective.goal_revision)
     if goals.assessment(db, goal, effective_now(db, runtime)) != "confirmed":
         raise unavailable("current_confirmed_goal_required")
+    definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
+    if definition.target_window.currency != c.currency:
+        raise unavailable("initial_objective_currency_mismatch")
     report = read_current(
         db, c.workspace_id, principal.user.id, c.account_id, c.campaign_id, None, authorize
     )

@@ -339,6 +339,21 @@ def test_goal_api_identity_csrf_roles_and_source_isolation(
     retry = owner.post(prefix, json={"definition": body}, headers=create_headers)
     assert first.status_code == retry.status_code == 201
     assert first.json()["id"] == retry.json()["id"]
+    assert body is not None
+    rejected_headers = {**headers, "Idempotency-Key": "known-rejection-1"}
+    assert (
+        owner.post(
+            prefix, json={"definition": {**body, "target_micros": 0}}, headers=rejected_headers
+        ).status_code
+        == 422
+    )
+    corrected = owner.post(prefix, json={"definition": body}, headers=rejected_headers)
+    assert corrected.status_code == 201
+    assert (
+        owner.post(prefix, json={"definition": body}, headers=rejected_headers).json()["id"]
+        == corrected.json()["id"]
+    )
+
     assert owner.post(prefix, json={"definition": None}, headers=create_headers).status_code == 409
     assert owner.post(prefix, json={"definition": body}, headers=headers).status_code == 422
     assert (

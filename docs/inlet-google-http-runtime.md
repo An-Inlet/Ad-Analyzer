@@ -54,3 +54,8 @@ runs on SQLite and PostgreSQL. The 90-day horizon follows the existing B08 histo
 floor; longer provider adjustment windows remain a release policy qualification.
 `last_sync_at` continues to mean the last completed window, not complete-cycle
 freshness; the phase indicates ongoing refresh.
+
+PR73 review-repair head `7b7ab2963b79e23d99f945dc83624da6584cab93` was merged
+cleanly. Post-merge validation: 73 Google/review regressions passed with explicit
+disposable PostgreSQL enabled; Ruff, mypy (248 files), and diff whitespace checks
+passed. Full/hosted checks remain outstanding for this head.

@@ -242,6 +242,9 @@ def normalized_entries(
 
 
 def revise_days(session: Session, store: CommerceStore, days: set[date], now: datetime) -> None:
+    from app.optimization_candidates.invalidation import erase_source_candidates
+
+    erase_source_candidates(session, store.workspace_id, store.id)
     store.revision += 1
     session.flush()
     zone = ZoneInfo(store.time_zone)

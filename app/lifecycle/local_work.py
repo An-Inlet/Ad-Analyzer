@@ -80,6 +80,7 @@ LOCAL_RUNS = {
 # New persisted worker tables using these established suffixes require an explicit
 # category before a local observation can be reported as complete.
 WORK_FAMILIES = {
+    "optimization_candidate_jobs": "erasable_derived_read_queue",
     "job_runs": "local_run",
     "analysis_runs": "local_run",
     "crm_sync_runs": "local_run",
@@ -100,7 +101,7 @@ def verify_work_registry() -> None:
         name
         for name in Base.metadata.tables
         if name.endswith(
-            ("_runs", "_checkpoints", "_actions", "_steps", "_attempts", "_completions")
+            ("_runs", "_checkpoints", "_actions", "_steps", "_attempts", "_completions", "_jobs")
         )
     }
     if candidates != set(WORK_FAMILIES):
@@ -245,6 +246,15 @@ def observe(db: Session, request: LifecycleRequest, now: datetime) -> dict[str, 
                 detail.c.generation == native.c.generation,
                 native.c.status == "connected",
             )
+        )
+        or 0
+    )
+    candidate_jobs = Base.metadata.tables["optimization_candidate_jobs"]
+    counts[candidate_jobs.name] = int(
+        db.scalar(
+            select(func.count())
+            .select_from(candidate_jobs)
+            .where(predicate(candidate_jobs.name, scope))
         )
         or 0
     )

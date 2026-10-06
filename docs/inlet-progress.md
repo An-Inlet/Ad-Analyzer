@@ -2653,3 +2653,19 @@ this package does not persist personal declarations or relax spending semantics.
   social creation authority after `bound()` and lazy media resolution in the legacy
   creation/activation branches. Optimization returns first; historical reconciliation
   does not require new social forward-execution qualification.
+## Repeat Optimization / Social Schema Integration
+
+Integrated frozen repeat2ac0604 as5dd0d7a. DraftPR171 created through the connected
+GitHub app after the shell API request returned ambiguousForbidden; no manual
+workflow-dispatch retry or network/credential change. Adds exact atomic replacement,
+complete ancestor original-request closure and receipt drift checks, inherited
+exposure settlement protection, and strict audit/export handling. Native source
+reader remains absent; no live or customer repeat dispatch is enabled.
+
+Merge0060 joins0058replacement and0059social review heads. Root combined repeat,
+replacement migration, social review/migration and fresh-session regression suite:
+54passed/1SQLite-onlyskip/8existingdeprecationwarnings,77.51seconds
+(`/tmp/inlet-next-repeat-social-merge.log`). Whole Ruff/mypy484/diff passed. Migration
+checks cover empty roundtrip and refusal to erase populated replacement lineage;
+independent late-ancestor review remains recorded separately. Frozen c602a1b Full
+and hosted e512529 do not include this package and are still running.

@@ -4960,3 +4960,32 @@ skip(96.84s). Whole Ruff and clean mypy669 passed; whitespace clean. Evidence:
 `/tmp/inlet-initial-handoff-combined.log`, `/tmp/inlet-initial-handoff-types.log`.
 See `docs/inlet-initial-review-lifecycle.md`. Parent/backend owner retains attempted
 historical reconciliation/settlement qualification. No remote/Full/live action.
+
+### B19: Populated 0075 Native Restore Acceptance
+
+Local isolated child of `9833b9f`; see
+[inlet-initial-planning-restore-evidence.md](inlet-initial-planning-restore-evidence.md).
+The real PostgreSQL archive now contains owned observation/calibration/dependency/
+preview rows and checks strict export/session-hash exclusion, original owner/session,
+source generation and expiry guards, actual configuration-independent expired-derived
+cleanup, current-report availability, closing-compatible privacy erasure, immutable
+triggers and composite ownership/cascades after restore. Existing financial holds,
+replacement lineage, social approvals and failure-cleanup checks remain enforced.
+Calibration/preview documents are synthetic insufficient fixtures, not a claim that
+service admission or production policy qualification ran.
+
+Exact command/environment is in the linked evidence document. Final
+`pytest -o addopts='' -q tests/test_inlet_restore_drill.py`: **37 passed**, five existing
+Alembic path-separator warnings, 105.70s. Includes actual native dump/restore and
+injected archive/restore failures, plus SQLite/PostgreSQL strict serializer cases.
+Log `/tmp/inlet-initial-restore-final.log`; terminal exit0. New dedicated database
+`inlet_initial_restore_test_20261006`, container `inlet-b01-postgres`; no active Full
+DB touched. Temporary restore schemas removed. `ruff check .`, configured `mypy`
+(658 files), explicit mypy of both restore scripts (2 files), and `git diff --check`
+pass. Initial three failed cases were a fixture-only wrong column name (`status`
+instead of reservation `state`), corrected; no product defect inferred from them.
+
+No product/migration changes, Full, remote writes, live calls or qualification.
+This evidence is through0075. Root's later0076 protected preview-review lineage is
+not populated by this fixture; run the combined drill after integration and extend
+protected provenance coverage separately if required.

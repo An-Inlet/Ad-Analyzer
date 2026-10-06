@@ -33,6 +33,11 @@ from scripts.inlet_restore_fixture import (
     verify_performance_constraints,
     verify_populated,
 )
+from scripts.inlet_restore_initial_fixture import (
+    seed_initial,
+    verify_initial,
+    verify_initial_constraints,
+)
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import MetaData, Table, create_engine, inspect, make_url, select, text
 from sqlalchemy.engine import URL, Connection, Engine
@@ -210,6 +215,7 @@ def seed(engine: Engine) -> None:
     seed_financial(engine)
     seed_social(engine)
     seed_performance(engine)
+    seed_initial(engine)
 
 
 def normalized_text_casts(expression: str) -> str:
@@ -357,6 +363,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         verify_owned_constraints(engine)
         verify_performance(engine)
         verify_performance_constraints(engine)
+        verify_initial(engine)
+        verify_initial_constraints(engine)
         with engine.connect() as db:
             before, table_count, row_count = fingerprint(db, schema)
         archive = tools.run("pg_dump", ["--format=custom", "--no-owner", f"--schema={schema}"])
@@ -387,6 +395,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         verify_owned_constraints(engine)
         verify_performance(engine)
         verify_performance_constraints(engine)
+        verify_initial(engine)
+        verify_initial_constraints(engine)
         with engine.connect() as db:
             if fingerprint(db, schema) != (before, table_count, row_count):
                 raise DrillError("restored behavioral checks changed durable evidence")
@@ -402,6 +412,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
             "populated_financial_lineage_verified": True,
             "social_approval_verified": True,
             "campaign_performance_verified": True,
+            "initial_planning_graph_verified": True,
+            "initial_session_digest_excluded": True,
             "unknown_attempt_replay_denied": True,
             "media_objects_restored": False,
             "live_restore_qualified": False,

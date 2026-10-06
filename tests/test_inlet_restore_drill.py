@@ -146,6 +146,8 @@ def test_native_synthetic_backup_restore_preserves_isolation(
             result = drill.run_drill(container)
             assert result["status"] == "passed" and result["workspaces"] == 2
             assert result["campaign_performance_verified"] is True
+            assert result["initial_planning_graph_verified"] is True
+            assert result["initial_session_digest_excluded"] is True
             assert result["tables_verified"] > 20 and result["rows_verified"] >= 16
             assert result["archive_bytes"] > 0 and result["isolation_verified"] is True
             assert result["live_restore_qualified"] is False
@@ -267,3 +269,31 @@ def test_performance_restore_fixture(customer_engine: Any, tamper: bool) -> None
             verify_performance(customer_engine)
     else:
         verify_performance(customer_engine)
+
+
+@pytest.mark.parametrize("tamper", [False, True])
+def test_initial_restore_documents_are_strict_and_session_private(
+    customer_engine: Any,
+    tamper: bool,
+) -> None:
+    import json
+
+    from app.initial_planning.models import CalibrationRow, ObservationRow, PreviewRow
+    from app.lifecycle.export_serializers import serialize
+    from scripts.inlet_restore_initial_fixture import SESSION_DIGEST
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    drill.seed(customer_engine)
+    with Session(customer_engine) as db:
+        for model in (ObservationRow, CalibrationRow, PreviewRow):
+            row = db.scalars(select(model)).one()
+            raw = {column.name: getattr(row, column.name) for column in model.__table__.columns}
+            if tamper:
+                raw["workspace_id"] = 901
+            output, missing = serialize(model.__tablename__, raw)
+            assert ("document" in missing) is tamper
+            assert "original_session_digest" not in output
+            assert SESSION_DIGEST not in json.dumps(output, default=str)
+            if not tamper:
+                assert not missing and output["document"] == raw["document"]

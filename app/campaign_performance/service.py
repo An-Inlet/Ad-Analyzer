@@ -12,8 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
-from app.campaign_performance.contracts import CampaignPerformanceV1
+from app.campaign_performance.contracts import CampaignPerformanceV1, CampaignPerformanceV2
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
 from app.lifecycle.privacy import workspace_export_revision
 from app.meta.models import MetaConnection
 from app.meta.security import API_VERSION, PURCHASE_ACTIONS, utc
@@ -117,6 +118,23 @@ def publish_meta(
     db.flush()
 
 
+def require_active_integration(db: Session, account: AdvertisingAccount) -> None:
+    if account.connection_id is None:
+        raise unavailable()
+    try:
+        validate_advertising_scope(
+            db,
+            AdvertisingImportScope(
+                account.workspace_id,
+                account.connection_id,
+                account.id,
+                account.platform,
+            ),
+        )
+    except ImportScopeError:
+        raise unavailable() from None
+
+
 def read_current(
     db: Session,
     workspace_id: int,
@@ -125,9 +143,18 @@ def read_current(
     campaign_id: int,
     expected_completion_id: str | None,
     authorize: Authorize,
-) -> CampaignPerformanceV1:
+) -> CampaignPerformanceV1 | CampaignPerformanceV2:
     """Original-session callback is mandatory; no IO, commit or historical replay."""
     authorize(db, workspace_id, actor)
+    account = db.get(AdvertisingAccount, account_id, populate_existing=True)
+    if account is None or account.workspace_id != workspace_id:
+        raise unavailable()
+    if account.platform.value != "meta_ads":
+        from app.campaign_performance.aggregate import read
+
+        return read(
+            db, workspace_id, actor, account, campaign_id, expected_completion_id, authorize
+        )
     source = db.scalar(
         select(MetaConnection)
         .where(
@@ -154,6 +181,9 @@ def read_current(
         or campaign.account_id != account_id
         or (expected_completion_id is not None and current.completion_id != expected_completion_id)
     ):
+        raise unavailable()
+    require_active_integration(db, account)
+    if account.external_account_id != source.external_account_id:
         raise unavailable()
     item = db.get(PerformanceCompletion, current.completion_id, populate_existing=True)
     if (

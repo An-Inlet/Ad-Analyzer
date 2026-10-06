@@ -4570,3 +4570,44 @@ quota/resource/usage limit confirmed. No retry/manual dispatch. Parent needs exa
 annotation evidence. Local candidate4 Full65083 remains running. Agents finishing
 existing offlinechecks/freeze were asked to hold additionalpush/CI pending diagnosis;
 no global stop claimed without confirmed owner-triggering usage-limit evidence.
+
+### Google/TikTok Campaign Performance Producers — 2026-10-06
+
+Isolated `codex/inlet-provider-performance` from integrated root 73bb5f1 / PR219.
+Actual concrete GoogleHTTPRead and TikTokHTTPRead terminal imports now publish immutable
+0074 completion/current references in the metric replacement transaction. No new migration.
+A frozen server-bound reporting descriptor binds actual query/API versions across pages;
+legacy missing descriptors finish normal imports unqualified, and terminal unqualified
+writes invalidate old current references even with equal metrics. Positively conflicting
+page descriptors fail closed. Google coverage is exactly the last completed bounded slice,
+not all history/newest calendar coverage. TikTok child rows are excluded; generic counts
+are separately labelled and placeholder value remains unavailable. Meta v1 bytes remain
+unchanged; all readers additionally validate the active owned integration.
+
+Strict v2/current reader interfaces and compatibility behavior are documented in
+`docs/design/campaign-performance-completion.md`. No initial policy, calibration values,
+causal/mature qualification, customer UI/API or automatic execution registration added.
+
+Validation: expanded actual provider producer/reader plus Meta, Google/TikTok importer and
+HTTP suites 132 passed (43.22s); final composed all-provider performance/fence/migration
+batch 62 passed (35.45s). Final Google/TikTok run after strict v2 cross-field validation:
+40 passed across SQLite/PostgreSQL (22.76s). Tests cover actual HTTP→staging→completion→
+owned reader, old/partial coverage, correction, equal-metric unknown adapters, legacy
+continuation, cross-provider semantic limits, generation/privacy/row/session/native/
+integration fences and overflow rollback. Whole Ruff and mypy 624 files clean; diff clean.
+No Full, live calls, manual CI dispatch, deployment or activation.
+
+### Local Provider Performance Integration During Remote Hold
+
+Root actual Meta/Google/TikTok performance, Google customer import and TikTok HTTP
+suites **112 passed in43.04s**, log `/tmp/inlet-next-provider-performance.log`.
+Ruff, configured mypy625 and staged whitespace passed. No new migration. This
+integrates PR2228ec322a locally only; new pushes/CI remain held pending the owner's
+GitHub check annotation. Local Full65083 continues on unchanged dc3c0d5.
+
+Independent review of not-yet-integrated Plan Review943ce8 reproduced simulation
+approval after revoked original session/owner-role loss and server acceptance of
+an over-goal planning budget (six failing security assertions across both DBs).
+Repairs are active separately; the successful fresh-browser path does not clear
+these findings. No live spending follows from this simulation path. Frozen Full
+snapshot is not modified; its result will not substitute for these new regressions.

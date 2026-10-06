@@ -106,7 +106,9 @@ def test_real_http_terminal_publication_and_current_reader(
             )
 
 
-@pytest.mark.parametrize("change", ["rows", "generation", "event", "privacy", "session"])
+@pytest.mark.parametrize(
+    "change", ["rows", "generation", "event", "privacy", "session", "integration"]
+)
 def test_current_evidence_invalidates(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, change: str
 ) -> None:
@@ -126,6 +128,12 @@ def test_current_evidence_invalidates(
             source.conversion_action_type = "lead"
         elif change == "privacy":
             bump_workspace_export_revision(db, source.workspace_id)
+        elif change == "integration":
+            from app.workspaces.models import WorkspaceIntegration
+
+            integration = db.get(WorkspaceIntegration, source.workspace_integration_id)
+            assert integration
+            integration.status = "revoked"
         else:
             session = db.get(CustomerSession, token)
             assert session

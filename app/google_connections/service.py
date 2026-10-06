@@ -321,6 +321,9 @@ def tick(
             row.window_end = end
         else:
             row.window_end = min(end, row.window_start + timedelta(days=6))
+    from app.campaign_performance.aggregate import publish, stage_contract
+
+    performance_contract = stage_contract(row.staged, transport)
     token = Vault().open(wid, cid, row.encrypted_grant)
     try:
         page = transport.page(
@@ -358,7 +361,11 @@ def tick(
     if len(pages) > 100 or sum(len(p["metrics"]) + len(p["campaigns"]) for p in pages) > 50_000:
         raise HTTPException(409, "import window exceeds bounded capacity")
     if page.next_cursor is not None:
-        row.staged = {"pages": pages, "cursors": seen + [page.next_cursor]}
+        row.staged = {
+            "pages": pages,
+            "cursors": seen + [page.next_cursor],
+            "performance_contract": performance_contract,
+        }
         row.cursor = page.next_cursor
         row.next_attempt_at = now
         db.commit()
@@ -430,6 +437,7 @@ def tick(
         connection_id=row.integration_id,
     )
     repo.finish_job_run(job, status=JobRunStatus.SUCCEEDED, records_processed=len(metrics))
+    publish(db, row, row.window_start, row.window_end, now, transport, performance_contract)
     row.last_sync_at, row.error_code, row.cursor, row.staged = now, None, None, {}
     if row.phase in {"recent", "history"} and row.window_start > row.history_floor:
         row.window_end = row.window_start - timedelta(days=1)

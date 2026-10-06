@@ -63,7 +63,7 @@ export async function request(path, method = 'GET', body, headers = {}, fetcher 
   }
   const response = await fetcher(path, {method, headers: outgoing, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin', redirect: 'error', cache: 'no-store'});
   if (!response.ok) {
-    const error = new Error(({401: 'Your session has ended. Sign in again when customer sign-in is available.', 403: 'Your role or session does not permit this action.', 404: 'This item is unavailable in your workspace.', 409: 'The saved state changed or is not ready. Reload and review before trying again.', 422: 'Check the entered values and measurement periods.', 429: 'Usage limit reached. Try again later.', 502: 'The provider is temporarily unavailable.', 503: 'This service is not configured or is temporarily unavailable.'})[response.status] || 'The request could not be completed.');
+    const error = new Error(({401: 'Your session has ended. Sign in again.', 403: 'Your role or session does not permit this action.', 404: 'This item is unavailable in your workspace.', 409: 'The saved state changed or is not ready. Reload and review before trying again.', 422: 'Check the entered values and measurement periods.', 429: 'Usage limit reached. Try again later.', 502: 'The provider is temporarily unavailable.', 503: 'This service is not configured or is temporarily unavailable.'})[response.status] || 'The request could not be completed.');
     if (response.status === 409) {
       const payload = await response.json().catch(() => null);
       if (payload?.detail?.code === 'baseline_unavailable') {
@@ -201,6 +201,18 @@ if (typeof document !== 'undefined') {
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
   $('retry').onclick = () => guarded(session);
+  // Auth is lazy and disabled by server configuration; no SDK/provider network by default.
+  import('./auth.mjs').then(async ({prepareSignIn}) => {
+    const signIn = await prepareSignIn();
+    if (!signIn) return;
+    $('signin-status').textContent = 'Use Google to create an Inlet account or sign in. Live setup has not been verified.';
+    show('signin', true);
+    $('signin').onclick = () => guarded(async () => {
+      clearSession();
+      await signIn();
+      await session();
+    });
+  }).catch(() => { $('signin-status').textContent = 'Customer sign-in is unavailable. You can check an existing session.'; });
   $('logout').onclick = () => guarded(async () => { clearSession(); await api('/api/customer/v1/session', 'DELETE'); say('Signed out.'); });
   $('workspace').onchange = () => guarded(loadWorkspace);
   $('goal').onchange = editGoal;

@@ -103,3 +103,6 @@ Desktop.ini
 
 # Local OAuth helper output
 .google_ads_refresh_token.local
+
+# Pinned browser build dependencies
+node_modules/

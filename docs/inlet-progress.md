@@ -846,3 +846,40 @@ subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with d
 PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
 head remains separate evidence; this correction has not independently run Full or
 called a live provider.
+
+### B14 Campaign Review Core — 2026-10-06
+
+Isolated `codex/inlet-campaign-review` from integration
+`3417bc22d986aefc6abb08905dea89495b20ce53`; migration 0037 follows 0036. Added private
+scoped immutable development JPEG/PNG storage (disabled default), typed campaign
+revision/preview/exact approval APIs, current ownership/mandate/entitlement/generation
+bindings, and explicit Meta generation on verified reauthorization. Edits append an
+unapproved revision. Offline review approval is distinct from publication eligibility;
+provider publication remains disabled. Core ports and remaining design copied to
+`docs/inlet-campaign-review-contract.md`; implemented behavior and limitations in
+`docs/inlet-campaign-review-core.md`.
+
+Checks: 61 focused SQLite/PostgreSQL/mock tests passed, 1 intentional SQLite-only skip
+for the PostgreSQL row-lock race; Ruff passed; mypy 276 files passed; diff check passed.
+New disposable `inlet_b14_migration_ci`: upgrade head and 0037→0036→head passed.
+Additional `alembic check` found existing CRM import/analysis enum drift, no B14 drift;
+not claimed clean. Full and hosted CI pending. No provider calls or live verification.
+
+Remaining: TikTok video validation, customer review UI, production private storage and
+media lifecycle, B15/B16 compiler/publication/reconciliation and spend/freshness gates.
+The first package does not claim all B14 acceptance criteria complete.
+
+B14 integrated validation: merged PR86 head
+`ea4871b472c119dbe7e4a13d7958c315882eefd9` without conflicts, preserving migration0037
+and both progress records. At code head `17b21cd32d4a079b121638a3934f1482e5ceff36`,
+B14/Meta/customer journey/portal focused suite:72 passed,1 intentional SQLite race
+skip; Ruff/mypy277 and wheel build passed. Draft PR91:
+https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/91. Full/CI remain pending.
+
+Predecessor validation: unchanged PR84 `68c9bc58f9d337296d1421e966f7867027239c36`
+local Full finished exit0 (1,021 passed/6 unavailable-PowerShell skips; final automation
+38 passed/6 same skips). Hosted CI37401780500/job112070362703 passed1,027 tests and
+all gates; actual checkout3e700ed48e4b841d9fe2b493e3158c5cb2cb2ee2 tree equals head.
+PR79 hosted CI37401087556/job112068198895 passed1,022 tests/all gates; actual checkout
+040a5b424712203c90ea9e39b972445cb46ad42e tree equals head24ad1ae. PR79 local Full
+was not run. Both PR bodies record terminal CI evidence; no live qualification.

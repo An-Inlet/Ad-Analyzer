@@ -2118,3 +2118,43 @@ Integrated PR1543def4ba authoritative settlement. Combined settlement/activation
 ### Reviewed Portfolio Exposure Composition
 
 Integrated exposure5bcd0aa. Combined-root focused actual SQLite/PostgreSQL checks24 passed; Ruff and configured mypy passed. /tmp/inlet-next-exposure.log. Independent review repaired profile lifetime escaping into later dispatch and disagreement over prior-period held reservations; both have downstream regression coverage. Explicit server facts/profile ports remain unconfigured; no actual native cap or reporting-delay proof is invented, and no default live runtime is enabled.
+### Google Existing-Campaign HTTP Optimization — 2026-10-06
+
+Branch `codex/inlet-google-optimization-http` from frozen additive Google ports
+`c7a9713566bcf0962310e8421cdeaf031fcef7d9`. Adds actual injectable v25 REST budget/pause
+transport, separate from legacy fixture GoogleActions and B07 simulation consent.
+Native budget resource is the owner key; paginated campaign topology plus reference
+count must prove one independent owner. Search/manual CPC/daily standard budget is
+the conservative supported subset. No shared budgets, resume or negative keywords.
+
+Reads bind customer currency/timezone, native settings, schedule, topology and
+automatic recommendation state. Masked validate-only and one-shot mutations use
+fixed endpoints/bounded responses/timeouts and sanitized errors. Unknown or late
+responses retain the original attempt; read-only reconciliation never retries a
+mutation, and old state never proves no effect. Native indefinite end is explicitly
+null, not an invented date or exposure horizon. Social request documents unchanged.
+
+Checks: actual Google HTTP, additive Google contracts, frozen social adapter/digests
+and Google publication tests **92 passed, zero skipped**; Ruff, mypy app/tests
+(**389 files**) and diff check passed. No migrations or Full. Runtime factory remains
+None and live exposure remains rejected. Coordinator integration/live portfolio
+qualification/activation/settlement remain separate work. No live calls, spending,
+merge or deployment. See `docs/inlet-google-optimization-http.md`.
+
+## Durable optimization and customer-session fencing checkpoint
+
+Added actual Google/Meta/TikTok one-action optimization coordination under separate
+production consent, exact review/approval, current native budget-owner/state/exposure,
+one original attempt and retained uncertainty. Shared owned receipt projection now
+supports optimization without inferred treatment time. Cumulative positive changes
+remain charged across cancellation, settlement and policy revisions; same-owner held
+exposure blocks subsequent changes. Server-bound session authorizers revalidate the
+original API principal across provider reads/internal commits before protected writes.
+
+Checks: 100 passed/1 SQLite concurrency skip across new durable/session tests and
+creation/activation/settlement regressions; separate optimization concurrency1passed/
+1SQLite skip; whole Ruff/mypy/diff passed. No Full/workflow dispatch/live operation.
+Branch `codex/inlet-durable-optimization`; additive Google contracts e932238/c7a9713,
+plan/runtime ports950f6f4 and actual Google adapter15797fd992 are ancestors. Missing:
+concrete live exposure/terminal sources, safe ongoing rebudgeting, and actual customer
+API/UI/runtime integration. Default runtime factories remain None.

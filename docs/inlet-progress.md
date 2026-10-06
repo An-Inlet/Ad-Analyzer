@@ -1404,3 +1404,23 @@ no production reset behavior or validation gate is relaxed.
 Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
 upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
 hosted successor results remain separate and must be recorded after assembly.
+
+### Customer journey integration — 2026-10-06
+
+Child of PR112 `73725be`, preserving its active validation head. Combines PR111
+`960de15` connection consent/account selection/Shopify disconnect, PR114 `f151a80`
+visible test checkout/recovery/management, and PR116 `d217dba` supplied draft creation,
+private media upload and decoded video preview. Shared customer mutation locking
+converges on the same workspace/user/session/membership guard, with the stronger
+provider-aware wrapper retaining issuer, remote-active and post-wait expiry checks.
+The combined portal preserves both Google setup state and overlapping-task control
+restoration. No automatic campaign approval or live purchase/publication is enabled.
+
+Combined billing/connections/Shopify/authorization tests: 70 passed, 8 SQLite lock
+skips, PostgreSQL counterparts ran. Combined creation/review/video/threadpool/auth
+checks: 34 passed, 2 SQLite lock skips. Node portal suite: 9 passed. Ruff, mypy321
+and diff check passed. Initial test command used an incorrect connection-browser
+filename and collected no tests; the corrected command produced the 70-pass result.
+The independently reproduced migration reflection repair `1624b18` is included.
+Full/hosted CI are separate pending gates at the final integration head. Google
+ disconnect follow-up and closure/lifecycle packages remain separate candidates.

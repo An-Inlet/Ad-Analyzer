@@ -13,11 +13,12 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
-from app.ads.models import Campaign, DailyMetric
+from app.ads.models import Campaign, DailyMetric, JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate, CampaignCreate, DailyMetricCreate
 from app.google_connections.contracts import (
     Account,
+    GoogleAuthorizationUnavailable,
     GoogleReadTransport,
     Page,
     UnavailableTransport,
@@ -40,6 +41,13 @@ from app.shopify.security import utc
 from app.workspaces.models import WorkspaceIntegration
 
 PLATFORM = AdvertisingPlatform.GOOGLE_ADS
+
+
+class GoogleReadUnavailable(HTTPException):
+    """Current transient read attempt failed; persisted pages remain retryable."""
+
+    def __init__(self) -> None:
+        super().__init__(502, "Google read unavailable")
 
 
 def redirect_uri() -> str:
@@ -156,6 +164,7 @@ def choose(
             GoogleCustomerConnection.external_account_id == external_id,
         )
         .with_for_update()
+        .execution_options(populate_existing=True)
     )
     token = Vault().open(wid, row.digest, row.encrypted_grant)
     integration = ensure_native_integration(
@@ -199,6 +208,7 @@ def choose(
         )
         db.add(existing)
     else:
+        discard_pending_analysis(db, existing)
         existing.generation += 1
         existing.cursor, existing.staged = None, {}
         existing.window_start, existing.window_end = end - timedelta(days=6), end
@@ -229,12 +239,32 @@ def owned(db: Session, wid: int, cid: str) -> GoogleCustomerConnection:
     return row
 
 
+def discard_pending_analysis(db: Session, row: GoogleCustomerConnection) -> None:
+    """Caller holds workspace/connection lock; discard only this ownership scope."""
+    db.execute(
+        delete(GoogleImportCompletion).where(
+            GoogleImportCompletion.state == "pending",
+            GoogleImportCompletion.job_id.in_(
+                select(JobRun.id).where(
+                    JobRun.workspace_id == row.workspace_id,
+                    JobRun.connection_id == row.integration_id,
+                    JobRun.account_id == row.account_id,
+                )
+            ),
+        )
+    )
+
+
 def disconnect(db: Session, row: GoogleCustomerConnection) -> None:
+    # Refresh under the same lock even for callers holding a stale ORM instance.
+    row = owned(db, row.workspace_id, row.id)
     integration = db.get(WorkspaceIntegration, row.integration_id)
     assert integration is not None
+    discard_pending_analysis(db, row)
     integration.status = "revoked"
     row.status, row.encrypted_grant, row.cursor, row.staged = "disconnected", None, None, {}
     row.generation += 1
+    row.next_attempt_at, row.error_code = None, None
     db.commit()
 
 
@@ -273,11 +303,21 @@ def tick(
             row.cursor,
             row.login_customer_id,
         )
+    except GoogleAuthorizationUnavailable:
+        # The workspace/connection lock is held across the read; obsolete queued
+        # generations are rejected before any IO and cannot invalidate new consent.
+        discard_pending_analysis(db, row)
+        row.status, row.error_code = "reconnect_required", "authorization_unavailable"
+        row.encrypted_grant, row.cursor, row.staged = None, None, {}
+        row.generation += 1
+        row.next_attempt_at = None
+        db.commit()
+        raise HTTPException(409, "Google connection requires fresh consent") from None
     except Exception:
         row.error_code = "read_unavailable"
         row.next_attempt_at = now + timedelta(minutes=5)
         db.commit()
-        raise HTTPException(502, "Google read unavailable") from None
+        raise GoogleReadUnavailable() from None
     if page.external_account_id != row.external_account_id:
         raise HTTPException(409, "collector ownership mismatch")
     staged = dict(row.staged)

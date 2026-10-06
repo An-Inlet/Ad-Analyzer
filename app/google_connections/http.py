@@ -10,7 +10,14 @@ from typing import Any, Literal
 import httpx
 from pydantic import SecretStr
 
-from app.google_connections.contracts import Account, CampaignRow, Grant, MetricRow, Page
+from app.google_connections.contracts import (
+    Account,
+    CampaignRow,
+    GoogleAuthorizationUnavailable,
+    Grant,
+    MetricRow,
+    Page,
+)
 
 
 class GoogleReadError(RuntimeError):
@@ -30,12 +37,12 @@ class GoogleHTTPRead:
         self,
         client_id: str,
         secret: SecretStr,
-        developer: SecretStr,
+        developer: SecretStr | None,
         version: str,
         *,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        if not client_id or not secret.get_secret_value() or not developer.get_secret_value():
+        if not client_id or not secret.get_secret_value():
             raise ValueError("Google runtime configuration incomplete")
         if not re.fullmatch(r"v[1-9][0-9]{1,2}", version):
             raise ValueError("Google API version must be explicitly pinned")
@@ -53,10 +60,9 @@ class GoogleHTTPRead:
     ) -> dict[str, Any]:
         headers = {}
         if token:
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "developer-token": self.developer.get_secret_value(),
-            }
+            headers = {"Authorization": f"Bearer {token}"}
+            if self.developer and self.developer.get_secret_value():
+                headers["developer-token"] = self.developer.get_secret_value()
         if login:
             headers["login-customer-id"] = account(login)
         try:
@@ -75,6 +81,25 @@ class GoogleHTTPRead:
                     json=body,
                 ) as response,
             ):
+                if response.status_code == 401 and token is not None:
+                    raise GoogleAuthorizationUnavailable(
+                        "google_customer_authorization_unavailable"
+                    )
+                if (
+                    response.status_code == 400
+                    and data is not None
+                    and data.get("grant_type") == "refresh_token"
+                ):
+                    raw_error = bytearray()
+                    for chunk in response.iter_bytes():
+                        raw_error.extend(chunk)
+                        if len(raw_error) > 16384:
+                            raise GoogleReadError("google_response_exceeds_bounds")
+                    error = json.loads(raw_error)
+                    if isinstance(error, dict) and error.get("error") == "invalid_grant":
+                        raise GoogleAuthorizationUnavailable(
+                            "google_customer_authorization_unavailable"
+                        )
                 if response.status_code in (401, 403):
                     raise GoogleReadError("google_authorization_unavailable")
                 if response.status_code == 429:
@@ -304,3 +329,25 @@ class GoogleHTTPRead:
             )
         except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError):
             raise GoogleReadError("google_response_invalid") from None
+
+    def revoke(self, refresh_token: str) -> None:
+        """Grant-wide operation, deliberately not called by per-workspace disconnect."""
+        if not 1 <= len(refresh_token) <= 8192:
+            raise GoogleReadError("google_token_invalid")
+        try:
+            with (
+                httpx.Client(
+                    transport=self.transport,
+                    timeout=httpx.Timeout(15, connect=5),
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as client,
+                client.stream(
+                    "POST", "https://oauth2.googleapis.com/revoke", data={"token": refresh_token}
+                ) as response,
+            ):
+                if response.status_code != 200:
+                    raise GoogleReadError("google_revocation_unconfirmed")
+                    # Success can have an empty body; never parse or log a token response.
+        except httpx.HTTPError:
+            raise GoogleReadError("google_revocation_unconfirmed") from None

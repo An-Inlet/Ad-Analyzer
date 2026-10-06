@@ -984,3 +984,31 @@ mypy passed (274 source files), git diff --check passed. Logs:
 Full intentionally queued with root; hosted CI pending draft PR creation. Remaining
 CRM scheduling/automatic refresh, verified Shopify identity matching/retention and
 live qualification are explicit in `docs/inlet-omnisend-runtime.md`.
+
+## Combined Customer Foundation Candidate (2026-10-06)
+
+Branch `codex/inlet-release-foundation`, based on frozen PR86 ea4871b, integrates
+Shopify customer OAuth/session locks (PR87), readiness status (PR88), CRM pacing
+(PR89), browser Google sign-in (PR90), offline media/review (PR91), real HTTPS
+browser/API/DB tests (PR92), and verified Omnisend HTTP contracts (PR93).
+Migration0039 merges0037/0038. Populated round trips verify existing rows survive
+and new tables downgrade/recreate correctly.
+
+Code head b3035a8: combined customer/sign-in/Shopify/review/CRM/Omnisend/migration/
+ownership/commerce/readiness suite **214 passed, 8 intentional SQLite concurrency
+skips**, PostgreSQL counterparts executed; 20 existing Alembic deprecation warnings.
+Ruff and mypy287 passed; focused log `/tmp/inlet-release-focused.log`. A first
+invocation named a nonexistent test file and exited4 without executing tests; the
+corrected complete invocation produced the results above. Full/CI pending finalhead.
+
+Predecessor final-head evidence: PR83 ad4e9f2 local Full1048passed6PowerShellskips,
+CI1054passed0skips; PR84 68c9bc5 local Full1021passed6PowerShellskips, CI1027passed;
+PR85 eefc7fe local Full957passed7skips, CI963passed1intentionalSQLite-onlyskip;
+PR82 c2e09c1 local Full1020passed6PowerShellskips, CI1026passed. All listed Full
+runs ended exit0 and all hosted gates succeeded with actual checkout trees equal
+to their PR heads. These are offline results, not live qualification or deployment.
+
+Next packages: paced CRM rotating-token renewal; actual customer Shopify browser
+journey; publication coordinator with fixture-only authority. B07 simulation mandates
+remain simulation and B14 review does not grant publication permission. No provider
+mutations, live credentials, merge or deployment were performed.

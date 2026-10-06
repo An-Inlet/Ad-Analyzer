@@ -3,7 +3,7 @@ const browserFetch = globalThis.fetch;
 const calls = [];
 const goalId = 'g'.repeat(32), storeId = 's'.repeat(32);
 let goals = [], creates = 0, principal = 'A', failWorkspaces = false, loseGoal = true;
-let releaseGoals = null, deferGoals = false, unauthorized = false;
+let releaseGoals = null, deferGoals = false, unauthorized = false, rejectCreate = false, lossStatus = null;
 const receipts = new Map();
 Object.defineProperty(document, 'cookie', {get: () => '__Host-inlet_csrf=' + 'a'.repeat(43)});
 globalThis.fetch = async (path, options) => {
@@ -24,11 +24,12 @@ globalThis.fetch = async (path, options) => {
   else if (path.includes('/commerce/snapshots/')) value = {quality:'complete',net_sales_micros:1000000000,currency:'USD',orders:10,window:{start:'2026-01-01',end:'2026-02-01',time_basis:'calendar_month'},reasons:[]};
   else if (path.endsWith('/confirm')) { goals[0].confirmation_recorded = true; value = goals[0]; }
   else if (path.endsWith('/goals') && options.method === 'POST') {
+    if (rejectCreate) { rejectCreate = false; return {ok:false,status:422}; }
     const key = options.headers['Idempotency-Key'];
     assert(Boolean(key), 'Creation key present');
-    if (!receipts.has(key)) { value = {id:goalId,revision:1,definition:body.definition,assessment:'draft',confirmation_recorded:false}; receipts.set(key, value); goals.push(value); }
+    if (!receipts.has(key)) { value = {id:receipts.size ? String(receipts.size).repeat(32) : goalId,revision:1,definition:body.definition,assessment:'draft',confirmation_recorded:false}; receipts.set(key, value); goals.push(value); }
     value = receipts.get(key);
-    if (loseGoal) { loseGoal = false; throw Error('Response lost after commit'); }
+    if (loseGoal) { loseGoal = false; if (lossStatus) return {ok:false,status:lossStatus}; throw Error('Response lost after commit'); }
   }
   else if (path.endsWith('/goals')) { if (deferGoals) await new Promise(resolve => { releaseGoals = resolve; }); value = goals; }
   else if (path.endsWith('/goals/' + goalId)) { goals[0] = {...goals[0],definition:body.definition,revision:2}; value = goals[0]; }
@@ -78,6 +79,21 @@ try {
   $('workspace').dispatchEvent(new Event('change')); await wait();
   $('goal').value = goalId; $('goal').dispatchEvent(new Event('change'));
   assert($('goal-form').hidden && !$('goal-limits').hidden,'Unsupported cumulative definition cannot be silently rewritten');
+  const fill = target => { for (const [name,value] of Object.entries({...values, target})) $('goal-form').elements.namedItem(name).value = value; };
+  $('goal').value = ''; $('goal').onchange(); fill('12000'); loseGoal = true; lossStatus = 503;
+  $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
+  assert(receipts.size === 2, 'Second goal committed before lost response');
+  goals[0].definition.target_window.time_basis = 'calendar_month';
+  $('goal').value = goalId; $('goal').onchange(); fill('13000');
+  $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
+  $('goal').value = ''; $('goal').onchange(); fill('12000');
+  $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
+  assert(receipts.size === 2 && goals.length === 2, 'Editing another goal preserves uncertain creation receipt');
+  $('goal').value = ''; $('goal').onchange(); fill('14000'); rejectCreate = true;
+  $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
+  assert($('message').textContent.includes('Check the entered values'), 'Definite rejection shown');
+  fill('15000'); $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
+  assert(receipts.size === 3 && goals.length === 3, 'Corrected input allowed after definite rejection');
   $('logout').click(); await wait(); assert($('application').hidden,'Signout clears application');
   assert($('goal-detail').textContent === '' && $('billing').textContent === '' && $('workspace-content').hidden, 'Signout erases customer data');
   principal = 'B'; $('retry').click(); await wait();

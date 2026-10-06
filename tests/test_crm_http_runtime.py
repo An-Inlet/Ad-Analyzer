@@ -191,6 +191,38 @@ def test_real_requests_prove_account_and_strip_personal_payloads(
     )
 
 
+def test_klaviyo_nullable_channels_preserve_other_profiles_and_consent() -> None:
+    # Pinned 2026-07-15 schema permits null email/SMS channels and SMS marketing.
+    subscribed = {"marketing": {"consent": "SUBSCRIBED", "can_receive_email_marketing": True}}
+    unsubscribed = {"marketing": {"consent": "UNSUBSCRIBED"}}
+    subscriptions = [
+        {"email": subscribed, "sms": None},
+        {"email": None, "sms": unsubscribed},
+        {"email": None, "sms": None},
+        {"email": subscribed, "sms": {"marketing": None}},
+        {"email": subscribed, "sms": unsubscribed},
+    ]
+    io = ProviderHTTP("klaviyo")
+    io.profiles = {
+        "data": [
+            {"id": f"profile-{index}", "attributes": {"subscriptions": value}}
+            for index, value in enumerate(subscriptions)
+        ],
+        "links": {"next": None},
+    }
+    page = adapter("klaviyo", io).page(io.account, TOKEN, None, NOW)
+    assert page.next_cursor is None
+    assert [(p.email_status, p.sms_status) for p in page.profiles] == [
+        ("subscribed", "unknown"),
+        ("unknown", "unsubscribed"),
+        ("unknown", "unknown"),
+        ("subscribed", "unknown"),
+        ("subscribed", "unsubscribed"),
+    ]
+    assert all(p.email_suppression_scope == "unknown" for p in page.profiles)
+    assert all(p.sms_suppression_scope == "unknown" for p in page.profiles)
+
+
 @pytest.mark.parametrize("provider", ["klaviyo", "hubspot"])
 def test_account_mismatch_prevents_profile_read_and_refresh_change(provider: str) -> None:
     io = ProviderHTTP(provider)

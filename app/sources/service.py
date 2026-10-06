@@ -15,8 +15,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform
+from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
+from app.google_connections.models import GoogleImportCompletion
 from app.google_connections.security import digest
 from app.imports.scope import ensure_native_integration
 from app.mandates.service import workspace_lock
@@ -274,6 +276,7 @@ def select_account(
         )
         db.add(existing)
     else:
+        discard_pending_analysis(db, existing)
         existing.generation += 1
         existing.covered_from, existing.covered_through, existing.last_sync_at = None, None, None
         existing.cursor, existing.staged, existing.next_attempt_at = None, {}, None
@@ -301,7 +304,28 @@ def token(row: SourceConnection, now: datetime) -> str:
     return str(bundle["access_token"])
 
 
+def discard_pending_analysis(db: Session, row: SourceConnection) -> None:
+    """Retire this source generation's pending jobs under workspace/connection locks."""
+    if row.provider != "tiktok_ads" or row.account_id is None:
+        return
+    db.execute(
+        delete(GoogleImportCompletion).where(
+            GoogleImportCompletion.state == "pending",
+            GoogleImportCompletion.job_id.in_(
+                select(JobRun.id).where(
+                    JobRun.platform == AdvertisingPlatform.TIKTOK_ADS,
+                    JobRun.workspace_id == row.workspace_id,
+                    JobRun.connection_id == row.integration_id,
+                    JobRun.account_id == row.account_id,
+                )
+            ),
+        )
+    )
+
+
 def disconnect(db: Session, row: SourceConnection) -> None:
+    row = owned(db, row.workspace_id, cast(ProviderName, row.provider), row.id)
+    discard_pending_analysis(db, row)
     integration = db.get(WorkspaceIntegration, row.integration_id)
     assert integration is not None
     integration.status = "revoked"

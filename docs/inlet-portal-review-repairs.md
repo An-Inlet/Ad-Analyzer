@@ -51,3 +51,17 @@ Three Alembic configuration deprecation warnings are unrelated to the changes.
 
 Full repository validation and hosted CI are tracked by the parent executor and
 remain pending at this repair checkpoint. No live verification or deployment.
+
+## Retry Follow-Up
+
+Two additional Chromium repros exposed retry-state lifecycle defects: editing an
+existing goal could discard another uncertain creation key, and a definite 422
+validation rejection prevented saving corrected input. Keys now settle only for
+the matching successful creation, or its explicit pre-commit validation rejection.
+Successful edits leave pending creation receipts intact. Network failures and
+5xx results preserve uncertainty. Fixtures exercise a committed-but-lost 503,
+editing another goal, retrying the original save, and correcting rejected input.
+API checks cover 422 followed by corrected creation and exact replay.
+
+The Full run/CI for earlier head `18bc4f22` must not be cited as verification of
+this follow-up. Its focused checks and later Full/CI are reported separately.

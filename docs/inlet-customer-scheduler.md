@@ -58,3 +58,12 @@ a total retry count and the most recent32 sanitized failure attempts (older deta
 is intentionally bounded). Failed retryable runs back off through the outbox;
 changed scope/windows fail closed instead of silently rewriting the original run. No live transport, grant, billing, or customer
 journey is qualified by these offline checks.
+
+## Provider-Neutral Outbox Review Repair
+
+Although named GoogleImportCompletion historically, TikTok also writes this table.
+Delivery now validates the persisted JobRun platform, selects that provider's owned
+connection, then rechecks pending completion and tenant/account/entitlement scope.
+TikTok lifecycle retirement shares the same lock order and leaves unrelated tenants'
+pending work intact. Fixture TikTok import-to-analysis execution and replay are
+verified on SQLite and PostgreSQL; no live provider requests were used.

@@ -828,3 +828,33 @@ nonmigration regression suite:64 passed,2 skips,6 migration cases deselected bec
 starting integrationbasec86beb3 had two migrationheads. Ruff/mypy266files/diff passed.
 Merge current integration's0036 before migration-wide checks. NoFull/providercalls,
 credentials, merge-to-main or deployment. See docs/inlet-customer-shopify.md.
+#### PR83 TikTok outbox review repair
+
+The provider-neutral completion table also receives TikTok jobs; the initial
+coordinator incorrectly required a Google connection for every delivery. The
+coordinator now branches on the persisted job platform and locks the matching
+owned Google or TikTok connection. TikTok reconnect/disconnect atomically retires
+only that source's pending jobs under the same workspace/connection locks.
+Real fixture TikTok imports now complete local analysis exactly once. Tests cover
+reconnect/disconnect stale selections, another tenant surviving retirement, and a
+foreign workspace connection being unable to authorize an unbound source job.
+
+Checks:67 focused SQLite/PostgreSQL tests passed (two existing Alembic warnings),
+Ruff/mypy253 files/diffcheck passed. Log:/tmp/inlet-scheduler-tiktok-final.log.
+The prior head96cca816 Full remains running in its untouched worktree; this repair
+was made in isolated/workspace/inlet-scheduler-repair so old validation is not
+silently attributed to the new code. Final-head Full/CI remain pending.
+### Klaviyo Nullable Channel Regression — 2026-10-06
+
+Isolated branch `codex/inlet-crm-nullable-fix` from PR82 head
+`6080164d7f2ca66d0d8599ff9faa4346de64c425` preserves the ongoing Full run's tree.
+The pinned 2026-07-15 schema permits null email/SMS subscription channels:
+https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/apis/get_profiles.json
+A mixed page with subscribed email and null SMS reproduced
+`crm_profile_response_invalid` before the fix. Nullable channels now project unknown
+consent and suppression, retaining valid neighboring channels and profiles. The HTTP
+regression covers both channel directions, both null, nullable marketing and ordinary
+subscribed/unsubscribed data. Focused CRM/context/status suite: 39 passed with disposable
+PostgreSQL, no skips. Ruff, mypy and diff checks pass. Full validation at the parent
+head remains separate evidence; this correction has not independently run Full or
+called a live provider.

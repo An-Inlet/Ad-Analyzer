@@ -2727,3 +2727,26 @@ Root combined social API/browser/hash/review/migration/repeat/routes suite:
 includes post-context session repair, repeat accounting, reproduced frozen-failure
 fixture repairs, and bounded normal-CI diagnostic artifacts. Next frozen Full and
 PR130 CI must establish their own terminal results; neither is assembled-green yet.
+
+### Frozen CI Meta Browser Startup Repair
+
+`codex/inlet-meta-browser-ci-repair`, isolated from frozen8efe196. Hosted run37427571832,
+job112150604656 checked out merge80e432a072d4970fd4fe50c23b1a913257e99250 (8efe196 into
+main ea3591c). Its outer and nested Full failures identify the first Meta workspace
+selection, immediately after login and Retry. Candidate worktree/Full database untouched.
+
+Deterministic isolated PostgreSQL reproduction held the initial anonymous session GET
+while login completed: sanitized DOM before Retry was disabled=true/bound=true/options0;
+HTTP statuses were POST/session200 then initial GET/session401; final DOM was Retryenabled
+with options0 and no second session/workspace request. The synthetic disabled click was
+dropped. This is the Meta browser fixture synchronization gap already guarded in Google
+and Shopify fixtures, not a reproduced product defect. Repro log:
+`/tmp/inlet-meta-browser-repro.log` (only selected DOM flags and method/path/status).
+
+The repaired harness preserves the forced overlap, releases the initial probe and waits
+for the bound enabled Retry control before one click. No timeouts relaxed, tests deselected,
+product behavior changed or live providers contacted. Actual Meta consent/cancel/back/retry/
+selection/role/session/disconnect browser journey passes both SQLite and PostgreSQL:
+2 passed in14.25s. Dedicated disposableDB inlet_meta_browser_ci. Whole Ruff and mypy485
+pass; diffcheck clean. Logs `/tmp/inlet-meta-browser-repair-tests.log` and
+`/tmp/inlet-meta-browser-repair-mypy.log`. No Full run by this repair package.

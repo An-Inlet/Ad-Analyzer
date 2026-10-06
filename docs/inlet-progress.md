@@ -1445,3 +1445,24 @@ PostgreSQL counterpart ran. Whole-tree Ruff, mypy (317 files) and diff check pas
 The earlier isolated case, prefix-order subset and full-collection selection passed
 without the forced overlap, so they did not establish a fix. No successful Full is
 claimed for this repair; the assembled successor needs exact-head Full/CI.
+
+### Shopify And Google Browser Startup Synchronization — 2026-10-06
+
+Branch `codex/inlet-shopify-browser-repair` is an isolated child of billing repair
+PR126 `fa31c11`. The frozen PR112 Full nested Shopify SQLite journey failed at its
+initial workspace-options wait. A test-only ASGI wrapper holding the first session
+GET through login reproduced that precise failure: **1 failed**. The copied Google
+journey independently reproduced the same dropped Retry click under the same
+controlled overlap: **1 failed, 1 deselected**.
+
+Both tests now release the initial probe, wait for the bound and enabled Retry
+control, then click once. The forced startup overlap remains in SQLite/PostgreSQL
+journeys, and cleanup always releases the probe. No product behavior, deadlines,
+acceptance assertions or provider boundaries changed. This is separate from the
+browser target-discovery repair coordinated in another branch.
+
+Final combined Shopify consent/customer API, Google connection, billing browser and
+portal suite: **39 passed, 6 SQLite-only lock skips**; PostgreSQL counterparts ran.
+Whole-tree Ruff, mypy (317 source files) and diff check passed. No Full or hosted CI
+success claimed. Frozen parent heads remain unchanged; the assembled successor
+requires exact-head validation with both synchronization and target-discovery fixes.

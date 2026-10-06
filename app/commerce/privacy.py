@@ -25,6 +25,12 @@ from app.shopify.security import ShopifyError, Vault, utc
 def store_for_update(session: Session, store_id: str | None) -> CommerceStore | None:
     if store_id is None:
         return None
+    from app.commerce.evidence import lock_workspace
+
+    owner = session.scalar(select(CommerceStore.workspace_id).where(CommerceStore.id == store_id))
+    if owner is None:
+        return None
+    lock_workspace(session, owner)
     return session.scalar(
         select(CommerceStore).where(CommerceStore.id == store_id).with_for_update()
     )
@@ -54,6 +60,9 @@ def remove_store(session: Session, store_id: str | None) -> None:
     store = store_for_update(session, store_id)
     if store is None:
         return
+    from app.commerce.evidence import invalidate
+
+    invalidate(session, store, datetime.now(UTC))
     # Disconnect has always promised local deletion, including retained measurement facts.
     for model in (
         CommerceSourceLink,
@@ -156,6 +165,9 @@ def process_measurement_event(
             covered_from=None,
         )
     )
+    from app.commerce.evidence import invalidate
+
+    invalidate(session, store, datetime.now(UTC))
     delete_orders(session, store, keys)
     # As-of artifacts cannot retain erased individuals, even indirectly in aggregates.
     session.execute(delete(CommerceSnapshot).where(CommerceSnapshot.store_id == store.id))
@@ -170,14 +182,71 @@ def process_measurement_event(
     return keys
 
 
-def purge_measurements(session: Session, now: datetime) -> None:
-    for store in session.scalars(select(CommerceStore).with_for_update()):
+def purge_measurements(session: Session, now: datetime, *, workspace_id: int | None = None) -> None:
+    from app.commerce.evidence import invalidate, lock_workspace
+
+    owner_query = select(CommerceStore.workspace_id).distinct().order_by(CommerceStore.workspace_id)
+    if workspace_id is not None:
+        owner_query = owner_query.where(CommerceStore.workspace_id == workspace_id)
+    owners = list(session.scalars(owner_query))
+    for owner in owners:
+        lock_workspace(session, owner)
+    # Native locks precede all stores, matching authenticated privacy events.
+    list(
+        session.scalars(
+            select(ShopifyConnection)
+            .where(ShopifyConnection.workspace_id.in_(owners))
+            .order_by(ShopifyConnection.workspace_id)
+            .with_for_update()
+        )
+    )
+    for store in session.scalars(
+        select(CommerceStore)
+        .where(CommerceStore.workspace_id.in_(owners))
+        .order_by(CommerceStore.workspace_id, CommerceStore.id)
+        .with_for_update()
+    ):
         floor = retention_floor(now, store.time_zone)
+        expiring = any(
+            session.scalar(query.limit(1)) is not None
+            for query in (
+                select(CommerceEntry.entry_key).where(
+                    CommerceEntry.store_id == store.id, CommerceEntry.happened_at < floor
+                ),
+                select(CommerceSnapshot.id).where(
+                    CommerceSnapshot.store_id == store.id, CommerceSnapshot.starts_at < floor
+                ),
+                select(CommerceOrder.order_key).where(
+                    CommerceOrder.store_id == store.id,
+                    CommerceOrder.created_at < floor,
+                    CommerceOrder.source_updated_at < floor,
+                ),
+                select(CommerceDailyRevision.store_id).where(
+                    CommerceDailyRevision.store_id == store.id,
+                    CommerceDailyRevision.day < floor.astimezone(ZoneInfo(store.time_zone)).date(),
+                ),
+            )
+        )
         session.execute(
             delete(CommerceEntry).where(
                 CommerceEntry.store_id == store.id, CommerceEntry.happened_at < floor
             )
         )
+        from app.commerce.models import CommerceMeasurementPublication
+
+        if expiring or (
+            session.scalar(
+                select(CommerceMeasurementPublication.id)
+                .where(
+                    CommerceMeasurementPublication.store_id == store.id,
+                    CommerceMeasurementPublication.earliest_source_day
+                    < floor.astimezone(ZoneInfo(store.time_zone)).date(),
+                )
+                .limit(1)
+            )
+            is not None
+        ):
+            invalidate(session, store, now, clear_history=False)
         local_floor = floor.astimezone(ZoneInfo(store.time_zone)).date()
         session.execute(
             delete(CommerceDailyRevision).where(

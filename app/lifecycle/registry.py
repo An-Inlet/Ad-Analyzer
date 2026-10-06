@@ -12,6 +12,34 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "commerce_evidence_states": TablePolicy(
+        "workspace",
+        (
+            "store_id",
+            "workspace_id",
+            "generation",
+            "privacy_epoch",
+            "publication_revision",
+            "history_from",
+            "updated_at",
+        ),
+    ),
+    "commerce_measurement_publications": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "store_id",
+            "generation",
+            "privacy_epoch",
+            "publication_revision",
+            "source_revision",
+            "source_window_start",
+            "source_window_end",
+            "published_at",
+            "earliest_source_day",
+        ),
+    ),
     "ad_groups": TablePolicy(
         "parent",
         (

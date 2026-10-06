@@ -95,3 +95,29 @@ def saved(
         raise HTTPException(404, "snapshot not found")
     response.headers["Cache-Control"] = "no-store"
     return {**item.result, "snapshot_id": item.id}
+
+
+@router.get("/stores/{store_id}/publications/latest")
+def latest_publication(
+    workspace_id: int, store_id: str, principal: Principal, db: Database, response: Response
+) -> dict[str, Any]:
+    return publication(workspace_id, store_id, None, principal, db, response)
+
+
+@router.get("/stores/{store_id}/publications/{publication_id}")
+def publication(
+    workspace_id: int,
+    store_id: str,
+    publication_id: str | None,
+    principal: Principal,
+    db: Database,
+    response: Response,
+) -> dict[str, Any]:
+    from app.commerce.evidence import read_publication
+
+    customer_workspace(db, principal.user.id, workspace_id)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return read_publication(db, workspace_id, store_id, publication_id)
+    except ShopifyError:
+        raise HTTPException(404, "measurement publication unavailable") from None

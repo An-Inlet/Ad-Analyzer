@@ -96,6 +96,8 @@ def blockers(db: Session, scope: LifecycleScopeV1) -> list[dict[str, Any]]:
     for name, states in {
         "mandate_actions": ["dispatching", "outcome_unknown"],
         "publication_steps": ["dispatching", "unknown", "conflict"],
+        "provider_execution_steps": ["dispatching", "emitting", "unknown", "conflict"],
+        "provider_exposure_reservations": ["held"],
     }.items():
         table = Base.metadata.tables[name]
         if db.scalar(

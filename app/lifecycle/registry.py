@@ -12,18 +12,6 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
-    "commerce_evidence_states": TablePolicy(
-        "workspace",
-        (
-            "store_id",
-            "workspace_id",
-            "generation",
-            "privacy_epoch",
-            "publication_revision",
-            "history_from",
-            "updated_at",
-        ),
-    ),
     "commerce_measurement_publications": TablePolicy(
         "workspace",
         (
@@ -39,6 +27,130 @@ TABLES: dict[str, TablePolicy] = {
             "published_at",
             "earliest_source_day",
         ),
+    ),
+    "commerce_evidence_states": TablePolicy(
+        "workspace",
+        (
+            "store_id",
+            "workspace_id",
+            "generation",
+            "privacy_epoch",
+            "publication_revision",
+            "history_from",
+            "updated_at",
+        ),
+    ),
+    # Provider execution audit facts remain protected through uncertainty/closure.
+    "provider_execution_approvals": TablePolicy(
+        "workspace",
+        ("review_id", "workspace_id", "review_digest", "plan_digest", "actor", "approved_at"),
+        None,
+        True,
+    ),
+    "provider_execution_attempts": TablePolicy(
+        "workspace",
+        ("id", "workspace_id", "run_id", "step_id", "fence", "request_digest", "dispatched_at"),
+        None,
+        True,
+    ),
+    "provider_execution_consents": TablePolicy(
+        "workspace",
+        ("id", "workspace_id", "mandate_id", "revision", "policy_digest", "actor", "approved_at"),
+        None,
+        True,
+    ),
+    "provider_execution_mandates": TablePolicy(
+        "workspace", ("id", "workspace_id", "ledger_id", "revision", "state"), None, True
+    ),
+    "provider_execution_receipts": TablePolicy(
+        "workspace",
+        ("id", "workspace_id", "attempt_id", "sequence", "supersedes_id", "digest", "observed_at"),
+        None,
+        True,
+    ),
+    "provider_execution_responses": TablePolicy(
+        "workspace", ("attempt_id", "digest", "workspace_id", "observed_at"), None, True
+    ),
+    "provider_execution_reviews": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "consent_id",
+            "account_id",
+            "integration_id",
+            "source_draft_id",
+            "source_revision",
+            "digest",
+            "plan_digest",
+            "actor",
+            "created_at",
+        ),
+        None,
+        True,
+    ),
+    "provider_execution_revisions": TablePolicy(
+        "workspace",
+        (
+            "mandate_id",
+            "revision",
+            "workspace_id",
+            "goal_id",
+            "goal_revision",
+            "digest",
+            "actor",
+            "created_at",
+        ),
+        None,
+        True,
+    ),
+    "provider_execution_runs": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "review_id",
+            "reservation_id",
+            "parent_run_id",
+            "state",
+            "created_at",
+            "canceled_at",
+        ),
+        None,
+        True,
+    ),
+    "provider_execution_steps": TablePolicy(
+        "workspace", ("run_id", "step_id", "workspace_id", "ordinal", "state"), None, True
+    ),
+    "provider_exposure_reservations": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "ledger_id",
+            "environment",
+            "budget_owner_key",
+            "amount_micros",
+            "state",
+        ),
+        None,
+        True,
+    ),
+    "provider_period_ledgers": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "environment",
+            "currency",
+            "starts_at",
+            "ends_at",
+            "spent_high_water_micros",
+            "action_count",
+            "last_dispatch_at",
+        ),
+        None,
+        True,
     ),
     "ad_groups": TablePolicy(
         "parent",

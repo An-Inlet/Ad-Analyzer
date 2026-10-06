@@ -36,11 +36,16 @@ NOW = datetime(2026, 10, 6, tzinfo=UTC)
 
 def test_release_migrations_have_one_merge_head() -> None:
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert scripts.get_heads() == ["20261006_0039"]
+    heads = scripts.get_heads()
+    assert len(heads) == 1
+    # New packages may extend the release merge without weakening its ancestry.
+    assert "20261006_0039" in {
+        r.revision for r in scripts.iterate_revisions(heads[0], "20261006_0036")
+    }
     merge = scripts.get_revision("20261006_0039")
     assert merge is not None and isinstance(merge.down_revision, tuple)
     assert set(merge.down_revision) == {"20261006_0037", "20261006_0038"}
-    assert {r.revision for r in scripts.iterate_revisions("head", "20261006_0036")} == {
+    assert {r.revision for r in scripts.iterate_revisions("20261006_0039", "20261006_0036")} == {
         "20261006_0037",
         "20261006_0038",
         "20261006_0039",
@@ -187,7 +192,7 @@ def test_populated_release_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
             assert "generation" not in {
                 c["name"] for c in inspect(db).get_columns("meta_connections")
             }
-        command.upgrade(config, "head")
+        command.upgrade(config, "20261006_0039")
         with engine.begin() as db:
             preserved(db, before)
             assert set(inspect(db).get_table_names()) >= NEW_TABLES
@@ -254,7 +259,7 @@ def test_populated_release_roundtrip(monkeypatch: pytest.MonkeyPatch) -> None:
                 c["name"] for c in inspect(db).get_columns("meta_connections")
             }
             assert db.scalar(text("SELECT version_num FROM alembic_version")) == "20261006_0036"
-        command.upgrade(config, "head")
+        command.upgrade(config, "20261006_0039")
         with engine.connect() as db:
             preserved(db, before)
             assert set(inspect(db).get_table_names()) >= NEW_TABLES

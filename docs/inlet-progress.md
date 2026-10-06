@@ -1057,3 +1057,13 @@ were stopped together. No replacement Full started pending root coordination.
   exposure requirement. Provider runtime factory stays unavailable. Production
   authority, qualification reads, persisted provider review/coordinator/UI, separate
   activation and settlement remain implementation work; B15 is not complete.
+## PR98 CI Migration Checkpoint Repair — 2026-10-06
+
+- CI37406849242/job112086207972 failed (3 failed, 1333 passed, 10 skipped): release
+  migration tests incorrectly treated0039 as the permanent latest head; nested Full
+  repeated the same two failures. No CI pass is claimed for that head.
+- Release branch roundtrip now explicitly targets0039, while the graph test requires
+  one current head descending through the exact0037/0038→0039 merge. This preserves
+  populated checkpoint coverage as future migrations are added.
+- Focused disposable PostgreSQL migration tests: 2 passed. Changed-file Ruff/mypy and
+  diff check passed. No replacement local Full started; coordinated validation pending.

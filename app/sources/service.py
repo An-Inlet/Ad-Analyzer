@@ -327,7 +327,9 @@ def view(row: SourceConnection) -> dict[str, Any]:
     }
     if row.provider == "tiktok_ads" and row.status in {"provider_error", "reconnect_required"}:
         result["status_label"] = (
-            "Provider Request Rejected" if row.status == "provider_error" else "Reconnection Required"
+            "Provider Request Rejected"
+            if row.status == "provider_error"
+            else "Reconnection Required"
         )
         result["next_action"] = (
             "Review provider access or configuration, then reconnect"

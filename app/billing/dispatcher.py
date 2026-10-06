@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.billing.contracts import BillingPolicy, BillingTransport
 from app.billing.models import BillingEvent, WorkspaceBilling
-from app.billing.service import reconcile, refresh
+from app.billing.service import reconcile, refresh, resolve_checkout
 from app.workspaces.models import Workspace
 
 
@@ -42,7 +42,11 @@ def run(
                 .join(Workspace)
                 .where(
                     Workspace.status == "active",
-                    WorkspaceBilling.subscription_id.is_not(None),
+                    WorkspaceBilling.workspace_id.not_in([wid for wid, _ in pending]),
+                    or_(
+                        WorkspaceBilling.subscription_id.is_not(None),
+                        WorkspaceBilling.checkout_id.is_not(None),
+                    ),
                     or_(
                         WorkspaceBilling.next_attempt_at.is_(None),
                         WorkspaceBilling.next_attempt_at <= now,
@@ -70,7 +74,21 @@ def run(
     for wid in stale:
         with factory() as db:
             try:
-                refresh(db, wid, policy, transport, now)
+                row = db.get(WorkspaceBilling, wid)
+                if (
+                    row is not None
+                    and row.checkout_id is not None
+                    and (
+                        row.subscription_id is None
+                        or row.status in {"canceled", "incomplete_expired"}
+                    )
+                ):
+                    from app.billing.service import owned
+
+                    row = owned(db, wid)
+                    resolve_checkout(db, row, policy, transport, now)
+                else:
+                    refresh(db, wid, policy, transport, now)
                 db.commit()
                 counts["refreshes"] += 1
             except Exception:

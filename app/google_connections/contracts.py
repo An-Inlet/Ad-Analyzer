@@ -48,8 +48,8 @@ class MetricRow(StrictModel):
 
 class Page(StrictModel):
     external_account_id: str = Field(pattern=r"^[0-9]{10}$")
-    campaigns: list[CampaignRow] = Field(max_length=1000)
-    metrics: list[MetricRow] = Field(max_length=1000)
+    campaigns: list[CampaignRow] = Field(max_length=10000)
+    metrics: list[MetricRow] = Field(max_length=10000)
     next_cursor: str | None = Field(default=None, max_length=4096)
 
 

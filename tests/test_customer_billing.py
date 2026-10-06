@@ -11,6 +11,7 @@ import pytest
 from app.billing.contracts import (
     BillingPolicy,
     CheckoutResult,
+    CheckoutState,
     SubscriptionState,
     UnavailableBilling,
 )
@@ -76,6 +77,16 @@ class FixtureBilling:
             id="cs_fixture",
             url="https://checkout.stripe.com/c/fixture",
             expires_at=NOW + timedelta(hours=1),
+        )
+
+    def checkout_state(self, customer_id: str, checkout_id: str, now: datetime) -> CheckoutState:
+        if self.fail:
+            raise TimeoutError("synthetic provider unavailable")
+        return CheckoutState(
+            id=checkout_id,
+            customer_id=customer_id,
+            status="expired" if now >= NOW + timedelta(hours=1) else "open",
+            observed_at=now,
         )
 
     def current(self, customer_id: str, subscription_id: str, now: datetime) -> SubscriptionState:

@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
 
-from app.sources.advertising import tick
+from app.sources.advertising import SourceReadUnavailable, tick
 from app.sources.contracts import SourceTransport
 from app.sources.models import SourceAuthorization, SourceConnection
 from app.workspaces.models import Workspace, WorkspaceIntegration
@@ -44,7 +44,26 @@ def run_tiktok(
             try:
                 if tick(db, wid, cid, generation, transport, now) is not None:
                     completed += 1
-            except Exception:
+            except Exception as exc:
                 db.rollback()
+                # A valid but rejected page must not monopolize the first due slot.
+                # Recheck generation/status after rollback: never poison a reconnect.
+                row = db.scalar(
+                    select(SourceConnection)
+                    .where(
+                        SourceConnection.id == cid,
+                        SourceConnection.workspace_id == wid,
+                        SourceConnection.generation == generation,
+                        SourceConnection.status == "connected",
+                    )
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+                if row is not None:
+                    row.next_attempt_at = now + timedelta(minutes=5)
+                    if not isinstance(exc, SourceReadUnavailable):
+                        row.error_code = "import_rejected"
+                        row.cursor, row.staged = None, {}
+                    db.commit()
                 failed += 1
     return {"selected": len(rows), "completed_windows": completed, "failed": failed}

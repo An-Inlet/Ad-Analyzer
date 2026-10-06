@@ -617,3 +617,21 @@ B12 local main suite862 passed with six PowerShell skips; Full final gate and ho
 CI37394563656 remain tracked in PR71. Next independent package: B14 supplied media and
 versioned customer review, using B07 immutable action/review boundaries. Outstanding
 B12/B13 live and product acceptance remain explicit backlog items.
+
+## Independent Review Repairs — Candidate Follow-up
+
+Branch `codex/inlet-acceptance-followups` follows PR72 `4d1506a`. The review reproduced
+rejected spend-observation rollback, Google payload/accounting binding and stale-session
+reservation defects, documented-page size rejection, TikTok dispatch starvation, Klaviyo
+suppression conflation and checkout expiry/replacement issues. Candidate repairs have
+101 passing focused/regression tests; baseline reproduction produced19 failures/3 passes
+before billing additions. Full/CI for the new repair head remain required. No B14 code
+expansion occurred while these repairs were prioritized. See `inlet-review-repairs.md`.
+
+`inlet-acceptance-matrix.md` identifies implemented surfaces, acceptance evidence, missing
+code and live gates separately. Hosted CI tested synthetic merge commits, not literal
+branch SHAs; fetched refs prove their trees equal the corresponding tested heads. PR66–72
+descriptions now record this correction. B12 Full862+6/hosted868+0 and B13 Full876+6/hosted
+882+0 completed with all gates; these baseline passes do not resolve new review findings.
+Next: verify repair package, complete actual provider transport/runtime code with mocked
+HTTP/SDK tests and disabled defaults, then customer purchasing/onboarding and B14 onward.

@@ -39,6 +39,15 @@ class CheckoutResult(StrictModel):
     expires_at: AwareDatetime
 
 
+class CheckoutState(StrictModel):
+    id: str = Field(pattern=r"^cs_[A-Za-z0-9_]{1,128}$")
+    customer_id: str = Field(pattern=r"^cus_[A-Za-z0-9_]{1,128}$")
+    status: Literal["open", "complete", "expired"]
+    subscription_id: str | None = Field(default=None, pattern=r"^sub_[A-Za-z0-9_]{1,128}$")
+    observed_at: AwareDatetime
+    livemode: Literal[False] = False
+
+
 class BillingTransport(Protocol):
     mode: Literal["fixture"]
 
@@ -49,6 +58,9 @@ class BillingTransport(Protocol):
     def current(
         self, customer_id: str, subscription_id: str, now: datetime
     ) -> SubscriptionState: ...
+    def checkout_state(
+        self, customer_id: str, checkout_id: str, now: datetime
+    ) -> CheckoutState: ...
 
 
 class UnavailableBilling:
@@ -63,6 +75,9 @@ class UnavailableBilling:
         raise RuntimeError("billing unavailable")
 
     def current(self, customer_id: str, subscription_id: str, now: datetime) -> SubscriptionState:
+        raise RuntimeError("billing unavailable")
+
+    def checkout_state(self, customer_id: str, checkout_id: str, now: datetime) -> CheckoutState:
         raise RuntimeError("billing unavailable")
 
 

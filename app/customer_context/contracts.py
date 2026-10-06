@@ -23,6 +23,12 @@ class ProfileContext(StrictModel):
     source_id: str = Field(min_length=1, max_length=128)
     email_status: ChannelStatus = "unknown"
     sms_status: ChannelStatus = "unknown"
+    email_suppression_scope: Literal["unknown", "none", "list", "global", "global_and_list"] = (
+        "unknown"
+    )
+    sms_suppression_scope: Literal["unknown", "none", "list", "global", "global_and_list"] = (
+        "unknown"
+    )
     lifecycle: Lifecycle = "unknown"
     as_of: AwareDatetime
 

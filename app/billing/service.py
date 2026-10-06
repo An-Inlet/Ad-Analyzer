@@ -67,12 +67,33 @@ def checkout(
     row = owned(db, wid)
     if row.status in {"active", "trialing", "past_due", "unpaid", "paused", "incomplete"}:
         raise HTTPException(409, "existing subscription requires billing management")
-    if row.checkout_url and row.checkout_expires_at and utc(row.checkout_expires_at) > now:
-        if row.checkout_price != policy.price_id:
-            raise HTTPException(409, "checkout already pending for another plan")
-        return {"mode": "fixture", "url": row.checkout_url, "id": row.checkout_id}
     if row.checkout_id is not None:
-        row.checkout_key, row.checkout_id, row.checkout_url = None, None, None
+        outcome = resolve_checkout(db, row, policy, transport, now)
+        db.commit()
+        if outcome == "complete":
+            if row.status not in {"canceled", "incomplete_expired"}:
+                raise HTTPException(409, "checkout completed; subscription reconciled")
+            # A completed checkout may be retired only after its subscription was
+            # read back as terminal, never because its URL expiry elapsed.
+            row.checkout_key, row.checkout_id, row.checkout_url, row.checkout_expires_at = (
+                None,
+                None,
+                None,
+                None,
+            )
+            db.commit()
+        if outcome == "open":
+            if row.checkout_price != policy.price_id:
+                raise HTTPException(409, "checkout already pending for another plan")
+            if (
+                not row.checkout_url
+                or not row.checkout_expires_at
+                or utc(row.checkout_expires_at) <= now
+            ):
+                raise HTTPException(409, "checkout still unresolved; retry reconciliation")
+            return {"mode": "fixture", "url": row.checkout_url, "id": row.checkout_id}
+        # Only canonical expired/no-subscription proof permits a new idempotency key.
+        row = owned(db, wid)
     if row.checkout_key is None:
         row.checkout_key, row.checkout_price = uuid4().hex, policy.price_id
     if row.checkout_price != policy.price_id:
@@ -84,12 +105,7 @@ def checkout(
     except Exception:
         raise HTTPException(502, "checkout pending; retry safely") from None
     location = urlsplit(result.url)
-    if (
-        location.scheme != "https"
-        or location.netloc != "checkout.stripe.com"
-        or location.username
-        or result.expires_at <= now
-    ):
+    if location.scheme != "https" or location.netloc != "checkout.stripe.com" or location.username:
         raise HTTPException(502, "checkout result unavailable")
     row = owned(db, wid)
     if row.checkout_key != checkout_key or row.customer_id != customer:
@@ -101,7 +117,12 @@ def checkout(
         result.url,
         result.expires_at,
     )
-    db.commit()
+    db.commit()  # Retain the recovered provider ID even if its URL has expired.
+    if result.expires_at <= now:
+        row = owned(db, wid)
+        outcome = resolve_checkout(db, row, policy, transport, now)
+        db.commit()
+        raise HTTPException(409, "checkout " + outcome + "; retry from current billing state")
     return {"mode": "fixture", "url": result.url, "id": result.id}
 
 
@@ -120,15 +141,16 @@ def reconcile(
         raise HTTPException(404, "billing event unavailable")
     if event.state == "processed":
         return False
-    if row.subscription_id is not None and row.subscription_id != event.subscription_id:
-        event.state, event.error_code = "unresolved", "subscription_identity_conflict"
-        db.commit()
-        raise HTTPException(409, "subscription identity requires reconciliation")
     try:
+        if row.subscription_id is not None and row.subscription_id != event.subscription_id:
+            outcome = resolve_checkout(db, row, policy, transport, now)
+            if outcome != "complete" or row.subscription_id != event.subscription_id:
+                raise HTTPException(409, "subscription identity requires reconciliation")
         refresh(db, wid, policy, transport, now, subscription_id=event.subscription_id)
     except HTTPException:
         event.error_code = "provider_read_unavailable"
         event.next_attempt_at = now + timedelta(minutes=1)
+        row.next_attempt_at = event.next_attempt_at
         db.commit()
         raise
     event.state, event.processed_at, event.error_code = "processed", now, None
@@ -196,3 +218,63 @@ def refresh(
     row.cancel_at_period_end, row.verified_at = state.cancel_at_period_end, state.observed_at
     row.error_code = None if state.price_id == policy.price_id else "unrecognized_price"
     row.next_attempt_at = now + timedelta(seconds=policy.max_snapshot_age_seconds // 2)
+
+
+def resolve_checkout(
+    db: Session,
+    row: WorkspaceBilling,
+    policy: BillingPolicy,
+    transport: BillingTransport,
+    now: datetime,
+) -> str:
+    if row.checkout_id is None or row.customer_id is None:
+        raise HTTPException(409, "checkout identity unavailable")
+    try:
+        state = transport.checkout_state(row.customer_id, row.checkout_id, now)
+    except Exception:
+        raise HTTPException(502, "checkout reconciliation unavailable") from None
+    if (
+        state.id != row.checkout_id
+        or state.customer_id != row.customer_id
+        or state.livemode
+        or not now - timedelta(seconds=30) <= state.observed_at <= now
+    ):
+        raise HTTPException(409, "checkout identity mismatch")
+    if state.status == "expired":
+        if state.subscription_id is not None:
+            raise HTTPException(409, "expired checkout has unresolved subscription")
+        row.checkout_key, row.checkout_id, row.checkout_url, row.checkout_expires_at = (
+            None,
+            None,
+            None,
+            None,
+        )
+    elif state.status == "complete":
+        if state.subscription_id is None:
+            raise HTTPException(409, "completed checkout subscription unavailable")
+        if row.subscription_id is not None and row.subscription_id != state.subscription_id:
+            # Verify the old contract is terminal before adopting the new session's
+            # subscription. A browser/event identifier alone cannot replace ownership.
+            refresh(db, row.workspace_id, policy, transport, now)
+            if row.status not in {"canceled", "incomplete_expired"}:
+                raise HTTPException(409, "previous subscription is not terminal")
+            previous_id = row.subscription_id
+            row.subscription_id = None
+            try:
+                refresh(
+                    db,
+                    row.workspace_id,
+                    policy,
+                    transport,
+                    now,
+                    subscription_id=state.subscription_id,
+                )
+            except Exception:
+                row.subscription_id = previous_id
+                raise
+        else:
+            refresh(
+                db, row.workspace_id, policy, transport, now, subscription_id=state.subscription_id
+            )
+    row.next_attempt_at = now + timedelta(seconds=policy.max_snapshot_age_seconds // 2)
+    return state.status

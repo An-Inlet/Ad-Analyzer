@@ -40,6 +40,9 @@ def test_derived_candidate_migration_roundtrip(
     try:
         command.upgrade(config, "20261006_0062")
         without_feedback(monkeypatch, engine)
+        from tests.candidate_historical_schema import without_candidate_reviews
+
+        without_candidate_reviews(monkeypatch, engine)
         with Session(engine) as db:
             principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
             row = enqueue(db, principal, work, runtime)

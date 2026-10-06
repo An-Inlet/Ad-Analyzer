@@ -42,6 +42,9 @@ def test_populated_feedback_migration_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0064")
+        from tests.candidate_historical_schema import without_candidate_reviews
+
+        without_candidate_reviews(monkeypatch, engine)
         value = make_assessment(engine, configuration, tmp_path)
         with Session(engine) as db:
             identifier, historical, job, slot = seed_graph(db, value, configuration)

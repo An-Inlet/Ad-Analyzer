@@ -207,6 +207,8 @@ RESPONSE_ADAPTERS: dict[str, TypeAdapter[Any]] = {
 ADAPTERS[("optimization_candidate_jobs", "work")] = WORK_ADAPTER
 
 INTERNAL = {
+    "original_session_digest",
+    "candidate_provenance_required",
     "auth_session_digest",
     "export_privacy_revision",
     "request_key",

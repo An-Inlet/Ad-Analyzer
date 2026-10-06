@@ -3691,3 +3691,75 @@ warnings in29.13s across acquisition, commerce measurement and maturity evaluati
 and whitespace passed. Updated current acceptance matrix to distinguish newly
 implemented billing/feedback/selection from remaining ordinary code and genuinely
 unavailable provider guarantees. Main reconfirmed ea3591c5086fbf2cee8038bf9208ac7f0050de75.
+## 2026-10-06 — Candidate To Exact Optimization Review Bridge (0068)
+
+Branch `codex/inlet-candidate-review`, isolated child of PR1941aed881. Shared
+schema/guard/writer contracts approved before implementation. Migration0068 down0062.
+
+Implemented server candidate-result→initial/repeat exact review preparation with
+original-session authority, current scope/source/policy, exact action/state binding,
+server-resolved retained predecessor and cumulative allowance checks. Worker stops
+at `review_required`; it never fabricates customer approval or creates an attempt.
+Actual all3-provider offline composition performs a separate explicit harness
+customer approval before the existing durable claim/HTTP/readback flow.
+
+Atomic review+minimal protected provenance uses a default-false marker to prevent
+missing links falling back to manual semantics. Candidate deletion sets the optional
+composite FK null; forward review/approval/reservation/claim/final emission gates
+reject it. Financial qualification clocks are resampled after blocking provenance
+guards. Final link reload/row lock catches concurrent dependency-FK retraction.
+No measurement bodies or session digest enter customer export. Historical same-fence
+reconciliation and qualified settlement remain available after erasure. Populated
+downgrade refuses to discard forward fences or protected commitments.
+
+Validation actually run:
+
+- Initial actual three-provider journey/guard suite16pass; early guard+historical
+  migration suite22pass; expanded initial/repeat/erasure/settlement journey26pass.
+-0068 empty roundtrip/populated refusal plus0062/0058/0057/0059 historical fixtures:
+  **5 passed**, disposable PostgreSQL (12.80s).
+- Broader bridge/migration/durable optimization/repeat/lifecycle regression:
+  **114 passed,2 expected SQLite concurrency skips** (163.83s).
+- Fresh guard/rollback/unknown/repeat/privacy refinement:34pass, then final FK race
+  refinement **35 passed,1 expected SQLite row-lock skip** (91.22s).
+- Strict provenance export: **2 passed** (both DBs,36 deselected).
+- Ruff whole repository; mypy **520 app/test files**; diff check:pass.
+- Fixture-only development errors (optional return flag and union narrowing) were
+  corrected; failed/interrupted runs are not reported as passes. No Full run.
+
+Historical pre0068 tests explicitly assert the new table absent and stub only its
+new forward guard; deferred default marker avoids querying a nonexistent column in
+historical producer fixtures. Current0068 tests use the real schema and guard.
+No production missing-schema fallback. Root must test composed0064 historical
+feedback dependency erasure→candidate deletion→0068 guard denial after integration.
+
+Docs/runnable command: `docs/design/candidate-review-orchestration.md`;
+`pytest -o addopts='' -q tests/test_candidate_review_bridge.py`.
+Remaining actual automatic mandate-derived admission is a separate code contract,
+not a human approval surrogate. Native qualification/learning/transition sources,
+production assembly and logout-independent delegation remain unavailable. No live
+calls, workflow dispatch, main merge or deployment.
+
+### 2026-10-06 — Candidate-to-review provenance and offline journey integrated
+
+Integrated PR2024121c17. Current owned candidate now prepares exact initial/repeat
+review with atomic minimal provenance, original-session guard, and final-forward
+retraction checks. All3 actual provider adapters exercised in offline journeys with
+separate harness customer approval, never worker-fabricated approval. Root62 passed,
+1 expected SQLite skip,1 migrationfixturefailure: isolated0068 lacked sibling0064
+tables required by current composed helpers. Preserved exact0068 roundtrip, then
+upgraded actualheads before composedscenario. Historical0064 fixture explicitly stubs
+only nonexistent0068 guard after absence assertion; no production fallback. Final
+review/feedback migration2 passed,8 warnings in10.90s. Ruff check ., configured mypy567
+and whitespace passed. Logs `/tmp/inlet-next-candidate-review.log` and
+`/tmp/inlet-next-review-feedback-migrations.log`. Combined dependency-cascade→claimed
+review retraction with protectedGooglecapture is assigned to feedback consumer package.
+
+Broader assembled lifecycle/export check before bridge:160 passed,2 expected SQLite
+lock skips in218.13s (`/tmp/inlet-next-composed-lifecycle.log`). No finalFullsuccess.
+
+Approved next actual session-bound automatic decision package reserves0072down0068;
+separate start intent/admission/run authority, no fake humanapproval, no logout-
+independent grant and defaults disabled pending real sources/policies. B19 bounded
+operational observations reserves0070down0060. Finalrootjoin0073 will join0063/0064/
+0066/0070/0072. Prior proposed0065/67/69/71 were nevercreated.

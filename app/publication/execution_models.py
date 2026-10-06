@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -132,6 +133,10 @@ class ProviderExecutionConsent(Base):
 
 
 class ProviderExecutionReview(Base):
+    __mapper_args__ = {"eager_defaults": False}
+    candidate_provenance_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false"), deferred=True
+    )
     __tablename__ = "provider_execution_reviews"
     __table_args__ = (
         UniqueConstraint("id", "workspace_id", name="uq_provider_execution_review_scope"),

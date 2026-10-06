@@ -12,6 +12,8 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,8 @@ from typing import Any
 CANDIDATES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 HTML = b"""<!doctype html><script>
 const results=[]; let reported=false;
+window.onerror=()=>fetch('/diagnostic',{method:'POST',body:'javascript_error'});
+window.onunhandledrejection=()=>fetch('/diagnostic',{method:'POST',body:'unhandled_rejection'});
 function finish(){if(reported||results.length!==2)return;reported=true;
 fetch('/result',{method:'POST',body:JSON.stringify(results)});}
 for(const kind of ['silent','aac']){
@@ -39,12 +43,17 @@ setTimeout(()=>result('timeout'),8000);
 def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[str, Any]]:
     complete = threading.Event()
     results: list[dict[str, Any]] = []
+    requests: dict[str, int] = {}
+    diagnostics: list[str] = []
+    stderr: deque[str] = deque(maxlen=20)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None:
             pass
 
         def do_GET(self) -> None:
+            key = self.path if self.path in {"/", "/silent", "/aac"} else "other"
+            requests[key] = requests.get(key, 0) + 1
             data = clips.get(self.path, HTML)
             self.send_response(200)
             self.send_header("Content-Type", "video/mp4" if self.path in clips else "text/html")
@@ -53,6 +62,16 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
 
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
+            if self.path == "/diagnostic" and 0 < length <= 64:
+                diagnostic = self.rfile.read(length).decode("ascii", errors="replace")
+                if (
+                    diagnostic in {"javascript_error", "unhandled_rejection"}
+                    and len(diagnostics) < 4
+                ):
+                    diagnostics.append(diagnostic)
+                self.send_response(200)
+                self.end_headers()
+                return
             if self.path != "/result" or not 0 < length <= 4096:
                 self.send_error(400)
                 return
@@ -80,11 +99,35 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
             f"http://127.0.0.1:{server.server_port}/",
         ],
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        env={
+            key: os.environ[key]
+            for key in ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR")
+            if key in os.environ
+        },
     )
+
+    def drain_stderr() -> None:
+        assert process.stderr is not None
+        while chunk := process.stderr.readline(1024):
+            stderr.append(chunk.decode("utf-8", errors="replace").strip()[:1024])
+
+    stderr_thread = threading.Thread(target=drain_stderr, daemon=True)
+    stderr_thread.start()
     try:
-        if not complete.wait(12):
-            return [{"event": "browser_no_result"}]
+        deadline = time.monotonic() + 12
+        while not complete.wait(0.1) and process.poll() is None and time.monotonic() < deadline:
+            pass
+        if not complete.is_set():
+            return [
+                {
+                    "event": "browser_no_result",
+                    "exit_code": process.poll(),
+                    "requests": dict(requests),
+                    "javascript": diagnostics[:4],
+                    "stderr": list(stderr),
+                }
+            ]
         return results
     finally:
         process.terminate()
@@ -93,6 +136,9 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
+        stderr_thread.join(timeout=2)
+        if process.stderr is not None:
+            process.stderr.close()
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)

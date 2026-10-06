@@ -6,12 +6,35 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      media_preflight_only:
+        description: 'Run only synthetic browser startup and codec diagnostics (not qualification)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
+  media-preflight-diagnostic:
+    name: Media Preflight Diagnostic
+    if: github.event_name == 'workflow_dispatch' && inputs.media_preflight_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic clip encoder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Probe real browser decoding and bounded launch diagnostics
+        run: python scripts/check_browser_media.py
+
   validation:
+    if: github.event_name != 'workflow_dispatch' || !inputs.media_preflight_only
     name: Validation
     runs-on: ubuntu-latest
     services:

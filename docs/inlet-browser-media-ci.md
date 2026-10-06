@@ -15,3 +15,17 @@ Offline evidence:
 - Selection unit tests check explicit qualified-path propagation, fail-closed missing selected binary, branded local preference and unchanged Node lookup. Ruff; configured mypy362 files; standalone probe mypy; JS syntax/diff checks pass.
 
 Remaining qualification: hosted CI must run the new preflight and retain exact unbranded154 capability/MediaError diagnostics. This is a concrete codec qualification repair and passing matching-version branded-browser evidence, not a claim that the earlier snapshot failure has been observed directly on this executor.
+
+### Hosted Launch Diagnostics
+
+The first hosted probe on PR146 (run37415266510/job112112374138) produced
+`browser_no_result` for both installed builds, so that log establishes neither
+startup nor codec success. The probe now records bounded stderr, process exit,
+allowlisted loopback request counts and fixed JavaScript error categories. Browser
+children receive only ordinary executable/locale/home/temp environment fields;
+application credentials and CI token variables are excluded. Decode requirements
+and the twelve-second ceiling are unchanged. Early exited browsers fail promptly.
+
+An explicit `workflow_dispatch` input `media_preflight_only=true` runs only the
+synthetic diagnostic job. Its result is not release qualification. All pull
+requests, pushes and ordinary manual invocations retain the full Validation job.

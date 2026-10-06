@@ -25,8 +25,10 @@ from tests.test_mandates import evidence, seed
 from tests.test_shopify_sales import configuration as configuration
 
 
-def setup(db: Session, config: Settings) -> tuple[Mandate, AccountScope, g.GoogleState]:
-    mandate = seed(db, config)
+def setup(
+    db: Session, config: Settings, *, days: int = 1
+) -> tuple[Mandate, AccountScope, g.GoogleState]:
+    mandate = seed(db, config, days=days)
     policy = m.policy(db, mandate)
     policy.allowed_actions.append("negative_keyword")
     m.edit(db, mandate, mandate.revision, policy, "owner", NOW)

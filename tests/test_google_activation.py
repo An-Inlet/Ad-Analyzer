@@ -49,8 +49,12 @@ class Server(GoogleServer):
         return super().__call__(request)
 
 
-def target(server: Server, kind: str = "campaign") -> ActivationRequest:
-    plan = compile_google(review())
+def target(
+    server: Server, kind: str = "campaign", *, total_budget: bool = False
+) -> ActivationRequest:
+    from tests.test_google_total_publication import total_review
+
+    plan = compile_google(total_review() if total_budget else review())
     requests: dict[str, BoundProviderRequest] = {}
     receipts: dict[str, ProviderReceipt] = {}
     transport = GooglePublicationHTTP(transport=httpx.MockTransport(server))
@@ -94,9 +98,10 @@ def ctx(request: ActivationRequest) -> ActivationContext:
 
 
 @pytest.mark.parametrize("kind", ["campaign", "group", "keyword_0", "ad"])
-def test_exact_status_only_update_and_full_field_readback(kind: str) -> None:
+@pytest.mark.parametrize("total_budget", [False, True])
+def test_exact_status_only_update_and_full_field_readback(kind: str, total_budget: bool) -> None:
     server = Server()
-    request = target(server, kind)
+    request = target(server, kind, total_budget=total_budget)
     adapter = GoogleActivationHTTP(transport=httpx.MockTransport(server))
     assert get_activation_transport() is None
     assert (

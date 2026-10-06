@@ -347,6 +347,12 @@ class ProviderPublishPlan(StrictModel):
             or isinstance(budgets[0], GoogleCreateTotalBudget) != total
         ):
             raise ValueError("compiler and budget configuration mismatch")
+        if (
+            isinstance(self.review.configuration, GoogleSearchTotalPublicationFields)
+            and isinstance(budgets[0], GoogleCreateTotalBudget)
+            and budgets[0].total_amount_micros != self.review.configuration.total_budget_micros
+        ):
+            raise ValueError("total budget amount differs from exact review")
         if any(
             isinstance(step.operation, GoogleCreatePausedCampaign)
             and step.operation.configuration != self.review.configuration

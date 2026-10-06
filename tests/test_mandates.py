@@ -30,7 +30,7 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
 
 
-def seed(db: Session, config: Settings, slug: str = "alpha") -> Mandate:
+def seed(db: Session, config: Settings, slug: str = "alpha", *, days: int = 1) -> Mandate:
     g = seed_goal(db, config, slug)
     p = goals.preview(db, g, NOW)
     goals.confirm(
@@ -62,7 +62,7 @@ def seed(db: Session, config: Settings, slug: str = "alpha") -> Mandate:
         currency="USD",
         time_zone="UTC",
         starts_at=NOW - timedelta(hours=1),
-        ends_at=NOW + timedelta(days=1),
+        ends_at=NOW + timedelta(days=days),
         accounts=[
             AccountScope(account_id=account.id, connection_id=integration.id, platform="google_ads")
         ],

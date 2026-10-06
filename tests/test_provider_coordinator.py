@@ -84,14 +84,14 @@ class GoogleServer:
 
 
 def ready(
-    db: Session, config: Settings, path: Any, server: GoogleServer
+    db: Session, config: Settings, path: Any, server: GoogleServer, *, total_budget: bool = False
 ) -> tuple[int, str, str, LocalMediaStore, CreationRuntime]:
-    policy, actor = setup(db, config, path)
+    policy, actor = setup(db, config, path, total_budget=total_budget)
     wid = policy.workspace_id
     draft = db.scalar(select(CampaignDraft).where(CampaignDraft.workspace_id == wid))
     assert draft is not None
     store = LocalMediaStore(path)
-    reviewed = prepare(db, wid, draft.id, actor, store)
+    reviewed = prepare(db, wid, draft.id, actor, store, total_budget=total_budget)
     plan = ProviderPublishPlan.model_validate(reviewed.plan)
     mandate = mandates.revise(db, wid, policy, actor, lambda: NOW)
     binding = mandates.consent(db, wid, mandate.id, 1, policy.digest(), actor, lambda: NOW)
@@ -175,12 +175,15 @@ def ready(
     return wid, run.id, actor, store, runtime
 
 
+@pytest.mark.parametrize("total_budget", [False, True])
 def test_actual_google_full_durable_creation_and_owned_projection(
-    customer_engine: Engine, configuration: Settings, tmp_path: Any
+    customer_engine: Engine, configuration: Settings, tmp_path: Any, total_budget: bool
 ) -> None:
     server = GoogleServer()
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+        wid, run_id, actor, store, runtime = ready(
+            db, configuration, tmp_path, server, total_budget=total_budget
+        )
         count = 0
         while claim := c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW):
             receipt = c.execute_claim(db, claim, actor, store, runtime, lambda: NOW)
@@ -208,13 +211,16 @@ def test_actual_google_full_durable_creation_and_owned_projection(
             )
 
 
+@pytest.mark.parametrize("total_budget", [False, True])
 def test_unknown_keeps_original_attempt_and_late_response_reconciles_without_replay(
-    customer_engine: Engine, configuration: Settings, tmp_path: Any
+    customer_engine: Engine, configuration: Settings, tmp_path: Any, total_budget: bool
 ) -> None:
     server = GoogleServer()
     server.timeout = True
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+        wid, run_id, actor, store, runtime = ready(
+            db, configuration, tmp_path, server, total_budget=total_budget
+        )
         claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
         assert claim is not None
         assert c.execute_claim(db, claim, actor, store, runtime, lambda: NOW).outcome == "unknown"

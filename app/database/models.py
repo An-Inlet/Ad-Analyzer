@@ -24,6 +24,7 @@ MODEL_MODULES = (
     "app.google_connections.models",
     "app.imports.models",
     "app.intelligence.models",
+    "app.lifecycle.models",
     "app.mandates.models",
     "app.measurement.models",
     "app.meta.models",

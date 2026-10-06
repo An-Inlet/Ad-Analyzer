@@ -3022,3 +3022,32 @@ clean. Logs `/tmp/inlet-tiktok-native-tests.log`, `/tmp/inlet-tiktok-native-mypy
 No Full, database/schema changes, credentials or live calls. Server-owned actual
 vault/context assembly is separately approved next, with bothDB authorization/race tests;
 this adapter package does not claim it exists or supplies qualified financial evidence.
+
+### Native Diagnostic Server Assembly — Offline Complete
+
+`codex/inlet-native-diagnostic-assembly`, isolated child of PR184 `78244fa`.
+`NativeDiagnosticService` selects a current persisted consented account, validates its
+owned integration/generation and currency/timezone, opens actual provider-bound vault
+material, and composes Google/Meta/TikTok native HTTP collectors. Independent sessions
+close before advertising/OAuth IO and never commit caller work. Customer authorization
+is server-bound and checked before/after IO and on final return. Google refresh uses
+an explicit internal helper with bounded documented expiry and an ephemeral per-read
+cache. No application factory, API, schedule, provider write or financial proof enabled.
+
+The composed SQLite/PostgreSQL tests exercise actual customer-session revocation,
+role downgrade, native identity/generation changes during HTTP, revocation during
+Google refresh, foreign canonical selection, stale consent, currency mismatch, expired
+and wrong-workspace encrypted grants, missing transport and malformed OAuth expiry.
+All diagnostic U/F/P remain null. Google collector now re-resolves authorization between
+pages while preserving the earliest observation/context expiry. The expanded initial
+run found an expiry extension regression (202 passed/1 failed); the corrected final
+run passed all203 tests with no skips. Whole Ruff and mypy503 passed; diffcheck clean.
+Commands: `pytest -o addopts='' -q tests/test_native_diagnostic_assembly.py
+ tests/test_google_native_inventory.py tests/test_meta_native_inventory.py
+ tests/test_tiktok_native_inventory.py tests/test_google_http_runtime.py`, using the
+existing disposable PostgreSQL schema fixture and SQLite. Logs:
+`/tmp/inlet-native-assembly-tests.log`, `/tmp/inlet-native-assembly-mypy.log`.
+No Full, live provider calls, credentials, migrations, deployment or enabled factory.
+Native qualification/prevention/finality, production mutation assembly, automatic
+optimization-target discovery and diagnostic presentation remain separate code/evidence
+work; provider access alone does not close these gaps.

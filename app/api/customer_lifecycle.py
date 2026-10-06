@@ -10,6 +10,7 @@ from app.customers.access import Database, MutationPrincipal, Principal, Provide
 from app.goals.schemas import StrictModel
 from app.lifecycle.contracts import LifecycleInputV1, LifecycleScopeV1
 from app.lifecycle.inventory import inventory
+from app.lifecycle.local_work import observe, reconcile
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
 from app.lifecycle.quiescing import owner, preview_digest, quiesce
 from app.lifecycle.service import begin, claim_inventory, finish_inventory
@@ -19,6 +20,10 @@ router = APIRouter(prefix="/api/customer/v1", tags=["customer"])
 
 class PreviewInput(StrictModel):
     pass
+
+
+class ReconcileInput(StrictModel):
+    expected_revision: int = Field(strict=True, ge=1)
 
 
 class ConfirmInput(StrictModel):
@@ -121,7 +126,43 @@ def status(
 ) -> dict[str, Any]:
     owner(db, principal, provider, workspace_id)
     row = db.get(LifecycleRequest, request_id)
-    if row is None or row.workspace_id != workspace_id or row.operation != "close":
+    if (
+        row is None
+        or row.workspace_id != workspace_id
+        or row.operation != "close"
+        or row.requested_by != principal.user.id
+    ):
         raise HTTPException(404, "closure request unavailable")
     response.headers["Cache-Control"] = "no-store"
-    return view(row)
+    result = view(row)
+    if row.state == "blocked":
+        result["local_work"] = observe(db, row, datetime.now(UTC))
+        step = db.get(LifecycleStep, (row.id, "local_quiescence_v1"))
+        result["local_work"]["durable_receipt"] = (
+            None
+            if step is None
+            else {
+                "evidence_digest": step.evidence_digest,
+                "request_revision": step.request_revision,
+                "historical_payload_retained": False,
+            }
+        )
+    return result
+
+
+@router.post("/workspaces/{workspace_id}/closures/{request_id}/reconcile-local")
+def reconcile_local(
+    workspace_id: int,
+    request_id: str,
+    body: ReconcileInput,
+    response: Response,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+) -> dict[str, Any]:
+    row, observation = reconcile(
+        db, principal, provider, workspace_id, request_id, body.expected_revision
+    )
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {**view(row), "local_work": observation}

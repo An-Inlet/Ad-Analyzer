@@ -33,6 +33,10 @@ try {
   assert(workspaces.length===1 && String(workspaces[0].id)==='__OTHER__','other workspace survives selector');
   assert((await fetch('/api/customer/v1/session')).ok,'global session survives');
   $('closure-retry').click(); await until(()=>$('closure-state').textContent.includes('Local Closure Confirmed') && !$('closure-retry').disabled,'receipt recovery without active selector');
+  $('closure-reconcile').click(); await until(()=>$('closure-local-work').textContent.includes('No Unknown Or Nonterminal') && !$('closure-reconcile').disabled,'actual local reconciliation');
+  assert($('closure-local-work').textContent.includes('not confirmation that worker processes stopped'),'no process stopping claim');
+  assert($('closure-state').textContent.includes('Full Closure Blocked'),'external blockers remain after local reconciliation');
+  const reconciled = await(await fetch(path)).json(); assert(reconciled.revision===3 && reconciled.local_work.physical_workers_stopped===null,'API and DOM current observation agree');
   await fetch('/__fixture__/role-loss',{method:'POST'}); $('closure-retry').click();
   await until(()=>$('closure-message').textContent.includes('owner access') && !$('closure-retry').disabled,'role loss status denial');
   assert($('closure-receipt').hidden && !$('closure-state').textContent,'denied status cleared');

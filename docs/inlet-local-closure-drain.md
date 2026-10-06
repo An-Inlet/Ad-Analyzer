@@ -1,6 +1,7 @@
 # Local Closure Admission And Drain
 
-This is an engineering proposal plus a verified import-lock repair. It does not
+This records the approved local reconciliation interface and its implementation,
+alongside the earlier verified import-lock repair. It does not
 change retention, release financial exposure, revoke remote grants or terminate
 processes. The owner has not supplied a data-disposition policy.
 
@@ -40,7 +41,7 @@ imports resume; each import then rejects the closed scope. No raw provider calls
 | Publication/production execution | Workspace admission, revoked mandate/canceled future run; exact original attempt late-evidence lane | Emitting/dispatching/unknown/conflict attempts and held exposure remain unresolved, irrespective of time |
 | Privacy/retention/export maintenance | Dedicated closing-compatible workspace guards and privacy revisions | Must remain permitted during closure; cannot be counted as forbidden customer work |
 
-## Proposed Versioned Reconciliation Interface (Not Implemented)
+## Approved Versioned Reconciliation Interface
 
 `POST /api/customer/v1/workspaces/{wid}/closures/{request_id}/reconcile-local`
 with strict body `{"expected_revision": N}`; current requester/owner, active session,
@@ -62,28 +63,28 @@ Return an explicit `inlet.lifecycle.local_quiescence.v1` observation:
   exists; `external_obligations_resolved` is separate and never inferred here;
 - `blocked_reasons` and evidence digest, excluding identifiers/credentials/payloads.
 
-Use existing LifecycleStep receipt `step_key=local_quiescence_v1`, bound to the
+The implementation uses the existing LifecycleStep receipt `step_key=local_quiescence_v1`, bound to the
 request revision/fence, with a monotonic request update. The currently available
-step stores only a digest, so either reconstruct the same observation on demand
-and label it current, or add a reviewed bounded evidence field before promising
-historical downloadable details. Do not fabricate durable details from a digest.
+step stores only a digest, so GET recomputes and labels a current-only observation.
+The retained digest includes its recorded request revision; it is explicitly not
+a retained historical observation payload. Do not fabricate durable details from a digest.
 GET remains read-only. Replays with stale revisions cannot mutate receipts.
 
-## Concrete Remaining Engineering And Acceptance
+## Implemented Engineering And Remaining Acceptance
 
-1. Add an explicit, exhaustively tested worker-family registry and scoped status
+1. Added an explicit, tested worker-family registry and scoped status
    queries. Unknown families/state values fail closed. Share scope predicates with
    lifecycle inventory; never scan or mutate another tenant's global quota.
-2. Introduce an explicit terminal *local queue cancellation* receipt/state for
+2. Introduced an explicit terminal *local queue cancellation* receipt/state for
    pending analysis outbox work, preserving its completed source import and original
    run evidence. Fence dispatcher selection and acknowledgement under workspace
    authority. This state means no future local delivery, not worker termination.
-3. Add the reconciliation route/service and structured UI distinction between
+3. Added the reconciliation route/service and structured UI distinction between
    admission fenced, observed local records drained, and external/policy blockers.
    A no-work fixture can satisfy the local step; a RUNNING legacy row cannot be
    cleared by timeouts. Late failure/receipt evidence can make a later observation
    drained without changing or erasing the prior run history.
-4. Test actual PostgreSQL and SQLite closure-before-selection, selected-before-
+4. Tested actual PostgreSQL and SQLite closure-before-selection, selected-before-
    closure, in-flight commit, late acknowledgement, replay, revoked owner/session,
    foreign workspace and unknown-state paths. PostgreSQL verifies lock ordering;
    SQLite does not substitute for row-lock proof.
@@ -95,3 +96,42 @@ The remaining owner decision is disposition/retention and external commercial
 obligations, not permission to fix routine local admission defects. Local completion
 must be attainable once its evidence criteria are met while overall closure remains
 blocked by independent external, unknown-publication and policy obligations.
+
+
+## Reconciliation Delivery Evidence
+
+Implemented on isolated `codex/inlet-closure-reconciliation`, after priority shared
+analysis-session repair155a2609d1. No schema migration: the existing outbox uses an
+unconstrained String state. `canceled` means no future local delivery; the original
+successful JobRun and records are unchanged. An atomic `analysis_queue_cancel`
+LifecycleStep records a digest. Dispatch selection and acknowledgment refresh
+workspace authority, and neither a late success nor failure resurrects canceled work.
+
+The API uses the existing current-session/owner/CSRF authority and request revision.
+Its observation clock is sampled after authority and request locks. A PostgreSQL
+regression expires the session while reconciliation waits on workspace and verifies
+401 with no revision change. Reconciliation failure rolls back its queue state,
+request revision and digest together. Current local observations are read-only on GET.
+Unknown work-table families and unrecognized legacy run states fail closed. Meta
+detail continuation is classified through its native generation; protected publication
+steps/attempts remain distinct external/accounting obligations. Shared quota state is
+not mutated. Privacy/retention and exact original evidence lanes remain permitted.
+
+The actual production closure page offers Check Local Work. Chromium exercised the
+HTTPS page → authenticated API → SQLite/PostgreSQL flow, revision update, current-only
+observation, retained-digest wording, continued full-closure blockers and logout/role
+loss. The UI does not report process termination or data erasure.
+
+Verification: combined reconciliation, closure, actual browser, runtime scheduler and
+Google customer connection suite: **77 passed,1 SQLite-only row-lock skip**,41.01s.
+An additional late-failure regression is recorded separately in the package report.
+Ruff app/tests and mypy408 source files passed; integrated Full remains parent-owned.
+Baseline queue tests failed all4 cases (both databases),4.25s. Logs:
+`/tmp/inlet-closure-queue-before.log`, `/tmp/inlet-closure-reconciliation-final.log`.
+
+Deployment qualification remains blocked on a quiescent uniform worker upgrade;
+old binaries are not fenced by this code merely because schema is current. No live
+rollout is authorized. Overall closure remains blocked by disposition/retention,
+external grant/billing verification, legacy data scope and any unresolved publication
+accounting. The local step can now be satisfied honestly when its observed criteria
+are met, instead of a permanent implementation-only blocker.

@@ -204,3 +204,53 @@ def test_database_expiry_overrides_lagging_application_clock(
             sessionmaker(customer_engine), policy(), clock=lambda: datetime(2000, 1, 1, tzinfo=UTC)
         )
         assert effective_now(db, runtime) >= datetime.now(UTC) - timedelta(seconds=1)
+
+
+def test_calibration_capacity_counts_expired_without_cross_environment_pooling(
+    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from uuid import uuid4
+
+    from app.initial_planning.calibration import evaluate, require_calibration_capacity
+    from app.initial_planning.limits import MAX_RETAINED_CALIBRATIONS_PER_CAMPAIGN
+    from app.initial_planning.models import CalibrationRow
+
+    from tests.test_initial_calibration import objective
+
+    with Session(customer_engine) as db:
+        source, cid, actor, provider, runtime, _, _ = ready(
+            db, customer_engine, configuration, monkeypatch
+        )
+        item = capture_current(
+            db, actor, provider, source.workspace_id, source.account_id, cid, runtime
+        )
+        assert runtime.configuration
+        obj = objective(item)
+        report = evaluate((item,), obj, runtime.configuration, runtime.clock())
+        for _ in range(MAX_RETAINED_CALIBRATIONS_PER_CAMPAIGN):
+            db.add(
+                CalibrationRow(
+                    id=uuid4().hex,
+                    workspace_id=source.workspace_id,
+                    account_id=source.account_id,
+                    campaign_id=cid,
+                    document=report.model_dump(mode="json"),
+                    document_digest=report.digest(),
+                    expires_at=item.completed_at - timedelta(days=1),
+                    environment="contract_test",
+                    objective=obj.model_dump(mode="json"),
+                    objective_digest=obj.digest(),
+                    policy_digest=report.policy_digest,
+                    input_digest=report.input_digest,
+                    created_at=report.evaluated_at,
+                )
+            )
+        db.flush()
+        with pytest.raises(HTTPException, match="initial_calibration_capacity_reached"):
+            require_calibration_capacity(
+                db, source.workspace_id, source.account_id, cid, "contract_test"
+            )
+        require_calibration_capacity(db, source.workspace_id, source.account_id, cid, "live")
+        require_calibration_capacity(
+            db, source.workspace_id + 1, source.account_id, cid, "contract_test"
+        )

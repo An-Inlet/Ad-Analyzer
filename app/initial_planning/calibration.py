@@ -24,6 +24,7 @@ from app.initial_planning.contracts import (
     RuleParametersV1,
     RuleReplayV1,
 )
+from app.initial_planning.limits import MAX_RETAINED_CALIBRATIONS_PER_CAMPAIGN
 from app.initial_planning.models import CalibrationDependency, CalibrationRow, ObservationRow
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.meta.security import utc
@@ -200,6 +201,26 @@ def evaluate(
     )
 
 
+def require_calibration_capacity(
+    db: Session, workspace_id: int, account_id: int, campaign_id: int, environment: str
+) -> None:
+    """Caller holds workspace fence; expired rows count until physical cleanup."""
+    retained = list(
+        db.scalars(
+            select(CalibrationRow.id)
+            .where(
+                CalibrationRow.workspace_id == workspace_id,
+                CalibrationRow.account_id == account_id,
+                CalibrationRow.campaign_id == campaign_id,
+                CalibrationRow.environment == environment,
+            )
+            .limit(MAX_RETAINED_CALIBRATIONS_PER_CAMPAIGN)
+        )
+    )
+    if len(retained) >= MAX_RETAINED_CALIBRATIONS_PER_CAMPAIGN:
+        raise unavailable("initial_calibration_capacity_reached")
+
+
 def run_calibration(
     db: Session,
     principal: CustomerPrincipal,
@@ -246,6 +267,9 @@ def run_calibration(
     )
     if previous is not None:
         return read_calibration(db, principal, provider, c.workspace_id, previous.id, runtime)
+    require_calibration_capacity(
+        db, c.workspace_id, c.account_id, c.campaign_id, policy.environment
+    )
     db.add(
         CalibrationRow(
             id=report.id,

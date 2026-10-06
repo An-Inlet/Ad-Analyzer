@@ -60,3 +60,14 @@ The two existing performance modules ran to completion:60 passed,2 failed at
 contain the separately owned lifecycle table registration. Both failures are the same
 registry composition gap, not migration/importer failures. Lifecycle integration must
 rerun those cases; no application missing-table fallback was added.
+
+### Derived Storage Bound
+
+Separate engineering safety limits cap retained calibration runs and previews at128
+per owned campaign and environment. Expired rows still count until physical cleanup.
+The calibration insert checks this under the existing workspace fence and rejects
+`initial_calibration_capacity_reached`; policy parameters and business recommendations
+are unchanged. Preview consumer applies its matching bound independently. Actual SQLite
+and PostgreSQL cap tests passed (2 passed), including expired-row accounting and scope/
+environment separation. Ruff and mypy644 passed. The optional identical-basis reuse is
+not relied upon for bounded storage; cutoff-specific analytical reproducibility remains.

@@ -8,9 +8,11 @@ Base: PR193 `43b7e38`; predecessor migration formatting matches root `cbfb835`.
 
 `APP_ENV=production` always routes shared `paid_work` through `live_paid_work`,
 regardless of billing mode or the historical optional rollout flag. This covers
-advertising source activation, Google selection, post-sync analysis (including
+paid imports and post-sync analysis (including
 its final persistence recheck), campaign/media review, publication preparation,
-and mandate actions. Live execution policies already independently use the strict
+and mandate actions. Connection setup and Google account selection use their
+separate connection-limit rules; they do not call this paid-work gate. Live
+execution policies already independently use the strict
 live gate at review, claim and final emission. Missing live scope, disabled live
 billing, test evidence, unqualified offers and stale/failed qualification cannot
 satisfy this gate.

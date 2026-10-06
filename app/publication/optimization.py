@@ -832,6 +832,11 @@ def record_response(
     _, _, attempt, request = evidence_lock(db, wid, attempt_id)
     if response.request_digest != request.digest():
         raise HTTPException(409, "optimization response belongs to another request")
+    from app.publication.google_completion import capture_response
+    from app.publication.google_completion_contracts import GoogleCapturedResponse
+
+    if isinstance(response, GoogleCapturedResponse):
+        capture_response(db, request, response, clock())
     raw = response.model_dump(mode="json")
     digest = fingerprint("inlet.optimization-response.v1", raw)
     if db.get(ProviderExecutionResponse, (attempt.id, digest)) is None:

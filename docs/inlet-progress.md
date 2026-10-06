@@ -3461,3 +3461,59 @@ Frozen8efe196 localFull remains in final focused gate nestedFull; normal hosted
 run37427571832 remains in pytest. Neither has terminal result. No gate weakened or
 manual dispatch attempted. Google evidence PR195 is ready but not integrated; feedback
 0064 and independent Shopify acquisition continue. Final merge0067 waits on0064/0066.
+### Original Google Response Capture — Offline Complete, Not Financial Finality
+
+`codex/inlet-google-completion-evidence`, isolated child of docs PR192 `36e3402`.
+Added sanitized typed capture only for exact successful original Google v25 single-update
+budget/PAUSED responses, plus owned append-only durable reader. Shared normalized response
+JSON remains unchanged; no ClosedOriginalRequest mapping, financial proof, hold release or
+factory enabled. Timeout/unknown/legacy acknowledgment cannot manufacture capture.
+Migration0066 down0060 creates the separate scoped record and refuses populated downgrade.
+The registry protects it; typed exports, actual customer closure and native PostgreSQL
+backup/restore preserve the original request/fence linkage and held financial obligations.
+
+Primary v25 service schema read/pinned to googleapis7c0638cf893464ba844aeb04683026406eb3f8ca.
+The source matrix documents remaining unknown-request, delivery/cost residual and preventive
+writer guarantees; a completed configuration operation is not settled spend or financial
+finality. No live provider calls or widened write authority.
+
+Validation: focused composed HTTP/durable/export/lifecycle/native restore suite112 passed,
+1 SQLite-only row-lock concurrency skip; additional actual closure-retention checks2 passed
+(SQLite/PostgreSQL). Whole Ruff and mypy507 pass; diffcheck clean. Native restore exercised
+real pg_dump/pg_restore, empty migration roundtrip, populated downgrade refusal, foreign
+workspace FK rejection and original attempt retention. Initial export test exposed internal
+scalar projection mismatch; fixed without widening export allowlists. An initial new unit
+fixture used the wrong clock and was corrected. Logs `/tmp/inlet-completion-tests.log` and
+`/tmp/inlet-completion-mypy.log`. No Full performed. Both runtime qualification and any
+mapping into authoritative request closure remain deliberately separate review/code work.
+
+### 2026-10-06 — Durable Google original-response evidence integrated
+
+Integrated PR192/195 (36e3402/18466e2): exact successful synchronous original
+response capture, protected owned durable record/reader, strict export, closure
+retention and native dump/restore. No ClosedOriginalRequest mapping, money release,
+fallback for unknown responses or production qualification. Root first command used
+a nonexistent test filename and collected no tests; corrected combined suite69
+passed with one restore failure caused by current candidate helpers on isolated0066
+schema. The fixture now preserves its exact0066 roundtrip, then upgrades all actual
+heads before composed current-code population. Native restore rerun1 passed,5 Alembic
+warnings in19.01s. Whole Ruff and configured mypy541 files passed; whitespace passed.
+Logs `/tmp/inlet-next-google-completion.log` and `...-restore.log`.
+
+Independent source review closed PR196 at ac2a601/integrated56514e7; no independent
+test execution claimed. Corrected documentation: connection setup/Google selection
+use separate connection limits, not paid_work. No new paid setup requirement added.
+
+Frozen8efe196 HOSTED TERMINAL FAILURE: run37427571832/job112150604656 checked out
+80e432a072d4970fd4fe50c23b1a913257e99250 (same frozen tree11252fdb). Outer2 failed,
+2643 passed,53 skipped,85 warnings in5113.53s. Meta consent PostgreSQL browser failed
+workspace options/enabled readiness; same Meta failure in nested suite1 failed,
+2643 passed,54 skipped, causing outer nestedFull wrapper failure. Media preflight
+and upgrade passed; later gates skipped. Bounded diagnostics upload succeeded,
+artifact11399840346. Complete log `/tmp/inlet-pr130-8efe-hosted.log` retained; focused
+root-cause investigation assigned without timeout relaxation. Local frozenFull remains
+in its final focused nested regression, primary2639pass59skip and intervening gates
+passed; no terminal local result yet. No manual dispatch, merge, release or quota signal.
+
+Schema plan update: candidate-to-review provenance0068down0062 approved; final root
+merge0069 will join0063,0064,0066,0068. Proposed0067/0065 were never created.

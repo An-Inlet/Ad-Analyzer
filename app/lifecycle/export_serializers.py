@@ -45,6 +45,7 @@ from app.publication.execution_contracts import (
     NormalizedProviderReceipt,
     ProviderMandatePolicy,
 )
+from app.publication.google_completion_contracts import GoogleCompletionDocument
 from app.publication.optimization_contracts import (
     OptimizationReceipt,
     OptimizationRequest,
@@ -67,6 +68,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "customer_workspace_billing": ("qualification",),
     "optimization_candidate_jobs": ("work",),
     "optimization_candidate_results": ("decision",),
+    "google_original_completions": ("document",),
     "action_outcome_assessments": ("assessment",),
     "analysis_runs": ("blocking_reasons", "decision_brief", "retry_history"),
     "commerce_snapshots": ("result",),
@@ -140,6 +142,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
     ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
+    ("google_original_completions", "document"): GoogleCompletionDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
     ("customer_goal_revisions", "definition"): GoalDefinition,
@@ -355,6 +358,15 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, GoogleCompletionDocument):
+        capture = document.capture
+        expected = {
+            "attempt_id": capture.attempt_id,
+            "workspace_id": capture.account.workspace_id,
+            "digest": document.digest(),
+        }
+        if any(row[key] != value for key, value in expected.items()):
+            raise ValueError("original response row ownership mismatch")
     elif isinstance(document, ReplacementAuditDocument):
         expected = {
             "workspace_id": document.snapshot.workspace_id,

@@ -1,5 +1,6 @@
 """Visible Stripe test navigation; real portal/API/DB, intercepted provider boundaries."""
 
+import asyncio
 import base64
 import html
 import json
@@ -30,6 +31,7 @@ from app.settings import settings
 from pydantic import SecretStr
 from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.types import Receive, Scope, Send
 
 from tests.test_customer_billing import POLICY, SECRET, payload, signature
 from tests.test_customer_browser_api_journey import localhost_certificate
@@ -214,10 +216,29 @@ def test_visible_checkout_return_recovery_management_and_revocation(
             get_billing_transport: lambda: transport,
         },
     )
+    initial_probe, release_probe = threading.Event(), threading.Event()
+
+    async def delayed_initial_session(scope: Scope, receive: Receive, send: Send) -> None:
+        # Force the startup probe to overlap login, as it can under full-suite load.
+        # The captured unauthenticated request must finish before Retry is clickable.
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "GET"
+            and scope["path"] == "/api/customer/v1/session"
+            and not initial_probe.is_set()
+        ):
+            initial_probe.set()
+            assert await asyncio.to_thread(release_probe.wait, 15)
+        await app(scope, receive, send)
+
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
         uvicorn.Config(
-            app, log_level="critical", lifespan="off", ssl_certfile=str(cert), ssl_keyfile=str(key)
+            delayed_initial_session,
+            log_level="critical",
+            lifespan="off",
+            ssl_certfile=str(cert),
+            ssl_keyfile=str(key),
         )
     )
     thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
@@ -267,12 +288,16 @@ def test_visible_checkout_return_recovery_management_and_revocation(
         )
         browser.call("Page.navigate", {"url": origin + "/app"})
         browser.wait("$('retry') !== null")
+        assert initial_probe.wait(10)
+        assert browser.evaluate("$('retry').disabled")
         assert (
             browser.evaluate(
                 "fetch('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'billing-owner:first'})}).then(r=>r.status)"
             )
             == 200
         )
+        release_probe.set()
+        browser.wait("typeof $('retry').onclick === 'function' && !$('retry').disabled")
         browser.evaluate("$('retry').click()")
         browser.wait("$('workspace').options.length === 3 && !$('workspace').disabled")
         browser.evaluate(
@@ -405,6 +430,7 @@ def test_visible_checkout_return_recovery_management_and_revocation(
             "$('billing').textContent === '' && $('billing-detail').textContent === ''"
         )
     finally:
+        release_probe.set()
         if browser:
             browser.context.close()
         process.terminate()

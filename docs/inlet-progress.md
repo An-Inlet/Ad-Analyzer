@@ -1425,26 +1425,23 @@ The independently reproduced migration reflection repair `1624b18` is included.
 Full/hosted CI are separate pending gates at the final integration head. Google
  disconnect follow-up and closure/lifecycle packages remain separate candidates.
 
+### Billing Browser Startup Race Repair — 2026-10-06
 
-## Meta Customer Consent, Selection And Disconnect
+Isolated branch `codex/inlet-billing-browser-repair` from PR118 `216fda2` preserves
+the frozen validation head. Its Full failed in nested validation while waiting for
+the workspace options after the billing test's initial login. The test waited only
+for the Retry DOM node, then clicked while the initial session probe could still
+hold that control disabled. Chromium silently ignores a disabled button's click.
 
-Branch `codex/inlet-meta-customer-ui`, isolated child of PR118 `216fda2` plus PR120
-`a4a66d5`, implements customer Meta consent/GET callback/account pagination/conversion
-choice/scoped selection and disconnect. Migration0045 down0042 adds explicit flow
-phase and pending-grant nonce binding. Default customer setup is disabled. Current
-session/role/flow/generation are rechecked after provider IO; stale callbacks cannot
-overwrite completed retries. Operator signatures and nullable legacy grants remain
-compatible, while customer routes reject unbound grants.
+A test-only ASGI wrapper now deliberately holds the initial unauthenticated session
+GET through successful login. Before the repair this reproduced the exact original
+workspace-options timeout: **1 failed**. The repaired harness releases the probe,
+waits for Retry's handler and enabled state, then clicks exactly once. The forced
+overlap remains in both SQLite and PostgreSQL journeys. Product logic, assertions,
+wait deadlines and provider boundaries are unchanged; no blind retries were added.
 
-Checks: focused **57 passed, 2 intentional SQLite concurrency skips**; final customer
-API **22 passed**; Node **10 passed**; Ruff/mypy **325 files**/diff pass. Disposable PG
-migration upgrade/down0042/up0045 passed. Optional whole-schema Alembic check found
-unrelated CRM metadata and analysis enum differences (parent integrating separate
-registry repair), not a0045 mismatch. Full/CI pending. No live provider traffic,
-activation, advertising operations, merge or deployment. Evidence and remaining
-engineering/live gates: `docs/inlet-meta-customer-ui.md`; shared interface proposal:
-`docs/inlet-meta-customer-contract.md`.
-
-Meta customer controls draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/125.
-Implementation and checks: `aa05f66acf5b70c00e43389f874ac1ab669828c7`; the following
-commit only records this PR link. Frozen PR118/PR120 heads were preserved.
+Final billing-browser/API/recovery/portal checks: **54 passed, 1 SQLite-only lock skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff, mypy (317 files) and diff check passed.
+The earlier isolated case, prefix-order subset and full-collection selection passed
+without the forced overlap, so they did not establish a fix. No successful Full is
+claimed for this repair; the assembled successor needs exact-head Full/CI.

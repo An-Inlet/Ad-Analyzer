@@ -243,3 +243,13 @@ source fallback. This closes composition code only: no provider transition certi
 producer, finite native U/F/P, preventive writer mechanism, source profile registration,
 financial release, settlement source or live runtime activation is supplied. Test-only
 financial sources remain labeled `contract_test`.
+## Social Successful Original Update Review
+
+The [endpoint-specific Meta/TikTok review](social-original-update-response-semantics.md)
+found no sufficiently documented terminality assertion in the retrieved sources. Official
+SDKs confirm supported update methods and generic responses, but relevant Meta references
+were rate-limited and TikTok manual-update references returned empty bodies. Generic SDK
+success/code-zero or an echoed body is insufficient. This is not proof that the exact
+budget endpoints are asynchronous. Endpoint-qualified original capture/owned readers
+remain missing code conditional on reviewed semantics; no social mapping or financial
+qualification was added. Unknown/timeouts and all financial gates are preserved.

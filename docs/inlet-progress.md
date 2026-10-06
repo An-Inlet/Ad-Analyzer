@@ -2381,3 +2381,12 @@ provider calls, spending, merge or deployment.
 ## Durable Google exposure design records — 2026-10-06
 
 Saved the [native exposure assessment](design/google-native-exposure-qualification.md) and [joint-envelope proposal](design/google-joint-envelope-proposal.md) under `docs/design` on a docs-only child of PR167 head `16fd3b907177b0446ffda63a694ff6fb753baa2e`. Both crosslink to the actual diagnostic collector and current composer. No currently reviewed preventive Google writer mechanism qualifies, and typed fields alone cannot close strict-cap acceptance. Owner monetary-basis selection remains unresolved; a restricted-launch question is conditional on first demonstrating a real enforceable mechanism. No runtime, migration, policy, or enablement change. Relative links and `git diff --check` verified; tests intentionally not repeated for prose.
+
+## Descriptive History Integration
+
+Integrated PR168e1cb081 as a95ca7c, with owner-only as-of comparison UI and explicit
+unqualified maturity/no action-attribution labels, plus unresolved owner decision
+worksheet. Root actual browser/API/backend regressions33passed1SQLite-onlyskip
+(`/tmp/inlet-next-descriptive-ui.log`). Ruff/mypy474/diff passed. The docs-only
+Google exposure assessment/joint-envelope proposal a156fbc is integrated7360e3e;
+it does not qualify a provider profile or change the monetary promise.

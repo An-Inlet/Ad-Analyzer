@@ -3041,3 +3041,43 @@ No Full, live calls, workflow dispatch, merge or deployment. Actual native
 exposure/finality/transition sources, attributed learning, automatic target policy,
 emitting scheduler and explicit long-lived delegation remain missing. This is
 non-authorizing candidate groundwork, not completed autonomous optimization.
+
+## 2026-10-06 — Session-Bound Candidate Selection And Provenance
+
+Branch `codex/inlet-candidate-selection`, isolated child of PR191 frozen83e1362.
+Shared contract approved before implementation; no schema0064 or feedback edits.
+
+Added server-only current-mandate target discovery/selection and atomic v2 job
+admission. Exact observed native budget owners must match the full approved target
+set. No child substitution, inferred target expansion, performance ranking or
+numerical defaults. Repeated catalog content checks and current session, role,
+mandate, source/privacy/policy and post-lock clock checks fence admission. Insert
+rollback is atomic; fresh clock after flushed writes rejects expiry before commit.
+Worker rejects v2 observation state drift before storing a suggestion.
+
+Separate `CandidateWorkV2` stores selection/catalog/state/manifest provenance.
+Original CandidateWork v1 bytes/digest remain unchanged; one discriminated parser
+serves storage and strict export. No emitting authority, provider mutation,
+reservation or approval is created. Default selection factory returns None.
+See `docs/design/candidate-selection-orchestration.md` for exact ports/limitations.
+
+Validation actually run:
+
+- Initial combined selection/candidate suite:61 passed,3 expected SQLite row-lock skips.
+- Expanded selection/candidate/populated0062 migration suite:66 passed,3 expected
+  SQLite skips (74.02s); includes actual Google/Meta/TikTok MockHTTP catalogs to
+  durable v2 jobs and nonemitting result, old v1 compatibility/export, role/privacy/
+  expiry during controlled PostgreSQL workspace-lock waits, owner-only selection,
+  dedup/order, contradictory snapshots, foreign scope, tamper and insert rollback.
+- Final fresh-clock refinement selection suite:29 passed,3 expected SQLite skips
+  (26.76s), including expiry during a flushed insertion rolling back all jobs.
+- Ruff whole repository, mypy514 app/test files, diff check:pass.
+- Test fixture errors corrected during development: invalid membership role name,
+  wrong mocked Google amount property and imported type reference; failed runs are
+  not counted as passing. No Full, live call, dispatch, merge or deploy.
+
+Remaining: actual production runtime assembly/source registry and mature attributed
+direction/numerical decision policy, native exposure/finality/transition sources,
+automatic emitting scheduler and explicit long-lived delegation. Catalog readback
+has no provider CAS; later external changes require fresh worker/execution checks.
+This package closes structural candidate assembly/provenance only.

@@ -14,7 +14,7 @@ from app.publication.social_review_models import SocialConfigurationReview
 from app.publication.social_review_service import confirm, prepare, selection
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import create_engine, insert, inspect, make_url, text
+from sqlalchemy import create_engine, func, insert, inspect, make_url, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -106,11 +106,12 @@ def test_populated_no_dsa_review_roundtrip(
         command.downgrade(config, "20261006_0057")
         assert "customer_social_configuration_reviews" not in inspect(engine).get_table_names()
         with Session(engine) as db:
-            assert db.query(ProviderExecutionRun).count() == 1
+            # Historical schemas have the row identity, not later ORM authority columns.
+            assert db.scalar(select(func.count(ProviderExecutionRun.id))) == 1
         command.upgrade(config, "20261006_0059")
         with Session(engine) as db:
             assert db.get(SocialConfigurationReview, identifier) is None
-            assert db.query(ProviderExecutionRun).count() == 1
+            assert db.scalar(select(func.count(ProviderExecutionRun.id))) == 1
     finally:
         engine.dispose()
         with admin.begin() as db:

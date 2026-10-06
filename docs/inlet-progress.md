@@ -4727,3 +4727,26 @@ it does not substitute a manual or recommendation-only release for the original 
 Frozen `dc3c0d5` Full remains running separately (session65083; isolated candidate4
 log/database). The hosted pre-run failure annotation remains unresolved. No confirmed
 GitHub quota evidence has arrived. Pushes, PR creation and hosted CI remain held.
+
+### Historical Social Review Migration Count Repair — Local Only
+
+The frozen `dc3c0d5` Full failure is a historical test projection defect:
+`Query(ProviderExecutionRun).count()` selects current ORM columns inside its
+subquery even though migration0057/0059 predate `authority_kind`. Replaced both
+counts in `test_social_configuration_migration.py` with a scalar count of the
+historically available run ID. Upgrade/downgrade, retained-run count and foreign
+workspace integrity assertions remain unchanged; no application fallback added.
+
+Exact isolated predecessor reproduction: **1 failed** in5.43s with the reported
+UndefinedColumn (`/tmp/inlet-social-historical-dc3-before.log`). Applying the same
+patch gives migration/hash tests **2 passed** in3.38s
+(`/tmp/inlet-social-historical-dc3-after.log`). All runs use generated disposable
+schemas in `inlet_candidate_migration_ci`; frozen checkout/active Full database
+were untouched. Whole Ruff, configured mypy **643 files**, and diff checks pass
+on the final `f77fc4c` child.
+
+The current-root focused run separately stops earlier: new planning validation
+rejects the social fixture's100m mandate against its inherited50m goal budget
+(`/tmp/inlet-social-historical-after.log`). This is reported to the planning owner
+for legitimate fixture correction; the count repair does not bypass that check.
+Local commit only: no push, PR, workflow dispatch or hosted CI.

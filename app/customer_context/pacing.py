@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
@@ -82,6 +82,26 @@ def quota(db: Session, key: str, now: datetime) -> CRMQuota:
     ).one()
 
 
+def prune_expired_quotas(db: Session, now: datetime) -> int:
+    """Bounded opportunistic cleanup; never remove an active lease or cooldown."""
+    keys = list(
+        db.scalars(
+            select(CRMQuota.key)
+            .where(
+                CRMQuota.due_at < now - timedelta(days=1),
+                or_(CRMQuota.lease_until.is_(None), CRMQuota.lease_until < now),
+            )
+            .order_by(CRMQuota.key)
+            .limit(100)
+            .with_for_update(skip_locked=True)
+        )
+    )
+    if keys:
+        db.execute(delete(CRMQuota).where(CRMQuota.key.in_(keys)))
+    db.commit()
+    return len(keys)
+
+
 def read_page(
     db: Session,
     workspace_id: int,
@@ -97,6 +117,7 @@ def read_page(
     """
     if not isinstance(reader, KlaviyoHTTPRead) or reader.provider != "klaviyo":
         raise HTTPException(503, "paced customer context unavailable")
+    prune_expired_quotas(db, now)
     row = connection(db, workspace_id, connection_id, generation)
     access = token(row, now)
     vault = SourceVault()
@@ -148,19 +169,25 @@ def read_page(
             raise CRMReadError("crm_cursor_repeated")
     except CRMReadError as exc:
         failure = exc
+    completed = max(now, reader.clock())
     # Recheck ownership and generation after IO; late results cannot advance a new grant.
     row = connection(db, workspace_id, connection_id, generation)
     checkpoint = db.get(CRMCheckpoint, connection_id, populate_existing=True)
     limit = quota(db, key, now)
     if limit.fence == fence:
         limit.lease_until, limit.fence = None, None
+        limit.due_at = max(utc(limit.due_at), completed + SPACING)
         if isinstance(failure, CRMRateLimited):
-            limit.due_at = max(utc(limit.due_at), now + timedelta(seconds=failure.retry_after))
+            limit.due_at = max(
+                utc(limit.due_at), completed + timedelta(seconds=failure.retry_after)
+            )
     if (
         checkpoint is None
         or checkpoint.fence != fence
         or checkpoint.generation != generation
         or checkpoint.grant_digest != digest(row.encrypted_grant or "")
+        or checkpoint.lease_until is None
+        or utc(checkpoint.lease_until) <= completed
     ):
         db.commit()
         raise HTTPException(409, "customer context attempt superseded")

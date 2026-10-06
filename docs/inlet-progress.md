@@ -862,3 +862,13 @@ Ruff, mypy app/tests (269 files), and diff checks passed. Disposable PostgreSQL
 migration upgrade to0038, downgrade to0036, and re-upgrade passed. Full and hosted CI
 for this new package remain pending. PR82 validation remains a separate unchanged
 head. Remaining boundaries and official limits: `docs/inlet-crm-pacing.md`.
+
+### CRM Pacing Lifecycle Review
+
+Disconnect/reconnect now delete scoped checkpoint cursor/receipt material under the
+existing source locks. In-flight completion cannot resurrect it. Bounded opportunistic
+quota cleanup preserves active leases/cooldowns. Retry-After is measured from response
+time and successful responses after lease expiry are rejected. Expanded CRM and
+source-lifecycle suite: 73 passed, 1 intentional SQLite lock-case skip, 2 existing
+Alembic configuration deprecation warnings; actual PostgreSQL replica cases pass.
+Ruff/mypy269/diff-check pass. Migration unchanged from the tested roundtrip.

@@ -19,7 +19,8 @@ account and configured OAuth client. Only an opaque HMAC is stored, keyed using 
 source encryption configuration. Rotation must drain workers first; quota continuity
 across encryption-key rotation is not yet implemented. Each reservation takes row
 locks and commits a 120-second lease before any HTTP. At least 4.1 seconds separate
-successful reservations, conservatively below the documented account proof limit.
+successful reads (measured again after the response), conservatively below the
+documented account proof limit.
 An expired lease can be reclaimed; request generation/fence checks reject late results.
 The checkpoint binds encrypted cursor/receipt data to workspace, connection,
 integration, generation and external account. No profile or raw account data goes in
@@ -28,14 +29,22 @@ small digest history exist only within the encrypted checkpoint; no profile cont
 is persisted. This internal page boundary does not claim an end-to-end exactly-once
 canonical customer importer.
 
+Disconnect and reconnect delete the scoped checkpoint under existing source locks,
+including encrypted cursor and receipt material. An in-flight result cannot recreate
+that deleted state because generation/ownership is checked again after HTTP. Each
+read also prunes at most 100 expired opaque quota rows in a separate committed
+transaction; only cooldowns older than one day with no active lease qualify. This
+bounds cleanup work and avoids deleting an active account cooldown. Idle installations
+need an operational invocation of the same cleanup function to remove expired rows.
+
 429 responses produce a typed `CRMRateLimited` with integer or HTTP-date Retry-After
 parsing (5 seconds–24 hours; malformed/missing defaults to 60 seconds). The paced
-consumer persists that shared cooldown and returns a due time without sleeping or
+consumer measures that delay from response time and persists the shared cooldown and returns a due time without sleeping or
 retrying. Account mismatch delivers no profiles. OAuth and refresh calls also return
 the typed rate limit, not a revocation classification, but are not yet enrolled in
 this global quota. Other applications' traffic can still consume provider capacity;
 429 remains authoritative. Automatic retry scheduling, canonical consumption,
-retention/erasure of this operational checkpoint, and all-call OAuth pacing remain
+a canonical consumer lifecycle beyond disconnect/reconnect, and all-call OAuth pacing remain
 follow-up work before live enrollment.
 
 Migration `20261006_0038` descends from `0036`; parallel `0037` requires a merge

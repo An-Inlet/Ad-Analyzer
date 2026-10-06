@@ -1285,3 +1285,50 @@ No live provider requests, credentials, spend, merge to main or deployment occur
 Provider qualification/review persistence, full provider coordination/activation,
 Meta/TikTok adapters, measured feedback, customer lifecycle and release/pilots remain
 active backlog, with code gaps distinguished from external qualification.
+
+### Publication commit-gap and absent-readback repair — 2026-10-06
+
+Parent review identified two coordinator races in PR112 `3a3cca8`. A controlled
+PostgreSQL barrier after the mandate dispatch commit reproduced cancellation
+returning successfully while the worker still created the first fixture resource.
+The pause/revoke variants already rejected correctly; all three remain regressions.
+The worker now rechecks plan/action cancellation, dispatch state, exact request,
+approving owner and mandate preconditions under reacquired locks before claiming a
+step. The previously committed reservation remains held; this repair does not invent
+settlement or change already-submitted receipt reconciliation.
+
+A synchronized delayed original worker also reproduced a replacement claim from an
+empty fixture readback. Absence is now `unknown`, never authoritative no-effect;
+the original fence stays current and its eventual receipt remains reconcilable.
+A crashed/unsubmitted worker cannot be automatically retried without additional
+terminal/no-effect evidence. No provider capability or production authority is
+inferred from the offline fixture.
+
+Validation: initial corrected commit-gap harness 1 failed / 2 passed / 3 SQLite
+concurrency skips; adding delayed-worker regression produced 3 failed / 2 passed / 3 skips
+(SQLite and PostgreSQL both reproduced absent-readback retry). Repair combined suite
+38 passed / 4 SQLite concurrency skips. Final race/storage suite 40 passed / 3
+SQLite concurrency skips. Ruff and mypy (318 files) passed. Removed an obsolete GCS
+test import suppression exposed by clean mypy after integration. Full/hosted CI must
+run against the assembled successor; none is claimed by these focused results.
+
+
+### Reviewed foundation validation successor — 2026-10-06
+
+PR112 predecessor `3a3cca8` completed local Full with exit 1: 1,572 passed,
+35 skipped and 2 failures. The failures were the obsolete Meta first-connection
+Barrier(2) and the nested Full that encountered it. Hosted run 37408397594 failed
+before tests because FFmpeg was absent. Neither is reported as successful validation.
+
+The successor installs FFmpeg before retaining required tool checks. The Meta
+regression now holds the winning transaction, observes the losing PostgreSQL backend
+blocked by the winner with pg_blocking_pids, then releases it. It asserts exactly one
+connection/account/integration, the safe existing-account conflict, and the losing
+actor's pending grant. Focused first-connection/review-lock checks: 4 passed, 2 SQLite
+lock skips. Publication commit-gap and absent-readback repairs are included from
+PR113 `7ae1d0d`. Full and hosted CI are being rerun against this assembled successor;
+results must be attributed to its exact head, not the predecessor.
+
+Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
+PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
+freezing the successor for Full/CI.

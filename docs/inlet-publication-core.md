@@ -90,3 +90,16 @@ Google/Meta/TikTok compilers, HTTP adapters, qualified idempotency/reconciliatio
 production mandate authority, activation and spend settlement are still code work.
 Customer routes, background publication dispatch, live grants and pilot verification
 remain separate. This foundation is not a purchasable/live publication milestone.
+
+### Dispatch commit and reconciliation boundaries
+
+The mandate dispatch marker commits before the first publication step. Every
+subsequent lock reacquisition revalidates current cancellation/approval/action and
+mandate authority; authorization before that commit is insufficient. Cancellation
+that wins this interval must prevent the first resource request. Reservations remain
+conservative until independently justified settlement.
+
+An empty fixture resource dictionary is not proof of no effect: a claimed worker may
+not have submitted yet. Reconciliation returns unknown and preserves its original
+fence, so a delayed submission cannot coexist with an automatically retried attempt.
+No absence-based retry or production idempotency claim is supported.

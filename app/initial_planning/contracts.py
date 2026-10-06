@@ -2,7 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -144,7 +144,9 @@ class CalibrationReportV1(Frozen):
     objective_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     input_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    observation_ids: tuple[str, ...] = Field(max_length=128)
+    observation_ids: tuple[Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")], ...] = Field(
+        max_length=128
+    )
     training_windows: int = Field(strict=True, ge=0)
     holdout_windows: int = Field(strict=True, ge=0)
     selected_rule: str
@@ -155,6 +157,17 @@ class CalibrationReportV1(Frozen):
     empirical_qualification: Literal[False] = False
     causal_lift: Literal["unavailable"] = "unavailable"
     spending_authorized: Literal[False] = False
+
+    @model_validator(mode="after")
+    def valid_report(self) -> "CalibrationReportV1":
+        if (
+            len(set(self.observation_ids)) != len(self.observation_ids)
+            or self.expires_at <= self.evaluated_at
+        ):
+            raise ValueError("unique observations and unexpired report required")
+        if self.status == "evaluated" and self.reasons:
+            raise ValueError("evaluated report cannot contain blocking reasons")
+        return self
 
 
 class InitialPreviewV1(Frozen):
@@ -187,6 +200,20 @@ class InitialPreviewV1(Frozen):
         values = (self.before_budget_micros, self.after_budget_micros, self.native_state_digest)
         if any(v is not None for v in values) and any(v is None for v in values):
             raise ValueError("native amounts require complete current native evidence")
+        if (self.recommendation_status == "proposed") != (
+            self.direction in {"increase", "decrease"}
+        ):
+            raise ValueError("recommendation direction inconsistent")
+        if self.recommendation_status == "insufficient" and any(v is not None for v in values):
+            raise ValueError("insufficient evidence cannot carry native amounts")
+        if self.before_budget_micros is not None and self.after_budget_micros is not None:
+            delta = self.after_budget_micros - self.before_budget_micros
+            if (
+                (self.direction == "increase" and delta <= 0)
+                or (self.direction == "decrease" and delta >= 0)
+                or (self.direction == "none" and delta != 0)
+            ):
+                raise ValueError("native amount direction inconsistent")
         if not self.created_at < self.expires_at:
             raise ValueError("bounded preview lifetime required")
         return self

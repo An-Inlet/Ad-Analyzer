@@ -5114,3 +5114,27 @@ just its design. B17 operational action feedback is actively under implementatio
 in isolated0077 branches; it is not integrated or accepted at this head. No current
 Full success, live qualification, production policy, spend, merge/deploy, push/PR
 or hosted-CI action is claimed. Remote hold and original launch scope remain.
+
+### Frozen0076 Early Failure Repairs — Local Test Fixtures
+
+Read-only exact-head collection mapped the first six Full failures to four Google
+retirement/overdue tests and two archive/closure financial-social journeys. Isolated
+reproduction at frozen `97e5f7b`: **6 failed** in8.04s
+(`/tmp/inlet-0076-early-failures.log`). The frozen Full remains untouched/running.
+
+Google completion timestamps use the repository wall clock, while the test observes
+overdue obligations at a fixed October6 noon. After wall time crossed that cutoff,
+zero overdue obligations was correct. The test now anchors the actual repository
+clock to the import fixture time and asserts both persisted completion timestamps;
+current-generation retirement and other-workspace preservation assertions remain.
+
+The archive fixture now supplies100m as the social brand's initial confirmed goal
+budget before its100m simulation mandate. An optional durable-fixture parameter
+preserves50m defaults for every other caller. No immutable goal revision edits,
+product ceiling changes or alert logic changes.
+
+Targeted original six cases: **6 passed** in22.93s. Wider actual attention,
+archive/closure and durable optimization suites on SQLite/PostgreSQL: **66 passed**
+in86.14s, no skips (`/tmp/inlet-0076-early-final.log`). Whole Ruff, configured mypy
+**670 files**, and diff checks pass. Local-only commit; no push/PR/CI, additional
+Full or live provider calls. Existing frozen Full is separately monitored.

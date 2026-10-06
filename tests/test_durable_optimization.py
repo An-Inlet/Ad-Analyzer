@@ -56,8 +56,16 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_optimization_http import Server
 
 
-def ready(db: Session, config: Settings, path: Path, provider: str, kind: str = "budget"):  # type: ignore[no-untyped-def]
-    old, actor = setup(db, config, path)
+def ready(  # type: ignore[no-untyped-def]
+    db: Session,
+    config: Settings,
+    path: Path,
+    provider: str,
+    kind: str = "budget",
+    *,
+    goal_budget_micros: int = 50_000_000,
+):
+    old, actor = setup(db, config, path, goal_budget_micros=goal_budget_micros)
     wid = old.workspace_id
     if provider != "google_ads":
         integration = WorkspaceIntegration(

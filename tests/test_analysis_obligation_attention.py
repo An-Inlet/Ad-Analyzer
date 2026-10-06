@@ -1,8 +1,9 @@
 """Offline pending obligations, never authority to replay analysis/import work."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta, tzinfo
 
 import pytest
+from app.ads import repository
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
 from app.ads.models import AdvertisingAccount, JobRun
 from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
@@ -13,7 +14,7 @@ from app.operations.attention import OVERDUE_SECONDS, ROW_LIMIT, attention
 from app.sources import advertising
 from app.sources.models import SourceConnection
 from app.workspaces.models import WorkspaceIntegration
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -202,9 +203,17 @@ def test_bounded_obligation_query(customer_engine: Engine) -> None:
 
 @pytest.mark.parametrize("change", ["disconnect", "reauthorize"])
 def test_actual_google_generation_retirement_preserves_other_workspace(
-    customer_engine: Engine, configured: None, change: str
+    customer_engine: Engine, configured: None, change: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from tests.test_commerce_measurement import NOW as IMPORT_NOW
+
+    class ImportClock(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> "ImportClock":
+            return cls.fromtimestamp(IMPORT_NOW.timestamp(), tz)
+
+    # Actual repository completions must share the import fixture's time domain.
+    monkeypatch.setattr(repository, "datetime", ImportClock)
 
     transport = FixtureTransport()
     with Session(customer_engine) as db:
@@ -215,6 +224,11 @@ def test_actual_google_generation_retirement_preserves_other_workspace(
         for row in (one, two):
             google.tick(db, row.workspace_id, row.id, row.generation, transport, IMPORT_NOW)
             google.tick(db, row.workspace_id, row.id, row.generation, transport, IMPORT_NOW)
+        completed = list(db.scalars(select(JobRun.finished_at)))
+        assert len(completed) == 2
+        assert all(
+            value is not None and value.timestamp() == IMPORT_NOW.timestamp() for value in completed
+        )
         assert observed(db) == 2
         generation = one.generation
         if change == "disconnect":

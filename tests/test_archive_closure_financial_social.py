@@ -181,7 +181,11 @@ def test_owned_archive_then_closure_retains_replacement_and_social_evidence(
         brands = []
         for name in ("brand-a", "brand-b"):
             wid, actor, binding, scope, target, action, runtime, server = ready(
-                db, configuration, tmp_path, "meta_ads" if name == "brand-a" else "google_ads"
+                db,
+                configuration,
+                tmp_path,
+                "meta_ads" if name == "brand-a" else "google_ads",
+                goal_budget_micros=100_000_000 if name == "brand-a" else 50_000_000,
             )
             user = db.get(CustomerUser, actor)
             workspace = db.get(Workspace, wid)

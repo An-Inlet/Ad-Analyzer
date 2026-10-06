@@ -6,27 +6,43 @@ from sqlalchemy.orm import Session
 from app.workspaces.models import Workspace
 
 
-def bump_workspace_export_revision(db: Session, workspace_id: int) -> None:
-    """Call before native/store locks (or with this workspace already locked).
-
-    No status filter: erasure/retention must work for closing or retained inactive
-    workspaces. The caller owns commit. Rollback rolls back both deletion and fence.
-    Every future destructive customer-data writer must join this contract.
-    """
+def _lock_workspace(db: Session, workspace_id: int) -> None:
     owned = db.scalar(
         select(Workspace.id).where(Workspace.id == workspace_id).with_for_update(key_share=True)
     )
     if owned is None:
         raise ValueError("privacy workspace unavailable")
-    from app.optimization_candidates.invalidation import erase_workspace_candidates
 
-    erase_workspace_candidates(db, workspace_id)
+
+def advance_workspace_export_revision(db: Session, workspace_id: int) -> None:
+    """Internal counter-only fence after owned derived-data correction/deletion.
+
+    This is not semantic privacy erasure. Callers preserving historical-as-observed
+    data must delete obsolete derived results themselves. No commit/status filter;
+    acquire workspace first, before native/store/product locks.
+    """
+    _lock_workspace(db, workspace_id)
     db.execute(
         update(Workspace)
         .where(Workspace.id == workspace_id)
         .values(export_privacy_revision=Workspace.export_privacy_revision + 1)
         .execution_options(synchronize_session=False)
     )
+
+
+def bump_workspace_export_revision(db: Session, workspace_id: int) -> None:
+    """Semantic privacy invalidation: erase derived data and fence exports.
+
+    Call before native/store locks (or with this workspace already locked).
+    No status filter: erasure/retention must work for closing or retained inactive
+    workspaces. Caller owns commit; rollback restores both deletion and fence.
+    Every destructive customer-data writer must join this contract.
+    """
+    _lock_workspace(db, workspace_id)
+    from app.optimization_candidates.invalidation import erase_workspace_candidates
+
+    erase_workspace_candidates(db, workspace_id)
+    advance_workspace_export_revision(db, workspace_id)
 
 
 def workspace_export_revision(db: Session, workspace_id: int) -> int:

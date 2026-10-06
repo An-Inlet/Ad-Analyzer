@@ -1,10 +1,15 @@
 """Shared privacy counter rollback/status semantics, without provider IO."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
-from app.lifecycle.privacy import bump_workspace_export_revision, workspace_export_revision
+from app.lifecycle.privacy import (
+    advance_workspace_export_revision,
+    bump_workspace_export_revision,
+    workspace_export_revision,
+)
 from app.settings import Settings
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -16,7 +21,12 @@ from tests.test_meta_connection import configuration as meta_configuration  # no
 from tests.test_shopify_sales import configuration as configuration
 
 
-def test_revision_tracks_transaction_not_customer_access(customer_engine: Engine) -> None:
+@pytest.mark.parametrize(
+    "advance", [bump_workspace_export_revision, advance_workspace_export_revision]
+)
+def test_revision_tracks_transaction_not_customer_access(
+    customer_engine: Engine, advance: Callable[[Session, int], None]
+) -> None:
     from app.workspaces.models import Workspace
 
     with Session(customer_engine) as db:
@@ -26,15 +36,15 @@ def test_revision_tracks_transaction_not_customer_access(customer_engine: Engine
         workspace.status = "closing"
         db.commit()
         assert workspace_export_revision(db, wid) == 0
-        bump_workspace_export_revision(db, wid)
+        advance(db, wid)
         assert workspace_export_revision(db, wid) == 1
         db.rollback()
         assert workspace_export_revision(db, wid) == 0
-        bump_workspace_export_revision(db, wid)
+        advance(db, wid)
         db.commit()
         assert workspace_export_revision(db, wid) == 1
         with pytest.raises(ValueError, match="unavailable"):
-            bump_workspace_export_revision(db, wid + 10000)
+            advance(db, wid + 10000)
 
 
 @pytest.mark.parametrize("phase", ["build", "stream"])
@@ -177,7 +187,8 @@ def test_legacy_privacy_writers_advance_revision_on_closing_workspace(
 
 
 def test_meta_disconnect_fences_export_on_closing_scope(
-    export_engine: Engine, meta_configuration: Settings  # noqa: F811
+    export_engine: Engine,
+    meta_configuration: Settings,  # noqa: F811
 ) -> None:
     from app.meta.models import MetaConnection
     from app.meta.service import ConnectionService

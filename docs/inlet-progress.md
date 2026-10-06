@@ -1,5 +1,9 @@
 # Inlet Build Progress
 
+Current status entry point: [Inlet Current Acceptance Matrix](inlet-current-acceptance.md).
+This ledger retains chronological package and validation evidence; older entries do
+not describe later code or qualify a different artifact.
+
 Last updated: 2026-10-06. Product: **Inlet**. Company: **An Inlet**.
 
 ## Baseline And Working Rules
@@ -4919,3 +4923,23 @@ verified local repair. A delegated monitor owns terminal evidence collection and
 subsequent isolated reproduction. No success is claimed for this Full. Hosted failure
 annotation and release-scope questions remain unanswered; no confirmed GitHub quota
 limit. All commits remain local under the push/PR/hosted-CI hold.
+
+
+### Current Acceptance Matrix — Docs-Only Snapshot
+
+Added `docs/inlet-current-acceptance.md` as the acceptance entry point for reviewed
+code `31a412dfdd4c30b7e1e8bb5f01441d00f47d32e7`, tree
+`84820fdac7bcf38e989598f302bc6ef8ed6f34f8`, migration0075, 2026-10-06 12:17UTC.
+Separates IMPLEMENTED, FOCUSED-TESTED, AGGREGATE-TESTED and LIVE-QUALIFIED for B01–B20;
+records actual default-unavailable runtime factories, remaining B17 ordinary code,
+customer versus owner-managed webpage scope, commercial/policy inputs and live gates.
+Older matrices have pointers; their evidence/counts remain unchanged.
+
+Verified historical local Full8efe19668d4920df6607ddd60140ab8ab0779049 and tree
+11252fdbc785c270b49a1340dff95506d7391405 using local git objects, wrapper exitfile0
+and terminal log. Its hosted failure is retained; no newer aggregate success and no
+live qualification is claimed. Parent confirmed31a412d snapshot and ongoing failed
+frozendc3 run before commit. Dynamic terminal results belong in a later ledger entry.
+
+Docs only: relative file links and whitespace checked; pytest/Ruff/mypy not rerun,
+since no code changed. No Full, remote operation, provider call or policy activation.

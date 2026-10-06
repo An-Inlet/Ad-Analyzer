@@ -1,5 +1,10 @@
 # Inlet B15–B20 Working Acceptance Matrix
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 Checkpoint: 2026-10-06. Documentation base: PR94, commit
 `5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6`. **None of B15–B20 is complete.**
 The draft branches below are separate candidates, not functionality already combined

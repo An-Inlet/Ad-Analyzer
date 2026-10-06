@@ -1,5 +1,10 @@
 # Integrated Inlet Candidate Acceptance
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 This is the current implementation view of `codex/inlet-mvp-next`; draft PR130 is
 tracking frozen `a4fcd3a35d585d11def78261382234e081fb8f6b` (migration 0071).
 Local Full and normal hosted run 37443239927 are running; session automation 0072

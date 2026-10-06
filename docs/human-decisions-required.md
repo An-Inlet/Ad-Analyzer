@@ -11,7 +11,7 @@ and some unsupported features require code rather than owner credentials or appr
 For Inlet's minimal commercial inputs, use the
 [commercial owner worksheet](inlet-commercial-owner-worksheet.md). For current
 implemented behavior, open work and release limits, use the
-[candidate acceptance record](inlet-candidate-acceptance.md) and package evidence.
+[current acceptance matrix](inlet-current-acceptance.md) and package evidence.
 The historical list below must not trigger redundant permission requests for routine
 offline work already authorized in [the automation policy](automation-policy.md).
 

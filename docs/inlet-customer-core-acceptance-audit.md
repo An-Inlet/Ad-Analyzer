@@ -1,5 +1,10 @@
 # Customer Core Acceptance Audit And Analysis Attention
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 Reviewed root `1c82e03` on isolated `codex/inlet-customer-acceptance-audit`.
 Current reference is `docs/inlet-candidate-acceptance.md`; earlier per-package
 matrices are historical, not evidence that later APIs/connectors remain missing.

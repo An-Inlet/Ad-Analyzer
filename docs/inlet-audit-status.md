@@ -1,5 +1,10 @@
 # Inlet Audit Acceptance Status — 2026-10-06
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 All evidence below is offline. Main remains the audited ea3591c; drafts are not
 merged, deployed, live-qualified or a purchasable release. A green isolated test
 suite is not completion of the audit's full customer/provider journey.

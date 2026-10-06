@@ -1,5 +1,10 @@
 # Composed Archive And Closure Acceptance
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 Isolated from root `534a65c`; frozen Full candidate `8efe196` remains untouched.
 This closes an offline composition coverage gap, not a reproduced data leak.
 

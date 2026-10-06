@@ -1,5 +1,10 @@
 # Audit Timeline And Current Phase
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 The parent supplied a read-only verification of the original audit on 2026-10-06.
 This executor has not independently materialized the original attachment bytes.
 Page 1 revised the earlier 8–12 week estimate to 12–20 weeks with parallel work, or

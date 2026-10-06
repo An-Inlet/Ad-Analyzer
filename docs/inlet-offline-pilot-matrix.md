@@ -1,5 +1,10 @@
 # B20 Offline Two-Brand Acceptance Matrix
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 This is engineering evidence for B20, not completion of its unrelated-business
 pilot requirement. No real business, live advertising account, production purchase,
 provider qualification or deployed browser journey is exercised. Base: `6eef6d8`.

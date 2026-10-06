@@ -1,5 +1,10 @@
 # Customer Foundation Integration Acceptance
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 This isolated integration branch combines draft PRs 79–85, including their repaired
 predecessors, without merging main or enabling providers. It is based on PR83 and
 retains branch ancestry for review. Parallel migrations0032 and0034→0035 converge

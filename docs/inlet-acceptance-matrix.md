@@ -1,5 +1,10 @@
 # Inlet B07–B13 Acceptance Audit
 
+> Historical checkpoint / scoped evidence record. For current implementation, focused
+> tests, exact-artifact aggregate validation and live qualification, start with the
+> [current acceptance matrix](inlet-current-acceptance.md). Requirements and historical
+> test/CI results below are preserved; old missing-feature claims are not current status.
+
 Checkpoint 2026-10-06. Every package below is an **offline implementation slice**.
 Passing tests do not complete provider, purchasing or launch acceptance. No live account,
 provider call, purchase, merge or deployment occurred. The original audit requirements

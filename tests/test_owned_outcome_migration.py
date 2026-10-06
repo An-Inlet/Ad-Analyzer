@@ -39,6 +39,9 @@ def test_owned_assessment_populated_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0056")
+        from tests.candidate_historical_schema import without_candidates
+
+        without_candidates(monkeypatch, engine)
         with Session(engine) as db:
             wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
             db.commit()

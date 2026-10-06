@@ -3373,3 +3373,127 @@ billing-table downgrade: `pk_customer_workspace_billing` constraint absent.
 This acquisition package changes no billing or migration code; parent notified for
 assembled qualification. Logs: `/tmp/inlet-independent-tests-final.log`,
 `/tmp/inlet-independent-regressions.log`, `/tmp/inlet-independent-mypy-final.log`.
+### 2026-10-06 — Commercial offer qualification integrated
+
+Integrated PR193 frozen43b7e38. Exact immutable offer binding, configured-price and
+provider-object qualification, paid invoice/payment/charge lineage, original-key
+config-drift recovery and failed-fresh-qualification entitlement invalidation are
+implemented. No prices, production allowance or live settings enabled. Root checks:
+111 passed, one expected SQLite lock skip,13 migration warnings in91.76s, including
+browser purchase/recovery and retained settlement (`/tmp/inlet-next-billing-offer.log`).
+Ruff check . passed after formatting-only0063 SQL literal split; configured mypy524
+files and whitespace passed. Additional production assembly binding is being audited;
+unsupported commercial shapes still require code if selected. Offline fixtures do not
+qualify a live purchasable release.
+## 2026-10-06 — Nonemitting Optimization Candidate Queue (0062)
+
+Branch: `codex/inlet-optimization-candidates`, child of repeat-readiness
+`ce5b66de93d14de74dae41646a1bc2dd3e833602`. Draft PR pending parent connector action.
+
+Implemented strict server candidate/evidence/policy contracts, bounded budget
+compiler and durable owner/original-session-bound read jobs. Numeric policy and
+learning registries default unconfigured. Runtime factory returns None. Jobs
+recheck account/mandate/goal/source/receipt/privacy/session after source I/O;
+lease/fence/backoff apply only to non-emitting reads. All outputs require fresh
+separate execution admission and grant no spending authority. Current descriptive
+v2/v3 assessments cannot be promoted into measured learning by registration.
+
+Migration0062 down0060, canonical registry, strict export and local-work/closure
+classification are explicit. Privacy, commerce correction/new publication and
+receipt append erase derived jobs/results transactionally while retaining all
+financial/receipt history. Historical pre0062 fixture helper asserts table
+absence and no-ops only new candidate erasure hooks; production has no missing
+schema fallback. See `docs/design/nonemitting-optimization-candidates.md` for
+interfaces, exact limits and remaining automatic-optimization code.
+
+Checks actually run:
+
+- Current-head candidate/commerce/owned-outcome/closure suites: **91 passed,
+  1 expected SQLite concurrency skip** (72.31s).
+- Expanded candidate suite plus populated0062 roundtrip and historical replacement,
+  owned-outcome, commerce-publication and social-configuration migrations:
+  **41 passed** (41.34s), both database backends for parametrized tests.
+- Added final two-tenant fairness regression: **2 passed** (SQLite/PostgreSQL;
+  36 deselected), one failed source backs off while another completes.
+- Ruff whole repository: pass. Mypy app/tests: **511 files pass**. Diff check: pass.
+- Intermediate failures were fixed: wrong platform-control accessor; test principal
+  detachment/FK setup/expected native amount/clock/issuer; no interrupted or failed
+  run is counted as passing. One attempted test selection used a nonexistent
+  filename and collected no tests; corrected selection produced91pass result.
+
+No Full, live calls, workflow dispatch, merge or deployment. Actual native
+exposure/finality/transition sources, attributed learning, automatic target policy,
+emitting scheduler and explicit long-lived delegation remain missing. This is
+non-authorizing candidate groundwork, not completed autonomous optimization.
+
+## 2026-10-06 — Session-Bound Candidate Selection And Provenance
+
+Branch `codex/inlet-candidate-selection`, isolated child of PR191 frozen83e1362.
+Shared contract approved before implementation; no schema0064 or feedback edits.
+
+Added server-only current-mandate target discovery/selection and atomic v2 job
+admission. Exact observed native budget owners must match the full approved target
+set. No child substitution, inferred target expansion, performance ranking or
+numerical defaults. Repeated catalog content checks and current session, role,
+mandate, source/privacy/policy and post-lock clock checks fence admission. Insert
+rollback is atomic; fresh clock after flushed writes rejects expiry before commit.
+Worker rejects v2 observation state drift before storing a suggestion.
+
+Separate `CandidateWorkV2` stores selection/catalog/state/manifest provenance.
+Original CandidateWork v1 bytes/digest remain unchanged; one discriminated parser
+serves storage and strict export. No emitting authority, provider mutation,
+reservation or approval is created. Default selection factory returns None.
+See `docs/design/candidate-selection-orchestration.md` for exact ports/limitations.
+
+Validation actually run:
+
+- Initial combined selection/candidate suite:61 passed,3 expected SQLite row-lock skips.
+- Expanded selection/candidate/populated0062 migration suite:66 passed,3 expected
+  SQLite skips (74.02s); includes actual Google/Meta/TikTok MockHTTP catalogs to
+  durable v2 jobs and nonemitting result, old v1 compatibility/export, role/privacy/
+  expiry during controlled PostgreSQL workspace-lock waits, owner-only selection,
+  dedup/order, contradictory snapshots, foreign scope, tamper and insert rollback.
+- Final fresh-clock refinement selection suite:29 passed,3 expected SQLite skips
+  (26.76s), including expiry during a flushed insertion rolling back all jobs.
+- Ruff whole repository, mypy514 app/test files, diff check:pass.
+- Test fixture errors corrected during development: invalid membership role name,
+  wrong mocked Google amount property and imported type reference; failed runs are
+  not counted as passing. No Full, live call, dispatch, merge or deploy.
+
+Remaining: actual production runtime assembly/source registry and mature attributed
+direction/numerical decision policy, native exposure/finality/transition sources,
+automatic emitting scheduler and explicit long-lived delegation. Catalog readback
+has no provider CAS; later external changes require fresh worker/execution checks.
+This package closes structural candidate assembly/provenance only.
+
+### 2026-10-06 — Candidate preparation and selection integration
+
+Integrated PR19183e1362 and PR1941aed881: owned non-emitting candidate queue plus
+server-side exact native-owner selection, versioned provenance, original-session
+authority and atomic batch admission. Billing/candidate export registrations merged
+additively with discriminated v1/v2 parser. Root checks88 passed,3 expected SQLite
+row-lock skips in128.81s (`/tmp/inlet-next-candidate-selection.log`), Ruff check .,
+configured mypy536 files and whitespace passed. Migration0062 is a separate branch
+from0061/0063 until final0067 merge; assembled migration/Full checks remain pending.
+These packages do not complete automatic emitting optimization or qualified learning.
+
+### 2026-10-06 — Production billing assembly bypass repaired
+
+Integrated PR196 frozen ac2a6019603037de9f43f287a2540422ba2eb5bf. Exact defect:
+production paid_work used billing mode rather than production environment to select
+strict live enforcement; mode disabled/test plus billing_required=false admitted
+paid operations. Baseline8 failed assertions across SQLite/PostgreSQL included four
+actual app.main media uploads returning200. Repair always routes production paid_work
+through live_paid_work, refuses production test transport and prevents unavailable
+production status falling back to legacy test billing evidence.
+
+Root checks144 passed in45.08s across assembly/scopes/offers/customerbilling/runtime
+scheduler (`/tmp/inlet-next-billing-assembly.log`); Ruff check ., configured mypy537
+files and staged whitespace passed. No schema/price/live permission changes. Original
+receipt/settlement lanes remain retained. Separately approved receipt-only original-
+binding recovery factory is in progress and remains default-off/GET-only.
+
+Frozen8efe196 localFull remains in final focused gate nestedFull; normal hosted
+run37427571832 remains in pytest. Neither has terminal result. No gate weakened or
+manual dispatch attempted. Google evidence PR195 is ready but not integrated; feedback
+0064 and independent Shopify acquisition continue. Final merge0067 waits on0064/0066.

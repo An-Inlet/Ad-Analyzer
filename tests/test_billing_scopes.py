@@ -91,7 +91,8 @@ def test_live_gate_ignores_rollout_bypass_and_test_snapshot(
         row.status, row.price_id = "active", POLICY.price_id
         row.verified_at, row.period_end = NOW, NOW + timedelta(days=30)
         db.commit()
-        require_entitlement(db, wid, POLICY, NOW, scope=TEST)
+        with pytest.raises(HTTPException, match="qualified paid offer unavailable"):
+            require_entitlement(db, wid, POLICY, NOW, scope=TEST)
         with pytest.raises(HTTPException):
             live_paid_work(db, wid, NOW)
         db.rollback()
@@ -138,91 +139,13 @@ def test_stripe_checks_merchant_and_mode_before_accepting_customer(scope: Billin
 
 
 def test_mock_http_checkout_dispatch_and_cancel_remain_in_live_scope(
-    customer_engine: Engine,
+    customer_engine: Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.billing.dispatcher import run
-    from app.billing.service import checkout, management
+    # Live transport now requires a fully reviewed offer and paid-invoice proof;
+    # reuse the complete HTTP fixture while retaining the cross-environment assertions.
+    from tests.test_billing_offers import qualified_journey
 
-    status = "active"
-    calls: list[str] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        path = request.url.path
-        calls.append(path)
-        if path == "/v1/account":
-            return httpx.Response(200, json={"object": "account", "id": LIVE.merchant_account_id})
-        body: dict[str, Any] = {"livemode": True}
-        if path == "/v1/customers":
-            body.update(id="cus_fixture")
-        elif path == "/v1/checkout/sessions":
-            body.update(
-                id="cs_fixture",
-                customer="cus_fixture",
-                mode="subscription",
-                url="https://checkout.stripe.com/c/fixture",
-                expires_at=int((NOW + timedelta(hours=1)).timestamp()),
-            )
-        elif path == "/v1/subscriptions/sub_fixture":
-            body.update(
-                id="sub_fixture",
-                customer="cus_fixture",
-                status=status,
-                cancel_at_period_end=False,
-                current_period_end=int((NOW + timedelta(days=30)).timestamp()),
-                items={
-                    "has_more": False,
-                    "data": [{"quantity": 1, "price": {"id": POLICY.price_id, "livemode": True}}],
-                },
-            )
-        elif path == "/v1/billing_portal/sessions":
-            body.update(
-                customer="cus_fixture",
-                configuration="bpc_fixture",
-                url="https://billing.stripe.com/p/fixture",
-            )
-        else:
-            raise AssertionError(path)
-        return httpx.Response(200, json=body)
-
-    transport = StripeBilling(
-        SecretStr("sk_live_offline_fixture"),
-        "2025-06-30.basil",
-        scope=LIVE,
-        http_transport=httpx.MockTransport(handler),
-        clock=lambda: NOW,
-    )
-    with Session(customer_engine) as db:
-        wid, _ = setup(db, "live")
-        other, _ = setup(db, "test")
-        test_row = owned(db, other, NOW, scope=TEST)
-        test_row.customer_id = "cus_fixture"
-        db.commit()
-        result = checkout(db, wid, POLICY, transport, "https://inlet.example/settings", NOW)
-        assert result["mode"] == "stripe_live"
-        for scope in (TEST, LIVE):
-            body = event_body(scope)
-            receive(db, body, signature(body), SECRET, NOW, scope=scope)
-    assert run(lambda: Session(customer_engine), POLICY, transport, NOW)["events"] == 1
-    with Session(customer_engine) as db:
-        require_entitlement(db, wid, POLICY, NOW, scope=LIVE)
-        assert repository.event(db, "evt_identical", TEST).state == "pending"  # type: ignore[union-attr]
-        assert (
-            management(db, wid, transport, "bpc_fixture", "https://inlet.example/settings", NOW)[
-                "mode"
-            ]
-            == "stripe_live"
-        )
-    status = "canceled"
-    assert (
-        run(lambda: Session(customer_engine), POLICY, transport, NOW + timedelta(minutes=3))[
-            "refreshes"
-        ]
-        == 1
-    )
-    with Session(customer_engine) as db, pytest.raises(HTTPException, match="entitlement"):
-        require_entitlement(db, wid, POLICY, NOW + timedelta(minutes=3), scope=LIVE)
-    assert calls.count("/v1/customers") == 1
-    assert calls.count("/v1/checkout/sessions") == 1
+    qualified_journey(customer_engine, monkeypatch)
 
 
 def test_closure_receipt_lane_does_not_cross_environment(customer_engine: Engine) -> None:
@@ -303,11 +226,8 @@ def test_live_signed_endpoint_rejects_test_body_and_legacy_route_rejects_live(
         == 400
     )
     monkeypatch.setattr(settings, "billing_live_enabled", False)
-    assert (
-        client.post(
-            "/api/billing/stripe/live/events",
-            content=live,
-            headers={"Stripe-Signature": signature(live)},
-        ).json()
-        == {"received": False}
-    )
+    assert client.post(
+        "/api/billing/stripe/live/events",
+        content=live,
+        headers={"Stripe-Signature": signature(live)},
+    ).json() == {"received": False}

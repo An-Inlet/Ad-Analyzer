@@ -43,6 +43,7 @@ class CampaignDraft(Base):
 class CampaignRevision(Base):
     __tablename__ = "customer_campaign_revisions"
     __table_args__ = (
+        UniqueConstraint("draft_id", "revision", "workspace_id", name="uq_campaign_revision_scope"),
         ForeignKeyConstraint(
             ["draft_id", "workspace_id"],
             ["customer_campaign_drafts.id", "customer_campaign_drafts.workspace_id"],

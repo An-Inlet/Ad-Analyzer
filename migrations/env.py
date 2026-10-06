@@ -5,6 +5,7 @@ import app.campaign_review.models  # noqa: F401
 import app.customer_context.models  # noqa: F401
 import app.google_connections.models  # noqa: F401
 import app.publication.models  # noqa: F401
+import app.publication.provider_models  # noqa: F401
 from alembic import context
 from app.ads import models  # noqa: F401
 from app.analysis import models as analysis_models  # noqa: F401

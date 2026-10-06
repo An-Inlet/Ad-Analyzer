@@ -413,7 +413,7 @@ def test_pkce_uncertain_exchange_clears_verifier_and_blocks_replay(
         db.close()
     with Session(customer_engine) as db:
         row = service.authorization(db, "klaviyo", nonce, sid, NOW)
-        assert row.state == "exchanging" and row.encrypted_grant is None
+        assert row.state == "failed" and row.encrypted_grant is None
         with pytest.raises(HTTPException, match="already consumed"):
             service.finish(db, "klaviyo", nonce, sid, "code", runtime, NOW)
 

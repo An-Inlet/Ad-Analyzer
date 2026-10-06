@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination, metaDestination} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination, metaDestination, tiktokDestination} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -74,4 +74,11 @@ test('Meta consent uses configured same-origin callback and fixed read scope', (
  const url=configuration.authorization_endpoint+'?'+query;
  assert.equal(metaDestination({authorization_url:url},configuration,origin),url);
  for(const bad of [url.replace('www.facebook.com','evil.example'),url+'&state=duplicate',url+'&constructor=invalid',url.replace('ads_read','ads_management'),url.replace('100000000000001','other')]) assert.throws(()=>metaDestination({authorization_url:bad},configuration,origin));
+});
+
+test('TikTok consent requires fixed endpoint configured app callback and exact query', () => {
+ const origin='https://inlet.example'; const setup={app_id:'1234',redirect_uri:origin+'/api/customer/v1/sources/tiktok_ads/callback',authorization_endpoint:'https://business-api.tiktok.com/portal/auth'};
+ const url=setup.authorization_endpoint+'?'+new URLSearchParams({app_id:setup.app_id,redirect_uri:setup.redirect_uri,state:'a'.repeat(43)});
+ assert.equal(tiktokDestination({authorization_url:url},setup,origin),url);
+ for(const bad of [url.replace('business-api.tiktok.com','evil.test'),url+'&state=duplicate',url+'&constructor=bad',url.replace('1234','9999'),url.replace('portal/auth','other')]) assert.throws(()=>tiktokDestination({authorization_url:bad},setup,origin));
 });

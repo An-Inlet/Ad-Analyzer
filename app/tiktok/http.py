@@ -43,6 +43,7 @@ class TikTokProviderRejected(TikTokReadError):
 
 
 class TikTokHTTPRead(TikTokReadAdapter):
+    provider: Literal["tiktok_ads"] = "tiktok_ads"
     mode: Literal["fixture", "provider_read"] = "provider_read"
 
     def __init__(
@@ -119,6 +120,11 @@ class TikTokHTTPRead(TikTokReadAdapter):
             raise TikTokReadError("tiktok_response_invalid") from None
 
     def exchange(self, code: str, redirect_uri: str) -> SourceGrant:
+        return self.exchange_guarded(code, redirect_uri, lambda: None)
+
+    def exchange_guarded(
+        self, code: str, redirect_uri: str, checkpoint: Callable[[], None]
+    ) -> SourceGrant:
         # Capture optional provider lifetime without inventing a permanent grant.
         grant_data: dict[str, Any] = {}
 
@@ -126,6 +132,7 @@ class TikTokHTTPRead(TikTokReadAdapter):
             method: str, path: str, params: dict[str, Any], token: str | None
         ) -> dict[str, Any]:
             response = self._http(method, path, params, token)
+            checkpoint()
             if path == "/open_api/v1.3/oauth2/access_token/":
                 grant_data.update(response["data"])
             return response

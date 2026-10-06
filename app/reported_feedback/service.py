@@ -808,6 +808,20 @@ def apply_feedback_preview(
             ReportedFeedbackSlot.cohort_digest == value.cohort.digest(),
         )
     )
+    if old is not None and utc(old.expires_at) > now:
+        previous = ReportedFeedbackPreviewV1.model_validate(old.document)
+        if (
+            previous.comparison_digest == value.comparison_digest
+            and previous.baseline_preview_id == value.baseline_preview_id
+            and previous.baseline_preview_digest == value.baseline_preview_digest
+            and previous.policy_digest == value.policy_digest
+            and previous.active_set_digest == value.active_set_digest
+            and old.original_actor_id == principal.user.id
+            and old.original_session_digest == principal.session.digest
+        ):
+            authorize(db, workspace_id, principal.user.id)
+            local_job_current(db, job, runtime, effective_now(db, runtime.initial))
+            return validate_preview_dependencies(db, old, effective_now(db, runtime.initial))
     revision = old.revision + 1 if old else 1
     if old:
         db.delete(old)

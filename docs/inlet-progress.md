@@ -5293,3 +5293,25 @@ JavaScript syntax and diff checks pass. Log:
 This verifies offline customer composition, not production policy qualification,
 multi-original historical learning, live report stability, deployment or spending
 authority. No Full, remote call/push/CI or live provider operation was performed.
+
+### Operational Feedback Exact Arithmetic And Idempotent Preview — Local Only
+
+Isolated successor of `2d3b9b1`. Reproduced Decimal rounding in the prior CPA-derived
+ratio: $700 / 21 versus $700 / 42 produces `0.499999...`, then a 249999-micro
+adjustment where the exact reported ratio implies 250000. Compute relative change
+from cross-products of original spend/conversion totals. Repeated identical current
+comparison/baseline/policy application now returns the same freshly validated slot,
+without compounding or incrementing the original opportunity count.
+
+Focused exact-base command: `pytest -o addopts='' -q
+ tests/test_reported_feedback_evaluator.py tests/test_reported_feedback_preview_guards.py`
+with explicit disposable PostgreSQL configuration: **12 passed**,15.01s. Actual Meta
+wire acquisitions, real calibration/native baseline and both databases verify
+same-slot replay, count1, policy-revision denial, physical capsule→slot retraction and
+unchanged protected attempt/receipt/hold counts. Whole `ruff check .`, configured
+`mypy` (**702 files**) and diff checks passed. Logs `/tmp/inlet-rf-final-guards.log`,
+`/tmp/inlet-rf-final-ruff.log`, `/tmp/inlet-rf-final-mypy.log`.
+
+No Full, remote operation, live provider request, production policy qualification,
+new execution authority or spend. This does not report another worker's joint run
+as passed; that frozen run was still pending at this checkpoint.

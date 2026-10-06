@@ -161,9 +161,15 @@ def compare(
             if before.reported_cpa_micros <= 0:
                 reasons.add("before_cpa_undefined")
             else:
+                assert before.spend_micros is not None and after.spend_micros is not None
+                assert before.conversions is not None and after.conversions is not None
+                # Cross-multiply original reported totals rather than subtracting
+                # rounded repeating CPAs (e.g. 10/3 versus 10/6). Exact half gains
+                # must not become 0.4999... and lose one micro in the bounded delta.
+                denominator = Decimal(before.spend_micros) * after.conversions
                 improvement = (
-                    before.reported_cpa_micros - after.reported_cpa_micros
-                ) / before.reported_cpa_micros
+                    denominator - Decimal(after.spend_micros) * before.conversions
+                ) / denominator
         expiry = min(
             request.expires_at,
             now + timedelta(seconds=policy.decision_lifetime_seconds),

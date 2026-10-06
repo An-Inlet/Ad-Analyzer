@@ -176,3 +176,22 @@ def test_exact_source_freshness_boundary_becomes_insufficient() -> None:
     result = compare(request, capsules, boundary)
     assert result.status == "insufficient" and "latest_report_expired" in result.reasons
     assert result.relative_cpa_improvement is None
+
+
+def test_repeating_cpa_does_not_round_exact_relative_change_down() -> None:
+    request, capsules, now = evidence()
+    capsules = tuple(
+        c.model_copy(
+            update={
+                "days": tuple(
+                    d.model_copy(
+                        update={"conversions": Decimal(3 if c.window == request.before else 6)}
+                    )
+                    for d in c.days
+                )
+            }
+        )
+        for c in capsules
+    )
+    value = compare(request, capsules, now)
+    assert value.relative_cpa_improvement == Decimal("0.5")

@@ -1795,3 +1795,26 @@ repairs without timing retries or weakened product assertions. See the current
 - Missing code: production portfolio/cap/reporting-delay qualification, activation,
   authoritative settlement and integrated social journeys. Shared readers currently
   admit explicit contract-test scenarios only in tests; runtime remains unavailable.
+
+### Google Existing-Campaign HTTP Optimization — 2026-10-06
+
+Branch `codex/inlet-google-optimization-http` from frozen additive Google ports
+`c7a9713566bcf0962310e8421cdeaf031fcef7d9`. Adds actual injectable v25 REST budget/pause
+transport, separate from legacy fixture GoogleActions and B07 simulation consent.
+Native budget resource is the owner key; paginated campaign topology plus reference
+count must prove one independent owner. Search/manual CPC/daily standard budget is
+the conservative supported subset. No shared budgets, resume or negative keywords.
+
+Reads bind customer currency/timezone, native settings, schedule, topology and
+automatic recommendation state. Masked validate-only and one-shot mutations use
+fixed endpoints/bounded responses/timeouts and sanitized errors. Unknown or late
+responses retain the original attempt; read-only reconciliation never retries a
+mutation, and old state never proves no effect. Native indefinite end is explicitly
+null, not an invented date or exposure horizon. Social request documents unchanged.
+
+Checks: actual Google HTTP, additive Google contracts, frozen social adapter/digests
+and Google publication tests **92 passed, zero skipped**; Ruff, mypy app/tests
+(**389 files**) and diff check passed. No migrations or Full. Runtime factory remains
+None and live exposure remains rejected. Coordinator integration/live portfolio
+qualification/activation/settlement remain separate work. No live calls, spending,
+merge or deployment. See `docs/inlet-google-optimization-http.md`.

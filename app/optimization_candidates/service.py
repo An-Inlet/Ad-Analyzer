@@ -429,7 +429,13 @@ def run_candidate_reads(
 
 
 def read_result(
-    db: Session, wid: int, identifier: str, principal: CustomerPrincipal, runtime: CandidateRuntime
+    db: Session,
+    wid: int,
+    identifier: str,
+    principal: CustomerPrincipal,
+    runtime: CandidateRuntime,
+    *,
+    erase_invalid: bool = True,
 ) -> CandidateDecision:
     authorize(db, principal, wid, runtime)
     result = db.scalar(
@@ -444,6 +450,8 @@ def read_result(
     try:
         current(db, work, principal, runtime)
     except HTTPException:
+        if not erase_invalid:
+            raise HTTPException(409, "candidate source invalidated") from None
         db.execute(
             delete(CandidateJob).where(CandidateJob.id == job.id, CandidateJob.workspace_id == wid)
         )

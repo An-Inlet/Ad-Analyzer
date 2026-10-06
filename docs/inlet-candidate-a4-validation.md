@@ -10,7 +10,13 @@ Local Full completed with **exit1** on 2026-10-06, verified10:55UTC: **5 failed,
 3390 passed,67 skipped**,129 warnings in5059.83s. Failures are the four cases below
 plus their nested-Full wrapper; no additional cause appeared. Full stopped at pytest,
 so subsequent static/security/privacy/migration gates did not run in this invocation.
-Hosted run37443239927/job112201796837 remains in progress at the latest read.
+Hosted run37443239927/job112201796837 completed **failure**:5 failed,3396 passed,
+61 skipped,129 warnings in5132.55s. Nested4 failed,3396 passed,62 skipped. Same
+four causes plus wrapper; later validation gates were skipped. Actual checkout
+92a1590238c9e37acd994fcec5f491342aa1025f has the exact frozen a4 tree. Saved full
+log `/tmp/inlet-pr130-a4-hosted.log`; artifact11407171330 (1729bytes), SHA256
+a5cabc9b50932cc1825818eaa33a1e340ddb4e85a376b36b56925b50a42c6298,
+expires2026-10-13.
 Local log: `/tmp/inlet-oct06-candidate3-full.log`; actual wrapper exit code:
 `/tmp/inlet-oct06-candidate3-full.exitcode`.
 
@@ -56,6 +62,12 @@ Frozen successor `dc3c0d5b63eee06bd04a0aa73354ae289ef55333`, tree
 `codex/inlet-mvp-validation-next`. Local Full started10:54UTC in its independent
 checkout and disposable `inlet_oct06_candidate4_ci` database. Log:
 `/tmp/inlet-oct06-candidate4-full.log`; eventual exit-code companion. No pass claimed.
-PR130 remains on a4 while its hosted run is preserved to terminal. New0074 campaign
+After retaining both a4 terminal results, PR130 advanced to dc3c0d5. Its normal
+CI run37453370292/job112234984790 failed before starting any runner step (10:59:01
+to10:59:04UTC). No job log exists (404). Cause is unconfirmed: the connector rejects
+the check-runs annotation endpoint as unsupported. No GitHub usage/resource limit
+has been established; do not infer one from empty steps or an endpoint error.
+No rerun or manual dispatch was attempted. Parent must inspect the failure
+annotation to distinguish usage/resource/account limits from another startup issue. New0074 campaign
 performance and Google total-budget backend/UI are later development and deliberately
 not part of this frozen snapshot. No manual dispatch, merge or deployment.

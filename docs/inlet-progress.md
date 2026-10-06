@@ -4553,3 +4553,20 @@ its separate immutable checkout/database inlet_oct06_candidate4_ci. Log
 `/tmp/inlet-oct06-candidate4-full.log`, eventual `.exitcode`. Newdevelopment0074 and
 Google total-budget packages remain outside this snapshot. PR130 unchanged until
 its hosted result is retained. No manual dispatch, merge or live action.
+
+### Hosted a4 Terminal And New Pre-Run CI Blocker
+
+Hosted37443239927/job112201796837 FAILED:5 failed,3396 passed,61 skipped,
+129 warnings in5132.55s. Nested4 failed,3396 passed,62 skipped. Same four causes
+plus nested wrapper as local; no additionalfailure. Checkout92a1590238c9e37acd994fcec5f491342aa1025f
+tree67f18fa0b05ae6ce5637f73591cba66774f5928d matchesa4 exactly. Log retained
+`/tmp/inlet-pr130-a4-hosted.log`; failure artifact11407171330 expires2026-10-13.
+PR130 advanced normally to dc3c0d5 and body updated with exact qualification limits.
+
+Its new normal CI37453370292/job112234984790 failed before any runner/steps in
+three seconds (10:59:01–10:59:04UTC). Log returns404; check annotation is unavailable
+because the connector rejects check-runs URLs. Cause UNKNOWN; no actual GitHub
+quota/resource/usage limit confirmed. No retry/manual dispatch. Parent needs exact
+annotation evidence. Local candidate4 Full65083 remains running. Agents finishing
+existing offlinechecks/freeze were asked to hold additionalpush/CI pending diagnosis;
+no global stop claimed without confirmed owner-triggering usage-limit evidence.

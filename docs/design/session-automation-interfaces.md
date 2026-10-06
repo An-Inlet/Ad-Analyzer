@@ -131,3 +131,18 @@ this list rather than replaying Start. Start also deduplicates an active identic
 original-session/mandate/policy intent under the workspace lock. Capabilities adds
 `mandates: list[AutomaticMandateOption]` with exact server-resolved binding, label,
 currency, total_limit_micros, starts_at, ends_at. UI never guesses consent/ledger IDs.
+
+## Additive Authenticated Local Evidence Ports
+
+`CandidateRuntime.authorized_evidence_transform(db, principal, work, observation, now)`
+receives the job's freshly reloaded original CustomerPrincipal under the final
+workspace/session fence. It is local and noncommitting, performs no provider IO,
+and may replace evidence only. The worker rejects any scope or native-state change
+and repeats qualification allowlist, session, selection-expiry and lease checks.
+
+`authorized_final_evidence_current(db, principal, work, observation)` is the optional
+original-principal final checker. For registered feedback-dependent schemas it takes
+precedence over the existing `final_evidence_current`; missing both blocks. Existing
+callback signatures remain compatible. Directional adapters must register the
+principal-aware checker, not infer an owner or choose a different active session.
+Neither port supplies calibration, producer qualification or financial authority.

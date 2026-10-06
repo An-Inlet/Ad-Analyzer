@@ -62,6 +62,37 @@ class FinalEvidenceCurrent(Protocol):
     ) -> None: ...
 
 
+class AuthorizedEvidenceTransform(Protocol):
+    """Local evidence-only derivation under the actual original-session fence.
+
+    No provider IO, commits, state changes or authority grants. The worker supplies
+    its persisted original principal; adapters must never infer an owner/session.
+    """
+
+    def __call__(
+        self,
+        db: Session,
+        principal: CustomerPrincipal,
+        work: CandidateWork | CandidateWorkV2,
+        observation: CandidateObservation,
+        now: datetime,
+        /,
+    ) -> CandidateObservation: ...
+
+
+class AuthorizedFinalEvidenceCurrent(Protocol):
+    """Original-principal variant of the local, noncommitting final checker."""
+
+    def __call__(
+        self,
+        db: Session,
+        principal: CustomerPrincipal,
+        work: CandidateWork | CandidateWorkV2,
+        observation: CandidateObservation,
+        /,
+    ) -> None: ...
+
+
 @dataclass(frozen=True)
 class CandidateRuntime:
     environment: Environment
@@ -73,6 +104,8 @@ class CandidateRuntime:
     learning_profiles: frozenset[tuple[str, str, int, str]] = frozenset()
     feedback_dependent_schemas: frozenset[str] = frozenset()
     final_evidence_current: FinalEvidenceCurrent | None = None
+    authorized_evidence_transform: AuthorizedEvidenceTransform | None = None
+    authorized_final_evidence_current: AuthorizedFinalEvidenceCurrent | None = None
 
 
 def get_candidate_runtime() -> CandidateRuntime | None:
@@ -321,6 +354,23 @@ def retire_or_retry(
     db.commit()
 
 
+def check_evidence_profile(observation: CandidateObservation, runtime: CandidateRuntime) -> None:
+    evidence = observation.evidence
+    profile = (
+        evidence.source_schema,
+        evidence.qualification_profile or "",
+        evidence.qualification_revision or 0,
+        evidence.qualification_digest or "",
+    )
+    if evidence.qualification == "qualified_learning" and (
+        evidence.source_schema in ACTUAL_UNQUALIFIED_SCHEMAS
+        or profile not in runtime.learning_profiles
+    ):
+        raise HTTPException(409, "measured learning producer unavailable")
+    if evidence.qualification == "contract_scenario" and runtime.environment != "contract_test":
+        raise HTTPException(409, "contract evidence cannot qualify live")
+
+
 def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) -> str:
     token: str | None = None
     with Session(engine) as db:
@@ -342,22 +392,7 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
             ):
                 raise HTTPException(409, "candidate observation changed")
             evidence = observation.evidence
-            profile = (
-                evidence.source_schema,
-                evidence.qualification_profile or "",
-                evidence.qualification_revision or 0,
-                evidence.qualification_digest or "",
-            )
-            if evidence.qualification == "qualified_learning" and (
-                evidence.source_schema in ACTUAL_UNQUALIFIED_SCHEMAS
-                or profile not in runtime.learning_profiles
-            ):
-                raise HTTPException(409, "measured learning producer unavailable")
-            if (
-                evidence.qualification == "contract_scenario"
-                and runtime.environment != "contract_test"
-            ):
-                raise HTTPException(409, "contract evidence cannot qualify live")
+            check_evidence_profile(observation, runtime)
             row = load(db, wid, job_id)
             policy, positive, actions = current(db, work, principal_for(db, row), runtime)
             db.refresh(row, with_for_update=True)
@@ -371,10 +406,41 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 return "superseded"
             if isinstance(work, CandidateWorkV2) and runtime.clock() >= work.selection.expires_at:
                 raise HTTPException(409, "candidate selection expired during result lock")
+            if runtime.authorized_evidence_transform is not None:
+                original_state = observation.state.model_dump(mode="json")
+                original_scope = observation.scope.model_dump(mode="json")
+                transformed = runtime.authorized_evidence_transform(
+                    db,
+                    principal_for(db, row),
+                    work,
+                    observation.model_copy(deep=True),
+                    runtime.clock(),
+                )
+                observation = CandidateObservation.model_validate(
+                    transformed.model_dump(mode="json")
+                )
+                if (
+                    observation.scope.model_dump(mode="json") != original_scope
+                    or observation.state.model_dump(mode="json") != original_state
+                ):
+                    raise HTTPException(409, "local evidence cannot change owned scope or state")
+                check_evidence_profile(observation, runtime)
+                evidence = observation.evidence
+                policy, positive, actions = current(db, work, principal_for(db, row), runtime)
+                if (
+                    isinstance(work, CandidateWorkV2)
+                    and runtime.clock() >= work.selection.expires_at
+                ):
+                    raise HTTPException(409, "candidate selection expired during local derivation")
             if evidence.source_schema in runtime.feedback_dependent_schemas:
-                if runtime.final_evidence_current is None:
+                if runtime.authorized_final_evidence_current is not None:
+                    runtime.authorized_final_evidence_current(
+                        db, principal_for(db, row), work, observation
+                    )
+                elif runtime.final_evidence_current is not None:
+                    runtime.final_evidence_current(db, work, observation)
+                else:
                     raise HTTPException(409, "current feedback lineage reader unavailable")
-                runtime.final_evidence_current(db, work, observation)
                 # This callback is local/noncommitting; resample authority and time
                 # after any dependency locks it needed before storing derived data.
                 policy, positive, actions = current(db, work, principal_for(db, row), runtime)
@@ -383,6 +449,11 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                     and runtime.clock() >= work.selection.expires_at
                 ):
                     raise HTTPException(409, "candidate selection expired during evidence check")
+            # Local dependency locks can outlast the read claim even when the
+            # original customer session remains valid. Never publish from an
+            # expired lease after either local callback.
+            if row.lease_until is None or utc(row.lease_until) <= runtime.clock():
+                return "superseded"
             decision = compile_candidate(
                 observation, work.policy, policy, positive, actions, runtime.clock()
             )

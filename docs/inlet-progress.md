@@ -4025,3 +4025,23 @@ Root integrated frozen automation interface commits6c95a43 and332d7fc independen
 of unfinished0072. Candidate/final-evidence/contracts/review bridge checks:84 passed,
 1 expected PostgreSQL-only race skip on SQLite in115.81s. Ruff, configured mypy586
 and staged whitespace passed. Log `/tmp/inlet-next-automation-ports.log`.
+
+### Authenticated Directional Evidence Seam
+
+Added optional local evidence transform and original-principal final checker. The
+worker supplies the persisted job's current original session, rejects scope/native
+state changes, repeats source-profile authorization and current session/time checks,
+and refuses result insertion after the claim lease expires during dependency checks.
+Existing checker signatures remain compatible; no production adapter is registered.
+
+New boundary suite22 passed in24.58s; candidate/review/feedback composition79 passed,
+1 expected SQLite-only concurrency skip in112.33s. The broad run preceded the final
+additive lease check; the22-case final suite includes its expired-lease regression.
+An initial test-only typo used token_digest rather than CustomerSession.digest and
+was corrected before these passes. Ruff, mypy587 and whitespace passed.
+Logs `/tmp/inlet-authorized-evidence-final2.log` and
+`/tmp/inlet-authorized-evidence-composition.log`.
+
+Executor recovery checked at09:45 UTC after parent disconnect notification: actual
+read/write, repository access, original Full pytest PIDs/CPU advance and PostgreSQL
+zero deadlocks succeeded. No observed process loss, quota failure or access blocker.

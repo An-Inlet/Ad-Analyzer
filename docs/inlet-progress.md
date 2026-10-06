@@ -3804,3 +3804,9 @@ pass. Logs `/tmp/inlet-session-automation-ui-contract.log`,
 Actual automation backend routes remain in the scheduler owner's active package;
 this consumer checkpoint does not claim their qualification. Next: merge its frozen
 head and run the real API/DB automation browser journey. No live calls or Full run.
+
+Review checkpoint: draft [PR207](https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/207)
+against `codex/inlet-session-automation`, implementation `73cca02`. Final combined
+browser run **4 passed** in17.07s. Actual backend qualification remains explicitly
+pending its frozen routes/models head; scheduler supplied the upcoming test fixture
+and runtime dependency names for the follow-up integration.

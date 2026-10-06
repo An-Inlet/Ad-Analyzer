@@ -2436,3 +2436,17 @@ browser tests. This checkpoint alone does not provide a customer-facing journey 
 social dispatch authority. It does not enable a live runtime or remove any native
 qualification/spending blocker. DSA personal inputs await complete closure-safe
 privacy handling across every original/activation plan and request copy.
+
+## Social Review Storage Foundation
+
+Integrated frozen a08db1b as329ff9f: owned exact no-DSA configuration reviews and
+confirmations, explicit strict export/lifecycle classification, migration0059 from
+0057. Root review/migration/route suite15passed with4deprecation warnings
+(`/tmp/inlet-next-social-review-foundation.log`); Ruff/mypy479/diff passed; current
+single Alembic head0059. Customer routes, exact canonical-plan approval binding and
+UI remain a dependent package; storage does not enable dispatch. Personal DSA fields
+are absent/extra-forbidden; required or unverified DSA profiles remain blocked.
+
+Original audit timeline mapping supplied by the parent's read-only document check
+is recorded separately in `docs/inlet-audit-timeline.md`. It supersedes the earlier
+unverified weeks4–5 shorthand; phase comparisons are not delivery forecasts.

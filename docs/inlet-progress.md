@@ -2377,3 +2377,38 @@ privacy erasure, exact large values, backend boundaries and assembled route inve
 Ruff passed, configured mypy passed 466 files, diff check passed. Log:
 `/tmp/inlet-descriptive-history-final.log`. No Full, CI dispatch, migrations, live
 provider calls, spending, merge or deployment.
+
+## Social Configuration Review Foundation — 2026-10-06
+
+Branch `codex/inlet-social-review`, base `a95ca7c`, reserved0059/down0057.
+Implemented strict no-DSA configuration document, owned immutable review/approval
+records, current account/source/catalog/media selection, required caller authorizer,
+exact idempotent confirmation and current-owner confirmation read. Meta answers are
+explicit: applicable/unsure cannot confirm; DSA names are absent from the schema
+and rejected as extra fields. Verified DSA-required profiles remain blocked. TikTok
+binds actual owned decoded video/cover media; native parser and qualification gates
+remain unchanged. Protected lifecycle fields and strict JSON export bind document
+to owned scalar lineage. No personal-name retention exception.
+
+Design/copy inventory persisted in `inlet-social-configuration-review-design.md`
+and `inlet-social-declaration-privacy-lineage.md`. Current canonical receipt readers
+need full original documents, so personal declaration erasure cannot yet preserve
+the settlement path. Shared closure-only evidence contract remains design-only;
+no personal declaration capture was enabled.
+
+Checks actually run: combined56 passed/1 SQLite-only concurrency skip across new
+review/migration, model registry, existing social producer, export execution and
+lifecycle tests (`/tmp/inlet-social-review-final.log`). Final confirmation helper,
+approval population and cross-workspace FK denial:6 passed
+(`/tmp/inlet-social-review-new-final.log`); migration rerun after typed insert fix:
+1 passed (`/tmp/inlet-social-review-migration-final.log`). Disposable generated PG
+schema0057→0059→0057→0059 preserves existing runs and recreates new tables. Whole
+Ruff and clean mypy479 passed; diff check and single alembic head0059 passed.
+No broad Full, live operations, deployment or merge.
+
+Remaining: customer API/UI, exact configuration reference in canonical social plan,
+coordinator prepare/approve/claim/final-emission revalidation and private pair-review
+browser tests. This checkpoint alone does not provide a customer-facing journey or
+social dispatch authority. It does not enable a live runtime or remove any native
+qualification/spending blocker. DSA personal inputs await complete closure-safe
+privacy handling across every original/activation plan and request copy.

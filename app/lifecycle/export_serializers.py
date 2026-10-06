@@ -42,6 +42,7 @@ from app.publication.optimization_contracts import (
 )
 from app.publication.optimization_execution_contracts import OptimizationExecutionReview
 from app.publication.provider_contracts import ProviderPublicationReview, ProviderPublishPlan
+from app.publication.social_review_contracts import SocialConfigurationDocument
 
 # Explicit customer-facing structured fields. Free-form fields remain bounded JSON,
 # not arbitrary columns or provider transport responses. Typed historical fields use
@@ -53,6 +54,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "commerce_measurement_publications": ("manifest",),
     "crm_events": ("normalized_payload",),
     "customer_campaign_revisions": ("artifact",),
+    "customer_social_configuration_reviews": ("document",),
     "customer_goal_revisions": ("definition",),
     "customer_lifecycle_requests": ("blockers",),
     "execution_audits": ("validation_errors",),
@@ -120,6 +122,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("spending_mandate_revisions", "definition"): MandateDefinition,
     ("mandate_actions", "draft"): ActionDraft,
     ("customer_campaign_revisions", "artifact"): ReviewArtifact,
+    ("customer_social_configuration_reviews", "document"): SocialConfigurationDocument,
     ("publication_plans", "document"): PublishPlan,
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
@@ -237,7 +240,18 @@ def bind_document(
     table: str, field: str, row: Mapping[str, Any], document: BaseModel, raw: Any
 ) -> None:
     """Bind added domains to owned scalar lineage, never trust JSON scope alone."""
-    if isinstance(document, OwnedAssessment):
+    if isinstance(document, SocialConfigurationDocument):
+        account = document.request.account
+        if (
+            account.workspace_id != row["workspace_id"]
+            or account.account.account_id != row["account_id"]
+            or account.account.connection_id != row["integration_id"]
+            or document.request.draft_id != row["draft_id"]
+            or document.request.draft_revision != row["source_revision"]
+            or document.digest() != row["digest"]
+        ):
+            raise ValueError("social configuration row ownership mismatch")
+    elif isinstance(document, OwnedAssessment):
         expected = {
             "workspace_id": document.workspace_id,
             "environment": document.environment,

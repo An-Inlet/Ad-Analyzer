@@ -20,6 +20,7 @@ dependencies = [
     "google-ads>=25.1.0",
     "google-auth>=2.35.0",
     "google-auth-oauthlib>=1.2.1",
+    "google-cloud-storage>=3.16,<4",
     "google-cloud-pubsub>=2.23.0",
     "google-cloud-secret-manager>=2.20,<3",
     "psycopg[binary]>=3.2.1",

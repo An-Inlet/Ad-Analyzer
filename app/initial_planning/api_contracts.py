@@ -74,3 +74,14 @@ class NativeOptions(Frozen):
     mandates: tuple[MandateOption, ...] = Field(max_length=50)
     review_available: Literal[False] = False
     spending_authorized: Literal[False] = False
+
+
+class PreviewReviewStatus(Frozen):
+    """Readiness to request a review, never financial qualification."""
+
+    preview_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    preview_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    request_available: bool
+    reason: Literal["review_service_unavailable", "exact_proposal_required"] | None
+    financial_qualification: Literal["not_checked"] = "not_checked"
+    spending_authority: Literal["none"] = "none"

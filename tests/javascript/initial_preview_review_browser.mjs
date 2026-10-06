@@ -1,0 +1,13 @@
+const $=id=>document.getElementById('ip-'+id),assert=(ok,msg)=>{if(!ok)throw Error(msg);};
+const until=async(fn,message)=>{const end=Date.now()+15000;while(!await fn()){if(Date.now()>end)throw Error(message+' · '+$('status').textContent);await new Promise(r=>setTimeout(r,20));}};
+const change=(id,value,type='change')=>{$(id).value=value;$(id).dispatchEvent(new Event(type));};
+const settled=()=>!$('refresh').disabled;
+try{
+const login=await fetch('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'alice:browser'})});assert(login.ok,'actual sign in');
+await import('/app/assets/initial-planning.mjs');await until(()=>settled()&&$('workspace').options.length===2,'workspace');
+change('workspace','__WORKSPACE__');await until(()=>settled()&&$('campaign').options.length===2,'owned campaigns');change('campaign','__CAMPAIGN__');change('goal','__GOAL__','input');change('cpa','10','input');
+$('capture').click();await until(()=>settled()&&!$('report').hidden,'actual capture');assert($('observation').textContent.includes('purchase'),'selected event');assert($('observation').textContent.includes('10.000001'),'actual report spend');
+$('confirm').checked=true;$('confirm').dispatchEvent(new Event('change'));$('calibrate').click();await until(()=>settled()&&!$('calibration').hidden,'actual calibration');assert($('calibration-summary').textContent.includes('evaluated'),'actual chronological replay');assert($('parameters').textContent.includes('fixture_explicit'),'named server selected rule visible');
+assert(!$('native').disabled,'actual native catalog configured');$('native').click();await until(()=>settled()&&$('target').options.length===2&&$('mandate').options.length===2,'owned budget and mandate');change('target',$('target').options[1].value);change('mandate',$('mandate').options[1].value);$('preview').click();await until(()=>settled()&&!$('result').hidden,'exact preview');assert($('preview-summary').textContent.includes('USD 11'),'nominal proposed amount');assert(!$('review').disabled&&$('review-status').textContent.includes('not been checked'),'qualification not implied');assert($('review-link').hidden,'no review fabricated');$('review').click();await until(()=>settled()&&!$('review-link').hidden,'actual qualified review');assert($('status').textContent.includes('approval and execution have not been requested'),'no automatic approval');
+location.assign($('review-link').href);
+}catch(error){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}

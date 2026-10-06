@@ -20,6 +20,7 @@ from app.initial_planning.api_contracts import (
     NativeOptions,
     PlanningOptions,
     PreviewIntent,
+    PreviewReviewStatus,
 )
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
@@ -29,10 +30,17 @@ from app.initial_planning.contracts import (
     ObservationV1,
     PreviewIntentV1,
 )
+from app.initial_planning.review_contracts import (
+    InitialPreviewReviewIntent,
+    InitialPreviewReviewPrepared,
+    InitialPreviewReviewRuntime,
+)
 from app.initial_planning.runtime import InitialPlanningRuntime, get_initial_planning_configuration
 from app.publication import customer_intents, customer_optimization, execution_mandates
+from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import (
+    CustomerOptimizationRuntime,
     TargetChoice,
     get_customer_optimization_runtime,
 )
@@ -53,6 +61,25 @@ def get_initial_planning_runtime(db: Database) -> InitialPlanningRuntime:
 
 
 Runtime = Annotated[InitialPlanningRuntime, Depends(get_initial_planning_runtime)]
+ReviewOptimizationRuntime = Annotated[
+    CustomerOptimizationRuntime | None, Depends(get_customer_optimization_runtime)
+]
+
+
+def review_configured(
+    planning: InitialPlanningRuntime, optimization: CustomerOptimizationRuntime | None
+) -> bool:
+    return bool(
+        planning.configuration
+        and optimization
+        and optimization.catalog
+        and optimization.initial_planning
+        and optimization.initial_planning.configuration
+        and optimization.initial_planning.configuration.digest() == planning.configuration.digest()
+        and optimization.execution.meta is not None
+        and (optimization.execution.environment != "live" or optimization.execution.live_enabled)
+        and optimization.execution.environment == planning.configuration.environment
+    )
 
 
 def validated_preview_intent(
@@ -312,3 +339,66 @@ def read_preview(
 ) -> InitialPreviewV1:
     response.headers["Cache-Control"] = "no-store"
     return preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
+
+
+@router.get("/previews/{preview_id}/review-status", response_model=PreviewReviewStatus)
+def review_status(
+    workspace_id: int,
+    preview_id: str,
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    runtime: Runtime,
+    optimization_runtime: ReviewOptimizationRuntime,
+    response: Response,
+) -> PreviewReviewStatus:
+    document = preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
+    configured = review_configured(runtime, optimization_runtime)
+    exact = (
+        document.recommendation_status == "proposed" and document.native_state_digest is not None
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return PreviewReviewStatus(
+        preview_id=document.id,
+        preview_digest=fingerprint(document.schema_version, document.model_dump(mode="json")),
+        request_available=configured and exact,
+        reason=(
+            "review_service_unavailable"
+            if not configured
+            else "exact_proposal_required"
+            if not exact
+            else None
+        ),
+    )
+
+
+@router.post("/previews/{preview_id}/review", response_model=InitialPreviewReviewPrepared)
+def prepare_review(
+    workspace_id: int,
+    preview_id: str,
+    body: InitialPreviewReviewIntent,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+    runtime: Runtime,
+    optimization_runtime: ReviewOptimizationRuntime,
+    response: Response,
+) -> InitialPreviewReviewPrepared:
+    # Reject unavailable/stale customer context before opening the bridge transaction.
+    preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
+    if optimization_runtime is None or not review_configured(runtime, optimization_runtime):
+        raise HTTPException(503, "Exact review preparation is unavailable.")
+    from app.initial_planning.review_bridge import prepare_preview_review
+
+    db.expunge(principal.user)
+    db.expunge(principal.session)
+    db.rollback()
+    response.headers["Cache-Control"] = "no-store"
+    return prepare_preview_review(
+        InitialPreviewReviewRuntime(runtime, optimization_runtime),
+        principal,
+        provider,
+        workspace_id,
+        preview_id,
+        body.expected_preview_digest,
+    )

@@ -4989,3 +4989,33 @@ No product/migration changes, Full, remote writes, live calls or qualification.
 This evidence is through0075. Root's later0076 protected preview-review lineage is
 not populated by this fixture; run the combined drill after integration and extend
 protected provenance coverage separately if required.
+### 2026-10-06 — Initial Preview Customer Exact-Review Consumer (0076)
+
+Local branch `codex/inlet-preview-review-ui`; predecessor shared core `7c5b365`
+(local equivalent `65f1a1f`). Added original-session owned review readiness and
+owner/CSRF preparation endpoints, preserving all immutable PreviewV1 bytes.
+Readiness explicitly leaves financial qualification unchecked. Both endpoints use
+the ordinary approval runtime dependency and reject absent/mismatched planning
+context; browser submits only the server preview digest. The standalone preview
+page now requests a separate exact review, links to the normal owned optimization
+screen, and never automatically approves or executes. Query parameters are lookup
+keys, not review authority. Session/objective/selection changes clear local state.
+
+Verification actually run: combined API/core/customer contracts/default and
+configured HTTPS browser/normal optimization browser suite **26 passed**;
+after coherent generic-runtime assembly, affected API + HTTPS browser **8 passed**;
+final missing-context/mismatched-policy API regressions **4 passed**, all with
+SQLite and PostgreSQL enabled and no skips. Actual browser flow covers fresh
+login → report capture → calibration → native options → exact preview → review →
+ordinary separate checkbox/approval. Provider POST count remains zero. API checks
+cover wrong digest, CSRF, extra proof fields, different valid original session,
+idempotent response recovery, byte preservation, and capsule retraction with
+financial review history retained. Whole Ruff and mypy (**667 files**) pass;
+JavaScript syntax and diff checks pass. Logs: `/tmp/preview-review-consumer-final.log`,
+`/tmp/preview-review-assembly-final.log`, `/tmp/preview-review-policy-final.log`.
+
+No Full, remote write/CI, live provider calls, deployment, or production financial
+qualification. Contract-test qualification/exposure readers are explicit test
+fixtures. Production financial sources remain unavailable. Core migration,
+forward-gate/late-retraction/concurrency qualification remains the separate 0076
+backend package; this consumer adds no schema or provider mutation code.

@@ -5051,3 +5051,25 @@ route inventory missing `GET /app/plan-review`; both are reported for separate
 integration repair, not hidden or bypassed here. Whole Ruff, configured mypy
 **669 files**, JavaScript syntax and diff checks pass. This local commit contains
 only the demonstrated browser clock repair, explicit expiry coverage and diagnostics.
+
+### Later Preview Schema Historical Fixture And Route Inventory Repairs
+
+The pre0059 social migration fixture now inserts its execution-review row through
+an actual reflected historical Core table, then attaches that persisted identity
+for the existing coordinator assertions. It explicitly rejects later provenance
+markers; current ORM defaults cannot insert0076 columns into0057. Scalar historical
+run counts and all existing downgrade/upgrade/foreign-workspace assertions remain.
+No production model, service fallback or historical schema widening was added.
+
+The actual0074 performance DDL test now downgrades0076 before0075 and restores0075
+then0076 around both historical DDL paths. This preserves immutability, ownership
+and deletion assertions without CASCADE or skipping the PostgreSQL case. Exact
+static FileResponse routes `/app/plan-review` and `/app/initial-planning` are added
+to the public-document inventory; authenticated data APIs remain guarded. The
+consumer owner was notified to classify subsequent routes explicitly.
+
+Final focused actual0074 (SQLite/PostgreSQL), social historical migration and
+assembled route boundary suite **12 passed** in10.96s, no skips
+(`/tmp/inlet-social-integration-final.log`). Whole Ruff, configured mypy **669 files**
+and diff checks pass. Local-only followup to the browser clock commit; no remote,
+Full, runtime permission or production changes.

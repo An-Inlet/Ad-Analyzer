@@ -8,19 +8,43 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from app.publication.execution_authorization import owner_authorizer
-from app.publication.execution_models import ProviderExecutionRun
+from app.publication.execution_models import ProviderExecutionReview, ProviderExecutionRun
 from app.publication.social_review_contracts import MetaNoDSAAnswer, SocialRequirements
 from app.publication.social_review_models import SocialConfigurationReview
 from app.publication.social_review_service import confirm, prepare, selection
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import create_engine, func, insert, inspect, make_url, select, text
+from sqlalchemy import MetaData, Table, create_engine, func, insert, inspect, make_url, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, make_transient_to_detached
 
 from tests.test_commerce_measurement import NOW
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_customer_producer import fixture
+
+
+class HistoricalFixtureSession(Session):
+    """Insert reviews using the actual pre0059 schema, never newer ORM defaults."""
+
+    def add(self, instance: object, _warn: bool = True) -> None:
+        if isinstance(instance, ProviderExecutionReview):
+            table = Table("provider_execution_reviews", MetaData(), autoload_with=self.connection())
+            later = {
+                "initial_preview_origin_id",
+                "initial_preview_provenance_required",
+                "candidate_provenance_required",
+                "automatic_authority_required",
+            }
+            assert not later.intersection(table.c.keys())
+            assert all(not instance.__dict__.get(name) for name in later)
+            values = {
+                column.name: instance.__dict__[column.name]
+                for column in table.columns
+                if column.name in instance.__dict__
+            }
+            self.execute(insert(table).values(values))
+            make_transient_to_detached(instance)
+        super().add(instance, _warn=_warn)
 
 
 def test_populated_no_dsa_review_roundtrip(
@@ -44,7 +68,7 @@ def test_populated_no_dsa_review_roundtrip(
         from tests.candidate_historical_schema import without_candidates
 
         without_candidates(monkeypatch, engine)
-        with Session(engine) as db:
+        with HistoricalFixtureSession(engine) as db:
             _, account, catalog, producer, actor, store, _, _ = fixture(
                 db, configuration, tmp_path, "meta_ads", None
             )

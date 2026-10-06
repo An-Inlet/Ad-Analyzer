@@ -32,6 +32,8 @@ PUBLIC = {
     ("GET", "/app/"),
     ("GET", "/app/settings"),
     ("GET", "/app/campaign-review"),
+    ("GET", "/app/plan-review"),
+    ("GET", "/app/initial-planning"),
     ("GET", "/app/workspace-export"),
     ("GET", "/app/activity"),
     ("GET", "/app/measurement-history"),

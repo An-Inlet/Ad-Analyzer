@@ -3105,3 +3105,18 @@ not a proved process failure. Root access succeeded immediately; the native asse
 worker reconnected and recovered its terminal result (203 passed). No work loss or
 GitHub quota evidence was found. Frozen Full has completed both nested iterations
 and advanced into its outer suite; final gates are still pending.
+
+### Integrated Analysis Attention And 08:15 Validation Checkpoint
+
+Integrated PR180 (`262d3cc`), observing bounded latest analysis failures and separate
+overdue running analyses without claiming worker termination. Root combined
+attention/provider-attention/customer activity checks: **39 passed in 26.53 seconds**.
+Ruff, configured mypy (502 files) and diff checks passed. Log:
+`/tmp/inlet-next-analysis-attention.log`.
+
+At 08:15 UTC the executor is available. Frozen `8efe196` local Full completed both
+nested iterations and reached 77% of outer pytest; no exitcode file exists yet.
+Normal hosted run37427571832/job112150604656 remains in pytest with preflight and
+migration passed; later gates remain pending. These are not terminal successes.
+UI repair for independent re-review is exact pushed `c3bf9b4` (PR187 feature20f4b6c),
+with root51 browser/route tests passed. No new assembled freeze until terminal checks.

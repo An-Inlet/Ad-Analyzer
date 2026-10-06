@@ -16,6 +16,8 @@ terminal states retain a null age; an age is never fabricated.
 | Code | Evidence | Safe Operator Response |
 | --- | --- | --- |
 | `job_failed` | Latest sampled run for an exact workspace/connection/account/platform/job identity failed; a newer success suppresses the earlier failure | Inspect the scoped job using existing operator tools; distinguish local analysis from provider collection |
+| `analysis_failed` | Latest sampled terminal analysis for workspace/cadence/account failed; later terminal success suppresses it | Inspect local analysis source and failure classification; no automatic rerun |
+| `analysis_running_overdue` | An independent sampled running analysis began at least 15 minutes ago, even if another run later succeeded | Inspect worker ownership; neither age nor another success proves termination |
 | `job_running_overdue` | Latest sampled running job began at least 15 minutes ago | Inspect worker ownership and progress before deciding recovery |
 | `billing_event_overdue` | Active-workspace pending event has no future retry, and receipt/retry due time is at least 15 minutes old | Inspect webhook reconciliation; never infer payment from browser return |
 | `billing_snapshot_overdue` | Active subscription lacks recent verification and any scheduled retry is at least 15 minutes overdue | Inspect reconciliation availability; do not grant entitlements manually |
@@ -64,7 +66,7 @@ settlement is outside this endpoint. This package does not enable live execution
 
 Two additional bounded queries cover held reservations and current relevant steps.
 They use workspace-bound joins and separate environments, and share the existing
-500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 19 fixed
+500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 21 fixed
 code/environment signals and two exposure summaries can be emitted. A capped sample
 cannot establish absence of uncertainty outside its rows.
 
@@ -87,8 +89,8 @@ release gate. There is no query parameter allowing callers to expand the cap.
 `no_attention_observed` means only that these sampled persisted states produced no
 signal. It is deliberately not a global healthy state. The response always exposes
 observation gaps: storage failures have no durable record; scheduler heartbeats and
-never-started work are not observed; local AnalysisRun history is outside this v1
-signal; publication steps lack an independent age field; external alert delivery is
+never-started work are not observed; analysis rows use bounded persisted-state
+observations rather than heartbeats; publication steps lack an independent age field; external alert delivery is
 not configured. No storage call is made merely to manufacture a health result.
 
 An approved monitoring system can consume fixed code/severity/count transitions

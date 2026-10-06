@@ -32,6 +32,7 @@ MODEL_MODULES = (
     "app.publication.execution_models",
     "app.publication.models",
     "app.publication.provider_models",
+    "app.publication.social_review_models",
     "app.shopify.models",
     "app.sources.models",
     "app.workspaces.models",

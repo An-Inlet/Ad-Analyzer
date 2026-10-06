@@ -69,6 +69,17 @@ an explicitly reserved migration after review. A small coordinator port may acce
 actual adapter's typed evidence, but it must bind it to the already-durable original
 attempt and request before recording. Recovery after losing the response remains unknown.
 
+Retention follows the original execution attempt and financial lineage, not a short-lived
+diagnostic cache. Use composite owned foreign keys and prevent deletion while a referenced
+hold, replacement ancestor or unresolved request remains. Account closure/export/native
+backup/restore must include the new sanitized record and its request/fence linkage before
+release. Store only the bounded typed protocol fields/digests above, no access tokens,
+HTTP headers or raw provider payload. Completion is a historical immutable observation;
+current authorization, scope/generation and accounting validity are separately rechecked
+when consuming it. A newly reconnected generation must not silently reuse it for a new
+request; historical identity remains available to audit old obligations. Existing retention
+and closure rules need targeted integration tests if a new evidence table is introduced.
+
 A read-only `GoogleOriginalCompletionReader` loads exact owned original request plus the
 new evidence, revalidates request/operation/endpoint/profile/digests and immutable fence,
 and returns either typed completion or an explicit unavailable reason. It must not promote

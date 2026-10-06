@@ -12,6 +12,7 @@ license = { text = "Proprietary" }
 authors = [{ name = "An Inlet" }]
 dependencies = [
     "cryptography>=44.0.0",
+    "Pillow>=12.1.1,<13",
     "alembic>=1.13.2",
     "fastapi>=0.111.0",
     "firebase-admin>=7.0,<8",

@@ -47,6 +47,7 @@ class MetaConnection(Base):
     workspace_integration_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"), unique=True)
     account_id: Mapped[int] = mapped_column(Integer, unique=True)
+    generation: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     external_account_id: Mapped[str] = mapped_column(String(32), unique=True)
     status: Mapped[str] = mapped_column(String(32), default="connected")
     encrypted_credentials: Mapped[str] = mapped_column(Text)

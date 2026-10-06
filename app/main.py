@@ -11,6 +11,7 @@ from app.api.crm import router as crm_router
 from app.api.customer import router as customer_router
 from app.api.customer_ad_detail import router as customer_ad_detail_router
 from app.api.customer_billing import router as customer_billing_router
+from app.api.customer_campaign_review import router as customer_campaign_review_router
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_goals import router as customer_goals_router
 from app.api.customer_google import router as customer_google_router
@@ -124,6 +125,7 @@ app.include_router(customer_commerce_router)
 app.include_router(customer_goals_router)
 app.include_router(customer_mandates_router)
 app.include_router(customer_google_router)
+app.include_router(customer_campaign_review_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
 app.include_router(customer_billing_router)

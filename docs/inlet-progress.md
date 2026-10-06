@@ -894,3 +894,24 @@ time and successful responses after lease expiry are rejected. Expanded CRM and
 source-lifecycle suite: 73 passed, 1 intentional SQLite lock-case skip, 2 existing
 Alembic configuration deprecation warnings; actual PostgreSQL replica cases pass.
 Ruff/mypy269/diff-check pass. Migration unchanged from the tested roundtrip.
+### B14 Campaign Review Core — 2026-10-06
+
+Isolated `codex/inlet-campaign-review` from integration
+`3417bc22d986aefc6abb08905dea89495b20ce53`; migration 0037 follows 0036. Added private
+scoped immutable development JPEG/PNG storage (disabled default), typed campaign
+revision/preview/exact approval APIs, current ownership/mandate/entitlement/generation
+bindings, and explicit Meta generation on verified reauthorization. Edits append an
+unapproved revision. Offline review approval is distinct from publication eligibility;
+provider publication remains disabled. Core ports and remaining design copied to
+`docs/inlet-campaign-review-contract.md`; implemented behavior and limitations in
+`docs/inlet-campaign-review-core.md`.
+
+Checks: 61 focused SQLite/PostgreSQL/mock tests passed, 1 intentional SQLite-only skip
+for the PostgreSQL row-lock race; Ruff passed; mypy 276 files passed; diff check passed.
+New disposable `inlet_b14_migration_ci`: upgrade head and 0037→0036→head passed.
+Additional `alembic check` found existing CRM import/analysis enum drift, no B14 drift;
+not claimed clean. Full and hosted CI pending. No provider calls or live verification.
+
+Remaining: TikTok video validation, customer review UI, production private storage and
+media lifecycle, B15/B16 compiler/publication/reconciliation and spend/freshness gates.
+The first package does not claim all B14 acceptance criteria complete.

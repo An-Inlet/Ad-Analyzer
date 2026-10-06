@@ -10,6 +10,7 @@ import logging
 import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Any, Literal
 from urllib.parse import urlencode, urlsplit
 
@@ -44,6 +45,28 @@ class CRMHTTPLogFilter(logging.Filter):
 
 class CRMReadError(RuntimeError):
     """Sanitized error; never include credentials, raw payloads or customer identifiers."""
+
+
+class CRMRateLimited(CRMReadError):
+    """Bounded scheduling hint, never a revocation signal."""
+
+    def __init__(self, retry_after: int) -> None:
+        super().__init__("crm_rate_limited")
+        self.retry_after = retry_after
+
+
+def retry_seconds(value: str | None, now: datetime) -> int:
+    try:
+        if value is None or len(value) > 128:
+            return 60
+        seconds = (
+            int(value)
+            if re.fullmatch(r"[0-9]{1,10}", value)
+            else int((parsedate_to_datetime(value) - now).total_seconds()) + 1
+        )
+        return max(5, min(seconds, 86400))
+    except (ValueError, TypeError, OverflowError):
+        return 60
 
 
 def bounded(value: object, maximum: int = 4096) -> str:
@@ -119,7 +142,9 @@ class CRMHTTP:
                 if response.status_code in {401, 403}:
                     raise CRMReadError("crm_authorization_unavailable")
                 if response.status_code == 429:
-                    raise CRMReadError("crm_rate_limited")
+                    raise CRMRateLimited(
+                        retry_seconds(response.headers.get("Retry-After"), self.clock())
+                    )
                 if not 200 <= response.status_code < 300:
                     raise CRMReadError("crm_read_unavailable")
                 raw = bytearray()

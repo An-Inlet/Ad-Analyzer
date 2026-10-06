@@ -18,6 +18,7 @@ from app.ads.enums import AdvertisingPlatform
 from app.ads.models import JobRun
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
+from app.customer_context.models import CRMCheckpoint
 from app.google_connections.models import GoogleImportCompletion
 from app.google_connections.security import digest
 from app.imports.scope import ensure_native_integration
@@ -277,6 +278,7 @@ def select_account(
         db.add(existing)
     else:
         discard_pending_analysis(db, existing)
+        discard_context_checkpoint(db, existing)
         existing.generation += 1
         existing.covered_from, existing.covered_through, existing.last_sync_at = None, None, None
         existing.cursor, existing.staged, existing.next_attempt_at = None, {}, None
@@ -323,9 +325,21 @@ def discard_pending_analysis(db: Session, row: SourceConnection) -> None:
     )
 
 
+def discard_context_checkpoint(db: Session, row: SourceConnection) -> None:
+    """Caller holds source/workspace locks; remove all cursor and receipt material."""
+    scope = select(SourceConnection.id).where(
+        SourceConnection.id == row.id,
+        SourceConnection.workspace_id == row.workspace_id,
+        SourceConnection.integration_id == row.integration_id,
+        SourceConnection.provider == row.provider,
+    )
+    db.execute(delete(CRMCheckpoint).where(CRMCheckpoint.connection_id.in_(scope)))
+
+
 def disconnect(db: Session, row: SourceConnection) -> None:
     row = owned(db, row.workspace_id, cast(ProviderName, row.provider), row.id)
     discard_pending_analysis(db, row)
+    discard_context_checkpoint(db, row)
     integration = db.get(WorkspaceIntegration, row.integration_id)
     assert integration is not None
     integration.status = "revoked"

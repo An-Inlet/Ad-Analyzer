@@ -2050,3 +2050,26 @@ See `docs/inlet-crm-customer-ui.md` for contracts and evidence.
 ### CRM Customer Journey Integration
 
 Integrated PR150ae5ffb2: Klaviyo/HubSpot/Omnisend consent, account confirmation and local disconnect, guarded exchanges and server-only Klaviyo PKCE. Combined actual CRM HTTPS browsers, customer APIs/status and adjacent Meta browser checks57 passed; portal JavaScript14 passed; Ruff and configured mypy passed. Logs:/tmp/inlet-next-crm-journeys.log and /tmp/inlet-next-crm-node.log. No private gateway/persistent enrichment or live grant added.
+## B18 Customer Activity And Support (Successor Of cd10222)
+
+Added a bounded, authenticated customer activity read and `/app/activity` view.
+Goal/campaign summaries come from actual persisted revision timestamps; owner-only
+provider outcomes reuse validated latest receipt projection. No provider payloads,
+IDs, invented events or support destinations. Existing connection/billing and
+closure/export recovery links remain separate. See `inlet-customer-activity.md` for
+coverage, truncation, authority and verification limits.
+
+Focused checks: 25 passed, zero skips across customer activity API (SQLite/PostgreSQL),
+activity Chromium fixture, route boundary inventory and existing customer portal.
+Ruff passed; repository-configured mypy passed (407 files); git diff check passed. No Full, CI,
+live account, billing, advertising or deployment operations. Initial test fixture
+used an unsupported membership status; corrected to schema-supported suspension.
+Standalone `mypy .` encountered the existing duplicate script module discovery;
+the repository's configured `mypy` command is the authoritative check.
+
+Final review also guards an obsolete response-body parse failure; the focused Chromium
+journey passed again (1 passed). Ruff, mypy (407 files) and diff check passed again.
+
+### Activity And Support Integration
+
+Integrated PR151a0a011c: bounded persisted goal/campaign activity and owner-only validated provider receipt summaries, separate optional page with honest support/recovery links. Combined API, browser and route-boundary checks14 passed with PostgreSQL enabled; Ruff and configured mypy passed. /tmp/inlet-next-activity.log. Coverage/truncation explicit, no fabricated historical events or support endpoint. Browser and API tests remain separate offline evidence.

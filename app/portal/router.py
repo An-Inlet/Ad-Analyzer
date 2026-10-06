@@ -29,3 +29,8 @@ def customer_workspace_export() -> FileResponse:
 @router.get("/app/workspace-closure/{workspace_id}/{request_id}", include_in_schema=False)
 def customer_workspace_closure() -> FileResponse:
     return FileResponse(STATIC / "workspace-closure.html", media_type="text/html")
+
+
+@router.get("/app/activity", include_in_schema=False)
+def customer_activity() -> FileResponse:
+    return FileResponse(STATIC / "activity.html", media_type="text/html")

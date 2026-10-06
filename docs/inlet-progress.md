@@ -526,3 +526,25 @@ not B09 live verification. Campaign matrix approval, provider-specific bound val
 and real authorized read-back remain launch gates. Next independent package: B10 Meta
 child metric/state detail and aggregation correctness, then TikTok and customer-data
 adapters. `inlet-google-actions-contract.md` records the shared action boundary.
+
+## B10 — Meta Child Detail And Common Metric Grains
+
+Branch `codex/inlet-b10-meta-detail` follows B09 `36c0155` / draft PR68. Common metrics
+now represent ad sets and ads with compound parent/platform constraints. Added current
+ad/creative identity metadata, bounded Meta detail read collection, atomic publication
+and customer-scoped reporting. Campaign totals remain authoritative; child grains are
+compared, never summed into account spend. Historical creative attribution is marked
+unavailable rather than inferred from today's creative assignment. Detail collection
+is disabled by default and is not silently scheduled.
+
+25 focused Meta/detail tests pass, including populated PostgreSQL migration0029,
+parent-FK rejection, atomic failed imports, duplicate rows, cursor/partial failures,
+customer scope and revocation. Ruff/mypy (219 files) and Full/CI results are recorded
+at the final package head. Only documented child-metric/schema changes remain in the
+migration; unrelated generated changes were removed before execution. No live calls.
+
+B07 hosted CI37390420054 at7e31642 passed824 tests with zero skips and all gates. B08
+local Full ataa4dcff passed827 tests with six PowerShell skips and all gates; hosted CI
+is tracked in PR67. B09 checks continue independently on its immutable commit. Main
+was rechecked and remains ea3591c. Next package: B11 TikTok using the common owned
+account and ad-group/ad grain contracts. Live release/pilot gates remain open.

@@ -206,6 +206,7 @@ class AdSet(TimestampMixin, Base):
             name="uq_ad_sets_campaign_platform_external",
         ),
         UniqueConstraint("id", "platform", name="uq_ad_sets_id_platform"),
+        UniqueConstraint("id", "campaign_id", "platform", name="uq_ad_sets_id_campaign_platform"),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
             ["campaigns.id", "campaigns.platform"],
@@ -229,6 +230,8 @@ class AdSet(TimestampMixin, Base):
 class Ad(TimestampMixin, Base):
     __tablename__ = "ads"
     __table_args__ = (
+        UniqueConstraint("id", "ad_group_id", "platform", name="uq_ads_id_group_platform"),
+        UniqueConstraint("id", "ad_set_id", "platform", name="uq_ads_id_set_platform"),
         UniqueConstraint(
             "ad_group_id",
             "platform",
@@ -266,6 +269,8 @@ class Ad(TimestampMixin, Base):
     external_ad_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str | None] = mapped_column(String(64))
+    creative_external_id: Mapped[str | None] = mapped_column(String(128))
+    creative_name: Mapped[str | None] = mapped_column(String(255))
     ad_group_id: Mapped[int | None] = mapped_column(Integer)
     ad_set_id: Mapped[int | None] = mapped_column(Integer)
 
@@ -357,7 +362,7 @@ class DailyMetric(TimestampMixin, Base):
         ),
         CheckConstraint("cost_micros >= 0", name="ck_daily_metrics_cost_nonnegative"),
         CheckConstraint(
-            "(entity_type = 'campaign' AND entity_id = campaign_id "
+            "((entity_type = 'campaign' AND entity_id = campaign_id "
             "AND ad_group_id IS NULL AND keyword_id IS NULL AND search_term_id IS NULL) OR "
             "(entity_type = 'ad_group' AND entity_id = ad_group_id "
             "AND ad_group_id IS NOT NULL AND keyword_id IS NULL AND search_term_id IS NULL) OR "
@@ -366,8 +371,34 @@ class DailyMetric(TimestampMixin, Base):
             "AND search_term_id IS NULL) OR "
             "(entity_type = 'search_term' AND entity_id = search_term_id "
             "AND ad_group_id IS NOT NULL AND keyword_id IS NULL "
-            "AND search_term_id IS NOT NULL)",
+            "AND search_term_id IS NOT NULL)) "
+            "AND ad_set_id IS NULL AND ad_id IS NULL OR "
+            "(entity_type = 'ad_set' AND entity_id = ad_set_id AND ad_set_id IS NOT NULL "
+            "AND ad_id IS NULL AND ad_group_id IS NULL AND keyword_id IS NULL "
+            "AND search_term_id IS NULL) OR "
+            "(entity_type = 'ad' AND entity_id = ad_id AND ad_id IS NOT NULL "
+            "AND keyword_id IS NULL AND search_term_id IS NULL "
+            "AND ((ad_set_id IS NOT NULL AND ad_group_id IS NULL) OR "
+            "(ad_set_id IS NULL AND ad_group_id IS NOT NULL)))",
             name="ck_daily_metrics_entity_scope",
+        ),
+        ForeignKeyConstraint(
+            ["ad_set_id", "campaign_id", "platform"],
+            ["ad_sets.id", "ad_sets.campaign_id", "ad_sets.platform"],
+            name="fk_metric_ad_set",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["ad_id", "ad_set_id", "platform"],
+            ["ads.id", "ads.ad_set_id", "ads.platform"],
+            name="fk_metric_ad_set_ad",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["ad_id", "ad_group_id", "platform"],
+            ["ads.id", "ads.ad_group_id", "ads.platform"],
+            name="fk_metric_ad_group_ad",
+            ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
@@ -418,6 +449,8 @@ class DailyMetric(TimestampMixin, Base):
     )
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    ad_set_id: Mapped[int | None] = mapped_column(Integer)
+    ad_id: Mapped[int | None] = mapped_column(Integer)
     ad_group_id: Mapped[int | None] = mapped_column(Integer)
     keyword_id: Mapped[int | None] = mapped_column(Integer)
     search_term_id: Mapped[int | None] = mapped_column(Integer)

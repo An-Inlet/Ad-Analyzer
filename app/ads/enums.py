@@ -13,6 +13,8 @@ class MetricEntityType(StrEnum):
 
     CAMPAIGN = "campaign"
     AD_GROUP = "ad_group"
+    AD_SET = "ad_set"
+    AD = "ad"
     KEYWORD = "keyword"
     SEARCH_TERM = "search_term"
 

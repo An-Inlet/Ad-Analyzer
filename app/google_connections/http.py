@@ -5,7 +5,7 @@ import json
 import re
 from datetime import date
 from decimal import Decimal
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 from pydantic import SecretStr
@@ -18,6 +18,9 @@ from app.google_connections.contracts import (
     MetricRow,
     Page,
 )
+
+if TYPE_CHECKING:
+    from app.campaign_performance.aggregate import ReportingDescriptor
 
 
 class GoogleReadError(RuntimeError):
@@ -48,6 +51,14 @@ class GoogleHTTPRead:
             raise ValueError("Google API version must be explicitly pinned")
         self.client_id, self.secret, self.developer = client_id, secret, developer
         self.version, self.transport = version, transport
+
+    @property
+    def performance_contract(self) -> "ReportingDescriptor":
+        from app.campaign_performance.aggregate import ReportingDescriptor
+
+        return ReportingDescriptor(
+            "google_ads", f"google.{self.version}.campaign-day.metrics-conversions.v1"
+        )
 
     def _request(
         self,

@@ -72,3 +72,38 @@ publication, source/row/privacy/session invalidation, unknown versus true zero, 
 correction, overflow rollback, and actual 0074 update rejection/composite FK/cascade and
 roundtrip. Existing Meta connection/detail tests and lifecycle/model registry suites
 exercise integration. Exact counts are recorded in the progress ledger.
+
+## Google And TikTok Successor (No New Migration)
+
+`aggregate.ReportingDescriptor` is frozen and validates its provider/query version.
+Only concrete GoogleHTTPRead/TikTokHTTPRead instances produce accepted descriptors;
+arbitrary adapters or copied properties do not supply reporting provenance. Google binds
+its explicitly pinned HTTP API version; TikTok binds the existing v1.3 BASIC campaign/day
+query. Each import stages the descriptor across pages. Conflicting observed descriptors
+are rejected. Legacy staged pages lacking a descriptor may finish ordinary import, but
+remain unqualified throughout. Terminal unknown/unqualified writes delete the current
+performance reference even when metric values are unchanged. No compatibility restart
+is required merely because old staged pages lack the new field.
+
+Google `tick` publishes after terminal normalized campaign/day replacement and before
+advancing the next backfill/refresh window. Its reference describes exactly the last
+completed bounded slice, which can be an older historical week. It never asserts all
+backfill coverage or that the completed slice is the newest calendar interval. Reader
+checks completion/current identity and last_sync_at; it does not compare captured dates
+to the already-advanced next import window. TikTok `tick` publishes within the same nested
+transaction as terminal campaign/group/ad replacement; the manifest includes campaign
+rows only, and the reader verifies exact covered_from/through.
+
+The explicit `CampaignPerformanceV2` variant handles these providers. Meta v1 fields and
+serialized bytes remain unchanged. Google exposes platform aggregate conversions/value,
+with no selected event or purchase/Shopify attribution claim. TikTok exposes only a
+separately labelled `reported_generic_conversions`; conversions, conversion value, CPA
+and ROAS remain null. Its storage value placeholder zero never becomes observed revenue.
+Sparse absent rows remain unavailable. Both return unqualified maturity, unavailable
+causal attribution and no spending authorization. Consumers must handle the versioned
+union explicitly; this is not a qualified-learning schema or calibration registration.
+
+All three current readers additionally use existing `validate_advertising_scope` under
+the workspace→native source→account/integration locks, so a separately revoked integration
+cannot be bypassed by a retained connected native row. Actual row digest, generation,
+privacy and original-session checks remain mandatory.

@@ -4,7 +4,7 @@ import json
 import re
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 from pydantic import SecretStr
@@ -20,6 +20,10 @@ PATHS = {
     ("GET", "/open_api/v1.3/ad/get/"),
     ("GET", "/open_api/v1.3/report/integrated/get/"),
 }
+
+
+if TYPE_CHECKING:
+    from app.campaign_performance.aggregate import ReportingDescriptor
 
 
 class TikTokReadError(RuntimeError):
@@ -58,6 +62,14 @@ class TikTokHTTPRead(TikTokReadAdapter):
             raise ValueError("TikTok runtime configuration incomplete")
         self.transport, self.clock = transport, clock
         super().__init__(self._http, app_id, secret)
+
+    @property
+    def performance_contract(self) -> "ReportingDescriptor":
+        from app.campaign_performance.aggregate import ReportingDescriptor
+
+        return ReportingDescriptor(
+            "tiktok_ads", "tiktok.v1.3.basic-campaign-day.generic-conversion.v1"
+        )
 
     def _http(
         self, method: str, path: str, params: dict[str, Any], token: str | None

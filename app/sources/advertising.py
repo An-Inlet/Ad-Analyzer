@@ -182,6 +182,9 @@ def tick(
         workspace_id, row.integration_id, row.account_id, AdvertisingPlatform.TIKTOK_ADS
     )
     account, _ = validate_advertising_scope(db, scope)
+    from app.campaign_performance.aggregate import publish, stage_contract
+
+    performance_contract = stage_contract(row.staged, transport)
     try:
         token = service.token(row, now)
     except HTTPException:
@@ -229,12 +232,17 @@ def tick(
         row.error_code, row.next_attempt_at = None, None
         row.cursor, row.staged = (
             page.next_cursor,
-            {"pages": pages, "cursors": seen + [page.next_cursor]},
+            {
+                "pages": pages,
+                "cursors": seen + [page.next_cursor],
+                "performance_contract": performance_contract,
+            },
         )
         db.commit()
         return None
     with db.begin_nested():
         count = _publish(db, row, scope, [AdvertisingPage.model_validate(p) for p in pages])
+        publish(db, row, row.window_start, row.window_end, now, transport, performance_contract)
         repository = AdvertisingMetricsRepository(db)
         job = repository.create_job_run(
             platform=scope.platform,

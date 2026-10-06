@@ -711,6 +711,23 @@ def read_owned_outcome_receipt(
     Caller must use an authenticated customer principal; the current owner check is
     repeated here. No caller-supplied run/account/success state participates in lineage.
     """
+    # Dispatch only after scoped database joins; each reader repeats the workspace lock
+    # and exact immutable original request/receipt validation.
+    purpose = db.scalar(
+        select(ProviderExecutionReview.document)
+        .join(ProviderExecutionRun, ProviderExecutionRun.review_id == ProviderExecutionReview.id)
+        .join(ProviderExecutionAttempt, ProviderExecutionAttempt.run_id == ProviderExecutionRun.id)
+        .where(
+            ProviderExecutionAttempt.id == attempt_id,
+            ProviderExecutionAttempt.workspace_id == workspace_id,
+            ProviderExecutionRun.workspace_id == workspace_id,
+            ProviderExecutionReview.workspace_id == workspace_id,
+        )
+    )
+    if purpose is not None and purpose.get("purpose") == "activate":
+        from app.publication.activation import read_owned_outcome_receipt as activation_receipt
+
+        return activation_receipt(db, workspace_id, attempt_id, actor)
     run, document, attempt, request = evidence_lock(db, workspace_id, attempt_id)
     owner(db, workspace_id, actor)
     latest = db.scalar(

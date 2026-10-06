@@ -2009,3 +2009,9 @@ Integrated PR145 d2c0487, including shared activation contracts and actual Googl
 Owner resumed normal Inlet work while leaving the exact blocked workflow dispatch paused. Read-only diagnosis: shell proxy CONNECT to api.github.com returns403 Forbidden before any GitHub API response; existing Actions metadata remains readable through connected GitHub tools. This is not evidence of GitHub quota exhaustion; no credentials/settings changed and no dispatch bypass attempted. Actual verified plan/usage limit still requires all-project stop.
 
 Integrated PR1495cec843 workspace-first Google/CRM import locking. Combined import closure/ownership/customer quiescing checks47 passed,2 SQLite-only concurrency skips; Ruff and configured mypy411 passed. /tmp/inlet-next-import-fence-corrected.log. Initial mistyped test filename ran no tests and is not evidence. This removes demonstrated lock inversion; does not establish physical worker termination.
+
+### Durable Activation Integration
+
+Integrated PR148dd71cdd: separate exact review/approval, original durable activation attempts, full original graph revalidation, retained parent reservation and owned receipt supersession. Combined activation/coordinator/export-domain/model-registry checks48 passed1 SQLite-only concurrency skip; Ruff and configured mypy415 passed. /tmp/inlet-next-durable-activation.log. Production live exposure and authoritative settlement sources remain missing; strict activation export serializer coverage remains a separate integration requirement.
+
+Broader closure worker testing subsequently reproduced a self-deadlock introduced by147: customer_runtime._analyze holds workspace authority in one Session while run_post_sync_analysis opens another and waits for that lock. Repair is in progress; no integrated Full claimed for this successor. Focused47 closure/import tests did not cover that scheduler path.

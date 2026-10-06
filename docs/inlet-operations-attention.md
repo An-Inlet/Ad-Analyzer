@@ -33,9 +33,43 @@ amounts, customer/account/resource identifiers, raw errors, opaque grants, reque
 payloads or customer text leave this endpoint. It never asserts that paused or
 unknown publication resources did not spend.
 
+## Durable Provider Coordinator Evidence
+
+The original PR137 observed legacy simulation publication tables only; production
+coordinator uncertainty was unobserved until this extension. The endpoint now also
+reads the frozen coordinator's scalar execution-step, original-attempt, exposure
+reservation and ledger fields. It never parses request/receipt JSON to guess state.
+
+`provider_held_exposure` separately reports observed held counts and oldest ledger
+period end for `contract_test` and `live`. Held exposure can be legitimate for a
+paused graph awaiting activation, so held alone is not an alert. Counts are not
+money and are never combined across currencies. Existing legacy signals have a null
+`environment`; new coordinator signals explicitly name their environment.
+
+| Code | Evidence | Meaning |
+| --- | --- | --- |
+| `provider_creation_unknown` | Current step is `unknown` or `conflict` | Critical; preserve original attempt and reservation, reconcile without retry |
+| `provider_creation_no_effect` | Current step is `verified_no_effect` | Warning requiring review; does not grant permission to replay or release exposure |
+| `provider_dispatch_overdue` | Current step is `dispatching`/`emitting` and original attempt is at least 15 minutes old, or has no attempt timestamp | Critical; do not reclaim the attempt based on age |
+| `provider_exposure_period_ended` | Reservation remains `held` at or after its ledger's end | Warning; period expiry is not settlement evidence |
+
+Step state is the coordinator's current projection of the latest immutable receipt
+for its unique original attempt. A later unknown/conflict supersedes earlier success.
+Cancellation and closing workspaces do not suppress these signals, and a canceled
+run is not treated as proof of no effect. The original attempt's timestamp indicates
+dispatch age, not the timestamp when a later unknown receipt appeared. Reservations
+remain held through paused creation, unknown effects, cancellation and expiry;
+settlement is outside this endpoint. This package does not enable live execution.
+
+Two additional bounded queries cover held reservations and current relevant steps.
+They use workspace-bound joins and separate environments, and share the existing
+500-row caps, truncation/lower-bound flags and PostgreSQL timeout. Up to 18 fixed
+code/environment signals and two exposure summaries can be emitted. A capped sample
+cannot establish absence of uncertainty outside its rows.
+
 ## Bounds And Gaps
 
-There are nine fixed read queries, each materializing at most 501 scalar-only rows;
+There are eleven fixed read queries, each materializing at most 501 scalar-only rows;
 500 are evaluated and the extra row detects truncation. PostgreSQL requests also
 set a transaction-local two-second statement timeout. The request session closes
 without committing. Timeout/database failures use the existing sanitized 503
@@ -70,3 +104,9 @@ uncertainty, preserved unknown reservations after closure, bounded/truncated
 queries, sanitized database failures and the no-store operator response. The assembled
 route matrix includes this route and denies real customer sessions before database
 access under production and local-development settings.
+
+The coordinator extension also verifies actual mocked Google creation: lost-response
+unknown → verified same-attempt receipt → later unknown, including cancellation and
+workspace closure. It tests dispatch/emission threshold boundaries, verified-no-effect
+review, separate live/contract-test held counts, ledger-end warnings, truncation and
+unchanged reservation state. No real provider calls or production grants are involved.

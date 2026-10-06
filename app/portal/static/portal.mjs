@@ -80,6 +80,30 @@ if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0;
   let signupKey = null, signupBody = null;
+  const pendingGoals = new Map();
+  class StaleRequest extends Error {}
+  async function api(...args) {
+    const turn = epoch;
+    try {
+      const result = await request(...args);
+      if (turn !== epoch) throw new StaleRequest();
+      return result;
+    } catch (error) {
+      if (turn !== epoch) throw new StaleRequest();
+      throw error;
+    }
+  }
+  function clearWorkspace() {
+    epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
+    for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'basis']) $(id).replaceChildren();
+    $('goal-form').reset();
+    for (const id of ['workspace-content', 'review', 'preview', 'checkout', 'management']) show(id, false);
+  }
+  function clearSession() {
+    clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
+    $('workspace').replaceChildren(); $('provision').reset();
+    show('application', false); show('signed-out', true); show('logout', false);
+  }
   const root = () => `/api/customer/v1/workspaces/${encodeURIComponent($('workspace').value)}`;
   const say = (text, error = false) => { $('message').textContent = text; $('message').className = error ? 'error' : ''; };
   const show = (id, visible) => { $(id).hidden = !visible; };
@@ -124,17 +148,19 @@ if (typeof document !== 'undefined') {
     const states = controls.map(c => c.disabled);
     controls.forEach(c => { c.disabled = true; });
     try { await task(); } catch (error) {
+      if (error instanceof StaleRequest) return;
+      if (error.status === 401) clearSession();
       say(error.message, true);
-      if (error.status === 401) { epoch++; show('application', false); show('signed-out', true); show('logout', false); }
     } finally { controls.forEach((c, i) => { c.disabled = states[i]; }); }
   }
   async function session() {
+    clearSession();
     try {
-      await request('/api/customer/v1/session');
-      workspaces = await request('/api/customer/v1/workspaces');
+      await api('/api/customer/v1/session');
+      workspaces = await api('/api/customer/v1/workspaces');
       $('workspace').replaceChildren(option('', 'Select A Workspace'), ...workspaces.map(w => option(w.id, `${w.name} · ${w.role}`)));
       show('application', true); show('signed-out', false); show('logout', true); say('Choose or create a workspace.');
-    } catch (error) { show('application', false); show('signed-out', true); show('logout', false); say(error.message, true); }
+    } catch (error) { if (error instanceof StaleRequest) return; clearSession(); say(error.message, true); }
   }
   function editGoal() {
     invalidate(); selectedGoal = goals.find(g => g.id === $('goal').value) || null;
@@ -156,11 +182,11 @@ if (typeof document !== 'undefined') {
   }
   function updateBasis() { const store = stores.find(s => s.id === $('store').value); $('basis').textContent = store ? `Currency: ${store.currency} · Store Time Zone: ${store.time_zone}` : 'A Shopify store must be connected before a goal can be saved.'; }
   async function loadWorkspace() {
-    const turn = ++epoch; invalidate(); selectedGoal = null; show('workspace-content', false);
+    clearWorkspace(); const turn = epoch;
     if (!$('workspace').value) return;
     const path = root();
-    const result = await Promise.all([request(path + '/commerce/stores'), request(path + '/goals'), request(path + '/mandates'), request(path + '/billing')]);
-    if (turn !== epoch) return;
+    const result = await Promise.all([api(path + '/commerce/stores'), api(path + '/goals'), api(path + '/mandates'), api(path + '/billing')]);
+    if (turn !== epoch) throw new StaleRequest();
     [stores, goals] = result;
     $('store').replaceChildren(...stores.filter(s => s.status === 'active').map((s, i) => option(s.id, `Shopify Store ${i + 1} · ${s.currency} · ${s.time_zone}`)));
     $('goal').replaceChildren(option('', 'New Goal'), ...goals.map((g, i) => option(g.id, `Goal ${i + 1} · ${period(g.definition?.target_window)} · ${g.confirmation_recorded ? 'Confirmed' : 'Draft'}`)));
@@ -169,13 +195,13 @@ if (typeof document !== 'undefined') {
     const owner = workspaces.find(w => String(w.id) === $('workspace').value)?.role === 'owner';
     show('checkout', owner && billing.mode === 'stripe_test'); show('management', owner && billing.mode === 'stripe_test');
     const providers = [['Google Ads', '/google/connections'], ['TikTok Ads', '/sources/tiktok_ads'], ['Klaviyo', '/sources/klaviyo'], ['HubSpot', '/sources/hubspot'], ['Omnisend', '/sources/omnisend']];
-    const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await request(path + endpoint)]; } catch (error) { if (error.status === 401) throw error; return [name, 'Status unavailable']; } }));
-    if (turn !== epoch) return;
+    const results = await Promise.all(providers.map(async ([name, endpoint]) => { try { return [name, await api(path + endpoint)]; } catch (error) { if (error instanceof StaleRequest || error.status === 401) throw error; return [name, 'Status unavailable']; } }));
+    if (turn !== epoch) throw new StaleRequest();
     renderConnections([['Shopify', stores], ...results, ['Meta Ads', null]]);
     editGoal(); show('workspace-content', true); say('Workspace loaded.');
   }
   $('retry').onclick = () => guarded(session);
-  $('logout').onclick = () => guarded(async () => { await request('/api/customer/v1/session', 'DELETE'); epoch++; invalidate(); show('application', false); show('logout', false); show('signed-out', true); say('Signed out.'); });
+  $('logout').onclick = () => guarded(async () => { clearSession(); await api('/api/customer/v1/session', 'DELETE'); say('Signed out.'); });
   $('workspace').onchange = () => guarded(loadWorkspace);
   $('goal').onchange = editGoal;
   $('store').onchange = updateBasis;
@@ -183,18 +209,40 @@ if (typeof document !== 'undefined') {
   $('provision').onsubmit = event => { event.preventDefault(); const body = Object.fromEntries(new FormData(event.currentTarget)); guarded(async () => {
     const encoded = JSON.stringify(body);
     if (encoded !== signupBody) { signupBody = encoded; signupKey = crypto.randomUUID(); }
-    const workspace = await request('/api/customer/v1/workspaces', 'POST', body, {'Idempotency-Key': signupKey});
+    const workspace = await api('/api/customer/v1/workspaces', 'POST', body, {'Idempotency-Key': signupKey});
     signupKey = null; signupBody = null; await session(); $('workspace').value = workspace.id; await loadWorkspace();
   }); };
   $('goal-form').onsubmit = event => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); guarded(async () => {
     const definition = definitionFrom(values, stores.find(s => s.id === values.store_id && s.status === 'active'));
-    const item = await request(root() + '/goals' + (selectedGoal ? '/' + selectedGoal.id : ''), selectedGoal ? 'PUT' : 'POST', {...(selectedGoal ? {expected_revision: selectedGoal.revision} : {}), definition});
+    const path = root();
+    let headers = {};
+    if (!selectedGoal) {
+      const encoded = JSON.stringify(definition);
+      const pending = pendingGoals.get(path);
+      if (pending && pending.body !== encoded) throw new Error('The previous save has an unknown outcome. Restore its values and retry before creating a different goal.');
+      if (!pending) pendingGoals.set(path, {body: encoded, key: crypto.randomUUID()});
+      headers = {'Idempotency-Key': pendingGoals.get(path).key};
+    }
+    const creationKey = headers['Idempotency-Key'];
+    const settleCreation = () => {
+      if (creationKey && pendingGoals.get(path)?.key === creationKey) pendingGoals.delete(path);
+    };
+    let item;
+    try {
+      item = await api(path + '/goals' + (selectedGoal ? '/' + selectedGoal.id : ''), selectedGoal ? 'PUT' : 'POST', {...(selectedGoal ? {expected_revision: selectedGoal.revision} : {}), definition}, headers);
+    } catch (error) {
+      // This endpoint validates input before committing. Transport/5xx uncertainty
+      // must retain the key, and edits must never settle another creation attempt.
+      if (error.status === 422) settleCreation();
+      throw error;
+    }
+    settleCreation();
     await loadWorkspace(); $('goal').value = item.id; editGoal(); say('Goal draft saved. Review its baseline before confirming.');
   }); };
   $('preview').onclick = () => guarded(async () => {
     invalidate();
-    const preview = await request(root() + `/goals/${selectedGoal.id}/preview`, 'POST', {expected_revision: selectedGoal.revision});
-    const snapshot = await request(root() + `/commerce/snapshots/${preview.snapshot_id}`);
+    const preview = await api(root() + `/goals/${selectedGoal.id}/preview`, 'POST', {expected_revision: selectedGoal.revision});
+    const snapshot = await api(root() + `/commerce/snapshots/${preview.snapshot_id}`);
     reviewed = {...preview, goal_id: selectedGoal.id, key: crypto.randomUUID()};
     $('review-data').replaceChildren();
     summary($('review-data'), goalSummary(selectedGoal.definition));
@@ -207,9 +255,9 @@ if (typeof document !== 'undefined') {
   $('confirm').onclick = () => guarded(async () => {
     if (!reviewed || reviewed.goal_id !== selectedGoal?.id || reviewed.revision !== selectedGoal.revision) throw new Error('Review the current goal first.');
     const id = selectedGoal.id;
-    await request(root() + `/goals/${id}/confirm`, 'POST', {expected_revision: reviewed.revision, preview_id: reviewed.preview_id, idempotency_key: reviewed.key});
+    await api(root() + `/goals/${id}/confirm`, 'POST', {expected_revision: reviewed.revision, preview_id: reviewed.preview_id, idempotency_key: reviewed.key});
     await loadWorkspace(); $('goal').value = id; editGoal(); say('Goal confirmed. Advertising spending remains unauthorized.');
   });
-  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => { const result = await request(root() + '/billing/' + kind, 'POST'); location.assign(billingDestination(result, kind)); });
+  for (const kind of ['checkout', 'management']) $(kind).onclick = () => guarded(async () => { const result = await api(root() + '/billing/' + kind, 'POST'); location.assign(billingDestination(result, kind)); });
   guarded(session);
 }

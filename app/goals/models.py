@@ -26,6 +26,24 @@ class Goal(Base):
     confirmed_preview_id: Mapped[str | None] = mapped_column(String(32))
 
 
+class GoalCreation(Base):
+    """Committed creation receipts, scoped to the requesting customer and workspace."""
+
+    __tablename__ = "customer_goal_creations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["goal_id", "workspace_id"],
+            ["customer_goals.id", "customer_goals.workspace_id"],
+            ondelete="CASCADE",
+        ),
+    )
+    workspace_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    request_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    goal_id: Mapped[str] = mapped_column(String(32))
+
+
 class GoalRevision(Base):
     __tablename__ = "customer_goal_revisions"
     __table_args__ = (

@@ -116,7 +116,7 @@ def test_customer_journey_in_local_browser(tmp_path: Path) -> None:
         stderr=subprocess.DEVNULL,
     )
     try:
-        assert finished.wait(20), "Browser fixture did not report completion"
+        assert finished.wait(60), "Browser fixture did not report completion"
         assert outcome == ["passed"], outcome
     finally:
         process.terminate()

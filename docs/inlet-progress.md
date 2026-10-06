@@ -714,3 +714,18 @@ Meta per-child performance and CRM actual transports, customer authentication/se
 journeys, then remaining reviewed campaign/creative/publication/operational backlog.
 Prices/currency/catalog and live enablement remain owner decisions; no approvals
 needed for continuing authorized offline engineering. Public webpage remains owner-managed.
+
+## PR78 Review Repairs — Candidate
+
+Branch `codex/inlet-portal-repairs` starts from PR78 head
+`8b4b727c926b06baa1b68b2a3c40dcf144c55ff6`. See
+[repair behavior and evidence](inlet-portal-review-repairs.md).
+Customer DOM and memory are erased on session changes, logout, expired sessions
+and workspace reload; stale asynchronous replies cannot restore prior data.
+Goal creation now requires a customer/workspace-scoped, input-bound idempotency
+key with atomic receipt/goal/revision persistence and concurrency protection.
+The portal reuses uncertain save keys within the current session/workspace.
+Cross-reload discovery remains via the goal list, not persisted browser payloads.
+Focused checks: 54 passed (SQLite, PostgreSQL and Chromium), no skips; Ruff,
+mypy (250 files), and diff whitespace check passed.
+Full validation/CI pending; no live calls, purchase, merge or deployment.

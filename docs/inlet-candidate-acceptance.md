@@ -22,8 +22,8 @@ pass is not evidence of a purchasable service or complete live acceptance.
 | B13 | Checkout/return/management, webhook reconciliation and entitlements | Commercial configuration, live purchase/cancel, external closure policy; original hosted billing failure cause unresolved |
 | B14 | Exact supplied-media review, private storage and bounded real decode | Hosted preflight now passed on e512529; complete hosted suite and intended storage/provider media setup remain |
 | B15 | Actual Google durable paused creation, distinct activation and authoritative settlement protocol | Customer intent facade/named catalog integrated; concrete native exposure/terminal-reporting sources and live qualification remain |
-| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Customer social configuration producer/facade and provider capability proof |
-| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
+| B16 | Actual Meta/TikTok durable creation/activation with original-attempt reconciliation | Social named producer is integrated; durable customer confirmation/facade and provider capability proof remain |
+| B17 | Owned terminal commerce history, privacy-cascading receipt-linked assessment and Measurement History | Owned descriptive as-of comparison and History UI integrated; action assessments remain insufficient pending qualified maturity/effective-time and feedback |
 | B18 | Signup, source connections, goals, billing, media, activity, recovery and local closure reconciliation | Google creation/activation customer API/UI and strict exports integrated; default export gate and external closure/disposition remain |
 | B19 | Readiness/schema checks, route/model registry, operator attention, native restore drill | Green final Full/CI, intended-environment alerts/recovery/retention |
 | B20 | Cross-provider service/browser/isolation suites; two-brand composed fixture integrated | Integrate complete offline pilot matrix; unrelated live pilots and end-to-end purchasing/operations |
@@ -82,3 +82,17 @@ historical evidence only and are not substituted for final integrated acceptance
 At `915fbcc`, the combined exports, TikTok browser, route/model registry, provider attention, social coordinator and diagnostic suite passed **127 tests with one SQLite-only lock-contention skip**. Whole mypy (402 files) and Ruff passed. PR146 playback repair was integrated at `28089c7`; the actual customer portal, campaign review and billing browser suite completed successfully (16 tests). These checks do not establish a successful Full or hosted CI for the successor. No live qualification occurred.
 
 Frozen PR130 local Full completed with exit0; final account-isolation/automation gate passed38 tests with6 PowerShell-unavailable skips. Exact log:/tmp/inlet-mvp-candidate-full.log. Hosted PR146 preflight run37415266510 failed before dependency/test execution: both Google Chrome154.0.8037.57 and Chromium154.0.8037.0 returned browser_no_result. This is not a quota failure. The later e512529 normal PR130 run37421671069 passed the actual H.264/AAC preflight; its complete pytest/remaining gates were still running at this checkpoint.
+
+## Post-Freeze Review Repairs
+
+The successor contains a proved post-credential-context authorization repair for
+creation, activation and optimization (PR169). Root regression suite20passed;
+Ruff/mypy474 passed. Both c602a1b Full and e512529 hosted CI predate this repair.
+They remain useful exact-artifact verification but cannot qualify the newer tree.
+
+Google native inventory is integrated and explicitly unqualified; the absence of
+a proved preventive writer-control mechanism and the monetary-basis decision are
+documented in `docs/design/google-native-exposure-qualification.md`. TikTok's
+missing authoritative list response schemas remain a concrete parser blocker,
+recorded in `docs/design/tiktok-catalog-response-evidence.md`. No invented provider
+fields or spending guarantees fill these gaps.

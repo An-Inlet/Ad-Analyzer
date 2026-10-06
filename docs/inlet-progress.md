@@ -2520,3 +2520,15 @@ skips (25.46s). Ruff passed, configured mypy passed 474 files, diff check passed
 Logs `/tmp/inlet-shopify-race-repro.log`, `/tmp/inlet-native-race-alone.log`,
 `/tmp/inlet-shopify-race-fixed.log`. No Full or CI dispatch. Next combined validation
 must still observe the native-import case; TikTok logger failure is separate work.
+
+## Combined Frozen-Failure Repair Checks
+
+Integrated TikTok logger-isolation479f282 as57ab587 and Shopify barrier/cleanup
+repairbc8a5f7 as1c3ba6f. Root combined `test_customer_shopify.py`,
+`test_review_native_ownership.py`, `test_customer_tiktok.py`:50passed/6SQLite-only
+skips,27.76seconds (`/tmp/inlet-next-frozen-failure-repairs.log`). Ruff/mypy479/diff
+passed. Two stale probes and logger-state contamination have reproduced causes;
+the one native-import barrier failure still has no independently reproduced cause.
+Its assertions/deadlines remain, with better failed-worker diagnostics and cleanup.
+This focused pass does not erase the observed frozen Full failure or establish a
+successful new assembled Full. Frozen outer suite and hosted CI still running.

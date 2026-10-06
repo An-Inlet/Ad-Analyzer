@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from app.customer_context.http import CRMRateLimited, CRMReadError, KlaviyoHTTPRead, retry_seconds
+from app.customer_context.http import CRMRateLimited, KlaviyoHTTPRead, retry_seconds
 from app.customer_context.models import CRMCheckpoint, CRMQuota
 from app.customer_context.pacing import (
     DeferredRead,
@@ -196,11 +196,12 @@ def test_wrong_account_never_delivers_profiles(customer_engine: Engine, configur
     io.account = "wrong"
     with Session(customer_engine) as db:
         wid, cid = connect(db, "wrong")
-        with pytest.raises(CRMReadError, match="account_mismatch"):
+        with pytest.raises(HTTPException, match="reconnect required"):
             read_page(db, wid, cid, 1, runtime(io), NOW)
         assert len(io.calls) == 1
-        checkpoint = db.get(CRMCheckpoint, cid)
-        assert checkpoint is not None and checkpoint.state == "ready"
+        assert db.get(CRMCheckpoint, cid) is None
+        row = db.get(SourceConnection, cid)
+        assert row is not None and row.status == "reconnect_required"
 
 
 @pytest.mark.parametrize(

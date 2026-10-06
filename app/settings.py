@@ -174,6 +174,7 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 class Settings(BaseSettings):
     media_storage_mode: str = Field(default="disabled", alias="AD_ANALYZER_MEDIA_STORAGE_MODE")
+    media_gcs_bucket: str = Field(default="", alias="AD_ANALYZER_MEDIA_GCS_BUCKET")
     media_local_directory: str = Field(default="", alias="AD_ANALYZER_MEDIA_LOCAL_DIRECTORY")
     klaviyo_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_KLAVIYO_RUNTIME_MODE")
     klaviyo_client_id: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_CLIENT_ID")
@@ -313,6 +314,12 @@ class Settings(BaseSettings):
     crm_webhook_secret: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_CRM_WEBHOOK_SECRET"
     )
+    crm_push_oidc_audience: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_OIDC_AUDIENCE"
+    )
+    crm_push_service_account_email: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_SERVICE_ACCOUNT_EMAIL"
+    )
     crm_pubsub_project_id: str = Field(
         default="", validation_alias="AD_ANALYZER_CRM_PUBSUB_PROJECT_ID"
     )
@@ -365,6 +372,9 @@ class Settings(BaseSettings):
         default=False, validation_alias="AD_ANALYZER_META_DETAIL_ENABLED"
     )
 
+    meta_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_META_CUSTOMER_ENABLED"
+    )
     meta_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_META_ENABLED")
     meta_client_id: str = Field(default="", validation_alias="META_CLIENT_ID")
     meta_client_secret: SecretStr | None = Field(

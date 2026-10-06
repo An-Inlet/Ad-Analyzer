@@ -1027,6 +1027,141 @@ journey; publication coordinator with fixture-only authority. B07 simulation man
 remain simulation and B14 review does not grant publication permission. No provider
 mutations, live credentials, merge or deployment were performed.
 
+## Customer Media And Review Authorization Races (2026-10-06)
+
+Branch `codex/inlet-review-authorization`, based on PR94 5f9a0d0. A paused actual
+ASGI upload reproduced successful200 after session revocation, membership removal
+or provider suspension on both SQLite and PostgreSQL (six failing regressions).
+PostgreSQL approval requests blocked behind the workspace lock also reproduced200
+following committed session/membership revocation (two failing regressions).
+Initial reproduction attempts had fixture/barrier mistakes, corrected before claiming
+these results: missing synthetic workspace client_name, then a barrier that did not
+recognize FOR NO KEY UPDATE. Corrected logs are `/tmp/inlet-review-auth-before-corrected.log`
+and `/tmp/inlet-review-approval-before-corrected.log`.
+
+Writes now recheck current workspace/user/session/membership and provider identity
+under canonical workspace→user→session→membership locks before product locks. Upload
+receives at most8MiB within30seconds before acquiring those locks; timeout408 leaves
+no media row/object. Create/edit/approval use the same guard. Local revocations are
+fenced through commit; remote provider revocation remains a point-in-time check.
+Session expiry is checked again after membership/provider waits because time cannot
+be fenced with row locks. Independent review confirmed lock-order compatibility and
+identified that final expiry check, now covered by regression tests.
+
+Combined authorization/media/Shopify/identity suite:108passed,9 SQLite-only concurrency
+skips; PostgreSQL counterparts ran. Ruff and mypy288 passed. Final focused rerun:12passed,2 SQLite-only lock skips. HostedCI pending; no Full or live provider calls. No migration or deployment.
+### B14 Rendered Review UI — 2026-10-06
+
+Branch `codex/inlet-campaign-review-ui` from PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6` adds the actual rendered customer review
+at `/app/campaign-review`, scoped recent-draft listing, exact-digest acknowledgment/
+approval, supplied-copy editing into a new unapproved revision, and explicit media
+and publication states. Static images must load successfully before approval; no
+arbitrary URL fetch, provider publication, new migration or live call is introduced.
+
+Focused review/UI/portal checks: 53 passed, 1 intentional SQLite race skip; Ruff,
+mypy (288 files), and diff check passed. Real HTTPS Chromium/API journeys passed on
+SQLite and PostgreSQL, including failed image reads, stale approval and revoked role.
+See `docs/inlet-campaign-review-ui.md` for behavior and remaining gaps. Full/CI pending.
+Next packages remain bounded video validation/private media lifecycle and concrete
+PublishPlan ports before dependent B15/B16 provider publication adapters.
+
+Review UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/99.
+Implementation and focused checks are at `b420478b5906e2183f1b36e8317506a239f9e119`;
+the following documentation-only commit records this PR link.
+
+### Shopify Portal Consent Navigation — 2026-10-06
+
+`codex/inlet-shopify-consent-ui` starts from PR99 head
+`292ac8d4cfa2d52b15d76d1dc8edce78b61f0c95` and includes PR95 browser coverage
+`54587ec`. Owner/admin Shopify domain controls now navigate through consent and the
+GET callback bridge, with verified workspace return, explicit scoped nonce cancellation,
+and safe Back/retry/session-change handling. Existing callback ownership/HMAC/session
+fences remain. No migration, scope expansion, provider calls, merge or deployment.
+
+Checks: 37 passed, 6 intentional SQLite variants of PostgreSQL-only checks skipped;
+Ruff, mypy (289 files), and diff check passed. Real Chromium/HTTPS/API/DB navigation
+passed on SQLite and PostgreSQL; provider consent HTTP and token/metadata transport are
+mocked. Full/CI pending. See `docs/inlet-shopify-consent-ui.md` for exact evidence and
+remaining disconnect UI/live qualification gaps.
+
+Consent-navigation draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/104.
+Implementation/checks are at `c6f32cfd11f56923ad34d0d0195d0493a1d7b4f5`; the following
+documentation-only commit records the PR link. Shopify toolkit search could not fetch
+its service; official Shopify OAuth documentation was verified through web retrieval.
+Toolkit telemetry was disabled; no user prompt was sent to its telemetry service.
+## Durable CRM Renewal Package (2026-10-06)
+
+Branch `codex/inlet-crm-renewal` from PR93 head
+`a64cc424d52bb9de18e63bb0c129a91611ae33aa`. Existing pacing now orchestrates all three
+CRM adapters through committed token-issuance, encrypted-unverified-candidate and
+separately paced account-proof phases. A proved renewal preserves generation and cursor;
+a stale worker cannot replace reconnect state. Proof transient failures retry the pending
+candidate, never the rotating token. Token issuance uncertainty fails closed to attention;
+known invalid grants and terminal read authorization failures require reconnect. No schema
+migration, live grant, automatic profile enrollment or provider revoke was introduced.
+
+Checks: **148 passed, 3 SQLite-only concurrency skips**; corresponding PostgreSQL races
+ran. Two existing Alembic warnings. Ruff, mypy (275 files), diff check passed.
+Log `/tmp/inlet-renewal-final.log`. Full and hosted CI pending; root owns validation-slot
+coordination. Detailed state, scopes, backoff and remaining work are recorded in
+`docs/inlet-crm-renewal.md`.
+
+### CRM Renewal Review Repairs (2026-10-06)
+
+Branch `codex/inlet-crm-quota-race` starts from PR96 `501310829e3796598f374bcc4a68790ca3632d64`;
+PR96 remains immutable. Reproduced lost Retry-After during concurrent reconnect:
+a same-account peer incorrectly received a page at +126s despite a 3600s cooldown
+(`/tmp/inlet-crm-quota-race-before.log`). Reproduced six mixed Omnisend known/unknown
+identifier failures (`/tmp/inlet-omni-null-before.log`).
+
+Repairs: persist account cooldown independently before stale connection acceptance;
+retain successor leases; encrypt issuing-client/quota binding with pending renewal
+candidates; preserve unknown typed email/SMS identifiers; honor bounded Omnisend
+problem `retryAfter`; scope Omnisend quotas to brand across clients. All mocked and
+disposable-database only. No migrations, credentials, provider calls, live grants,
+merge or deployment. See `docs/inlet-crm-renewal.md` for first-party contracts and
+mandatory quiescent upgrade/cooldown gate for legacy Omnisend quota namespaces.
+
+Final frozen focused validation and draft PR evidence follow below. Full remains
+coordinated by the integrating agent. Private Google Cloud Storage work is paused
+behind these review repairs; untouched worktree `/workspace/inlet-gcs-media` starts
+at `5f9a0d0` on `codex/inlet-gcs-media`.
+
+Frozen validation: `pytest tests/test_crm_quota_lifecycle.py tests/test_crm_renewal.py
+tests/test_crm_pacing.py tests/test_omnisend_http_runtime.py tests/test_crm_http_runtime.py
+tests/test_customer_context.py` with disposable PostgreSQL enabled: **193 passed,
+15 skipped**, 60.46s (`/tmp/inlet-crm-repair-frozen.log`). All skips are SQLite-only
+row-lock/concurrency cases; PostgreSQL counterparts ran. Ruff passed; mypy passed
+(272 source files); `git diff --check` passed. Hosted CI and local Full pending.
+## B19 Database Dependency Readiness (2026-10-06)
+
+Branch `codex/inlet-dependency-readiness`, based on PR94 5f9a0d0. A configured but
+unreachable database now yields503/not_ready on /ready; invalid configuration skips
+the connection entirely. A fresh NullPool read-only SELECT1 avoids waiting on the
+application pool; connection and statement timeouts are independently limited to2s
+and1s (not an absolute DNS/network wall-clock promise). Responses reveal no driver
+errors, address or credentials. /health stays liveness, with no dependency probe.
+
+Focused dependency/deployment/managed-configuration suite:23passed, including a real
+connection to explicitly guarded disposable PostgreSQL and sanitized failure/resource
+cleanup assertions. Ruff and mypy passed. Full/hostedCI pending. This does not prove
+schema compatibility, live production health, capacity or release readiness.
+## B19 Synthetic Restore Drill — 2026-10-06
+
+Branch `codex/inlet-restore-drill` from frozen PR94 head `5f9a0d0`. Added a guarded
+native PostgreSQL logical restore drill for a generated private schema containing two
+synthetic workspaces and tenant/session/goal/provider metadata, never grants or real
+customer data. Server/database identity is checked before schema mutation; arbitrary
+archives/source schemas are unsupported. ACLs, constraints/indexes, sequence state and
+all rows compare after restore; customer membership and provider FK isolation are
+exercised. Temporary schema cleanup succeeds on invalid archive and restore failure.
+
+Actual local PostgreSQL16.15 run: 82 tables,44 rows,two tenants restored; native archive
+348330bytes. Focused suite19passed,5existingAlembicwarnings; Ruff/mypy284/diff-check pass.
+No broad Full run, live backup configuration, intended-environment restore, PITR,
+key/media recovery, or post-snapshot privacy/revocation reconciliation claimed.
+Instructions and remaining operational qualification: `docs/inlet-restore-drill.md`.
 ### Publication base synchronization
 
 Merged release-foundation5f9a0d0 into the publication branch, retaining both progress
@@ -1067,6 +1202,411 @@ were stopped together. No replacement Full started pending root coordination.
   populated checkpoint coverage as future migrations are added.
 - Focused disposable PostgreSQL migration tests: 2 passed. Changed-file Ruff/mypy and
   diff check passed. No replacement local Full started; coordinated validation pending.
+## B14 — Bounded Offline Video Validation (2026-10-06)
+
+Branch: `codex/inlet-video-validation`, based on release foundation `5f9a0d0`.
+Actual MP4/H.264 and optional AAC are fully decoded with bounded byte-only worker
+processes. TikTok video drafts can be reviewed and approved offline; Meta remains
+image-only. Provider publication remains disabled. Media max is 64 MiB, images
+remain 8 MiB, and workspace library remains 128 MiB. No migration or provider calls.
+See `docs/inlet-video-validation.md` for exact controls and qualification gaps.
+
+Focused validation: 58 passed, one expected SQLite row-lock race skip; the same
+race and review flows run against disposable PostgreSQL. Real FFmpeg/FFprobe 7.1.5
+synthetic clips exercised valid silent/AAC videos, codecs, corruption/truncation,
+dimensions, pixels, rate, duration, both MIME mismatches, decoder absence/startup,
+output/time limits and process reaping. Ruff lint and strict mypy (290 files) pass.
+Whole-repository Ruff formatting check reports 32 pre-existing unformatted files;
+no unrelated formatting was changed. Root coordinates broad Full and CI evidence.
+
+Remaining integration: combine the separately reviewed authorization fix with a
+serial worker-thread upload service boundary (decoder can consume up to 44 seconds),
+and add customer video playback preview. Deployment image, load/concurrency,
+decoder isolation/patching, provider acceptance, and live behavior are unqualified.
+No claim that resource limits constitute an OS sandbox.
+## Provider Publication Shared Contracts — 2026-10-06
+
+- Branch `codex/inlet-google-publication` from PR98 merge `bc3aadc`.
+- Separate strict provider review/plan/request/receipt types and deterministic Google
+  Search paused DAG compiler. Original fixture hashes and simulation mandate remain
+  untouched. Real HTTP adapter and provider coordinator integration still pending.
+- Focused contract tests: 10 passed; Ruff passed; mypy three changed files passed;
+  `git diff --check` passed. No Full requested or started for this new branch.
+- Current Google v25 primary API references pinned in `inlet-provider-publication.md`.
+  No live provider calls or publication authorization.
+
+## Actual Google Publication HTTP Adapter — 2026-10-06
+
+- Added fixed-endpoint v25 Google executor with validate-only, one-shot typed
+  mutations, exact readback and no-replay reconciliation. MockTransport graph tests
+  use the actual serializer/client path; no fixture adapter substitution.
+- Validation: provider/compiler/HTTP focused tests 27 passed; whole-tree Ruff passed;
+  whole-tree mypy 298 source files passed. Full remains unrun pending coordinated
+  validation. No migration or runtime activation in this package.
+- Unacknowledged timeout stays unknown, preserving the coordinator's unresolved
+  exposure requirement. Provider runtime factory stays unavailable. Production
+  authority, qualification reads, persisted provider review/coordinator/UI, separate
+  activation and settlement remain implementation work; B15 is not complete.
+
+### B15–B20 Acceptance Evidence Matrix (2026-10-06)
+
+Documentation-only branch `codex/inlet-acceptance-matrix` starts from frozen PR94
+`5f9a0d0d4d1d016135c54d3360b16e0800b6f6b6`. Added
+[retained audit criteria and detailed engineering decomposition](inlet-b15-b20-acceptance.md)
+with exact candidate heads for PR95/97–100. Inspected relevant implementation,
+publication adapter proposal, real-browser harness and restore/learning tests.
+Distinguishes missing code from provider/operations qualification and owner decisions;
+credits neither fixture publication nor browser-origin API helpers as completed core
+customer journeys. Existing legacy learning remains recognized as reusable work.
+
+No application code, schema or settings changed. Validation is Markdown structure,
+local referenced-path inspection and `git diff --check`; no pytest/Full rerun or new
+provider call. Quoted acceptance wording comes from the integrating agent's retained
+Library audit read; original attachment bytes were not materialized here. Next: finish
+shared provider publication contracts/actual adapters and core task UI, then stable
+B17 evidence contracts and final integrated operational/pilot acceptance.
+
+
+Acceptance-matrix refresh before integration freeze: PR101 `8835340`, PR102
+`2508a75`, PR103 `d4c78c5`, PR104 `fa70d8b`, PR107 `a6de6e9`, PR108 `e4c1392`
+and PR109 `e12f11b` are now recorded with exact full heads and focused counts in
+`inlet-b15-b20-acceptance.md`. Shopify consent navigation and the concrete Google
+compiler/HTTP adapter receive implementation credit; durable qualified publication
+coordination/activation, storage deletion, video UI and intended-environment evidence
+remain open. No new Full or provider call; documentation checks only.
+
+## Reviewed Foundation Integration Candidate (2026-10-06)
+
+Branch `codex/inlet-reviewed-foundation` preserves frozen PR94 and combines PR95–109
+where dependencies apply: CRM renewal and all reviewed repairs, Meta lock ordering
+and resumable detail imports, exact campaign-review UI, actual Shopify consent
+navigation, private GCS storage, bounded video validation, database readiness,
+synthetic restore drill, durable publication core, actual typed Google HTTP adapter,
+authorization fencing, and the remaining B15–B20 acceptance matrix.
+
+Migration0042 explicitly joins0040/0041. Populated0039→0042→0039→0042 verifies old
+rows, new publication/Meta checkpoint records and compound ownership constraints.
+Upload now receives a bounded body, then executes authorization, decoder/storage and
+response serialization serially on one worker thread; a focused responsiveness test
+checks the event loop advances while the service is blocked. GCS imports use a
+precise untyped-SDK import boundary rather than suppressing repository type checks.
+
+Combined focused validation:309 passed,23 skipped,13 existing Alembic warnings.
+Twenty skips are SQLite-only concurrency/constraint cases whose PostgreSQL variants
+ran; three restore cases lacked explicit local container selection. The restore suite was then rerun with the guarded PostgreSQL container:19 passed,
+no skips (five existing Alembic warnings). Ruff and mypy317 passed. Full and
+hosted CI must run on the final committed head; no production acceptance is inferred.
+
+Prior frozen PR94 is now terminal: local Full main1297 passed,15 skips (nine SQLite
+concurrency plus six unavailable PowerShell), final automation38 passed/six PowerShell
+skips; all gates passed. Hosted CI37405580011/job112082298281 passed1303/nine SQLite
+skips. Actual checkoutd0fcf31c7b1565671028242e20c3a13edb2d53ea tree
+46bfb87a1e5eb3090ccb10d12ee21db42f3ea872 equals5f9a0d0. Session handles were lost at
+environment restart; preserved processes finished and logs contain terminal gates.
+
+No live provider requests, credentials, spend, merge to main or deployment occurred.
+Provider qualification/review persistence, full provider coordination/activation,
+Meta/TikTok adapters, measured feedback, customer lifecycle and release/pilots remain
+active backlog, with code gaps distinguished from external qualification.
+
+### Publication commit-gap and absent-readback repair — 2026-10-06
+
+Parent review identified two coordinator races in PR112 `3a3cca8`. A controlled
+PostgreSQL barrier after the mandate dispatch commit reproduced cancellation
+returning successfully while the worker still created the first fixture resource.
+The pause/revoke variants already rejected correctly; all three remain regressions.
+The worker now rechecks plan/action cancellation, dispatch state, exact request,
+approving owner and mandate preconditions under reacquired locks before claiming a
+step. The previously committed reservation remains held; this repair does not invent
+settlement or change already-submitted receipt reconciliation.
+
+A synchronized delayed original worker also reproduced a replacement claim from an
+empty fixture readback. Absence is now `unknown`, never authoritative no-effect;
+the original fence stays current and its eventual receipt remains reconcilable.
+A crashed/unsubmitted worker cannot be automatically retried without additional
+terminal/no-effect evidence. No provider capability or production authority is
+inferred from the offline fixture.
+
+Validation: initial corrected commit-gap harness 1 failed / 2 passed / 3 SQLite
+concurrency skips; adding delayed-worker regression produced 3 failed / 2 passed / 3 skips
+(SQLite and PostgreSQL both reproduced absent-readback retry). Repair combined suite
+38 passed / 4 SQLite concurrency skips. Final race/storage suite 40 passed / 3
+SQLite concurrency skips. Ruff and mypy (318 files) passed. Removed an obsolete GCS
+test import suppression exposed by clean mypy after integration. Full/hosted CI must
+run against the assembled successor; none is claimed by these focused results.
+
+
+### Reviewed foundation validation successor — 2026-10-06
+
+PR112 predecessor `3a3cca8` completed local Full with exit 1: 1,572 passed,
+35 skipped and 2 failures. The failures were the obsolete Meta first-connection
+Barrier(2) and the nested Full that encountered it. Hosted run 37408397594 failed
+before tests because FFmpeg was absent. Neither is reported as successful validation.
+
+The successor installs FFmpeg before retaining required tool checks. The Meta
+regression now holds the winning transaction, observes the losing PostgreSQL backend
+blocked by the winner with pg_blocking_pids, then releases it. It asserts exactly one
+connection/account/integration, the safe existing-account conflict, and the losing
+actor's pending grant. Focused first-connection/review-lock checks: 4 passed, 2 SQLite
+lock skips. Publication commit-gap and absent-readback repairs are included from
+PR113 `7ae1d0d`. Full and hosted CI are being rerun against this assembled successor;
+results must be attributed to its exact head, not the predecessor.
+
+Successor combined focused verification: 9 passed, 5 SQLite concurrency skips;
+PostgreSQL cases ran. Whole-tree Ruff, mypy (318 files) and diff check passed before
+freezing the successor for Full/CI.
+
+## Customer Connections: Shopify Disconnect And Google Account Selection
+
+Branch `codex/inlet-customer-connections`, based on PR104 head
+`fa70d8b5aa7d3f14c08a83cc622ba53409279591`. Shopify now has an explicit data-effects
+confirmation and disconnect control, tested against real API/database deletion and
+retained goal history. Google now has a configured consent button, same-window GET
+callback bridge, authorized non-manager selection and verified workspace return.
+Current session/role guards also run after provider exchange and before selection;
+retry is limited to current session/workspace attempts. No provider calls, advertising
+changes, activation, migration, merge or deployment occurred.
+
+Focused SQLite/PostgreSQL/API/Chromium checks: **56 passed, 6 intentional SQLite
+concurrency skips**. Node helpers **8 passed**; Ruff/mypy **290 files** and diff checks
+pass. Full/CI pending. Details, exact command and remaining engineering/live gates are
+in `docs/inlet-customer-connections-ui.md`. Google disconnect and other provider
+connection controls remain separate customer-facing engineering work.
+
+Connections UI draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/111.
+Implementation/checks at `b4f886f0a2f8aa6db2d1e6606cb142f5a0ba29f5`; the following
+commit only records this PR link. Final Google browser rerun also passed both database
+variants (**2 passed**) after the restored-page restart safeguard. Full/CI pending.
+### B18 Visible Test Billing Journey (2026-10-06)
+
+Branch `codex/inlet-billing-browser`, isolated from frozen PR112 `3a3cca8`, adds safe
+server billing availability/status flags, owned-workspace return URLs, visible
+checkout/resume/status refresh/management and post-provider owner/session rechecks.
+Actual Chromium/API/DB journeys on SQLite/PostgreSQL use the real Stripe HTTP adapter
+with mocked provider responses and intercepted provider navigation. No real charges,
+price decisions, credentials, live requests, migration, merge or deployment.
+
+A delayed management response plus workspace switch reproduced controls permanently
+disabled by overlapping portal guards; a shared busy counter/original-state map now
+restores controls only once all tasks settle, with epoch/no-navigation coverage.
+Final focused billing/portal/Shopify/browser checks: **78 passed, 1 SQLite-only skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff/diff checks pass; targeted strict mypy
+passes 220 files. Whole-tree mypy has only the inherited GCS unused-ignore already
+fixed independently by root PR113 `7ae1d0d`; left untouched here. Full not started.
+See [billing journey evidence and limits](inlet-billing-browser.md) and
+`/tmp/inlet-billing-browser-final.log`. Next: final integration validation and remaining
+core-task/account controls; live purchasing stays a separate commercial/release gate.
+## B14 — Customer Draft Creation And Private Video Playback (2026-10-06)
+
+Branch `codex/inlet-draft-ui`, isolated child of PR112 `3a3cca8`. Narrow CI prerequisite
+`98e2b0e` installs FFmpeg before retained decoder checks; root integrated that commit
+separately. No changes were made to the frozen Full worktree.
+
+Customer campaign review now creates all three supported offline draft types from
+existing simulation mandates, uploads supplied media through the authorized API,
+reuses private validated media, and plays bounded private MP4 blobs. Saving never
+approves; playback failures block approval. Object URLs and form state are cleared
+on workspace/revision changes. See `docs/inlet-campaign-creation-ui.md`.
+
+Focused validation: 71 passed, one expected SQLite concurrency skip with PostgreSQL
+variant passing. Includes real HTTPS browser journey on both databases, actual
+synthetic MP4 upload/decode, Google/Meta/TikTok creation, exact revision approval,
+role/stale failures and media bounds. Ruff passes; scoped mypy passes. Whole mypy
+on the frozen parent reports its known unused GCS test ignore, already repaired by
+root on the next integration head. Broad Full and hosted CI remain root-owned.
+### Import-order-independent migration regression — 2026-10-06
+
+The missing-application-tables validation test depended on whatever ORM models
+pytest collection had imported. A focused invocation reproduced PostgreSQL
+DependentObjectsStillExist: web_analytics_events still referenced ad_groups, absent
+from the partial drop graph. The test now reflects the actual migration-created
+schema and drops its application tables in dependency order while retaining
+alembic_version. The existing guarded disposable-database validation remains first;
+no production reset behavior or validation gate is relaxed.
+
+Exact isolated regression before: 1 failed. After: 1 passed, running real PostgreSQL
+upgrade/downgrade/recreate. Whole-tree Ruff, mypy318 and diff check passed. Full and
+hosted successor results remain separate and must be recorded after assembly.
+
+### Customer journey integration — 2026-10-06
+
+Child of PR112 `73725be`, preserving its active validation head. Combines PR111
+`960de15` connection consent/account selection/Shopify disconnect, PR114 `f151a80`
+visible test checkout/recovery/management, and PR116 `d217dba` supplied draft creation,
+private media upload and decoded video preview. Shared customer mutation locking
+converges on the same workspace/user/session/membership guard, with the stronger
+provider-aware wrapper retaining issuer, remote-active and post-wait expiry checks.
+The combined portal preserves both Google setup state and overlapping-task control
+restoration. No automatic campaign approval or live purchase/publication is enabled.
+
+Combined billing/connections/Shopify/authorization tests: 70 passed, 8 SQLite lock
+skips, PostgreSQL counterparts ran. Combined creation/review/video/threadpool/auth
+checks: 34 passed, 2 SQLite lock skips. Node portal suite: 9 passed. Ruff, mypy321
+and diff check passed. Initial test command used an incorrect connection-browser
+filename and collected no tests; the corrected command produced the 70-pass result.
+The independently reproduced migration reflection repair `1624b18` is included.
+Full/hosted CI are separate pending gates at the final integration head. Google
+ disconnect follow-up and closure/lifecycle packages remain separate candidates.
+PR112 `73725be` local Full60224 terminated exit1: **1,578 passed, 38 skipped,
+1 failed**. Its nested Full failed the missing-application-tables test because the
+focused gate's partial ORM registry omitted publication dependencies on
+mandate_actions. The isolated reproduction omitted measurement dependencies on
+ad_groups; both demonstrate the same import-dependent drop graph. Reflection repair
+`1624b18` preserves the test's missing-table/rebuild behavior and Alembic stamp.
+Hosted37409558917 remains in progress at this record; its outcome is not inferred
+from the local run. A fresh local Full will validate the repaired head separately.
+
+### Shared ORM metadata bootstrap — 2026-10-06
+
+Added one explicit model-module registry used by Alembic, web startup, scheduler
+runtime loading, CRM worker startup and pytest bootstrap. Registration declares
+metadata only and performs no database connection, schema mutation or provider IO.
+A coverage test requires every domain models.py module to be registered, including
+future lifecycle/provider modules when integrated. Cross-domain foreign-key checks
+cover the publication and measurement dependencies behind the earlier partial-registry
+failures. The migration reflection repair remains: the actual migrated schema is
+still authoritative when intentionally removing application tables on a guarded
+ disposable database.
+
+Checks: 11 focused tests passed, including the real PostgreSQL missing-table/rebuild
+regression and CRM push tests. Ruff, mypy321 and diff check passed. This package is
+separate from frozen PR112/PR118 validation; Full/CI evidence remains pending.
+## B14 — FFmpeg 6.1 Progress Clock Compatibility (2026-10-06)
+
+Isolated branch `codex/inlet-video-clock-fix`, parent `73725be`; frozen integration
+Full worktrees were not edited. Hosted Ubuntu's FFmpeg 6.1.1-3ubuntu5 reports the
+final frame start for silent MP4 null-muxer progress, while local 7.1.5 reports its
+end. Reproduced using identical real synthetic bytes in a disposable Ubuntu 24.04
+container. Recognize only the exact decoded final-frame timestamp within one
+microsecond for silent media; full frame-count/duration/decode checks remain.
+
+Actual FFmpeg 6.1 matrix: 10 cases passed, including valid silent/AAC and malformed
+codec/size/rate/duration/corrupt/truncated rejections. Logs:
+`/tmp/inlet-video61-before.log`, `/tmp/inlet-video61-after.log`,
+`/tmp/inlet-video61-matrix.log`. Application focused checks and full static results
+are recorded in the branch/PR handoff. No broader Full rerun is started here.
+### B19 Application Authentication For CRM Push — 2026-10-06
+
+Branch `codex/inlet-worker-auth`, isolated from PR112 frozen `73725be8c3ce8165d236f998cc850b41cea1f10c`.
+Added disabled-default expected push audience/service account configuration and a
+router dependency using actual Google signature verification. Customer/operator/IAP
+identities cannot substitute for worker identity. Strict bounded single-header JWT
+parsing, exact verified email/time/audience checks and bounded fixed certificate
+transport fail closed without exposing claims. Terraform requires an explicit
+nonsecret audience input before release and retains the existing subscription
+worker-URI audience without a resource self-reference.
+
+Focused worker/ingress/IAP/API/Terraform tests: **102 passed, zero skipped**, including
+SQLite and PostgreSQL customer-login denial and actual Google verifier tests with
+in-memory synthetic signing material/mocked HTTP. Whole-tree Ruff, mypy (316 files)
+and diff check passed. No Full, deployment, credentials, live provider requests or
+real push/IAM qualification. Terraform CLI unavailable; static tests do not establish
+plan/apply readiness. See `docs/inlet-worker-push-auth.md` for the compatibility gate,
+protocol source and remaining intended-environment verification.
+
+Draft review: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/119. Implementation
+commit `2e34c92d607538b740a12c5a5a793040a9fe1e15`; subsequent ledger-only commit
+records the assigned PR. Next gate is assembled exact-head Full/CI, followed by
+explicit release configuration and intended-environment push verification.
+
+## Google Disconnect Customer Controls
+
+Branch `codex/inlet-google-disconnect` is an isolated child of frozen PR111 head
+`960de15cee97de54b88e3cb2bc33e59217c60915`. Owners/admins now select a connected Google
+account and acknowledge concrete data/advertising effects before disconnecting. Current
+session and role are revalidated transactionally. Imports stop and the local grant is
+removed; historical metrics remain and Google campaigns/spending are unchanged.
+
+Verification: focused SQLite/PostgreSQL/API/Chromium **55 passed**; final Google API
+regression rerun **17 passed**; Node helpers **8 passed**; Ruff, mypy **290 files** and
+diff checks pass. Browser verification includes retained imported metrics, removed
+local authorization, blocked role loss and an untouched sibling connection. No live
+provider operations, migrations, merge or deployment. Full/CI pending.
+
+Next recommended package is TikTok customer consent/selection/disconnect, after freezing
+shared source post-exchange guard and retry/lock interfaces with CRM ownership. Remaining
+source/Meta UI gaps and concrete ports are documented in `docs/inlet-google-disconnect-ui.md`.
+
+Google disconnect draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/120.
+Tested implementation: `7571ed2052f475b9235de6d94d09453b31921b2e`; the following commit
+only records this PR link. Parent subsequently selected Meta customer connections as
+the next isolated interface proposal, before TikTok/CRM implementation.
+## Shared Meta/TikTok Publication Types — 2026-10-06
+
+- Isolated `codex/inlet-social-contracts` from PR108 e4c1392. Additive social contracts
+  leave existing Google and fixture schemas/hashes unchanged. Frozen typed operations,
+  media binding, resource-kind namespaces, review/plan/request/receipt and transport ports.
+- Contract/compiler/Google adapter focused regression: 41 passed. Whole-tree Ruff
+  passed; mypy passed (300 source files). No Full started; adapters remain dependent work.
+- No live factory or production permission. Unknown provider combination eligibility
+  remains explicit qualification work, and B16 is not complete.
+## B17 — First Pure Outcome-Evidence Consumer (2026-10-06)
+
+Isolated branch `codex/inlet-outcome-evidence`, based on reviewed foundation
+`73725be`. Implements frozen nested consumer inputs, deterministic canonical
+hashing/comparison, strict scope/metric/window/coverage/maturity gates, observational
+deltas only, and no percentage from zero/negative baselines. Invalidated or unknown
+privacy and foreign scopes redact values. Actual existing CommerceSnapshot rows
+project to conservative store-total context, explicitly missing historical manifest,
+source generation and refund maturity qualification.
+
+There are no routes, DB writes/migrations, scheduler methods, provider requests,
+production receipt adapters or new retention. Scheduler confirmed its normalized
+production projection is forthcoming; committed shared types are required before
+integration. This first module is not B17 completion or a fixture replacement for
+real lineage. Concrete next producer contract and proposal are under `docs/design`.
+
+Validation includes pure deterministic scope/maturity/currency/attribution/DST/
+correction/privacy cases and actual persisted commerce snapshots plus disconnect
+invalidation on SQLite and isolated disposable PostgreSQL: **31 passed**. Ruff,
+strict mypy (324 files), and diff checks passed. The earlier broad commerce subset
+also exposed the known predecessor reflection test failure, already separately
+repaired by root at `f698dea`; frozen root worktrees were not changed.
+
+
+## Meta Customer Consent, Selection And Disconnect
+
+Branch `codex/inlet-meta-customer-ui`, isolated child of PR118 `216fda2` plus PR120
+`a4a66d5`, implements customer Meta consent/GET callback/account pagination/conversion
+choice/scoped selection and disconnect. Migration0045 down0042 adds explicit flow
+phase and pending-grant nonce binding. Default customer setup is disabled. Current
+session/role/flow/generation are rechecked after provider IO; stale callbacks cannot
+overwrite completed retries. Operator signatures and nullable legacy grants remain
+compatible, while customer routes reject unbound grants.
+
+Checks: focused **57 passed, 2 intentional SQLite concurrency skips**; final customer
+API **22 passed**; Node **10 passed**; Ruff/mypy **325 files**/diff pass. Disposable PG
+migration upgrade/down0042/up0045 passed. Optional whole-schema Alembic check found
+unrelated CRM metadata and analysis enum differences (parent integrating separate
+registry repair), not a0045 mismatch. Full/CI pending. No live provider traffic,
+activation, advertising operations, merge or deployment. Evidence and remaining
+engineering/live gates: `docs/inlet-meta-customer-ui.md`; shared interface proposal:
+`docs/inlet-meta-customer-contract.md`.
+
+Meta customer controls draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/125.
+Implementation and checks: `aa05f66acf5b70c00e43389f874ac1ab669828c7`; the following
+commit only records this PR link. Frozen PR118/PR120 heads were preserved.
+
+### Billing Browser Startup Race Repair — 2026-10-06
+
+Isolated branch `codex/inlet-billing-browser-repair` from PR118 `216fda2` preserves
+the frozen validation head. Its Full failed in nested validation while waiting for
+the workspace options after the billing test's initial login. The test waited only
+for the Retry DOM node, then clicked while the initial session probe could still
+hold that control disabled. Chromium silently ignores a disabled button's click.
+
+A test-only ASGI wrapper now deliberately holds the initial unauthenticated session
+GET through successful login. Before the repair this reproduced the exact original
+workspace-options timeout: **1 failed**. The repaired harness releases the probe,
+waits for Retry's handler and enabled state, then clicks exactly once. The forced
+overlap remains in both SQLite and PostgreSQL journeys. Product logic, assertions,
+wait deadlines and provider boundaries are unchanged; no blind retries were added.
+
+Final billing-browser/API/recovery/portal checks: **54 passed, 1 SQLite-only lock skip**;
+PostgreSQL counterpart ran. Whole-tree Ruff, mypy (317 files) and diff check passed.
+The earlier isolated case, prefix-order subset and full-collection selection passed
+without the forced overlap, so they did not establish a fix. No successful Full is
+claimed for this repair; the assembled successor needs exact-head Full/CI.
 
 ## Google Qualification And Immutable Provider Review — 2026-10-06
 
@@ -1125,3 +1665,111 @@ were stopped together. No replacement Full started pending root coordination.
   contracts, consent isolation/accounting, cross-period held-owner uniqueness,
   six PostgreSQL review-expiry lock barriers and populated0043↔0046 roundtrip.
   Whole-tree Ruff and mypy311, plus diff check, passed. No Full run started.
+## Integrated Candidate — 2026-10-06
+
+Branch `codex/inlet-mvp-candidate` assembles the reviewed foundation, customer
+journeys, canonical ORM registration, video decoder compatibility, worker push
+authentication, Google disconnect, local closure quiescing, social adapters,
+measurement comparison, customer Meta connections, billing browser regression,
+and provider qualification with fresh post-lock expiry checks. Migration 0047
+joins provider review, lifecycle, and Meta customer schema histories. Registry
+coverage discovers every direct declarative Base subclass, including provider_models.
+
+Checks actually run on this assembly: Ruff passed; whole mypy passed (359 files);
+focused SQLite/PostgreSQL/customer browser/video suite **87 passed, 7 SQLite-only
+skips**; portal Node tests **10 passed**; PostgreSQL migration upgrade to0047,
+downgrade tobase, and upgrade to0047 passed. Logs are executor-local
+`/tmp/inlet-candidate-focused.log`, `/tmp/inlet-candidate-node.log`, and
+`/tmp/inlet-candidate-migration.log`. Full and hosted candidate checks remain pending.
+
+Predecessor112 f698dea Full failed (1578 passed,38 skipped,1 nested failure),
+with a Shopify browser initial-session readiness race. Its hosted run37410847813
+failed four tests (1581 passed,32 skipped), three decoder cases plus nestedFull;
+actual checkout bcc4c6fba40d0160aea59255c77e52feecc2950e has the same tree asf698dea.
+Predecessor118216fda2 Full failed the nested billing readiness test (1597 passed,
+38 skipped,1 failure); hosted37410393272 failed seven (1597 passed,32 skipped):
+video/review upload cases, nestedFull, and a Google DevTools target startup race.
+Actual checkout33568e75e68d8408c167cfadb83f785934f87a58 matches216fda2's tree.
+The decoder and billing fixes are integrated; further browser startup repairs
+remain separate reviewable packages until qualified. These failures are not green
+release evidence. Production execution coordinator, complete export/closure,
+measured action outcomes, live provider qualification, operations and pilots
+remain incomplete. No merge, deployment, provider mutation or spend occurred.
+### Shopify And Google Browser Startup Synchronization — 2026-10-06
+
+Branch `codex/inlet-shopify-browser-repair` is an isolated child of billing repair
+PR126 `fa31c11`. The frozen PR112 Full nested Shopify SQLite journey failed at its
+initial workspace-options wait. A test-only ASGI wrapper holding the first session
+GET through login reproduced that precise failure: **1 failed**. The copied Google
+journey independently reproduced the same dropped Retry click under the same
+controlled overlap: **1 failed, 1 deselected**.
+
+Both tests now release the initial probe, wait for the bound and enabled Retry
+control, then click once. The forced startup overlap remains in SQLite/PostgreSQL
+journeys, and cleanup always releases the probe. No product behavior, deadlines,
+acceptance assertions or provider boundaries changed. This is separate from the
+browser target-discovery repair coordinated in another branch.
+
+Final combined Shopify consent/customer API, Google connection, billing browser and
+portal suite: **39 passed, 6 SQLite-only lock skips**; PostgreSQL counterparts ran.
+Whole-tree Ruff, mypy (317 source files) and diff check passed. No Full or hosted CI
+success claimed. Frozen parent heads remain unchanged; the assembled successor
+requires exact-head validation with both synchronization and target-discovery fixes.
+
+## B18 — Customer Closure Confirmation And Recoverable Status (2026-10-06)
+
+Isolated branch `codex/inlet-closure-ui` combines PR122 `9088dbd` and required PR118
+`216fda2`. Added a Settings link, separate closure shell/module and dedicated receipt
+route. Named workspace confirmation binds the exact revision/inventory digest;
+status stays owner-authorized after the workspace disappears from active choices.
+Truthful local effects, retained data, unverified work and unchanged external
+advertising/billing are explicit. Global session and other workspaces survive
+closure; explicit logout clears data and revokes the session normally.
+
+Focused parent/API/browser suites: 54 passed and one expected SQLite race skip,
+with PostgreSQL race coverage. Added Node receipt/version/path contract checks and
+reran actual HTTPS browser recovery after the final guard changes. Ruff and strict
+mypy (334 files) passed. No backend/schema edits beyond composing the inherited
+Google lock-order conflict; no production closure, data erasure or provider call.
+See `docs/inlet-closure-ui.md`. Export implementation remains separate.
+## Hosted Browser Target Discovery Repair
+
+Independent child of frozen PR125 `512cadc`: `codex/inlet-browser-target-repair`.
+Fetched hosted PR118 workflow run37410393272/job112097300707 logs through the GitHub
+connector. The Google SQLite failure was `IndexError` at
+`GoogleBrowser(tabs()[0]["webSocketDebuggerUrl"], origin)` before application navigation:
+DevToolsActivePort existed, but Chromium's `/json` response was still empty.
+
+Shared bounded `wait_for_page_target` now waits for a page with a usable WebSocket URL,
+ignores workers/incomplete targets and supports exact IDs for second-tab creation.
+Google/Shopify/Meta/billing harnesses use it; no production code or assertion weakening.
+Deterministic regressions reproduce the original empty-response indexing failure and
+cover delayed readiness, transient connection failure, exact target selection and timeout.
+
+Initial affected-browser run: **10 passed, 1 failed**. The failure was the distinct billing
+PostgreSQL initial-login/Retry workspace-options timeout, not target discovery. Parent
+and the session-harness repair owner were notified; that unrelated failure is not hidden.
+The deterministic helper rerun passed **3 tests**. Ruff/mypy **327 files** and diff checks
+pass. Parent owns Full; frozen PR118/PR125 were preserved. No live requests.
+
+Focused discovery + Google/Shopify/Meta Chromium journeys on SQLite/PostgreSQL:
+**9 passed** (`tests/test_browser_targets.py`, `tests/test_google_connections_browser.py`,
+`tests/test_shopify_consent_browser.py`, `tests/test_meta_customer_browser.py`). The
+billing startup failure remains reported separately for its dedicated repair.
+
+### Integrated Lifecycle Registry Repair And Browser Qualification
+
+Independent review found the newly registered provider qualification/review/approval
+models absent from the lifecycle table allowlist. The first combined browser run
+reproduced broken closure on both SQLite and PostgreSQL: 2 failed,13 passed
+(`/tmp/inlet-candidate-browser.log`). Added explicit workspace-scoped protected
+scalar projections for those tables; raw evidence/review/plan JSON stays omitted.
+A canonical-registry regression prevents this integration omission recurring.
+
+After repair, the lifecycle/model registry plus closure/Google/Shopify/Meta/billing
+browser and target-discovery suite passed **36 tests with one SQLite-only row-lock
+skip**; its PostgreSQL counterpart ran. Ruff, whole mypy (362 files), and diff
+checks passed. Exact log: `/tmp/inlet-candidate-lifecycle-browser.log`. This also
+qualifies the combined PR126/128 session-readiness and PR131 target-discovery
+repairs without timing retries or weakened product assertions. See the current
+`docs/inlet-candidate-acceptance.md`; the new frozen Full/CI remains pending.

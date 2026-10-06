@@ -15,6 +15,7 @@ from app.billing.entitlements import paid_work
 from app.campaign_review.contracts import (
     MAX_IMAGE_BYTES,
     MAX_LIBRARY_BYTES,
+    MAX_MEDIA_BYTES,
     MAX_PIXELS,
     MediaRef,
     MediaStore,
@@ -22,6 +23,7 @@ from app.campaign_review.contracts import (
     RevisionInput,
 )
 from app.campaign_review.models import CampaignDraft, CampaignRevision, MediaObject
+from app.campaign_review.video import VideoInvalid, VideoUnavailable, validate_video
 from app.google_connections.models import GoogleCustomerConnection
 from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
 from app.mandates import service as mandates
@@ -30,18 +32,17 @@ from app.sources.models import SourceConnection
 from app.workspaces.models import Workspace
 
 
-def upload(
-    db: Session, wid: int, actor: str, data: bytes, store: MediaStore, now: datetime
-) -> MediaObject:
-    workspace = db.scalar(
-        select(Workspace)
-        .where(Workspace.id == wid)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
-    if workspace is None or workspace.status != "active":
-        raise HTTPException(404, "workspace unavailable")
-    paid_work(db, wid, now)
+def inspect_media(data: bytes) -> tuple[str, int, int]:
+    if not 0 < len(data) <= MAX_MEDIA_BYTES:
+        raise HTTPException(413, "media size exceeds limit")
+    if data[4:8] == b"ftyp":
+        try:
+            info = validate_video(data)
+        except VideoUnavailable:
+            raise HTTPException(503, "video validation unavailable") from None
+        except VideoInvalid:
+            raise HTTPException(422, "valid bounded H264 MP4 with optional AAC required") from None
+        return "video/mp4", info.width, info.height
     if not 0 < len(data) <= MAX_IMAGE_BYTES:
         raise HTTPException(413, "image size exceeds limit")
     try:
@@ -62,6 +63,22 @@ def upload(
                 decoded.load()
     except Exception:
         raise HTTPException(422, "valid bounded static JPEG or PNG required") from None
+    return mime, width, height
+
+
+def upload(
+    db: Session, wid: int, actor: str, data: bytes, store: MediaStore, now: datetime
+) -> MediaObject:
+    workspace = db.scalar(
+        select(Workspace)
+        .where(Workspace.id == wid)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if workspace is None or workspace.status != "active":
+        raise HTTPException(404, "workspace unavailable")
+    paid_work(db, wid, now)
+    mime, width, height = inspect_media(data)
     sha = hashlib.sha256(data).hexdigest()
     existing = db.scalar(
         select(MediaObject).where(MediaObject.workspace_id == wid, MediaObject.sha256 == sha)
@@ -196,15 +213,23 @@ def artifact(
 ) -> ReviewArtifact:
     version = binding(db, draft.workspace_id, definition, now)
     refs: list[MediaRef] = []
-    blockers = []
+    blockers: list[str] = []
     content = definition.content
     if content.kind != "google_search_v1":
-        row, _ = download(db, draft.workspace_id, content.media.media_id, store)
+        row, data = download(db, draft.workspace_id, content.media.media_id, store)
         if row.sha256 != content.media.sha256:
             raise HTTPException(409, "media reference changed")
         refs = [content.media]
-        if content.kind == "tiktok_website_conversion_video_v1":
-            blockers.append("video_validation_unavailable")
+        expected = (
+            {"video/mp4"}
+            if content.kind == "tiktok_website_conversion_video_v1"
+            else {"image/jpeg", "image/png"}
+        )
+        if row.mime not in expected:
+            raise HTTPException(422, "campaign media type mismatch")
+        verified_mime, width, height = inspect_media(data)
+        if (verified_mime, width, height) != (row.mime, row.width, row.height):
+            raise HTTPException(409, "media validation changed")
     return ReviewArtifact(
         draft_id=draft.id,
         revision=draft.revision,

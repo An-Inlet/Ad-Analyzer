@@ -16,6 +16,7 @@ from app.ads.schemas import AdCreate, DailyMetricCreate
 from app.goals.schemas import StrictModel
 from app.imports.scope import AdvertisingImportScope, validate_advertising_scope
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.normalize import metric_values
 from app.meta.security import MetaError, identifier
 from app.settings import Settings
@@ -53,6 +54,49 @@ class DetailBatch(StrictModel):
     metrics: list[DetailMetric] = Field(max_length=50000)
 
 
+def normalize_page(
+    items: list[dict[str, Any]],
+    phase: str,
+    account_id: str,
+    start: date,
+    end: date,
+    currency: str,
+    action_type: str | None,
+) -> tuple[list[InventoryAd], list[DetailMetric]]:
+    inventory: list[InventoryAd] = []
+    metrics: list[DetailMetric] = []
+    for item in items:
+        if identifier(item["account_id"]) != account_id:
+            raise MetaError("meta_account_mismatch")
+        if phase == "ads":
+            creative = item.get("creative")
+            if not isinstance(creative, dict):
+                raise MetaError("meta_creative_unavailable")
+            inventory.append(
+                InventoryAd(
+                    external_id=identifier(item["id"]),
+                    campaign_id=identifier(item["campaign_id"]),
+                    ad_set_id=identifier(item["adset_id"]),
+                    name=item["name"],
+                    status=item["status"],
+                    creative_id=identifier(creative["id"]),
+                    creative_name=creative.get("name"),
+                )
+            )
+        else:
+            values = metric_values(item, account_id, currency, start, end, action_type)
+            metrics.append(
+                DetailMetric(
+                    level="ad_set" if phase == "adset_insights" else "ad",
+                    campaign_id=identifier(item["campaign_id"]),
+                    ad_set_id=identifier(item["adset_id"]),
+                    ad_id=identifier(item["ad_id"]) if phase == "ad_insights" else None,
+                    **values,
+                )
+            )
+    return inventory, metrics
+
+
 def collect(
     client: MetaClient,
     account_id: str,
@@ -73,35 +117,11 @@ def collect(
             items, next_cursor = unpack_page(
                 client.detail_page(account_id, token, phase, cursor, start, end), cursor
             )
-            for item in items:
-                if identifier(item["account_id"]) != account_id:
-                    raise MetaError("meta_account_mismatch")
-                if phase == "ads":
-                    creative = item.get("creative")
-                    if not isinstance(creative, dict):
-                        raise MetaError("meta_creative_unavailable")
-                    inventory.append(
-                        InventoryAd(
-                            external_id=identifier(item["id"]),
-                            campaign_id=identifier(item["campaign_id"]),
-                            ad_set_id=identifier(item["adset_id"]),
-                            name=item["name"],
-                            status=item["status"],
-                            creative_id=identifier(creative["id"]),
-                            creative_name=creative.get("name"),
-                        )
-                    )
-                else:
-                    values = metric_values(item, account_id, currency, start, end, action_type)
-                    metrics.append(
-                        DetailMetric(
-                            level="ad_set" if phase == "adset_insights" else "ad",
-                            campaign_id=identifier(item["campaign_id"]),
-                            ad_set_id=identifier(item["adset_id"]),
-                            ad_id=identifier(item["ad_id"]) if phase == "ad_insights" else None,
-                            **values,
-                        )
-                    )
+            page_inventory, page_metrics = normalize_page(
+                items, phase, account_id, start, end, currency, action_type
+            )
+            inventory.extend(page_inventory)
+            metrics.extend(page_metrics)
             if len(inventory) > 10000 or len(metrics) > 50000:
                 raise MetaError("meta_detail_capacity_exceeded")
             if next_cursor is None:
@@ -128,6 +148,7 @@ def publish(db: Session, scope: AdvertisingImportScope, batch: DetailBatch) -> i
 
 
 def _publish(db: Session, scope: AdvertisingImportScope, batch: DetailBatch) -> int:
+    lock_workspace(db, scope.workspace_id)
     account, _ = validate_advertising_scope(db, scope)
     if (
         scope.platform != AdvertisingPlatform.META_ADS
@@ -221,6 +242,7 @@ def _publish(db: Session, scope: AdvertisingImportScope, batch: DetailBatch) -> 
 def detail_report(
     db: Session, scope: AdvertisingImportScope, start: date, end: date
 ) -> dict[str, Any]:
+    lock_workspace(db, scope.workspace_id)
     validate_advertising_scope(db, scope)
     rows = list(
         db.scalars(
@@ -240,12 +262,27 @@ def detail_report(
         for level in ("campaign", "ad_set", "ad")
     }
     present = {r.entity_type for r in rows}
+
+    # Account-wide equality can conceal opposite discrepancies between parents/days.
+    def grouped(level: str, parent: str) -> dict[tuple[int, date], int]:
+        result: dict[tuple[int, date], int] = {}
+        for row in rows:
+            if row.entity_type == level:
+                key = (getattr(row, parent), row.metric_date)
+                result[key] = result.get(key, 0) + row.cost_micros
+        return result
+
+    agrees = (
+        all(level in present for level in totals)
+        and grouped("campaign", "campaign_id") == grouped("ad_set", "campaign_id")
+        and grouped("ad_set", "ad_set_id") == grouped("ad", "ad_set_id")
+    )
     return {
         "spend_micros": totals["campaign"] if "campaign" in present else None,
         "comparison": {level: totals[level] if level in present else None for level in totals},
-        "children_reconcile": all(
-            level in present and totals[level] == totals["campaign"] for level in totals
-        ),
+        "children_reconcile": agrees,
+        "comparison_is_informational": True,
+        "common_coverage_and_eligibility_verified": False,
         "summed_across_grains": False,
         "historical_creative_attribution_available": False,
     }
@@ -270,6 +307,7 @@ def sync_window(
 
     if not configuration.meta_detail_enabled or not syncing_allowed(db, workspace_id):
         raise HTTPException(409, "Meta detail sync disabled")
+    lock_workspace(db, workspace_id)
     row = db.scalar(
         select(MetaConnection)
         .where(MetaConnection.id == connection_id, MetaConnection.workspace_id == workspace_id)

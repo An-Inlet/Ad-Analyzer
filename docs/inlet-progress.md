@@ -2600,3 +2600,14 @@ and hosted e512529 do not include this package and are still running.
 - Validation: documentation diff/whitespace check only; no tests, Full, CI dispatch,
   provider calls, deployment or spend. Next package: freeze typed interfaces, then
   implement owned catalog/preparation and customer boundary regressions.
+
+## Independent Repeat-Protocol Re-Review
+
+Bounded independent review of exact2ac0604 closed the reproduced late-ancestor
+receipt finding: final admission compares complete immutable chain/latest receipts
+after credential context and fresh authority checks. Independently selected tests
+11passed/1SQLite-onlyskip (16deselected),14.81seconds; populated downgrade refusal
+and empty migration roundtrip1passed/4deprecationwarnings,3.69seconds. Logs:
+`/tmp/inlet-repeat-independent-review.log` and
+`/tmp/inlet-repeat-independent-migration.log`. No additional material finding in
+that scope; no broad approval, Full or native qualification is inferred.

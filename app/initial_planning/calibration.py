@@ -15,6 +15,7 @@ from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
 from app.initial_planning.capture import configuration, read_observation, unavailable
+from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
     CalibrationReportV1,
     EfficiencyObjectiveV1,
@@ -69,7 +70,7 @@ def current_objective(
     authorize(db, c.workspace_id, principal.user.id)
     goal = goals.owned(db, c.workspace_id, objective.goal_id)
     goals.expect(goal, objective.goal_revision)
-    if goals.assessment(db, goal, runtime.clock()) != "confirmed":
+    if goals.assessment(db, goal, effective_now(db, runtime)) != "confirmed":
         raise unavailable("current_confirmed_goal_required")
     report = read_current(
         db, c.workspace_id, principal.user.id, c.account_id, c.campaign_id, None, authorize
@@ -85,7 +86,7 @@ def current_objective(
         or report.reporting_basis != c.reporting_basis
     ):
         raise unavailable("initial_objective_report_basis_changed")
-    now = runtime.clock()
+    now = effective_now(db, runtime)
     if (
         not timedelta(0)
         <= now - report.completed_at
@@ -113,7 +114,7 @@ def evaluate(
             )
         except (OverflowError, ValueError, KeyError):
             raise unavailable("initial_observation_calendar_unavailable") from None
-        if (item.captured_at - close).total_seconds() < policy.minimum_report_age_seconds:
+        if (item.completed_at - close).total_seconds() < policy.minimum_report_age_seconds:
             reasons.add("observation_window_age_insufficient")
         grouped.setdefault((item.starts_on, item.ends_on), []).append(item)
     groups = [
@@ -228,9 +229,9 @@ def run_calibration(
     observations = tuple(
         read_observation(db, principal, provider, c.workspace_id, i, runtime) for i in ids
     )
-    report = evaluate(observations, objective, policy, runtime.clock())
+    report = evaluate(observations, objective, policy, effective_now(db, runtime))
     bind_authority(principal, provider)(db, c.workspace_id, principal.user.id)
-    if runtime.clock() >= report.expires_at:
+    if effective_now(db, runtime) >= report.expires_at:
         raise unavailable("initial_calibration_expired")
     previous = db.scalar(
         select(CalibrationRow)
@@ -314,7 +315,7 @@ def read_calibration(
         or row.input_digest != report.input_digest
         or utc(row.created_at) != report.evaluated_at
         or utc(row.expires_at) != report.expires_at
-        or not report.evaluated_at <= runtime.clock() < report.expires_at
+        or not report.evaluated_at <= effective_now(db, runtime) < report.expires_at
     ):
         raise unavailable("initial_calibration_expired_or_changed")
     current_objective(db, principal, provider, objective, runtime)
@@ -335,7 +336,7 @@ def read_calibration(
     reconstructed = evaluate(observations, objective, policy, report.evaluated_at)
     if reconstructed.model_dump(exclude={"id"}) != report.model_dump(exclude={"id"}):
         raise unavailable("initial_calibration_inputs_changed")
-    if runtime.clock() >= report.expires_at:
+    if effective_now(db, runtime) >= report.expires_at:
         raise unavailable("initial_calibration_expired")
     return report
 

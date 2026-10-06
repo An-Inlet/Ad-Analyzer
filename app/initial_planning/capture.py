@@ -15,6 +15,7 @@ from app.campaign_performance.models import PerformanceCompletion
 from app.campaign_performance.service import read_current, require_active_integration
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
+from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import CohortV1, InitialPlanningConfiguration, ObservationV1
 from app.initial_planning.models import ObservationRow
 from app.initial_planning.runtime import InitialPlanningRuntime
@@ -87,7 +88,7 @@ def capture_current(
         ZoneInfo(report.time_zone)
     except (ValueError, KeyError):
         raise unavailable("initial_observation_calendar_unavailable") from None
-    now = runtime.clock()
+    now = effective_now(db, runtime)
     if not report.completed_at <= now:
         raise unavailable("initial_planning_future_report")
     existing = db.scalar(
@@ -149,7 +150,7 @@ def capture_current(
         conversion_value_micros=report.conversion_value_micros,
     )
     authorize(db, workspace_id, principal.user.id)
-    if runtime.clock() >= document.expires_at:
+    if effective_now(db, runtime) >= document.expires_at:
         raise unavailable("initial_observation_expired")
     db.add(
         ObservationRow(
@@ -209,7 +210,7 @@ def read_observation(
         or document.privacy_revision != row.privacy_revision
         or document.captured_at != utc(row.captured_at)
         or document.expires_at != utc(row.expires_at)
-        or not document.captured_at <= runtime.clock() < document.expires_at
+        or not document.captured_at <= effective_now(db, runtime) < document.expires_at
     ):
         raise unavailable("initial_observation_expired_or_changed")
     source = source_current(db, workspace_id, row.account_id, document.generation)
@@ -234,6 +235,6 @@ def read_observation(
     # Captured privacy counter is audit-only. Actual semantic privacy hooks physically
     # erase capsules; export-only correction invalidation must not rewrite history.
     authorize(db, workspace_id, principal.user.id)
-    if runtime.clock() >= document.expires_at:
+    if effective_now(db, runtime) >= document.expires_at:
         raise unavailable("initial_observation_expired")
     return document

@@ -1120,3 +1120,16 @@ tests/test_customer_context.py` with disposable PostgreSQL enabled: **193 passed
 15 skipped**, 60.46s (`/tmp/inlet-crm-repair-frozen.log`). All skips are SQLite-only
 row-lock/concurrency cases; PostgreSQL counterparts ran. Ruff passed; mypy passed
 (272 source files); `git diff --check` passed. Hosted CI and local Full pending.
+## B19 Database Dependency Readiness (2026-10-06)
+
+Branch `codex/inlet-dependency-readiness`, based on PR94 5f9a0d0. A configured but
+unreachable database now yields503/not_ready on /ready; invalid configuration skips
+the connection entirely. A fresh NullPool read-only SELECT1 avoids waiting on the
+application pool; connection and statement timeouts are independently limited to2s
+and1s (not an absolute DNS/network wall-clock promise). Responses reveal no driver
+errors, address or credentials. /health stays liveness, with no dependency probe.
+
+Focused dependency/deployment/managed-configuration suite:23passed, including a real
+connection to explicitly guarded disposable PostgreSQL and sanitized failure/resource
+cleanup assertions. Ruff and mypy passed. Full/hostedCI pending. This does not prove
+schema compatibility, live production health, capacity or release readiness.

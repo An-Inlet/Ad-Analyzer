@@ -33,6 +33,7 @@ from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
+from app.readiness import database_available
 from app.shopify.logging import install_access_filter
 
 
@@ -55,6 +56,7 @@ class ReadinessResponse(BaseModel):
 
     status: str
     database_configured: bool
+    database_available: bool
     write_access_enabled: bool
 
 
@@ -83,14 +85,16 @@ def read_health() -> HealthResponse:
 
 @app.get("/ready", response_model=ReadinessResponse)
 def read_ready(response: Response) -> ReadinessResponse:
-    """Return startup readiness without contacting external services."""
+    """Require valid startup configuration and a read-only database dependency probe."""
     result = validate_deployment_startup(DeploymentProcess.WEB)
-    response.status_code = 200 if result.ok else 503
+    available = result.ok and database_available()
+    response.status_code = 200 if available else 503
     response.headers["Cache-Control"] = "no-store"
     database_configured = any(check.name == "database_url" and check.ok for check in result.checks)
     return ReadinessResponse(
-        status="ready" if result.ok else "not_ready",
+        status="ready" if available else "not_ready",
         database_configured=database_configured,
+        database_available=available,
         write_access_enabled=False,
     )
 

@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from app.goals.schemas import StrictModel
 from app.optimization_candidates.selection_contracts import CandidatePolicyRef
@@ -119,9 +119,23 @@ class AutomaticPolicyOption(StrictModel):
     environment: Environment
 
 
+class AutomaticMandateOption(StrictModel):
+    mandate: ProviderMandateBinding
+    label: str = Field(min_length=1, max_length=100)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    total_limit_micros: int = Field(strict=True, gt=0, le=10**15)
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+
+
 class SessionAutomationCapabilities(StrictModel):
     available: bool
     reason: AutomationReason
     policies: list[AutomaticPolicyOption] = Field(max_length=20)
+    mandates: list[AutomaticMandateOption] = Field(max_length=20)
     session_bound: Literal[True] = True
     message: str = Field(min_length=1, max_length=300)
+
+
+class SessionAutomationHistory(StrictModel):
+    runs: list[SessionAutomationStatus] = Field(max_length=20)

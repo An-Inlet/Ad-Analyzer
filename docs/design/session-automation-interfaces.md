@@ -124,3 +124,10 @@ missing production source code/evidence, not a credentials-only gate.
 These routes are not implemented in the typed-port checkpoint. UI may target
 this schema; unavailable defaults must remain honest until backend composition
 is installed and qualified.
+
+Additive UI recovery/catalog ports: GET `/runs` returns SessionAutomationHistory
+with up to20 owned safe status projections. After an ambiguous Start, the UI reads
+this list rather than replaying Start. Start also deduplicates an active identical
+original-session/mandate/policy intent under the workspace lock. Capabilities adds
+`mandates: list[AutomaticMandateOption]` with exact server-resolved binding, label,
+currency, total_limit_micros, starts_at, ends_at. UI never guesses consent/ledger IDs.

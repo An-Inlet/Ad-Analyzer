@@ -4538,3 +4538,18 @@ Root PR221 UI/API integration: **20 passed in59.87s** on SQLite/PostgreSQL,
 and customer API. Ruff, mypy623, JavaScript syntax and staged whitespace passed.
 Financial eligibility, separate activation approval and runtime defaults unchanged.
 Prepared dc3c0d5 validation snapshot remains unchanged; this package is successor work.
+
+### Frozen a4 Local Terminal And Repaired Candidate Launch
+
+Local Full on a4fcd3a terminated **exit1**:5 failed,3390 passed,67 skipped,
+129 warnings in5059.83s. The four known causes plus nested wrapper failed; later
+Full gates did not run after pytest failure. Nested first invocation3386 passed,
+72 skipped,4 failed. Both B01 positive-conversion and Meta browser database cases
+passed nested. Exact repairs are in docs/inlet-candidate-a4-validation.md.
+Hosted37443239927 remains in progress; do not call it failed/passed before terminal.
+
+Prepared successor dc3c0d5/tree5d17ce3 is pushed and local Full65083 started against
+its separate immutable checkout/database inlet_oct06_candidate4_ci. Log
+`/tmp/inlet-oct06-candidate4-full.log`, eventual `.exitcode`. Newdevelopment0074 and
+Google total-budget packages remain outside this snapshot. PR130 unchanged until
+its hosted result is retained. No manual dispatch, merge or live action.

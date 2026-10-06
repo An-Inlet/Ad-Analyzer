@@ -6,9 +6,12 @@ remains unchanged. Successor package results do not turn its failures into passe
 
 ## Observed Results
 
-At 2026-10-06 10:31 UTC the local outer Full run and hosted run37443239927,
-job112201796837, are still running. No terminal success is asserted.
-Local log: `/tmp/inlet-oct06-candidate3-full.log`; terminal exit code will be in
+Local Full completed with **exit1** on 2026-10-06, verified10:55UTC: **5 failed,
+3390 passed,67 skipped**,129 warnings in5059.83s. Failures are the four cases below
+plus their nested-Full wrapper; no additional cause appeared. Full stopped at pytest,
+so subsequent static/security/privacy/migration gates did not run in this invocation.
+Hosted run37443239927/job112201796837 remains in progress at the latest read.
+Local log: `/tmp/inlet-oct06-candidate3-full.log`; actual wrapper exit code:
 `/tmp/inlet-oct06-candidate3-full.exitcode`.
 
 The first bounded nested Full invocation completed with **3386 passed,72 skipped,
@@ -45,3 +48,14 @@ profiles are being assessed for enforceable behavior; unsupported universal prom
 must not be added to the audit, and unqualified financial facts must not be invented.
 The pending product decision does not authorize recommendation-only acceptance or
 public claims, nor changing existing runtime gates.
+
+## Repaired Validation Snapshot
+
+Frozen successor `dc3c0d5b63eee06bd04a0aa73354ae289ef55333`, tree
+`5d17ce391d0b1b8c384cb374ad3ebd7ddda6c0d0`, is pushed on
+`codex/inlet-mvp-validation-next`. Local Full started10:54UTC in its independent
+checkout and disposable `inlet_oct06_candidate4_ci` database. Log:
+`/tmp/inlet-oct06-candidate4-full.log`; eventual exit-code companion. No pass claimed.
+PR130 remains on a4 while its hosted run is preserved to terminal. New0074 campaign
+performance and Google total-budget backend/UI are later development and deliberately
+not part of this frozen snapshot. No manual dispatch, merge or deployment.

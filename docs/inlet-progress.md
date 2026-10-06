@@ -3235,3 +3235,88 @@ Frozen 8efe196 local Full primary pytest completed with 2639 passed, 59 skipped,
 85 warnings in 4650.54 seconds. This is NOT terminal Full success: subsequent gates
 remain pending/running. Normal hosted run37427571832 is still in pytest at this
 checkpoint. No manual dispatch, merge, deployment, provider access or spending.
+## B17 Retained Reconciliation Observations (2026-10-06)
+
+Branch `codex/inlet-b17-readiness`, isolated base `1c82e03`. Added an internal,
+read-only owned collector with explicit incremental-terminal assurance, maximum 16
+retained publications/400 local days, current goal/source/privacy fences, completion
+lineage verification, per-day observed changes and retention/truncation reporting.
+No maturity or action attribution qualification, recommendation update, spending
+permission, endpoint, migration or provider call is enabled. See
+`docs/design/b17-production-readiness.md` for the exact remaining production code,
+policy calibration decision and next disabled-default registry/evaluator contract.
+
+Validation: existing outcome/descriptive/learning suite 72 passed, 2 SQLite-specific
+skips (31.28s). New collector tests 10 passed across SQLite/PostgreSQL (9.57s),
+including actual terminal imports, 16-observation cap, revisions, old retention
+exclusion, privacy deletion, invalid completion binding, missing coverage, foreign
+workspace, stale publication/goal and final fresh authorization rejection. Related
+combined run before fixture corrections had 48 passed/2 skips and two new fixture
+failures; those were corrected (valid sync interval and actual fixture sales delta),
+then all 10 collector cases rerun successfully. Ruff, mypy (504 files), and
+`git diff --check` passed. No Full, CI dispatch, live qualification or deployment.
+
+## B17 Parameterized Operational Maturity Evaluator (2026-10-06)
+
+Branch `codex/inlet-operational-maturity`, isolated child of PR183 `1a08ecd`.
+Added immutable versioned policy with explicit required parameters, a production-capable
+server facts port, generic pure evaluator and registry/service boundary. Both policy
+and independent source producer defaults return None. Existing incremental terminal
+imports cannot qualify, even under permissive policies. Fixture/live isolation, exact
+scope/privacy/goal/source, complete calendar coverage, chronology/freshness, revision
+envelope and correction predicates fail closed. Operational qualification is never
+finality or causal attribution; no recommendations or spending authority are added.
+
+Frozen contract and proposed next v3 bridge/feedback/retraction interfaces:
+`docs/design/b17-operational-maturity-interface.md`. Genuine independent full-window
+and authoritative timing producers, owned bridge and feedback/retraction consumer
+remain missing code, distinct from owner parameter calibration/live qualification.
+
+Validation: 39 passed in 7.81s (29 pure synthetic boundary tests and 10 actual retained
+collector cases across SQLite/PostgreSQL, including proof current imports cannot
+qualify). Ruff, mypy (506 files), and diff checks passed. No Full, manual CI dispatch,
+API, migration, production policy installation, provider calls or deployment.
+
+## B17 Read-Only Owned V3 Bridge (2026-10-06)
+
+Branch `codex/inlet-owned-outcomes-v3`, isolated child of PR185 `b100317`.
+The bridge reads actual owned current receipt/account/goal/source evidence in its
+own session, releases database locks before producer IO, then reauthorizes and
+rechecks latest receipt, source/privacy/goal and policy in a new fenced session.
+No caller transaction is committed. Actual default registries/timing remain
+unavailable and yield insufficient. The pure bridge supports future qualified
+server facts with strict authoritative interval separation, equal complete local
+windows/as-of and exact association arithmetic; it confers no causal attribution,
+recommendation or spending authority. Existing v2 persistence/history is untouched.
+No endpoint, migration or production producer is installed.
+
+`docs/design/b17-v3-feedback-contract.md` defines the proposed strict v2/v3 document
+union and concrete idempotent feedback/contribution/dependency schema, including
+privacy retraction and candidate invalidation integration. Persistence and decision
+policy remain unimplemented/uninstalled, pending root schema review.
+
+Validation: final new SQLite/PostgreSQL suite 14 passed (20.17s): actual receipt
+insufficiency, foreign ownership, unchanged v2 storage, synthetic qualified timing,
+zero/negative/large exact values, and independently committed goal/privacy/account/
+session/latest-receipt changes during producer IO. Separate-session workspace/goal
+locks prove no bridge locks survive into producer IO. Earlier combined v2/v3/pure
+suite 50 passed, 1 SQLite-specific skip (31.48s); final added receipt races and exact
+large arithmetic were covered in the final 14-case run. Ruff, mypy (508 files), and
+diff checks passed. No Full, manual CI dispatch, live call or deployment.
+
+### 2026-10-06 — Outcome foundations assembled after native diagnostics
+
+Integrated PR183/185/189 bounded reconciliation observations, immutable operational
+maturity evaluation and owned read-only v3 bridge. Root tests: 62 passed, one
+expected SQLite row-lock skip in37.45s (`/tmp/inlet-next-outcomes-v3.log`); Ruff,
+configured mypy515 files and staged whitespace checks passed. No independent
+production reconciliation/delivery-time producer or numeric policy is registered.
+Feedback storage/retraction remains in isolated0064 work; association is not causal
+performance direction or spending authority.
+
+Parent bounded source review closed PR181 at c0e10dc with no material finding;
+review inspected the actual32-chain regression but did not independently run55checks.
+Google original-response evidence capture is approved as an additive source only,
+not ClosedOriginalRequest classification or financial release. Migration0066 down0060
+reserved; final root merge0067 will join0063,0064,0066. The earlier proposed0065
+was never created and is unused.

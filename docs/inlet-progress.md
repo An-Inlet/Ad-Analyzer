@@ -2003,3 +2003,9 @@ PR146 hosted run37415266510/job112112374138 failed early at real browser codec p
 ### Exact Activation Adapter Integration
 
 Integrated PR145 d2c0487, including shared activation contracts and actual Google/Meta/TikTok status-only adapters. Original creation identity, request/readback digest and reviewed paused state remain bound; no budget or creative edits, inferred effect time, retry or automatic activation authority. Coordinator integration and exposure/settlement remain unfinished. Combined activation/publication/optimization HTTP checks:103 passed in2.27s; Ruff and configured mypy410 passed. Log:/tmp/inlet-next-activation-adapters.log. No live requests or extra hosted Full started.
+
+### Resumption And Import Closure Integration
+
+Owner resumed normal Inlet work while leaving the exact blocked workflow dispatch paused. Read-only diagnosis: shell proxy CONNECT to api.github.com returns403 Forbidden before any GitHub API response; existing Actions metadata remains readable through connected GitHub tools. This is not evidence of GitHub quota exhaustion; no credentials/settings changed and no dispatch bypass attempted. Actual verified plan/usage limit still requires all-project stop.
+
+Integrated PR1495cec843 workspace-first Google/CRM import locking. Combined import closure/ownership/customer quiescing checks47 passed,2 SQLite-only concurrency skips; Ruff and configured mypy411 passed. /tmp/inlet-next-import-fence-corrected.log. Initial mistyped test filename ran no tests and is not evidence. This removes demonstrated lock inversion; does not establish physical worker termination.

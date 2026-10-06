@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.crm.models import CrmConnection
 from app.imports.scope import ImportScopeError
+from app.workspaces.locking import lock_workspace_row
 from app.workspaces.models import Workspace, WorkspaceIntegration
 
 
@@ -21,6 +22,9 @@ class CrmBinding:
 def connection_for_scope(session: Session, workspace_id: int, connection_id: int) -> CrmConnection:
     if any(type(v) is not int or v < 1 for v in (workspace_id, connection_id)):
         raise ImportScopeError("invalid CRM scope")
+    workspace = lock_workspace_row(session, workspace_id)
+    if workspace is None or workspace.status != "active":
+        raise ImportScopeError("CRM ownership unavailable")
     connection = session.scalar(
         select(CrmConnection)
         .join(
@@ -36,7 +40,7 @@ def connection_for_scope(session: Session, workspace_id: int, connection_id: int
             WorkspaceIntegration.status == "active",
             WorkspaceIntegration.provider.in_(["crm", "klaviyo", "hubspot", "omnisend"]),
         )
-        .with_for_update()
+        .with_for_update(of=(CrmConnection, WorkspaceIntegration))
         .execution_options(populate_existing=True)
     )
     if connection is None:

@@ -19,7 +19,7 @@ HubSpot. Fixture names are synthetic, not real pilot participants.
 | Advertising ownership | Distinct Google and Meta native connections bind their own workspace/integration/account; foreign workspace reads fail | Native advertising authorization is explicitly installed as a fixture, not obtained through OAuth in this composed case; separate Google/Meta browser suites cover consent flows |
 | Shopify baseline and goal | Real owned goal create/preview/confirm APIs consume separate Shopify ledgers and persist confirmation without spending authority | Shopify connection and baseline rows are explicit fixtures populated through real binding/ledger code; consent and ingestion qualification are separate suites |
 | Exact campaign review | Google search and Meta image drafts are created, previewed and approved through real customer APIs, including real private image upload; foreign workspace and foreign draft IDs fail | This is offline-plan approval, not publication consent |
-| Separate execution consent and creation | Brand A's same owner/goal/source draft flows into separate contract-test mandate consent and reviewed durable creation, with real Google compiler/HTTP/readback through MockTransport | Coordinator calls are direct service calls because customer dispatch APIs do not exist. Qualification/exposure readers are controlled contract-test evidence, not live qualification |
+| Separate execution consent and creation | Brand A's same owner/goal/source draft flows into separate contract-test mandate consent and reviewed durable creation, with real Google compiler/HTTP/readback through MockTransport | This original fixture uses direct coordinator service calls. Customer execution and optimization facades now exist and are covered separately by `test_customer_execution_api.py` and `test_customer_optimization_api.py`. Qualification/exposure readers remain controlled contract-test evidence, not live qualification |
 | Separate activation | Brand A requires the separate activation review/approval and executes real durable Google activation; projection is verified target state | `test_activation_review.py` covers missing/stale separate approval; `test_activation_coordinator.py` covers activation recovery. Brand B is not dispatched by this composed case; `test_social_coordinator_journeys.py` covers all declared social creation graphs and `test_social_activation_http.py` covers actual social activation HTTP |
 | Owned outcome | Brand A's normalized latest receipt is owner-readable; Brand B is denied both by wrong workspace and wrong actor | This is a provider effect/state receipt, **not** mature measured action-outcome feedback. `test_owned_outcomes.py`, `test_outcome_commerce_projection.py`, `test_unified_outcome_data.py` and `test_outcome_evidence.py` cover separate measured-outcome evidence; no mature sales outcome is fabricated in this scenario |
 | Closure and unrelated-brand continuity | Brand A closes through preview/confirm APIs, its owner still reads closure and original coordinator receipt, foreign closure read fails, reservations stay held, and Brand B still reads its confirmed goal and CRM connection | Local closing explicitly does not claim complete deletion, stopped ads or released exposure. No new provider calls occur during closure |
@@ -57,3 +57,18 @@ activation. Real unrelated pilots, intended-environment operations, configured
 billing, live provider qualifications and closure disposition remain external and/or
 engineering gates. The existing B15–B20 acceptance matrix remains authoritative;
 this package does not mark B20 complete.
+
+## Composed Archive And Closure Extension
+
+`test_archive_closure_financial_social.py` adds two unrelated brands on each database.
+It populates actual optimization/replacement accounting through coordinator services
+and a strict Meta no-DSA configuration approval through source/review services.
+Authenticated customer APIs then download the complete owned archive, deny foreign
+access, close Brand A locally, deny its next execution, and advance Brand B through
+the customer execution facade. Exact replacement/social documents, held/superseded
+amounts, original receipts and cumulative accounting are checked across closure.
+
+Initial identity, Shopify baseline and provider facts remain explicit test fixtures;
+all advertising HTTP uses mock transports. Brand A is Meta and Brand B is Google.
+The test does not claim all onboarding happened through customer APIs, physical
+provider termination, final erasure, live cap qualification, or completion of B20.

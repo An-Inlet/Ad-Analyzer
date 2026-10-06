@@ -1,5 +1,6 @@
 """Real portal/navigation/GET bridge; consent HTTP is intercepted before any network."""
 
+import asyncio
 import html
 import json
 import socket
@@ -28,6 +29,7 @@ from app.meta.models import MetaConnection
 from app.settings import settings
 from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.types import Message, Receive, Scope, Send
 
 from tests.browser_targets import wait_for_page_target
 from tests.test_customer_browser_api_journey import localhost_certificate
@@ -127,10 +129,39 @@ def test_meta_customer_browser_consent_selection_disconnect(
             get_customer_meta_client: lambda: MetaClient(runtime_configuration()),
         },
     )
+    initial_probe, release_probe = threading.Event(), threading.Event()
+    statuses: list[tuple[str, str, int]] = []
+
+    async def delayed_initial_session(scope: Scope, receive: Receive, send: Send) -> None:
+        # Force the same startup/login overlap that dropped the hosted Retry click.
+        # Only method/path/status are retained; never headers, query, cookies or bodies.
+        if (
+            scope["type"] == "http"
+            and scope["method"] == "GET"
+            and scope["path"] == "/api/customer/v1/session"
+            and not initial_probe.is_set()
+        ):
+            initial_probe.set()
+            assert await asyncio.to_thread(release_probe.wait, 15)
+
+        async def observed(message: Message) -> None:
+            if message["type"] == "http.response.start" and scope.get("path") in {
+                "/api/customer/v1/session",
+                "/api/customer/v1/workspaces",
+            }:
+                statuses.append((scope["method"], scope["path"], message["status"]))
+            await send(message)
+
+        await app(scope, receive, observed)
+
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
         uvicorn.Config(
-            app, log_level="critical", lifespan="off", ssl_certfile=str(cert), ssl_keyfile=str(key)
+            delayed_initial_session,
+            log_level="critical",
+            lifespan="off",
+            ssl_certfile=str(cert),
+            ssl_keyfile=str(key),
         )
     )
     thread = threading.Thread(target=lambda: server.run(sockets=[listener]), daemon=True)
@@ -185,9 +216,9 @@ def test_meta_customer_browser_consent_selection_disconnect(
             },
         )
         browser.call("Page.navigate", {"url": origin + "/app"})
-        browser.wait(
-            "document.getElementById('retry') && !document.getElementById('retry').disabled"
-        )
+        browser.wait("document.getElementById('retry') !== null")
+        assert initial_probe.wait(10)
+        assert browser.evaluate("document.getElementById('retry').disabled")
 
         def login(current: Browser, token: str) -> None:
             assert (
@@ -200,6 +231,14 @@ def test_meta_customer_browser_consent_selection_disconnect(
             )
 
         login(browser, "consent-owner:first")
+        assert browser.evaluate("document.getElementById('retry').disabled")
+        release_probe.set()
+        browser.wait(
+            "typeof document.getElementById('retry').onclick === 'function' && "
+            "!document.getElementById('retry').disabled"
+        )
+        assert ("POST", "/api/customer/v1/session", 200) in statuses
+        assert ("GET", "/api/customer/v1/session", 401) in statuses
         browser.evaluate("document.getElementById('retry').click()")
 
         def workspace() -> None:
@@ -296,6 +335,7 @@ def test_meta_customer_browser_consent_selection_disconnect(
             for entry in browser.call("Page.getNavigationHistory")["entries"]
         )
     finally:
+        release_probe.set()
         if browser:
             browser.context.close()
         if second:

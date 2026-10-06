@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination} from '../../app/portal/static/portal.mjs';
+import {micros, monthWindow, definitionFrom, billingDestination, request, baselineWarnings, goalSummary, amount, shopifyDestination, googleDestination, metaDestination} from '../../app/portal/static/portal.mjs';
 const store = {id: 'a'.repeat(32), currency: 'USD', time_zone: 'America/New_York'};
 test('currency conversion is exact and rejects malformed or unsafe values', () => {
   assert.equal(micros('100.10'), 100100000);
@@ -65,4 +65,13 @@ test('billing redirects require known action and provider session paths', () => 
   for (const url of ['https://checkout.stripe.com/other', 'https://checkout.stripe.com/', 'https://checkout.stripe.com/c/../other']) assert.throws(() => billingDestination({mode:'stripe_test',url}, 'checkout'));
   assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/'}, 'management'));
   assert.throws(() => billingDestination({mode:'stripe_test',url:'https://billing.stripe.com/p/session/fixture'}, 'unknown'));
+});
+
+test('Meta consent uses configured same-origin callback and fixed read scope', () => {
+ const origin='https://inlet.example';
+ const configuration={client_id:'100000000000001',redirect_uri:origin+'/api/customer/v1/meta/callback',authorization_endpoint:'https://www.facebook.com/v26.0/dialog/oauth'};
+ const query=new URLSearchParams({client_id:configuration.client_id,redirect_uri:configuration.redirect_uri,scope:'ads_read',response_type:'code',auth_type:'rerequest',state:'a'.repeat(43)});
+ const url=configuration.authorization_endpoint+'?'+query;
+ assert.equal(metaDestination({authorization_url:url},configuration,origin),url);
+ for(const bad of [url.replace('www.facebook.com','evil.example'),url+'&state=duplicate',url+'&constructor=invalid',url.replace('ads_read','ads_management'),url.replace('100000000000001','other')]) assert.throws(()=>metaDestination({authorization_url:bad},configuration,origin));
 });

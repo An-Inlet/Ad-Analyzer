@@ -372,6 +372,9 @@ class Settings(BaseSettings):
         default=False, validation_alias="AD_ANALYZER_META_DETAIL_ENABLED"
     )
 
+    meta_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_META_CUSTOMER_ENABLED"
+    )
     meta_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_META_ENABLED")
     meta_client_id: str = Field(default="", validation_alias="META_CLIENT_ID")
     meta_client_secret: SecretStr | None = Field(

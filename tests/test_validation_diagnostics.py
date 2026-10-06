@@ -7,7 +7,13 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from tests import test_automation_foundation as foundation
-from tests.validation_diagnostics import MAX_FAILURES, MAX_REPORT_BYTES, nested_failure_summary
+from tests.validation_diagnostics import (
+    MAX_ARTIFACT_BYTES,
+    MAX_FAILURES,
+    MAX_REPORT_BYTES,
+    collect_nested_diagnostics,
+    nested_failure_summary,
+)
 
 
 def report(path: Path, count: int = 2) -> None:
@@ -50,6 +56,42 @@ def test_large_passing_parameter_ids_do_not_hide_small_failure(tmp_path: Path) -
     assert "specific assertion" in text
     assert "large-passing-parameter" not in text
     assert len(text) < 1000
+
+
+def test_artifact_retains_bounded_cases_and_rejects_external_symlinks(tmp_path: Path) -> None:
+    root = tmp_path / "pytest"
+    case = root / "test_full_validation_can_run_t0"
+    case.mkdir(parents=True)
+    report(case / "nested-full-0.xml")
+    outside = tmp_path / "private.xml"
+    outside.write_text("must not be copied")
+    (case / "nested-full-1.xml").symlink_to(outside)
+    output = tmp_path / "artifact" / "summary.txt"
+    collect_nested_diagnostics(root, output)
+    text = output.read_text()
+    assert "tests.test_billing_browser_journey::case0" in text
+    assert "must not be copied" not in text
+    assert "nested-full-1" not in text
+    assert output.stat().st_size <= MAX_ARTIFACT_BYTES
+
+
+def test_no_report_artifact_is_explicit(tmp_path: Path) -> None:
+    output = tmp_path / "summary.txt"
+    collect_nested_diagnostics(tmp_path / "absent", output)
+    assert output.read_text() == "No nested JUnit report was produced."
+
+
+def test_skip_reasons_remain_counted_in_bounded_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "report.xml"
+    path.write_text(
+        '<testsuite><testcase name="a"><skipped message="PostgreSQL only"/></testcase>'
+        '<testcase name="b"><skipped message="PostgreSQL only"/></testcase>'
+        '<testcase name="c"><skipped message="PowerShell unavailable"/></testcase></testsuite>'
+    )
+    text = nested_failure_summary(path, "", "")
+    assert "Nested skipped tests: 3" in text
+    assert "Skipped 2: PostgreSQL only" in text
+    assert "Skipped 1: PowerShell unavailable" in text
 
 
 @pytest.mark.parametrize("kind", ["missing", "malformed", "oversized"])

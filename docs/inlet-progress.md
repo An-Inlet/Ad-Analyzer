@@ -2649,3 +2649,20 @@ passing parameter ID followed by a real failure passes; all7diagnostic tests pas
 Actual retained17MiB report now yields all4case-specific failures. No validation
 scope, exit handling, assertion, timeout or required gate is weakened. Ruff,
 configured mypy484 and diff check pass. New assembled Full/CI remains required.
+
+## Normal CI Bounded Failure Artifact
+
+Normal PR CI now places the complete pytest run's temporary files under its
+runner-local directory and prints all skip/failure summaries (`-ra`). On failure,
+standard-library collection retains at most two deduplicated nested reports as a
+single summary capped at256KiB, never uploads raw XML/stdout/provider payloads,
+and refuses paths escaping the selected test directory. Artifact retention7days.
+All existing tests/gates and failure exit behavior remain unchanged; manual
+dispatch is still paused. Nested skip reasons/counts are included in the summary.
+
+Diagnostic/workflow contract selection11passed/40deselected; Ruff/mypy484/diff
+passed. Actual17MiB retained local report produced a2333-byte per-case summary
+before added skip reason counts. This makes the two still-unexplained hosted
+nested browser failures diagnosable on the next permitted normal PR run; it does
+not mark them fixed. Exact e512 local Chrome154 ordered CRM/Meta reproduction
+8passed0skips33.44seconds, `/tmp/inlet-pr130-browser-repro.log` and `.xml`.

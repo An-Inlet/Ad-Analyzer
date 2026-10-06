@@ -65,3 +65,18 @@ API checks cover 422 followed by corrected creation and exact replay.
 
 The Full run/CI for earlier head `18bc4f22` must not be cited as verification of
 this follow-up. Its focused checks and later Full/CI are reported separately.
+
+## Hosted Browser Deadline
+
+CI run `37402515934` at `e97d6002` failed because the nested Full browser journey
+did not report completion within the 20-second startup-and-journey deadline.
+The outer suite reported 961 passed; the nested suite reported 960 passed,
+1 skipped, with that single browser completion timeout. No browser fixture
+assertion was reported. The bounded harness deadline is now 60 seconds; all
+fixture assertions, required completion, and process cleanup remain unchanged.
+
+Historical CI run `37401247212` passed at earlier head `18bc4f22`: 962 tests,
+Ruff, mypy (254 files), migration and safety gates passed. Logs show checkout
+`7e43f52577a70c64d5d69a3afff5f8c1264b3df2`, with a tree identical to that head.
+Its local Full was canceled when superseded; it is not counted as a local pass.
+These historical results do not verify the later retry or deadline changes.

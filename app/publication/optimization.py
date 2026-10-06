@@ -254,6 +254,9 @@ def checked_review(
         )
         if admitted is None:
             from app.publication.replacement import snapshot
+            from app.publication.replacement_lineage import require_successor_capacity
+
+            require_successor_capacity(document.predecessor)
 
             if (
                 snapshot(
@@ -736,6 +739,9 @@ def record_receipt(
     )
     if previous is not None and receipt.observed_at < utc(previous.observed_at):
         raise HTTPException(409, "stale optimization receipt")
+    from app.optimization_candidates.invalidation import erase_attempt_candidates
+
+    erase_attempt_candidates(db, wid, attempt.id)
     rid, sequence = uuid4().hex, previous.sequence + 1 if previous else 1
     projection = normalized(
         db,

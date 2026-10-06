@@ -3036,3 +3036,76 @@ locks prove no bridge locks survive into producer IO. Earlier combined v2/v3/pur
 suite 50 passed, 1 SQLite-specific skip (31.48s); final added receipt races and exact
 large arithmetic were covered in the final 14-case run. Ruff, mypy (508 files), and
 diff checks passed. No Full, manual CI dispatch, live call or deployment.
+## Repeat Accounting Readiness And Capacity Repair — 2026-10-06
+
+Isolated `codex/inlet-repeat-readiness` from assembled `1c82e03` assessed current
+manual customer repeat APIs/UI, durable accounting, native proof producers and the
+missing autonomous candidate/scheduler path. Detailed capability/missing-code matrix,
+recurring effect semantics, proposed trusted worker ports and a minimal separate
+background-delegation decision are in `docs/design/repeat-optimization-readiness.md`.
+No worker authority, factory, source qualification or live dispatch was enabled.
+
+Concrete defect: a readable 32-reservation chain could admit a 33rd reservation which
+historical settlement could not traverse. Baseline SQLite regression built the exact
+32-chain and failed because successor preparation did not reject it. Added shared
+capacity admission checks before preparation/approval/transfer without reducing the
+historical reader bound or truncating audit. At capacity, late original uncertainty
+still retains exposure; later original-fence read-only reconciliation and separately
+qualified terminal settlement remain usable.
+
+Checks: exact-limit/late-evidence/terminal-settlement test passed on SQLite and
+PostgreSQL (2 passed). Core repeat and current customer optimization API cases passed
+53 with 1 intentional SQLite row-lock skip during the combined run. That run also
+had two new-test clock errors: the supposed later reconciliation reused the original
+observation timestamp/content and correctly could not supersede a newer unknown
+receipt. Advancing the test clock one second repaired those fixtures; final isolated
+capacity rerun passed both. Product code did not change for that fixture correction.
+Ruff (`app tests migrations`), mypy (`app tests`, 498 files) and diff check passed.
+No Full, provider access, workflow dispatch or deployment.
+
+Next: freeze typed non-authorizing candidate/queue contracts, then implement offline
+policy selection and durable orchestration. Native terminal/transition guarantees
+remain missing implementations/evidence, not credentials-only gates. Background
+worker provenance must not impersonate per-action human review or weaken the original
+interactive session checks. Root owns the authorization decision and integration.
+
+## 2026-10-06 — Nonemitting Optimization Candidate Queue (0062)
+
+Branch: `codex/inlet-optimization-candidates`, child of repeat-readiness
+`ce5b66de93d14de74dae41646a1bc2dd3e833602`. Draft PR pending parent connector action.
+
+Implemented strict server candidate/evidence/policy contracts, bounded budget
+compiler and durable owner/original-session-bound read jobs. Numeric policy and
+learning registries default unconfigured. Runtime factory returns None. Jobs
+recheck account/mandate/goal/source/receipt/privacy/session after source I/O;
+lease/fence/backoff apply only to non-emitting reads. All outputs require fresh
+separate execution admission and grant no spending authority. Current descriptive
+v2/v3 assessments cannot be promoted into measured learning by registration.
+
+Migration0062 down0060, canonical registry, strict export and local-work/closure
+classification are explicit. Privacy, commerce correction/new publication and
+receipt append erase derived jobs/results transactionally while retaining all
+financial/receipt history. Historical pre0062 fixture helper asserts table
+absence and no-ops only new candidate erasure hooks; production has no missing
+schema fallback. See `docs/design/nonemitting-optimization-candidates.md` for
+interfaces, exact limits and remaining automatic-optimization code.
+
+Checks actually run:
+
+- Current-head candidate/commerce/owned-outcome/closure suites: **91 passed,
+  1 expected SQLite concurrency skip** (72.31s).
+- Expanded candidate suite plus populated0062 roundtrip and historical replacement,
+  owned-outcome, commerce-publication and social-configuration migrations:
+  **41 passed** (41.34s), both database backends for parametrized tests.
+- Added final two-tenant fairness regression: **2 passed** (SQLite/PostgreSQL;
+  36 deselected), one failed source backs off while another completes.
+- Ruff whole repository: pass. Mypy app/tests: **511 files pass**. Diff check: pass.
+- Intermediate failures were fixed: wrong platform-control accessor; test principal
+  detachment/FK setup/expected native amount/clock/issuer; no interrupted or failed
+  run is counted as passing. One attempted test selection used a nonexistent
+  filename and collected no tests; corrected selection produced91pass result.
+
+No Full, live calls, workflow dispatch, merge or deployment. Actual native
+exposure/finality/transition sources, attributed learning, automatic target policy,
+emitting scheduler and explicit long-lived delegation remain missing. This is
+non-authorizing candidate groundwork, not completed autonomous optimization.

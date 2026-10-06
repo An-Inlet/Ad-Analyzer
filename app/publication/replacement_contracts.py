@@ -27,6 +27,8 @@ from app.publication.optimization_execution_contracts import (
 )
 from app.publication.provider_contracts import Digest, Id
 
+MAX_RESERVATION_CHAIN = 32
+
 
 class ReservationAncestor(StrictModel):
     reservation_id: Id
@@ -56,7 +58,7 @@ class ReplacementSnapshot(StrictModel):
     accounting_account_set_digest: Digest
     budget_owner_key: str = Field(min_length=1, max_length=256)
     target_set_digest: Digest
-    ancestry: list[ReservationAncestor] = Field(min_length=1, max_length=32)
+    ancestry: list[ReservationAncestor] = Field(min_length=1, max_length=MAX_RESERVATION_CHAIN)
     run_ids: list[Id] = Field(min_length=1, max_length=128)
     receipts: list[NormalizedProviderReceipt] = Field(min_length=1, max_length=256)
     spent_high_water_micros: int = Field(strict=True, ge=0)

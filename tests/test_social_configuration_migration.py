@@ -41,6 +41,9 @@ def test_populated_no_dsa_review_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0057")
+        from tests.candidate_historical_schema import without_candidates
+
+        without_candidates(monkeypatch, engine)
         with Session(engine) as db:
             _, account, catalog, producer, actor, store, _, _ = fixture(
                 db, configuration, tmp_path, "meta_ads", None

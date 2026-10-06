@@ -1,5 +1,6 @@
 """Every declared model participates in the migration/runtime metadata graph."""
 
+import ast
 from pathlib import Path
 
 from app.database.models import MODEL_MODULES, register_models
@@ -10,8 +11,12 @@ def test_registry_covers_every_model_module() -> None:
     root = Path(__file__).resolve().parents[1]
     declared = {
         ".".join(path.relative_to(root).with_suffix("").parts)
-        for path in (root / "app").rglob("models.py")
-        if path != root / "app/database/models.py"
+        for path in (root / "app").rglob("*.py")
+        if any(
+            isinstance(node, ast.ClassDef)
+            and any(isinstance(base, ast.Name) and base.id == "Base" for base in node.bases)
+            for node in ast.walk(ast.parse(path.read_text()))
+        )
     }
     assert set(MODEL_MODULES) == declared
     assert len(MODEL_MODULES) == len(set(MODEL_MODULES))

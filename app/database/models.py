@@ -29,6 +29,7 @@ MODEL_MODULES = (
     "app.measurement.models",
     "app.meta.models",
     "app.publication.models",
+    "app.publication.provider_models",
     "app.shopify.models",
     "app.sources.models",
     "app.workspaces.models",

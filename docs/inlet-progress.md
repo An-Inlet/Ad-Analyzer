@@ -4324,3 +4324,15 @@ terminal result and hosted37443239927 still pending. No frozen code changed.
 Independent bounded source review of41cb48f found no concrete P1/P2 in directional
 head/cohort/count/epoch/retraction/session logic;6 targeted SQLite/PostgreSQL tests
 passed (`/tmp/inlet-directional-review.log`). This is not maturity/source qualification.
+
+### Repurchase Reconciliation Regression Repaired
+
+Integrated PR21512111aa. Resolve only the persisted owned replacement checkout before
+historical-terminal fallback; the prior subscription must still be terminal and the
+replacement must pass its original offer/payment proof. Unrelated subscriptions cannot
+establish ownership. The old key/version-only factory fixture now expects unavailable;
+a usable configured factory test supplies the required reviewed merchant/offer.
+Root qualified repurchase, original regression and Stripe transport suites70 passed in
+26.54s (`/tmp/inlet-next-billing-repurchase.log`); Ruff, mypy610 and whitespace passed.
+Frozen a4fcd3a stays unchanged and failing until its terminal validation is recorded;
+these successor passes do not erase that failure.

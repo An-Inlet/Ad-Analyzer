@@ -247,17 +247,19 @@ def reconcile(
     try:
         target = event.subscription_id
         if row.subscription_id is not None and row.subscription_id != target:
-            notified = verified_current(
-                transport, row.customer_id, target, now, historical_terminal=True
-            )
-            if notified.status in {"canceled", "incomplete_expired"}:
-                # Delayed events for a terminal subscription cannot replace a
-                # current purchase. Read the current purchase before acknowledging.
+            # A new active subscription may belong to our persisted replacement
+            # checkout. Resolve that exact session first: it verifies the old
+            # contract is terminal and the new subscription's original offer.
+            if row.checkout_id is not None:
+                resolve_checkout(db, row, policy, transport, now)
+            if row.subscription_id != target:
+                # An unrelated notification cannot establish ownership. Only a
+                # terminal historical contract may be acknowledged after reading
+                # the current owned subscription below.
+                verified_current(
+                    transport, row.customer_id, target, now, historical_terminal=True
+                )
                 target = row.subscription_id
-            else:
-                outcome = resolve_checkout(db, row, policy, transport, now)
-                if outcome != "complete" or row.subscription_id != target:
-                    raise HTTPException(409, "subscription identity requires reconciliation")
         refresh(db, wid, policy, transport, now, subscription_id=target)
     except HTTPException:
         if scope.qualified:

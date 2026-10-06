@@ -2401,3 +2401,30 @@ creation fixture failures are excluded). Root execution-session regression suite
 20passed (`/tmp/inlet-next-context-fence.log`); Ruff/mypy474/diff passed. The fixed
 artifact is newer than both running c602a1b Full and e512529 hosted CI; any pass from
 those predecessors does not qualify this repair or establish release readiness.
+
+## Frozen Full Shopify Race-Probe Repair
+
+Branch `codex/inlet-shopify-race-fixtures`, isolated from `f4cbcd2`; frozen Full
+checkouts unchanged. Reproduced two deterministic probe failures from retained
+`/tmp/inlet-oct06-nested-0.xml`: disconnect now waits in the workspace privacy
+`FOR NO KEY UPDATE` fence before the old literal `FOR UPDATE` probe, and expiry
+purge waits on workspace `FOR UPDATE` before its old OAuth DELETE probe. Updated
+only those synchronization probes; expiry also asserts that neither OAuth deletion
+nor measurement-store access occurs while waiting. Provider release/listener cleanup
+now runs even when a probe fails. No deadline increases, retries, sleeps or production
+changes.
+
+The third native import/revocation failure did not reproduce: it passed alone and
+alongside the two reproduced failures. Its test now surfaces completed worker
+exceptions/early statuses rather than masking them behind an unset event, and
+always releases its fixture barrier. The original nested failure remains unresolved;
+this diagnostic improvement is not claimed as its root-cause fix. Existing 5s/10s
+barriers and 0.2s revocation-blocking assertion remain unchanged.
+
+Checks: original three-case reproduction 2 failed/1 passed (19.67s); native case
+alone 1 passed (2.18s). Final complete `test_customer_shopify.py` and
+`test_review_native_ownership.py`: 34 passed, 6 SQLite-only PostgreSQL concurrency
+skips (25.46s). Ruff passed, configured mypy passed 474 files, diff check passed.
+Logs `/tmp/inlet-shopify-race-repro.log`, `/tmp/inlet-native-race-alone.log`,
+`/tmp/inlet-shopify-race-fixed.log`. No Full or CI dispatch. Next combined validation
+must still observe the native-import case; TikTok logger failure is separate work.

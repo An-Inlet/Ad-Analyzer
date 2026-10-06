@@ -264,7 +264,9 @@ def test_postgres_callback_serializes_duplicate_and_disconnect(
         def attempting_lock(
             conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
         ) -> None:
-            if "FROM workspaces" in statement and "FOR UPDATE" in statement:
+            if "FROM workspaces" in statement and (
+                "FOR UPDATE" in statement or "FOR NO KEY UPDATE" in statement
+            ):
                 started.set()
 
         event.listen(customer_engine, "before_cursor_execute", attempting_lock)
@@ -277,12 +279,15 @@ def test_postgres_callback_serializes_duplicate_and_disconnect(
             return None
 
         second = pool.submit(other)
-        assert started.wait(5)
-        assert not second.done()
-        runtime.release.set()
+        try:
+            assert started.wait(5), "competitor must reach the current workspace fence"
+            assert not second.done()
+        finally:
+            # Release the paused provider and listener even when the probe fails.
+            runtime.release.set()
+            event.remove(customer_engine, "before_cursor_execute", attempting_lock)
         assert first.result(timeout=10).status_code == 200
         result = second.result(timeout=10)
-        event.remove(customer_engine, "before_cursor_execute", attempting_lock)
         if competitor == "callback":
             assert result.status_code == 422
         assert runtime.token_calls == 1
@@ -436,7 +441,7 @@ def test_postgres_expiry_purge_waits_without_holding_measurement_store(
             conn: Any, cursor: Any, statement: str, parameters: Any, context: Any, many: bool
         ) -> None:
             actions.append(statement)
-            if statement.startswith("DELETE FROM shopify_oauth_states"):
+            if "FROM workspaces" in statement and "FOR UPDATE" in statement:
                 reached.set()
 
         event.listen(customer_engine, "before_cursor_execute", attempting_purge)
@@ -444,8 +449,9 @@ def test_postgres_expiry_purge_waits_without_holding_measurement_store(
             purge_expired_facts, customer_engine, now=datetime.now(UTC) + timedelta(minutes=2)
         )
         try:
-            assert reached.wait(5)
+            assert reached.wait(5), "purge must wait on workspace before OAuth/store changes"
             assert not any("FROM commerce_stores" in sql for sql in actions)
+            assert not any("DELETE FROM shopify_oauth_states" in sql for sql in actions)
             assert not second.done()
         finally:
             event.remove(customer_engine, "before_cursor_execute", attempting_purge)

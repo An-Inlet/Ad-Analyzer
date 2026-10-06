@@ -10,6 +10,8 @@ import pytest
 from scripts import inlet_restore_drill as drill
 from sqlalchemy import create_engine, make_url, text
 
+from tests.test_customer_identity import customer_engine as customer_engine
+
 
 @pytest.mark.parametrize(
     "url",
@@ -146,6 +148,10 @@ def test_native_synthetic_backup_restore_preserves_isolation(
             assert result["tables_verified"] > 20 and result["rows_verified"] >= 16
             assert result["archive_bytes"] > 0 and result["isolation_verified"] is True
             assert result["live_restore_qualified"] is False
+            assert result["populated_financial_lineage_verified"] is True
+            assert result["social_approval_verified"] is True
+            assert result["unknown_attempt_replay_denied"] is True
+            assert result["media_objects_restored"] is False
         with admin.connect() as db:
             assert (
                 db.scalar(
@@ -196,3 +202,48 @@ def test_equivalent_postgresql_text_array_casts(before: str, after: str) -> None
 )
 def test_normalization_does_not_hide_changed_constraints(before: str, after: str) -> None:
     assert drill.normalized_text_casts(before) != drill.normalized_text_casts(after)
+
+
+@pytest.mark.parametrize("tamper", [None, "hold", "charge", "approval", "audit"])
+def test_populated_restore_graph_and_behavior(customer_engine: Any, tamper: str | None) -> None:
+    from app.publication.execution_models import (
+        ProviderExposureReservation,
+        ProviderPeriodLedger,
+        ProviderReservationReplacement,
+    )
+    from app.publication.social_review_models import SocialConfigurationApproval
+    from scripts.inlet_restore_fixture import verify_owned_constraints, verify_populated
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    if customer_engine.dialect.name == "sqlite":
+        with customer_engine.connect() as connection:
+            connection.execute(text("PRAGMA foreign_keys=ON"))
+            connection.commit()
+    drill.seed(customer_engine)
+    if tamper:
+        with Session(customer_engine) as db:
+            if tamper == "hold":
+                row = db.scalars(
+                    select(ProviderExposureReservation).where(
+                        ProviderExposureReservation.state == "held"
+                    )
+                ).one()
+                row.amount_micros -= 1
+            elif tamper == "charge":
+                ledger = db.scalars(select(ProviderPeriodLedger)).one()
+                ledger.spent_high_water_micros = 0
+            elif tamper == "approval":
+                approval = db.scalars(select(SocialConfigurationApproval)).one()
+                approval.digest = "0" * 64
+            else:
+                audit = db.scalars(select(ProviderReservationReplacement)).one()
+                audit.digest = "0" * 64
+            db.commit()
+        from fastapi import HTTPException
+
+        with pytest.raises((AssertionError, HTTPException)):
+            verify_populated(customer_engine)
+    else:
+        verify_populated(customer_engine)
+        verify_owned_constraints(customer_engine)

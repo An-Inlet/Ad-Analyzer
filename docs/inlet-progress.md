@@ -1467,3 +1467,7 @@ registry repair), not a0045 mismatch. Full/CI pending. No live provider traffic,
 activation, advertising operations, merge or deployment. Evidence and remaining
 engineering/live gates: `docs/inlet-meta-customer-ui.md`; shared interface proposal:
 `docs/inlet-meta-customer-contract.md`.
+
+Meta customer controls draft PR: https://github.com/Konner-An-Inlet/Ad-Analyzer/pull/125.
+Implementation and checks: `aa05f66acf5b70c00e43389f874ac1ab669828c7`; the following
+commit only records this PR link. Frozen PR118/PR120 heads were preserved.

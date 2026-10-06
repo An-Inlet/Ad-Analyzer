@@ -4,6 +4,7 @@ import base64
 import hashlib
 import logging
 from datetime import timedelta
+from io import StringIO
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
@@ -449,15 +450,31 @@ def test_pkce_expiry_and_swapped_context_cannot_exchange(
         assert not io.calls
 
 
-def test_provider_cursor_does_not_leak_through_httpx_diagnostics(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.INFO)
-    io = ProviderHTTP("hubspot")
-    runtime = adapter("hubspot", io)
-    runtime.page(io.account, TOKEN, "private-cursor@example.test", NOW)
-    assert "private-cursor" not in caplog.text
-    assert "details redacted" in caplog.text
+def test_provider_cursor_does_not_leak_through_httpx_diagnostics() -> None:
+    # Alembic's earlier logging setup disables existing loggers. Capture the
+    # actual HTTPX logger through an owned handler, then restore its prior state.
+    logger = logging.getLogger("httpx")
+    stream = StringIO()
+    handler = logging.StreamHandler(stream)
+    level, disabled = logger.level, logger.disabled
+    logger.disabled = False
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    try:
+        io = ProviderHTTP("hubspot")
+        runtime = adapter("hubspot", io)
+        runtime.page(io.account, TOKEN, "private-cursor@example.test", NOW)
+        logger.info("ordinary diagnostic remains visible")
+        captured = stream.getvalue()
+        assert "private-cursor" not in captured
+        assert TOKEN not in captured
+        assert "details redacted" in captured
+        assert "ordinary diagnostic remains visible" in captured
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+        logger.setLevel(level)
+        logger.disabled = disabled
 
 
 def test_hubspot_introspection_cannot_substitute_another_token() -> None:

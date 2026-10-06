@@ -2073,3 +2073,38 @@ journey passed again (1 passed). Ruff, mypy (407 files) and diff check passed ag
 ### Activity And Support Integration
 
 Integrated PR151a0a011c: bounded persisted goal/campaign activity and owner-only validated provider receipt summaries, separate optional page with honest support/recovery links. Combined API, browser and route-boundary checks14 passed with PostgreSQL enabled; Ruff and configured mypy passed. /tmp/inlet-next-activity.log. Coverage/truncation explicit, no fabricated historical events or support endpoint. Browser and API tests remain separate offline evidence.
+
+### B17 Owned Assessments And Measurement History (0057)
+
+Branch `codex/inlet-owned-outcomes` starts at integrated caff2a3. The actual frozen
+coordinator reader now feeds workspace-owned immutable assessments backed by a real
+retained terminal commerce publication. Creation accepts identifiers/date windows,
+not customer-supplied provider evidence. Current owner/session checks, CSRF, latest
+receipt resolution, source generation/privacy fences, fresh retention clocks and
+publication CASCADE deletion apply. Superseded unknown/conflict evidence never
+resurrects earlier success. All installed-producer assessments remain insufficient;
+there is no maturity/activation/causal/spending authority claim.
+
+Measurement History is a separate authenticated application journey linked from
+Settings, showing actual source as-of/currency/timezone/daily coverage and missing
+maturity. Real HTTPS browser journeys exercise sales, confirmed zeros, literal
+untrusted names, erasure clearing and session revocation on SQLite/PostgreSQL.
+Migration0057→0056→0057 is verified with populated original receipt/publication
+fixtures in a guarded disposable PostgreSQL schema. Derived assessment payloads
+are classified separately from protected provider audit facts.
+
+Checks actually completed: 85passed/2expectedSQLite concurrency skips in the
+combined owned-assessment/migration/browser/pure-evidence/commerce/coordinator/
+route suite (`/tmp/inlet-owned-focused.log`); privacy-erasure waiting-replica race
+1passed/1SQLite skip (`/tmp/inlet-owned-race-final.log`); existing commerce projection
+and lifecycle overlay20passed/1SQLite skip (`/tmp/inlet-owned-lifecycle.log`). Whole
+Ruff, mypy389files, JavaScript syntax and whitespace checks passed. No Full started.
+
+Next: export owner must integrate the strict `OwnedAssessment` JSON serializer;
+root owns integration/Full qualification. Production exposure, authoritative effect
+time, approved maturity policy and qualified comparisons remain open. No live
+provider/customer data, migration, deployment or advertising action was used.
+
+### Owned Outcome And Measurement History Integration
+
+Integrated PR152c780d3 and migration0057, preserving newer CRM/activity/export links. Combined owned outcome, populated migration, actual Measurement History browser and route/model-registry checks24 passed1 SQLite-only concurrency skip; Ruff and configured mypy passed. /tmp/inlet-next-owned-outcomes.log. Actual assessments retain contract-test environment and insufficient maturity/effective-time status. Strict owned-outcome export remains pending integration; no measured-lift/live claim.

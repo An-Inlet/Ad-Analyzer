@@ -28,6 +28,7 @@ from app.publication.execution_models import (
     ProviderExecutionConsent,
     ProviderExecutionMandate,
     ProviderExecutionRevision,
+    ProviderExposureReservation,
     ProviderPeriodLedger,
 )
 from app.publication.service import owner
@@ -98,10 +99,82 @@ def current_account(db: Session, scope: ExecutionAccount) -> None:
         raise HTTPException(409, "provider connection generation changed")
 
 
+def accounting_account_set(p: ProviderMandatePolicy) -> set[tuple[int, str, str]]:
+    """Stable accounting identity; reconnect generation changes do not erase spend."""
+    return {
+        (a.account.account_id, a.account.platform, a.external_advertiser_id) for a in p.accounts
+    }
+
+
+def validate_accounting_scope(
+    db: Session, ledger: ProviderPeriodLedger, p: ProviderMandatePolicy
+) -> None:
+    """Caller holds workspace then ledger; the first consent pins this period's scope.
+
+    Scalar portfolio high-water accounting cannot safely drop or replace accounts.
+    Drafts remain editable until consent. Later revisions/new mandates must retain
+    every original accounting identity, even after all reservations are settled.
+    """
+    history = list(
+        db.execute(
+            select(ProviderExecutionRevision, ProviderExecutionConsent)
+            .join(
+                ProviderExecutionMandate,
+                ProviderExecutionMandate.id == ProviderExecutionRevision.mandate_id,
+            )
+            .join(
+                ProviderExecutionConsent,
+                (ProviderExecutionConsent.mandate_id == ProviderExecutionRevision.mandate_id)
+                & (ProviderExecutionConsent.revision == ProviderExecutionRevision.revision),
+            )
+            .where(
+                ProviderExecutionMandate.ledger_id == ledger.id,
+                ProviderExecutionMandate.workspace_id == p.workspace_id,
+                ProviderExecutionRevision.workspace_id == p.workspace_id,
+                ProviderExecutionConsent.workspace_id == p.workspace_id,
+            )
+            .limit(10001)
+        )
+    )
+    if len(history) > 10000 or (
+        not history and (ledger.action_count or ledger.spent_high_water_micros)
+    ):
+        raise HTTPException(409, "period accounting account set unavailable")
+    expected = accounting_account_set(p)
+    for revision, consented in history:
+        historical = ProviderMandatePolicy.model_validate(revision.policy)
+        if (
+            historical.digest() != revision.digest
+            or consented.policy_digest != revision.digest
+            or accounting_account_set(historical) != expected
+        ):
+            raise HTTPException(409, "consented period accounting account set is immutable")
+
+
+def reject_mixed_currency_holds(db: Session, p: ProviderMandatePolicy) -> None:
+    """Do not add amounts in different currencies; no FX authority is configured."""
+    mismatch = db.scalar(
+        select(ProviderExposureReservation.id)
+        .join(
+            ProviderPeriodLedger, ProviderPeriodLedger.id == ProviderExposureReservation.ledger_id
+        )
+        .where(
+            ProviderExposureReservation.workspace_id == p.workspace_id,
+            ProviderExposureReservation.environment == p.environment,
+            ProviderExposureReservation.state == "held",
+            ProviderPeriodLedger.currency != p.currency,
+        )
+        .limit(1)
+    )
+    if mismatch is not None:
+        raise HTTPException(409, "unresolved exposure currency differs from mandate")
+
+
 def validate_policy(
     db: Session, p: ProviderMandatePolicy, actor: str, clock: Callable[[], datetime]
 ) -> None:
     owner(db, p.workspace_id, actor)
+    reject_mixed_currency_holds(db, p)
     goal = goals.owned(db, p.workspace_id, p.goal_id)
     goals.expect(goal, p.goal_revision)
     for account in sorted(p.accounts, key=lambda a: a.account.account_id):
@@ -218,6 +291,7 @@ def revise(
     ):
         raise HTTPException(409, "immutable shared provider period required")
     validate_policy(db, p, actor, clock)
+    validate_accounting_scope(db, ledger, p)
     row.revision += 1
     row.state = "draft"
     db.add(row)
@@ -253,6 +327,7 @@ def consent(
     if row.revision != revision or p.digest() != digest or row.state == "revoked":
         raise HTTPException(409, "exact provider mandate consent required")
     validate_policy(db, p, actor, clock)
+    validate_accounting_scope(db, ledger, p)
     record = db.scalar(
         select(ProviderExecutionConsent).where(
             ProviderExecutionConsent.mandate_id == row.id,
@@ -311,6 +386,7 @@ def checked(
     ):
         raise HTTPException(409, "current exact provider consent required")
     validate_policy(db, p, actor, clock)
+    validate_accounting_scope(db, ledger, p)
     owner(db, wid, record.actor)
     if not p.starts_at <= clock() < p.ends_at:
         raise HTTPException(409, "provider mandate outside approved period")

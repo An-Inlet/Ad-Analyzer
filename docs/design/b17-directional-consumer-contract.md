@@ -11,7 +11,7 @@ calls, calibration values, runtime edits or new migration are included.
 - PR185: immutable operational-maturity policy/evaluator and disabled producer/registry.
 - PR189: read-only v3 receipt/source bridge; association, not causal lift.
 - PR191/194: nonemitting candidate compiler and owned target selection.
-- PR195/198/203: retained original Google response and terminal-request evidence;
+- PR195/203: retained original Google response and terminal-request evidence;
   this does not establish advertising delivery onset or mature sales finality.
 - PR201: v3 dependency/feedback/contribution persistence and transactional retraction.
 - PR202: exact candidate-to-review bridge and forward provenance gates.
@@ -35,7 +35,7 @@ scheduler's CandidateRuntime/service interfaces. No production registry is insta
 ### Required Policy And Qualification
 
 `DirectionalAssociationPolicyV1` is immutable with explicit ID, stable family,
-revision/digest, environment, exact feedback policy digest, metric/currency/time-zone
+revision/digest, environment, exact feedback and candidate numeric-policy digests, metric/currency/time-zone
 basis and supported optimization operation. Initial support is budget-set only;
 activation, pause, resume, creative and new campaigns are rejected explicitly.
 
@@ -165,3 +165,33 @@ mandate. Do not ask the owner to guess numeric settings now. If only observation
 association can be qualified, obtain explicit acceptance of a labelled calibrated
 heuristic; do not promise causal optimization. That future decision cannot substitute
 for the missing consumer/head-resolver/source/timing code listed above.
+
+
+Bootstrap remains a separate unfinished product path: this feedback consumer blocks a
+brand with no prior qualified original action. It does not implement an initial-action
+policy or create calibration data. A separately reviewed initial-policy/source design
+is still required; no feedback score or default direction fills that gap.
+
+## First Implemented Offline Slice
+
+`app/directional_feedback/contracts.py`, `evaluator.py` and `reader.py` implement the
+strict contracts, required-parameter mapping and actual owned reader/head resolver.
+The reader validates current candidate ownership, selects the single held native-owner
+reservation in the current ledger, validates its complete existing ancestry, and
+requires exactly one current run/original attempt with verified latest receipt. It
+rejects missing/unresolved/newer heads instead of reusing an older qualified action.
+It validates every contribution's retained plan/cohort, exact completion commitments,
+and snapshot again after the strictly local facts producer. No provider IO or commit
+is permitted in that producer contract. Installed registry/producer defaults remain None.
+
+Policy calibration binds the exact candidate numeric-policy digest as well as feedback
+policy, so a changed budget step/minimum cannot inherit the old calibration. A result's
+`decision_input_digest` binds snapshot/policy/profile/facts/opportunity independently
+of its evaluation clock; this is an audit/current-evidence commitment, not the stable
+spending-opportunity epoch. The epoch remains anchored to original request lineage.
+
+The first slice is not yet a candidate adapter. Shared integration requires actual
+original CustomerPrincipal in both post-IO transform/final checker and automatic epoch
+producer. Root owns those additive seams; no inferred owner or no-op authorization is
+accepted. Existing contracts remain unchanged. Genuine independent source/timing,
+calibration and first-action policy remain missing gates/code as described above.

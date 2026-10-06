@@ -3966,3 +3966,29 @@ Local Full session30802 reached pytest after fresh migration; database
 `inlet_oct06_candidate3_ci`, log `/tmp/inlet-oct06-candidate3-full.log`, terminal
 wrapper result will be `/tmp/inlet-oct06-candidate3-full.exitcode`. No terminal
 success is claimed. Candidate worktree is clean and frozen while 0072 continues.
+
+## B17 Disabled Directional Reader And Evaluator — 2026-10-06
+
+Branch `codex/inlet-directional-runtime`, child of docs-onlyPR209/c222c73 (root
+b9d2dce ancestry). Added strict required-parameter policy/profile/facts/opportunity/
+result contracts, pure calibrated-association mapping, disabled registries and actual
+owned feedback/plan reader. Original action resolution uses current held reservation
+and validated durable ancestry, never timestamp sorting or favorable old fallback.
+Exact candidate numeric-policy digest is bound to calibration. Qualified completion
+count is separate from contribution count; no causal or spending authority is inferred.
+
+First expanded reader/evaluator/snapshot/feedback suite:20 passed across SQLite and
+PostgreSQL (34.65s); Ruff and mypy587 files passed. Regression includes real repeat
+claim with a newer held original and no receipt, which blocks the old feedback head.
+Final contract boundary rerun (facts commitment/live-fixture guard) recorded in the
+next freeze report. No migration, Full, live profile, source call or numeric default.
+
+This is the first implementation slice. Candidate adapter and authenticated final /
+automatic epoch seams remain separately coordinated next work. Source/timing guarantees,
+real calibration and an initial-action policy are not supplied by this feedback loop;
+brands with no qualified original action remain blocked here.
+Final contract boundary rerun:8 passed (15.69s), including explicit contract-fixture
+rejection in live mode, missing calibrated parameters, distinct completion thresholds,
+cohort contradiction, absent producers and current-snapshot retraction. Final Ruff,
+mypy587 files and diff whitespace checks passed. Adapter remains unimplemented in this
+frozen first slice; no direction reaches a candidate or executor yet.

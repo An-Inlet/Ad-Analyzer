@@ -30,10 +30,11 @@ from tests.test_customer_execution_api import setup_api
 from tests.test_customer_identity import ISSUER, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_portal import portal_executable
+from tests.test_google_activation import Server
 from tests.test_shopify_sales import configuration as configuration
 
 
-@pytest.mark.parametrize("scenario", ["journey", "context_race", "lost_response"])
+@pytest.mark.parametrize("scenario", ["journey", "context_race", "lost_response", "total_budget"])
 def test_execution_real_browser(
     customer_engine: Engine,
     tmp_path: Path,
@@ -57,7 +58,7 @@ def test_execution_real_browser(
     factory = sessionmaker(engine)
     with factory() as db:
         wid, actor, policy, document, media, runtime, server_http = setup_api(
-            db, configuration, tmp_path
+            db, configuration, tmp_path, total_budget=scenario == "total_budget"
         )
         user = db.get(CustomerUser, actor)
         assert user is not None
@@ -90,7 +91,9 @@ def test_execution_real_browser(
         if path == "/__fixture__/driver.mjs":
             script = (
                 Path(
-                    "tests/javascript/execution_lost_response.mjs"
+                    "tests/javascript/execution_total_budget.mjs"
+                    if scenario == "total_budget"
+                    else "tests/javascript/execution_lost_response.mjs"
                     if scenario == "lost_response"
                     else "tests/javascript/google_execution_context.mjs"
                     if scenario == "context_race"
@@ -160,6 +163,12 @@ def test_execution_real_browser(
     try:
         assert completed.wait(60), "Execution browser did not report completion"
         assert result and result[0]["status"] == "passed", result
+        if scenario == "total_budget":
+            assert isinstance(server_http, Server)
+            assert server_http.activations == 0
+            budgets = [row for row in server_http.rows.values() if "totalAmountMicros" in row]
+            assert budgets and all(row["totalAmountMicros"] == "30" for row in budgets)
+            assert all(row.get("status") != "ENABLED" for row in server_http.rows.values())
     finally:
         browser.terminate()
         try:

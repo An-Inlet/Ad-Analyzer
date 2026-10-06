@@ -5268,3 +5268,28 @@ suite has39pass/3fail. Two failures are pre-existing missing0077 lifecycle table
 classification when these models load together; one is historical0074 downgrade
 fixture dropping0075 under a0077 FK. Backend owner notified. Standalone campaign
 performance suite22pass; these integration gaps are not represented as passes.
+
+### 0077 Actual Changed-Preview Customer Browser — Local Verification
+
+The actual HTTPS Chromium journey now passes on SQLite and PostgreSQL. A real
+customer login/session submits the comparison intent through the customer UI;
+test-only worker advancement acquires four actual mocked Meta HTTP windows. The
+fixture invokes genuine0075 capture/calibration, current commerce refresh,
+separate explicit fixture consent and real native catalog/initial-preview services
+(no inserted observation, calibration, comparison or preview documents). Browser
+status/detail/apply use actual APIs and computed responses, displaying beforeCPA5,
+afterCPA2.5, initial46 and adjusted47. Only the original fixture advertising action
+was emitted; updated-preview review handoff remains unavailable.
+
+The fixture explicitly extends its login lease to span its future closed reporting
+windows; no production session setting changes. Provider transport and numeric
+policies remain explicit contract-test fixtures. Late actual apply responses after
+workspace change or actual session rotation cannot restore stale values. Logout
+clears state. Final consumer run: **11passed**, zero skips (actual browser, API,
+default-unavailable and controlled-rendering regressions). Ruff, mypy682files,
+JavaScript syntax and diff checks pass. Log:
+`/tmp/reported-feedback-actual-consumer-final.log`.
+
+This verifies offline customer composition, not production policy qualification,
+multi-original historical learning, live report stability, deployment or spending
+authority. No Full, remote call/push/CI or live provider operation was performed.

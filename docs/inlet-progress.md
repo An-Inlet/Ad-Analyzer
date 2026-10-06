@@ -1067,3 +1067,18 @@ were stopped together. No replacement Full started pending root coordination.
   populated checkpoint coverage as future migrations are added.
 - Focused disposable PostgreSQL migration tests: 2 passed. Changed-file Ruff/mypy and
   diff check passed. No replacement local Full started; coordinated validation pending.
+
+## Google Qualification And Immutable Provider Review — 2026-10-06
+
+- Isolated `codex/inlet-provider-review` from PR108e4c1392, with actual merge of core
+  migration-test repairb8afc00. Migration0043 follows0040; root reserves later merge
+  with0042. Separate provider qualification/review/approval tables and scoped FKs.
+- Actual read qualifier, DB-derived prepare/recheck, exact review+plan approval and
+  renderable documents implemented. Network reads happen outside locks; current
+  source/owner/entitlement/generation are rechecked before immutable persistence.
+- Focused qualification/compiler/HTTP checks: 53 passed, 1 SQLite-only FK skip;
+  includes PostgreSQL populated0040→0043→0040→0043 roundtrip and reconnect-during-read
+  rejection. Whole-tree Ruff/mypy302 and diff check passed. No new Full started.
+- Explicitly missing next code: production mandate consent/authority, durable provider
+  claim/receipt projection, exact activation and uncertainty-aware settlement. Existing
+  simulation approval never supplies production authority. No live operations enabled.

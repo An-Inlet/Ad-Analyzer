@@ -5,11 +5,18 @@ provider extensions must add typed operations, never arbitrary HTTP dictionaries
 """
 
 import re
-from datetime import datetime
-from typing import Annotated, Literal, Protocol
+from datetime import datetime, timedelta
+from typing import Annotated, Any, Literal, Protocol
 from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, Field, SecretStr, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SecretStr,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from app.campaign_review.contracts import GoogleSearch, ReviewArtifact
 from app.goals.schemas import StrictModel
@@ -65,6 +72,25 @@ class GoogleSearchPublicationFields(StrictModel):
         return self
 
 
+class GoogleQualificationEvidence(StrictModel):
+    """Server persisted read evidence, not a customer assertion or spending authority."""
+
+    provider: Literal["google_ads"] = "google_ads"
+    api_version: Literal["v25"] = "v25"
+    scope: PublicationScope
+    binding_digest: Digest
+    observed_at: AwareDatetime
+    expires_at: AwareDatetime
+    evidence_digest: Digest
+    checks: Literal["customer_tracking_targets_v1"] = "customer_tracking_targets_v1"
+
+    @model_validator(mode="after")
+    def bounded_lifetime(self) -> "GoogleQualificationEvidence":
+        if not self.observed_at < self.expires_at <= self.observed_at + timedelta(minutes=5):
+            raise ValueError("qualification lifetime exceeds bound")
+        return self
+
+
 class ProviderPublicationReview(StrictModel):
     schema_version: Literal["inlet.provider-publication-review.v1"] = (
         "inlet.provider-publication-review.v1"
@@ -73,7 +99,8 @@ class ProviderPublicationReview(StrictModel):
     source_digest: Digest
     scope: PublicationScope
     configuration: GoogleSearchPublicationFields
-    qualification_blockers: list[str] = Field(min_length=1, max_length=20)
+    qualification_blockers: list[str] = Field(max_length=20)
+    qualification: GoogleQualificationEvidence | None = None
 
     @model_validator(mode="after")
     def binding(self) -> "ProviderPublicationReview":
@@ -115,7 +142,32 @@ class ProviderPublicationReview(StrictModel):
         # provider limits and a production mandate. Never reinterpret daily as a hard cap.
         if fields.reservation_micros < 2 * days * fields.daily_budget_micros:
             raise ValueError("reservation cannot cover conservative daily exposure")
+        if self.qualification is not None and (
+            self.qualification.scope != scope
+            or self.qualification.binding_digest != self.configuration_binding()
+        ):
+            raise ValueError("foreign configuration qualification")
+        if not self.qualification_blockers and self.qualification is None:
+            raise ValueError("server qualification evidence required")
         return self
+
+    @model_serializer(mode="wrap")
+    def serialize_optional_proof(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.qualification is None:
+            data.pop("qualification", None)
+        return data
+
+    def configuration_binding(self) -> str:
+        return fingerprint(
+            "inlet.google-configuration.v1",
+            {
+                "scope": self.scope.model_dump(mode="json"),
+                "source_digest": self.source_digest,
+                "configuration": self.configuration.model_dump(mode="json"),
+                "api_version": "v25",
+            },
+        )
 
     def digest(self) -> str:
         return fingerprint(self.schema_version, self.model_dump(mode="json"))

@@ -2450,3 +2450,7 @@ are absent/extra-forbidden; required or unverified DSA profiles remain blocked.
 Original audit timeline mapping supplied by the parent's read-only document check
 is recorded separately in `docs/inlet-audit-timeline.md`. It supersedes the earlier
 unverified weeks4–5 shorthand; phase comparisons are not delivery forecasts.
+
+## Meta/TikTok native spending evidence assessment — 2026-10-06
+
+Added [the bounded official-source eligibility matrix](design/meta-tiktok-native-exposure-assessment.md). TikTok documents editable/resettable account caps and lifetime controls; its credits-adjusted delayed net-cost metric and request-log identifier do not prove a strict portfolio envelope or original-request finality. Meta's official SDK identifies concrete mutable cap fields; inaccessible help/API semantics remain explicit gaps rather than third-party assumptions. The assessment specifies missing native enforcement, counting-period/adjustment, complete ownership, writer prevention and terminal-request evidence. No currently reviewed source qualifies the strict ceiling or safe reservation release. No runtime contracts, provider calls, credentials or authority changes. Relative links and staged diff check passed; no tests required for prose.

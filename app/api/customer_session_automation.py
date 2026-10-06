@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.publication import customer_intents, execution_mandates
 from app.publication.execution_models import ProviderExecutionMandate
@@ -56,7 +57,7 @@ def capabilities(
             policies.append(
                 AutomaticPolicyOption(
                     policy=AutomaticPolicyRef(policy_id=p.policy_id, revision=p.revision),
-                    label="Existing campaign budget adjustments",
+                    label=f"Budget adjustments · Policy {p.policy_id[:12]}",
                     environment=p.environment,
                 )
             )
@@ -81,10 +82,25 @@ def capabilities(
                     or mandate_policy.total_cap_micros <= 0
                 ):
                     continue
+                names = list(
+                    db.scalars(
+                        select(AdvertisingAccount.name)
+                        .where(
+                            AdvertisingAccount.workspace_id == workspace_id,
+                            AdvertisingAccount.id.in_(
+                                [a.account.account_id for a in mandate_policy.accounts]
+                            ),
+                        )
+                        .order_by(AdvertisingAccount.id)
+                    )
+                )
+                name = ", ".join(names) or "Approved spending mandate"
+                suffix = f" · Mandate {row.id[:12]}"
+                label = name[: 100 - len(suffix)] + suffix
                 mandates.append(
                     AutomaticMandateOption(
                         mandate=binding,
-                        label="Approved existing campaign spending mandate",
+                        label=label,
                         currency=mandate_policy.currency,
                         total_limit_micros=mandate_policy.total_cap_micros,
                         starts_at=mandate_policy.starts_at,

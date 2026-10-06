@@ -804,14 +804,14 @@ def unknown(request: CreationRequest, now: datetime) -> CreationReceipt:
     )
 
 
-def execute_claim(
+def checked_dispatch_step(
     db: Session,
     claim: DispatchClaim,
     actor: str,
     store: MediaStore,
     runtime: CreationRuntime,
     clock: Clock,
-) -> CreationReceipt:
+) -> ProviderExecutionStep:
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, store, runtime, clock)
     attempt = db.get(ProviderExecutionAttempt, claim.attempt_id)
     step = db.get(ProviderExecutionStep, (run.id, claim.request.step.step_id))
@@ -825,6 +825,28 @@ def execute_claim(
         or claim.environment != document.mandate.environment
     ):
         raise HTTPException(409, "original claim already emitted or changed")
+    return step
+
+
+def execute_claim(
+    db: Session,
+    claim: DispatchClaim,
+    actor: str,
+    store: MediaStore,
+    runtime: CreationRuntime,
+    clock: Clock,
+) -> CreationReceipt:
+    # Resolve credentials outside product locks, then reacquire current authority.
+    checked_dispatch_step(db, claim, actor, store, runtime, clock)
+    db.commit()
+    request = claim.request
+    google_context = (
+        runtime.google_context(request) if isinstance(request, BoundProviderRequest) else None
+    )
+    social_context = (
+        runtime.social_context(request) if not isinstance(request, BoundProviderRequest) else None
+    )
+    step = checked_dispatch_step(db, claim, actor, store, runtime, clock)
     step.state = "emitting"
     db.commit()  # durable one-emission marker; cancellation now preserves this in-flight attempt
     request = claim.request
@@ -832,12 +854,14 @@ def execute_claim(
     receipt: CreationReceipt
     try:
         if isinstance(request, BoundProviderRequest):
-            response = runtime.google.apply_once(request, runtime.google_context(request), clock())
+            assert google_context is not None
+            response = runtime.google.apply_once(request, google_context, clock())
         else:
             adapter = (
                 runtime.meta if request.scope.account.platform == "meta_ads" else runtime.tiktok
             )
-            response = adapter.apply_once(request, runtime.social_context(request), clock())
+            assert social_context is not None
+            response = adapter.apply_once(request, social_context, clock())
     except Exception:
         response = (
             ProviderResponse(request_digest=request.digest(), outcome="unknown")

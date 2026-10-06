@@ -844,13 +844,14 @@ def execute_claim(
     validation = adapter.validate_only(request, runtime.context(request.intent.scope), clock())
     if not validation.valid or validation.blockers or validation.request_digest != request.digest():
         raise HTTPException(409, "optimization provider validation unavailable")
+    emission_context = runtime.context(request.intent.scope)
     # Reacquire all authority after blocking provider/context IO and resample the clock.
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, runtime, clock)
     step = checked_claim(db, claim, run, document)
     step.state = "emitting"
     db.commit()
     try:
-        response = adapter.apply_once(request, runtime.context(request.intent.scope), clock())
+        response = adapter.apply_once(request, emission_context, clock())
     except Exception:
         response = OptimizationResponse(request_digest=request.digest(), outcome="unknown")
     record_response(db, claim.workspace_id, claim.attempt_id, response, clock)

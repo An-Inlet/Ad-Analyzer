@@ -172,7 +172,10 @@ def test_populated_customer_foundation_roundtrip(monkeypatch: pytest.MonkeyPatch
                 )
                 is None
             )
-            assert db.scalar(text("SELECT version_num FROM alembic_version")) == "20261006_0036"
+            assert (
+                db.scalar(text("SELECT version_num FROM alembic_version"))
+                == ScriptDirectory.from_config(config).get_current_head()
+            )
     finally:
         engine.dispose()
         with admin.begin() as db:

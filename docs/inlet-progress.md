@@ -3440,3 +3440,24 @@ row-lock skips in128.81s (`/tmp/inlet-next-candidate-selection.log`), Ruff check
 configured mypy536 files and whitespace passed. Migration0062 is a separate branch
 from0061/0063 until final0067 merge; assembled migration/Full checks remain pending.
 These packages do not complete automatic emitting optimization or qualified learning.
+
+### 2026-10-06 — Production billing assembly bypass repaired
+
+Integrated PR196 frozen ac2a6019603037de9f43f287a2540422ba2eb5bf. Exact defect:
+production paid_work used billing mode rather than production environment to select
+strict live enforcement; mode disabled/test plus billing_required=false admitted
+paid operations. Baseline8 failed assertions across SQLite/PostgreSQL included four
+actual app.main media uploads returning200. Repair always routes production paid_work
+through live_paid_work, refuses production test transport and prevents unavailable
+production status falling back to legacy test billing evidence.
+
+Root checks144 passed in45.08s across assembly/scopes/offers/customerbilling/runtime
+scheduler (`/tmp/inlet-next-billing-assembly.log`); Ruff check ., configured mypy537
+files and staged whitespace passed. No schema/price/live permission changes. Original
+receipt/settlement lanes remain retained. Separately approved receipt-only original-
+binding recovery factory is in progress and remains default-off/GET-only.
+
+Frozen8efe196 localFull remains in final focused gate nestedFull; normal hosted
+run37427571832 remains in pytest. Neither has terminal result. No gate weakened or
+manual dispatch attempted. Google evidence PR195 is ready but not integrated; feedback
+0064 and independent Shopify acquisition continue. Final merge0067 waits on0064/0066.

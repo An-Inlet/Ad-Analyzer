@@ -44,7 +44,7 @@ def policy() -> BillingPolicy:
 
 
 def paid_work(db: Session, wid: int, now: datetime) -> None:
-    if settings.billing_provider_mode == "stripe_live":
+    if settings.app_env == "production" or settings.billing_provider_mode == "stripe_live":
         live_paid_work(db, wid, now)
         return
     if not settings.billing_required:

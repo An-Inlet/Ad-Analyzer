@@ -48,8 +48,15 @@ def status(
 ) -> dict[str, Any]:
     _, role = customer_workspace(db, principal.user.id, workspace_id)
     response.headers["Cache-Control"] = "no-store"
-    scope = repository.transport_scope(transport)
-    row = repository.billing(db, workspace_id, scope)
+    scope: BillingScopeV1 | None = repository.transport_scope(transport)
+    if settings.app_env == "production" and isinstance(transport, UnavailableBilling):
+        # A disabled production factory must never present legacy test evidence.
+        try:
+            candidate = configured_scope()
+            scope = candidate if candidate.environment == "live" else None
+        except ValueError:
+            scope = None
+    row = repository.billing(db, workspace_id, scope) if scope is not None else None
     try:
         configured_policy = policy()
     except HTTPException:
@@ -92,10 +99,14 @@ def status(
         "status": row.status if row else "unconfigured",
         "mode": "unavailable" if isinstance(transport, UnavailableBilling) else transport.mode,
         "live_verified": False,
-        "scope": scope.model_dump(),
+        "scope": scope.model_dump() if scope is not None else None,
         "period_end": row.period_end if row else None,
         "cancel_at_period_end": row.cancel_at_period_end if row else False,
-        "enforcement_enabled": settings.billing_required,
+        "enforcement_enabled": (
+            settings.app_env == "production"
+            or settings.billing_provider_mode == "stripe_live"
+            or settings.billing_required
+        ),
     }
 
 

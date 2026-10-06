@@ -4210,3 +4210,19 @@ Next: join0071+0072 at0073, complete directional adapter and assess first-action
 actual production assembly. Provider feasibility must separate unavailable official
 guarantees from engineering gaps; do not add scaffolding indefinitely or weaken the
 strict contract without a concrete owner decision. Frozen a4fcd3a Full/CI still pending.
+
+### 0073 Schema Join And Review Boundary
+
+Joined0071 and0072. Combined historical/current migration, populated-refusal, protected
+Google restore and feedback provenance checks8 passed,1 expected SQLite migration skip,
+30 existing warnings in40.23s (`/tmp/inlet-next-0073-join.log`). Complete upgrade head /
+downgrade base / upgrade head passed on newly created disposable
+`inlet_oct06_0073_migration_ci` (`/tmp/inlet-next-0073-roundtrip.log`). Active frozen
+candidate3 database was not reset. Ruff/mypy602/whitespace passed.
+
+Parent independently source-reviewed20f2b7b and found no new P1/P2 in owned feedback,
+erasure, final-context retraction or protected financial preservation. This review
+confirms descriptive associations only; no mature learning acceptance. B17 remains
+incomplete while genuine maturity/directional sources and calibrated policies are
+unavailable. New adapter fixtures and no-defect reviews must not be labeled learning
+completion. No successor candidate is frozen yet.

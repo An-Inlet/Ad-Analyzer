@@ -78,3 +78,37 @@ NanoCPUs setting; it retains the explicit two-CPU test cap while stopped. The
 attempted period/quota reset was rejected as conflicting. No daemon configuration
 or container replacement workaround was attempted; future reuse must account for
 that retained cap. No customer data or credentials were involved.
+
+## Concrete Locally Frozen Preparation
+
+Implementation commit `c845ccaf30c71d0b707b73cc93a99023111720ba` contains
+`scripts/diagnose_browser_startup.py`. Run only with
+`python3 -m scripts.diagnose_browser_startup` from its checkout root. It attempts
+at most one installed binary from each Chrome/Chromium family, deduplicates exact
+binary paths, and invokes d509's bounded probe without modifying its launch bounds.
+No installs, application imports, database or GitHub environment export occur.
+Exit0 means collection finished for an existing browser, not startup or codec
+qualification. Browser failure remains explicit structured evidence; absence of
+any installed browser exits2. Every record says
+`codec_qualification: not_attempted`, even if a mocked result reports loaded data.
+
+The reviewable YAML artifact is
+[hosted-startup.workflow-example.yml](hosted-startup.workflow-example.yml).
+It pins both checkout action and the implementation commit above. It is deliberately
+outside `.github/workflows`; **nothing has been registered or dispatched**.
+
+A new `workflow_dispatch` workflow must first exist on GitHub's default branch;
+simply placing it on this local/remote feature branch does not make it dispatchable.
+Registration, publication and the paid diagnostic run require separate explicit
+authorization. An alternative is a separately reviewed manual-only diagnostic mode
+in the already registered CI workflow, with fail-closed conditions excluding all
+ordinary dependency/test/Full jobs. That alternative has not been implemented or
+authorized and must never silently turn into an automatic Full retry.
+
+Fourteen focused tests pass, including sanitized failure facts, child cleanup,
+missing-browser no-install behavior, no selected-browser export, alias deduplication,
+no qualification from media errors/loadeddata/no-result, and no fallback/retry after
+launch failure. Ruff, explicit-package-bases mypy (four files), and diff checks pass.
+Actual local CLI returns expected `MEDIA_ELEMENT_ERROR: Format error` for both empty
+clips, establishing page startup only while keeping qualification not_attempted.
+Logs: `/tmp/inlet-startup-cli-final-tests.log` and `/tmp/inlet-startup-cli-real.log`.

@@ -1,0 +1,23 @@
+# REVIEW ARTIFACT ONLY — not installed in .github/workflows.
+# Requires separate authorization and default-branch workflow registration.
+name: Bounded Browser Startup Diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  startup:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout frozen diagnostic implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: c845ccaf30c71d0b707b73cc93a99023111720ba
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Collect startup evidence only
+        timeout-minutes: 2
+        shell: bash
+        run: python3 -m scripts.diagnose_browser_startup

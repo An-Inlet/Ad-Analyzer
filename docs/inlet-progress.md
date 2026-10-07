@@ -5648,3 +5648,17 @@ under `/workspace/inlet-evidence/20261007`. New product packages remain isolated
   Single manual job≤5min, no installs/DB/Full, explicitly no codec qualification;
   no workflow created, no remote action or paid dispatch. Prior d509 checks remain
   applicable since this package changes documentation only.
+
+### Concrete startup-only diagnostic preparation (2026-10-07)
+
+- Script frozen c845ccaf30c71d0b707b73cc93a99023111720ba, maximum two distinct
+  installed browser families, no retries/install/app/DB/GITHUB_ENV. Empty clips
+  deliberately cannot qualify a browser; all records mark qualification not attempted.
+  Actual local run records media-format errors after successful page startup.
+- Fourteen focused tests pass, Ruff/mypy four files/diff clean. Initial mypy found
+  test imports treating stdlib modules as re-exports; tests now patch their direct
+  imports and pass. No production/preflight qualification assertion changed.
+- Added docs-only manual workflow YAML pinned to script commit and checkout action,
+  timeout five minutes. Default-branch registration gate and separately reviewed
+  registered-CI alternative are explicit. No active workflow, push, dispatch,
+  paid run, Full or install. Container remains stopped as previously documented.

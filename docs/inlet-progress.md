@@ -6763,3 +6763,16 @@ unavailable and is not inferred from this operation evidence.
 - Independent Shopify0082 review also closed at `512df29`: reproduced late-authority
   publication commit leak (both DBs), author savepoint+post-final-check deadline repair,
   independent final regressions **2 passed in 5.31s**. No reviewer source edits.
+
+### 2026-10-07: separate reported-rule contract/compiler checkpoint (local)
+
+Approved interface854fa69 now has strict ReportedRulePolicy/Evidence/Observation/
+Work/Candidate variants and pure nominal compiler in reported_feedback. No old v1
+literal/hash/parser changed; no source registered, no runtime consumer enabled.
+Actual report evaluator fixture supplies before/after totals; 11 focused cases
+passed, covering no qualified-learning cast, complete distinct report references,
+direction/absence/environment contradictions, stale/actions/native/quantum blockers
+and cumulative increase clipping without changing the mandate. Scoped Ruff/mypy
+(3files) and diff check pass. Initial static invocation found import sorting and
+optional-action test annotations; fixed before checkpoint. 0083 dependency relation
+reserved; owned source/worker/API/TLS remain in implementation, not yet accepted.

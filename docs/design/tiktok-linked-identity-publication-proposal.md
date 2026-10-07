@@ -51,3 +51,50 @@ The discovery parser can finish now with strict envelopes, applicability-aware f
 After the remaining conditional table is verified and interfaces approved: add explicit serializer/readback fixtures for both TT_USER and BC_AUTH_TT; missing permission/BC/status and GPPPA cases; ads-only behavior and reviewed-cover binding; unknown one-write/no replay; permission/generation/session change during IO and after claim; separate activation using the original held reservation. Finally ordinary configured API and TLS journeys must use the owned private context and actual HTTP mock, with no runtime-getter override or seeded execution state. Default real transport must reject contract_test before construction; no default source or live admission is added. Google/Meta behavior and hashes remain unchanged.
 
 No DB tests or Full run were needed for this design-only package. Application/runtime/contract implementation awaits interface approval and the exact publication field evidence above.
+
+## Exact Rendered-Research Handoff And Discovery Seam
+
+The discovery freeze is local `1b5cee8459e7de27c4dcdb23221dfb50877195ec` in
+`/workspace/inlet-tiktok-native-discovery-parser`: imports from
+`app.collectors.tiktok_discovery_contracts` expose
+`TikTokIdentityPageRequestV1`, `TikTokPixelPageRequestV1` and corresponding page
+results; `parse_identity_page(request,payload)` / `parse_pixel_page(request,payload)`
+return discovery only. `ObservedFieldV1` preserves presence/applicability/recognition.
+Pixel/event IDs remain strict string-or-integer pending native evidence; deprecated
+facts are retained, not interpreted as approval. The proposed linked assessment
+must consume these observations without collapsing unknowns. The collector is a
+separate upcoming owned GET-only package, not already integrated here.
+
+Public rendered-browser targets (the anchors are conventional request/response
+navigation targets, not independently verified section IDs in this research):
+
+- [Ad Create request](https://business-api.tiktok.com/portal/docs/create-an-ad/v1.3#anchor-0-2)
+  and [response](https://business-api.tiktok.com/portal/docs/create-an-ad/v1.3#anchor-0-3),
+  stable doc ID `1739953377508354`.
+- [Ad Get request](https://business-api.tiktok.com/portal/docs/get-ads/v1.3#anchor-0-2)
+  and [response](https://business-api.tiktok.com/portal/docs/get-ads/v1.3#anchor-0-3),
+  [stable doc ID](https://business-api.tiktok.com/portal/docs?id=1735735588640770).
+- [Identity Info request](https://business-api.tiktok.com/portal/docs/get-info-about-an-identity/v1.3#anchor-0-2)
+  and [response](https://business-api.tiktok.com/portal/docs/get-info-about-an-identity/v1.3#anchor-0-3).
+
+For ad/create read the nested **creatives** rows for identity_type, identity_id,
+identity_authorized_bc_id, video_id, tiktok_item_id, dark_post_status,
+creative_type, creative_authorized, image_ids, ad_text, operation_status and
+any linked-identity-only restriction. Specifically resolve whether TT_USER plus
+can_push_video permits an already uploaded advertiser-library video directly, and
+whether BC_AUTH_TT uses exactly the same route with an additional BC reference.
+Neither permission nor route is inferred merely from the SDK listing both fields.
+
+For response/readback capture how an uploaded **video_id** maps to any created
+**tiktok_item_id**, and whether ad/get returns both alongside the exact identity,
+BC binding and dark_post_status. Record whether each is selectable through fields,
+and whether absent post ID is an expected transitional state or unverifiable
+publication. An unacknowledged ad creation must not be retried to discover this
+mapping. If a linked post is created as a separate required mutation, that requires
+an explicit reviewed operation/receipt/resource kind before implementation; it
+cannot be hidden inside upload or treated as an ad ID.
+
+A single bounded local Chromium public-page attempt timed out at30s with no DOM;
+indexed web opens returned empty bodies for the Ad Create/Get tables. No account
+API, credentials, retry loop or access workaround was used. Parent rendered-browser
+research can resolve this exact table gap independently of the parser/collector.

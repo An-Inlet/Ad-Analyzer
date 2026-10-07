@@ -6706,3 +6706,26 @@ unavailable and is not inferred from this operation evidence.
   runtime deployment and measured real-store capacity remain unverified. The
   acquisition itself does not supply settled/mature assurance. See
   `docs/inlet-resumable-shopify-acquisition.md` for configuration and limitations.
+
+### Acquisition publication atomicity correction
+
+- Independent source review of b0eeeeb found a real late-denial transaction gap:
+  `publish_in_transaction` flushes a publication/revision before its final authority
+  check. The worker caught that failure and committed unavailable-job cleanup in
+  the same transaction, inadvertently retaining the publication. b0eeeeb is
+  superseded by this correction; do not integrate it alone.
+- Reproduced through actual API enqueue and five actual MockHTTP GraphQL steps.
+  Advancing the clock two hours immediately after the real publication INSERT made
+  the original check deny while publication count incorrectly rose from1to2
+  (`/tmp/inlet-acquisition-atomicity-before.log`,1failed2.68s). Reviewer independently
+  reproduced identity denial after flush on both databases,2failed7.60s; no authority
+  guard was replaced by a passing fake.
+- Wrapped the publication writer, completion/staging updates and every final check
+  in a real nested transaction. A late failure rolls back publication and revision
+  before unavailable cleanup commits. Final fixed-deadline and current operational
+  controls are now checked explicitly within that savepoint as well.
+- BothDB real clock/credential and deadline-only denials now retain original
+  publication count/revision, no job publication pointer, and erased staging.
+  Together with ordinary configured publication and transport retry:8passed14.18s,
+  `--durations=20` (`/tmp/inlet-acquisition-atomicity-after.log`). WholeRuff/mypy857
+  and diffcheck pass. No schema/interface/byte-format change, Full, remote or liveIO.

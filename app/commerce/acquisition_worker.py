@@ -135,11 +135,18 @@ def claim(
                     response_bytes=job.response_bytes,
                     days=days,
                 )
-                identifier = owned.publish_in_transaction(db, completion)
-                job.publication_id = identifier
-                service.terminal(db, job, "completed", None, clock)
-                db.flush()
-                owned._check(db, request)
+                # The publication writer flushes before its own final authority check.
+                # Roll back every publication/fence/job change together if that check
+                # or any later boundary fails; only then persist unavailable cleanup.
+                with db.begin_nested():
+                    identifier = owned.publish_in_transaction(db, completion)
+                    job.publication_id = identifier
+                    service.terminal(db, job, "completed", None, clock)
+                    db.flush()
+                    if utc(clock()) >= utc(job.deadline_at):
+                        raise ScanUnavailable("acquisition_expired")
+                    require_owned_controls(db, settings, wid, job.environment)
+                    owned._check(db, request)
                 db.commit()
                 return None
             reserve = profile.limits.response_bytes

@@ -417,3 +417,62 @@ def test_abandoned_read_lease_resumes_same_acquisition_after_expiry(
         assert utc(job.deadline_at) == abandoned.deadline_at
         assert job.charged_bytes > job.response_bytes
     assert len(fixture.seen) == 5
+
+
+@pytest.mark.parametrize("late_seconds", [1801, 7200])
+def test_late_clock_denial_rolls_back_publication_and_revision(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: tuple[TestClient, TestClient, FakeProvider],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    late_seconds: int,
+) -> None:
+    from datetime import timedelta
+
+    from app.commerce.models import CommerceEvidenceState, CommerceMeasurementPublication
+    from sqlalchemy import event
+
+    _, request, fixture, client, provider, prefix, headers, intent = configured(
+        customer_engine, configuration, replicas, monkeypatch, tmp_path
+    )
+    limits = profile(tick_request_budget=5)
+    Path(configuration.independent_acquisition_profile_path or "").write_text(
+        limits.model_dump_json()
+    )
+    response = client.post(prefix, json=intent, headers=headers)
+    assert response.status_code == 200, response.text
+    identifier = response.json()["job_id"]
+    runner.tick(customer_engine, configuration, lambda: provider)
+    with Session(customer_engine) as db:
+        checkpoint = db.get(Checkpoint, identifier)
+        assert checkpoint is not None and checkpoint.phase == "publish"
+        prior_count = db.scalar(select(func.count()).select_from(CommerceMeasurementPublication))
+        fence = db.get(CommerceEvidenceState, request.scope.store_id)
+        assert fence is not None
+        prior_revision = fence.publication_revision
+    current = [NOW]
+    monkeypatch.setattr(runtime, "utcnow", lambda: current[0])
+
+    def after_insert(
+        _connection: Any, _cursor: Any, statement: str, _parameters: Any, _context: Any, _many: bool
+    ) -> None:
+        if statement.lstrip().upper().startswith("INSERT INTO COMMERCE_MEASUREMENT_PUBLICATIONS"):
+            current[0] = NOW + timedelta(seconds=late_seconds)
+
+    event.listen(customer_engine, "after_cursor_execute", after_insert)
+    try:
+        runner.tick(customer_engine, configuration, lambda: provider)
+    finally:
+        event.remove(customer_engine, "after_cursor_execute", after_insert)
+    with Session(customer_engine) as db:
+        assert (
+            db.scalar(select(func.count()).select_from(CommerceMeasurementPublication))
+            == prior_count
+        )
+        fence = db.get(CommerceEvidenceState, request.scope.store_id)
+        assert fence is not None and fence.publication_revision == prior_revision
+        job = db.get(Job, identifier)
+        assert job is not None and job.state == "unavailable" and job.publication_id is None
+        assert db.get(Checkpoint, identifier) is None
+    assert len(fixture.seen) == 5

@@ -80,3 +80,15 @@ settled; prepare proposals and continue independent offline work. The CRM gatewa
 proposal is not authorization for persistent access. Offline completion is not live
 verification or a purchasable production release. Routine in-scope engineering choices
 and moving to the next package do not require another approval.
+
+## Owner-approved comprehensive planning MVP (2026-10-07)
+
+The owner removed automatic execution from the MVP and approved the comprehensive
+planning product described in `inlet-planning-mvp-transition.md`. Customers manually
+apply all advertising changes: the MVP permits no advertising-platform writes,
+including reviewed publication, pause, activation or budget changes. Preserve existing
+execution code for after launch; stop new execution-only development. Planning
+approvals record decisions, never advertising write authority. Implement and test the
+deployment boundary while retaining security/regression coverage. Earlier offline
+engineering authorization continues for the revised scope; all live/credential,
+merge/deployment and hosted-CI budget/stop gates remain.

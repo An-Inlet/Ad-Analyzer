@@ -7077,3 +7077,11 @@ unknown-provider authorcoverage: `inlet-initial-concurrency-acceptance.md`.
 Initial acceptance strengthened consumed-origin assertion: affected3positivecases
 passed131.58s (7deselected), `/tmp/inlet-initial-acceptance-origin.log`; exactone
 origin/admission/attempt/POST andzeroapproval onbothDBmaintenance andPGcompetition.
+
+## 2026-10-07 — Owner Approved Comprehensive Planning MVP
+
+Rebased acceptance and dependency plan in `inlet-planning-mvp-transition.md` on zero
+advertising writes and customer manual implementation. Preserved2155ff3 and all isolated
+execution successors. Next P01 maps mutation entrypoints and freezes a deployment
+write-prohibition interface; coherent planning journey and recommendation quality follow.
+This checkpoint is documentation only; diff checks passed, no new tests or live actions.

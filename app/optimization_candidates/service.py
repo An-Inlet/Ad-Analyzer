@@ -20,6 +20,12 @@ from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerSession, CustomerUser
 from app.goals import service as goals
+from app.initial_planning.automatic_contracts import (
+    InitialReportedRuleCandidateV1,
+    InitialReportedRulePolicyV1,
+    InitialReportedRuleWorkV1,
+)
+from app.initial_planning.review_v2_api_contracts import InitialPreviewExecutionRuntime
 from app.optimization_candidates.compiler import compile_candidate
 from app.optimization_candidates.contracts import (
     CandidateDecision,
@@ -118,7 +124,8 @@ class CandidateRuntime:
     final_evidence_current: FinalEvidenceCurrent | None = None
     authorized_evidence_transform: AuthorizedEvidenceTransform | None = None
     authorized_final_evidence_current: AuthorizedFinalEvidenceCurrent | None = None
-    operational_policies: tuple[ReportedRulePolicyV1, ...] = ()
+    operational_policies: tuple[ReportedRulePolicyV1 | InitialReportedRulePolicyV1, ...] = ()
+    initial_planning: InitialPreviewExecutionRuntime | None = None
 
 
 def get_candidate_runtime() -> CandidateRuntime | None:
@@ -252,16 +259,33 @@ def current(
     ):
         raise HTTPException(409, "candidate goal changed")
     registered = registered_policy(db, wid, work.policy.policy_id, work.policy.revision, runtime)
+    if registered != work.policy:
+        raise HTTPException(409, "candidate policy unavailable")
     if isinstance(work, ReportedRuleWorkV1):
         from app.reported_feedback.candidate_source import current_comparison
 
         current_comparison(db, principal, work, runtime.clock, forward_review_id=forward_review_id)
-    if registered != work.policy:
-        raise HTTPException(409, "candidate policy unavailable")
+    if isinstance(work, InitialReportedRuleWorkV1):
+        from app.initial_planning.automatic_source import resolve_initial_work
+
+        resolved = resolve_initial_work(
+            db,
+            principal,
+            runtime.identity,
+            work.scope,
+            work.selection,
+            work.basis.preview_id,
+            work.basis.preview_digest,
+            work.policy,
+            initial_context(runtime),
+            forward_review_id=initial_forward_context(db, principal, work, forward_review_id),
+        )
+        if resolved != work:
+            raise HTTPException(409, "initial candidate source changed")
     source_current(db, scope, principal.user.id)
     # Final session check follows all potentially blocking source/policy reads.
     authorize(db, principal, wid, runtime)
-    if isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1)) and (
+    if isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1)) and (
         work.selection.actor_id != principal.user.id
         or not work.selection.observed_at <= runtime.clock() < work.selection.expires_at
     ):
@@ -318,6 +342,10 @@ def _insert_checked(
         from app.reported_feedback.candidate_source import bind_dependency
 
         bind_dependency(db, row.id, principal, work, runtime.clock)
+    if isinstance(work, InitialReportedRuleWorkV1):
+        from app.initial_planning.automatic_dependencies import bind_initial_dependency
+
+        bind_initial_dependency(db, row, work)
     return row
 
 
@@ -348,7 +376,7 @@ def owned_work(row: CandidateJob) -> CandidateWorkDocument:
         or work.scope.source.publication_id != row.publication_id
         or work.scope.source.attempt_id != row.attempt_id
         or (
-            isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+            isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1))
             and work.selection.actor_id != row.actor_id
         )
         or work.digest() != row.input_digest
@@ -365,6 +393,10 @@ def claim(db: Session, wid: int, job_id: str, runtime: CandidateRuntime) -> str 
         from app.reported_feedback.candidate_source import require_dependency
 
         require_dependency(db, row.id, work)
+    if isinstance(work, InitialReportedRuleWorkV1):
+        from app.initial_planning.automatic_dependencies import require_initial_dependency
+
+        require_initial_dependency(db, row, work)
     db.refresh(row, with_for_update=True)
     now = runtime.clock()
     if row.input_digest != work.digest() or row.work != work.model_dump(mode="json"):
@@ -437,7 +469,7 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
             observation = CandidateObservation.model_validate(observation.model_dump(mode="json"))
             db.commit()
             if observation.scope != work.scope or (
-                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1))
                 and observation.state.digest() != work.selection.state_digest
             ):
                 raise HTTPException(409, "candidate observation changed")
@@ -455,10 +487,12 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
             ):
                 return "superseded"
             if (
-                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1))
                 and runtime.clock() >= work.selection.expires_at
             ):
                 raise HTTPException(409, "candidate selection expired during result lock")
+            if isinstance(work, InitialReportedRuleWorkV1):
+                return process_initial_result(db, row, work, observation, runtime, token)
             if isinstance(work, ReportedRuleWorkV1):
                 return process_reported_result(db, row, work, observation, runtime, token)
             if runtime.authorized_evidence_transform is not None:
@@ -483,7 +517,9 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 evidence = observation.evidence
                 policy, positive, actions = current(db, work, principal_for(db, row), runtime)
                 if (
-                    isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+                    isinstance(
+                        work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1)
+                    )
                     and runtime.clock() >= work.selection.expires_at
                 ):
                     raise HTTPException(409, "candidate selection expired during local derivation")
@@ -500,7 +536,9 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 # after any dependency locks it needed before storing derived data.
                 policy, positive, actions = current(db, work, principal_for(db, row), runtime)
                 if (
-                    isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+                    isinstance(
+                        work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1)
+                    )
                     and runtime.clock() >= work.selection.expires_at
                 ):
                     raise HTTPException(409, "candidate selection expired during evidence check")
@@ -705,6 +743,23 @@ def read_result(
             runtime.clock,
             forward_review_id=forward_review_id,
         )
+    elif isinstance(work, InitialReportedRuleWorkV1):
+        from app.initial_planning.automatic_dependencies import require_initial_dependency
+        from app.initial_planning.automatic_source import assert_initial_rule_current
+
+        if not isinstance(decision, InitialReportedRuleCandidateV1):
+            raise HTTPException(409, "initial candidate document mismatch")
+        require_initial_dependency(db, job, work)
+        assert_initial_rule_current(
+            db,
+            principal,
+            runtime.identity,
+            work,
+            decision,
+            initial_context(runtime),
+            runtime.clock,
+            forward_review_id=initial_forward_context(db, principal, work, forward_review_id),
+        )
     elif not isinstance(decision, CandidateDecision):
         raise HTTPException(409, "candidate document mismatch")
     if decision.expires_at <= runtime.clock():
@@ -766,3 +821,100 @@ def process_reported_result(
     row.error_code, row.lease_until, row.fence = None, None, None
     db.commit()
     return "completed"
+
+
+def initial_context(runtime: CandidateRuntime) -> InitialPreviewExecutionRuntime:
+    if runtime.initial_planning is None:
+        raise HTTPException(409, "initial_rule_runtime_unavailable")
+    return runtime.initial_planning
+
+
+def process_initial_result(
+    db: Session,
+    row: CandidateJob,
+    work: InitialReportedRuleWorkV1,
+    native: CandidateObservation,
+    runtime: CandidateRuntime,
+    token: str,
+) -> str:
+    from app.initial_planning.automatic_compiler import compile_initial_rule
+    from app.initial_planning.automatic_dependencies import require_initial_dependency
+    from app.initial_planning.automatic_source import assert_initial_rule_current, read_initial_rule
+
+    principal = principal_for(db, row)
+    require_initial_dependency(db, row, work)
+    planning = initial_context(runtime)
+    observation = read_initial_rule(
+        db, principal, runtime.identity, work, native, planning, runtime.clock
+    )
+    policy, positive, actions = current(db, work, principal, runtime)
+    decision = compile_initial_rule(
+        observation, work.policy, policy, positive, actions, runtime.clock()
+    )
+    assert_initial_rule_current(
+        db, principal, runtime.identity, work, decision, planning, runtime.clock
+    )
+    current(db, work, principal, runtime)
+    db.refresh(row, with_for_update=True)
+    now = runtime.clock()
+    if (
+        row.state != "claimed"
+        or row.fence != token
+        or row.work != work.model_dump(mode="json")
+        or row.lease_until is None
+        or utc(row.lease_until) <= now
+    ):
+        return "superseded"
+    if now >= min(decision.expires_at, work.selection.expires_at):
+        raise HTTPException(409, "initial candidate expired before publication")
+    require_initial_dependency(db, row, work)
+    db.add(
+        CandidateResult(
+            id=uuid4().hex,
+            workspace_id=row.workspace_id,
+            job_id=row.id,
+            input_digest=row.input_digest,
+            policy_digest=decision.policy_digest,
+            evidence_digest=decision.evidence_digest,
+            decision_digest=decision.digest(),
+            decision=decision.model_dump(mode="json"),
+            created_at=now,
+        )
+    )
+    row.state, row.completed_at = "completed", now
+    row.error_code, row.lease_until, row.fence = None, None, None
+    db.commit()
+    return "completed"
+
+
+def initial_forward_context(
+    db: Session,
+    principal: CustomerPrincipal,
+    work: InitialReportedRuleWorkV1,
+    review_id: str | None,
+) -> str | None:
+    """A prepared exact review is not yet an exception to the no-prior-admission rule."""
+    if review_id is None:
+        return None
+    from app.optimization_candidates.review_models import CandidateReviewLink
+    from app.session_automation.models import AutomaticDecisionAdmission
+
+    link = db.get(CandidateReviewLink, review_id, populate_existing=True)
+    if (
+        link is None
+        or link.workspace_id != work.scope.account.workspace_id
+        or link.actor_id != principal.user.id
+        or link.original_session_digest != principal.session.digest
+        or link.candidate_result_id is None
+        or link.candidate_workspace_id != link.workspace_id
+        or link.input_digest != work.digest()
+        or link.policy_digest != work.policy.digest()
+    ):
+        raise HTTPException(409, "initial candidate review binding unavailable")
+    admission = db.scalar(
+        select(AutomaticDecisionAdmission.id).where(
+            AutomaticDecisionAdmission.workspace_id == link.workspace_id,
+            AutomaticDecisionAdmission.review_id == review_id,
+        )
+    )
+    return review_id if admission is not None else None

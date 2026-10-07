@@ -5,6 +5,11 @@ from typing import Annotated
 
 from pydantic import Field, TypeAdapter
 
+from app.initial_planning.automatic_contracts import (
+    InitialReportedRuleCandidateV1,
+    InitialReportedRulePolicyV1,
+    InitialReportedRuleWorkV1,
+)
 from app.optimization_candidates.contracts import CandidateDecision, CandidatePolicy, CandidateWork
 from app.optimization_candidates.selection_contracts import CandidateWorkV2
 from app.reported_feedback.candidate_contracts import (
@@ -13,9 +18,13 @@ from app.reported_feedback.candidate_contracts import (
     ReportedRuleWorkV1,
 )
 
-CandidatePolicyDocument = CandidatePolicy | ReportedRulePolicyV1
-CandidateWorkDocument = CandidateWork | CandidateWorkV2 | ReportedRuleWorkV1
-CandidateDecisionDocument = CandidateDecision | ReportedRuleCandidateV1
+CandidatePolicyDocument = CandidatePolicy | ReportedRulePolicyV1 | InitialReportedRulePolicyV1
+CandidateWorkDocument = (
+    CandidateWork | CandidateWorkV2 | ReportedRuleWorkV1 | InitialReportedRuleWorkV1
+)
+CandidateDecisionDocument = (
+    CandidateDecision | ReportedRuleCandidateV1 | InitialReportedRuleCandidateV1
+)
 WORK_DOCUMENT_ADAPTER: TypeAdapter[CandidateWorkDocument] = TypeAdapter(
     Annotated[CandidateWorkDocument, Field(discriminator="schema_version")]
 )

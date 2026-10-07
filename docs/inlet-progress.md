@@ -6886,3 +6886,18 @@ response field names and the expected 0.25 rather than 1.00 adjustment. They wer
 corrected in the fixture/assertions without loosening application gates. Configured
 origin checks correctly required actual 0080 consent rather than the earlier
 component fixture's direct-service mandate.
+
+## 2026-10-07 — initial reported-rule central worker/review checkpoint
+
+Composed the strict initial document discriminator, actual owned source and 0084
+source dependencies into central enqueue/worker/result/exact-review/export paths.
+Generic selection cannot silently select an initial preview. Original-session and
+observation erasure deny forward review; no attempts or holds are created by these
+component tests. Initial automatic admission remains explicitly unavailable until
+the separately proposed exact Start binding is implemented.
+
+Evidence: 14 both-DB initial/repeat worker cases, 25 strict compiler/dispatch cases,
+and 2 actual stored initial job/result export cases passed with durations recorded.
+Whole Ruff and mypy (923 files) passed. See
+`docs/inlet-initial-rule-central-checkpoint.md` for commands, logs, limitations and
+the corrected test-only typing error. No Full, remote, hosted or live action.

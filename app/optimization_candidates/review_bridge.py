@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
 from app.customers.models import CustomerSession, CustomerUser
+from app.initial_planning.automatic_contracts import InitialReportedRuleWorkV1
 from app.optimization_candidates import service as candidates
 from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.models import CandidateResult
@@ -47,7 +48,7 @@ def original(db: Session, actor: str, session_digest: str) -> CustomerPrincipal:
     return CustomerPrincipal(user, session)
 
 
-def source_digest(work: CandidateWorkV2 | ReportedRuleWorkV1) -> str:
+def source_digest(work: CandidateWorkV2 | ReportedRuleWorkV1 | InitialReportedRuleWorkV1) -> str:
     return fingerprint("inlet.candidate-source.v1", work.scope.source.model_dump(mode="json"))
 
 
@@ -64,7 +65,7 @@ def bound_candidate(
     CustomerPrincipal,
     CandidateDecisionDocument,
     CandidateResult,
-    CandidateWorkV2 | ReportedRuleWorkV1,
+    CandidateWorkV2 | ReportedRuleWorkV1 | InitialReportedRuleWorkV1,
 ]:
     principal = original(db, actor, session_digest)
     decision = candidates.read_result(
@@ -82,7 +83,7 @@ def bound_candidate(
     job = candidates.load(db, wid, result.job_id)
     work = candidates.owned_work(job)
     if (
-        not isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+        not isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1))
         or job.actor_id != actor
         or job.auth_session_digest != session_digest
         or decision.status != "suggested"

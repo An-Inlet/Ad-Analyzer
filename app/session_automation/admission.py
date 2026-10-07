@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
 from app.optimization_candidates import review_bridge
+from app.optimization_candidates.contracts import CandidateDecision
 from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.review_models import CandidateReviewLink
 from app.publication import optimization
@@ -58,6 +59,8 @@ def epoch_for(
         )
     if isinstance(policy, ReportedRuleAutomaticPolicyV1):
         raise HTTPException(409, "automatic policy basis changed")
+    if not isinstance(decision, CandidateDecision):
+        raise HTTPException(409, "initial automatic admission unavailable")
     matches = [
         p
         for p in runtime.epoch_producers

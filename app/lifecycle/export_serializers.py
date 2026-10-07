@@ -20,6 +20,10 @@ from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
 from app.crm.schemas import CrmEvent
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.automatic_contracts import (
+    InitialReportedRuleCandidateV1,
+    InitialReportedRuleWorkV1,
+)
 from app.initial_planning.budget_mandate_contracts import BudgetMandatePreparationV1
 from app.initial_planning.contracts import (
     CalibrationReportV1,
@@ -416,20 +420,26 @@ def bind_document(
             or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
         ):
             raise ValueError("feedback ownership mismatch")
-    elif isinstance(document, (CandidateWork, CandidateWorkV2, ReportedRuleWorkV1)):
+    elif isinstance(
+        document, (CandidateWork, CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1)
+    ):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.policy.environment != row["environment"]
             or document.scope.source.publication_id != row["publication_id"]
             or document.scope.source.attempt_id != row["attempt_id"]
             or (
-                isinstance(document, (CandidateWorkV2, ReportedRuleWorkV1))
+                isinstance(
+                    document, (CandidateWorkV2, ReportedRuleWorkV1, InitialReportedRuleWorkV1)
+                )
                 and document.selection.actor_id != row["actor_id"]
             )
             or document.digest() != row["input_digest"]
         ):
             raise ValueError("candidate work ownership mismatch")
-    elif isinstance(document, (CandidateDecision, ReportedRuleCandidateV1)):
+    elif isinstance(
+        document, (CandidateDecision, ReportedRuleCandidateV1, InitialReportedRuleCandidateV1)
+    ):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.digest() != row["decision_digest"]

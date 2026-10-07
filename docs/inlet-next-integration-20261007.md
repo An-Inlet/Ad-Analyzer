@@ -74,3 +74,26 @@ The ORM cross-dialect defect and a final combined cohort remain outstanding here
 these eight passes do not relabel either failed aggregate as successful. Evidence
 logs use the `inlet-next-integration-historical-*` and
 `inlet-next-integration-migration-final` prefixes.
+
+## Combined Repair Verification
+
+Head `164d2c2e0f9b0fc883c43b755b842e4fbc2961f3` adds the reviewed historical
+fixture repair, credential/configuration substrate `3821008`, and metadata repair
+`68f89cb` (including `302f81e`). Independent review closed the historical alias
+restoration concern. The metadata repair reproduces and fixes a real integrity
+defect: PostgreSQL ORM table creation could suppress a deferred FK during subsequent
+SQLite creation using the same metadata, allowing an origin-marked revision to
+commit without its proof. The named DDL rule is now restored, and both ORM and
+the unreleased migration's SQLite trigger require the physical FK. No deployed
+database repair is claimed.
+
+The expanded 27-file cohort passed **123 tests with 7 expected skips and 110
+warnings in 171.39 seconds**, terminal exit 0. Historical fixtures run before
+current-head provenance checks, exercising mapper restoration and dialect reuse.
+This also covers populated migrations, configured credential contexts and actual
+MockHTTP catalog admission. Whole Ruff, mypy789 and diff check passed.
+
+Log: `inlet-next-integration-migration-repaired.log`. The previous failed aggregate
+logs remain retained. No second Full or hosted qualification was launched. Actual
+optimization API/UI and TikTok runtime/browser packages remain separate work until
+their own integration; this result does not claim live functionality.

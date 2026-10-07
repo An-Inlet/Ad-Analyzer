@@ -170,3 +170,33 @@ opportunity remain; zero provider attempts or POSTs exist before a worker is inv
 `pytest -q tests/test_initial_concurrent_start.py -k postgres --durations=1` passed
 **1** (10.79s call). Ruff, repository mypy (938 files) and diff checks passed. This is
 one narrow test while the parent's separate Full run executes; no initial Full run.
+
+## Isolated successor integration and supported evidence envelope
+
+Private objective factoring `6cca08a`/`3136b70` was independently reviewed and
+integrated locally as `d274892`/`6bdf749`. Exact selected completion matching, goal
+revision, late actual goal assessment with fresh time, final authority/expiry and
+second post-mandate input validation remain. Its source ledger records 58 checks;
+those are agent evidence on its frozen branch, not a repeated combined Full run.
+Independent race/timeout review `4b1a085` is integrated as `e3dc818`, with its exact
+boundary distinctions preserved and the older 30-second-default wording corrected.
+
+Combined narrow validation after objective factoring:
+`pytest -q tests/test_initial_automatic_browser.py -k 'sqlite and unknown_provider_response' --durations=1`
+passed **1** (13.49s), actual HTTPS through configured source/worker and retained
+uncertain original attempt. Ruff, repository mypy (938 files) and diff checks pass.
+
+The demonstrated positive envelope is **offline fixture configuration**, explicitly
+120-second native observation and preview lifetimes, named candidate/automatic
+policies and existing separately consented execution limits. Run validity is still
+bounded by the earliest actual dependency, session, mandate, preview and selection
+expiry. These values are not selected production defaults or a recommendation to
+lengthen them. Acquisition, per-HTTP-phase, catalog, web-process and worker-process
+timeouts do not extend evidence lifetime. No deployed latency/cancellation behavior
+or ordinary 30-second-profile positive path is qualified by these checks.
+
+The ordinary contract-test profile uses native observation TTL 30 seconds and
+preview TTL 60 seconds. Its actual configured positive phase-age probe is tracked
+separately by the source reviewer. Root integration remains gated on understanding
+that result; the parent's Full run tests a different frozen artifact without this
+initial package. No root integration, Full retry, merge, deploy or live action here.

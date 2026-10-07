@@ -101,7 +101,7 @@ def no_prior_budget(
         .limit(1)
     ):
         raise unavailable()
-    # Creation history is not budget-decision history and must not exhaust this
+    # Creation/activation history is not budget-decision history and cannot exhaust this
     # bounded scan. Unknown/missing discriminators remain included and fail closed
     # in the strict parser below. Financial reservations are checked independently.
     schema = ProviderExecutionReview.document["schema_version"].as_string()
@@ -121,6 +121,12 @@ def no_prior_budget(
                 schema != "inlet.execution-creation-review.v1",
                 purpose != "create_paused",
             ),
+            or_(
+                schema.is_(None),
+                purpose.is_(None),
+                schema != "inlet.execution-activation-review.v1",
+                purpose != "activate",
+            ),
         )
         .limit(MAX_PRIOR_BUDGET_ATTEMPTS + 1)
     ).all()
@@ -135,6 +141,16 @@ def no_prior_budget(
             except ValueError as exc:
                 raise unavailable() from exc
             if creation.digest() != review.digest:
+                raise unavailable()
+            continue
+        if review.document.get("schema_version") == "inlet.execution-activation-review.v1":
+            from app.publication.activation_review import ActivationExecutionReview
+
+            try:
+                activation = ActivationExecutionReview.model_validate(review.document)
+            except ValueError as exc:
+                raise unavailable() from exc
+            if activation.digest() != review.digest:
                 raise unavailable()
             continue
         try:

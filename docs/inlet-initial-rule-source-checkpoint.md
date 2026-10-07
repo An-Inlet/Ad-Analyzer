@@ -109,3 +109,12 @@ It creates no candidate jobs or execution rows. The existing source tests retain
 own explicit inert dependency-test job and all assertions. All10 SQLite/PostgreSQL
 source cases pass after extraction; scoped Ruff/mypy2 pass.
 Log: `/tmp/inlet-initial-rule-reusable-source.log`.
+
+A second real-history regression completed the same campaign's three separately
+approved activation steps. Both databases reproduced incorrect bootstrap denial;
+known exact activation schema/purpose is now excluded from the bounded budget-history
+scan as well. Unknown/missing discriminators remain fail-closed, and the original
+creation/activation exposure reservation remains held. All6 actual prior-budget,
+creation and activation lineage cases pass. Whole Ruff and scoped mypy2 pass.
+Logs: `/tmp/inlet-initial-rule-activation-baseline.log` (2 reproduced failures),
+`/tmp/inlet-initial-rule-activation-fixed.log` (6 passes).

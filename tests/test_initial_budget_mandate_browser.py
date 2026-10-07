@@ -82,7 +82,7 @@ def test_first_customer_budget_browser(
             return
         if path.startswith("/app/assets/"):
             name = path.removeprefix("/app/assets/")
-            if name in {"initial-planning.mjs", "session-context.mjs"}:
+            if name in {"initial-planning.mjs", "initial-execution.mjs", "session-context.mjs"}:
                 await Response(
                     Path("app/portal/static", name).read_text(), media_type="text/javascript"
                 )(scope, receive, send)

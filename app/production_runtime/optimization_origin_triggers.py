@@ -39,7 +39,14 @@ PARENT_SQL = {
     "sqlite": (
         "CREATE TRIGGER omr_insert BEFORE INSERT ON provider_execution_revisions "
         "WHEN NEW.origin_kind='optimization_customer_v1' AND "
-        f"((SELECT foreign_keys FROM pragma_foreign_keys)!=1 OR {BORROW}) "
+        "((SELECT foreign_keys FROM pragma_foreign_keys)!=1 OR NOT EXISTS ("
+        "SELECT 1 FROM pragma_foreign_key_list('provider_execution_revisions') f "
+        "WHERE f.\"table\"='optimization_mandate_preparations' "
+        "AND f.\"from\"='origin_preparation_digest' AND f.\"to\"='preparation_digest' "
+        "AND f.seq=0 AND (SELECT count(*) FROM "
+        "pragma_foreign_key_list('provider_execution_revisions') other "
+        "WHERE other.id=f.id)=1) "
+        f"OR {BORROW}) "
         "BEGIN SELECT RAISE(ABORT,'optimization origin requires enforced exact foreign key'); END",
         "CREATE TRIGGER omr_update BEFORE UPDATE ON provider_execution_revisions "
         "WHEN OLD.origin_kind!='legacy' OR NEW.origin_kind!=OLD.origin_kind "

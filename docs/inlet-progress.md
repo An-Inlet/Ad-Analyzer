@@ -5724,3 +5724,18 @@ and diff checks passed. Earlier harness failures are retained: first omitted the
 existing campaign-draft listing router; second expected legacy injected-runtime
 social-blocker wording. Fixed only harness route mounting/assertion specificity;
 no application changes or weakened gates. No Full/remote/live/artifacts.
+
+### 2026-10-07 — Meta Runtime Interface Freeze
+
+- Additive successor to Google TLS4ff8d74 and approved design356dfa7: frozen Meta
+  manifest, exact configuration bundle, server evidence and owned-context ports.
+  Google contracts/configuration and all native Meta qualification blockers unchanged.
+- Bounded manifest16KiB/bundle64KiB loader rejects duplicate keys and missing,
+  mismatched or foreign rules. Immutable canonical bundle owns nested policy data;
+  accessors return defensive copies. USD exponent2/no-DSA only, explicit wording.
+- Real transport factory refuses contract-test before constructing HTTPTransport;
+  no sockets/source factory/registry/API composition installed by this checkpoint.
+- Final focused contracts11 passed (including existing Google cases); whole Ruff,
+  mypy754 and diff check passed. No DB, Full, remote or live operations. Next is
+  request-owned contexts and lazy typed provider composition after sharing this
+  freeze; actual configured API/TLS journey remains outstanding.

@@ -188,3 +188,25 @@ Actual no-getter-override API and TLS acceptance on both DBs:
   fail before factory/credential/network activity; transport/context cleanup on errors.
 
 No live qualification or provider verification is claimed by this proposed package.
+
+## Frozen First Checkpoint
+
+`app/production_runtime/meta_contracts.py` now defines the manifest, pure
+`admit_meta_source`, server-only evidence dataclasses/factory and owned-context
+protocol signatures above. `meta_configuration.load_meta_execution_configuration`
+accepts `(manifest_path, expected_manifest_digest, bundle_path)` and returns optional
+`(MetaExecutionManifestV1, MetaConfigurationBundleV1)`. The manifest itself pins
+`configuration_bundle_digest`; a redundant separately configurable bundle digest
+is unnecessary. All three absent means unavailable; partial settings fail closed.
+
+The bundle owns canonical immutable bytes. `from_document(object)` validates
+profiles and rules; `.profiles` and `.requirements` return fresh typed defensive
+copies, `.digest()` commits the exact validated document. This avoids pretending
+existing mutable social nested lists/maps become immutable inside a frozen outer
+model. Exact one-to-one rules, explicit wording, no-DSA and USD exponent2 are required.
+Existing social profile hashing is reused unchanged.
+
+`meta_transport.meta_execution_transport(manifest)` is the explicit low-level real
+HTTP seam. It rejects contract-test and disabled-live before constructing transport.
+There is no registration or API wiring in this checkpoint. This guard does not by
+itself qualify live use: all catalog blockers and existing financial gates remain.

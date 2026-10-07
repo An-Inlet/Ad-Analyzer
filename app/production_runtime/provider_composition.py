@@ -50,6 +50,7 @@ from app.production_runtime.tiktok_contracts import (
 from app.production_runtime.tiktok_contracts import (
     registered_tiktok_evidence as registered_tiktok_evidence,
 )
+from app.production_runtime.tiktok_linked_configuration import TikTokLinkedConfigurationBundleV1
 from app.production_runtime.tiktok_transport import (
     tiktok_execution_transport as tiktok_execution_transport,
 )
@@ -102,7 +103,12 @@ class MetaResources:
 @lru_cache(maxsize=4)
 def pinned_tiktok(
     path: str | None, digest: str | None, bundle_path: str | None
-) -> tuple[TikTokExecutionManifestV1, TikTokConfigurationBundleV1] | None:
+) -> (
+    tuple[
+        TikTokExecutionManifestV1, TikTokConfigurationBundleV1 | TikTokLinkedConfigurationBundleV1
+    ]
+    | None
+):
     return load_tiktok_execution_configuration(path, digest, bundle_path)
 
 

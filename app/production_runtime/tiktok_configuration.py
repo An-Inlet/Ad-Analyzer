@@ -12,6 +12,7 @@ from pydantic import Field, model_validator
 from app.initial_planning.contracts import Frozen
 from app.planning_reporting.configuration import _unique_object
 from app.production_runtime.tiktok_contracts import TikTokExecutionManifestV1
+from app.production_runtime.tiktok_linked_configuration import TikTokLinkedConfigurationBundleV1
 from app.publication.contracts import fingerprint
 from app.publication.social_catalog import TikTokConfigurationProfile
 from app.publication.social_review_contracts import SocialRequirements
@@ -89,7 +90,12 @@ def load_tiktok_execution_configuration(
     manifest_path: str | None,
     expected_manifest_digest: str | None,
     bundle_path: str | None,
-) -> tuple[TikTokExecutionManifestV1, TikTokConfigurationBundleV1] | None:
+) -> (
+    tuple[
+        TikTokExecutionManifestV1, TikTokConfigurationBundleV1 | TikTokLinkedConfigurationBundleV1
+    ]
+    | None
+):
     """Manifest digest pins bundle digest transitively; all-or-none explicit inputs."""
     if manifest_path is None and expected_manifest_digest is None and bundle_path is None:
         return None
@@ -102,7 +108,14 @@ def load_tiktok_execution_configuration(
         raise TikTokRuntimeConfigurationError("tiktok_execution_configuration_invalid")
     try:
         manifest = TikTokExecutionManifestV1.model_validate(_read(manifest_path, 16384))
-        bundle = TikTokConfigurationBundleV1.from_document(_read(bundle_path, 65536))
+        raw_bundle = _read(bundle_path, 65536)
+        bundle = (
+            TikTokLinkedConfigurationBundleV1.from_document(raw_bundle)
+            if isinstance(raw_bundle, dict)
+            and raw_bundle.get("schema_version")
+            == "inlet.tiktok-linked-push-configuration-bundle.v1"
+            else TikTokConfigurationBundleV1.from_document(raw_bundle)
+        )
         if not hmac.compare_digest(manifest.digest(), expected_manifest_digest):
             raise ValueError("manifest digest")
         if not hmac.compare_digest(bundle.digest(), manifest.configuration_bundle_digest):

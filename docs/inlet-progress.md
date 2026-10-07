@@ -6430,3 +6430,20 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   combined cohort; it is not pass evidence. No production edits after063243c;
   independent source review of that exact head reported no actionable finding.
   Genuine TLS remains owned by customer_signin. No Full, remote or live actions.
+## 2026-10-07 — Standalone TikTok Discovery Parser
+
+- Isolated `codex/inlet-tiktok-native-discovery-parser` from `01d238a1446be85636ab420fc52f6bfd5556b315`.
+- Added strict versioned pure identity/pixel request and observation parsers. Unknown,
+  absent and null remain distinct; deprecated events retained; duplicate known IDs
+  and known ownership contradictions rejected. Pixel/event ID scalar types stay
+  explicitly unverified. Every result is page-only, pagination-unverified and grants
+  no publication or spending authority.
+- Existing social catalog/publication/runtime source and bytes untouched. No provider
+  calls, database changes, Full, remote actions or live qualification.
+- Focused parser + existing TikTok runtime/social publication contracts: **100 passed
+  in 0.46s**. Initial parser-only run: 61 passed; subsequent additions cover reviewer
+  requests for deprecated events, duplicates and incomplete page-count metadata.
+- Whole repository Ruff passed; configured mypy passed all 830 source files; `git diff --check` passed.
+- Next: independently review this parser; implement separately owned bounded native
+  collector and linked-identity contract only after shared interfaces are approved.
+  See [frozen parser interface and evidence limits](design/tiktok-native-discovery-parser-v1.md).

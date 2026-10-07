@@ -202,3 +202,70 @@ Ruff, mypy820 and baseline diffcheck passed. Log: `inlet-v2-api-contract-integra
 Actual V2 runtime/routes and UI remain work in progress; no actual handoff journey is
 claimed by this pure contract result. The startup diagnostic separately awaits the
 owner's one-time action; it has not been dispatched or duplicated by the executor.
+
+## Completed Configured V2 Customer Handoff
+
+Backend `063243c`, additional authority regressions `685e791`, and UI/TLS delivery
+`4d9a928` are integrated at product head
+`88f4ba50b879b3faab73603e8f0bb766efa4eebd` on `codex/inlet-next-integration`.
+This completes the bounded Meta campaign-owned DAILY USD handoff through the
+configured API and customer pages. It does not extend live provider qualification.
+
+The customer reads existing separately consented execution limits, explicitly
+selects a mandate, and requests an exact review. Both mandates must retain the same
+ledger, account set, period, currency and total cap; execution limits cannot exceed
+planning limits. Fresh native semantic and financial checks precede atomic
+review/link/0081 proof persistence. V2 preview bytes remain non-authorizing.
+The customer then opens the ordinary review and separately approves it. Existing
+run/claim/dispatch/readback controls remain responsible for execution.
+
+Original-session, source, goal, profile and proof checks guard forward operations.
+Lost-response replay returns the same review; missing proof or erased preview cannot
+recreate authority or fall back to V1/manual behavior. Retraction preserves retained
+history and unknown-result financial holds and permits historical reconciliation.
+
+Validation actually completed:
+
+- Root backend/V1/storage integration at `01d238a`: **60 passed, 1 expected SQLite
+  concurrency skip**, exit0. Actual PostgreSQL cases ran. Quiet progress and exit
+  file determine counts; elapsed duration was not captured. Log:
+  `inlet-v2-runtime-integration.log`.
+- Author backend cohorts cover **26 distinct SQLite/PostgreSQL API cases**.
+  The first10 and next8 overlap by2; a further10 cover source/goal drift during
+  provider IO, altered digest, another original session and atomic final-guard
+  rollback. A duplicate compatibility run was canceled, not counted as passing.
+- UI author's composed cohort: **15 passed in84.63s**:3 frontend,4 configured
+  V2 HTTPS,8 V1 planning/budget HTTPS. Its retained summary explicitly is not a
+  raw stdout log. Initial two harness failures were corrected without weakening
+  production behavior or assertions.
+- Exact integrated product head `88f4ba5`: **7 passed in36.39s**, no skips, covering
+  frontend and configured V2 HTTPS on both databases. Log:
+  `inlet-v2-ui-integration.log`. The browser makes a fresh preview and explicit
+  selection/handoff/approval; assertions verify exact amount/proof, distinct
+  mandates on one ledger, zero attempts/reservations/provider writes at approval.
+- Whole-repository Ruff, `mypy app tests` (**825 source files**), Node syntax for
+  both affected product modules and diff check passed on the integrated head.
+- Independent read-only authority review of exact `063243c` found no actionable
+  finding; root also reviewed the UI and additional test changes. The reviewer
+  did not claim an independent test run.
+
+Evidence and terminal metadata are retained under the October7 executor evidence
+directory with SHA256 checksums. The10:50 disconnect notice did not interrupt
+execution: commands and original active test-session polling succeeded at10:51,
+and both integration runs subsequently completed. No new Full, hosted dispatch,
+remote push/merge, deployment or live advertising operation occurred.
+
+## Next Package And External Status
+
+The [rendered TikTok tables](design/tiktok-rendered-response-contract-20261007.md)
+resolve the former owner-export documentation blocker. The standalone discovery
+parser package is underway in isolation; publication eligibility remains separate,
+especially the2026 Custom Identity transition. Existing v1 catalog/creative bytes
+remain unchanged. Unconfirmed ID scalar shape is retained explicitly rather than
+coerced into a qualified publication identifier. Candidate/session composition
+proposal `08192aa` remains a future reviewed design, not implemented behavior.
+
+The owner-run startup diagnostic still awaits the owner's action. Frozen Full
+candidate `9450aa4` and draft PR130 are unchanged. This next integration branch is
+local and has not replaced that candidate. No merge/deployment authority is inferred
+from offline API or browser acceptance.

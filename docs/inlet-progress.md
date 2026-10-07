@@ -6743,3 +6743,23 @@ unavailable and is not inferred from this operation evidence.
   advancement at1801s/7200s plus ordinary actual configured publication now pass
   both databases:10passed18.37s with durations20. WholeRuff/mypy857/diffcheck pass.
   Final successor is required alongside2cdc; no schema/interface or live changes.
+
+### Customer Google Budget Observation UI — Local Package
+
+- Isolated `codex/inlet-envelope-customer-ui` from `7f10a42`, consuming frozen backend
+  `2655940`. Saved execution now offers an explicit read-only Google Budget Observation.
+  Unsupported runs/default-off returns truthful unavailable; no inferred eligibility.
+- Separately displays original/current native total and recorded reservation, with fixed
+  financial-unqualified/no-release captions. Strict response/run/environment/expiry checks;
+  clears stale run/workspace/session/logout and delayed ABA responses, including local expiry.
+  No automatic native reads, polling or new advertising mutation.
+- Actual configured creation/capture then actual HTTPS login/API/vault/MockHTTP on both DBs:
+  final new tests **3 passed in 9.45s**, exact two-read wire count/no holds changed.
+  Existing configured all-three-provider creation+activation HTTPS compatibility:
+  **6 passed, 30 deselected in 123.53s**. Both commands used `--durations=20`.
+  Whole Ruff/mypy **869 files**, Node syntax and diff clean. Evidence:
+  `docs/inlet-google-envelope-ui.md`, `/tmp/inlet-envelope-ui-final.log`,
+  `/tmp/inlet-envelope-ui-compat.log`. No Full, remote, live or preview artifacts.
+- Independent Shopify0082 review also closed at `512df29`: reproduced late-authority
+  publication commit leak (both DBs), author savepoint+post-final-check deadline repair,
+  independent final regressions **2 passed in 5.31s**. No reviewer source edits.

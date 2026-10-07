@@ -90,7 +90,7 @@ def test_initial_is_not_prior_action_learning_or_execution_authority() -> None:
         CandidateEvidence.model_validate_json(result.evidence.model_dump_json())
 
 
-@pytest.mark.parametrize("case", ["stale", "actions", "quantum", "partial", "policy"])
+@pytest.mark.parametrize("case", ["stale", "actions", "quantum", "partial", "policy", "windows"])
 def test_existing_authority_and_precision_bounds(case: str) -> None:
     observation, rule, mandate, now = fixture()
     actions = 0
@@ -111,6 +111,14 @@ def test_existing_authority_and_precision_bounds(case: str) -> None:
             update={
                 "state": observation.state.model_copy(
                     update={"complete": False},
+                )
+            }
+        )
+    elif case == "windows":
+        observation = observation.model_copy(
+            update={
+                "evidence": observation.evidence.model_copy(
+                    update={"training_windows": 0},
                 )
             }
         )
@@ -153,3 +161,30 @@ def test_operational_evidence_rejects_false_claims(field: str, value: object) ->
     data[field] = value
     with pytest.raises(ValidationError):
         InitialReportedRuleEvidenceV1.model_validate(data)
+
+
+def test_semantic_key_survives_report_and_policy_refresh_but_binds_native_owner() -> None:
+    from app.initial_planning.automatic_keys import opportunity_key
+
+    observation, _, _, _ = fixture()
+    scope = observation.scope
+    key = opportunity_key(scope)
+    refreshed = scope.model_copy(
+        update={
+            "goal_revision": scope.goal_revision + 1,
+            "goal_digest": "e" * 64,
+            "source": scope.source.model_copy(update={"publication_revision": 99}),
+            "mandate": scope.mandate.model_copy(update={"revision": 9, "policy_digest": "f" * 64}),
+        }
+    )
+    assert opportunity_key(refreshed) == key
+    changed_owner = scope.model_copy(update={"budget_owner_key": "another-owned-campaign"})
+    assert opportunity_key(changed_owner) != key
+    changed_ledger = scope.model_copy(
+        update={
+            "mandate": scope.mandate.model_copy(
+                update={"ledger_id": "f" * 32},
+            )
+        }
+    )
+    assert opportunity_key(changed_ledger) != key

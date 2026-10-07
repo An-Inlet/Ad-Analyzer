@@ -27,6 +27,7 @@ MODEL_MODULES = (
     "app.imports.models",
     "app.intelligence.models",
     "app.initial_planning.models",
+    "app.initial_planning.automatic_models",
     "app.initial_planning.budget_mandate_models",
     "app.production_runtime.optimization_origin_models",
     "app.initial_planning.review_models",

@@ -89,3 +89,28 @@ positive_changes_used_micros,actions_used,now) -> InitialReportedRuleCandidateV1
 No IO/commits in compiler or final reader. Scheduler adds only explicit new variants
 and typed dispatch to documents/service/review/configured session assembly after this
 package freezes; no generic proof callback or qualified_learning casting.
+
+## Expiry And Export Refinement
+
+Both candidate dependency tables additionally retain immutable `expires_at`, no later
+than the preview, calibration, all observations, and pending opportunity deadlines.
+Any raw pre-expiry deletion advances the workspace export revision; PostgreSQL
+always takes the NOWAIT workspace fence first. Actually DB-expired deletion uses
+UTC wallclock and may omit that counter increment because exports capture the earliest
+edge/pending deadline and recheck fresh DB/app time during delivery. This avoids
+making unchanged current campaign reports stale merely because short-lived derived
+work expired. Consumed origins are excluded from pending export deadlines; they are
+protected admission history, not retained expired report bodies.
+
+Existing retention ticks run a bounded independent origin/edge cleanup, even when
+planning capture is disabled. Semantic source/privacy erasure removes unused origins
+and the derived candidate graph; consumed minimal origin/admission references survive.
+
+The source runtime parameter is `InitialPreviewExecutionRuntime` (configured planning
+plus actual optimization runtime), so the existing `policy_pair` can revalidate the
+separate 0079 and 0080 consents. This is not a generic source callback or a fabricated
+financial qualification. `consume_origin(db, principal, work, decision, admission_id,
+clock)` is called after the actual admission flush and before creating the provider run,
+in the same workspace/ledger transaction. A trusted forward-review context will allow
+only that exact own consumed admission to continue; ordinary reads/Start still reject
+any prior budget/admission lineage.

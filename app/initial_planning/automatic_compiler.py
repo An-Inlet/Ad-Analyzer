@@ -57,6 +57,11 @@ def compile_initial_rule(
         reasons.append("fresh_observations_required")
     if not state.complete or state.unsupported_features or state.budget_owner.owner != state.target:
         reasons.append("complete_supported_campaign_owner_required")
+    if (
+        evidence.training_windows < policy.initial.minimum_training_windows
+        or evidence.holdout_windows < policy.initial.minimum_holdout_windows
+    ):
+        reasons.append("calibration_windows_required")
     if actions_used >= mandate.action_limit or min(actions_used, positive_changes_used_micros) < 0:
         reasons.append("cumulative_limits_unavailable")
     before = state.daily_budget_micros or state.lifetime_budget_micros or 0

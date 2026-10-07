@@ -134,3 +134,19 @@ Post-freeze compatibility on `9e3ea5a`:
 - Parent independently reviewed `9e3ea5a` UI and host-page integration: no concrete P1/P2;
   independently ran Node syntax and initial automation DOM successfully. Backend
   concurrency/financial acceptance and latency qualification remain separately tracked.
+
+## Unknown provider response through the actual customer page
+
+Test-only browser successor adds the provider-applied-but-unacknowledged case. The
+MockHTTP provider really updates the native budget, then raises ReadTimeout; its
+subsequent readback GET is unavailable. No execution/approval rows are seeded and no
+configured execution runtime is replaced. The actual HTTPS page starts the exact run,
+advances the configured worker, reads status, Stops, reads original-run history and
+signs out. Assertions retain the original attempt ID/fence, unknown receipt, held
+exposure obligation and actually applied native amount, with exactly one Start, one
+native POST, one admission/attempt/reservation and zero human approvals.
+
+`pytest -q tests/test_initial_automatic_browser.py -k unknown_provider_response --durations=2`
+passed **2** (SQLite/PostgreSQL), separately from the preceding 22 checks. Ruff,
+repository mypy (936 files) and diff checks passed after replacing an untyped mock
+return with an explicit Response type assertion. No product semantics changed.

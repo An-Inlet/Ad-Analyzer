@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import httpx
 import pytest
 import uvicorn
 from app.api import customer_session_automation
@@ -40,7 +41,9 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.v2_execution_fixture import ready
 
 
-@pytest.mark.parametrize("scenario", ["complete", "lost_start_response"])
+@pytest.mark.parametrize(
+    "scenario", ["complete", "lost_start_response", "unknown_provider_response"]
+)
 def test_initial_automatic_browser(
     customer_engine: Engine,
     configuration: Settings,
@@ -68,6 +71,18 @@ def test_initial_automatic_browser(
     alice, planning_root, execution_base, query, _, native_server, _, planning = ready(
         customer_engine, configuration, tmp_path, monkeypatch, replicas
     )
+    if scenario == "unknown_provider_response":
+        original_call = type(native_server).__call__
+        native_server.timeout = True
+
+        def unavailable_readback(server: Any, request: httpx.Request) -> httpx.Response:
+            if server is native_server and server.posts and request.method == "GET":
+                raise httpx.ReadTimeout("offline original readback unavailable")
+            response = original_call(server, request)
+            assert isinstance(response, httpx.Response)
+            return response
+
+        monkeypatch.setattr(type(native_server), "__call__", unavailable_readback)
     from app.publication.execution_models import (
         ProviderExecutionApproval,
         ProviderExecutionAttempt,
@@ -168,6 +183,7 @@ def test_initial_automatic_browser(
     completed = threading.Event()
     results = []
     start_requests = []
+    original_attempts: list[tuple[str, str]] = []
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
@@ -232,7 +248,11 @@ def test_initial_automatic_browser(
                         db, principal, replicas[2], settings
                     ) as runtime:
                         assert runtime
-                        return worker.advance(customer_engine, wid, run_id, runtime)
+                        outcome = worker.advance(customer_engine, wid, run_id, runtime)
+                    attempt = db.scalar(select(ProviderExecutionAttempt))
+                    assert attempt
+                    original_attempts.append((attempt.id, attempt.fence))
+                    return outcome
 
             from starlette.concurrency import run_in_threadpool
 
@@ -322,6 +342,18 @@ def test_initial_automatic_browser(
         assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
         assert db.scalar(select(SessionAutomationRun.state)) == "stopped"
         receipt = db.scalar(select(ProviderExecutionReceipt))
-        assert receipt and receipt.receipt["outcome"] == "verified_target_state"
+        expected = "unknown" if scenario == "unknown_provider_response" else "verified_target_state"
+        assert receipt and receipt.receipt["outcome"] == expected
+        attempt = db.scalar(select(ProviderExecutionAttempt))
+        assert attempt and original_attempts == [(attempt.id, attempt.fence)]
+        if scenario == "unknown_provider_response":
+            from app.publication.optimization_contracts import MetaBudgetSetV1, OptimizationRequest
+
+            request = OptimizationRequest.model_validate(attempt.request)
+            assert isinstance(request.intent.action, MetaBudgetSetV1)
+            assert int(native_server.meta_campaign["daily_budget"]) * 10_000 == (
+                request.intent.action.amount_micros
+            )
+            assert db.scalar(select(ProviderExposureReservation.state)) == "held"
     assert len(native_server.posts) == 1
     assert len(start_requests) == 1

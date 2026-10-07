@@ -23,6 +23,9 @@ Names and field groups below are proposed implementation contracts.
 - State: pending/running/completed/unavailable/cancelled/expired. `due_at`,
   `lease_token`, `lease_until`, `step_sequence`, bounded error_code, request-attempt
   counter, completed-request counter and conservatively charged response bytes.
+- `last_served_at` is scheduling metadata, updated on every claim or admission
+  deferral, including failure. Ordering uses COALESCE(last_served_at,created_at),
+  never a constant ancient timestamp for newly arriving jobs.
 - Nullable `publication_id`, valid only in completed state; terminal_at/cleanup_at.
   No numeric result in the job. Status reads resolve the owned publication normally.
 
@@ -169,9 +172,10 @@ never silently discard retained publication or hidden staging. Allocation awaits
   no-store; pending/phase/fixed error or existing owned publication projection.
 - POST `/commerce/acquisitions/{id}/cancel`: same authority/CSRF; atomically cancel
   and erase staging. Cancellation never deletes unrelated rolling imports.
-- `run_independent_acquisition_tick(engine, settings, identity, clock)` joins the
-  existing customer tick as a separate opt-in read stage, with master data-sync and
-  existing paid-work/workspace gates. No reuse of a global principal or credential.
+- `run_independent_acquisition_tick(engine, settings, identity, clock,
+  monotonic_clock, stop_requested)` performs the multi-claim round-robin described
+  below, with master data-sync and existing paid-work/workspace gates. No reuse of
+  a global principal or credential.
 
 Required server configuration supplies technical capacity/backoff/tick budgets;
 customers do not set those. Actual tests inject only the low-level HTTP transport,
@@ -191,3 +195,91 @@ no qualified evidence/direction/automatic registration and no advertising writes
 This is a concrete operational acquisition package. Store-wide snapshot assurance,
 settlement, calibrated recommendation qualification and authoritative action timing
 remain separate, unproved facts. No implementation or tests run for this proposal.
+
+## Cadence Correction And Bounded Round-Robin Freeze
+
+Actual scheduler inspection: `google_ads_scheduler._run_analysis_tick` calls
+`run_customer_tick` after the legacy cycle and other source operations. The loop
+then waits `sync_interval_minutes`: **default 60 minutes, allowed minimum 5**.
+The shipped .env.example also uses 60. Thus a newly enqueued 30-minute job can expire
+before its first tick. Repeating steps within that hourly tick does not fix this.
+Do not alter the advertising scheduler interval or extend acquisition deadlines.
+
+Proposed necessary entrypoint: an explicitly enabled, standalone
+`python -m app.jobs.commerce_acquisition_worker` serving the **same** leased jobs
+through `run_independent_acquisition_tick`. It is a read worker, not an advertising
+executor, second queue or new proof registry. Importing its module starts nothing;
+missing/false acquisition setting returns disabled without constructing transport.
+It supports bounded once mode for tests/operations and a signal-aware recurring
+loop. Production deployment must explicitly start this worker; configuration is
+not a claim the process is running. The existing hourly scheduler is unchanged.
+If root additionally wants a customer-tick call, it may share this exact function;
+leases prevent duplicate accepted steps, but its hourly cadence is not the delivery
+promise. Dedicated-runner reachability is part of acceptance, not future setup.
+
+Required server execution profile (no implicit throughput defaults):
+poll_interval_seconds (1..60), tick_time_budget_seconds (1..30),
+tick_request_budget (1..256), tick_workspace_budget (1..100),
+step_io_timeout_seconds (0.1..5), and bounded backoff/lease values compatible with
+that timeout. Tick time includes local work and authority checks, not only HTTP.
+An example profile for offline tests is interval10s/time10s/requests100/workspaces20/
+IO2s; these example numbers are not deployed policy or a measured capacity promise.
+Configuration admission requires step IO timeout <= tick time budget and
+`3 * (poll_interval_seconds + tick_time_budget_seconds) < lifetime_seconds`,
+conservatively allowing three separate tick opportunities for even an empty scan's
+authority/order-page/authority sequence. Otherwise the API and runner report
+`acquisition_worker_cadence_unavailable` before enqueue/HTTP. This is only a minimum
+configuration sanity check; competition and actual latency can still cause expiry.
+Hourly scheduling cannot be selected as this worker's configured cadence.
+
+Each tick samples one monotonic end deadline and one request counter. It selects a
+bounded batch ordered by oldest COALESCE(last_served_at,created_at), then job ID,
+with a 500-row ceiling plus truncation probe. At most one eligible job per workspace
+enters a round. A fresh ready query after the round gives other workspaces a turn;
+already served workspaces may re-enter only after that round completes. Each claim
+commits last_served_at even if its authority/transport is unavailable, with an
+appropriate due_at, so it cannot monopolize the next tick's selection. An active
+lease is skipped rather than waited on. Workspace/source locks use bounded waits;
+a contended store is deferred without holding up unrelated rows indefinitely.
+
+Continue rounds until request budget, workspace selection budget, monotonic time
+budget or stop request is reached. Workspace budget counts distinct workspaces,
+not rounds; a lone ready store can use multiple requests per tick. A high-latency
+store gets only one step per round and at most the configured short IO wait before
+the next workspace. No sleep or provider retry loop occurs inside a tick. Persisted
+last-served ordering carries fairness across ticks even when the time budget ends
+mid-round. Backoff jobs remain excluded until due. Constant arrival of new jobs
+does not sort them ahead of older waiting jobs merely because last_served is NULL.
+
+Before each claim use the minimum of remaining tick time, remaining fixed scan
+deadline and step IO timeout. Do not start an HTTP operation if the remaining
+budget cannot accommodate its minimum admitted step. Recheck clocks after every
+blocking local operation and before IO. Streaming checks stop further processing
+when time/bytes are exhausted; a currently blocked IO can take its bounded timeout
+to return. Do not describe a cooperative deadline as proof a process terminated.
+Late responses still fail lease/sequence/deadline checks. The loop waits using its
+stop event only until the next configured poll; no busy loop or background task
+is started by the API. Capacity expiry remains an honest terminal result.
+
+### Supported Capacity Is Measured, Not The Order Cap
+
+For one agreement per non-test order and no extra sales pages, the existing wire
+shape needs roughly `2 + ceil(N/50) + 2N` HTTP calls (two authority checks, order
+pages, agreement plus order-check per order). For 2,000 orders that is **4,042**;
+two agreements per order gives **6,042**, before retries. At 0.5s per HTTP call,
+even the first case needs more than 30 minutes of network time alone. The 2,000
+default order cap is therefore a rejection ceiling, **not supported completion
+capacity**. Local guards, competing stores and polling gaps reduce throughput.
+
+Expose actual progress and fixed expiry. Test small stores completing through
+multiple ticks, large/slow stores reaching honest capacity/deadline unavailability,
+and no deadline extension. Do not promise a supported production store size until
+intended-environment measurements establish it. A rough configuration planning
+bound is calls-per-tick <= min(request_budget, floor(time_budget / measured_step)),
+shared among ready stores; it is not a guarantee. More capacity later requires a
+separately reviewed efficient/bulk strategy, not weaker completeness or retention.
+
+Additional mandatory tests: shipped recurring entrypoint with deterministic clock/
+stop event; at least two rounds in one tick; slow first tenant and healthy second;
+budget ending mid-round then fair next tick; admission exception/None and active
+lease; no extra request after stop/time/request limit; deadline fixed across restarts.

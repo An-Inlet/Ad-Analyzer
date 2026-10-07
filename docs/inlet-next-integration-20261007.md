@@ -552,3 +552,38 @@ and4post-fence browser checks is overlapping, not extra independent Full coverag
 
 Logs and terminal evidence are checksummed. This package remains outside failed
 frozen2476 Full; no new Full, hosted retry, live calls or deployment occurred.
+
+## Linked TikTok Customer Flow And Read Collectors — Assembled
+
+Author chain30d8b7d→494ec217, UI72b2df6/3e37c74 and independently reviewed
+VIDEO catalogue15b86e0/5934482 are assembled through9428d2d. The new owned TT_USER
+Push flow discovers named linked identities, displays exact video/cover/settings,
+requires explicit rights/visibility/post declarations, and retains separate mandate,
+paused-creation and activation approvals. Future CUSTOMIZED_USER creation is
+blocked; historical requests/readback and unknown reservations remain intact.
+BC publishing and existing-post Pull creation remain unavailable. The read-only
+VIDEO catalogue supports owned TT_USER/BC observations but does not establish
+publication eligibility, stable full history or spending authority.
+
+Independent backend authority/currentness/activation review and UI review closed.
+Root assembled cohort **109passed154.68s**, zero skips, one existing Alembic warning:
+actual linked HTTPS on SQLite/PostgreSQL, exact DOM/media, export and catalogue
+bounds/owned reads, existing Google envelope/Shopify acquisition HTTPS, and all
+three original Full failure IDs plus the combined repair suites. Whole Ruff,
+required mypy923, Node execution/linked syntax and diff passed. Tests use genuine
+owned local API/DB/worker/runtime paths with provider MockHTTP and explicit contract
+scenario evidence; they do not qualify live execution. One HTML conflict preserved
+the existing Google envelope panel and added only the linked-page navigation.
+Append-only progress conflicts retained both package histories.
+
+Compatibility test-only source4c1b05e integrated asb34d2f2, with132 author tests
+passing across coordinator/activation, producer/API, historical config/migration
+and16 real linked browser cases (all8 scenarios on both DBs). Root review found
+one additional direct consumer: historical social execution UI still expected
+future custom-identity success. Its focused fixture migration is pending; Full
+must wait for that corrected cohort. New linked actual journeys already verify
+future success, while old-schema tests must explicitly verify forward denial.
+
+No successor Full has started at this checkpoint. The old2476 result remains
+failed; hosted diagnostic is owner-pending. First automatic/repeat operational
+rule composition remains separate in-progress work, not part of this candidate.

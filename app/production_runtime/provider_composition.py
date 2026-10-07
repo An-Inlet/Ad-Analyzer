@@ -46,9 +46,13 @@ from app.production_runtime.tiktok_contracts import (
     TikTokExecutionEvidence,
     TikTokExecutionManifestV1,
     admit_tiktok_source,
-    registered_tiktok_evidence,
 )
-from app.production_runtime.tiktok_transport import tiktok_execution_transport
+from app.production_runtime.tiktok_contracts import (
+    registered_tiktok_evidence as registered_tiktok_evidence,
+)
+from app.production_runtime.tiktok_transport import (
+    tiktok_execution_transport as tiktok_execution_transport,
+)
 from app.publication.activation import ActivationRuntime
 from app.publication.activation_contracts import ActivationContext, ActivationRequest
 from app.publication.activation_review import ActivationReviewRuntime

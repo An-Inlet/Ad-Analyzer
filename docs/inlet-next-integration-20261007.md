@@ -139,3 +139,24 @@ Diagnostic-only `d50947c` is separate and has8 focused passes plus real local151
 decoding; no hosted fix is claimed. Next package is the
 [configured v2 preview/review bridge](design/configured-v2-preview-review-bridge.md),
 starting with shared pure interfaces. No migration is reserved yet.
+
+## V2 Review Interfaces And Standalone Import Repair
+
+Integrated `bea8f43` and `ba2e7dd` at `deaed5b4a56b60c5adbe3b9f9381aca92bd8ab2c`.
+A narrow inherited import cycle was removed by extracting the identical UTC clock
+into an import-neutral module; customer_runtime retains its original reexport and
+dataclass defaults. Fresh subprocess regressions verify standalone contract imports.
+The new frozen request/proof/native-match contracts preserve distinct consents and
+mandates, one shared ledger, native preview bytes and explicit absence of authority.
+Actual Meta MockHTTP codecs supply both sides of the semantic comparison.
+
+Combined pure/preview/configured-optimization integration passed **63 tests, zero
+skips, in 66.93 seconds**, exit0, including SQLite/PostgreSQL owned cases. Whole
+Ruff, mypy814 and baseline diffcheck passed. Log: `inlet-v2-contract-integration.log`.
+Root read review found no actionable issue. No routes, financial runtime registration
+or schema was added by these commits.
+
+Next isolated package reserves0081after0080 for owned immutable hash-only V2 proof
+storage, populated migration and lifecycle/export validation. No dependent route/UI
+implementation precedes its review. Hosted diagnostic and documentation research
+remain separate; no additional paid run or Full was launched.

@@ -41,9 +41,10 @@ passed; the hosted launch/navigation cause remains unproven.
 The retained [failure artifact](https://github.com/Konner-An-Inlet/Ad-Analyzer/actions/runs/37602978286/artifacts/11473856284)
 is `inlet-nested-validation-37602978286-1`, 174 bytes, expires October14 09:48:42 UTC,
 SHA256 `a57e0abeda9139e8de1664194aa9dc8806f1dff56c6c10647e15360f29cd57de`.
-Only artifact metadata and its successful upload are verified; archive contents
-were not downloaded or inspected. Decoded job logs and complete job/step/artifact
-metadata are retained under `/workspace/inlet-evidence/20261007`, with SHA256SUMS.
+The archive was subsequently downloaded through the GitHub artifact connector and
+its SHA256 verified. Its sole file, `summary.txt`, says `No nested JUnit report was
+produced.` It adds no browser startup facts. The ZIP, decoded job logs and complete
+job/step/artifact metadata are retained under `/workspace/inlet-evidence/20261007`, with SHA256SUMS.
 
 Hosted qualification is **not passed**. No duplicate qualification attempt has
 been launched. A separate offline diagnostic followup investigates the preflight

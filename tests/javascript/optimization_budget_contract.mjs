@@ -13,6 +13,7 @@ assert.equal(checkedPrepared(prepared,body.intent),prepared);
 for(const changes of [{selection:{...selection,account_id:10}},{total_cap_micros:130000000},{aggressiveness:'assertive'},{dispatch_qualified:true},{per_plan_cap_micros:130000000},{positive_change_cap_micros:40000000},{currency:'EUR'},{state:'executed'},{ends_at:prepared.starts_at},{policy_digest:''}])assert.throws(()=>checkedPrepared({...prepared,...changes},body.intent));
 const consent=consentRequest(prepared,selection);
 assert.deepEqual(consent,{selection,expected_revision:3,policy_digest:prepared.policy_digest,preparation_digest:prepared.preparation_digest});
+assert.deepEqual(consentRequest({...prepared,selection:{...selection,untrusted_proof:true}},selection),consent);
 assert.throws(()=>consentRequest(prepared,{...selection,option_id:'f'.repeat(64)}));
 assert.equal(checkedPrepared({...prepared,state:'active'},body.intent,prepared).state,'active');
 for(const changes of [{mandate_id:'f'.repeat(32)},{revision:4},{policy_digest:'f'.repeat(64)},{preparation_digest:'f'.repeat(64)}])assert.throws(()=>checkedPrepared({...prepared,...changes,state:'active'},body.intent,prepared));

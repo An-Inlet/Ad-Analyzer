@@ -19,5 +19,5 @@ export function checkedPrepared(value,intent,previous=null){
 }
 export function consentRequest(prepared,selection){
  if(!sameSelection(prepared?.selection,selection))throw new Error('Review the current target and spending mandate again.');
- return {selection:{...prepared.selection},expected_revision:prepared.revision,policy_digest:prepared.policy_digest,preparation_digest:prepared.preparation_digest};
+ return {selection:{goal_id:selection.goal_id,goal_revision:selection.goal_revision,account_id:selection.account_id,option_id:selection.option_id},expected_revision:prepared.revision,policy_digest:prepared.policy_digest,preparation_digest:prepared.preparation_digest};
 }

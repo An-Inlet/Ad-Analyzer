@@ -25,7 +25,7 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
 | B02–B04, B06 | Existing scoped identities, revocable sessions, atomic owner provisioning and owned imports/jobs preserved; goal progress and interpretation delivery receive current original-session fences | New PostgreSQL lock-order and interpretation/accounting regressions pass separately. Intended-environment identity/provider qualification remains. |
 | B07, B09 | Configured Google/Meta optimization catalog, credentials, draft budget mandate, explicit digest consent, exact review and readback are assembled; additive0080 provenance binds origin and is protected | Actual APIs and HTTPS customers use MockHTTP and fixture financial evidence. Native financial/qualification producers and approved operating policies remain absent; source registries are empty. |
 | B14–B16 | Ordinary configured Google and Meta creation/activation composition, and contract-test TikTok composition, now exist with private owned media and current session/source checks | Actual HTTPS tests cover separate review, unknown outcomes without replay and retained reservations. TikTok native identity/pixel discovery still needs verified parser code; no live qualification follows. |
-| B17 | Configured planning/reporting and native-budget previews exist, alongside versioned feedback and goal-progress work | The configured version2 preview still lacks a durable review bridge: review-status only accepts version1 and the review route depends on the old unavailable optimization getter. This is missing code, not an owner credentials decision. |
+| B17 | Meta fixed-window acquisition and worker routing, operational-as-of comparisons, bounded explained feedback, immutable current/history previews, configured planning/reporting and goal progress exist | The configured version2 preview still lacks a durable review bridge: review-status only accepts version1 and the review route depends on the old unavailable optimization getter. This is missing code, not an owner credentials decision. |
 | B18 | Named goal budget/aggressiveness, exact derived limits and separate consent now replace technical optimization controls; invalidated sessions clear customer state | Standalone configured journeys pass. Complete fresh-customer purchase→connections→planning→review composition remains to be completed and qualified. |
 | B19–B20 | Current migration integrity repairs, populated historical compatibility and focused configured customer journeys add offline coverage | Newest integration has no Full qualification yet; hosted preflight cause is unresolved. Intended alert delivery, complete environment/object recovery and unrelated real pilots remain unqualified. |
 
@@ -41,9 +41,16 @@ passes are not a claim that every newer package passed one aggregate run.
 2. Integrate the configured version2 initial preview with durable customer review,
    explicit versioned provenance, source/privacy retraction and historical recovery.
    Freeze shared interfaces before dependent implementation; preserve old hashes.
+   Reconcile initial-planning0079 and configured-optimization0080 origin contracts
+   explicitly; reported association must not become qualified learning.
 3. Implement genuine server-owned financial/qualification evidence producers and
    register only reviewed sources. Existing adapters and typed callbacks do not
-   prove complete liabilities, future exposure or eligibility. Policy/empirical
+   prove complete liabilities, future exposure or eligibility. Candidate selection,
+   review and session-automation runtime composition also remains unbound; the
+   manual configured runtime does not automatically supply those consumers.
+   Google/TikTok comparable selected-event feedback producers and strict v3
+   independent reconciliation/timing/directional sources remain separate code gaps.
+   Policy/empirical
    qualification decisions remain explicit, with no invented numerical defaults.
 4. Complete TikTok native identity/pixel catalog decoding after authoritative
    response evidence is supplied. [Exact missing code and evidence](design/tiktok-catalog-remaining-gap.md)

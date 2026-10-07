@@ -5506,3 +5506,40 @@ feedback migration check passed in 4.34 seconds.
 The original Full is still running on unchanged9396839; its results are not
 relabelled with these repairs. A subsequent frozen candidate must pass Full before
 the single authorized hosted qualification.
+
+### Combined Failure Cohort And Independent Review
+
+At exact `46d55660dc7fb924bbbd3f249243642f82676345`, all 21 identified
+failure cases were run together with the relevant candidate, feedback, owned
+outcome, provider coordinator and Google action-plan fixture consumers:
+**115 passed, 2 SQLite-only concurrency skips in 138.64 seconds**. Their
+PostgreSQL variants passed. JUnit case-ID comparison confirmed every one of the
+21 failing node IDs was present and passed. Evidence: `inlet-oct07-fixture-cohort`
+log/XML/coverage JSON under `/workspace/inlet-evidence/20261007`, with hashes.
+Independent read-only review of46d5566 against9396839 found no actionable issue
+or weakened product assertion; production code and runtime guards are unchanged.
+
+### Replacement Migration Historical Fixture
+
+The still-running frozen Full subsequently found a 22nd failure: the 0058
+replacement migration's current review producer inserted a later provenance
+column. Its exact reproduction failed. Preparing this graph at head then
+downgrading correctly refused to discard protected Google0066 completion
+evidence (**1 failed, 27 repeat-optimization consumers passed, 1 SQLite-only
+concurrency skip in 46.15 seconds**). That protected-evidence guard is unchanged.
+
+The final fixture stays at0058 and reuses the existing reflected historical review
+insert, which asserts all later authority markers are absent/unset. A test-local
+session supplies the two initial-preview discriminator values only after asserting
+those columns do not exist; it makes no SQL writes and leaves the actual forward
+owned-review guard in place. Existing explicitly historical candidate/session/
+Google-capture adapters remain. The empty0058 roundtrip and populated downgrade
+refusal are retained, now asserting the exact replacement ID set before and after
+refusal. No production fallback, evidence deletion or migration-policy weakening.
+
+Exact repaired PostgreSQL case: **1 passed in 4.55 seconds**. Whole-tree Ruff,
+mypy705 and diff checks passed. Failed/intermediate and final logs remain:
+`/tmp/inlet-oct07-replacement-{repro,fixed,historical,historical-fixed}.log`.
+All failures must be included in a final combined cohort on the repaired tree
+before one successor Full. Frozen9396839 has not yet reached terminal; no hosted
+qualification has begun.

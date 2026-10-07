@@ -133,3 +133,19 @@ it is production learning or automatic first-decision authority. Two original
 sessions/tenants prove resource/credential isolation and closure; revoke during IO,
 goal/source/profile drift and badpins deny; failedfirst tenant doesn'tstarvesecond.
 Preserve manual/V2 tests and retained financial reconciliation semantics.
+
+## Approved Callable Correction And API Schema Freeze
+
+Bundle exposes `selection_for(binding: ProviderMandateBinding)` instead of a single
+selection field: TargetReader lacks the mandate argument and the first catalog read
+precedes the source-fence callback. Capturing the resolved per-intent binding avoids
+reconstructing the financial period or guessing a mandate. Existing selection types
+are unchanged. Root approved this refinement.
+
+Concrete additive API schemas are in optimization_candidates/customer_contracts.py.
+CandidateReadIntent accepts only mandate ID/revision and CandidatePolicyRef;
+CandidateCapabilities exposes bounded named policies/mandates and explicit
+first_decision_producer_unavailable. CandidateReadPrepared returns existing selected
+batch and job IDs; CandidateReadStatus returns owned progress and optional actual
+decision/result ID. CandidateReviewIntent remains existing exact result/digest input.
+No caller proof objects or execution authority fields are accepted.

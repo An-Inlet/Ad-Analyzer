@@ -10,7 +10,7 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
   `00c2de4f6fa5f02843e8f4ef8bebb81cbf79f9f3`. Every required local gate passed.
   Its single hosted attempt failed browser startup/navigation preflight before
   application tests. [Exact qualification and resource evidence](inlet-hosted-qualification-20261007.md).
-- **Newer local integration:** code merge `c7c54f3c887d3297ae732a087d7650f3259a909a`
+- **Newer local integration:** product head `88f4ba50b879b3faab73603e8f0bb766efa4eebd`
   adds the packages below. Focused package evidence is recorded in their ledgers;
   it does not inherit the older artifact's Full pass. Combined integration results
   belong in [the integration ledger](inlet-next-integration-20261007.md).
@@ -25,7 +25,7 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
 | B02–B04, B06 | Existing scoped identities, revocable sessions, atomic owner provisioning and owned imports/jobs preserved; goal progress and interpretation delivery receive current original-session fences | New PostgreSQL lock-order and interpretation/accounting regressions pass separately. Intended-environment identity/provider qualification remains. |
 | B07, B09 | Configured Google/Meta optimization catalog, credentials, draft budget mandate, explicit digest consent, exact review and readback are assembled; additive0080 provenance binds origin and is protected | Actual APIs and HTTPS customers use MockHTTP and fixture financial evidence. Native financial/qualification producers and approved operating policies remain absent; source registries are empty. |
 | B14–B16 | Ordinary configured Google and Meta creation/activation composition, and contract-test TikTok composition, now exist with private owned media and current session/source checks | Actual HTTPS tests cover separate review, unknown outcomes without replay and retained reservations. TikTok native identity/pixel discovery still needs verified parser code; no live qualification follows. |
-| B17 | Meta fixed-window acquisition and worker routing, operational-as-of comparisons, bounded explained feedback, immutable current/history previews, configured planning/reporting and goal progress exist | The configured version2 preview still lacks a durable review bridge: review-status only accepts version1 and the review route depends on the old unavailable optimization getter. This is missing code, not an owner credentials decision. |
+| B17 | Meta fixed-window acquisition and worker routing, operational-as-of comparisons, bounded explained feedback, immutable previews and the configured V2 durable review handoff exist | Actual API and HTTPS acceptance verifies separate0080 consent on the same ledger, exact review and separate approval. Reporting is not qualified learning; Google/TikTok comparable feedback and genuine independent directional producers remain separate gaps. |
 | B18 | Named goal budget/aggressiveness, exact derived limits and separate consent now replace technical optimization controls; invalidated sessions clear customer state | Standalone configured journeys pass. Complete fresh-customer purchase→connections→planning→review composition remains to be completed and qualified. |
 | B19–B20 | Current migration integrity repairs, populated historical compatibility and focused configured customer journeys add offline coverage | Newest integration has no Full qualification yet; hosted preflight cause is unresolved. Intended alert delivery, complete environment/object recovery and unrelated real pilots remain unqualified. |
 
@@ -38,11 +38,10 @@ passes are not a claim that every newer package passed one aggregate run.
 
 1. Diagnose hosted browser startup/navigation using bounded local evidence. Do not
    weaken decoding or retry hosted qualification merely because local probes pass.
-2. Integrate the configured version2 initial preview with durable customer review,
-   explicit versioned provenance, source/privacy retraction and historical recovery.
-   Freeze shared interfaces before dependent implementation; preserve old hashes.
-   Reconcile initial-planning0079 and configured-optimization0080 origin contracts
-   explicitly; reported association must not become qualified learning.
+2. Preserve the completed configured V2 review handoff and its0081 provenance in
+   the next assembled candidate. Exact integrated frontend/HTTPS7pass and prior
+   backend/V1/storage60pass1expectedskip are recorded in the integration ledger;
+   they do not constitute a new Full qualification.
 3. Implement genuine server-owned financial/qualification evidence producers and
    register only reviewed sources. Existing adapters and typed callbacks do not
    prove complete liabilities, future exposure or eligibility. Candidate selection,
@@ -52,9 +51,11 @@ passes are not a claim that every newer package passed one aggregate run.
    independent reconciliation/timing/directional sources remain separate code gaps.
    Policy/empirical
    qualification decisions remain explicit, with no invented numerical defaults.
-4. Complete TikTok native identity/pixel catalog decoding after authoritative
-   response evidence is supplied. [Exact missing code and evidence](design/tiktok-catalog-remaining-gap.md)
-   distinguish this from already implemented reporting and publication machinery.
+4. Complete TikTok native identity/pixel decoding, bounded owned collection and
+   configured runtime integration. [Rendered official tables](design/tiktok-rendered-response-contract-20261007.md)
+   now resolve the former owner-export request. Discovery alone does not qualify
+   publication, particularly during the2026 Custom Identity transition. Assess the
+   versioned linked-profile creative route without rewriting existing contract bytes.
 5. Complete coherent newest-artifact customer acceptance and relevant recovery
    coverage, followed by local/hosted qualification and separately authorized live
    configuration/pilots. No source fixture becomes production authority by a flag.

@@ -5634,3 +5634,17 @@ under `/workspace/inlet-evidence/20261007`. New product packages remain isolated
   clips on local Chromium151 and matching unprivileged Chrome154. Ruff, targeted
   mypy and diff clean. Initial targeted mypy command hit duplicate script module
   names; corrected `--explicit-package-bases` invocation passes two files.
+
+### Bounded hosted-startup follow-up investigation (2026-10-07)
+
+- Isolated child d509, no product/workflow changes. Matching Ubuntu24.04.5 and
+  Chrome154.0.8037.97 pass actual clips as unprivileged user with fresh HOME,
+  external container network disconnected, two-CPU quota and64MiB shared memory.
+  Successful startup emits the exact same DBus unknown-address error as hosted;
+  first GET0.259s/full decode0.462s. No local missing dynamic libraries found.
+- Hosted cause still unproven; runner kernel/image policies and exact Chromium
+  snapshot remain unmatched. Added [hypothesis matrix and proposal-only minimal
+  hosted startup check](design/hosted-browser-startup-diagnostic-proposal.md).
+  Single manual job≤5min, no installs/DB/Full, explicitly no codec qualification;
+  no workflow created, no remote action or paid dispatch. Prior d509 checks remain
+  applicable since this package changes documentation only.

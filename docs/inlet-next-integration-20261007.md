@@ -503,3 +503,30 @@ syntax checks and diff passed. Author's new3passed9.45s and all-three configured
 creation/activation6passed123.53s remain overlapping package evidence. Only appended
 progress documentation conflicted during cherry-pick; both histories were retained.
 Logs and terminal metadata are checksummed. This remains outside frozen2476 Full.
+
+
+## Frozen2476 Full — Terminal Failure And Combined Repairs
+
+The original immutable Full finished2026-10-07T13:36:50.029749Z, exit1, after
+6383.567407seconds overall. Head2476b87/tree6beebdd remained unchanged and clean.
+Its primary4961-node suite: **4881passed,77skipped,3failed,157warnings**,6198.77s.
+Exact failures:
+
+- `tests/test_campaign_performance.py::test_actual_0074_immutable_metadata_and_owned_reference[sqlite]`
+- `tests/test_campaign_performance.py::test_actual_0074_immutable_metadata_and_owned_reference[postgres]`
+- `tests/test_managed_infrastructure_configuration.py::test_production_configuration_validation_accepts_safe_managed_postgresql`
+
+Initial disposable reset and migration-to-head completed. The script stopped at
+pytest failure, so its subsequent Ruff/mypy/diff, PostgreSQL/migration-cycle and
+read-only/security/privacy/focused stages did **not** run on this frozen artifact.
+Separate successor checks are not retroactive Full credit. Terminal metadata,
+complete log, exit code and passive resource samples are checksummed; historical
+pending records remain historical. No quota or lost-run explanation is asserted.
+
+On clean successor19ff2fa, the campaign-performance, managed-startup and historical
+0081 suites were run together: **42passed27.69s**, zero skips, one existing Alembic
+path-separator warning. This includes all three failed node IDs plus nearby
+behavior/migration checks. Repairs93e5275/749b85b therefore pass the combined
+preflight alongside integrated0082. No new Full or hosted run was started. The
+next immutable candidate must include only reviewed passing packages, and record
+duration/JUnit instrumentation before launch without truncating coverage.

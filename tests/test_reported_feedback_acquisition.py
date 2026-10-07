@@ -35,9 +35,10 @@ def acquisition_fixture(
     monkeypatch: pytest.MonkeyPatch,
     *,
     period_end: datetime | None = None,
+    existing: tuple[Any, ...] | None = None,
 ) -> Any:
-    wid, principal, provider, runtime, intent, progress, clock, server = seeded(
-        db, config, path, period_end=period_end
+    wid, principal, provider, runtime, intent, progress, clock, server = (
+        existing if existing is not None else seeded(db, config, path, period_end=period_end)
     )
     config = config.model_copy(
         update={
@@ -51,7 +52,7 @@ def acquisition_fixture(
     job = db.get(ReportedFeedbackJob, progress.id)
     assert job is not None
     request = ReportedAcquisitionRequestV1.model_validate(job.document)
-    clock[0] = utc(job.next_due_at) + timedelta(seconds=1)
+    clock[0] = max(clock[0], utc(job.next_due_at) + timedelta(seconds=1))
     source = db.get(MetaConnection, job.source_connection_id)
     assert source is not None
     source.encrypted_credentials = Vault(config).seal(
@@ -63,6 +64,7 @@ def acquisition_fixture(
         },
     )
     db.commit()
+    external_account_id = source.external_account_id
     requests: list[tuple[str, dict[str, list[str]]]] = []
     control: dict[str, Any] = {"missing": False, "zero": False, "revision": 0}
 
@@ -74,7 +76,7 @@ def acquisition_fixture(
             query = parse_qs(parsed.query)
             requests.append((parsed.path, query))
             if parsed.path.endswith("/campaigns"):
-                payload = page(campaign("5", "123"))
+                payload = page(campaign("5", external_account_id))
             elif parsed.path.endswith("/adsets"):
                 payload = page()
             else:
@@ -96,7 +98,7 @@ def acquisition_fixture(
                 payload = page(
                     *[
                         insight(
-                            account_id="123",
+                            account_id=external_account_id,
                             campaign_id="5",
                             date_start=d.isoformat(),
                             date_stop=d.isoformat(),

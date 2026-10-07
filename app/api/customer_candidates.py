@@ -30,7 +30,11 @@ from app.production_runtime.candidate_assembly import CandidateRuntimeBundle, co
 from app.publication import customer_intents, execution_mandates
 from app.publication.execution_models import ProviderExecutionMandate
 from app.publication.service import owner
-from app.reported_feedback.candidate_contracts import ReportedRuleCandidateV1, ReportedRuleWorkV1
+from app.reported_feedback.candidate_contracts import (
+    ReportedRuleCandidateV1,
+    ReportedRulePolicyV1,
+    ReportedRuleWorkV1,
+)
 from app.reported_feedback.candidate_source import current_comparison
 from app.reported_feedback.customer_contracts import basis_details
 from app.settings import settings
@@ -123,14 +127,23 @@ def capabilities(
             CandidatePolicyOption(
                 policy=CandidatePolicyRef(policy_id=p.policy_id, revision=p.revision),
                 label=(
-                    f"Budget step {Decimal(p.budget_step_micros) / 1000000:g} in account currency"
-                    if p.budget_step_micros is not None
-                    else "Budget step unconfigured"
-                )
-                + (
-                    f" · minimum {p.minimum_observations} observations"
-                    if p.minimum_observations is not None
-                    else " · observation minimum unconfigured"
+                    (
+                        "Reported-efficiency rule · maximum nominal adjustment "
+                        f"{Decimal(p.feedback_policy.maximum_preview_delta_micros) / 1000000:g}"
+                        " in account currency"
+                    )
+                    if isinstance(p, ReportedRulePolicyV1)
+                    else (
+                        f"Budget step {Decimal(p.budget_step_micros) / 1000000:g}"
+                        " in account currency"
+                        if p.budget_step_micros is not None
+                        else "Budget step unconfigured"
+                    )
+                    + (
+                        f" · minimum {p.minimum_observations} observations"
+                        if p.minimum_observations is not None
+                        else " · observation minimum unconfigured"
+                    )
                 ),
             )
             for p in policies[:20]

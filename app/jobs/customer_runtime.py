@@ -185,5 +185,13 @@ def run_customer_tick(
 
         stage("candidate_reads", lambda: run_configured_candidate_reads(engine, configuration))
     if configuration.customer_session_automation_enabled:
-        stage("session_automation", lambda: run_session_automation(engine, automation_factory))
+        if automation_factory is get_session_automation_runtime:
+            from app.production_runtime.reported_automation import run_configured_session_automation
+
+            stage(
+                "session_automation",
+                lambda: run_configured_session_automation(engine, configuration),
+            )
+        else:
+            stage("session_automation", lambda: run_session_automation(engine, automation_factory))
     return outcomes

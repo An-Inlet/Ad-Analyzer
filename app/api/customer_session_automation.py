@@ -1,5 +1,6 @@
 """Owned CSRF-protected Start/Stop intents; no browser-supplied evidence or transport."""
 
+from collections.abc import Iterator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -34,7 +35,28 @@ from app.session_automation.runtime import SessionAutomationRuntime, get_session
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/execution/automation", tags=["customer"]
 )
-Runtime = Annotated[SessionAutomationRuntime | None, Depends(get_session_automation_runtime)]
+LegacyRuntime = Annotated[SessionAutomationRuntime | None, Depends(get_session_automation_runtime)]
+
+
+def get_customer_session_automation_runtime(
+    db: Database,
+    principal: Principal,
+    provider: Provider,
+    legacy: LegacyRuntime,
+) -> Iterator[SessionAutomationRuntime | None]:
+    if legacy is not None:
+        yield legacy
+        return
+    from app.production_runtime.reported_automation import configured_session_automation
+    from app.settings import settings
+
+    with configured_session_automation(db, principal, provider, settings) as runtime:
+        yield runtime
+
+
+Runtime = Annotated[
+    SessionAutomationRuntime | None, Depends(get_customer_session_automation_runtime)
+]
 
 
 def read_access(db: Database, principal: Principal, wid: int, response: Response) -> None:

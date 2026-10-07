@@ -6844,3 +6844,45 @@ Adverse baseline: `/tmp/inlet-rule-auto-actual.log` reproduced self-invalidation
 Twelve actual both-DB cases passed in `/tmp/inlet-rule-auto-negative.log` (slowest PostgreSQL automatic happy15.96s): manual/automatic success, revocation/capsule deletion/original latest unknown receipt before emission, unknown successor no replay and reconciliation after candidate erasure. A further exact policy revision/restart dedupe regression passed both DB in `/tmp/inlet-rule-auto-restart.log` (16.19s PostgreSQL,7.88s SQLite); the existing semantic admission remains one. Legacy API/automatic contracts plus reported comparison/service compatibility33 passed in `/tmp/inlet-rule-continuation-compat.log`. Commands used `pytest -q ... --durations=20` against the isolated per-test PostgreSQL schemas; no Full or qualification database touched. Whole Ruff/mypy901/diff clean.
 
 API Start now accepts the distinct reported request only for its matching registered policy/digest; legacy bodies cannot select it, and cross-basis fallback rejects. Capabilities emits the separate frozen option with explicit parameters/cadence/lifetime when such a runtime is actually provided. Pinned configured assembly and genuine configured HTTPS acceptance remain next; this checkpoint does not install any policy/source/runtime default or claim that assembly complete.
+
+### 2026-10-07 — configured operational repeat API and original-session worker
+
+On isolated `codex/inlet-learning-requirement-trace` after reviewed 7a89035,
+implemented pinned, separately discriminated reported-rule configuration and the
+ordinary request/worker assembly (`docs/design/reported-rule-configured-runtime.md`).
+Default source registration remains absent. Existing configured optimization
+qualification/origin/exposure/replacement gates are unchanged.
+
+Genuine API fixture starts with the actual 0080 customer mandate origin and first
+Meta HTTP operation, discovers campaign data through HTTP, requests the comparison,
+and acquires four reports through `run_meta_tick`. It then uses ordinary configured
+candidate/review and explicit automatic Start endpoints; no runtime getter override
+or execution/candidate row seeding. The rule changes the observed nominal budget
+45.00→44.75 under explicit fixture parameters. This is operational reported evidence,
+not qualified learning or production financial proof. Automatic admission creates
+zero new human approval rows and retains one linked held reservation.
+
+Checks (all local, disposable per-test SQLite/PG schemas, `--durations=20`):
+- `tests/test_configured_reported_rule_api.py`: 12 both-DB candidate/review and
+  Start success/session/capsule/source/unknown cases passed in
+  `/tmp/inlet-configured-reported-final.log`; slowest PG unknown 17.86s.
+- Added master-off and same-workspace revoked-session fairness cases: 4 passed,
+  `/tmp/inlet-configured-reported-fairness.log`; slowest PG fairness 6.10s.
+- Strengthened subsequent-due-tick fence/no-replay checks: affected 4 automatic
+  success/unknown cases passed, `/tmp/inlet-reported-configured-replay.log`;
+  slowest PG success 21.58s. Original attempt IDs/fences remain unchanged.
+- Reported/legacy configuration, legacy session API and original acquisition-helper
+  compatibility: 41 passed, `/tmp/inlet-reported-configured-compat2.log`.
+- Entire existing customer scheduler cohort: 32 passed,
+  `/tmp/inlet-reported-configured-scheduler.log`.
+- Whole Ruff, mypy (906 files) and diff check passed. No Full, hosted, live or
+  remote action. Dependent actual HTTPS UI qualification remains separate.
+
+Adverse invocation evidence retained: the first compatibility invocation named
+nonexistent `tests/test_customer_runtime.py`; it ran no tests and was corrected to
+`tests/test_customer_runtime_scheduler.py`. Early new-fixture failures concerned
+an invalid one-day policy (existing minimum is seven days), absent campaign import,
+response field names and the expected 0.25 rather than 1.00 adjustment. They were
+corrected in the fixture/assertions without loosening application gates. Configured
+origin checks correctly required actual 0080 consent rather than the earlier
+component fixture's direct-service mandate.

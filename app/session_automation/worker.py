@@ -34,7 +34,12 @@ def advance(engine: Engine, wid: int, identifier: str, runtime: SessionAutomatio
             # Original current authority is reloaded around selection's external reads.
             row, principal, policy, _ = service.current(db, wid, identifier, runtime)
             _, jobs = selection.enqueue_candidate_selection(
-                db, principal, wid, service.binding(row), policy.candidate_policy, runtime.selection
+                db,
+                principal,
+                wid,
+                service.binding(row),
+                policy.candidate_policy,
+                runtime.selected(service.binding(row)),
             )
             identifiers = [job.id for job in jobs]
             db.commit()

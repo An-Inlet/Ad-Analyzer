@@ -79,3 +79,33 @@ workspace-first retry and counter advancement.1 pass,1 expected SQLite row-lock 
 Pending timestamps are normalized to UTC before storage; real configured current-source
 checks pass2 cases again after that normalization. Scoped Ruff/mypy2 pass.
 Logs: `/tmp/inlet-initial-rule-retention-race.log`, `/tmp/inlet-initial-rule-utc.log`.
+
+## Unused Opportunity and Creation History Follow-up
+
+An unused opportunity whose original deadline has actually passed in the database can
+be replaced under the workspace fence by a new explicit valid basis, retaining the
+same semantic key. Active deadlines never extend, an ahead application clock cannot
+erase unexpired data, and consumed origins remain protected. The retention file passes
+7 cases with1 expected SQLite row-lock skip, including archive deadline non-revival,
+pre-expiry export revocation and PostgreSQL NOWAIT/retry.
+
+Actual five-step Meta campaign creation reproduced false initial-rule rejection on
+both databases when its attempts exhausted the bounded prior-budget-history scan.
+Known creation reviews are now excluded before the scan bound; missing or unknown
+schema/purpose stays subject to strict fail-closed parsing. Four both-database lineage
+cases pass after the repair: prior native budget attempts still block bootstrap across
+periods, while creation history leaves its real exposure reservation held and grants
+no financial execution authority. No automatic runtime registration changed.
+
+Logs: `/tmp/inlet-initial-rule-retention-followup.log`,
+`/tmp/inlet-initial-rule-creation-bound-baseline.log` (2 reproduced failures),
+`/tmp/inlet-initial-rule-creation-bound-fixed.log` (4 passing cases).
+
+The real setup is now reusable through
+`tests.initial_rule_fixture.configured_initial_rule(...)`, a context manager retaining
+the actual configured runtime and transport lifetime. It returns the original principal,
+provider, typed work/native observation, planning/policy/readers and API/server controls.
+It creates no candidate jobs or execution rows. The existing source tests retain their
+own explicit inert dependency-test job and all assertions. All10 SQLite/PostgreSQL
+source cases pass after extraction; scoped Ruff/mypy2 pass.
+Log: `/tmp/inlet-initial-rule-reusable-source.log`.

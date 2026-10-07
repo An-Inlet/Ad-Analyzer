@@ -217,3 +217,51 @@ non-quantized caps and unmapped names must deny. Rollback must leave neither an
 orphan draft nor sidecar. Verify customer UI never asks for technical operating
 knobs and no consent route accepts them. Fixture server policies explicitly supply
 every number. No execution enablement follows from installing this policy.
+
+## Implementation Freeze 1
+
+Actual strict models and bounded loader are in
+`app/initial_planning/budget_mandate_contracts.py` and
+`app/initial_planning/budget_mandate_configuration.py`.
+`BudgetMandatePreparedV1` is the customer response; preparation and consent return
+this projection, with consent state active. No technical inputs are added to UI.
+
+Concrete service signatures (implementation follows; no callable stubs):
+
+```
+prepare_budget_mandate(db: Session, workspace_id: int,
+    principal: CustomerPrincipal, provider: IdentityProvider,
+    body: PrepareBudgetMandateV1, runtime: InitialPlanningRuntime,
+    operating_policy: BudgetMandateOperatingPolicyV1 | None
+) -> BudgetMandatePreparedV1
+consent_budget_mandate(db: Session, workspace_id: int,
+    principal: CustomerPrincipal, provider: IdentityProvider, mandate_id: str,
+    body: ConsentBudgetMandateV1, runtime: InitialPlanningRuntime,
+    operating_policy: BudgetMandateOperatingPolicyV1 | None
+) -> BudgetMandatePreparedV1
+```
+
+The operating policy is supplied by a separate server dependency using the actual
+request engine's planning runtime. Never accept it from a request. API paths are
+POST `/api/customer/v1/workspaces/{workspace_id}/initial-planning/budget-mandates`
+and POST the same prefix `/{mandate_id}/consent`. Projection money caps and named
+aggressiveness suffice for the review; period is shown from the existing confirmed
+goal and must be rechecked against that exact revision before consent.
+
+Reserved migration `20261007_0079`, down `20261007_0078`: table
+`initial_budget_mandate_preparations`, columns workspace_id(Integer),
+mandate_id(String32), mandate_revision(Integer), policy_digest(String64),
+digest(String64), document(JSON). Primary key (mandate_id, mandate_revision),
+compound owned FK (mandate_id, mandate_revision, workspace_id) to
+provider_execution_revisions(mandate_id, revision, workspace_id), RESTRICT.
+Every scalar binds the strict versioned document; service additionally binds
+policy_digest to the actual referenced immutable revision. Reject UPDATE and
+DELETE of preparation rows with DB triggers; existing authority retention applies.
+Downgrade refuses any nonempty table, preserving prior records without synthesis.
+Registry classifies it as protected workspace authority; export uses bounded strict
+parsing and scalar/digest/revision binding, never a generic JSON pass-through.
+
+Pinning is per process configuration identity, not distributed revocation. Deploy
+new policy file/digest and profile coherently across workers; stale processes must
+be drained/restarted by deployment operations. No global hot reload or revocation
+claim follows from a settings change. Native-write qualification remains separate.

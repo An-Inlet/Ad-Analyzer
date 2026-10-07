@@ -287,7 +287,11 @@ class GooglePublicationHTTP:
                 {
                     "operations": [operation],
                     "validateOnly": True,
-                    "partialFailure": False,
+                    **(
+                        {}
+                        if collection == "conversionGoalCampaignConfigs"
+                        else {"partialFailure": False}
+                    ),
                 },
             )
         except GooglePublicationUnavailable:
@@ -307,7 +311,11 @@ class GooglePublicationHTTP:
                 {
                     "operations": [operation],
                     "validateOnly": False,
-                    "partialFailure": False,
+                    **(
+                        {}
+                        if collection == "conversionGoalCampaignConfigs"
+                        else {"partialFailure": False}
+                    ),
                 },
             )
             results = data.get("results")

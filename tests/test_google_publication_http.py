@@ -62,7 +62,11 @@ def test_actual_http_mocked_full_google_dag_validate_mutate_readback(total_budge
                 part.title() for part in current_table.split("_")[1:]
             )
             return httpx.Response(200, json={"results": [{key: expected_read}]})
-        assert body["partialFailure"] is False
+        if raw.url.path.endswith("conversionGoalCampaignConfigs:mutate"):
+            assert set(body) == {"operations", "validateOnly"}
+        else:
+            assert set(body) == {"operations", "validateOnly", "partialFailure"}
+            assert body["partialFailure"] is False
         if body["validateOnly"]:
             return httpx.Response(200, json={})
         assert len(body["operations"]) == 1

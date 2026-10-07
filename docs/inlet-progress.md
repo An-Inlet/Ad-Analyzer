@@ -6521,3 +6521,21 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   schema documented in [customer discovery API](design/tiktok-customer-discovery-api.md).
 - Remaining dependent acceptance: actual customer UI/TLS. No old social serializer,
   eligibility gate, schema, Full, remote or live-provider changes.
+
+### Read-Only TikTok Customer Discovery UI — 2026-10-07
+
+Local UI package follows frozen customer API `1fa24090ca0c58c613905f0769b560720cc2ca45`.
+The execution page explicitly loads owned TikTok accounts and reads named identity,
+pixel and event observations. Reported availability is not publication eligibility;
+missing events remain unknown, and bounded display truncation is visible. Session,
+workspace and local selection changes erase stale output. Existing approval and
+publication controls remain independent.
+
+Validation on the composed UI/API tree: actual configured HTTPS journey **2 passed**
+(SQLite/PostgreSQL), including exact seven-GET/no financial-builder checks and zero
+provider writes or financial graph records. Focused frontend/contracts plus existing
+configured TikTok complete-publication browser compatibility **13 passed**. Whole
+Ruff, scoped mypy (2 UI test files), Node syntax, and `git diff --check` passed.
+No Full, remote action, screenshot, live call, or runtime getter override was used.
+See `docs/inlet-tiktok-discovery-ui.md`. Publication qualification and Business Center
+selection remain separate unavailable capabilities; this feature grants neither.

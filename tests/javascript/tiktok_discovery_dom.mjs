@@ -14,6 +14,11 @@ for(const account of ['0','1.2','native-id','9007199254740992'])assert.throws(()
 assert.throws(()=>discoveryIntent('7','bad'));
 assert.equal(checkedDiscovery(observed,intent),observed);
 for(const change of [{account_id:8},{spending_authority:'approved'},{publication_eligibility:'eligible'},{event_count:false},{display_truncated:true},{identity_count:21},{observed_ended_at:'2026-10-06T00:00:00Z'},{pixels:[{...observed.pixels[0],events_count:0}]}])assert.throws(()=>checkedDiscovery({...observed,...change},intent));
+const truncated={...observed,identity_count:21,identities:Array.from({length:20},()=>observed.identities[0]),identities_display_truncated:true,display_truncated:true};
+assert.equal(checkedDiscovery(truncated,intent),truncated);
+const unavailable={...observed,status:'unavailable',reason:'business_center_selection_unavailable',environment:null,collection_completeness:'not_observed',identity_count:null,pixel_count:null,event_count:null,observed_started_at:null,observed_ended_at:null,identities:[],pixels:[]};
+assert.equal(checkedDiscovery(unavailable,intent),unavailable);
+assert.throws(()=>checkedDiscovery({...unavailable,identity_count:0},intent));
 const calls=[];let workspace='1',signed=true,release=null,hold=false,response=observed;
 const controller=tiktokDiscovery({state:()=>({workspace,signed}),guarded:async fn=>{try{await fn();}finally{controller.enable(false);}},api:async(path,method,body)=>{calls.push({path,method,body});if(path.endsWith('/accounts'))return {complete:true,accounts:[{id:7,name:'Brand',platform:'tiktok_ads'},{id:8,name:'Other',platform:'meta_ads'}]};if(hold)await new Promise(r=>release=r);return response;}});
 controller.reset();controller.enable(false);assert.equal(calls.length,0);

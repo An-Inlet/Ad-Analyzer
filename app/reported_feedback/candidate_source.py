@@ -169,6 +169,8 @@ def assert_reported_rule_current(
     """Final original evidence check; never refresh a result's persisted lifetime."""
     wid = work.scope.account.workspace_id
     lock_customer_mutation(db, principal, wid, provider)
+    owner(db, wid, principal.user.id)
+    source_current(db, work.scope, principal.user.id)
     row = db.get(ReportedActionComparison, work.comparison_id, populate_existing=True)
     job = db.get(ReportedFeedbackJob, row.job_id, populate_existing=True) if row else None
     if row is None or job is None or row.workspace_id != wid:

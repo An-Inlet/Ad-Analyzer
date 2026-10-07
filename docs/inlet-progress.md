@@ -6814,3 +6814,11 @@ SQLite; explicit 0083 predecessor handling repaired both. Final historical
 0077/0074 cohort: 7 passed, one SQLite-only Alembic skip. Whole Ruff, mypy
 (893 files) and diff checks passed. The 0083 fixture correction also covers the
 previous Full's exact 0074 test on both databases. No Full/remote/live run.
+
+Independent source review follow-up: the final rule helper previously depended
+on its future caller to repeat the commerce source fence. Two controlled source
+revision drift tests reproduced acceptance on both databases. The helper now
+checks owner and exact current commerce source itself after the original-session
+workspace fence. All six source/final-wait/source-drift cases pass; no financial
+admission or production source registration changed. Baseline/fixed logs:
+/tmp/inlet-reported-source-final-before.log and -after.log.

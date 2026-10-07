@@ -68,3 +68,40 @@ def test_final_authorization_wait_cannot_extend_report_lifetime(
         with pytest.raises(HTTPException, match="reported_rule_current_evidence_unavailable"):
             read_reported_rule(db, principal, identity, work, observation, lambda: clock[0])
         assert checks == 2
+
+
+def test_final_rule_guard_rejects_changed_commerce_source(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.commerce.models import CommerceStore
+    from app.reported_feedback.candidate_contracts import ReportedRuleCandidateV1
+    from app.reported_feedback.candidate_source import assert_reported_rule_current
+
+    with Session(customer_engine) as db:
+        principal, identity, work, observation, clock, _, _ = ready_reported_rule(
+            db, configuration, tmp_path, monkeypatch
+        )
+        current = read_reported_rule(db, principal, identity, work, observation, lambda: clock[0])
+        # A non-emitting document isolates the final guard from financial admission.
+        decision = ReportedRuleCandidateV1(
+            scope=work.scope,
+            policy_digest=work.policy.digest(),
+            state_digest=observation.state.digest(),
+            evidence_digest=current.evidence.digest(),
+            evidence=current.evidence,
+            status="blocked",
+            reasons=("fixture_no_admission",),
+            action=None,
+            nominal_before_micros=45_000_000,
+            observed_at=clock[0],
+            expires_at=current.evidence.expires_at,
+        )
+        store = db.get(CommerceStore, work.scope.source.store_id)
+        assert store
+        store.revision += 1
+        db.commit()
+        with pytest.raises(HTTPException, match="candidate source changed"):
+            assert_reported_rule_current(db, principal, identity, work, decision, lambda: clock[0])

@@ -2,7 +2,10 @@
 
 Status: 2026-10-07, backend06e1a82 plus explicit-vault followup7a35202.
 This clarification uses the [retained first-party evidence check](tiktok-catalog-response-evidence.md);
-no new research, provider access or live verification was performed. TikTok remains
+The [October7 official-source recheck](tiktok-list-response-recheck-2026-10-07.md)
+adds partial pixel mapping/page-size evidence and narrows the minimal handoff. This
+original clarification itself performed no new research, provider access or live
+verification. TikTok remains
 in launch scope. The gap is native discovery of publication configuration, not a
 missing TikTok integration as a whole.
 

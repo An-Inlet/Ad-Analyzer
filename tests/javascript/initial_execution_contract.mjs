@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {executionOptions,executionIntent,checkExecutionPrepared,periodText,unavailableText} from '../../app/portal/static/initial-execution.mjs';
+const preview={id:'a'.repeat(32)};
+const option={mandate_id:'b'.repeat(32),mandate_revision:3,policy_digest:'c'.repeat(64),account_label:'Brand <script>',target_label:'Existing Campaign',currency:'USD',time_zone:'America/New_York',starts_at:'2026-10-01T04:00:00Z',ends_at:'2026-11-01T04:00:00Z',total_cap_micros:100000000,per_plan_cap_micros:10000000,positive_change_cap_micros:1000000};
+const response={schema_version:'inlet.initial-preview-execution-options.v1',preview_id:preview.id,preview_digest:'d'.repeat(64),options:[option],truncated:false,status:'available',unavailable_reason:null,financial_qualification:'not_checked',spending_authority:'none'};
+const checked=executionOptions(response,preview);response.options[0].total_cap_micros=200000000;assert.equal(checked.options[0].total_cap_micros,100000000);
+assert.match(periodText(option),/01 Oct 2026, 00:00.*01 Nov 2026, 00:00.*end excluded.*America\/New_York/);
+const intent=executionIntent(checked,'0');assert.deepEqual(intent,{expected_preview_digest:checked.preview_digest,mandate_id:option.mandate_id,mandate_revision:3});
+for(const index of ['','-1','01','1','Infinity'])assert.throws(()=>executionIntent(checked,index));
+for(const changes of [{preview_id:'e'.repeat(32)},{preview_digest:''},{financial_qualification:'qualified'},{spending_authority:'approved'},{status:'unavailable'},{unavailable_reason:'unknown'},{truncated:null},{options:[option,option]}])assert.throws(()=>executionOptions({...checked,...changes},preview));
+for(const changes of [{currency:'EUR'},{total_cap_micros:NaN},{per_plan_cap_micros:300000000},{positive_change_cap_micros:Infinity},{starts_at:option.ends_at},{time_zone:'invalid'},{policy_digest:''},{mandate_revision:0}])assert.throws(()=>executionOptions({...checked,options:[{...option,...changes}]},preview));
+for(const reason of ['execution_runtime_unavailable','separate_execution_consent_required','matching_execution_mandate_unavailable']){const result=executionOptions({...checked,options:[],status:'unavailable',unavailable_reason:reason},preview);assert.equal(result.options.length,0);assert.ok(unavailableText(reason).length>30);}
+const prepared={schema_version:'inlet.initial-preview-execution-prepared.v1',preview_id:preview.id,preview_digest:intent.expected_preview_digest,review_id:'e'.repeat(32),review_digest:'f'.repeat(64),plan_digest:'a'.repeat(64),execution_mandate:{mandate_id:intent.mandate_id,revision:3,policy_digest:option.policy_digest},status:'review_required',spending_authority:'none'};
+assert.equal(checkExecutionPrepared(prepared,preview,intent,option),prepared);
+for(const changes of [{preview_id:'b'.repeat(32)},{preview_digest:'f'.repeat(64)},{status:'approved'},{spending_authority:'granted'},{execution_mandate:{...prepared.execution_mandate,revision:4}},{execution_mandate:{...prepared.execution_mandate,policy_digest:'f'.repeat(64)}}])assert.throws(()=>checkExecutionPrepared({...prepared,...changes},preview,intent,option));

@@ -5678,3 +5678,13 @@ under `/workspace/inlet-evidence/20261007`. New product packages remain isolated
   registration/ref semantics. No push, merge, dispatch, paid run or Full; no retry
   of any denied shell route. Exact runtime pins and authorization boundary are in
   the [proposal](design/hosted-browser-startup-diagnostic-proposal.md).
+- Final qualification: all fourteen startup-specific cases passed (2.10s), all
+  eleven routing cases passed (0.12s), and all sixteen required PowerShell cases
+  passed (9.68s). Whole Ruff and configured mypy (**707 source files**) pass;
+  standalone preflight/diagnostic mypy (**two files**) and diff check pass. Logs:
+  `/tmp/inlet-startup-cli-final-tests.log`,
+  `/tmp/inlet-ci-startup-mode-final-tests.log`,
+  `/tmp/inlet-ci-startup-mode-powershell.log`,
+  `/tmp/inlet-ci-startup-mode-whole-mypy.log`, and
+  `/tmp/inlet-ci-startup-mode-script-mypy.log`. No publication or dispatch was
+  performed by this worker. Parent review found no actionable routing issue.

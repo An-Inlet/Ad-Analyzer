@@ -16,6 +16,12 @@ from app.commerce.evidence import workspace_privacy_stamp
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider, denied
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
+from app.initial_planning.automatic_models import (
+    InitialRuleAdmissionOrigin,
+    InitialRuleCandidateDependency,
+    InitialRuleCandidateObservation,
+    InitialRuleOpportunity,
+)
 from app.initial_planning.models import CalibrationRow, ObservationRow, PreviewRow
 from app.lifecycle.archive import encoded
 from app.lifecycle.models import LifecycleRequest, LifecycleStep
@@ -61,9 +67,19 @@ class Authority:
         self.commerce_stamp = workspace_privacy_stamp(snapshot, self.wid)
         self.reported_stamp = numeric_dependency_stamp(snapshot, self.wid, validate=False)
         deadlines = union_all(
+            select(InitialRuleOpportunity.pending_expires_at.label("expires_at")).where(
+                InitialRuleOpportunity.workspace_id == self.wid,
+                ~select(InitialRuleAdmissionOrigin.admission_id)
+                .where(
+                    InitialRuleAdmissionOrigin.opportunity_id == InitialRuleOpportunity.id,
+                )
+                .exists(),
+            ),
             *[
                 select(model.expires_at).where(model.workspace_id == self.wid)
                 for model in (
+                    InitialRuleCandidateDependency,
+                    InitialRuleCandidateObservation,
                     ObservationRow,
                     CalibrationRow,
                     PreviewRow,
@@ -72,7 +88,7 @@ class Authority:
                     ReportedActionComparison,
                     ReportedFeedbackSlot,
                 )
-            ]
+            ],
         ).subquery()
         earliest = snapshot.scalar(select(func.min(deadlines.c.expires_at)))
         self.retention_deadline = utc(earliest) if earliest is not None else None

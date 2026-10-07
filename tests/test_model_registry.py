@@ -1,9 +1,11 @@
 """Every declared model participates in the migration/runtime metadata graph."""
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
-from app.database.models import MODEL_MODULES, register_models
+from app.database.models import GUARD_MODULES, MODEL_MODULES, register_models
 from app.database.session import Base
 
 
@@ -49,3 +51,28 @@ def test_registered_provider_evidence_has_protected_scoped_lifecycle_policy() ->
         assert policy.protected
         assert "workspace_id" in policy.fields
         assert not omitted.intersection(policy.fields)
+
+
+def test_required_metadata_guards_remain_registered() -> None:
+    assert GUARD_MODULES == ("app.commerce.acquisition_guards",)
+    assert not set(GUARD_MODULES).intersection(MODEL_MODULES)
+    # A fresh process proves registration installs the listener without the test
+    # accidentally importing and installing it first.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; from sqlalchemy import event; "
+            "from app.database.models import register_models; "
+            "metadata = register_models(); "
+            "guard = sys.modules['app.commerce.acquisition_guards']; "
+            "assert event.contains(metadata, 'after_create', guard.install); "
+            "assert register_models() is metadata; "
+            "assert event.contains(metadata, 'after_create', guard.install)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr

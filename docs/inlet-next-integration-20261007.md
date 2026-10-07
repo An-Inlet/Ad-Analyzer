@@ -160,3 +160,31 @@ Next isolated package reserves0081after0080 for owned immutable hash-only V2 pro
 storage, populated migration and lifecycle/export validation. No dependent route/UI
 implementation precedes its review. Hosted diagnostic and documentation research
 remain separate; no additional paid run or Full was launched.
+
+## V2 Proof Storage And Canonical Ownership Bindings
+
+Integrated reviewed schema `af14eb8` and strengthening `41dd530` at code head
+`00e937ec65334c21f670de55c55de0fb5f8d127e`. Additive0081 creates an immutable,
+owned hash-only proof child; a composite unique index avoids rebuilding the populated
+parent. Proof/link erasure cannot create a new parent review. Downgrade refuses to
+discard retained proof. V1 bytes/routes and historical financial reconciliation
+remain unchanged. Strict export is protected history, not eligibility.
+
+Canonical insertion checks bind the two distinct consents to one ledger, the saved
+planning intent/policy, execution review consent/full mandate, preview/profile/native
+state and plan, reconstructed customer intent, full retained qualification envelope
+and recomputed native semantic match. Negative tests recompute a valid outer hash
+before testing contradictions. Current ownership/financial freshness still belongs
+to the forthcoming runtime bridge; proof parsing is not spending authority.
+
+The combined eight-file integration cohort passed **60 tests, 1 expected PostgreSQL
+skip for a SQLite-only connection integrity case, 7 warnings, in 45.07 seconds**,
+terminal exit0. Includes actual populated SQLite/PostgreSQL migrations, lifecycle,
+strict exports,0080 metadata/DDL compatibility, initial-budget historical migration,
+and fresh-process imports. Whole Ruff, mypy818 and baseline diff check passed.
+Evidence: `inlet-v2-proof-integration.log`. Independent read review found no actionable
+issue in the storage-only package; root additionally reviewed canonical inner bindings.
+
+The next isolated package is the actual configured V2 API/runtime handoff. Its options
+and prepare interfaces must be frozen before dependent UI work. No Full, live
+qualification, new hosted run, main change or merge occurred in this package.

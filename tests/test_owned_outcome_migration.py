@@ -1,6 +1,7 @@
 """Populated0056→0057→0056→0057 in an explicitly disposable PostgreSQL schema."""
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,16 +13,20 @@ from app.outcomes import owned
 from app.outcomes.models import ActionOutcomeAssessment
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import create_engine, inspect, make_url, select, text
+from sqlalchemy import Engine, create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 
+from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
 from tests.test_commerce_measurement import NOW
 from tests.test_owned_outcomes import evidence
 from tests.test_shopify_sales import configuration as configuration
 
 
 def test_owned_assessment_populated_roundtrip(
-    monkeypatch: pytest.MonkeyPatch, configuration: Settings, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    configuration: Settings,
+    tmp_path: Path,
+    legacy_origin: Callable[[Engine], None],
 ) -> None:
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -46,6 +51,7 @@ def test_owned_assessment_populated_roundtrip(
             wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
             db.commit()
         command.downgrade(config, "20261006_0056")
+        legacy_origin(engine)
         from tests.candidate_historical_schema import without_candidates
 
         without_candidates(monkeypatch, engine)

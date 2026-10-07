@@ -1,6 +1,7 @@
 """0058 empty roundtrip and populated downgrade refusal in disposable PostgreSQL."""
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -13,10 +14,11 @@ from app.publication.execution_models import ProviderExecutionReview, ProviderRe
 from app.publication.replacement_contracts import RepeatOptimizationReview
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import create_engine, inspect, make_url, select, text
+from sqlalchemy import Engine, create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import set_committed_value
 
+from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
 from tests.test_commerce_measurement import NOW
 from tests.test_repeat_optimization import prepared
 from tests.test_shopify_sales import configuration as configuration
@@ -44,6 +46,7 @@ def test_replacement_migration_preserves_populated_obligations(
     monkeypatch: pytest.MonkeyPatch,
     configuration: Settings,
     tmp_path: Path,
+    legacy_origin: Callable[[Engine], None],
 ) -> None:
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -67,6 +70,7 @@ def test_replacement_migration_preserves_populated_obligations(
         from tests.candidate_historical_schema import without_candidates
 
         without_candidates(monkeypatch, engine)
+        legacy_origin(engine)
         # Reflect only historical review columns and assert no newer authority
         # marker is set. Never create then discard protected 0066 completion data.
         with ReplacementHistoricalSession(engine) as db:

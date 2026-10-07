@@ -41,3 +41,36 @@ hosted run, push, merge to main, deployment or live provider call was performed.
 
 The contracts/catalog/provenance/TikTok packages being developed afterward are not
 part of these results. They require their own integration and checks.
+
+## Subsequent Origin Integration And Historical Fixtures
+
+Head `92c472e` adds origin schema `59a1235` and catalog `2cc0bd1`. This is separate
+from the earlier green integration above. Its first targeted cohort produced
+**4 failed, 53 passed, 4 skipped in 133.67 seconds**: four historical fixtures
+queried new ORM origin columns in genuine pre0080 databases.
+
+The test-only repair reflects the real historical revision table and exposes only
+readonly legacy/null origin discriminators. Explicit fixtures replace exact class
+references in application modules, restore aliases including later imports, and
+dispose only their own mapper. Production models, financial checks and physical
+constraints are unchanged. Installation asserts that the new table/columns do not
+exist; older schemas without any execution revision table never install it.
+
+Retained intermediate evidence:
+
+- Initial reflection omitted foreign-key target metadata: 3 failed, 1 passed;
+  full foreign-key reflection corrected that fixture defect: 4 passed.
+- Broader migration cohort: **1 failed, 75 passed, 7 skipped, 2 errors** in
+  147.70 seconds. The failure was an overly broad helper invocation before the
+  revision table existed. Explicit fixture installation fixes it. The two SQLite
+  errors exposed a separate ORM foreign-key DDL metadata defect under investigation.
+- Cleanup implementation initially omitted one pytest fixture parameter:
+  1 failed, 7 passed. The parameter is now explicit.
+- Final historical/isolation cohort: **8 passed, 26 warnings, 20.57 seconds**.
+  It includes a late-import alias restoration regression and populated historical
+  migration behavior. Whole Ruff, mypy782 and diff check passed.
+
+The ORM cross-dialect defect and a final combined cohort remain outstanding here;
+these eight passes do not relabel either failed aggregate as successful. Evidence
+logs use the `inlet-next-integration-historical-*` and
+`inlet-next-integration-migration-final` prefixes.

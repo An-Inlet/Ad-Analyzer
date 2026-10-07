@@ -1,6 +1,7 @@
 """Only generated schemas on explicitly disposable PostgreSQL are modified."""
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,10 +15,22 @@ from app.publication.social_review_models import SocialConfigurationReview
 from app.publication.social_review_service import confirm, prepare, selection
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import MetaData, Table, create_engine, func, insert, inspect, make_url, select, text
+from sqlalchemy import (
+    Engine,
+    MetaData,
+    Table,
+    create_engine,
+    func,
+    insert,
+    inspect,
+    make_url,
+    select,
+    text,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, make_transient_to_detached
 
+from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
 from tests.test_commerce_measurement import NOW
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_customer_producer import fixture
@@ -48,7 +61,10 @@ class HistoricalFixtureSession(Session):
 
 
 def test_populated_no_dsa_review_roundtrip(
-    monkeypatch: pytest.MonkeyPatch, configuration: Settings, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    configuration: Settings,
+    tmp_path: Path,
+    legacy_origin: Callable[[Engine], None],
 ) -> None:
     if not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL") or (
         os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true"
@@ -65,6 +81,7 @@ def test_populated_no_dsa_review_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0057")
+        legacy_origin(engine)
         from tests.candidate_historical_schema import without_candidates
 
         without_candidates(monkeypatch, engine)

@@ -1,6 +1,7 @@
 """0062 disposable PostgreSQL upgrade and derived-only downgrade."""
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,16 +13,20 @@ from app.optimization_candidates.service import enqueue, process
 from app.publication.execution_models import ProviderExecutionMandate
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import create_engine, inspect, make_url, select, text
+from sqlalchemy import Engine, create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 
 from tests.feedback_historical_schema import without_feedback
+from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
 from tests.test_optimization_candidates import fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
 def test_derived_candidate_migration_roundtrip(
-    monkeypatch: pytest.MonkeyPatch, configuration: Settings, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    configuration: Settings,
+    tmp_path: Path,
+    legacy_origin: Callable[[Engine], None],
 ) -> None:
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -39,6 +44,7 @@ def test_derived_candidate_migration_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0062")
+        legacy_origin(engine)
         without_feedback(monkeypatch, engine)
         from tests.candidate_historical_schema import (
             without_candidate_reviews,

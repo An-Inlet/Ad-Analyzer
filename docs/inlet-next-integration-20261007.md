@@ -269,3 +269,43 @@ The owner-run startup diagnostic still awaits the owner's action. Frozen Full
 candidate `9450aa4` and draft PR130 are unchanged. This next integration branch is
 local and has not replaced that candidate. No merge/deployment authority is inferred
 from offline API or browser acceptance.
+
+
+## TikTok Discovery Integration — 11:38 UTC Checkpoint
+
+This checkpoint supersedes the older “Next Package” status above. Strict discovery
+parsers `1b5cee8`, linked assessment `5547095`, bounded owned collector `17cb712`
+and ownership regressions `22857ec` are integrated. Pure candidate configuration
+`64c1b76` is also integrated; it does not enable candidate or automatic execution.
+The collector permits only explicit contract-test MockTransport, rechecks the
+original principal and owned grant around bounded HTTP, rejects ambiguous JSON,
+and preserves null/absent events, deprecated events and incomplete pagination.
+Assessment grants neither publishing eligibility nor spending authority.
+
+Exact product head `dc75330283e674f70f3053f0bbcdb7f9c15ac881` passed **227 tests,
+1 warning in849.04s**, exit0, covering parser/owned discovery/linked assessment,
+candidate configuration, and existing configured TikTok API and full HTTPS
+publication compatibility. The warning is an intentional wrong-type tamper fixture.
+Ruff, mypy (837 source files) and diff checks passed. Log and terminal metadata:
+`inlet-tiktok-discovery-integration.log` and
+`tiktok-discovery-integration-terminal.json` in the executor evidence directory.
+
+Customer discovery API `1fa2409` and HTTPS UI `25ad4f3` are now assembled at
+`0c428a48fa340a5f437bc3ee89cf532df4495526`, tree
+`2af2f936aa2a3b7181269a00b8729ef059dc89bc`. Root read review found no actionable
+issue. Exact-root API/contracts/frontend/configured HTTPS acceptance completed: **35
+passed in45.37s**, no skips, exit0, on SQLite and PostgreSQL. Evidence:
+`inlet-tiktok-customer-integrated.log` and
+`tiktok-customer-integrated-terminal.json`.
+Whole Ruff and mypy (846 source files) passed. The initial Node invocation used
+an incorrect nonexistent module path and failed; corrected invocations for
+`app/portal/static/execution.mjs` and `tiktok-discovery.mjs` both passed, as did
+diff checks. This correction changed no product code.
+
+Executor availability was verified with successful shell/status/test-session calls
+at11:09,11:23 and11:38 despite disconnect notifications. The original combined run
+completed normally. No quota event, hosted retry, provider call or deployment was
+observed or initiated. The separate candidate worker has a reproduced both-database
+admission starvation defect under repair; it is not yet integrated. The owner-run
+startup diagnostic remains pending. The new assembled qualification branch is
+local and distinct from the preserved Full-qualified `9450aa48` artifact.

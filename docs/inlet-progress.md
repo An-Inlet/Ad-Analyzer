@@ -6880,3 +6880,23 @@ passed35.11s before final16. Failed logs retained at
 No prior Full pass is claimed for this successor. No Full/hosted/remote/live/deploy
 or advertising actions. Exact coverage mapping:
 `docs/design/tiktok-linked-compatibility-migration.md`.
+
+### Missed Historical TikTok Execution-UI Fixture Follow-Up
+
+Root identified one additional direct `setup_social` consumer:
+`test_customer_social_execution_ui.py`. Unchanged TikTok journey/clarity baseline
+reproduced4failures105.61s on bothDB, waiting for a positive review after intended
+new-CUSTOMIZED_USER409. Baseline log `/tmp/tiktok-legacy-ui-baseline.log` is terminal,
+not partial/cancelled. Import search found no further direct consumers.
+
+Added a TikTok-only historical-denial browser driver retaining exact owned
+identity/pixel/media summary, distinct covers and actual playable video/decoded
+image checks. New creation must return the fixed409 code with hidden review,
+disabled approval/run, no new reviews/attempts/receipts/holds or provider writes.
+Future positive/media/unknown journeys remain in the genuine linked browser suite;
+Meta drivers are unchanged.
+
+8repaired+Meta compatibility tests passed55.94s (26unaffected scenarios deselected),
+`/tmp/tiktok-legacy-ui-fixed.log`, durations20. Whole Ruff/mypy890, Node syntax/diff
+pass. Initial new-test line-length formatting fixed before final static check.
+Test-only successor to4c1b05e; no application changes/Full/remote/live.

@@ -21,14 +21,20 @@ from app.main import app
 from app.publication import execution_mandates
 from app.publication.customer_runtime import get_customer_execution_runtime
 from app.publication.execution_authorization import owner_authorizer
-from app.publication.execution_models import ProviderExecutionMandate
+from app.publication.execution_models import (
+    ProviderExecutionAttempt,
+    ProviderExecutionMandate,
+    ProviderExecutionReceipt,
+    ProviderExecutionReview,
+    ProviderExposureReservation,
+)
 from app.publication.social_customer_producer import catalog_request
 from app.publication.social_review_runtime import get_social_review_runtime
 from app.publication.social_review_service import confirm, prepare
 from app.publication.social_selection import ReviewIntent, resolve
 from app.settings import Settings, settings
 from app.workspaces.models import Workspace
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
@@ -204,6 +210,16 @@ def test_social_execution_real_browser(
             get_execution_media_factory: lambda: lambda: media,
         },
     )
+    models = (
+        ProviderExecutionReview,
+        ProviderExecutionAttempt,
+        ProviderExecutionReceipt,
+        ProviderExposureReservation,
+    )
+    with factory() as db:
+        prior_financial = tuple(
+            db.scalar(select(func.count()).select_from(model)) for model in models
+        )
     completed = threading.Event()
     result: list[dict[str, Any]] = []
 
@@ -212,7 +228,9 @@ def test_social_execution_real_browser(
         if path == "/__fixture__/driver.mjs":
             script = (
                 Path(
-                    "tests/javascript/execution_media_context.mjs"
+                    "tests/javascript/tiktok_legacy_execution_denial.mjs"
+                    if platform == "tiktok_ads"
+                    else "tests/javascript/execution_media_context.mjs"
                     if scenario.startswith("media_")
                     else "tests/javascript/execution_clarity.mjs"
                     if scenario == "clarity"
@@ -221,6 +239,7 @@ def test_social_execution_real_browser(
                     else "tests/javascript/social_execution_browser.mjs"
                 )
                 .read_text()
+                .replace("__SCENARIO__", scenario)
                 .replace("__WORKSPACE__", str(wid))
                 .replace("__TRANSITION__", scenario.removeprefix("context_"))
                 .replace("__DRAFT__", original.review.source.draft_id)
@@ -286,6 +305,13 @@ def test_social_execution_real_browser(
     try:
         assert completed.wait(60), "Execution browser did not report completion"
         assert result and result[0]["status"] == "passed", result
+        if platform == "tiktok_ads":
+            assert server_http.posts == server_http.activations == 0
+            with factory() as db:
+                assert (
+                    tuple(db.scalar(select(func.count()).select_from(model)) for model in models)
+                    == prior_financial
+                )
     finally:
         browser.terminate()
         try:

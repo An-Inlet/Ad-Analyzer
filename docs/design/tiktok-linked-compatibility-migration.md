@@ -57,3 +57,23 @@ eight scenarios on both databases. Slowest case37.62 seconds (PostgreSQL complet
 unknown creation12.45/12.66 seconds. `/tmp/tiktok-linked-compat-browser-final.log`
 retains durations20. Total affected terminal suites:132 passed (74+28+14+16).
 No Full, remote, live account calls or advertising changes occurred.
+
+## Missed Direct Execution-UI Consumer Follow-Up
+
+A follow-up import search found `test_customer_social_execution_ui.py` also calls
+`setup_social` directly. Its TikTok journey/clarity cases still expected a future
+legacy creation review. Unchanged targeted baseline reproduced four failures on
+both databases in105.61s, each waiting for a positive review after the actual409
+policy response (`/tmp/tiktok-legacy-ui-baseline.log`).
+
+Only its TikTok driver selection now uses explicit historical-denial assertions.
+It retains actual login/mandate consent, exact owned historical identity/pixel/
+video/cover summaries, distinct cover labels, verified playable video and decoded
+image, then requires the exact `tiktok_new_custom_identity_creation_unavailable`
+response. Review/approve/run stay unavailable; database review/attempt/receipt/hold
+counts and provider mutation counters remain unchanged. Meta drivers are unchanged.
+
+All four repaired TikTok and four Meta journey/clarity compatibility cases passed:
+8 passed,26 deselected in55.94s, durations20 (`/tmp/tiktok-legacy-ui-fixed.log`).
+Whole Ruff/mypy890, Node syntax and diff checks pass. No other direct setup_social
+consumer exists beyond its defining API test. No application change or Full run.

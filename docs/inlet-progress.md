@@ -5615,3 +5615,28 @@ expiry changes deny reads; actual strict export excludes original session digest
 v2 qualified bridge returns explicit409. Consumer930feaca+0078 integration and its
 actual adjusted-preview/browser journey remain dependent work, not claimed here.
 See inlet-planning-runtime-assembly.md for callable ports and remaining scope.
+
+## Configured v2 reported-preview acceptance — local follow-up
+
+Actual merge 8944f06 integrates producer c340bbf with consumer 930feac and immutable
+revision package c9b019c. The new API tests use the producer's configured_journey:
+actual file profile, normal runtime getters, Meta worker four fixed observations,
+owned captures/calibration, commerce refresh and vault-backed GET-only native
+catalog. No v2 row fabrication or runtime-getter override bridges the journey.
+The explicit fixture policy changes the genuine 46.00 baseline to 45.75; it is
+not a production policy or spending qualification.
+
+Eight SQLite/PostgreSQL API cases pass, including same-ID exact replay, current
+read, strict export, no additional native requests, and denial after original
+session revocation, source generation change, expiry or baseline erasure.
+Two actual TLS Chromium cases pass using the actual API-created original session
+and customer page: selected comparison/baseline produces the changed preview;
+late actual responses cannot restore state after workspace change or real session
+rotation. Existing no-handoff/no-spending messaging is preserved. These tests
+extend the real producer fixture; the browser does not redo account onboarding.
+
+Evidence: /tmp/inlet-feedback-configured-v2.log (8 passed),
+/tmp/inlet-feedback-configured-browser.log (2 passed). Whole Ruff and mypy730
+passed. No live call, remote operation, schema change or Full run occurred.
+Existing v1/version/binder/guard/TLS browser regression invocation also passed
+22 tests (/tmp/inlet-feedback-v2-compatibility.log). `git diff --check` passed.

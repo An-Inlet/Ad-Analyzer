@@ -147,6 +147,8 @@ def claim(
                         raise ScanUnavailable("acquisition_expired")
                     require_owned_controls(db, settings, wid, job.environment)
                     owned._check(db, request)
+                    if utc(clock()) >= utc(job.deadline_at):
+                        raise ScanUnavailable("acquisition_expired")
                 db.commit()
                 return None
             reserve = profile.limits.response_bytes

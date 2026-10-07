@@ -419,6 +419,7 @@ def test_abandoned_read_lease_resumes_same_acquisition_after_expiry(
     assert len(fixture.seen) == 5
 
 
+@pytest.mark.parametrize("late_at", ["insert", "final_check"])
 @pytest.mark.parametrize("late_seconds", [1801, 7200])
 def test_late_clock_denial_rolls_back_publication_and_revision(
     customer_engine: Engine,
@@ -427,6 +428,7 @@ def test_late_clock_denial_rolls_back_publication_and_revision(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     late_seconds: int,
+    late_at: str,
 ) -> None:
     from datetime import timedelta
 
@@ -454,10 +456,21 @@ def test_late_clock_denial_rolls_back_publication_and_revision(
     current = [NOW]
     monkeypatch.setattr(runtime, "utcnow", lambda: current[0])
 
+    completed_update = [False]
+
     def after_insert(
         _connection: Any, _cursor: Any, statement: str, _parameters: Any, _context: Any, _many: bool
     ) -> None:
-        if statement.lstrip().upper().startswith("INSERT INTO COMMERCE_MEASUREMENT_PUBLICATIONS"):
+        sql = statement.lstrip().upper()
+        if late_at == "insert" and sql.startswith("INSERT INTO COMMERCE_MEASUREMENT_PUBLICATIONS"):
+            current[0] = NOW + timedelta(seconds=late_seconds)
+        if late_at == "final_check" and sql.startswith("UPDATE COMMERCE_ACQUISITION_JOBS"):
+            values = _parameters.values() if isinstance(_parameters, dict) else _parameters
+            if "completed" in values:
+                completed_update[0] = True
+        if late_at == "final_check" and completed_update[0] and "FROM WORKSPACES" in sql:
+            # Simulate time spent inside the actual final workspace/identity check;
+            # no guard result or source evidence is substituted.
             current[0] = NOW + timedelta(seconds=late_seconds)
 
     event.listen(customer_engine, "after_cursor_execute", after_insert)

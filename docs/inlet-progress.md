@@ -6729,3 +6729,17 @@ unavailable and is not inferred from this operation evidence.
   Together with ordinary configured publication and transport retry:8passed14.18s,
   `--durations=20` (`/tmp/inlet-acquisition-atomicity-after.log`). WholeRuff/mypy857
   and diffcheck pass. No schema/interface/byte-format change, Full, remote or liveIO.
+
+### Acquisition final-deadline ordering follow-up
+
+- Reviewer independently confirmed2cdc's savepoint repair (bothDB2passed5.33s),
+  then identified a remaining ordering gap: the last source/identity check can
+  block after the prior deadline sample. Reproduced with the real completed-job
+  UPDATE followed by clock advancement to deadline+1 inside the final workspace
+  SELECT while credentials remain valid; publication count again became2vs1
+  (`/tmp/inlet-acquisition-final-deadline-before.log`,1failed2.77s).
+- Re-sample the persisted fixed deadline immediately after final `_check`, inside
+  the same rollback-protected savepoint. Both insert-time and final-check-time
+  advancement at1801s/7200s plus ordinary actual configured publication now pass
+  both databases:10passed18.37s with durations20. WholeRuff/mypy857/diffcheck pass.
+  Final successor is required alongside2cdc; no schema/interface or live changes.

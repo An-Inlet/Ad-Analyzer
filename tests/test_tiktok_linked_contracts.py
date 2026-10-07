@@ -105,8 +105,9 @@ def test_linked_profiles_roundtrip_without_old_optional_fields() -> None:
     )
     with pytest.raises(ValidationError):
         LinkedPullCreativeV1.model_validate({**pull.model_dump(), "image_ids": ("cover",)})
+    field = "ad_name"
     with pytest.raises(ValidationError):
-        setattr(push, "ad_name", "changed")
+        setattr(push, field, "changed")
 
 
 def test_special_capabilities_keep_missing_and_false_distinct() -> None:

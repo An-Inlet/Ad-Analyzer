@@ -10,7 +10,11 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
   `00c2de4f6fa5f02843e8f4ef8bebb81cbf79f9f3`. Every required local gate passed.
   Its single hosted attempt failed browser startup/navigation preflight before
   application tests. [Exact qualification and resource evidence](inlet-hosted-qualification-20261007.md).
-- **Newer local integration:** product head `0c428a48fa340a5f437bc3ee89cf532df4495526`
+- **Assembled local qualification:** `2476b87ac55b116d848f80f1286aae6551eeed7c`,
+  tree `6beebdd913d9fbaf06a7143d6bacb7e1a3daaf8f`, is frozen for one Full run.
+  The run remains active but has two reproduced historical-fixture failures; it
+  is not Full-qualified. Later UI, Google wire and fixture repairs are separate
+  locally tested successors, recorded in the integration ledger. This assembly
   adds the packages below. Focused package evidence is recorded in their ledgers;
   it does not inherit the older artifact's Full pass. Combined integration results
   belong in [the integration ledger](inlet-next-integration-20261007.md).
@@ -47,7 +51,8 @@ passes are not a claim that every newer package passed one aggregate run.
    prove complete liabilities, future exposure or eligibility. Candidate selection/read/review API and original-session worker composition are
    implemented and independently reviewed, including repaired unavailable-session
    queue fairness; root combined90-case acceptance passed. The customer candidate
-   UI remains a separate successor package. Automatic first-decision
+   UI is implemented and passed24 combined API/HTTPS/contract tests on a separate
+   successor; it is not part of frozen2476 Full. Automatic first-decision
    production remains absent; the manual runtime does not supply that authority.
    Google/TikTok comparable selected-event feedback producers and strict v3
    independent reconciliation/timing/directional sources remain separate code gaps.

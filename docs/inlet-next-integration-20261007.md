@@ -337,3 +337,46 @@ The next UI package will add a server-computed decision digest and customer
 selection/status/review controls on an isolated successor. It is excluded from the
 upcoming immutable Full candidate. The owner authorized one assembled local Full;
 no hosted retry or live action follows from that authorization.
+
+
+## Assembled Full And Separately Tested Successors — 12:02 UTC
+
+The assembled qualification branch is frozen at
+`2476b87ac55b116d848f80f1286aae6551eeed7c`, tree
+`6beebdd913d9fbaf06a7143d6bacb7e1a3daaf8f`. One actual
+`bash scripts/validate.sh Full` started11:50:26 UTC using dedicated disposable
+`inlet_oct07_assembled_r1_ci`. It remains running and **cannot pass as-is**:
+its SQLite/PostgreSQL historical0074 metadata tests both failed. No new Full,
+hosted retry or remote action has been started. Earlier9450aa48 qualification is
+separate; neither ac26a67 nor this candidate inherits that result.
+
+The two failures reproduced separately (2failed,20deselected,3.11s). Their fixture
+removed0076 while leaving its newer0081 proof child/trigger installed. The test now
+runs the real0081 downgrade before removing its historical parent, then restores
+0081 after the old graph. No cascade shortcut, missing-table fallback, application
+code or production migration changed. Repaired historical/current-proof/lifecycle
+cohort: **39passed,1 Alembic configuration deprecation warning,54.65s**, bothDB.
+Whole Ruff/mypy855/diff passed. This repair is a later successor, not a changed
+qualification checkout or a retroactive Full pass.
+
+Later customer UI package0daac163 merged at92c40b6: explicit named policy/consented
+mandate selection, bounded read/status, blocked explanation, exact server-digest
+review handoff and separate ordinary approval. Root independently reviewed it;
+combined API/contracts/DOM/configuredHTTPS cohort **24passed76.65s**, no skips,
+bothDB. Ruff/mypy855/Node2/diff passed. No auto mode, provider writes or fixture
+evidence promoted to production.
+
+Verified Google v25 schema review found conversionGoalCampaignConfigs has no
+partial_failure request field. Source3318338, integrated8974e25, omits it only for
+that collection in both validation and mutation. Six other request bodies and
+persisted plan/request hashes remain unchanged. Strict complete daily/total
+publication adapter cohort **41passed0.30s**; root wholeRuff/mypy855/diff passed.
+An initial root test command referenced a nonexistent filename and collected0
+(exit4); corrected paths passed without product changes. Author's pre-fix strict
+wire test failed as expected. This is offline schema/HTTP verification, not a live
+provider result, and is outside frozen2476.
+
+Logs and terminal metadata for these packages are retained and SHA256-listed in
+the executor evidence directory. At11:59:07 successful tools confirmed the original
+Full wrapper/timeout/bash/pytest processes still alive after the11:58 disconnect
+notification; checkout clean and unchanged. No quota indication was observed.

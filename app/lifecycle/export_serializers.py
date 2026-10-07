@@ -40,6 +40,7 @@ from app.optimization_candidates.selection_contracts import WORK_ADAPTER, Candid
 from app.outcomes.feedback import FeedbackContribution
 from app.outcomes.owned_contracts import OwnedAssessment
 from app.outcomes.owned_v3 import OwnedV3Assessment
+from app.production_runtime.optimization_origin_contracts import OptimizationMandatePreparationV1
 from app.publication.activation_contracts import (
     ActivationReceipt,
     ActivationRequest,
@@ -115,6 +116,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "publication_plans": ("document",),
     "provider_reviews": ("review", "plan"),
     "initial_budget_mandate_preparations": ("document",),
+    "optimization_mandate_preparations": ("document",),
     "provider_execution_revisions": ("policy",),
     "provider_execution_reviews": ("document",),
     "provider_reservation_replacements": ("document",),
@@ -192,6 +194,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
     ("initial_budget_mandate_preparations", "document"): BudgetMandatePreparationV1,
+    ("optimization_mandate_preparations", "document"): OptimizationMandatePreparationV1,
     ("provider_execution_revisions", "policy"): ProviderMandatePolicy,
     ("provider_exposure_reservations", "evidence"): ExposureEvidence,
     ("provider_execution_receipts", "projection"): NormalizedProviderReceipt,
@@ -436,6 +439,16 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, OptimizationMandatePreparationV1):
+        expected = {
+            "workspace_id": document.workspace_id,
+            "mandate_id": document.mandate_id,
+            "mandate_revision": document.mandate_revision,
+            "provider_policy_digest": document.provider_policy_digest,
+            "preparation_digest": document.digest(),
+        }
+        if any(row[key] != value for key, value in expected.items()):
+            raise ValueError("optimization origin ownership mismatch")
     elif isinstance(document, BudgetMandatePreparationV1):
         if any(
             row[key] != value

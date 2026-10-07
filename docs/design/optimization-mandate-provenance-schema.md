@@ -1,8 +1,9 @@
 # Optimization Mandate Origin: Additive Schema Proposal
 
-Proposal only; no ORM table, migration, registry or consent behavior is implemented
-by this checkpoint. Existing0079 and all existing policy/document hashes remain
-unchanged. Migration number/base must be reserved by root before implementation.
+Standalone schema implementation: migration `20261007_0080` follows0079. Existing0079
+and all policy/document v1 hashes remain unchanged. Runtime preparation, generic
+consent and forward-gate enforcement are subsequent work; this package does not
+claim an end-to-end configured consent journey.
 
 ## Why0079 Or No Migration Does Not Honestly Fit
 
@@ -18,12 +19,12 @@ and fresh export validation. A dedicated minimal immutable sidecar is warranted.
 
 ## Proposed Strict Document And Table
 
-New `OptimizationMandatePreparationV1` (future implementation):
+Strict `OptimizationMandatePreparationV1`:
 
 - explicit schema version `inlet.optimization-mandate-preparation.v1`;
 - workspace_id, mandate_id, mandate_revision, environment;
 - provider_policy_digest (existing financial revision digest);
-- goal_id, goal_revision, goal_digest;
+- goal_digest; exact goal ID/revision are retained in the intent selection;
 - exact `OptimizationCustomerIntentV1` (owned goal/account selection, opaque option,
   customer-confirmed total and named aggression; no technical knobs);
 - account_scope_digest, target_set_digest, inventory_request_digest,
@@ -48,7 +49,7 @@ workspace_id            integer      NOT NULL
 provider_policy_digest  varchar(64)  NOT NULL
 preparation_digest      varchar(64)  NOT NULL
 document                JSON         NOT NULL
-UNIQUE(mandate_id, mandate_revision, workspace_id, preparation_digest)
+UNIQUE(preparation_digest)
 FOREIGN KEY(mandate_id, mandate_revision, workspace_id)
   -> provider_execution_revisions(mandate_id, revision, workspace_id)
   ON DELETE RESTRICT
@@ -71,14 +72,34 @@ Add to the immutable provider_execution_revisions row:
 - `origin_kind`: legacy | optimization_customer_v1; existing rows/default legacy.
 - `origin_preparation_digest`: nullable digest; NULL iff legacy, required otherwise.
 
-Recommend a deferred composite FK from
-`(mandate_id, revision, workspace_id, origin_preparation_digest)` to the sidecar's
-unique four-column key. For legacy rows NULL makes the FK inapplicable; the CHECK
-binds discriminator/nullability. For new origin rows the deferred FK makes commit
-without the exact sidecar fail. The reverse owned FK and insert guard bind the
-financial revision. SQLite and PostgreSQL both need an explicit populated migration
-and deferred-FK regression; SQLite table rebuild must preserve existing immutable
-triggers/indexes/FKs and prior data. Do not disable integrity to make this pass.
+The implemented deferred FK is the nullable single digest column referencing the
+sidecar's globally UNIQUE preparation digest. A UNIQUE index on the parent digest
+prevents two parents claiming the same not-yet-inserted proof. An immediate sidecar
+INSERT trigger requires exact mandate/revision/workspace/financial-policy-digest and
+parent origin digest. The immediate reverse parent guard rejects borrowing an
+existing sidecar under another scope. Thus parent-first exact insertion can commit;
+sidecar-first or either wrong-scope order cannot. Missing proof fails at commit.
+The strict document digest itself commits the same identity.
+
+Both columns are additive ALTER TABLE operations, with the nullable FK and CHECK
+inline on the second column. No financial parent rebuild or disabled integrity is
+used by0080. Populated downgrade/reupgrade preserves legacy revision policy bytes
+and its RESTRICT consent child. Downgrade drops dependent sidecar triggers before
+columns, and refuses any retained marked origin before changing schema.
+
+Inspection found no preexisting global DB immutability trigger for financial
+revisions.0080 therefore adds a narrow guard: every marked revision is immutable,
+and every revision's origin discriminator/digest is immutable. Legacy unrelated
+updates retain existing behavior; legacy-to-marked UPDATE is forbidden. Sidecars
+are immutable and cannot be deleted.
+
+PostgreSQL enforces the deferred FK directly. Existing SQLite/common fixture
+connections do not universally enable foreign keys. This package does not silently
+change all engines: marked-origin INSERT explicitly denies when
+`pragma_foreign_keys != 1`. Future configured preparation must preflight this too.
+SQLite users need integrity enabled before their transaction. Legacy inserts remain
+compatible. Tests prove the actual FK-off connection cannot create marked authority
+or relabel a legacy revision. No claim of universal engine configuration is made.
 
 Preparation chooses IDs/digests before writes, inserts new immutable revision with
 origin and exact sidecar in one transaction, then rechecks original session/goal/
@@ -129,4 +150,5 @@ missing/wrong sidecar commit failure, cross-workspace parent rejection, update/d
 denial, origin-marker mismatch, stale policy at consent, legacy-route bypass denial,
 exact replay/new revision and period/account/ledger invariants. Strict export rejects
 unknown keys/scalar mismatch and retains allowed authority after derived evidence
-erasure. No raw report/credential retention. Migration is pending root review.
+erasure. No raw report/credential retention. These runtime acceptance cases remain pending the next assembly package; schema
+checks alone do not qualify a provider or supply financial headroom.

@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
+from app.production_runtime.optimization_origin_triggers import register as register_origin
 
 
 class ProviderPeriodLedger(Base):
@@ -78,6 +79,7 @@ class ProviderExecutionMandate(Base):
 class ProviderExecutionRevision(Base):
     __tablename__ = "provider_execution_revisions"
     __table_args__ = (
+        Index("uq_optimization_origin_digest", "origin_preparation_digest", unique=True),
         UniqueConstraint(
             "mandate_id", "revision", "workspace_id", name="uq_provider_revision_scope"
         ),
@@ -95,6 +97,22 @@ class ProviderExecutionRevision(Base):
             ["goal_id", "goal_revision"],
             ["customer_goal_revisions.goal_id", "customer_goal_revisions.revision"],
             ondelete="RESTRICT",
+        ),
+    )
+    origin_kind: Mapped[str] = mapped_column(String(32), default="legacy", server_default="legacy")
+    origin_preparation_digest: Mapped[str | None] = mapped_column(
+        String(64),
+        CheckConstraint(
+            "(origin_kind='legacy' AND origin_preparation_digest IS NULL) OR "
+            "(origin_kind='optimization_customer_v1' AND origin_preparation_digest IS NOT NULL)",
+            name="ck_optimization_origin_kind",
+        ),
+        ForeignKey(
+            "optimization_mandate_preparations.preparation_digest",
+            name="fk_optimization_origin_digest",
+            deferrable=True,
+            initially="DEFERRED",
+            use_alter=True,
         ),
     )
     mandate_id: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -463,3 +481,6 @@ class GoogleOriginalCompletion(Base):
     digest: Mapped[str] = mapped_column(String(64), nullable=False)
     document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+register_origin(Base.metadata.tables["provider_execution_revisions"], parent=True)

@@ -18,6 +18,7 @@ from app.publication.provider_contracts import Digest, Id
 
 if TYPE_CHECKING:
     from app.initial_planning.runtime import InitialPlanningRuntime
+    from app.production_runtime.optimization_assembly import ConfiguredOptimization
 
 
 class TargetQuery(StrictModel):
@@ -89,6 +90,7 @@ class CustomerOptimizationRuntime:
     catalog: TargetReader | None = None
     clock: Callable[[], datetime] = utc_now
     initial_planning: "InitialPlanningRuntime | None" = None
+    configured: "ConfiguredOptimization | None" = None
 
 
 def get_customer_optimization_runtime() -> CustomerOptimizationRuntime | None:

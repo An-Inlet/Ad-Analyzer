@@ -19,6 +19,8 @@ from app.google_connections.models import GoogleCustomerConnection
 from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
 from app.mandates.service import workspace_lock
 from app.meta.models import MetaConnection
+from app.production_runtime import optimization_origin
+from app.production_runtime.optimization_origin_models import OptimizationMandatePreparationRow
 from app.publication.execution_contracts import (
     ExecutionAccount,
     ProviderMandateBinding,
@@ -245,6 +247,7 @@ def revise(
     mandate_id: str | None = None,
     expected_revision: int | None = None,
     commit: bool = True,
+    origin_factory: optimization_origin.OriginFactory | None = None,
 ) -> ProviderExecutionMandate:
     p = ProviderMandatePolicy.model_validate(p.model_dump())
     if p.workspace_id != wid:
@@ -300,8 +303,20 @@ def revise(
     row.state = "draft"
     db.add(row)
     db.flush()
+    document = origin_factory(row.id, row.revision) if origin_factory else None
+    if document is not None:
+        optimization_origin.validate_policy(document, p)
+        if document.mandate_id != row.id or document.mandate_revision != row.revision:
+            raise optimization_origin.unavailable()
+        if db.get_bind().dialect.name == "sqlite":
+            from sqlalchemy import text
+
+            if db.scalar(text("PRAGMA foreign_keys")) != 1:
+                raise optimization_origin.unavailable()
     db.add(
         ProviderExecutionRevision(
+            origin_kind="optimization_customer_v1" if document else "legacy",
+            origin_preparation_digest=document.digest() if document else None,
             mandate_id=row.id,
             revision=row.revision,
             workspace_id=wid,
@@ -314,6 +329,18 @@ def revise(
         )
     )
     db.flush()
+    if document is not None:
+        db.add(
+            OptimizationMandatePreparationRow(
+                mandate_id=row.id,
+                mandate_revision=row.revision,
+                workspace_id=wid,
+                provider_policy_digest=p.digest(),
+                preparation_digest=document.digest(),
+                document=document.model_dump(mode="json"),
+            )
+        )
+        db.flush()
     if commit:
         db.commit()
     return row
@@ -327,11 +354,18 @@ def consent(
     digest: str,
     actor: str,
     clock: Callable[[], datetime],
+    *,
+    origin_guard: optimization_origin.OriginGuard | None = None,
+    commit: bool = True,
 ) -> ProviderMandateBinding:
     ledger, row = owned(db, wid, mandate_id)
     p = policy(db, row)
     if row.revision != revision or p.digest() != digest or row.state == "revoked":
         raise HTTPException(409, "exact provider mandate consent required")
+    origin = db.get(ProviderExecutionRevision, (row.id, row.revision), populate_existing=True)
+    if origin is None:
+        raise optimization_origin.unavailable()
+    optimization_origin.forward(db, origin, p, origin_guard)
     validate_policy(db, p, actor, clock)
     validate_accounting_scope(db, ledger, p)
     record = db.scalar(
@@ -357,7 +391,9 @@ def consent(
     else:
         owner(db, wid, record.actor)
     row.state = "active"
-    db.commit()
+    db.flush()
+    if commit:
+        db.commit()
     return ProviderMandateBinding(
         mandate_id=row.id,
         revision=revision,
@@ -377,6 +413,10 @@ def checked(
 ) -> tuple[ProviderPeriodLedger, ProviderMandatePolicy]:
     ledger, row = owned(db, wid, binding.mandate_id)
     p = policy(db, row)
+    revision = db.get(ProviderExecutionRevision, (row.id, row.revision), populate_existing=True)
+    if revision is None:
+        raise optimization_origin.unavailable()
+    optimization_origin.read(db, revision, p)
     record = db.get(ProviderExecutionConsent, binding.consent_id)
     if (
         row.state != "active"

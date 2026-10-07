@@ -27,9 +27,8 @@ feedback_policy)`; do not apply the legacy compiler's unrelated fixed step.
 
 `ReportedRuleEvidenceV1` (`inlet.reported-rule-evidence.v1`):
 - scope_digest; environment;
-- source_schema literal `inlet.operational-reported-comparison.v1` **only if the
-  actual existing class discriminator matches** (implementation must pin the actual
-  discriminator, never rename stored comparison documents);
+- source_schema literal `inlet.operational-reported-comparison.v1`, matching the
+  existing class discriminator; retain its existing class-name digest domain;
 - source_reference=original_attempt_id; comparison_id, comparison_digest,
   acquisition_request_id, comparison_policy_digest, rule_policy_digest;
 - opportunity: existing `DecisionOpportunityV1` (original attempt/request/native
@@ -121,11 +120,13 @@ Automatic policy union = unchanged SessionAutomaticPolicy OR this new variant.
 Existing `OptimizationAuthority` remains exact-human-approval OR mandate-automatic-
 decision; do not forge human approval or introduce a weaker executor authority.
 The existing admission row binds the new policy and decision digests and original
-Start session. Its strict document union identifies the rule basis; missing/unknown
-variant fails closed, no fallback to mature-learning or manual authority. If the
-existing row cannot retain exact policy basis through its current foreign key/JSON
-binding, add the smallest explicit versioned binding under a separately reserved
-migration, not a silent inference from mutable registry state.
+Start session. These rows currently store scalar commitments, not policy JSON. The
+forward resolver parses the registered policy union and requires equality to the
+persisted session/admission policy digest; the candidate/review provenance retains
+the exact typed decision and basis. Missing registration or an unknown variant
+fails closed, with no fallback to mature-learning/manual authority. Historical
+evidence reads retain their existing independent path and need no current policy
+registration. No admission-table migration is proposed for this type extension.
 
 Use the existing stable original-action opportunity digest unchanged. Producer
 family is stable across rule revisions; policy-family uniqueness cannot reset on

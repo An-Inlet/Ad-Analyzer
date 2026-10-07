@@ -6633,3 +6633,19 @@ unavailable and is not inferred from this operation evidence.
   `/tmp/inlet-total-envelope-final.log`. No schema, persistence, Full, remote or live calls.
 - Next: independent source review and optional customer UI consuming the frozen response.
   Financial quantity/history/complete-allocation qualification remains explicitly unresolved.
+### Resumable Shopify acquisition — shared interface checkpoint
+
+- Root approved storage/cadence64ff701 and reserved0082 down0081. New isolated
+  contracts define explicit technical profile, exact customer intent/status,
+  immutable checkpoint/day aggregates and private native-handle shape. Three ORM
+  declarations carry composite owned FKs, active-store uniqueness and state/time/
+  lease constraints. Registration, migration guards and lifecycle integration are
+  next; no deployed schema or usable job route exists at this checkpoint.
+- Existing Shopify Vault encrypts handles under a domain committing workspace,
+  store, acquisition/request, phase/sequence and entire checkpoint digest. No raw
+  customer identity or provider response is admitted to that shape.
+- Focused contracts plus existing independent HTTP/contract tests:50passed0.48s,
+  terminal0. WholeRuff passed; wholemypy847 passed; diffcheck passed. New tests cover
+  seven cross-context/checkpoint tamper cases, immutable fields and invalid cadence.
+  No DB/Full/remote/live calls. No maturity/direction registration. Next: portable
+  0082guards and actual bounded enqueue→leased worker→unchanged v2publication.

@@ -163,3 +163,35 @@ def initial_checkpoint(request: ScanRequest, profile: AcquisitionProfile) -> Che
         committed=(),
         tentative=(),
     )
+
+
+class AcquisitionRecoveryItem(Frozen):
+    """Original-session job metadata; never source/qualification evidence."""
+
+    status: AcquisitionStatus
+    goal_id: Id
+    goal_revision: int = Field(strict=True, ge=1)
+    start: date
+    end: date
+
+    @model_validator(mode="after")
+    def window(self) -> "AcquisitionRecoveryItem":
+        if not 0 < (self.end - self.start).days <= 400:
+            raise ValueError("acquisition_window_unavailable")
+        return self
+
+
+class AcquisitionRecovery(Frozen):
+    schema_version: Literal["inlet.acquisition-recovery.v1"] = "inlet.acquisition-recovery.v1"
+    workspace_id: int = Field(strict=True, ge=1)
+    goal_id: Id
+    items: tuple[AcquisitionRecoveryItem, ...] = Field(max_length=20)
+    truncated: bool
+
+    @model_validator(mode="after")
+    def scope(self) -> "AcquisitionRecovery":
+        if any(item.goal_id != self.goal_id for item in self.items):
+            raise ValueError("acquisition_goal_changed")
+        if len({item.status.job_id for item in self.items}) != len(self.items):
+            raise ValueError("acquisition_recovery_duplicate")
+        return self

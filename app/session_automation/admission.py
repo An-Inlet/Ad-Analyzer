@@ -99,6 +99,8 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
         _, decision, _, _ = review_bridge.bound_candidate(
             db, wid, link.candidate_result_id, actor, row.original_session_digest, runtime.review
         )
+        if not isinstance(decision, CandidateDecision):
+            raise HTTPException(409, "explicit operational automatic policy required")
         epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, fresh)
         review = db.get(ProviderExecutionReview, review_id, populate_existing=True)
         db.refresh(admission, with_for_update=True)
@@ -167,6 +169,8 @@ def admit(
             session_run.original_session_digest,
             runtime.review,
         )
+        if not isinstance(decision, CandidateDecision):
+            raise HTTPException(409, "explicit operational automatic policy required")
         if decision.scope.mandate != service.binding(session_run) or (
             decision.action is None or decision.action.kind not in policy.allowed_operations
         ):

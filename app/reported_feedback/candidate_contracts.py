@@ -9,7 +9,7 @@ from app.commerce.evidence import digest as source_digest
 from app.directional_feedback.contracts import DecisionOpportunityV1
 from app.initial_planning.contracts import Frozen
 from app.optimization_candidates.contracts import CandidateScope
-from app.optimization_candidates.selection_contracts import SelectionProvenance
+from app.optimization_candidates.selection_contracts import SelectionBlock, SelectionProvenance
 from app.publication.contracts import fingerprint
 from app.publication.optimization_contracts import MetaBudgetSetV1, MetaCurrentState
 from app.publication.provider_contracts import Digest, Id
@@ -153,6 +153,7 @@ class ReportedRuleWorkV1(Committed):
         if (
             self.scope.account.account.platform != "meta_ads"
             or self.scope.target.kind != "campaign"
+            or self.scope.source.attempt_id is None
             or self.policy.workspace_id != self.scope.account.workspace_id
             or self.policy.environment != self.scope.mandate.environment
             or self.selection.scope_digest != self.scope.digest()
@@ -203,4 +204,25 @@ class ReportedRuleCandidateV1(Committed):
             > abs(self.evidence.signed_delta_micros)
         ):
             raise ValueError("reported suggestion cannot enlarge or reverse the rule")
+        return self
+
+
+class ReportedRuleSelectionBatchV1(Committed):
+    schema_version: Literal["inlet.reported-rule-selection.v1"] = "inlet.reported-rule-selection.v1"
+    workspace_id: int = Field(strict=True, gt=0)
+    manifest_digest: Digest
+    selected: tuple[ReportedRuleWorkV1, ...] = Field(max_length=20)
+    blocked: tuple[SelectionBlock, ...] = Field(max_length=20)
+    authority: Literal["none"] = "none"
+
+    @model_validator(mode="after")
+    def owned_manifest(self) -> "ReportedRuleSelectionBatchV1":
+        ids = [w.scope.account.account.account_id for w in self.selected]
+        ids += [b.account_id for b in self.blocked]
+        if len(set(ids)) != len(ids) or any(
+            w.scope.account.workspace_id != self.workspace_id
+            or w.selection.manifest_digest != self.manifest_digest
+            for w in self.selected
+        ):
+            raise ValueError("reported selection ownership mismatch")
         return self

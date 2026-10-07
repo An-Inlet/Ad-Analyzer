@@ -5,6 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from app.commerce.evidence import digest as source_digest
 from app.commerce.models import CommerceMeasurementPublication, CommerceStore
 from app.commerce.sync import CommerceSyncService
 from app.executors.meta_optimization import MetaOptimizationTransport
@@ -17,6 +18,7 @@ from app.optimization_candidates.contracts import (
 )
 from app.optimization_candidates.selection_contracts import SelectionProvenance
 from app.publication.contracts import fingerprint
+from app.publication.coordinator import read_owned_outcome_receipt
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
     ProviderExecutionReceipt,
@@ -39,7 +41,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from tests.reported_feedback_fixture import feedback_policy
-from tests.test_commerce_measurement import FakeMeasurement, source
+from tests.test_commerce_measurement import NOW, FakeMeasurement
 from tests.test_customer_identity import FakeProvider
 from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
 
@@ -48,7 +50,7 @@ def ready_reported_rule(db: Session, config: Settings, path: Path, monkeypatch: 
     if db.get_bind().dialect.name == "sqlite":
         db.execute(text("PRAGMA foreign_keys=ON"))
     wid, principal, runtime, job, _, _, clock, runner, requests, control, server = (
-        acquisition_fixture(db, config, path, monkeypatch)
+        acquisition_fixture(db, config, path, monkeypatch, period_end=NOW + timedelta(days=30))
     )
     control.update(before_conversions="2", after_conversions="4")
     for _ in range(3):
@@ -84,15 +86,14 @@ def ready_reported_rule(db: Session, config: Settings, path: Path, monkeypatch: 
     review = db.get(ProviderExecutionReview, run.review_id)
     assert review
     document = parse_review(review.document)
+    projection = read_owned_outcome_receipt(db, wid, attempt.id, principal.user.id)
+    assert projection
     shop = db.scalar(select(ShopifyConnection).where(ShopifyConnection.workspace_id == wid))
     assert shop
     store = db.get(CommerceStore, shop.commerce_store_id)
     assert store
-    store.last_sync_at = None
     db.commit()
-    CommerceSyncService(db, config, FakeMeasurement(config, [([source()], None)])).page(
-        wid, now=clock[0]
-    )
+    CommerceSyncService(db, config, FakeMeasurement(config, [([], None)])).page(wid, now=clock[0])
     publication = db.scalar(
         select(CommerceMeasurementPublication)
         .where(CommerceMeasurementPublication.workspace_id == wid)
@@ -121,6 +122,13 @@ def ready_reported_rule(db: Session, config: Settings, path: Path, monkeypatch: 
             publication_revision=publication.publication_revision,
             source_revision=publication.source_revision,
             manifest_digest=publication.manifest_digest,
+            attempt_id=attempt.id,
+            receipt_id=projection.receipt_id,
+            receipt_sequence=projection.sequence,
+            receipt_digest=projection.receipt_digest,
+            projection_digest=source_digest(
+                ["inlet.owned-receipt.v1", projection.model_dump(mode="json")]
+            ),
         ),
     )
     rule = ReportedRulePolicyV1(

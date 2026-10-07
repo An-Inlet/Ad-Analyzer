@@ -5,12 +5,13 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.goals.schemas import StrictModel
-from app.optimization_candidates.contracts import CandidateDecision
+from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.selection_contracts import (
     CandidatePolicyRef,
     CandidateSelectionBatch,
 )
 from app.publication.provider_contracts import Digest, Id
+from app.reported_feedback.candidate_contracts import ReportedRuleSelectionBatchV1
 
 
 class CandidateReadIntent(StrictModel):
@@ -44,7 +45,7 @@ class CandidateCapabilities(StrictModel):
 
 
 class CandidateReadPrepared(StrictModel):
-    selection: CandidateSelectionBatch
+    selection: CandidateSelectionBatch | ReportedRuleSelectionBatchV1
     job_ids: list[Id] = Field(max_length=20)
     spending_authority: Literal["none"] = "none"
 
@@ -53,7 +54,7 @@ class CandidateReadStatus(StrictModel):
     job_id: Id
     state: Literal["pending", "claimed", "completed", "blocked", "canceled"]
     result_id: Id | None
-    decision: CandidateDecision | None
+    decision: CandidateDecisionDocument | None
     decision_digest: Digest | None
     spending_authority: Literal["none"] = "none"
 

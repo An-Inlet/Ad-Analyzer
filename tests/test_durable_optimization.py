@@ -65,6 +65,7 @@ def ready(  # type: ignore[no-untyped-def]
     *,
     goal_budget_micros: int = 50_000_000,
     campaign: bool = False,
+    period_end: datetime | None = None,
 ):
     old, actor = setup(db, config, path, goal_budget_micros=goal_budget_micros)
     wid = old.workspace_id
@@ -140,7 +141,7 @@ def ready(  # type: ignore[no-untyped-def]
         currency_exponent=2,
         account_timezone="UTC",
         period_start=old.starts_at,
-        period_end=old.ends_at,
+        period_end=period_end or old.ends_at,
     )
     target = OptimizationTarget(
         kind="campaign"
@@ -162,6 +163,7 @@ def ready(  # type: ignore[no-untyped-def]
         old.model_copy(
             update={
                 "accounts": [scope],
+                "ends_at": money.period_end,
                 "allowed_purposes": ["existing_campaign_optimize"],
                 "allowed_target_set_digest": before.budget_owner.target_set_digest(),
                 "total_cap_micros": 100_000_000,

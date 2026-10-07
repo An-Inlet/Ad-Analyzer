@@ -21,6 +21,7 @@ from app.reported_feedback.candidate_contracts import (
     ReportedRuleObservationV1,
     ReportedRuleWorkV1,
 )
+from app.reported_feedback.contracts import OperationalReportedComparisonV1
 from app.reported_feedback.evaluator import bounded_delta
 from app.reported_feedback.models import ReportedActionComparison, ReportedFeedbackJob
 from app.reported_feedback.service import validate_comparison_dependencies
@@ -85,7 +86,8 @@ def read_reported_rule(
     ):
         raise unavailable()
     if (
-        anchor.environment != policy.environment
+        anchor.original_attempt_id != scope.source.attempt_id
+        or anchor.environment != policy.environment
         or anchor.ledger_id != scope.mandate.ledger_id
         or anchor.goal_id != scope.goal_id
         or anchor.goal_revision != scope.goal_revision
@@ -197,4 +199,81 @@ def assert_reported_rule_current(
         raise unavailable()
     lock_customer_mutation(db, principal, wid, provider)
     if not decision.observed_at <= clock() < min(decision.expires_at, value.expires_at):
+        raise unavailable()
+
+
+def current_comparison(
+    db: Session,
+    principal: CustomerPrincipal,
+    work: ReportedRuleWorkV1,
+    clock: Callable[[], datetime],
+) -> tuple[ReportedActionComparison, OperationalReportedComparisonV1]:
+    """Caller owns original workspace/session fences before local lineage locks."""
+    row = db.get(ReportedActionComparison, work.comparison_id, populate_existing=True)
+    job = db.get(ReportedFeedbackJob, row.job_id, populate_existing=True) if row else None
+    scope = work.scope
+    if (
+        row is None
+        or job is None
+        or row.workspace_id != scope.account.workspace_id
+        or row.account_id != scope.account.account.account_id
+        or row.environment != work.policy.environment
+        or job.original_actor_id != principal.user.id
+        or job.original_session_digest != principal.session.digest
+    ):
+        raise unavailable()
+    value = validate_comparison_dependencies(db, row, clock())
+    if (
+        value.status != "operational_reported_as_of"
+        or value.policy_digest != work.policy.comparison_policy_digest
+        or value.anchor.original_attempt_id != scope.source.attempt_id
+        or value.anchor.ledger_id != scope.mandate.ledger_id
+        or value.anchor.goal_id != scope.goal_id
+        or value.anchor.goal_revision != scope.goal_revision
+        or value.anchor.external_account_id != scope.account.external_advertiser_id
+        or value.anchor.external_campaign_id != scope.target.external_id
+        or value.anchor.integration_id != scope.account.account.connection_id
+        or clock() >= value.expires_at
+    ):
+        raise unavailable()
+    return row, value
+
+
+def bind_dependency(
+    db: Session,
+    candidate_id: str,
+    principal: CustomerPrincipal,
+    work: ReportedRuleWorkV1,
+    clock: Callable[[], datetime],
+) -> None:
+    from app.reported_feedback.candidate_models import ReportedRuleCandidateDependency
+
+    row, _ = current_comparison(db, principal, work, clock)
+    db.add(
+        ReportedRuleCandidateDependency(
+            candidate_job_id=candidate_id,
+            workspace_id=row.workspace_id,
+            account_id=row.account_id,
+            campaign_id=row.campaign_id,
+            comparison_id=row.id,
+            acquisition_job_id=row.job_id,
+        )
+    )
+    db.flush()
+
+
+def require_dependency(db: Session, candidate_id: str, work: ReportedRuleWorkV1) -> None:
+    from app.reported_feedback.candidate_models import ReportedRuleCandidateDependency
+
+    dependency = db.get(ReportedRuleCandidateDependency, candidate_id, populate_existing=True)
+    row = db.get(ReportedActionComparison, work.comparison_id, populate_existing=True)
+    if (
+        dependency is None
+        or row is None
+        or dependency.workspace_id != work.scope.account.workspace_id
+        or dependency.account_id != work.scope.account.account.account_id
+        or dependency.comparison_id != work.comparison_id
+        or dependency.acquisition_job_id != row.job_id
+        or dependency.campaign_id != row.campaign_id
+    ):
         raise unavailable()

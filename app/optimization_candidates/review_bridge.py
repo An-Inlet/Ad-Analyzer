@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.customers.access import CustomerPrincipal
 from app.customers.models import CustomerSession, CustomerUser
 from app.optimization_candidates import service as candidates
-from app.optimization_candidates.contracts import CandidateDecision
+from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.models import CandidateResult
 from app.optimization_candidates.review_contracts import (
     CandidateReviewIntent,
@@ -25,6 +25,7 @@ from app.publication.customer_authority import bind_authority
 from app.publication.execution_models import ProviderExecutionReview, ProviderExposureReservation
 from app.publication.optimization_execution_contracts import OptimizationRuntime
 from app.publication.replacement_contracts import OptimizationReview, parse_review
+from app.reported_feedback.candidate_contracts import ReportedRuleWorkV1
 
 
 @dataclass(frozen=True)
@@ -46,7 +47,7 @@ def original(db: Session, actor: str, session_digest: str) -> CustomerPrincipal:
     return CustomerPrincipal(user, session)
 
 
-def source_digest(work: CandidateWorkV2) -> str:
+def source_digest(work: CandidateWorkV2 | ReportedRuleWorkV1) -> str:
     return fingerprint("inlet.candidate-source.v1", work.scope.source.model_dump(mode="json"))
 
 
@@ -57,7 +58,12 @@ def bound_candidate(
     actor: str,
     session_digest: str,
     runtime: CandidateReviewRuntime,
-) -> tuple[CustomerPrincipal, CandidateDecision, CandidateResult, CandidateWorkV2]:
+) -> tuple[
+    CustomerPrincipal,
+    CandidateDecisionDocument,
+    CandidateResult,
+    CandidateWorkV2 | ReportedRuleWorkV1,
+]:
     principal = original(db, actor, session_digest)
     decision = candidates.read_result(
         db, wid, result_id, principal, runtime.candidate, erase_invalid=False
@@ -68,7 +74,7 @@ def bound_candidate(
     job = candidates.load(db, wid, result.job_id)
     work = candidates.owned_work(job)
     if (
-        not isinstance(work, CandidateWorkV2)
+        not isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
         or job.actor_id != actor
         or job.auth_session_digest != session_digest
         or decision.status != "suggested"
@@ -79,7 +85,7 @@ def bound_candidate(
     return principal, decision, result, work
 
 
-def validate_plan(decision: CandidateDecision, document: OptimizationReview) -> None:
+def validate_plan(decision: CandidateDecisionDocument, document: OptimizationReview) -> None:
     plan, scope = document.plan, decision.scope
     if (
         plan.before.digest() != decision.state_digest

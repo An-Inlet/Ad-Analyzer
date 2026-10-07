@@ -29,6 +29,12 @@ from app.optimization_candidates.contracts import (
     CandidateScope,
     CandidateWork,
 )
+from app.optimization_candidates.documents import (
+    CandidateDecisionDocument,
+    CandidatePolicyDocument,
+    CandidateWorkDocument,
+    parse_decision_document,
+)
 from app.optimization_candidates.models import CandidateJob, CandidateResult
 from app.optimization_candidates.selection_contracts import CandidateWorkV2, parse_work
 from app.publication import execution_mandates as mandates
@@ -37,6 +43,11 @@ from app.publication.coordinator import read_owned_outcome_receipt
 from app.publication.execution_contracts import Environment, ProviderMandatePolicy
 from app.publication.optimization import positive_changes_used
 from app.publication.service import owner
+from app.reported_feedback.candidate_contracts import (
+    ReportedRuleCandidateV1,
+    ReportedRulePolicyV1,
+    ReportedRuleWorkV1,
+)
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
 
@@ -107,6 +118,7 @@ class CandidateRuntime:
     final_evidence_current: FinalEvidenceCurrent | None = None
     authorized_evidence_transform: AuthorizedEvidenceTransform | None = None
     authorized_final_evidence_current: AuthorizedFinalEvidenceCurrent | None = None
+    operational_policies: tuple[ReportedRulePolicyV1, ...] = ()
 
 
 def get_candidate_runtime() -> CandidateRuntime | None:
@@ -184,9 +196,29 @@ def source_current(db: Session, scope: CandidateScope, actor: str) -> None:
             raise HTTPException(409, "candidate evidence retracted")
 
 
+def registered_policy(
+    db: Session,
+    wid: int,
+    identifier: str,
+    revision: int,
+    runtime: CandidateRuntime,
+) -> CandidatePolicyDocument | None:
+    matches: list[CandidatePolicyDocument] = [
+        p
+        for p in runtime.operational_policies
+        if (p.workspace_id, p.policy_id, p.revision) == (wid, identifier, revision)
+    ]
+    legacy = runtime.policy_reader(db, wid, identifier, revision)
+    if legacy is not None:
+        matches.append(legacy)
+    if len(matches) > 1:
+        raise HTTPException(409, "ambiguous candidate policy")
+    return matches[0] if matches else None
+
+
 def current(
     db: Session,
-    work: CandidateWork | CandidateWorkV2,
+    work: CandidateWorkDocument,
     principal: CustomerPrincipal,
     runtime: CandidateRuntime,
 ) -> tuple[ProviderMandatePolicy, int, int]:
@@ -217,13 +249,17 @@ def current(
         != scope.goal_digest
     ):
         raise HTTPException(409, "candidate goal changed")
-    registered = runtime.policy_reader(db, wid, work.policy.policy_id, work.policy.revision)
+    registered = registered_policy(db, wid, work.policy.policy_id, work.policy.revision, runtime)
+    if isinstance(work, ReportedRuleWorkV1):
+        from app.reported_feedback.candidate_source import current_comparison
+
+        current_comparison(db, principal, work, runtime.clock)
     if registered != work.policy:
         raise HTTPException(409, "candidate policy unavailable")
     source_current(db, scope, principal.user.id)
     # Final session check follows all potentially blocking source/policy reads.
     authorize(db, principal, wid, runtime)
-    if isinstance(work, CandidateWorkV2) and (
+    if isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1)) and (
         work.selection.actor_id != principal.user.id
         or not work.selection.observed_at <= runtime.clock() < work.selection.expires_at
     ):
@@ -234,7 +270,7 @@ def current(
 def enqueue(
     db: Session,
     principal: CustomerPrincipal,
-    work: CandidateWork | CandidateWorkV2,
+    work: CandidateWorkDocument,
     runtime: CandidateRuntime,
 ) -> CandidateJob:
     work = parse_work(work.model_dump(mode="json"))
@@ -247,7 +283,7 @@ def enqueue(
 def _insert_checked(
     db: Session,
     principal: CustomerPrincipal,
-    work: CandidateWork | CandidateWorkV2,
+    work: CandidateWorkDocument,
     runtime: CandidateRuntime,
 ) -> CandidateJob:
     """Internal: caller holds current workspace/session/mandate/source fences."""
@@ -276,6 +312,10 @@ def _insert_checked(
     )
     db.add(row)
     db.flush()
+    if isinstance(work, ReportedRuleWorkV1):
+        from app.reported_feedback.candidate_source import bind_dependency
+
+        bind_dependency(db, row.id, principal, work, runtime.clock)
     return row
 
 
@@ -298,14 +338,17 @@ def load(db: Session, wid: int, job_id: str) -> CandidateJob:
     return row
 
 
-def owned_work(row: CandidateJob) -> CandidateWork | CandidateWorkV2:
+def owned_work(row: CandidateJob) -> CandidateWorkDocument:
     work = parse_work(row.work)
     if (
         work.scope.account.workspace_id != row.workspace_id
         or work.policy.environment != row.environment
         or work.scope.source.publication_id != row.publication_id
         or work.scope.source.attempt_id != row.attempt_id
-        or (isinstance(work, CandidateWorkV2) and work.selection.actor_id != row.actor_id)
+        or (
+            isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+            and work.selection.actor_id != row.actor_id
+        )
         or work.digest() != row.input_digest
     ):
         raise HTTPException(409, "candidate job ownership changed")
@@ -316,6 +359,10 @@ def claim(db: Session, wid: int, job_id: str, runtime: CandidateRuntime) -> str 
     row = load(db, wid, job_id)
     work = owned_work(row)
     current(db, work, principal_for(db, row), runtime)
+    if isinstance(work, ReportedRuleWorkV1):
+        from app.reported_feedback.candidate_source import require_dependency
+
+        require_dependency(db, row.id, work)
     db.refresh(row, with_for_update=True)
     now = runtime.clock()
     if row.input_digest != work.digest() or row.work != work.model_dump(mode="json"):
@@ -388,7 +435,7 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
             observation = CandidateObservation.model_validate(observation.model_dump(mode="json"))
             db.commit()
             if observation.scope != work.scope or (
-                isinstance(work, CandidateWorkV2)
+                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
                 and observation.state.digest() != work.selection.state_digest
             ):
                 raise HTTPException(409, "candidate observation changed")
@@ -405,8 +452,13 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 or utc(row.lease_until) <= runtime.clock()
             ):
                 return "superseded"
-            if isinstance(work, CandidateWorkV2) and runtime.clock() >= work.selection.expires_at:
+            if (
+                isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
+                and runtime.clock() >= work.selection.expires_at
+            ):
                 raise HTTPException(409, "candidate selection expired during result lock")
+            if isinstance(work, ReportedRuleWorkV1):
+                return process_reported_result(db, row, work, observation, runtime, token)
             if runtime.authorized_evidence_transform is not None:
                 original_state = observation.state.model_dump(mode="json")
                 original_scope = observation.scope.model_dump(mode="json")
@@ -429,7 +481,7 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 evidence = observation.evidence
                 policy, positive, actions = current(db, work, principal_for(db, row), runtime)
                 if (
-                    isinstance(work, CandidateWorkV2)
+                    isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
                     and runtime.clock() >= work.selection.expires_at
                 ):
                     raise HTTPException(409, "candidate selection expired during local derivation")
@@ -446,7 +498,7 @@ def process(engine: Engine, wid: int, job_id: str, runtime: CandidateRuntime) ->
                 # after any dependency locks it needed before storing derived data.
                 policy, positive, actions = current(db, work, principal_for(db, row), runtime)
                 if (
-                    isinstance(work, CandidateWorkV2)
+                    isinstance(work, (CandidateWorkV2, ReportedRuleWorkV1))
                     and runtime.clock() >= work.selection.expires_at
                 ):
                     raise HTTPException(409, "candidate selection expired during evidence check")
@@ -602,7 +654,7 @@ def read_result(
     runtime: CandidateRuntime,
     *,
     erase_invalid: bool = True,
-) -> CandidateDecision:
+) -> CandidateDecisionDocument:
     authorize(db, principal, wid, runtime)
     result = db.scalar(
         select(CandidateResult).where(
@@ -623,7 +675,7 @@ def read_result(
         )
         db.commit()
         raise HTTPException(404, "candidate source invalidated") from None
-    decision = CandidateDecision.model_validate(result.decision)
+    decision = parse_decision_document(result.decision)
     if (
         decision.digest() != result.decision_digest
         or decision.scope != work.scope
@@ -632,6 +684,74 @@ def read_result(
         or decision.evidence_digest != result.evidence_digest
     ):
         raise HTTPException(409, "candidate integrity unavailable")
+    if isinstance(work, ReportedRuleWorkV1):
+        from app.reported_feedback.candidate_source import (
+            assert_reported_rule_current,
+            require_dependency,
+        )
+
+        if not isinstance(decision, ReportedRuleCandidateV1):
+            raise HTTPException(409, "reported candidate document mismatch")
+        require_dependency(db, job.id, work)
+        assert_reported_rule_current(db, principal, runtime.identity, work, decision, runtime.clock)
+    elif not isinstance(decision, CandidateDecision):
+        raise HTTPException(409, "candidate document mismatch")
     if decision.expires_at <= runtime.clock():
         raise HTTPException(409, "candidate observation expired")
     return decision
+
+
+def process_reported_result(
+    db: Session,
+    row: CandidateJob,
+    work: ReportedRuleWorkV1,
+    native: CandidateObservation,
+    runtime: CandidateRuntime,
+    token: str,
+) -> str:
+    from app.reported_feedback.candidate_compiler import compile_reported_rule
+    from app.reported_feedback.candidate_source import (
+        assert_reported_rule_current,
+        read_reported_rule,
+        require_dependency,
+    )
+
+    principal = principal_for(db, row)
+    require_dependency(db, row.id, work)
+    observation = read_reported_rule(db, principal, runtime.identity, work, native, runtime.clock)
+    policy, positive, actions = current(db, work, principal, runtime)
+    decision = compile_reported_rule(
+        observation, work.policy, policy, positive, actions, runtime.clock()
+    )
+    assert_reported_rule_current(db, principal, runtime.identity, work, decision, runtime.clock)
+    current(db, work, principal, runtime)
+    db.refresh(row, with_for_update=True)
+    now = runtime.clock()
+    if (
+        row.state != "claimed"
+        or row.fence != token
+        or row.work != work.model_dump(mode="json")
+        or row.lease_until is None
+        or utc(row.lease_until) <= now
+    ):
+        return "superseded"
+    if now >= min(decision.expires_at, work.selection.expires_at):
+        raise HTTPException(409, "reported candidate expired before publication")
+    require_dependency(db, row.id, work)
+    db.add(
+        CandidateResult(
+            id=uuid4().hex,
+            workspace_id=row.workspace_id,
+            job_id=row.id,
+            input_digest=row.input_digest,
+            policy_digest=decision.policy_digest,
+            evidence_digest=decision.evidence_digest,
+            decision_digest=decision.digest(),
+            decision=decision.model_dump(mode="json"),
+            created_at=now,
+        )
+    )
+    row.state, row.completed_at = "completed", now
+    row.error_code, row.lease_until, row.fence = None, None, None
+    db.commit()
+    return "completed"

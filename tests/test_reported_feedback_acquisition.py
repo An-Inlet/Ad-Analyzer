@@ -4,7 +4,7 @@ import base64
 import io
 import json
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -28,8 +28,17 @@ from tests.test_meta_connection import campaign, insight, page
 from tests.test_shopify_sales import configuration as configuration
 
 
-def acquisition_fixture(db: Session, config: Settings, path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
-    wid, principal, provider, runtime, intent, progress, clock, server = seeded(db, config, path)
+def acquisition_fixture(
+    db: Session,
+    config: Settings,
+    path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    period_end: datetime | None = None,
+) -> Any:
+    wid, principal, provider, runtime, intent, progress, clock, server = seeded(
+        db, config, path, period_end=period_end
+    )
     config = config.model_copy(
         update={
             "meta_enabled": True,

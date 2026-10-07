@@ -56,9 +56,9 @@ def window_policy() -> ReportedWindowPolicyV1:
     )
 
 
-def seeded(db: Session, config: Settings, path: Path):  # type: ignore[no-untyped-def]
+def seeded(db: Session, config: Settings, path: Path, *, period_end: datetime | None = None):  # type: ignore[no-untyped-def]
     wid, actor, binding, scope, target, action, execution, server = ready(
-        db, config, path, "meta_ads", campaign=True
+        db, config, path, "meta_ads", campaign=True, period_end=period_end
     )
     row = optimization.prepare_optimization(
         db, wid, binding, scope, target, action, "a" * 64, actor, execution, lambda: NOW

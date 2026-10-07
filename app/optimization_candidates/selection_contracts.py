@@ -1,6 +1,6 @@
 """Versioned structural selection provenance; never a provider qualification."""
 
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import AwareDatetime, Field, TypeAdapter, model_validator
 
@@ -8,6 +8,9 @@ from app.goals.schemas import StrictModel
 from app.optimization_candidates.contracts import CandidatePolicy, CandidateScope, CandidateWork
 from app.publication.contracts import fingerprint
 from app.publication.provider_contracts import Digest, Id
+
+if TYPE_CHECKING:
+    from app.optimization_candidates.documents import CandidateWorkDocument as WorkDocument
 
 
 class CandidatePolicyRef(StrictModel):
@@ -63,8 +66,10 @@ CandidateWorkDocument = Annotated[
 WORK_ADAPTER: TypeAdapter[CandidateWork | CandidateWorkV2] = TypeAdapter(CandidateWorkDocument)
 
 
-def parse_work(value: object) -> CandidateWork | CandidateWorkV2:
-    return WORK_ADAPTER.validate_python(value)
+def parse_work(value: object) -> "WorkDocument":
+    from app.optimization_candidates.documents import parse_work_document
+
+    return parse_work_document(value)
 
 
 class SelectionBlock(StrictModel):

@@ -118,3 +118,36 @@ before the single deliberate hosted qualification. Full-scope MVP remains requir
 The unchanged real Focused shell gate also passed: **37 passed, 6 PowerShell skips,
 29 deselected, 27.52s**, `/tmp/inlet-ci-cost-real-focused-gate.log`. It no longer
 launches nested Full suites. This is local elapsed time, not hosted billing evidence.
+
+## Independent Review And PowerShell Closure — October 7
+
+An independent agent reviewed exact155dad29 read-only: no actionable coverage,
+failure-propagation, concurrency or cache regression found. Its bounded rerun was
+27 passed/16 unavailable-PowerShell skips; those skips were not treated as approval
+of PowerShell behavior. No source repairs were requested by review.
+
+Installed the official Microsoft Debian13 PowerShell7.6.6 package in the isolated
+/workspace/inlet-powershell prefix. Package metadata came from
+https://packages.microsoft.com/debian/13/prod/dists/trixie/main/binary-amd64/Packages.gz;
+verified SHA256 efae8744e1e552c07ffd7d56782c71813c25d456f8edfb1cabb4f3bb2bfdc248.
+Microsoft installation/support guidance:
+https://learn.microsoft.com/en-us/powershell/scripting/install/install-debian.
+GitHub's public release API returned403; the official Microsoft package endpoint
+succeeded. No third-party build, package credential or hosted runner was used.
+
+Initial launch hit the sandbox's read-only home cache (22 failures/61 passes in
+32.77s). A local /workspace/inlet-tools/pwsh launcher sets XDG_CACHE_HOME,
+XDG_CONFIG_HOME and XDG_DATA_HOME to writable /workspace/inlet-powershell-state
+subdirectories, then execs the official binary. HOME and repository source are
+unchanged. This launcher is environment setup, not a test stub or altered script.
+
+Final command with PATH=/workspace/inlet-tools:/workspace/inlet-venv/bin:$PATH and
+explicit disposable PostgreSQL configuration:
+`python -m pytest tests/test_validation_orchestration.py
+ tests/test_validation_diagnostics.py tests/test_automation_foundation.py`:
+**83 passed, zero skips,41.60s**; /tmp/inlet-ci-powershell-closure-fixed.log.
+All22 previously skipped PowerShell cases now executed successfully. This closes
+this package's shell verification gap; it does not qualify the entire product.
+
+Actual browser preflight also passed both synthetic H.264 and AAC blob decodes with
+Chromium151.0.7922.173, /tmp/inlet-browser-preflight.log. No application code changed.

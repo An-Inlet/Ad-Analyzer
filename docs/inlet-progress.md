@@ -5426,3 +5426,15 @@ Next: preserve this reviewable package; run known repaired product fixtures on t
 assembled candidate, then one real local Full before a single deliberate hosted
 qualification. The October6 interrupted runs remain non-passing evidence. Product
 backlog/production runtime and qualified financial evidence gaps are not solved by CI.
+
+### Independent CI Review And Previously Skipped Cases Closed
+
+Independent read-only review of155dad29 found no actionable regression. Official
+Microsoft PowerShell7.6.6, SHA256-verified and installed in a workspace-local prefix,
+now executes through a launcher using writable XDG directories (sandbox HOME remains
+unchanged). The initial read-only-cache launch failures are recorded, not hidden.
+Final combined automation/orchestration/diagnostics run: **83 passed, zero skips,
+41.60s**, including all22 previously skipped PowerShell cases and real PostgreSQL
+repeat/reset integration. Log /tmp/inlet-ci-powershell-closure-fixed.log. Real browser
+H.264/AAC preflight passed too. See inlet-ci-cost-recovery.md for source/install and
+review evidence. No hosted run or product qualification is claimed by these checks.

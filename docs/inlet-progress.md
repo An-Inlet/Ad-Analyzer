@@ -6491,3 +6491,25 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   staticcommand maskedpytestexit. Corrected2puretests passed withvalidIDs; no schema
   relaxation. Parent notified immediately; original overwrittenlog limitation and
   retained observed failureexcerpt documented. Do not treat initial claim aspass.
+
+### Candidate-Only Customer UI — 2026-10-07
+
+Isolated child of configured backend `9580eb98`; additive projection commit
+`2480f9f` supplies canonical server `decision_digest` with exact null/hash validation.
+Existing Campaigns now offers named registered policies and consented mandates,
+explicit bounded read requests/progress refresh, plain blocked reasons and exact
+result review handoff to ordinary separate approval. No automatic mode, client
+proof/hash construction, numeric policy editing or provider mutation is introduced.
+
+Actual configured HTTPS journeys **4 passed** across SQLite/PostgreSQL, plus the
+focused DOM contract **1 passed**. They create jobs via the ordinary API, execute
+the scoped worker, retain unqualified results as blocked, and clearly label fixture
+qualification on the scenario review/approval path. No seeded candidate/execution
+records or runtime getter overrides. Zero provider writes/attempts/receipts/holds.
+The final configured API/contract + existing manual Google/V2 browser compatibility
+cohort **13 passed**. Whole Ruff, scoped mypy **8 files**, Node syntax/DOM and diff
+checks passed. Exact stale detached review controls cannot send new requests.
+
+No Full, remote action, live call, deployment or automatic-source activation.
+Genuine calibrated production evidence remains unavailable; the UI does not grant
+it. See `docs/inlet-candidate-customer-ui.md` for limitations and recovery behavior.

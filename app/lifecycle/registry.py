@@ -125,6 +125,11 @@ TABLES: dict[str, TablePolicy] = {
             "document_digest",
         ),
     ),
+    "initial_preview_execution_proofs": TablePolicy(
+        "workspace",
+        ("review_id", "workspace_id", "digest", "document"),
+        protected=True,
+    ),
     "initial_preview_reviews": TablePolicy(
         "workspace",
         (

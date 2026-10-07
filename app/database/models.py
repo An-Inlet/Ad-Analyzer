@@ -29,6 +29,7 @@ MODEL_MODULES = (
     "app.initial_planning.budget_mandate_models",
     "app.production_runtime.optimization_origin_models",
     "app.initial_planning.review_models",
+    "app.initial_planning.review_v2_models",
     "app.lifecycle.models",
     "app.mandates.models",
     "app.measurement.models",

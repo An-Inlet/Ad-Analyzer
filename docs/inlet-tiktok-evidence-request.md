@@ -1,5 +1,10 @@
 # TikTok Evidence Needed To Finish Native Discovery
 
+**Superseded October 7, 2026:** rendered public official tables resolved this
+documentation request. No owner export or account access is needed. See the
+[verified response-contract record](design/tiktok-rendered-response-contract-20261007.md).
+The historical request below is retained as evidence of the former blocker.
+
 We need readable official response documentation or sanitized examples from a
 nonproduction account for these two TikTok Business API v1.3 GET endpoints:
 

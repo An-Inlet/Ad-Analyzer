@@ -1,5 +1,10 @@
 # TikTok Native Catalog: Remaining Work And Evidence
 
+**Update:** the [rendered official tables](tiktok-rendered-response-contract-20261007.md)
+now resolve the response-shape documentation blocker. Parser/collector integration
+and separate linked-profile publication eligibility remain implementation work;
+the historical owner-export request below is superseded.
+
 Status: 2026-10-07, backend06e1a82 plus explicit-vault followup7a35202.
 This clarification uses the [retained first-party evidence check](tiktok-catalog-response-evidence.md);
 The [October7 official-source recheck](tiktok-list-response-recheck-2026-10-07.md)

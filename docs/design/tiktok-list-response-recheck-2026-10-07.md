@@ -1,5 +1,9 @@
 # TikTok LIST Response Evidence Recheck
 
+**Later October 7 evidence:** [rendered official tables](tiktok-rendered-response-contract-20261007.md)
+resolved the document-access gap described below. This earlier failed/partial
+research is retained, not evidence that an owner export is still required.
+
 Research date: 2026-10-07 UTC. Documentation-only followup to
 [the original evidence check](tiktok-catalog-response-evidence.md) and
 [remaining implementation gap](tiktok-catalog-remaining-gap.md), based on repository

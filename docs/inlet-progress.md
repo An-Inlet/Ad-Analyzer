@@ -6315,3 +6315,33 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - Whole Ruff, mypy app/tests (**764 source files**), both JavaScript syntax checks
   and diff check pass. No production code changes in this browser package, no
   Full, remote operations, native live calls, deployment or live qualification.
+
+### 2026-10-07 — Standalone Planning Contract Import Repair
+
+- Reproduced fresh-process ImportError on initial_planning.contracts: TargetChoice
+  pulled customer_runtime solely for utc_now, then activation/coordinator/mandates
+  reentered partially initialized Frozen through optimization-origin contracts.
+- Extracted identical UTC clock into import-neutral publication.clock; legacy runtime
+  reexports the same callable and both dataclass defaults retain its identity. No
+  schema/default behavior changes. Three fresh-import/default identity regressions
+  passed within27 focused tests; whole mypy814 passed. No application-bootstrap
+  workaround remains in tests. No DB, Full, remote or live calls.
+
+### 2026-10-07 — Pure V2 Preview Execution Handoff Contracts
+
+- Frozen new strict customer intent/prepared response/hash-only proof and native
+  semantic-match projection; docs/design/configured-v2-review-contract-freeze.md
+  records callable signatures and actual field mapping. Separate consent requires
+  distinct mandate/consent identities on the same ledger/environment. No native
+  observation is relabeled as qualified state and existing preview/v1 bytes unchanged.
+- Actual shared Meta codec commits objective/buying type in unchanged-settings digest;
+  status is explicitly compared (not falsely claimed in that digest). Campaign-only
+  parent status equality follows actual same-row parsing. Native financial period and
+  qualification are absent, so future owned bridge must independently validate both
+  policy/consent/origin/period/cap bindings and current source/session/financial gates.
+- Final45 tests passed,8 owned-DB cases deliberately deselected,3.79s; actual GET-only
+  MockHTTP both readers, changed-semantic matrix, strict proof/client inputs, legacy
+  state digest pins and fresh import regressions. Whole Ruff/mypy814, format and
+  diffcheck pass. Evidence /tmp/inlet-v2-review-contracts.log. No DB, routes, runtime
+  registration, UI, migration, Full, remote or live calls. This freeze grants no
+  financial authority and does not implement the future durable handoff service.

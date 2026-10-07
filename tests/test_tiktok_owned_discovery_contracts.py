@@ -48,4 +48,4 @@ def test_aggregate_cannot_claim_complete_from_partial_page(change: str) -> None:
         assert result.traversal_completeness == "complete_requested_scope"
         assert result.scalar_shape_qualification == "unverified"
         with pytest.raises(ValidationError):
-            result.scope.account_id = 7
+            result.scope.account_id = 7  # type: ignore[misc]

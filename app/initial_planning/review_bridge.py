@@ -55,6 +55,8 @@ def current_preview(
     runtime: InitialPlanningRuntime,
 ) -> tuple[InitialPreviewV1, PreviewRow, PreviewIntentV1]:
     value = read_preview(db, principal, provider, wid, preview_id, runtime)
+    if not isinstance(value, InitialPreviewV1):
+        raise HTTPException(409, "initial_preview_native_read_unqualified")
     row = db.get(PreviewRow, preview_id, populate_existing=True)
     if row is None:
         raise unavailable()

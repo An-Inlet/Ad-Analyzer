@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import Field, TypeAdapter
 
+from app.api.customer_execution import Runtime as ExecutionRuntime
 from app.campaign_review.contracts import MediaStore, ReviewArtifact
 from app.campaign_review.models import CampaignRevision
 from app.campaign_review.storage import get_media_store
@@ -35,7 +36,16 @@ from app.publication.social_selection import (
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/execution/social", tags=["customer"]
 )
-Runtime = Annotated[SocialReviewRuntime | None, Depends(get_social_review_runtime)]
+LegacyRuntime = Annotated[SocialReviewRuntime | None, Depends(get_social_review_runtime)]
+
+
+def configured_social_review(
+    legacy: LegacyRuntime, execution: ExecutionRuntime
+) -> SocialReviewRuntime | None:
+    return legacy if legacy is not None else execution.social_review if execution else None
+
+
+Runtime = Annotated[SocialReviewRuntime | None, Depends(configured_social_review)]
 Store = Annotated[MediaStore, Depends(get_media_store)]
 History: TypeAdapter[SocialConfigurationDocument | LegacySocialConfigurationDocumentV1] = (
     TypeAdapter(

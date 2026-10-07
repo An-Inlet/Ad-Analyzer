@@ -27,6 +27,13 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.fixture(autouse=True)
+def enforced_foreign_keys(customer_engine: Engine) -> None:
+    if customer_engine.dialect.name == "sqlite":
+        with customer_engine.begin() as connection:
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+
+
 def test_real_feedback_idempotent_not_compounded_and_retracted_with_retained_finance(
     customer_engine: Engine,
     configuration: Settings,
@@ -82,7 +89,9 @@ def test_real_feedback_idempotent_not_compounded_and_retracted_with_retained_fin
         assert len(server.posts) == 1
 
 
-def test_changed_mapping_never_returns_a_preview_with_an_invalidated_baseline(
+@pytest.mark.parametrize("erasure", ["pointer", "current_revision"])
+def test_changed_mapping_appends_current_revision_without_invalidating_baseline(
+    erasure: str,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -110,16 +119,48 @@ def test_changed_mapping_never_returns_a_preview_with_an_invalidated_baseline(
                 update={"revision": 2, "maximum_preview_delta_micros": 1_000_000}
             ),
         )
-        # An unsupported destructive replacement must fail atomically, never return
-        # success for an immediately unreadable preview or disable privacy fencing.
-        with pytest.raises(HTTPException):
-            apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed)
-        db.rollback()
+        from app.lifecycle import privacy
+        from app.reported_feedback.export import numeric_dependency_stamp
+        from app.reported_feedback.models import ReportedFeedbackCurrent
+        from app.reported_feedback.revisions import require_current_slot
+
+        monkeypatch.setattr(privacy, "database_utc_now", lambda _: data[6][0])
+        stamp = numeric_dependency_stamp(db, wid, validate=True)
+        original_row = db.get(ReportedFeedbackSlot, first.id)
+        assert original_row
+        original_bytes = original_row.document.copy()
+        second = apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed)
+        db.commit()
+        assert second.id != first.id and second.delta_micros != first.delta_micros
         retained_space = db.get(Workspace, wid)
         assert retained_space and retained_space.export_privacy_revision == before_revision
-        assert db.scalar(select(func.count()).select_from(ReportedFeedbackSlot)) == 1
+        assert db.scalar(select(func.count()).select_from(ReportedFeedbackSlot)) == 2
+        original_row = db.get(ReportedFeedbackSlot, first.id)
+        assert original_row and original_row.document == original_bytes
         assert (
             read_preview(db, principal, FakeProvider(), wid, initial.id, runtime.initial) == initial
         )
-        assert read_feedback_preview(db, principal, FakeProvider(), wid, first.id, runtime) == first
+        assert (
+            read_feedback_preview(db, principal, FakeProvider(), wid, second.id, changed) == second
+        )
+        with pytest.raises(HTTPException, match="superseded"):
+            read_feedback_preview(db, principal, FakeProvider(), wid, first.id, runtime)
+        assert numeric_dependency_stamp(db, wid, validate=True) != stamp
+        assert apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed) == second
+        db.commit()
+        pointer = db.scalar(select(ReportedFeedbackCurrent))
+        assert pointer and pointer.slot_id == second.id and pointer.revision == 2
+        if erasure == "pointer":
+            db.delete(pointer)
+        else:
+            current_row = db.get(ReportedFeedbackSlot, second.id)
+            assert current_row
+            db.delete(current_row)
+        db.commit()
+        old = db.get(ReportedFeedbackSlot, first.id)
+        assert old
+        with pytest.raises(HTTPException, match="pointer_unavailable"):
+            require_current_slot(db, old)
+        with pytest.raises(HTTPException):
+            apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed)
         assert len(server.posts) == 1

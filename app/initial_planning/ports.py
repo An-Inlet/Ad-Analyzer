@@ -17,6 +17,7 @@ from app.initial_planning.contracts import (
     ObservationV1,
     PreviewIntentV1,
 )
+from app.initial_planning.preview_v2 import InitialPreviewV2
 from app.initial_planning.runtime import InitialPlanningRuntime
 
 
@@ -75,4 +76,4 @@ class ReadPreview(Protocol):
         workspace_id: int,
         preview_id: str,
         runtime: InitialPlanningRuntime,
-    ) -> InitialPreviewV1: ...
+    ) -> InitialPreviewV1 | InitialPreviewV2: ...

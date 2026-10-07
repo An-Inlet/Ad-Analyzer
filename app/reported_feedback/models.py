@@ -170,7 +170,21 @@ class ReportedFeedbackSlot(Owned, Base):
             "original_attempt_id",
             "policy_family",
             "cohort_digest",
-            name="uq_rf_original_contribution",
+            "revision",
+            name="uq_rf_original_revision",
+        ),
+        UniqueConstraint(
+            "id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "environment",
+            "original_attempt_id",
+            "policy_family",
+            "cohort_digest",
+            "opportunity_digest",
+            "revision",
+            name="uq_rf_slot_pointer",
         ),
         CheckConstraint("revision > 0", name="ck_rf_slot_revision"),
     )
@@ -186,6 +200,73 @@ class ReportedFeedbackSlot(Owned, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-from app.reported_feedback.triggers import register  # noqa: E402
+class ReportedFeedbackCurrent(Base):
+    __tablename__ = "reported_feedback_current"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "environment",
+            "original_attempt_id",
+            "policy_family",
+            "cohort_digest",
+            name="uq_rf_current_group",
+        ),
+        ForeignKeyConstraint(
+            [
+                "slot_id",
+                "workspace_id",
+                "account_id",
+                "campaign_id",
+                "environment",
+                "original_attempt_id",
+                "policy_family",
+                "cohort_digest",
+                "opportunity_digest",
+                "revision",
+            ],
+            [
+                f"reported_feedback_slots.{field}"
+                for field in (
+                    "id",
+                    "workspace_id",
+                    "account_id",
+                    "campaign_id",
+                    "environment",
+                    "original_attempt_id",
+                    "policy_family",
+                    "cohort_digest",
+                    "opportunity_digest",
+                    "revision",
+                )
+            ],
+            ondelete="CASCADE",
+            name="fk_rf_current_slot",
+        ),
+        CheckConstraint("revision > 0", name="ck_rf_current_revision"),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    workspace_id: Mapped[int] = mapped_column(Integer)
+    account_id: Mapped[int] = mapped_column(Integer)
+    campaign_id: Mapped[int] = mapped_column(Integer)
+    environment: Mapped[str] = mapped_column(String(16))
+    original_attempt_id: Mapped[str] = mapped_column(String(32))
+    policy_family: Mapped[str] = mapped_column(String(32))
+    cohort_digest: Mapped[str] = mapped_column(String(64))
+    opportunity_digest: Mapped[str] = mapped_column(String(64))
+    slot_id: Mapped[str] = mapped_column(String(32))
+    revision: Mapped[int] = mapped_column(Integer)
+
+
+from app.reported_feedback.triggers import current_statements, register  # noqa: E402
 
 register(Base.metadata)
+
+from sqlalchemy import DDL, event  # noqa: E402
+
+for _dialect in ("sqlite", "postgresql"):
+    for _statement in current_statements(_dialect):
+        event.listen(
+            ReportedFeedbackCurrent.__table__,
+            "after_create",
+            DDL(_statement).execute_if(dialect=_dialect),  # type: ignore[no-untyped-call]
+        )

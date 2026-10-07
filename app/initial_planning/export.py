@@ -13,6 +13,8 @@ from app.initial_planning.contracts import (
     ObservationV1,
     PreviewIntentV1,
 )
+from app.initial_planning.preview_binding import bind_preview_row
+from app.initial_planning.preview_v2 import InitialPreviewV2, PreviewIntentV2
 from app.publication.contracts import fingerprint
 from app.shopify.security import utc
 
@@ -24,20 +26,19 @@ def bind_initial_document(
         return False
     if len(json.dumps(document.model_dump(mode="json"), allow_nan=False).encode()) > 256 * 1024:
         raise ValueError("initial document exceeds bounded export")
-    if isinstance(document, PreviewIntentV1):
-        preview = InitialPreviewV1.model_validate(row["document"])
-        if (
-            document.calibration_id != row["calibration_id"]
-            or document.observation_id != row["observation_id"]
-            or document.objective != preview.objective
-        ):
-            raise ValueError("initial preview intent mismatch")
-        cohort = document.objective.cohort
-    elif isinstance(document, EfficiencyObjectiveV1):
+    if isinstance(document, (PreviewIntentV1, PreviewIntentV2, InitialPreviewV1, InitialPreviewV2)):
+        preview = bind_preview_row(row)
+        if isinstance(document, (PreviewIntentV1, PreviewIntentV2)):
+            if document.model_dump(mode="json") != row["intent"]:
+                raise ValueError("initial preview intent mismatch")
+        elif document != preview:
+            raise ValueError("initial preview document mismatch")
+        return True
+    if isinstance(document, EfficiencyObjectiveV1):
         if document.digest() != row["objective_digest"]:
             raise ValueError("initial objective mismatch")
         cohort = document.cohort
-    elif isinstance(document, (ObservationV1, CalibrationReportV1, InitialPreviewV1)):
+    elif isinstance(document, (ObservationV1, CalibrationReportV1)):
         if (
             document.id != row["id"]
             or document.expires_at != utc(row["expires_at"])
@@ -67,15 +68,6 @@ def bind_initial_document(
             }
             if document.evaluated_at != utc(row["created_at"]):
                 raise ValueError("initial calibration time mismatch")
-        else:
-            cohort = document.objective.cohort
-            exact = {
-                "calibration_id": document.calibration_id,
-                "observation_id": document.observation_id,
-                "native_state_digest": document.native_state_digest,
-            }
-            if document.created_at != utc(row["created_at"]):
-                raise ValueError("initial preview time mismatch")
         if any(row[key] != value for key, value in exact.items()):
             raise ValueError("initial document scalar mismatch")
     else:

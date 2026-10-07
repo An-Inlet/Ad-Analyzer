@@ -5619,3 +5619,366 @@ a new immutable candidate must still pass Full before any hosted qualification.
 Logs `/tmp/inlet-oct07-meta-{delayed-baseline,race-repaired,fence-negative-control,
 final-cohort}.log`, original trace, exitcode and full log are preserved with hashes
 under `/workspace/inlet-evidence/20261007`. New product packages remain isolated.
+
+### 0078 Immutable Feedback Revisions And Current Pointer — Local Package
+
+Existing `reported_feedback_slots` now retains immutable revisions (same v1 IDs,
+JSON bytes/digests and old revision values). `reported_feedback_current` identifies
+the exact owned current revision with a composite FK and immutable group fields;
+updates permit only a different slot at exact revision+1. The service serializes
+append/pointer advance under original workspace/session authority, reuses an exact
+current replay, caps retained rows at128 including unswept expiry, and revalidates
+baseline/source/session before commit. Pointer loss never selects an older row.
+Existing public reads are current-only; exports retain strictly validated as-of
+rows and commit the pointer in their freshness stamp. Appending changes that stamp
+without erasing data or rebasing source privacy. Genuine erasure, correction,
+retention and financial-history isolation remain intact.
+
+Migration20261007_0078 follows0077. It preserves populated row bytes/revisions,
+seeds exact pointers, and refuses downgrade when retained history or deleted
+current state would be lost/revived. SQLite batch alteration temporarily preserves
+and restores exact referencing trigger SQL; FK enforcement remains enabled.
+Explicit lifecycle/strict scalar export classification includes the new table.
+
+Checks actually run (SQLite and PostgreSQL, no Full):
+- Revision/guard/actualHTTPS suite26passed,2expectedSQLite concurrency skips:
+  `/tmp/reported-revisions-final.log`.
+- Missing-pointer downgrade regression2passed:
+  `/tmp/reported-revisions-missing-pointer.log`.
+- Schema/lifecycle/historical0077 suite32passed,2expectedSQLite skips:
+  `/tmp/reported-revisions-schema.log`.
+- Targeted populatedDDL/concurrency/finalsession run6passed,2expectedSQLite skips:
+  `/tmp/reported-revisions-races.log`.
+- Broader performance/API/comparison run33passed,2historical0074 fixture failures
+  (`/tmp/reported-revisions-regressions.log`). Fixed the remaining historical
+  teardown block to remove0078 before0077 and restore it afterward; both failing
+  cases thenpassed (`/tmp/reported-revisions-historical-fixed.log`). The earlier
+  invocation is not represented as green.
+- Whole Ruff, mypy707files and diff checks pass.
+
+Covered genuine changed-policy and newly prepared unadjusted-baseline replacement,
+no compounding, old bytes preserved, superseded/public-read rejection, pointer and
+current-row deletion no fallback, exact replay, PostgreSQL identical/different
+concurrent requests, final authority rollback, FK/+1 guards and bounded retention.
+ActualHTTPS continues to verify response/session changes discard stale output.
+No live policy, spending permission, adjusted-preview handoff, remote actions or
+provider calls were enabled. V2 read-only native baseline integration remains a
+separate shared-interface follow-up; this package preserves v1 behavior.
+### Planning/Reporting Runtime First Contract Checkpoint — 2026-10-07
+
+Local successor of frozen9396839; proposal2230e15 approved for staged implementation.
+Added separate deeply frozen native budget request/observation/owner/catalog ports,
+without qualification IDs or a financial period. Tuple-based owner topology retains
+existing target-set semantics and checks its exact digest. No native IO or runtime
+activation is introduced. Added explicit initial/window/optional-feedback/read-limit
+profile and bounded local JSON loader: missing pair is unavailable, malformed or
+partial configuration, duplicate keys, oversized input, policy drift and digest
+mismatch fail with a fixed sanitized error. The caller retains the immutable profile;
+there is no implicit cache, principal, engine selection or hot reload.
+
+Validation:32 focused contract/configuration/legacy initial-policy tests passed in
+1.59s; whole-tree Ruff passed; whole-tree mypy passed711 source files; diff-check
+passed. First mypy attempt found only three frozen-assignment test typing errors,
+repaired before the final checks. No Full, remote, provider or deployment actions.
+Next: shared neutral Meta parser and actual owned GET-only collector, then API/worker
+assembly and explicit v2 preview with lifecycle/consumer version dispatch. This
+checkpoint does not implement those behaviors or qualify any writes. Feedback
+revision service/models/migration0078 remain owned by the separate package.
+
+### Owned Native Meta Budget Collection — 2026-10-07
+
+Successor of7767b54. Extracted one shared neutral Meta budget parser; existing
+qualified adapter delegates without changed serialized state. Added fixed-origin
+GET-only collector with private original-session vault assembly, full owner topology,
+explicit read limits and deadlines, no synthetic qualification/financial period.
+USD→2 is the initial explicit supported mapping; other currencies fail unsupported,
+and existing qualified adapter coverage stays intact. Daily/lifetime modes remain
+distinct. Factory owns transport cleanup; private DB sessions close before HTTP and
+recheck original authority/current goal/source after every response.
+
+Final78 focused tests passed11.10s (actual SQLite/PostgreSQL vault/session/gen/goal
+journeys, native HTTP/error bounds, profile/contract tests and legacy social HTTP
+regressions); whole-tree Ruff passed; mypy716 passed; diff-check passed. Earlier
+new-fixture failures exposed a goal-digest namespace/commerce-refresh mismatch and
+one renamed settings attribute; corrected using actual goal definition/commerce
+sync, not guard bypass. Frozen subtype equality was normalized in the shared parser
+before target comparison. Prior-parser byte comparison and pinned campaign/adset
+state digests verify legacy compatibility. No Full, live provider, remote or factory
+activation. See inlet-planning-native-budget-read.md for callable ports and remaining
+ordinary API/worker/v2 lifecycle assembly.
+
+### Explicit Initial Preview V2 Contract — 2026-10-07
+
+Added only the new typed v2 document and pure strict version-dispatch parser.
+The v2 commitment includes environment/profile and the full unqualified native
+observation; exact amount, scope/objective, goal revision, quantum and expiry bind
+together. There is no qualified native-state digest. Legacy v1 class/serialization
+and its bridge remain unchanged. No v2 persistence or route is enabled yet; root
+approved leaving nullable native_state_digest NULL when later v2 persistence lands.
+Owned read/export/consumer dispatch and explicit bridge rejection must land before
+v2 can be served. Scheduler coordinates its immutable0078 baseline accessor.
+
+Validation:23 new-version/native/legacy contract tests passed0.59s; whole-tree Ruff
+passed; mypy718 passed; diff-check passed. No migration, Full, remote or live calls.
+
+### Versioned Baseline Consumer Ports — 2026-10-07
+
+Isolated successor from9a75119. PreviewIntentV2 persists server-resolved objective,
+calibration/observation/profile/environment/goal commitment, opaque native option ID
+and exact optional mandate ID/revision. It never fabricates TargetChoice. Pure
+bind_preview_row and preview_mandate_reference enforce typed intent/document/scalar
+bindings; owned read_preview returns the strict v1/v2 union and preserves current
+session/source/goal/calibration/expiry/mandate checks. V2 requires the exact installed
+profile and nullable qualified native_state_digest staysNULL. Initial export uses
+strict version dispatch and the same row binder. Qualified review bridge explicitly
+rejects v2 before reading v1 native state. No v2 producer/route is enabled yet.
+
+Unchanged native configuration now has a stable opaque choice ID across acquisition
+timestamps; full observation digest still commits those timestamps and expiry.
+Changed budget/scope/profile/settings still changes the choice. Final53 focused
+binding/version/initial API/lifecycle tests passed,1skipped,44.43s; whole Ruff and
+mypy720 passed; diff-check passed. No Full/remote/live. Actual v2 producer/runtime
+journey remains next; scheduler owns feedback consumer changes after this freeze.
+
+## Version-aware reported baseline consumer — local checkpoint
+
+Based on frozen 0078 c9b019c and actual merge of producer ports 42c20ba.
+The feedback consumer now uses the strict versioned row binder and persisted
+mandate reference, preserves the final owned reader recheck, and rejects v2
+cross-environment or nonrepresentable currency amounts in both application and
+as-of dependency validation. Existing v1 bytes, revision pointers, authority and
+privacy behavior remain unchanged. No initial-planning producer/export files
+were modified by this consumer package.
+
+Pure version/quantum tests and existing genuine v1 baseline guards are validation
+of the consumer boundary only. Actual v2 producer → owned GET → adjusted-preview
+acceptance remains pending the producer fixture; no hand-built document test is
+claimed as that journey. Runtime defaults and financial gates remain unchanged.
+No remote action, Full suite or live provider call was made.
+
+Checkpoint checks: `pytest -ra tests/test_reported_feedback_versions.py
+ tests/test_initial_preview_binding.py tests/test_reported_feedback_preview_guards.py`
+passed **20 tests** on SQLite/PostgreSQL (`/tmp/inlet-feedback-v2-final.log`).
+Whole Ruff and mypy **723 files** passed; `git diff --check` passed.
+### Actual Configured Planning/Reporting Assembly — 2026-10-07
+
+Successor of42c20ba. Added explicit profile settings and sanitized readiness check,
+pinned loader/actual-engine bundle, ordinary initial/reporting API getters and Meta
+worker construction. No installed profile remains unavailable; no global principal
+or implicit background engine. Added actual owned native-option discovery and v2
+producer with separate consent/cap/quantum checks. Public native selection is only
+an opaque option ID; full unqualified observation is committed, qualified state
+column staysNULL, v1 serialization/optimizer hashes remain intact. New native goal
+commitment now matches the existing initial-preview goal namespace and strict row
+binding. Original identity is captured before releasing DB transactions for HTTP.
+
+Actual run_meta_tick previously omitted due fixed jobs on fresh rolling coverage.
+Installed-profile selection now also considers bounded exact owned source/account/
+integration/generation/environment/window-policy obligations, preserving due time,
+expiry, connection backoff and existing page authority/lease checks. No new queue
+or retry authorization. The actual entrypoint fixture proves four fixed observations
+while preserving the original rolling completion timestamp.
+
+Validation: broad targeted run133passed1skipped with one outdated expected readiness
+checklist failure (140.78s); corrected that assertion to include the genuinely added
+profile check and added partial-profile rejection. Deployment9passed1.48s. Final
+actual configured producer/entrypoint/authority-negative/export/bridge+deployment
+run19passed45.77s, both SQLite/PostgreSQL. Whole Ruff passed; mypy725 passed;
+diff-check passed. The initial typo in the broad test filename collected no tests,
+then the actual documented run above executed. No Full or remote/provider live IO.
+
+Reusable tests/planning_runtime_fixture.py:configured_journey installs explicit
+fixture profile, uses ordinary API runtime getters, actual run_meta_tick, real report
+captures/calibration/commerce refresh and encrypted-vault GETs to produce USD45→46.
+Only DB/identity harness, low-level HTTP and clock seams are substituted; no runtime
+getter override or fabricated native qualification. Session/generation/profile/
+expiry changes deny reads; actual strict export excludes original session digest;
+v2 qualified bridge returns explicit409. Consumer930feaca+0078 integration and its
+actual adjusted-preview/browser journey remain dependent work, not claimed here.
+See inlet-planning-runtime-assembly.md for callable ports and remaining scope.
+
+## Configured v2 reported-preview acceptance — local follow-up
+
+Actual merge 8944f06 integrates producer c340bbf with consumer 930feac and immutable
+revision package c9b019c. The new API tests use the producer's configured_journey:
+actual file profile, normal runtime getters, Meta worker four fixed observations,
+owned captures/calibration, commerce refresh and vault-backed GET-only native
+catalog. No v2 row fabrication or runtime-getter override bridges the journey.
+The explicit fixture policy changes the genuine 46.00 baseline to 45.75; it is
+not a production policy or spending qualification.
+
+Eight SQLite/PostgreSQL API cases pass, including same-ID exact replay, current
+read, strict export, no additional native requests, and denial after original
+session revocation, source generation change, expiry or baseline erasure.
+Two actual TLS Chromium cases pass using the actual API-created original session
+and customer page: selected comparison/baseline produces the changed preview;
+late actual responses cannot restore state after workspace change or real session
+rotation. Existing no-handoff/no-spending messaging is preserved. These tests
+extend the real producer fixture; the browser does not redo account onboarding.
+
+Evidence: /tmp/inlet-feedback-configured-v2.log (8 passed),
+/tmp/inlet-feedback-configured-browser.log (2 passed). Whole Ruff and mypy730
+passed. No live call, remote operation, schema change or Full run occurred.
+Existing v1/version/binder/guard/TLS browser regression invocation also passed
+22 tests (/tmp/inlet-feedback-v2-compatibility.log). `git diff --check` passed.
+
+### 2026-10-07 — Conditional first-customer budget mandate backend
+
+- Isolated `codex/inlet-customer-budget-contract`, from02377c8; typed policy/ports
+  frozenbcf4ed0. Added ordinary read-runtime-backed prepare/consent endpoints and
+  separately pinned explicit server operating policy. Customers submit budget,
+  named aggression and native scope; technical policy fields are rejected.
+- Added0079down0078 minimal protected immutable provenance with owned revision FK,
+  policy-binding trigger, strict export and nonempty downgrade refusal. Existing
+  mandate revisions/consent/ledger reused. `revise(commit=False)` preserves default
+  old commit behavior and permits atomic draft+provenance+final session fencing.
+- Actual no-prior-production-authority fixture uses real imported/captured history,
+  normal goal edit/preview/confirm, configured native GET HTTP mock and normal API
+  prepare/consent/retry/v2 preview. No write-runtime overrides or exposure proof.
+- Checks:18 API/migration cases passed on SQLite/PostgreSQL (actual Alembic roundtrip
+  on PostgreSQL),27 contract/model-registry/existing mandate/lifecycle cases passed;
+  whole Ruff passed, mypy740 files passed, diff check passed. Logs:
+  `/tmp/inlet-budget-final-focused.log`, `/tmp/inlet-budget-compatibility.log`.
+  Concurrent DB session revocation inside provider HTTP denies consent; final guard
+  failure after sidecar insertion leaves neither draft nor provenance.
+- No Full, remote actions, live calls, merge or deployment. Dependent actual TLS UI
+  journey belongs scheduler_wiring and is not claimed by this backend checkpoint.
+  Required real operating-policy values, coherent process policy deployment and
+  independent provider execution qualification remain explicit prerequisites.
+
+### 2026-10-07 — Configured Google Creation And Separate Activation
+
+- Local successor to frozen `9209c14d`: ordinary request-scoped API assembly now
+  uses the actual DB engine, original principal/session, owned vault credentials,
+  actual OAuth/catalog/qualification/create/readback/activation HTTP adapters and
+  existing financial readers. Missing manifest or server evidence source denies;
+  no shipped live source, proof JSON admission or runtime getter test override.
+- Shipped real transport refuses contract-test manifests before construction.
+  Explicit MockHTTP injection is required for synthetic evidence tests; a live
+  manifest with scenario evidence and direct social API bodies deny before IO.
+  Ephemeral contexts/transports close on successful and denied requests.
+- Genuine configured API builds production mandate consent, exact creation review,
+  paused graph and separate activation approval without seeded execution reviews,
+  attempts, receipts or holds. Unknown mutation retains one attempt/hold and never
+  replays. This is offline contract evidence, not live provider/financial evidence.
+- Reproduced PostgreSQL self-lock in activation preparation after identical receipt
+  reconciliation: backend7331 waited on7325 (receipt lookup transaction). Stopped
+  that exact test and canceled its waiting query; interrupted run is not a pass.
+  Narrow explicit commit before external qualification releases the completed
+  read phase. Final authority/graph checks remain; regression revokes the original
+  session during qualification and verifies denial, no duplicate receipt/write,
+  and one retained hold.
+- Checks: combined API/contracts/legacy execution/activation suite 46 passed
+  (`/tmp/inlet-google-runtime-final-checks.log`); final transport-guard successor
+  contracts/configured API suite 16 passed, both DBs
+  (`/tmp/inlet-google-runtime-transport-checks.log`). Whole Ruff and mypy749 passed;
+  diff check passed. No Full, remote, live calls, merge or deployment.
+- Next: actual TLS customer journey through this configured assembly. Real approved
+  evidence-source implementation and policy qualification remain prerequisites;
+  this package does not enable live writes or complete remaining provider/worker
+  assembly. Process-pinned manifest rollout assumptions are documented.
+
+## Configured Google Execution — Actual TLS Browser Acceptance
+
+On frozen backend6586d46, the new dedicated browser harness uses
+configured_customer's ordinary request-scoped runtime, pinned manifest, actual
+owned OAuth/vault/catalog/qualification/creation/activation adapters, and explicit
+server-side contract-scenario evidence with MockHTTP. No runtime getter override
+or seeded execution review, attempt, reservation or receipt bridges the journey.
+Approved creative is an existing prerequisite, not claimed as generated here.
+
+The actual execution page obtains the catalog, records separate spending consent,
+prepares and explicitly approves exact paused creation, advances the resource graph,
+then prepares and separately approves activation. It reads the resulting receipt,
+recovers the saved owned run and revokes local consent. The single parent reservation
+remains held. Contract-test state is not live advertising or causal-effect evidence.
+
+Additional actual browser scenarios cover timeout/unknown creation: one original
+attempt/write and one held reservation; Continue is disabled and Check Original
+Request reconciles without replay. Revoking the original session during the actual
+post-release qualification callback blocks activation review and makes no activation
+write, preserving the existing hold.
+
+Final SQLite/PostgreSQL six-case TLS suite:6passed34.51s
+(/tmp/inlet-google-configured-browser-v3.log). Whole Ruff, Node syntax, mypy750,
+and diff checks passed. Earlier harness failures are retained: first omitted the
+existing campaign-draft listing router; second expected legacy injected-runtime
+social-blocker wording. Fixed only harness route mounting/assertion specificity;
+no application changes or weakened gates. No Full/remote/live/artifacts.
+
+### 2026-10-07 — Meta Runtime Interface Freeze
+
+- Additive successor to Google TLS4ff8d74 and approved design356dfa7: frozen Meta
+  manifest, exact configuration bundle, server evidence and owned-context ports.
+  Google contracts/configuration and all native Meta qualification blockers unchanged.
+- Bounded manifest16KiB/bundle64KiB loader rejects duplicate keys and missing,
+  mismatched or foreign rules. Immutable canonical bundle owns nested policy data;
+  accessors return defensive copies. USD exponent2/no-DSA only, explicit wording.
+- Real transport factory refuses contract-test before constructing HTTPTransport;
+  no sockets/source factory/registry/API composition installed by this checkpoint.
+- Final focused contracts11 passed (including existing Google cases); whole Ruff,
+  mypy754 and diff check passed. No DB, Full, remote or live operations. Next is
+  request-owned contexts and lazy typed provider composition after sharing this
+  freeze; actual configured API/TLS journey remains outstanding.
+
+### 2026-10-07 — Configured Meta Image And Lazy Provider Composition
+
+- Successor to bd35908 wires request-owned Meta vault/media contexts, ordinary
+  social-review dependency and typed lazy Google/Meta execution composition.
+  `configured_execution(db, principal, provider, settings, media_store_factory,
+  social_only=False)` owns resources until request exit. Actual original session,
+  DB bind, current source/generation and exact declaration/profile guards retained.
+- Same-environment Google+Meta capability discovery builds no evidence source or
+  transport. Typed Meta work never builds Google; unsupported TikTok catalog/plans
+  and inert HTTP slot deny before factories/IO. Missing Meta leaves Google working.
+  Native Meta four qualification blockers remain; no registered live source or
+  blocker-filtering code. Real transport rejects contract-test before construction.
+- Actual configured Meta fixture seeds no execution review/attempt/receipt/hold and
+  overrides no runtime getters. Ordinary API performs mandate consent, actual named
+  HTTP catalog, explicit declaration review/confirmation, exact creation approval,
+  image/paused graph and separate activation/readback. Unknown create/activate retain
+  original hold and do not replay. Session revocation or generation change during
+  catalog HTTP, expired credentials and absent source deny without writes.
+- Checks:42 combined Meta/Google/legacy API cases passed; final49 Meta contracts/API,
+  legacy social API and all6 configured Google TLS regression cases passed on both
+  DBs. Logs `/tmp/inlet-meta-composition-focused.log` and
+  `/tmp/inlet-meta-composition-final.log`. Whole Ruff/mypy758/diff check passed.
+  Exploratory old Google real-transport regression initially expected eager denial
+  during local mandate preparation; lazy behavior requires no unused transport.
+  It now exercises actual configuration discovery and preserves the forbidden-real-
+  constructor/no-IO assertion. No production/hash/financial check was relaxed.
+- Callable composition and `tests/meta_runtime_fixture.py:configured_meta_customer`
+  are frozen for dependent actual Meta TLS acceptance. That new Meta browser journey
+  remains outstanding; Google browser compatibility is verified. No Full, remote,
+  live calls, merge or deployment, and no claims of live qualification.
+
+### Configured Meta customer TLS acceptance (2026-10-07)
+
+- Isolated successor of `55e6a35387593483a34e86ebbd002d27473d2802` adds
+  dedicated browser tests only. The actual social configuration page performs
+  named HTTP catalog discovery, explicit no-special-category declaration, private
+  image decoding, saved exact review and separate confirmation. The same original
+  session then uses the actual execution page for mandate consent, creation review,
+  explicit approval, paused resource graph, separate activation review/approval,
+  status recovery and owned receipt readback.
+- Ordinary configured runtime and vault/HTTP adapters are used with lower-level
+  MockTransport. No runtime getter overrides or seeded execution reviews, attempts,
+  receipts or reservations. Explicit server contract-scenario evidence remains
+  test-only; this does not establish live provider qualification.
+- Unknown creation and activation responses are reconciled through the actual
+  Check Original Request control without replay. Original session revocation,
+  source-generation change, missing private media and withdrawn declaration
+  confirmation block activation while retaining the held reservation.
+- Adverse harness evidence: initial SQLite run correctly rejected previewing the
+  October 5 fixture draft using the route's real October 7 clock (409). The harness
+  now supplies the existing fixture clock to that route as well; no product
+  freshness, approval or financial gate was changed. Logs:
+  `/tmp/inlet-meta-configured-browser.log` and
+  `/tmp/inlet-meta-configured-browser-v2.log`.
+- Preliminary cohorts: eight complete/unknown/session cases passed; six additional
+  source/media/declaration cases passed (38.94 seconds), all across SQLite and PG.
+  Final combined result recorded below. Whole Ruff, mypy (449 source files), both
+  JavaScript syntax checks and diff check passed. No new Full, remote activity,
+  screenshots, live requests, deployment or production code changes.
+- Final combined focused run: **14 passed, zero skips**, 91.27 seconds on SQLite
+  and PostgreSQL (`/tmp/inlet-meta-configured-browser-final.log`).

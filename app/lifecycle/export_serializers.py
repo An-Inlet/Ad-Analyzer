@@ -20,14 +20,15 @@ from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
 from app.crm.schemas import CrmEvent
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.budget_mandate_contracts import BudgetMandatePreparationV1
 from app.initial_planning.contracts import (
     CalibrationReportV1,
     EfficiencyObjectiveV1,
-    InitialPreviewV1,
     ObservationV1,
     PreviewIntentV1,
 )
 from app.initial_planning.export import bind_initial_document
+from app.initial_planning.preview_v2 import InitialPreview, PreviewIntentV2
 from app.initial_planning.review_export import export_review_link
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
 from app.lifecycle.export_domains import SettlementEvidence
@@ -113,6 +114,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "mandate_actions": ("draft",),
     "publication_plans": ("document",),
     "provider_reviews": ("review", "plan"),
+    "initial_budget_mandate_preparations": ("document",),
     "provider_execution_revisions": ("policy",),
     "provider_execution_reviews": ("document",),
     "provider_reservation_replacements": ("document",),
@@ -173,8 +175,6 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("initial_observations", "document"): ObservationV1,
     ("initial_calibration_runs", "document"): CalibrationReportV1,
     ("initial_calibration_runs", "objective"): EfficiencyObjectiveV1,
-    ("initial_plan_previews", "document"): InitialPreviewV1,
-    ("initial_plan_previews", "intent"): PreviewIntentV1,
     ("customer_billing_offer_bindings", "profile"): OfferProfileV1,
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
     ("outcome_assessments_v3", "document"): OwnedV3Assessment,
@@ -191,6 +191,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_plans", "document"): PublishPlan,
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
+    ("initial_budget_mandate_preparations", "document"): BudgetMandatePreparationV1,
     ("provider_execution_revisions", "policy"): ProviderMandatePolicy,
     ("provider_exposure_reservations", "evidence"): ExposureEvidence,
     ("provider_execution_receipts", "projection"): NormalizedProviderReceipt,
@@ -200,6 +201,8 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_receipts", "receipt"): PublishReceipt,
 }
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("initial_plan_previews", "document"): TypeAdapter(InitialPreview),
+    ("initial_plan_previews", "intent"): TypeAdapter(PreviewIntentV1 | PreviewIntentV2),
     ("commerce_measurement_publications", "manifest"): MANIFEST,
     ("customer_social_configuration_reviews", "document"): TypeAdapter(
         Annotated[
@@ -433,6 +436,18 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, BudgetMandatePreparationV1):
+        if any(
+            row[key] != value
+            for key, value in {
+                "workspace_id": document.workspace_id,
+                "mandate_id": document.mandate_id,
+                "mandate_revision": document.mandate_revision,
+                "policy_digest": document.policy_digest,
+                "digest": document.digest(),
+            }.items()
+        ):
+            raise ValueError("mandate preparation ownership mismatch")
     elif isinstance(document, GoogleCompletionDocument):
         capture = document.capture
         expected = {

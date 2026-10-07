@@ -131,9 +131,7 @@ def _api_token_check(settings: Settings, process: DeploymentProcess) -> Deployme
             ok=True,
             detail="API token is not required for this process/environment.",
         )
-    secret = (
-        settings.api_token.get_secret_value() if settings.api_token else None
-    )
+    secret = settings.api_token.get_secret_value() if settings.api_token else None
     ok = not _is_placeholder(secret)
     return DeploymentCheck(
         name="api_token",
@@ -234,6 +232,27 @@ def runtime_process_config(process: DeploymentProcess, settings: Settings) -> Ru
     )
 
 
+def _planning_profile_check(settings: Settings) -> DeploymentCheck:
+    from app.planning_reporting.configuration import PlanningReportingConfigurationError
+    from app.planning_reporting.runtime import configured_profile
+
+    try:
+        profile = configured_profile(settings)
+    except PlanningReportingConfigurationError:
+        return DeploymentCheck(
+            name="planning_reporting_profile",
+            ok=False,
+            detail="Configured planning/reporting profile is invalid.",
+        )
+    return DeploymentCheck(
+        name="planning_reporting_profile",
+        ok=True,
+        detail="Planning/reporting profile is pinned."
+        if profile
+        else "Planning/reporting unavailable; no profile installed.",
+    )
+
+
 def validate_deployment_startup(
     process: DeploymentProcess, settings: Settings | None = None
 ) -> DeploymentValidationResult:
@@ -246,6 +265,7 @@ def validate_deployment_startup(
         _required_secrets_check(resolved_settings),
         _write_guard_check(resolved_settings),
         _allowlist_check(resolved_settings),
+        _planning_profile_check(resolved_settings),
     )
     return DeploymentValidationResult(
         process=process, ok=all(check.ok for check in checks), checks=checks

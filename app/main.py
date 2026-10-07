@@ -13,6 +13,7 @@ from app.api.customer_account_diagnostics import router as customer_account_diag
 from app.api.customer_activity import router as customer_activity_router
 from app.api.customer_ad_detail import router as customer_ad_detail_router
 from app.api.customer_billing import router as customer_billing_router
+from app.api.customer_budget_mandates import router as customer_budget_mandates_router
 from app.api.customer_campaign_review import router as customer_campaign_review_router
 from app.api.customer_commerce import router as customer_commerce_router
 from app.api.customer_descriptive import router as customer_descriptive_router
@@ -45,10 +46,14 @@ from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.database.models import register_models
 from app.deployment import DeploymentProcess, validate_deployment_startup
+from app.initial_planning.budget_mandate_configuration import BudgetMandateConfigurationError
+from app.planning_reporting.configuration import PlanningReportingConfigurationError
 from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
+from app.production_runtime.configuration import GoogleRuntimeConfigurationError
+from app.production_runtime.meta_configuration import MetaRuntimeConfigurationError
 from app.readiness import database_available, database_schema_current
 from app.shopify.logging import install_access_filter
 
@@ -123,6 +128,32 @@ def read_ready(response: Response) -> ReadinessResponse:
 logger = logging.getLogger(__name__)
 
 
+@app.exception_handler(BudgetMandateConfigurationError)
+async def budget_mandate_configuration_error(
+    _request: Request, _exc: BudgetMandateConfigurationError
+) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "budget_mandate_configuration_invalid"})
+
+
+@app.exception_handler(MetaRuntimeConfigurationError)
+@app.exception_handler(GoogleRuntimeConfigurationError)
+async def google_runtime_configuration_error(
+    _request: Request, _exc: GoogleRuntimeConfigurationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503, content={"detail": "google_execution_configuration_invalid"}
+    )
+
+
+@app.exception_handler(PlanningReportingConfigurationError)
+def planning_configuration_error(
+    _request: Request, _exc: PlanningReportingConfigurationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503, content={"detail": "planning_reporting_configuration_invalid"}
+    )
+
+
 @app.exception_handler(SQLAlchemyError)
 def database_error_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:
     logger.warning("database operation failed for read-only API: %s", exc.__class__.__name__)
@@ -161,6 +192,7 @@ app.include_router(customer_exports_router)
 app.include_router(customer_execution_router)
 app.include_router(customer_plan_review_router)
 app.include_router(customer_initial_planning_router)
+app.include_router(customer_budget_mandates_router)
 app.include_router(customer_reported_feedback_router)
 app.include_router(customer_account_diagnostics_router)
 app.include_router(customer_session_automation_router)

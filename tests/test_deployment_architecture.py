@@ -34,6 +34,7 @@ def test_deployment_startup_accepts_safe_production_web_config() -> None:
         "required_secrets",
         "write_guards",
         "production_allowlists",
+        "planning_reporting_profile",
     }
 
 
@@ -103,3 +104,14 @@ def test_env_example_preserves_phase_12_1_safety_defaults() -> None:
     assert "AD_ANALYZER_GOOGLE_ADS_WRITE_ENABLED=false" in env_example
     assert "AD_ANALYZER_GOOGLE_ADS_EXECUTION_KILL_SWITCH=true" in env_example
     assert "AD_ANALYZER_ALLOWED_EXECUTION_ACCOUNT_IDS=" in env_example
+
+
+def test_deployment_rejects_partial_planning_profile_without_provider_io(tmp_path: Path) -> None:
+    result = validate_deployment_startup(
+        DeploymentProcess.WEB,
+        _settings(AD_ANALYZER_PLANNING_REPORTING_PROFILE_PATH=str(tmp_path / "absent.json")),
+    )
+    check = next(c for c in result.checks if c.name == "planning_reporting_profile")
+    assert not result.ok and not check.ok
+    assert check.detail == "Configured planning/reporting profile is invalid."
+    assert str(tmp_path) not in result.model_dump_json()

@@ -10,12 +10,20 @@ from sqlalchemy.orm import Session
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, Campaign
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
-from app.initial_planning import calibration, capture, native, preview
+from app.initial_planning import (
+    calibration,
+    capture,
+    native,
+    native_budget,
+    preview,
+    preview_v2_service,
+)
 from app.initial_planning.api_contracts import (
     CalibrationIntent,
     CampaignOption,
     CaptureIntent,
     MandateOption,
+    NativeBudgetChoice,
     NativeOption,
     NativeOptions,
     PlanningOptions,
@@ -30,21 +38,26 @@ from app.initial_planning.contracts import (
     ObservationV1,
     PreviewIntentV1,
 )
+from app.initial_planning.native_budget_contracts import NativeBudgetOptionV1
+from app.initial_planning.preview_v2 import InitialPreview, InitialPreviewV2
 from app.initial_planning.review_contracts import (
     InitialPreviewReviewIntent,
     InitialPreviewReviewPrepared,
     InitialPreviewReviewRuntime,
 )
 from app.initial_planning.runtime import InitialPlanningRuntime, get_initial_planning_configuration
+from app.planning_reporting.runtime import configured_bundle
 from app.publication import customer_intents, customer_optimization, execution_mandates
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import (
     CustomerOptimizationRuntime,
     TargetChoice,
+    TargetRequest,
     get_customer_optimization_runtime,
 )
 from app.publication.execution_models import ProviderExecutionMandate
+from app.settings import settings
 
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/initial-planning", tags=["customer"]
@@ -53,6 +66,9 @@ router = APIRouter(
 
 def get_initial_planning_runtime(db: Database) -> InitialPlanningRuntime:
     engine = db.get_bind()
+    bundle = configured_bundle(lambda: Session(engine), settings)
+    if bundle is not None:
+        return bundle.initial
     return InitialPlanningRuntime(
         session_factory=lambda: Session(engine),
         configuration=get_initial_planning_configuration(),
@@ -144,7 +160,9 @@ def options(
         environment=runtime.configuration.environment if runtime.configuration else None,
         campaigns=tuple(choices),
         native_catalog_available=bool(
-            runtime.configuration
+            runtime.profile
+            and runtime.native_budget
+            or runtime.configuration
             and runtime.native
             and runtime.native.catalog
             and runtime.native.execution.environment == runtime.configuration.environment
@@ -225,10 +243,18 @@ def native_options(
     objective = calibration.read_objective(
         db, principal, provider, workspace_id, body.calibration_id, runtime
     )
-    intent = validated_preview_intent(objective, body)
+    intent = (
+        preview_v2_service.resolve_intent(db, principal, provider, objective, body, runtime)
+        if runtime.profile
+        else validated_preview_intent(objective, body)
+    )
     before = preview.inputs(db, principal, provider, intent, runtime)
     db.rollback()
-    catalog = native.catalog(db, principal, provider, objective, runtime)
+    catalog = (
+        native_budget.catalog(db, principal, provider, objective, runtime)
+        if runtime.profile
+        else native.catalog(db, principal, provider, objective, runtime)
+    )
     if preview.inputs(db, principal, provider, intent, runtime) != before:
         raise HTTPException(409, "The reporting context changed.")
     mandates = list(
@@ -262,8 +288,18 @@ def native_options(
             and policy.goal_revision == objective.goal_revision
             and policy.currency == objective.cohort.currency
             and any(
-                o.state.scope in policy.accounts
-                and policy.allowed_target_set_digest == o.state.budget_owner.target_set_digest()
+                (
+                    o.observation.request.scope.model_dump()
+                    if isinstance(o, NativeBudgetOptionV1)
+                    else o.state.scope.model_dump()
+                )
+                in [a.model_dump() for a in policy.accounts]
+                and policy.allowed_target_set_digest
+                == (
+                    o.observation.budget_owner.target_set_digest()
+                    if isinstance(o, NativeBudgetOptionV1)
+                    else o.state.budget_owner.target_set_digest()
+                )
                 for o in catalog.options
             )
         ):
@@ -282,15 +318,33 @@ def native_options(
     response.headers["Cache-Control"] = "no-store"
     projected = []
     for option in catalog.options:
+        if isinstance(option, NativeBudgetOptionV1):
+            assert (
+                option.observation.budget_mode is not None
+                and option.observation.amount_micros is not None
+            )
+            projected.append(
+                NativeOption(
+                    id=option.identifier(),
+                    choice=NativeBudgetChoice(option_id=option.identifier()),
+                    label=option.label[:160],
+                    currency=option.observation.currency,
+                    budget_kind=option.observation.budget_mode,
+                    amount_micros=option.observation.amount_micros,
+                )
+            )
+            continue
         view = customer_optimization.option_view(option)
         projected.append(
             NativeOption(
-                id=option.identifier(catalog.request),
+                id=option.identifier(TargetRequest.model_validate(catalog.request.model_dump())),
                 choice=TargetChoice(
                     goal_id=objective.goal_id,
                     goal_revision=objective.goal_revision,
                     account_id=objective.cohort.account_id,
-                    option_id=option.identifier(catalog.request),
+                    option_id=option.identifier(
+                        TargetRequest.model_validate(catalog.request.model_dump())
+                    ),
                 ),
                 label=option.label,
                 currency=view["currency"],
@@ -303,7 +357,7 @@ def native_options(
     )
 
 
-@router.post("/previews", response_model=InitialPreviewV1)
+@router.post("/previews", response_model=InitialPreview)
 def prepare(
     workspace_id: int,
     body: PreviewIntent,
@@ -312,11 +366,15 @@ def prepare(
     db: Database,
     runtime: Runtime,
     response: Response,
-) -> InitialPreviewV1:
+) -> InitialPreviewV1 | InitialPreviewV2:
     objective = calibration.read_objective(
         db, principal, provider, workspace_id, body.calibration_id, runtime
     )
-    intent = validated_preview_intent(objective, body)
+    intent = (
+        preview_v2_service.resolve_intent(db, principal, provider, objective, body, runtime)
+        if runtime.profile
+        else validated_preview_intent(objective, body)
+    )
     # Preserve already verified original identity references without allowing an
     # expired ORM attribute to silently reopen the API transaction during native IO.
     # Every service boundary still reloads and locks this exact session in SQL.
@@ -324,10 +382,12 @@ def prepare(
     db.expunge(principal.session)
     db.rollback()
     response.headers["Cache-Control"] = "no-store"
-    return preview.prepare_preview(principal, provider, intent, runtime)
+    if isinstance(intent, PreviewIntentV1):
+        return preview.prepare_preview(principal, provider, intent, runtime)
+    return preview_v2_service.prepare_preview(principal, provider, intent, runtime)
 
 
-@router.get("/previews/{preview_id}", response_model=InitialPreviewV1)
+@router.get("/previews/{preview_id}", response_model=InitialPreview)
 def read_preview(
     workspace_id: int,
     preview_id: str,
@@ -336,7 +396,7 @@ def read_preview(
     db: Database,
     runtime: Runtime,
     response: Response,
-) -> InitialPreviewV1:
+) -> InitialPreviewV1 | InitialPreviewV2:
     response.headers["Cache-Control"] = "no-store"
     return preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
 
@@ -355,7 +415,9 @@ def review_status(
     document = preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
     configured = review_configured(runtime, optimization_runtime)
     exact = (
-        document.recommendation_status == "proposed" and document.native_state_digest is not None
+        isinstance(document, InitialPreviewV1)
+        and document.recommendation_status == "proposed"
+        and document.native_state_digest is not None
     )
     response.headers["Cache-Control"] = "no-store"
     return PreviewReviewStatus(

@@ -618,3 +618,29 @@ The14:34 disconnect notification did not indicate executor loss:14:34:57 UTC she
 clean Git state and PostgreSQL readiness succeeded; uptime exceeded9hours. No run
 was interrupted at that point. No GitHub quota explanation is inferred. Hosted
 startup diagnostic remains owner-pending; no hosted run/poll/retry was performed.
+
+## 15:18 UTC — Operational Interface And Registry Checkpoint
+
+Root product now `2e35851` (source `a45d107`): separate required acquisition
+metadata guards from the exact ORM-model inventory, retaining guard installation
+and adding a fresh-process regression. Baseline failed once; final registry4 and
+actual owned-storage2 (SQLite/PostgreSQL) passed, whole Ruff/mypy923/diff passed.
+See `inlet-model-registry-repair-20261007.md` for exact commands and durations.
+
+Isolated operational customer UI `da587d6` on branch
+`codex/inlet-operational-customer-ui` follows frozen backend interface94a103f.
+Strict exact-decimal reported-basis display, distinct explicit Start digest and
+original-session browser fence implemented;7 focused checks +2 existing actual
+TLS automation compatibility journeys passed. Independent review pending. It is
+not integrated or claimed as configured operational end-to-end proof yet.
+
+Scheduler dispatcher3cf2d8f/interface94a103f remain isolated. Configured review
+found a concrete own-successor reservation-transfer invalidation; a narrowly
+bound successor context is being designed/tested without weakening source,
+original-session, financial or unrelated-attempt guards. Initial automatic
+interface9a6b308/0084 work remains isolated, no production numeric policy chosen.
+
+Frozen Fullbb836c2 remains untouched on its separate checkout/database, active
+at~42%; failures have appeared but the terminal traceback/count is not yet
+available. Do not mark it passed or restart it. No hosted dispatch, provider
+operation, merge, deployment or remote push in this checkpoint.

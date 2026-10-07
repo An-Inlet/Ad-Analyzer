@@ -46,53 +46,58 @@ def configured(
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
     platform: str,
+    existing: tuple[Any, str, dict[str, Any]] | None = None,
 ) -> Any:
     if engine.dialect.name == "sqlite":
         with engine.connect() as c:
             c.exec_driver_sql("PRAGMA foreign_keys=ON")
             c.commit()
-    bootstrap = configured_customer if platform == "google_ads" else configured_meta_customer
-    alice, base, *_ = bootstrap(engine, config, path, monkeypatch, replicas)
-    wid = int(base.split("/workspaces/")[1].split("/")[0])
-    with Session(engine) as db:
-        assert db.scalar(select(func.count()).select_from(ProviderExecutionMandate)) == 0
-        assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 0
-        goal = db.scalar(select(Goal).where(Goal.workspace_id == wid))
-        account = db.scalar(
-            select(AdvertisingAccount).where(
-                AdvertisingAccount.workspace_id == wid, AdvertisingAccount.platform == platform
+    if existing is None:
+        bootstrap = configured_customer if platform == "google_ads" else configured_meta_customer
+        alice, base, *_ = bootstrap(engine, config, path, monkeypatch, replicas)
+        wid = int(base.split("/workspaces/")[1].split("/")[0])
+        with Session(engine) as db:
+            assert db.scalar(select(func.count()).select_from(ProviderExecutionMandate)) == 0
+            assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 0
+            goal = db.scalar(select(Goal).where(Goal.workspace_id == wid))
+            account = db.scalar(
+                select(AdvertisingAccount).where(
+                    AdvertisingAccount.workspace_id == wid, AdvertisingAccount.platform == platform
+                )
             )
-        )
-        assert goal and account
-        session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
-        assert session
-        definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
-        goals.revise(
-            db,
-            goal,
-            definition.model_copy(update={"budget_start": NOW.date()}),
-            session.user_id,
-            NOW,
-        )
-        preview = goals.preview(db, goal, NOW)
-        goals.confirm(
-            db,
-            goal,
-            ConfirmInput(
-                expected_revision=goal.revision,
-                preview_id=preview.id,
-                idempotency_key="configured-optimization-goal",
-            ),
-            NOW,
-            actor_id=session.user_id,
-        )
-        db.commit()
-        query = dict(goal_id=goal.id, goal_revision=goal.revision, account_id=account.id)
+            assert goal and account
+            session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
+            assert session
+            definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
+            goals.revise(
+                db,
+                goal,
+                definition.model_copy(update={"budget_start": NOW.date()}),
+                session.user_id,
+                NOW,
+            )
+            preview = goals.preview(db, goal, NOW)
+            goals.confirm(
+                db,
+                goal,
+                ConfirmInput(
+                    expected_revision=goal.revision,
+                    preview_id=preview.id,
+                    idempotency_key="configured-optimization-goal",
+                ),
+                NOW,
+                actor_id=session.user_id,
+            )
+            db.commit()
+            query = dict(goal_id=goal.id, goal_revision=goal.revision, account_id=account.id)
+    else:
+        alice, base, query = existing
+        wid = int(base.split("/workspaces/")[1].split("/")[0])
     raw = policy().model_dump()
     for rule in raw["rules"]:
         rule.update(
             per_plan_cap_micros=50_000_000,
-            positive_change_cap_micros=10_000_000,
+            positive_change_cap_micros=10_000_000 if existing is None else 5_000_000,
             action_limit=10,
             freshness_seconds=120,
         )

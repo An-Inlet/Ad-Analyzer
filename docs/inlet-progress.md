@@ -6399,3 +6399,19 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   No routes/runtime/UI/schema/DB, remote, Full or live calls. Concrete guarded service
   and ordinary configured API acceptance remain next; docs/design/v2-execution-review-api-freeze.md
   freezes names, ownership, unavailable semantics and transaction responsibilities.
+
+### 2026-10-07 — Configured V2 Handoff Backend And Fixture
+
+- Implemented bounded named execution options and exact three-field handoff through
+  ordinary configured dependencies. Requires separate marked0080 consent under the
+  same ledger/goal/period/overall cap; no0079 promotion or native qualification cast.
+  Transactional writer stores protected origin/link/0081 proof after fresh original
+  authority and financial checks; version guards cover ordinary approval/dispatch.
+- Actual configured SQLite/PostgreSQL API cases:10 passed99.30s then8 passed66.02s
+  (two overlap;16 distinct). Covers verified mutation, uncertain no-replay and
+  historical reconciliation after proof erasure, deletion after committed claim,
+  cap/native drift and original-session revocation during provider HTTP.
+  Logs /tmp/inlet-v2-handoff-expanded.log and /tmp/inlet-v2-handoff-new-negatives.log.
+- Whole Ruff/mypy827 and diffcheck passed. Reusable ready() fixture and limitations
+  documented in docs/inlet-v2-configured-handoff.md. Genuine TLS and expanded
+  compatibility remain dependent followups. No Full, live or remote actions.

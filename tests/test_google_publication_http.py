@@ -80,7 +80,8 @@ def test_actual_http_mocked_full_google_dag_validate_mutate_readback(total_budge
         collection, current_table, operation = serialize(request)
         suffix = f"{index + 1}"
         if collection in {"campaignCriteria", "adGroupCriteria", "adGroupAds"}:
-            suffix = f"2~{index + 1}"
+            parent = operation["create"].get("campaign", operation["create"].get("adGroup"))
+            suffix = f"{parent.rsplit('/', 1)[1]}~{index + 1}"
         current_resource = f"customers/1234567890/{collection}/{suffix}"
         expected_read = dict(operation.get("create", operation.get("update", {})))
         if "resourceName" in expected_read:

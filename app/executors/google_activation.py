@@ -23,6 +23,10 @@ from app.publication.activation_contracts import (
     ActivationResponse,
 )
 from app.publication.contracts import fingerprint
+from app.publication.google_execution_completion_contracts import (
+    GoogleCapturedActivationResponse,
+    capture_success,
+)
 from app.publication.provider_contracts import BoundProviderRequest, ProviderContext
 
 
@@ -135,8 +139,12 @@ class GoogleActivationHTTP:
                 or rows[0].get("resourceName") != request.target.resource_name
             ):
                 raise GooglePublicationUnavailable("google_activation_acknowledgement_invalid")
-            return ActivationResponse(request_digest=request.digest(), outcome="acknowledged")
-        except GooglePublicationUnavailable:
+            return GoogleCapturedActivationResponse(
+                request_digest=request.digest(),
+                outcome="acknowledged",
+                capture=capture_success(request, data),
+            )
+        except (GooglePublicationUnavailable, ValueError):
             return ActivationResponse(request_digest=request.digest(), outcome="unknown")
 
     def read_back(

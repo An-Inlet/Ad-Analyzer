@@ -462,7 +462,7 @@ def record_response(
     response: ActivationResponse,
     clock: creation.Clock,
 ) -> None:
-    _, _, attempt, request = evidence_lock(db, wid, attempt_id)
+    _, original_review, attempt, request = evidence_lock(db, wid, attempt_id)
     if response.request_digest != request.digest():
         raise HTTPException(409, "activation response request mismatch")
     raw = response.model_dump(mode="json")
@@ -476,6 +476,15 @@ def record_response(
                 response=raw,
                 observed_at=clock(),
             )
+        )
+    from app.publication.google_execution_completion import capture_execution_response
+    from app.publication.google_execution_completion_contracts import (
+        GoogleCapturedActivationResponse,
+    )
+
+    if isinstance(response, GoogleCapturedActivationResponse):
+        capture_execution_response(
+            db, request, response, attempt, original_review.mandate.environment, digest, clock()
         )
     db.commit()
 

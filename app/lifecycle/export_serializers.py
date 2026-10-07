@@ -61,6 +61,7 @@ from app.publication.execution_contracts import (
     ProviderMandatePolicy,
 )
 from app.publication.google_completion_contracts import GoogleCompletionDocument
+from app.publication.google_execution_completion_contracts import GoogleExecutionCompletionV2
 from app.publication.optimization_contracts import (
     OptimizationReceipt,
     OptimizationRequest,
@@ -184,7 +185,6 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("outcome_feedback_records", "document"): FeedbackContribution,
     ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
-    ("google_original_completions", "document"): GoogleCompletionDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
     ("customer_goal_revisions", "definition"): GoalDefinition,
@@ -205,6 +205,12 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_receipts", "receipt"): PublishReceipt,
 }
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("google_original_completions", "document"): TypeAdapter(
+        Annotated[
+            GoogleCompletionDocument | GoogleExecutionCompletionV2,
+            Field(discriminator="schema_version"),
+        ]
+    ),
     ("initial_plan_previews", "document"): TypeAdapter(InitialPreview),
     ("initial_plan_previews", "intent"): TypeAdapter(PreviewIntentV1 | PreviewIntentV2),
     ("commerce_measurement_publications", "manifest"): MANIFEST,
@@ -462,11 +468,15 @@ def bind_document(
             }.items()
         ):
             raise ValueError("mandate preparation ownership mismatch")
-    elif isinstance(document, GoogleCompletionDocument):
+    elif isinstance(document, (GoogleCompletionDocument, GoogleExecutionCompletionV2)):
         capture = document.capture
         expected = {
-            "attempt_id": capture.attempt_id,
+            "attempt_id": document.attempt_id
+            if isinstance(document, GoogleExecutionCompletionV2)
+            else document.capture.attempt_id,
             "workspace_id": capture.account.workspace_id,
+            "fence": capture.fence,
+            "request_digest": capture.request_digest,
             "digest": document.digest(),
         }
         if any(row[key] != value for key, value in expected.items()):

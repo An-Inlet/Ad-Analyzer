@@ -114,6 +114,15 @@ def test_durable_reader_and_export_never_release_hold(
         assert document is not None
         assert document.capture.attempt_id == attempt
         assert "closed_requests" not in document.model_dump()
+        from app.publication.google_execution_completion import read_execution_completion
+        from app.publication.service import owner
+
+        view = read_execution_completion(
+            db, wid, attempt, actor, authorize=lambda: owner(db, wid, actor), clock=lambda: NOW
+        )
+        assert view.status == "completed" and view.commitment == document.digest()
+        assert view.purpose == "existing_campaign_optimize"
+        assert view.financial_finality == "unavailable"
         db.rollback()
         with pytest.raises(HTTPException):
             read_owned(db, wid + 1000, attempt, actor, NOW)

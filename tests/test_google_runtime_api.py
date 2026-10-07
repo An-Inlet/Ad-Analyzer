@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 from app.publication.execution_models import (
+    GoogleOriginalCompletion,
     ProviderExecutionAttempt,
     ProviderExecutionReceipt,
     ProviderExecutionReview,
@@ -151,6 +152,49 @@ def test_configured_google_creation_then_separate_activation(
         row = db.scalar(select(ProviderExposureReservation))
         assert row and row.state == "held"
     assert server.posts > 0 and server.activations > 0 and requests
+    # Consume actual original responses through the ordinary owned receipt API.
+    from app.lifecycle.export_serializers import serialize
+    from app.publication.google_execution_completion_contracts import GoogleExecutionCompletionV2
+
+    with Session(customer_engine) as db:
+        attempts = list(db.scalars(select(ProviderExecutionAttempt)))
+        captures = list(db.scalars(select(GoogleOriginalCompletion)))
+        assert len(captures) == len(attempts) == server.posts + server.activations
+        capture_digests = {item.attempt_id: item.digest for item in captures}
+        for item in captures:
+            document = GoogleExecutionCompletionV2.model_validate(item.document)
+            assert document.attempt_id == item.attempt_id
+            exported, missing = serialize(
+                "google_original_completions",
+                {
+                    column.name: getattr(item, column.name)
+                    for column in GoogleOriginalCompletion.__table__.columns
+                },
+            )
+            assert not missing
+            assert exported["document"] == item.document
+            from copy import deepcopy
+
+            bad = {
+                column.name: getattr(item, column.name)
+                for column in GoogleOriginalCompletion.__table__.columns
+            }
+            bad["document"] = deepcopy(item.document)
+            bad["document"]["private_raw_body"] = "never export"
+            projected, omitted = serialize("google_original_completions", bad)
+            assert "document" in omitted and "document" not in projected
+    for attempt in attempts:
+        result = alice.get(base + f"/attempts/{attempt.id}/receipt")
+        assert result.status_code == 200, result.text
+        evidence = result.json()["original_operation_completion"]
+        assert evidence["status"] == "completed"
+        assert evidence["commitment"] == capture_digests[attempt.id]
+        assert evidence["financial_finality"] == "unavailable"
+        assert evidence["assertion"] == "original_configuration_operation_only"
+        assert "resource_name" not in evidence
+    with Session(customer_engine) as db:
+        row = db.scalar(select(ProviderExposureReservation))
+        assert row and row.state == "held"
 
 
 @pytest.mark.parametrize(

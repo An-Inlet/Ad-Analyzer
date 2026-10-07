@@ -61,12 +61,13 @@ def without_google_capture(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> N
     omitting only the later capture append. Current-head capture tests stay real.
     """
     assert "google_original_completions" not in inspect(engine).get_table_names()
-    from app.publication import google_completion
+    from app.publication import google_completion, google_execution_completion
 
     def capture(*args: object, **kwargs: object) -> None:
         pass
 
     monkeypatch.setattr(google_completion, "capture_response", capture)
+    monkeypatch.setattr(google_execution_completion, "capture_execution_response", capture)
 
 
 def without_initial_planning(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> None:

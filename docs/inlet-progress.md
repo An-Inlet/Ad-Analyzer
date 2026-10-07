@@ -6583,3 +6583,36 @@ checks passed. Exact stale detached review controls cannot send new requests.
 No Full, remote action, live call, deployment or automatic-source activation.
 Genuine calibrated production evidence remains unavailable; the UI does not grant
 it. See `docs/inlet-candidate-customer-ui.md` for limitations and recovery behavior.
+### Google Original Creation/Activation Completion — 2026-10-07
+
+Isolated branch `codex/inlet-google-completion-extension`, baseline `ac26a67`.
+Pinned official v25 seven-service review found a genuine conversion-goal wire defect:
+`partialFailure` is unsupported by that update-only service. Separate fix `3318338`
+reproduced one strict-schema failure before repair; 41 focused tests passed afterward.
+Typed evidence interfaces frozen in `24ffb68` preserve v1 document and shared response
+bytes. The implementation captures only original successful single-operation responses,
+atomically persists exact run/attempt/fence/operation/result lineage, and consumes it
+through the existing owned receipt GET. Final original-session/owner checks preserve
+closing-workspace historical reads. No financial finality, closure inference, replay,
+reservation release, new schema or live authority is introduced.
+
+Final affected cohort: `pytest tests/test_google_execution_completion.py
+ tests/test_google_execution_completion_contracts.py tests/test_google_runtime_api.py
+ tests/test_google_publication_http.py tests/test_google_activation.py
+ tests/test_google_completion_evidence.py tests/test_google_request_terminal.py
+ tests/test_provider_coordinator.py` — **154 passed, 1 SQLite-only concurrency skip**,
+167.25s, `/tmp/inlet-google-completion-final-cohort.log`. The added conflicting-response
+rollback cases separately passed **2** on SQLite/PostgreSQL, 5.95s. Actual configured
+API journeys use ordinary runtime assembly and lower MockHTTP, never seeded execution
+reviews/attempts/receipts or getter overrides. Both original holds remain protected.
+Native PostgreSQL v1/v2 populated dump/restore, scoped immutable FK and downgrade
+refusal: **2 passed**, 68.81s, `/tmp/inlet-google-completion-restore2.log` (10 existing
+Alembic path-separator warnings). The initial missing-tools invocation had 2 skips;
+real container tools resolved it without reset or installation. Whole Ruff, mypy
+**850 files**, and diff checks passed. Full, remote, deploy and live-provider actions
+were not run. Root's immutable qualification checkout/database were untouched.
+
+Source, exact interfaces, adverse fixture evidence and remaining financial gaps:
+`docs/design/google-publication-completion-extension.md`. Next independent work is
+review/integration; native financial source/control-boundary qualification remains
+unavailable and is not inferred from this operation evidence.

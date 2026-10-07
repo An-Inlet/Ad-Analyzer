@@ -12,6 +12,10 @@ from typing import Any
 import httpx
 
 from app.publication.contracts import fingerprint
+from app.publication.google_execution_completion_contracts import (
+    GoogleCapturedCreationResponse,
+    capture_success,
+)
 from app.publication.provider_contracts import (
     BoundProviderRequest,
     GoogleCreateBudget,
@@ -31,6 +35,15 @@ from app.publication.provider_contracts import (
 
 class GooglePublicationUnavailable(RuntimeError):
     """Sanitized error: no token, advertiser, ad copy or raw response escapes."""
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("ambiguous Google response")
+        result[key] = value
+    return result
 
 
 def _resource(request: BoundProviderRequest, key: str, collection: str) -> str:
@@ -266,11 +279,11 @@ class GooglePublicationHTTP:
                     raw.extend(chunk)
                     if len(raw) > 1_000_000:
                         raise GooglePublicationUnavailable("google_publication_response_bounds")
-                result = json.loads(raw)
+                result = json.loads(raw, object_pairs_hook=_unique_object)
                 if not isinstance(result, dict) or "partialFailureError" in result:
                     raise GooglePublicationUnavailable("google_publication_response_invalid")
                 return result
-        except (httpx.HTTPError, ValueError, TypeError):
+        except (httpx.HTTPError, ValueError, TypeError, RecursionError):
             raise GooglePublicationUnavailable("google_publication_unavailable") from None
 
     def validate_only(
@@ -323,10 +336,14 @@ class GooglePublicationHTTP:
                 raise GooglePublicationUnavailable("google_publication_receipt_invalid")
             resource = results[0].get("resourceName") if isinstance(results[0], dict) else None
             self._resource_name(request, collection, resource)
-            return ProviderResponse(
-                request_digest=request.digest(), resource_name=resource, outcome="acknowledged"
+            capture = capture_success(request, data)
+            return GoogleCapturedCreationResponse(
+                request_digest=request.digest(),
+                resource_name=resource,
+                outcome="acknowledged",
+                capture=capture,
             )
-        except GooglePublicationUnavailable:
+        except (GooglePublicationUnavailable, ValueError):
             return ProviderResponse(request_digest=request.digest(), outcome="unknown")
 
     @staticmethod

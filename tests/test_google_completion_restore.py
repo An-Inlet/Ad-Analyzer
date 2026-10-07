@@ -25,8 +25,9 @@ from tests.test_google_completion_evidence import emitted
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.parametrize("purpose", ["optimization", "creation"])
 def test_native_completion_migration_restore(
-    configuration: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    configuration: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, purpose: str
 ) -> None:
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -38,15 +39,42 @@ def test_native_completion_migration_restore(
         if os.environ.get("CI") == "true":
             pytest.fail("native PostgreSQL tools required in CI")
         pytest.skip("native tools or explicit local test container required")
+    from app.publication import coordinator
+    from app.publication.google_execution_completion import read_execution_completion
+    from app.publication.service import owner
+
+    from tests.test_provider_coordinator import GoogleServer, ready
+
+    def emit(db: Session) -> tuple[int, str, str]:
+        if purpose == "optimization":
+            result = emitted(db, configuration, tmp_path)
+            return result[0], result[1], result[2]
+        wid, run, actor, store, runtime = ready(db, configuration, tmp_path, GoogleServer())
+        claim = coordinator.claim_creation_step(db, wid, run, actor, store, runtime, lambda: NOW)
+        assert claim is not None
+        coordinator.execute_claim(db, claim, actor, store, runtime, lambda: NOW)
+        return wid, actor, claim.attempt_id
+
+    def read(db: Session, wid: int, attempt: str, actor: str) -> str:
+        if purpose == "optimization":
+            old = read_owned(db, wid, attempt, actor, NOW)
+            assert old is not None
+            return old.digest()
+        projection = read_execution_completion(
+            db, wid, attempt, actor, authorize=lambda: owner(db, wid, actor), clock=lambda: NOW
+        )
+        assert projection.status == "completed" and projection.commitment is not None
+        return projection.commitment
+
     url = target()
     admin = create_engine(url)
     schema = "inlet_completion_" + uuid4().hex
     engine = create_engine(url.update_query_dict({"options": f"-csearch_path={schema}"}))
     tools = PostgresTools(url, container)
-    with admin.begin() as db:
-        tools.prove_server(db)
-        db.execute(text(f'CREATE SCHEMA "{schema}"'))
-        db.execute(text(f'REVOKE ALL ON SCHEMA "{schema}" FROM PUBLIC'))
+    with admin.begin() as connection:
+        tools.prove_server(connection)
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+        connection.execute(text(f'REVOKE ALL ON SCHEMA "{schema}" FROM PUBLIC'))
     monkeypatch.setattr(settings, "database_url", engine.url.render_as_string(hide_password=False))
     config = Config("alembic.ini")
     try:
@@ -58,8 +86,8 @@ def test_native_completion_migration_restore(
         # Keep the exact 0066 roundtrip above, then populate the actual full schema.
         command.upgrade(config, "heads")
         with Session(engine) as db:
-            wid, actor, attempt = emitted(db, configuration, tmp_path)
-            original = read_owned(db, wid, attempt, actor, NOW)
+            wid, actor, attempt = emit(db)
+            original = read(db, wid, attempt, actor)
             assert original is not None
             holds = [
                 (r.id, r.amount_micros, r.state)
@@ -78,21 +106,21 @@ def test_native_completion_migration_restore(
             db.rollback()
         with pytest.raises(RuntimeError, match="cannot be discarded"):
             command.downgrade(config, "20261006_0060")
-        with engine.connect() as db:
-            before = fingerprint(db, schema)
+        with engine.connect() as connection:
+            before = fingerprint(connection, schema)
         archive = tools.run("pg_dump", ["--format=custom", "--no-owner", f"--schema={schema}"])
         assert archive.startswith(b"PGDMP") and len(archive) <= 20_000_000
         engine.dispose()
-        with admin.begin() as db:
-            tools.prove_server(db)
-            db.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        with admin.begin() as connection:
+            tools.prove_server(connection)
+            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         tools.run(
             "pg_restore", ["--exit-on-error", "--no-owner", f"--dbname={url.database}"], archive
         )
-        with engine.connect() as db:
-            assert fingerprint(db, schema) == before
+        with engine.connect() as connection:
+            assert fingerprint(connection, schema) == before
         with Session(engine) as db:
-            restored = read_owned(db, wid, attempt, actor, NOW)
+            restored = read(db, wid, attempt, actor)
             assert restored == original
             assert db.get(GoogleOriginalCompletion, attempt) is not None
             assert [
@@ -100,10 +128,10 @@ def test_native_completion_migration_restore(
                 for r in db.scalars(select(ProviderExposureReservation))
             ] == holds
             assert all(state == "held" for _, _, state in holds)
-        with engine.connect() as db:
-            assert fingerprint(db, schema) == before
+        with engine.connect() as connection:
+            assert fingerprint(connection, schema) == before
     finally:
         engine.dispose()
-        with admin.begin() as db:
-            db.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         admin.dispose()

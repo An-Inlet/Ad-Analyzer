@@ -109,6 +109,7 @@ class GoogleExecutionCaptureV2(StrictModel):
         return self
 
     def bind(self, request: GoogleExecutionRequest) -> None:
+        GoogleExecutionCaptureV2.model_validate(self.model_dump())
         endpoint, body = operation(request)
         validate_resource(request, self.resource_name)
         if (
@@ -254,4 +255,9 @@ class OriginalOperationCompletionView(StrictModel):
             and any(v is not None for v in (self.purpose, self.profile, self.commitment))
         ):
             raise ValueError("exact completion projection required")
+        if self.status == "completed" and (
+            (self.purpose == "existing_campaign_optimize")
+            != (self.profile == "google.v25.single_update.synchronous_response.v1")
+        ):
+            raise ValueError("completion purpose and profile mismatch")
         return self

@@ -109,6 +109,19 @@ def test_exact_status_only_update_and_full_field_readback(kind: str, total_budge
         == request.target.before_readback_digest
     )
     response = adapter.apply_once(request, ctx(request), NOW)
+    from app.publication.activation_contracts import ActivationResponse
+    from app.publication.google_execution_completion_contracts import (
+        GoogleCapturedActivationResponse,
+    )
+
+    assert isinstance(response, GoogleCapturedActivationResponse)
+    response.capture.bind(request)
+    assert (
+        response.model_dump_json()
+        == ActivationResponse(
+            request_digest=request.digest(), outcome="acknowledged"
+        ).model_dump_json()
+    )
     receipt = adapter.read_back(request, response, ctx(request), NOW)
     assert (
         receipt.outcome == "verified_target_state"

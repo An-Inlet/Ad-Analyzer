@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -633,13 +634,40 @@ def cancel(
 
 @router.get("/attempts/{attempt_id}/receipt")
 def receipt(
-    workspace_id: int, attempt_id: str, principal: Principal, db: Database, response: Response
+    workspace_id: int,
+    attempt_id: str,
+    principal: Principal,
+    db: Database,
+    response: Response,
+    provider: Provider,
 ) -> dict[str, Any]:
-    read_access(db, principal, workspace_id, response)
+    from app.lifecycle.quiescing import owner as receipt_owner
+    from app.publication.google_execution_completion import read_execution_completion
+
+    def authorize() -> None:
+        receipt_owner(db, principal, provider, workspace_id)
+
+    authorize()
+    response.headers["Cache-Control"] = "no-store"
     result = coordinator.read_owned_outcome_receipt(db, workspace_id, attempt_id, principal.user.id)
+    completion = read_execution_completion(
+        db,
+        workspace_id,
+        attempt_id,
+        principal.user.id,
+        authorize=authorize,
+        clock=lambda: datetime.now(UTC),
+    )
     if result is None:
-        return {"state": "awaiting_evidence"}
-    return {"receipt": result.model_dump(mode="json"), "causal_effect_time": "unavailable"}
+        return {
+            "state": "awaiting_evidence",
+            "original_operation_completion": completion.model_dump(mode="json"),
+        }
+    return {
+        "receipt": result.model_dump(mode="json"),
+        "causal_effect_time": "unavailable",
+        "original_operation_completion": completion.model_dump(mode="json"),
+    }
 
 
 @router.post("/draft-context")

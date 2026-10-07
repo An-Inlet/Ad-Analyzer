@@ -71,7 +71,9 @@ class GoogleServer:
         collection = request.url.path.split("/")[-1].split(":")[0]
         suffix = str(self.posts)
         if collection in {"campaignCriteria", "adGroupCriteria", "adGroupAds"}:
-            suffix = "2~" + suffix
+            parent = row.get("campaign", row.get("adGroup"))
+            assert isinstance(parent, str)
+            suffix = parent.rsplit("/", 1)[1] + "~" + suffix
         resource = row.get("resourceName", f"customers/1234567890/{collection}/{suffix}")
         row["resourceName"] = resource
         if "manualCpc" in row:

@@ -99,6 +99,22 @@ export function goalSummary(definition) {
   return [['Target Sales', amount(definition.target_micros, currency)], ['Target Period', period(definition.target_window)], ['Baseline Period', period(definition.baseline_window)], ['Store Time Zone', definition.target_window?.time_zone || 'Not Available'], ['Total Budget', amount(definition.budget_micros, currency)], ['Budget Period', `${definition.budget_start} to ${definition.budget_end} (end excluded)`], ['Aggressiveness', label(definition.aggressiveness)]];
 }
 
+export function goalProgressRows(value, goal, workspaceId) {
+  const d = goal.definition;
+  if (value.schema_version !== 'inlet.goal-sales-progress.v1' || value.metric !== 'shopify_merchandise_net_sales_v1' || String(value.workspace_id) !== String(workspaceId) || value.goal_id !== goal.id || value.revision !== goal.revision || value.goal_achievement !== 'not_assessed' || value.attribution !== 'unavailable' || value.spending_authorized !== false || !['available_as_of','not_started','unavailable'].includes(value.status)) throw Error('The goal progress response could not be verified.');
+  if (value.target_window !== null && (!d || value.target_micros !== d.target_micros || value.store_id !== d.store_id || value.currency !== d.target_window.currency || value.time_zone !== d.target_window.time_zone || ['start','end','time_basis','currency','time_zone'].some(k => value.target_window[k] !== d.target_window[k]))) throw Error('The saved goal changed. Reload it before checking progress.');
+  const available = value.status === 'available_as_of';
+  if ((available && (!Number.isSafeInteger(value.net_sales_micros) || !value.coverage || !Number.isInteger(value.coverage.closed_day_count) || value.coverage.closed_day_count <= 0 || value.reasons?.length !== 0)) || (!available && value.net_sales_micros !== null)) throw Error('The goal progress amount could not be verified.');
+  const rows = [['Sales Progress', available ? 'Available As Of Import' : value.status === 'not_started' ? 'Target Period Not Started' : 'Unavailable'], ['Imported Net Sales', available ? amount(value.net_sales_micros, value.currency) : 'Unavailable'], ['Target Sales', value.target_micros === null ? 'Unavailable' : amount(value.target_micros, value.currency)], ['Target Period', value.target_window ? period(value.target_window) : 'Unavailable']];
+  if (value.coverage) rows.push(['Measured Closed Days', `${value.coverage.starts_on} to ${value.coverage.ends_on_exclusive} (end excluded) · ${value.time_zone}`], ['Closed Day Count', String(value.coverage.closed_day_count)], ['Coverage', value.coverage.extent === 'full_window_as_of' ? 'Full Target Window As Of Import' : 'Partial Target Period']);
+  rows.push(['Source Watermark', value.source_watermark || 'Unavailable'], ['As Of', value.as_of], ['Goal Achievement', 'Not Assessed'], ['Advertising Attribution', 'Unavailable'], ['Spending Permission', 'None']);
+  return rows;
+}
+export function goalProgressReasons(reasons) {
+  const labels = {goal_not_confirmed:'Confirm this goal revision before checking sales progress.',goal_definition_unavailable:'The saved goal definition is unavailable.',source_unavailable:'The owned Shopify source is unavailable.',measurement_basis_changed:'The store measurement basis changed; review the goal again.',ambiguous_local_boundary:'The local measurement boundary could not be verified.',no_closed_days:'No fully closed imported days are available yet.',outside_retention:'The requested days are outside retained history.',missing_history:'Required sales history is missing.',incomplete_window:'The closed-day interval has not been completely imported.',stale_source:'The sales import is too old to report current progress.',import_in_progress:'A sales import is still in progress.',source_error:'The sales source needs attention.',unreconciled_source:'Some source records have not reconciled.',privacy_suppressed_source:'Sales data is unavailable after a privacy change.'};
+  return Array.isArray(reasons) ? reasons.map(reason => labels[reason] || 'Sales progress needs attention.').join(' ') : 'Sales progress needs attention.';
+}
+
 export async function request(path, method = 'GET', body, headers = {}, fetcher = globalThis.fetch, cookies = globalThis.document?.cookie || '') {
   if (!path.startsWith('/api/customer/v1/') || path.includes('..')) throw new Error('Invalid request.');
   const csrf = cookies.split(';').map(v => v.trim()).find(v => v.startsWith('__Host-inlet_csrf='))?.split('=')[1];
@@ -130,6 +146,7 @@ if (typeof document !== 'undefined') {
   let workspaces = [], stores = [], goals = [], selectedGoal = null, reviewed = null, epoch = 0, googleSetup = null, googleConnections = [], metaSetup = null, tiktokSetup = null, tiktokConnections = [];
   let signupKey = null, signupBody = null, busyCount = 0, controlStates = null;
 
+  let progressEpoch = 0, progressDirty = false, progressSessionCookie = null;
   const pendingGoals = new Map();
   class StaleRequest extends Error {}
   async function api(...args) {
@@ -144,6 +161,7 @@ if (typeof document !== 'undefined') {
     }
   }
   function clearWorkspace() {
+    clearProgress(); progressDirty = false;
     epoch++; stores = []; goals = []; selectedGoal = null; reviewed = null;
     for (const id of ['store', 'goal', 'goal-detail', 'review-data', 'connections', 'mandates', 'billing', 'billing-detail', 'basis']) $(id).replaceChildren();
     $('goal-form').reset(); $('shopify-connect').reset(); $('shopify-current').textContent = '';
@@ -154,7 +172,7 @@ if (typeof document !== 'undefined') {
 
   }
   function clearSession() {
-    clearWorkspace(); workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
+    clearWorkspace(); progressSessionCookie = null; workspaces = []; pendingGoals.clear(); signupKey = null; signupBody = null;
     $('workspace').replaceChildren(); $('provision').reset();
     show('application', false); show('signed-out', true); show('logout', false);
   }
@@ -215,6 +233,7 @@ if (typeof document !== 'undefined') {
     clearSession();
     try {
       await api('/api/customer/v1/session');
+      progressSessionCookie = document.cookie;
       workspaces = await api('/api/customer/v1/workspaces');
       $('workspace').replaceChildren(option('', 'Select A Workspace'), ...workspaces.map(w => option(w.id, `${w.name} · ${w.role}`)));
       show('application', true); show('signed-out', false); show('logout', true); say('Choose or create a workspace.');
@@ -224,7 +243,31 @@ if (typeof document !== 'undefined') {
 
     } catch (error) { if (error instanceof StaleRequest) return; clearSession(); say(error.message, true); }
   }
+  function clearProgress(message = '') {
+    progressEpoch++; $('goal-progress-data').replaceChildren(); $('goal-progress-reasons').textContent = message;
+    show('goal-progress', Boolean(message)); show('goal-progress-refresh', false);
+  }
+  async function refreshGoalProgress() {
+    clearProgress();
+    const goal = selectedGoal, workspaceId = $('workspace').value, pageEpoch = epoch, turn = progressEpoch;
+    if (!goal || progressDirty) return;
+    show('goal-progress', true); $('goal-progress-reasons').textContent = 'Checking current imported sales…';
+    const current = () => turn === progressEpoch && pageEpoch === epoch && selectedGoal?.id === goal.id && selectedGoal?.revision === goal.revision && !progressDirty;
+    try {
+      if (progressSessionCookie !== document.cookie) { clearSession(); throw new StaleRequest(); }
+      const value = await api(root() + `/goals/${encodeURIComponent(goal.id)}/progress?expected_revision=${goal.revision}`);
+      if (!current()) return;
+      if (progressSessionCookie !== document.cookie) { clearSession(); throw new StaleRequest(); }
+      summary($('goal-progress-data'), goalProgressRows(value, goal, workspaceId));
+      $('goal-progress-reasons').textContent = goalProgressReasons(value.reasons);
+    } catch (error) {
+      if (!current() || error instanceof StaleRequest) return;
+      if (error.status === 401) { clearSession(); say(error.message, true); return; }
+      $('goal-progress-data').replaceChildren(); $('goal-progress-reasons').textContent = error.message;
+    } finally { if (current()) show('goal-progress-refresh', true); }
+  }
   function editGoal() {
+    clearProgress(); progressDirty = false;
     invalidate(); selectedGoal = goals.find(g => g.id === $('goal').value) || null;
     $('goal-form').reset();
     const d = selectedGoal?.definition;
@@ -237,10 +280,11 @@ if (typeof document !== 'undefined') {
     $('goal-detail').replaceChildren();
     if (selectedGoal) {
       summary($('goal-detail'), [['Goal Status', label(selectedGoal.assessment)], ...goalSummary(d)]);
-      $('goal-detail').append(textNode('p', 'Current sales progress is not available in this view. A confirmed goal does not mean the sales target has been achieved.'));
+
       if (selectedGoal.assessment === 'baseline_unavailable') $('goal-detail').append(textNode('p', 'The baseline is no longer ready. Review again to check missing history, incomplete imports or stale data.'));
     } else $('goal-detail').append(textNode('p', 'Create an editable draft.'));
     show('preview', Boolean(selectedGoal?.definition)); updateBasis();
+    void refreshGoalProgress();
   }
   function updateBasis() { const store = stores.find(s => s.id === $('store').value); $('basis').textContent = store ? `Currency: ${store.currency} · Store Time Zone: ${store.time_zone}` : 'A Shopify store must be connected before a goal can be saved.'; }
   async function loadWorkspace() {
@@ -426,7 +470,8 @@ if (typeof document !== 'undefined') {
   $('workspace').onchange = () => guarded(loadWorkspace);
   $('goal').onchange = editGoal;
   $('store').onchange = updateBasis;
-  $('goal-form').oninput = () => { invalidate(); show('preview', false); };
+  $('goal-progress-refresh').onclick = () => { void refreshGoalProgress(); };
+  $('goal-form').oninput = () => { invalidate(); progressDirty = true; clearProgress('Local goal edits are not saved. Save or reload the saved goal before checking progress.'); show('preview', false); };
   $('provision').onsubmit = event => { event.preventDefault(); const body = Object.fromEntries(new FormData(event.currentTarget)); guarded(async () => {
     const encoded = JSON.stringify(body);
     if (encoded !== signupBody) { signupBody = encoded; signupKey = crypto.randomUUID(); }

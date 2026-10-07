@@ -3,6 +3,7 @@ const browserFetch = globalThis.fetch;
 const calls = [];
 const goalId = 'g'.repeat(32), storeId = 's'.repeat(32);
 let goals = [], creates = 0, principal = 'A', failWorkspaces = false, loseGoal = true;
+let releaseProgress = null, deferProgress = false;
 let releaseGoals = null, deferGoals = false, unauthorized = false, rejectCreate = false, lossStatus = null;
 const receipts = new Map();
 Object.defineProperty(document, 'cookie', {get: () => '__Host-inlet_csrf=' + 'a'.repeat(43)});
@@ -20,6 +21,7 @@ globalThis.fetch = async (path, options) => {
     else value = [{id:1,name:'<img src=x onerror=alert(1)>',role:'owner'}];
   } else if (path.endsWith('/commerce/stores')) value = [{id:storeId,status:'active',currency:'USD',time_zone:'America/New_York'}];
   else if (path.endsWith('/billing')) value = {status:'unconfigured',mode:'unavailable'};
+  else if (path.includes('/progress?')) value = {schema_version:'inlet.goal-sales-progress.v1',metric:'shopify_merchandise_net_sales_v1',workspace_id:1,goal_id:goals[0].id,revision:goals[0].revision,status:'unavailable',target_window:null,target_micros:null,net_sales_micros:null,coverage:null,source_watermark:null,as_of:'2026-10-07T00:00:00Z',reasons:['goal_not_confirmed'],goal_achievement:'not_assessed',attribution:'unavailable',spending_authorized:false};
   else if (path.endsWith('/preview')) value = {preview_id:'p'.repeat(32),snapshot_id:'b'.repeat(32),revision:goals[0].revision};
   else if (path.includes('/commerce/snapshots/')) value = {quality:'complete',net_sales_micros:1000000000,currency:'USD',orders:10,window:{start:'2026-01-01',end:'2026-02-01',time_basis:'calendar_month'},reasons:[]};
   else if (path.endsWith('/confirm')) { goals[0].confirmation_recorded = true; value = goals[0]; }
@@ -33,6 +35,7 @@ globalThis.fetch = async (path, options) => {
   }
   else if (path.endsWith('/goals')) { if (deferGoals) await new Promise(resolve => { releaseGoals = resolve; }); value = goals; }
   else if (path.endsWith('/goals/' + goalId)) { goals[0] = {...goals[0],definition:body.definition,revision:2}; value = goals[0]; }
+  if (path.includes('/progress?') && deferProgress) await new Promise(resolve => { releaseProgress = resolve; });
   return {ok:true,status:200,json:async()=>JSON.parse(JSON.stringify(value))};
 };
 const $ = id => document.getElementById(id);
@@ -66,9 +69,13 @@ try {
   for (const expected of ['Target Sales','USD 10,000.00','January 2027','Total Budget','USD 100.00','Historical Baseline','Ready To Review','USD 1,000.00','January 2026']) assert($('review-data').textContent.replace(/\s/g, ' ').includes(expected), 'Readable review: ' + expected);
   assert(!$('review-data').textContent.includes('net_sales_micros') && !$('review-data').textContent.includes(storeId),'No implementation fields in review');
   assert($('connections').textContent.includes('Not Connected'),'Readable connection status');
-  assert($('goal-detail').textContent.includes('Current sales progress is not available'),'Unknown progress explicit');
+  assert($('goal-progress-data').textContent.includes('Imported Net SalesUnavailable') && $('goal-progress-reasons').textContent.includes('Confirm this goal revision'), 'Unknown progress explicit, without zero');
+  deferProgress = true; $('goal-progress-refresh').click(); await wait();
+  assert(releaseProgress, 'Progress request pending');
   $('goal-form').elements.namedItem('target').value = '11000'; $('goal-form').dispatchEvent(new Event('input',{bubbles:true}));
   assert($('review').hidden && $('preview').hidden,'Editing invalidates reviewed revision');
+  releaseProgress(); deferProgress = false; await wait();
+  assert($('goal-progress-data').textContent === '' && $('goal-progress-reasons').textContent.includes('not saved') && $('goal-progress-refresh').hidden, 'Late progress cannot replace local edits');
   $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
   $('preview').click(); await wait(); $('confirm').click(); await wait();
   assert(goals[0].confirmation_recorded,'Confirmed reviewed goal');

@@ -97,3 +97,17 @@ Log: `inlet-next-integration-migration-repaired.log`. The previous failed aggreg
 logs remain retained. No second Full or hosted qualification was launched. Actual
 optimization API/UI and TikTok runtime/browser packages remain separate work until
 their own integration; this result does not claim live functionality.
+
+## Configured Optimization API Integration
+
+Merged configured optimization backend `c418bc4`. Its explicit legacy origin
+constructor defaults exposed a historical test mapper incompatibility (baseline
+1 failed in 3.50s). The test-only reflected mapper now accepts only legacy/null
+defaults, rejects marked authority, and preserves read-only origin properties.
+The regression checks both constructor paths and late-import cleanup.
+
+The eight-file historical/API/interpretation cohort passed **49 tests with 20
+warnings in 116.37 seconds**, exit 0. Whole Ruff, mypy795 and diff check passed.
+Log: `inlet-next-integration-optimization-api.log`. This is focused integration
+evidence, not Full qualification or live verification. The separately reviewed
+financial-period boundary followup remains pending integration.

@@ -20,6 +20,18 @@ def install_legacy_origin(monkeypatch: pytest.MonkeyPatch, engine: Engine) -> Ca
     assert execution_models.ProviderExecutionRevision is ProviderExecutionRevision
 
     class LegacyRevision:
+        def __init__(self, **values: object) -> None:
+            # Current producers explicitly pass legacy defaults. Historical
+            # tables cannot store marked authority, even through this fixture.
+            if values.pop("origin_kind", "legacy") != "legacy" or values.pop(
+                "origin_preparation_digest", None
+            ) is not None:
+                raise ValueError("historical revision cannot contain marked origin")
+            for name, value in values.items():
+                if name not in table.c:
+                    raise TypeError("unknown historical revision column")
+                setattr(self, name, value)
+
         @property
         def origin_kind(self) -> str:
             return "legacy"

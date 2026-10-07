@@ -31,8 +31,20 @@ def test_historical_mapper_restores_late_imports(monkeypatch: pytest.MonkeyPatch
             late.unrelated = sentinel  # type: ignore[attr-defined]
             monkeypatch.setitem(sys.modules, late.__name__, late)
             try:
-                row = legacy(mandate_id="a" * 32, revision=1)
+                row = legacy(
+                    mandate_id="a" * 32,
+                    revision=1,
+                    origin_kind="legacy",
+                    origin_preparation_digest=None,
+                )
                 assert row.origin_kind == "legacy" and row.origin_preparation_digest is None
+                with pytest.raises(ValueError, match="cannot contain marked origin"):
+                    legacy(
+                        mandate_id="a" * 32,
+                        revision=2,
+                        origin_kind="optimization_customer_v1",
+                        origin_preparation_digest="b" * 64,
+                    )
                 with pytest.raises(AttributeError):
                     row.origin_kind = "optimization_customer_v1"
             finally:

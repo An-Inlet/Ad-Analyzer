@@ -31,7 +31,17 @@ from tests.test_shopify_sales import configuration as configuration
 
 @pytest.mark.parametrize(
     "mode",
-    ["internal", "configured", "erased", "session", "expired", "source", "rollback", "unknown"],
+    [
+        "internal",
+        "configured",
+        "erased",
+        "session",
+        "expired",
+        "expired30",
+        "source",
+        "rollback",
+        "unknown",
+    ],
 )
 def test_exact_start_and_worker(
     customer_engine: Engine,
@@ -49,7 +59,7 @@ def test_exact_start_and_worker(
     configured_profile = configured_profile.model_copy(
         update={
             "native_read": configured_profile.native_read.model_copy(
-                update={"observation_lifetime_seconds": 120}
+                update={"observation_lifetime_seconds": 30 if mode == "expired30" else 120}
             ),
             "initial": configured_profile.initial.model_copy(
                 update={"preview_lifetime_seconds": 120}
@@ -108,6 +118,26 @@ def test_exact_start_and_worker(
             expected_policy_digest=policy.digest(),
         )
         wid = c.work.scope.account.workspace_id
+        if mode == "expired30":
+            from dataclasses import replace
+            from datetime import timedelta
+
+            from app.session_automation.models import SessionAutomationRun
+            from fastapi import HTTPException
+
+            expired = replace(runtime, clock=lambda: native.clock() + timedelta(seconds=31))
+            with pytest.raises(HTTPException):
+                service.start(c.db, c.principal, wid, intent, expired)
+            c.db.rollback()
+            for model in (
+                SessionAutomationRun,
+                AutomaticDecisionAdmission,
+                ProviderExecutionAttempt,
+                ProviderExecutionApproval,
+            ):
+                assert c.db.scalar(select(func.count()).select_from(model)) == 0
+            assert not c.server.posts
+            return
         if mode == "configured":
             from app.api import customer_session_automation
             from app.production_runtime.reported_automation import configured_session_automation

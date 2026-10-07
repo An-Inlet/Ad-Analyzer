@@ -46,8 +46,12 @@ def test_first_customer_budget_browser(
     from sqlalchemy import func, select
 
     with Session(customer_engine) as db:
-        for model in (ProviderExecutionMandate, ProviderExecutionConsent,
-                      ProviderExecutionAttempt, ProviderExposureReservation):
+        for model in (
+            ProviderExecutionMandate,
+            ProviderExecutionConsent,
+            ProviderExecutionAttempt,
+            ProviderExposureReservation,
+        ):
             assert db.scalar(select(func.count()).select_from(model)) == 0
     if unavailable:
         monkeypatch.setattr(settings, "budget_mandate_policy_path", None)
@@ -62,15 +66,20 @@ def test_first_customer_budget_browser(
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
         if path == "/__fixture__/start":
-            html = Path("app/portal/static/initial-planning.html").read_text().replace(
-                "/app/assets/initial-planning.mjs", "/__fixture__/driver.mjs"
+            html = (
+                Path("app/portal/static/initial-planning.html")
+                .read_text()
+                .replace("/app/assets/initial-planning.mjs", "/__fixture__/driver.mjs")
             )
             response = Response(html, media_type="text/html")
             # Transfer the actual API-created original session into the browser;
             # no new session/approval is fabricated or substituted for the job.
             for cookie in alice.cookies.jar:
                 response.set_cookie(
-                    cookie.name, cookie.value, secure=True, samesite="strict",
+                    cookie.name,
+                    cookie.value,
+                    secure=True,
+                    samesite="strict",
                     httponly="csrf" not in cookie.name.lower(),
                 )
             await response(scope, receive, send)
@@ -82,7 +91,12 @@ def test_first_customer_budget_browser(
             return
         if path.startswith("/app/assets/"):
             name = path.removeprefix("/app/assets/")
-            if name in {"initial-planning.mjs", "initial-execution.mjs", "session-context.mjs"}:
+            if name in {
+                "initial-planning.mjs",
+                "initial-execution.mjs",
+                "initial-automation.mjs",
+                "session-context.mjs",
+            }:
                 await Response(
                     Path("app/portal/static", name).read_text(), media_type="text/javascript"
                 )(scope, receive, send)
@@ -99,6 +113,7 @@ def test_first_customer_budget_browser(
             completed.set()
             return
         await alice.app(scope, receive, send)
+
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
         uvicorn.Config(

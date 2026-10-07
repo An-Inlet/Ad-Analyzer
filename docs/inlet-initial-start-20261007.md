@@ -75,3 +75,50 @@ passed both databases after the protected delete guard and exact policy-to-linke
 check. This includes raw update/delete refusal, genuine evidence deletion paired SET NULL,
 blocked worker, zero admissions/attempts/approvals and successful owner Stop/read.
 Final Ruff, mypy (933 files) and diff checks passed.
+
+## Initial customer UI checkpoint
+
+Source factoring `144786f` was independently inspected and integrated as `8948b64`:
+private freshly validated calibration inputs remain confined to locked database reads;
+public readers and the post-mandate second preview validation remain guarded. No cached
+permission crosses requests, commits or provider I/O. Its separate ledger records 50
+source/compatibility checks and the measurement method.
+
+The actual Initial Planning page now reads separately scoped initial choices and displays
+the exact preview, named rule, separately consented execution plan, total limit, maximum
+nominal adjustment, environment, duration and cadence. Confirmation starts unchecked.
+The strict request includes exact preview/policy digests and the original consent binding.
+Input/workspace/session changes clear pending consent. Recent-run status and Stop remain
+available after the preview is cleared. An unavailable Start response clears confirmation;
+recovery reads the original run without retrying Start. Existing manual review remains.
+
+Checks on this checkpoint (same isolated-database environment above):
+
+- `pytest -q tests/test_initial_automatic_browser.py --durations=8`: **4 passed**,
+  real HTTPS/Chromium, SQLite and PostgreSQL, normal and lost-after-commit Start response.
+  Uses actual capture/calibration/native preview, configured options/API/worker, owned
+  original session and MockHTTP provider. Each asserts exactly one Start request, one
+  native budget POST, one admission/attempt/reservation, verified target receipt, zero
+  human approvals, status read, Stop, recovery history and logout. PostgreSQL whole-test
+  calls 35.77s/33.94s; SQLite 14.33s/14.89s. These are not worker-only timings.
+- `pytest -q tests/test_initial_automation_ui.py tests/test_initial_execution_ui.py`:
+  **4 passed**. DOM contracts include late stale options, same-owner session rotation,
+  uncertain response without automatic retry, recovery and Stop, existing V1/V2 handoff.
+- `pytest -q tests/test_initial_rule_start.py -k expired30`: **2 passed**.
+  Actual producer uses the ordinary 30-second native observation lifetime; moving the
+  injected authority clock forward 31 seconds denies Start, with zero sessions,
+  admissions, attempts, approvals or sends. No clock rollback or production change.
+- `ruff check app tests`, repository `mypy` (**936 files**), Node syntax checks for both
+  initial modules and `git diff --check` passed. Three initial line-length lint errors
+  were fixed before this checkpoint; the first lost-response harness attempt omitted
+  placeholder replacement, corrected before the four-case successful run.
+
+Worker-only independent source measurements use `perf_counter` around `worker.advance`,
+with identical SQL counters: three runs 22.204/21.272/20.503 seconds (median21.272),
+including profiling overhead and concurrent root validation load. This remains a material
+latency limitation and does not qualify the ordinary 30-second happy path. The 120-second
+positive fixture is explicit, not a changed production policy.
+
+Pending independent concurrency/stale-consent/spent-budget/populated-downgrade/maintenance
+checks, existing-page browser compatibility, further reviewed source optimization, and
+root review/integration. No Full, deployment, live provider action or product release.

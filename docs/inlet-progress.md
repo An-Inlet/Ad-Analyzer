@@ -6386,3 +6386,16 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   Alembic config deprecation warning); whole Ruff/mypy818, format/diffcheck pass.
   Evidence /tmp/inlet-v2-proof-commitments.log. No schema expansion, route/runtime,
   Full, remote or live actions.
+
+### 2026-10-07 — V2 Execution Options/API Interface Freeze
+
+- Frozen immutable bounded options/response and exact callable protocols in
+  review_v2_api_contracts; documented GET execution-review-options and POST
+  execution-review under the existing owned preview path. Up to50 named separately
+  consented matching0080 options carry exact period/caps; availability explicitly
+  does not assert financial qualification. Existing three-field intent and prepared
+  response unchanged; no raw proofs/amounts/native IDs admitted from customers.
+-32 pure/codec contract tests passed2.63s; whole Ruff/mypy820, format/diffcheck pass.
+  No routes/runtime/UI/schema/DB, remote, Full or live calls. Concrete guarded service
+  and ordinary configured API acceptance remain next; docs/design/v2-execution-review-api-freeze.md
+  freezes names, ownership, unavailable semantics and transaction responsibilities.

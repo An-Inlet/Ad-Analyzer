@@ -19,7 +19,6 @@ MODEL_MODULES = (
     "app.campaign_performance.models",
     "app.commerce.models",
     "app.commerce.acquisition_models",
-    "app.commerce.acquisition_guards",
     "app.crm.models",
     "app.customer_context.models",
     "app.customers.models",
@@ -53,8 +52,12 @@ MODEL_MODULES = (
 )
 
 
+# Metadata event installers are required, but do not declare ORM model classes.
+GUARD_MODULES = ("app.commerce.acquisition_guards",)
+
+
 def register_models() -> MetaData:
     """Populate and return the shared metadata, idempotently in any import order."""
-    for module in MODEL_MODULES:
+    for module in (*MODEL_MODULES, *GUARD_MODULES):
         import_module(module)
     return Base.metadata

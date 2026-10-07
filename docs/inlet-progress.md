@@ -7040,3 +7040,12 @@ SQLite probe passed. Whole Ruff/mypy948/diff passed. No product edit or Full/rem
 live action. This is planning consent/offline campaign approval, not financial
 execution consent; the fresh customer→configured execution bridge remains explicit.
 See `inlet-continuous-purchase-acceptance.md` for exact fixture boundaries and gaps.
+
+Freshcustomer independent-review followup asserts exact edited12000 target value,
+no additional providerPOST from billing status GET, then exact2POSTs/1originalkey
+after explicit customerResume. Initial proposed1POSTtotal expectation failed bothDB
+because Resume intentionally performs a bound idempotent retry; no automatic retry
+or product defect established, no billing code changed. Docs corrected to avoid
+GET-onlyrecovery implication. Final strengthened2DBjourney2pass16.94s, whole
+Ruff/mypy948/diffpass. Logs `/tmp/inlet-continuous-fresh-review.log` (failed proposed
+assertion) and `/tmp/inlet-continuous-fresh-review-final.log` (passed).

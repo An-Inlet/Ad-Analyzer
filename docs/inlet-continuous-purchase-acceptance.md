@@ -11,9 +11,12 @@ fixture and does not choose commercial launch defaults.
 
 The actual visible journey signs in, provisions an owned workspace, requests test
 checkout, handles a lost provider-accepted response, recovers the original purchase,
-and reconciles a signed webhook through the real billing worker. Returning from the
+through a status GET followed by explicit customer Resume, and reconciles a signed
+webhook through the real billing worker. Returning from the
 provider before reconciliation cannot grant entitlement. Recovery preserves one
-original checkout idempotency key.
+original checkout idempotency key: the status GET issues no provider POST; explicit
+Resume issues exactly one additional POST using that same original key. This proves
+no newly keyed purchase, not the behavior of a real payment processor.
 
 Google OAuth and account selection use the ordinary UI twice, proving reconnect
 preserves one owned connection. Shopify OAuth runs through the ordinary callback
@@ -63,3 +66,21 @@ this package. No application change was needed for the new checks.
   `/tmp/inlet-continuous-fresh-both.log`. No frozen Full database was touched.
 - Whole `ruff check .`, prescribed `mypy` (948 source files) and `git diff --check`
   passed. Mypy log: `/tmp/inlet-continuous-fresh-mypy.log`.
+
+## Independent Review Assertion Follow-Up
+
+The edited goal now explicitly asserts12000currency units as12000000000micros.
+The checkout assertions distinguish a read from customer-authorized Resume:
+exactly one provider checkout POST before/after the status GET, then exactly two
+POSTs total with the same original key after the explicit Resume click.
+
+An initially stronger proposed assertion of one POST across Resume failed on both
+DBs (`/tmp/inlet-continuous-fresh-review.log`,2failed18.27s). Inspection showed the
+existing documented idempotent retry behavior, also asserted by the older billing
+browser test. This was an overstrong test expectation, not an automatic unrequested
+retry or demonstrated product defect. No billing implementation was changed.
+
+Final strengthened twoDB journey: **2passed16.94s**, zero skips,
+`/tmp/inlet-continuous-fresh-review-final.log`. Whole Ruff/mypy948/diff passed;
+`/tmp/inlet-continuous-fresh-review-mypy.log`. This supersedes the overstrong
+failed assertion and leaves its evidence intact.

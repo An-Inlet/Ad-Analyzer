@@ -457,11 +457,12 @@ def test_fresh_visible_brand_journey(
         browser.ready("$('message').className === 'error' && !$('billing-refresh').disabled")
         assert len(billing.post_keys) == 1
         original_checkout_key = billing.post_keys[0]
-        # Recover the provider-accepted checkout through the ordinary customer GET.
-        # No response loss may mint a replacement purchase or grant entitlement.
+        # The ordinary status GET exposes the original pending purchase without POST.
+        # Explicit Resume retries only its exact original offer and idempotency key.
         billing.lost = False
         browser.js("$('billing-refresh').click()")
         browser.ready("$('checkout').textContent.includes('Resume') && !$('checkout').disabled")
+        assert len(billing.post_keys) == 1
         assert len(set(billing.post_keys)) == 1
         browser.js("$('checkout').click()")
         browser.ready("$('provider-return') !== null")
@@ -572,6 +573,7 @@ def test_fresh_visible_brand_journey(
         edited_goal = browser.api(root + "/goals")["body"][0]
         assert edited_goal["id"] == original_goal["id"]
         assert edited_goal["revision"] == original_goal["revision"] + 1
+        assert edited_goal["definition"]["target_micros"] == 12_000_000_000
         browser.js("$('preview').click()")
         browser.ready("!$('review').hidden && !$('confirm').disabled")
         assert "90.00" in browser.js("$('review-data').textContent")
@@ -744,6 +746,7 @@ def test_fresh_visible_brand_journey(
             assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
             assert db.scalar(select(func.count()).select_from(AutomaticDecisionAdmission)) == 0
+        assert len(billing.post_keys) == 2
         assert set(billing.post_keys) == {original_checkout_key}
         # A future target period is observable but cannot invent zero sales or success.
         browser.js(

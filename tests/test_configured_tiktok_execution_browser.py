@@ -29,13 +29,21 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_portal import portal_executable
 from tests.test_shopify_sales import configuration as configuration
-from tests.tiktok_runtime_fixture import configured_tiktok_customer
+from tests.tiktok_linked_runtime_fixture import configured_linked_customer
 
 
 @pytest.mark.parametrize(
     "scenario",
-    ["complete", "unknown", "unknown_activation", "revoked",
-     "source", "media", "declaration", "profile"],
+    [
+        "complete",
+        "unknown",
+        "unknown_activation",
+        "revoked",
+        "source",
+        "media",
+        "declaration",
+        "profile",
+    ],
 )
 def test_configured_tiktok_execution_browser(
     customer_engine: Engine,
@@ -61,7 +69,7 @@ def test_configured_tiktok_execution_browser(
     from fastapi.staticfiles import StaticFiles
 
     chromium = portal_executable("chromium", "chromium-browser", "google-chrome")
-    alice, base, policy, draft, _, server_http, requests, control = configured_tiktok_customer(
+    alice, base, policy, draft, _, server_http, requests, control = configured_linked_customer(
         customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
     )
     alice.app.mount("/app/assets", StaticFiles(directory="app/portal/static"))
@@ -69,8 +77,12 @@ def test_configured_tiktok_execution_browser(
     wid = int(base.split("/workspaces/")[1].split("/")[0])
     engine = customer_engine
     with Session(engine) as db:
-        for model in (ProviderExecutionReview, ProviderExecutionAttempt,
-                      ProviderExecutionReceipt, ProviderExposureReservation):
+        for model in (
+            ProviderExecutionReview,
+            ProviderExecutionAttempt,
+            ProviderExecutionReceipt,
+            ProviderExposureReservation,
+        ):
             assert db.scalar(select(func.count()).select_from(model)) == 0
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -84,9 +96,12 @@ def test_configured_tiktok_execution_browser(
         path = scope.get("path", "")
         if path == "/__fixture__/driver.mjs":
             script = Path("tests/javascript/configured_tiktok_execution.mjs").read_text()
-            script = script.replace("__WORKSPACE__", str(wid)).replace(
-                "__POLICY__", json.dumps(policy)
-            ).replace("__SCENARIO__", scenario).replace("__DRAFT__", draft)
+            script = (
+                script.replace("__WORKSPACE__", str(wid))
+                .replace("__POLICY__", json.dumps(policy))
+                .replace("__SCENARIO__", scenario)
+                .replace("__DRAFT__", draft)
+            )
             await Response(script, media_type="text/javascript")(scope, receive, send)
             return
         if path == "/__fixture__/unknown":
@@ -126,12 +141,15 @@ def test_configured_tiktok_execution_browser(
             await JSONResponse({"ok": True})(scope, receive, send)
             return
         if path == "/__fixture__/revoke-next":
+
             def revoke() -> None:
                 from app.customers.models import CustomerSession
+
                 with Session(engine) as db:
                     for session in db.scalars(select(CustomerSession)):
                         session.revoked_at = int(time.time())
                     db.commit()
+
             control["callback"] = revoke
             await JSONResponse({"ok": True})(scope, receive, send)
             return
@@ -148,16 +166,22 @@ def test_configured_tiktok_execution_browser(
             return
         if path == "/__fixture__/configuration.mjs":
             script = Path("tests/javascript/configured_tiktok_configuration.mjs").read_text()
-            script = script.replace("__WORKSPACE__", str(wid)).replace("__DRAFT__", draft)
+            script = (
+                script.replace("__WORKSPACE__", str(wid))
+                .replace("__DRAFT__", draft)
+                .replace("__POLICY__", json.dumps(policy))
+            )
             await Response(script, media_type="text/javascript")(scope, receive, send)
             return
         if path == "/__fixture__/start":
-            html = Path("app/portal/static/social-configuration.html").read_text().replace(
-                "/app/assets/social-configuration.mjs", "/__fixture__/configuration.mjs"
+            html = (
+                Path("app/portal/static/tiktok-linked.html")
+                .read_text()
+                .replace("/app/assets/tiktok-linked.mjs", "/__fixture__/configuration.mjs")
             )
             await Response(html, media_type="text/html")(scope, receive, send)
             return
-        if path == "/__fixture__/execution":
+        if path.startswith("/app/execution/"):
             # Preserve the actual application URL so receipt recovery is exercised.
             html = (
                 Path("app/portal/static/execution.html")
@@ -166,10 +190,12 @@ def test_configured_tiktok_execution_browser(
             )
             await Response(html, media_type="text/html")(scope, receive, send)
             return
+
         async def traced_send(message: Any) -> None:
             if message["type"] == "http.response.start" and message["status"] >= 400:
                 failures.append((path, message["status"]))
             await send(message)
+
         await alice.app(scope, receive, traced_send)
 
     certificate, key = localhost_certificate(tmp_path)

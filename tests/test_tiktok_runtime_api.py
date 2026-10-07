@@ -20,16 +20,12 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.tiktok_runtime_fixture import configured_tiktok_customer
 
 
-@pytest.mark.parametrize(
-    "scenario", ["complete", "unknown_creation", "unknown_activation", "media", "confirmation"]
-)
-def test_configured_tiktok_creation_then_separate_activation(
+def test_configured_custom_identity_cannot_create_future_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    scenario: str,
     encoded: Any,
 ) -> None:
     alice, base, policy_body, draft, revision, server, requests, control = (
@@ -73,7 +69,7 @@ def test_configured_tiktok_creation_then_separate_activation(
         f"/social/reviews/{config['id']}/confirmation",
         {"expected_digest": config["digest"], "acknowledged": True},
     )
-    reviewed = post(
+    denied = post(
         "/social/creation-reviews",
         {
             "configuration_review_id": config["id"],
@@ -81,112 +77,19 @@ def test_configured_tiktok_creation_then_separate_activation(
             "mandate_id": policy["id"],
             "mandate_revision": policy["revision"],
         },
-        201,
+        409,
     )
-    run: dict[str, Any] = {}
-    for activation in (False, True):
-        if activation:
-            if scenario in {"media", "confirmation"}:
-                from app.campaign_review.models import MediaObject
-                from app.publication.social_review_models import SocialConfigurationApproval
-
-                with Session(customer_engine) as db:
-                    original = db.scalar(select(ProviderExposureReservation))
-                    assert original and original.state == "held"
-                    original_id = original.id
-                    if scenario == "media":
-                        cover = db.get(MediaObject, control["cover_id"])
-                        assert cover
-                        (tmp_path / str(cover.workspace_id) / cover.sha256).unlink()
-                    else:
-                        confirmation = db.get(SocialConfigurationApproval, config["id"])
-                        assert confirmation
-                        db.delete(confirmation)
-                        db.commit()
-                denied = alice.post(
-                    base + "/activation-reviews",
-                    headers=headers(alice),
-                    json={
-                        "parent_run_id": run["id"],
-                        "mandate_id": policy["id"],
-                        "mandate_revision": policy["revision"],
-                    },
-                )
-                assert denied.status_code in {409, 503}, denied.text
-                assert server.activations == 0 and control["opened"] == control["closed"]
-                with Session(customer_engine) as db:
-                    hold = db.get(ProviderExposureReservation, original_id)
-                    assert hold and hold.state == "held"
-                    assert (
-                        db.scalar(select(func.count()).select_from(ProviderExposureReservation))
-                        == 1
-                    )
-                return
-            reviewed = post(
-                "/activation-reviews",
-                {
-                    "parent_run_id": run["id"],
-                    "mandate_id": policy["id"],
-                    "mandate_revision": policy["revision"],
-                },
-                201,
-            )
-        post(
-            f"/reviews/{reviewed['id']}/approval",
-            {"review_digest": reviewed["review_digest"], "plan_digest": reviewed["plan_digest"]},
-        )
-        run = post(f"/reviews/{reviewed['id']}/runs", expected=201)
-        if scenario == "unknown_creation":
-            server.timeout = True
-            result = post(f"/runs/{run['id']}/advance")
-            assert result["state"] == "unknown", result
-            writes = server.posts
-            server.timeout = False
-            repeated = post(f"/runs/{run['id']}/advance")
-            assert repeated["state"] == "unknown", repeated
-            original_attempt = next(s["attempt_id"] for s in result["steps"] if s["attempt_id"])
-            reconciled = post(f"/runs/{run['id']}/reconcile", {"attempt_id": original_attempt})
-            assert reconciled["state"] == "unknown", reconciled
-            assert [s["attempt_id"] for s in reconciled["steps"] if s["attempt_id"]] == [
-                original_attempt
-            ]
-            assert server.posts == writes == 1
-            with Session(customer_engine) as db:
-                assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 1
-                assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
-                reservation = db.scalar(select(ProviderExposureReservation))
-                assert reservation and reservation.state == "held"
-            return
-        if activation and scenario == "unknown_activation":
-            server.activation_timeout = True
-            server.delay = True
-            first = post(f"/runs/{run['id']}/advance")
-            assert first["state"] == "unknown", first
-            server.activation_timeout = False
-            repeated = post(f"/runs/{run['id']}/advance")
-            assert repeated["state"] == "unknown", repeated
-            original_attempt = next(s["attempt_id"] for s in first["steps"] if s["attempt_id"])
-            reconciled = post(f"/runs/{run['id']}/reconcile", {"attempt_id": original_attempt})
-            assert reconciled["state"] == "unknown", reconciled
-            assert [s["attempt_id"] for s in reconciled["steps"] if s["attempt_id"]] == [
-                original_attempt
-            ]
-            assert server.activations == 1
-            with Session(customer_engine) as db:
-                assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
-            return
-        expected_state = "activation_observed" if activation else "created_paused"
-        for _ in range(30):
-            run = post(f"/runs/{run['id']}/advance")
-            assert run["state"] != "unknown", run
-            if run["state"] == expected_state:
-                break
-        assert run["state"] == expected_state
+    assert denied["detail"] == "tiktok_new_custom_identity_creation_unavailable"
+    assert server.posts == 0 and server.activations == 0
     with Session(customer_engine) as db:
-        assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
-        row = db.scalar(select(ProviderExposureReservation))
-        assert row and row.state == "held"
-    assert server.posts > 0 and server.activations > 0 and requests
+        for model in (
+            ProviderExecutionReview,
+            ProviderExecutionAttempt,
+            ProviderExposureReservation,
+        ):
+            assert db.scalar(select(func.count()).select_from(model)) == 0
+    # All five former forward scenarios live in test_tiktok_linked_runtime_api,
+    # using actual linked consent and serializers rather than a legacy bypass.
 
 
 @pytest.mark.parametrize(

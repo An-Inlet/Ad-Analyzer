@@ -176,7 +176,7 @@ class SocialServer:
         return httpx.Response(200, json={"code": 0, "data": {"list": [self.rows[ids[0]]]}})
 
 
-def ready(
+def ready_legacy(
     db: Session,
     config: Settings,
     path: Path,
@@ -389,6 +389,21 @@ def ready(
     )
     run = c.create_run(db, wid, row.id, actor, store, runtime, lambda: NOW)
     return wid, run.id, actor, store, runtime, native
+
+
+def ready(
+    db: Session,
+    config: Settings,
+    path: Path,
+    provider: str,
+    video: bytes | None,
+    server: SocialServer,
+) -> tuple[int, str, str, LocalMediaStore, CreationRuntime, Any]:
+    if provider == "tiktok_ads":
+        from tests.tiktok_linked_coordinator_fixture import ready_linked
+
+        return ready_linked(db, config, path, provider, video, server)
+    return ready_legacy(db, config, path, provider, video, server)
 
 
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])

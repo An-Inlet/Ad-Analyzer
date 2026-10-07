@@ -44,7 +44,7 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_activation_journeys import Server, runtime_for
-from tests.test_social_coordinator_journeys import ready as social_ready
+from tests.test_social_coordinator_journeys import ready_legacy as social_ready
 
 
 def setup_social(
@@ -277,6 +277,13 @@ def test_social_customer_paused_creation_and_activation(
         == 409
     )
     response = alice.post(base + "/social/creation-reviews", json=body, headers=headers)
+    if platform == "tiktok_ads":
+        # Historical custom configuration remains readable; no new forward review.
+        # Future TikTok success/unknown/activation uses the configured linked suite.
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"] == "tiktok_new_custom_identity_creation_unavailable"
+        assert server.posts == server.activations == 0
+        return
     assert response.status_code == 201, response.text
     review = response.json()
     assert review["platform"] == platform and review["environment"] == "contract_test"

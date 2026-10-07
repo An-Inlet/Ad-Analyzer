@@ -22,7 +22,7 @@ from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
-from tests.test_social_coordinator_journeys import SocialServer, ready
+from tests.test_social_coordinator_journeys import SocialServer, ready_legacy
 
 
 @pytest.mark.parametrize("emitted", [False, True])
@@ -41,7 +41,7 @@ def test_legacy_forward_creation_stops_without_erasing_original_history(
         # methods only inside this setup context. No product runtime exemption exists.
         with monkeypatch.context() as historical:
             historical.setattr(c, "new_creation_allowed", lambda _: None)
-            wid, run_id, actor, store, runtime, _ = ready(
+            wid, run_id, actor, store, runtime, _ = ready_legacy(
                 db, configuration, tmp_path, "tiktok_ads", encoded(), server
             )
             claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)

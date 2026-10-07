@@ -27,15 +27,23 @@ from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
-from tests.test_social_coordinator_journeys import SocialServer, ready
+from tests.test_social_coordinator_journeys import SocialServer
+from tests.test_social_coordinator_journeys import ready_legacy as ready
 
 
 def fixture(
     db: Session, configuration: Settings, path: Path, provider: str, video: bytes | None
 ) -> tuple[Any, ...]:
-    wid, runid, actor, store, _, native = ready(
-        db, configuration, path, provider, video, SocialServer(provider)
-    )
+    # This pure legacy compiler fixture deliberately reads a pre-rollout graph.
+    # The exception ends before any producer assertions or customer forward route.
+    from app.publication import coordinator as coordinator
+
+    with pytest.MonkeyPatch.context() as historical:
+        if provider == "tiktok_ads":
+            historical.setattr(coordinator, "new_creation_allowed", lambda _: None)
+        wid, runid, actor, store, _, native = ready(
+            db, configuration, path, provider, video, SocialServer(provider)
+        )
     run = db.get(ProviderExecutionRun, runid)
     assert run is not None
     row = db.get(ProviderExecutionReview, run.review_id)

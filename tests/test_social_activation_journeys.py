@@ -11,6 +11,7 @@ import pytest
 from app.executors.google_activation import GoogleActivationHTTP
 from app.executors.meta_activation import MetaActivationHTTP
 from app.executors.tiktok_activation import TikTokActivationHTTP
+from app.executors.tiktok_linked_activation import LinkedPushTikTokActivationHTTP
 from app.publication import activation as a
 from app.publication import activation_review as r
 from app.publication import coordinator as c
@@ -134,6 +135,7 @@ def runtime_for(
         MetaActivationHTTP(media, transport=httpx.MockTransport(server)),
         TikTokActivationHTTP(media, transport=httpx.MockTransport(server)),
         context,
+        linked_tiktok=LinkedPushTikTokActivationHTTP(media, transport=httpx.MockTransport(server)),
     )
 
 

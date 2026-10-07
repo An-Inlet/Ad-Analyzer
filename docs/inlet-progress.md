@@ -6844,3 +6844,39 @@ No routes/UI/schema, source registration, live calls, advertising changes, remot
 writes or Full validation. Publication eligibility remains `not_assessed`, spending
 authority `none`; pagination does not imply stable snapshot/full-history coverage.
 Details: `docs/design/tiktok-linked-posts-catalog.md`.
+### Linked TikTok Compatibility Fixture Migration
+
+Test-only package on `codex/inlet-tiktok-linked-compat`, author base494ec217 plus
+root committed UI f7a5667 as dependency. Future coordinator/activation and all
+eight configured browser scenarios now use linked Push contracts and actual linked
+customer review/consent. Old configured CUSTOMIZED_USER future creation explicitly
+expects409 with no new reviews/attempts/holds/writes. Five previous future scenarios
+remain in author-owned `test_tiktok_linked_runtime_api`. Historical rollout and
+canonical producer fixtures use explicitly named old setup with a narrow pre-policy
+context; the production guard is restored before forward/readback assertions.
+No product scenario exemption, runtime getter override or application-code change.
+
+Terminal validation, both DBs, each `--durations=20`:
+-74 coordinator/activation/historical policy/runtime boundary tests passed307.69s:
+  `/tmp/tiktok-linked-compat-first.log`.
+-28 producer and customer execution tests passed69.42s:
+  `/tmp/tiktok-linked-compat-producers.log`.
+-14 direct configuration API/UI/review/populated-migration consumers passed57.45s;
+  four existing Alembic path_separator deprecation warnings:
+  `/tmp/tiktok-linked-compat-legacy-consumers.log`.
+-16 configured linked TLS browser cases passed412.39s (6m52s), all eight scenarios
+  on SQLite/PostgreSQL: complete, unknown creation, unknown activation, revoked,
+  source, media, declaration and profile. `/tmp/tiktok-linked-compat-browser-final.log`.
+  Slowest37.62s; ordinary saved-run state/receipt/hold assertions retained.
+-Whole Ruff, mypy890 (`/tmp/tiktok-linked-compat-mypy.log`), Node syntax and diff pass.
+
+Initial migrated browser16 failed due to getElementById being passed nested CSS
+selectors; corrected driver to querySelector, retaining actual video/cover decoding
+assertions. One corrected complete case then found the old environment assertion
+looked at the unloaded workspace capability panel on direct saved-run navigation;
+assertion now uses the real saved run's Contract Test label. Corrected single case
+passed35.11s before final16. Failed logs retained at
+`/tmp/tiktok-linked-compat-browser.log` and `...-browser-one.log`.
+No prior Full pass is claimed for this successor. No Full/hosted/remote/live/deploy
+or advertising actions. Exact coverage mapping:
+`docs/design/tiktok-linked-compatibility-migration.md`.

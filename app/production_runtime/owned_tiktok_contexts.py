@@ -22,6 +22,7 @@ from app.publication.social_contracts import (
     SocialBoundRequest,
     SocialProviderContext,
 )
+from app.publication.tiktok_linked_plan import LinkedPushBoundRequestV1
 from app.settings import Settings
 from app.shopify.security import utc
 from app.sources.models import SourceConnection
@@ -124,6 +125,11 @@ class OwnedTikTokContexts:
             access_token=token,
             expires_at=expiry,
         )
+
+    def linked_publication(self, request: LinkedPushBoundRequestV1, /) -> SocialProviderContext:
+        request = LinkedPushBoundRequestV1.model_validate_json(request.model_dump_json())
+        token, expiry = self.credentials(ExecutionAccount.from_publication(request.scope))
+        return SocialProviderContext(scope=request.scope, access_token=token, expires_at=expiry)
 
     def activation(self, request: ActivationRequest, /) -> ActivationContext:
         token, expiry = self.credentials(request.account)

@@ -55,7 +55,13 @@ class ActivationRuntime:
     tiktok: ActivationTransport
     context: Callable[[ActivationRequest], ActivationContext]
 
+    linked_tiktok: ActivationTransport | None = None
+
     def transport(self, request: ActivationRequest) -> ActivationTransport:
+        if isinstance(request.target.original_request, LinkedPushBoundRequestV1):
+            if self.linked_tiktok is None:
+                raise HTTPException(409, "linked_activation_unavailable")
+            return self.linked_tiktok
         return {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}[
             request.account.account.platform
         ]

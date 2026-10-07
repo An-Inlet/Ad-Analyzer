@@ -86,6 +86,7 @@ async function renderReview(){
    ['Attribution',f.attribution.map(a=>`${label(a.event_type)} · ${a.window_days} Days`).join(', ')]
   ]);
   else summaryAppend('execution-review-summary',[
+   ...(f.kind==='tiktok_linked_push_v13'?[['Linked Post','Creates A New Linked Post'],['Visibility','Ads Only'],['Music Rights','Separately Reviewed For Commercial Use']]:[]),
    ['Placement','TikTok'],['Age Groups',f.age_groups.map(label).join(', ')],
    ['Click Attribution',label(f.click_attribution_window)],['View Attribution',label(f.view_attribution_window)],
    ['Comments',f.comment_disabled?'Disabled':'Enabled'],['Sharing',f.share_disabled?'Disabled':'Enabled'],['Video Downloads',f.video_download_disabled?'Disabled':'Enabled']
@@ -99,7 +100,7 @@ async function renderReview(){
 function configurationIdentity(c){
  const media=b=>`${b.width} × ${b.height} · File ${b.sha256.slice(0,12)}`;
  return c.image?[['Meta Page',`Owned Reference ${c.page_id}`],['Purchase Pixel',`Owned Reference ${c.pixel_id}`],['Image',media(c.image)]]:
- [['TikTok Identity',`Owned Reference ${c.identity_id}`],['Purchase Pixel',`Owned Reference ${c.tracking_pixel_id}`],['Video',media(c.video)],['Cover Image',media(c.cover)]];
+ [['TikTok Identity',`Owned Reference ${c.identity?.identity_id??c.identity_id}`],['Purchase Pixel',`Owned Reference ${c.tracking_pixel_id}`],['Video',media(c.video)],['Cover Image',media(c.cover)]];
 }
 function summaryAppend(id,items){for(const [k,v]of items)$(id).append(text('dt',k),text('dd',v));}
 if(typeof document!=='undefined'){

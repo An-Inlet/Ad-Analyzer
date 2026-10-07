@@ -161,6 +161,24 @@ def refresh_social_execution(
     )
     if review.digest != document.digest() or review.plan_digest != document.plan.digest():
         raise HTTPException(409, "execution_review_integrity_unavailable")
+    from app.publication.tiktok_linked_plan import LinkedPushPlanV1
+
+    if isinstance(plan, LinkedPushPlanV1):
+        from app.publication.tiktok_linked_intents import prepare_plan as prepare_linked
+
+        reference_linked = plan.review.configuration_review
+        current_linked, linked_runtime = prepare_linked(
+            db,
+            workspace_id,
+            reference_linked.review_id,
+            reference_linked.review_digest,
+            actor,
+            media,
+            runtime,
+        )
+        if current_linked != plan:
+            raise HTTPException(409, "linked_configuration_changed")
+        return linked_runtime
     if not isinstance(plan, SocialPublishPlan):
         return runtime
     reference = plan.review.configuration_review

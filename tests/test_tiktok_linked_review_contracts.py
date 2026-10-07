@@ -86,6 +86,7 @@ def document(
     )
     configuration = LinkedPushConfigurationV1.model_validate(values)
     return LinkedPushConfigurationDocumentV1(
+        identity_label="Reviewed Linked Account",
         request=request,
         environment="contract_test",
         option_id="f" * 64,

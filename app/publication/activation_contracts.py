@@ -16,6 +16,9 @@ from app.publication.execution_contracts import ExecutionAccount, ProviderMandat
 from app.publication.provider_contracts import Digest, Id
 
 ACTIVATABLE = {
+    "tiktok_linked_push_campaign": "campaigns",
+    "tiktok_linked_push_adgroup": "adgroups",
+    "tiktok_linked_push_ad": "ads",
     "google_create_paused_campaign": "campaigns",
     "google_create_paused_ad_group": "adGroups",
     "google_create_exact_keyword": "adGroupCriteria",

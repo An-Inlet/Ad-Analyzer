@@ -58,6 +58,9 @@ def configurations(
         .where(
             SocialConfigurationReview.workspace_id == workspace_id,
             SocialConfigurationReview.draft_id == draft_id,
+            SocialConfigurationReview.document["schema_version"].as_string().in_(
+                ["inlet.social-configuration-review.v1", "inlet.social-configuration-review.v2"]
+            ),
         )
         .order_by(SocialConfigurationReview.created_at.desc(), SocialConfigurationReview.id)
         .limit(50)

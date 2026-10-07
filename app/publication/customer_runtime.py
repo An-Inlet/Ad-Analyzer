@@ -12,6 +12,7 @@ from app.publication.coordinator_contracts import CreationRuntime
 from app.publication.customer_catalog import GoogleCatalogReader
 from app.publication.provider_contracts import ProviderContext
 from app.publication.social_review_runtime import SocialReviewRuntime
+from app.publication.tiktok_linked_runtime import LinkedPushReviewRuntime
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ class CustomerExecutionRuntime:
     catalog: GoogleCatalogReader | None = None
     clock: Callable[[], datetime] = utc_now
     social_review: SocialReviewRuntime | None = None
+    linked_review: LinkedPushReviewRuntime | None = None
 
 
 def get_customer_execution_runtime() -> CustomerExecutionRuntime | None:

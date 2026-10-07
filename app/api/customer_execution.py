@@ -96,6 +96,13 @@ def capabilities(
             return False
         if platform == "google_ads":
             return runtime.catalog is not None
+        if platform == "tiktok_ads" and runtime.linked_review is not None:
+            return bool(
+                runtime.linked_review.environment == runtime.creation.environment
+                and runtime.creation.linked_tiktok is not None
+                and runtime.creation.linked_context is not None
+                and runtime.creation.linked_configuration_current is not None
+            )
         social = runtime.social_review
         return bool(
             social

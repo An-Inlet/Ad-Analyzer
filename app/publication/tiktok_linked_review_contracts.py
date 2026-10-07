@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.goals.schemas import StrictModel
 from app.publication.contracts import fingerprint
@@ -47,6 +47,7 @@ class LinkedPushConfigurationDocumentV1(StrictModel):
     request: SocialCatalogRequest
     environment: Literal["contract_test"]
     option_id: Digest
+    identity_label: str = Field(min_length=1, max_length=160)
     requirements: SocialRequirements
     answer: LinkedPushCustomerAnswerV1
     identity_observation: IdentityInfoObservationV1

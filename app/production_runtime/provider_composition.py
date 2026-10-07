@@ -21,6 +21,8 @@ from app.executors.google_publication import GooglePublicationHTTP
 from app.executors.meta_activation import MetaActivationHTTP
 from app.executors.meta_publication import MetaPublicationTransport
 from app.executors.tiktok_activation import TikTokActivationHTTP
+from app.executors.tiktok_linked_activation import LinkedPushTikTokActivationHTTP
+from app.executors.tiktok_linked_publication import LinkedPushTikTokTransport
 from app.executors.tiktok_publication import TikTokPublicationTransport
 from app.production_runtime import assembly
 from app.production_runtime.contracts import admit_source
@@ -51,6 +53,7 @@ from app.production_runtime.tiktok_contracts import (
     registered_tiktok_evidence as registered_tiktok_evidence,
 )
 from app.production_runtime.tiktok_linked_configuration import TikTokLinkedConfigurationBundleV1
+from app.production_runtime.tiktok_linked_discovery import discover_linked
 from app.production_runtime.tiktok_transport import (
     tiktok_execution_transport as tiktok_execution_transport,
 )
@@ -77,6 +80,10 @@ from app.publication.social_contracts import (
 )
 from app.publication.social_review_contracts import SocialConfigurationDocument
 from app.publication.social_review_runtime import SocialReviewRuntime
+from app.publication.tiktok_linked_catalog import LinkedPushCatalogV1
+from app.publication.tiktok_linked_plan import LinkedPushBoundRequestV1, LinkedPushPlanV1
+from app.publication.tiktok_linked_review_contracts import LinkedPushConfigurationDocumentV1
+from app.publication.tiktok_linked_runtime import LinkedPushReviewRuntime
 from app.settings import Settings
 
 
@@ -298,6 +305,9 @@ def configured_execution(
                 ):
                     raise HTTPException(409, "tiktok_execution_evidence_source_changed")
                 transport = tiktok_execution_transport(tiktok_config[0])
+                if not isinstance(transport, httpx.MockTransport):
+                    transport.close()
+                    raise HTTPException(409, "tiktok_contract_transport_required")
                 stack.callback(transport.close)
                 contexts = OwnedTikTokContexts(
                     sessions, authorize, actor, tiktok_config[0], configuration, clock
@@ -318,8 +328,15 @@ def configured_execution(
             if platform(plan) == "google_ads":
                 return google().creation.qualification_reader(plan, now)
             if platform(plan) == "tiktok_ads":
-                if not isinstance(plan, SocialPublishPlan) or tiktok_config is None:
+                if (
+                    not isinstance(plan, (SocialPublishPlan, LinkedPushPlanV1))
+                    or tiktok_config is None
+                ):
                     raise HTTPException(409, "provider_execution_not_configured")
+                if isinstance(plan, LinkedPushPlanV1) and not isinstance(
+                    tiktok_config[1], TikTokLinkedConfigurationBundleV1
+                ):
+                    raise HTTPException(409, "linked_configuration_unavailable")
                 return tiktok().evidence.configuration(plan, now)
             if not isinstance(plan, SocialPublishPlan) or meta_config is None:
                 raise HTTPException(409, "provider_execution_not_configured")
@@ -367,6 +384,52 @@ def configured_execution(
             if request.scope.account.platform != "meta_ads":
                 raise HTTPException(409, "provider_execution_not_configured")
             return meta().contexts.publication(request)
+
+        def linked_context(request: LinkedPushBoundRequestV1) -> SocialProviderContext:
+            if (
+                tiktok_config is None
+                or not isinstance(tiktok_config[1], TikTokLinkedConfigurationBundleV1)
+                or request.scope.account.platform != "tiktok_ads"
+            ):
+                raise HTTPException(409, "linked_configuration_unavailable")
+            return tiktok().contexts.linked_publication(request)
+
+        def linked_transport() -> httpx.MockTransport:
+            resource = tiktok()
+            if not isinstance(resource.transport, httpx.MockTransport):
+                raise HTTPException(409, "tiktok_contract_transport_required")
+            return httpx.MockTransport(resource.transport.handle_request)
+
+        def linked_catalog(request: SocialCatalogRequest, now: datetime) -> LinkedPushCatalogV1:
+            if tiktok_config is None or not isinstance(
+                tiktok_config[1], TikTokLinkedConfigurationBundleV1
+            ):
+                raise HTTPException(409, "linked_configuration_unavailable")
+            resource = tiktok()
+            decoded = resource.evidence.decoded_contract_catalog
+            assert decoded is not None
+            return discover_linked(
+                request,
+                now,
+                contexts=resource.contexts,
+                transport=linked_transport,
+                bundle=tiktok_config[1],
+                pixels=decoded,
+                clock=clock,
+            )
+
+        def linked_current(document: LinkedPushConfigurationDocumentV1, now: datetime) -> None:
+            # Pure under product locks; outside-lock refresh already resolved the resource.
+            if (
+                tiktok_resource is None
+                or tiktok_config is None
+                or not isinstance(tiktok_config[1], TikTokLinkedConfigurationBundleV1)
+            ):
+                raise HTTPException(409, "linked_configuration_unavailable")
+            tiktok_resource.contexts.ensure_current()
+            rules = {r.profile_digest: r for r in tiktok_config[1].requirements}
+            if document.requirements != rules.get(document.requirements.profile_digest):
+                raise HTTPException(409, "linked_configuration_changed")
 
         def activation_context(request: ActivationRequest) -> ActivationContext:
             if request.account.account.platform == "google_ads":
@@ -439,11 +502,23 @@ def configured_execution(
                 manifest.environment,
                 meta_catalog,
                 (meta_config[1].profiles if meta_source and meta_config else ())
-                + (tiktok_config[1].profiles if tiktok_source and tiktok_config else ()),
+                + (
+                    tiktok_config[1].profiles
+                    if tiktok_source
+                    and tiktok_config
+                    and isinstance(tiktok_config[1], TikTokConfigurationBundleV1)
+                    else ()
+                ),
                 {
                     r.profile_digest: r
                     for r in (meta_config[1].requirements if meta_source and meta_config else ())
-                    + (tiktok_config[1].requirements if tiktok_source and tiktok_config else ())
+                    + (
+                        tiktok_config[1].requirements
+                        if tiktok_source
+                        and tiktok_config
+                        and isinstance(tiktok_config[1], TikTokConfigurationBundleV1)
+                        else ()
+                    )
                 },
                 clock,
             )
@@ -453,6 +528,22 @@ def configured_execution(
         google_http = LazyGoogleHTTP(google)
         transport, media = LazyMetaTransport(meta), LazyMetaMedia(meta)
         ttransport, tmedia = LazyMetaTransport(tiktok), LazyMetaMedia(tiktok)
+        linked_enabled = bool(
+            tiktok_source
+            and tiktok_config
+            and isinstance(tiktok_config[1], TikTokLinkedConfigurationBundleV1)
+        )
+        linked_review = (
+            LinkedPushReviewRuntime(
+                environment="contract_test",
+                catalog=linked_catalog,
+                profiles=tiktok_config[1].profiles,
+                requirements={r.profile_digest: r for r in tiktok_config[1].requirements},
+                clock=clock,
+            )
+            if linked_enabled and tiktok_config
+            else None
+        )
         creation = CreationRuntime(
             environment=manifest.environment,
             qualification_reader=qualify,
@@ -465,6 +556,16 @@ def configured_execution(
             live_enabled=manifest.live_execution_enabled,
             authorize=authorize,
             social_configuration_current=current_configuration,
+            linked_tiktok=LinkedPushTikTokTransport(
+                tmedia,
+                transport=httpx.MockTransport(
+                    lambda request: tiktok().transport.handle_request(request)
+                ),
+            )
+            if linked_enabled
+            else None,
+            linked_context=linked_context if linked_enabled else None,
+            linked_configuration_current=linked_current if linked_enabled else None,
         )
         google_activation = GoogleActivationHTTP()
         google_activation.http = google_http
@@ -475,6 +576,14 @@ def configured_execution(
                 meta=MetaActivationHTTP(media, transport=transport),
                 tiktok=TikTokActivationHTTP(tmedia, transport=ttransport),
                 context=activation_context,
+                linked_tiktok=LinkedPushTikTokActivationHTTP(
+                    tmedia,
+                    transport=httpx.MockTransport(
+                        lambda request: tiktok().transport.handle_request(request)
+                    ),
+                )
+                if linked_enabled
+                else None,
             )
             if (
                 (
@@ -499,4 +608,5 @@ def configured_execution(
             catalog=google_catalog if google_source is not None else None,
             clock=clock,
             social_review=social,
+            linked_review=linked_review,
         )

@@ -38,6 +38,7 @@ from app.api.customer_social_execution import router as customer_social_executio
 from app.api.customer_social_review import router as customer_social_review_router
 from app.api.customer_sources import router as customer_sources_router
 from app.api.customer_tiktok_discovery import router as customer_tiktok_discovery_router
+from app.api.customer_tiktok_linked import router as customer_tiktok_linked_router
 from app.api.intelligence import router as intelligence_api_router
 from app.api.meta import router as meta_api_router
 from app.api.pubsub import router as pubsub_router
@@ -195,6 +196,7 @@ app.include_router(customer_lifecycle_router)
 app.include_router(customer_exports_router)
 app.include_router(customer_execution_router)
 app.include_router(customer_tiktok_discovery_router)
+app.include_router(customer_tiktok_linked_router)
 app.include_router(customer_plan_review_router)
 app.include_router(customer_initial_planning_router)
 app.include_router(customer_initial_execution_router)

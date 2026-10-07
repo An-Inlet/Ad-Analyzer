@@ -15,3 +15,37 @@ Offline evidence:
 - Selection unit tests check explicit qualified-path propagation, fail-closed missing selected binary, branded local preference and unchanged Node lookup. Ruff; configured mypy362 files; standalone probe mypy; JS syntax/diff checks pass.
 
 Remaining qualification: hosted CI must run the new preflight and retain exact unbranded154 capability/MediaError diagnostics. This is a concrete codec qualification repair and passing matching-version branded-browser evidence, not a claim that the earlier snapshot failure has been observed directly on this executor.
+
+## Hosted Startup Evidence Follow-up (2026-10-07)
+
+Hosted run37602978286/job112731582938 on Ubuntu24.04.5 image20261004.327.1
+failed before dependency installation and tests. Both Chrome154.0.8037.97 and
+Chromium154.0.8037.0 remained alive but returned `browser_no_result` with **zero
+loopback requests** and no JavaScript diagnostics. This is not evidence of missing
+codecs, a quota block, or a reproduced decoder error. DBus messages alone do not
+establish the cause. Exact decoded log is retained locally at
+`/workspace/inlet-evidence/20261007/hosted-validation-job.log`.
+
+The unchanged script passed actual silent/AAC decoding on local Debian Chromium151
+and the existing offline Ubuntu container with the matching Chrome154.0.8037.97,
+both as root and as an unprivileged user. The hosted startup failure has therefore
+not been reproduced. No speculative flags, codec bypass or timeout increase is
+justified by these results.
+
+The follow-up adds diagnostic evidence only: a bounded loopback self-check,
+first-request/elapsed timing, and a loopback-only ephemeral DevTools endpoint.
+On failure it records readiness, page-target count and whether the exact synthetic
+URL exists, never target URLs or arbitrary response contents. Reads are bounded to
+8192 bytes and 0.2 seconds each. The existing 12-second launch and 8-second page
+bounds and actual two-clip decode qualification remain unchanged. An isolated
+process group is terminated, including surviving children after parent exit.
+
+Eight focused tests pass, including early browser exit, bounded stderr, filtered
+child environment, malformed DevTools ports, sanitized target diagnostics and
+surviving-child cleanup. The changed probe still passes actual silent/AAC decode on
+both local Chromium151 and matching unprivileged Ubuntu Chrome154. Logs:
+`/tmp/inlet-hosted-codec-diagnostics-tests.log`,
+`/tmp/inlet-hosted-codec-diagnostics-real.log`, and
+`/tmp/inlet-hosted-codec-diagnostics-chrome154.log`. Ruff, targeted mypy and diff
+checks pass. Hosted diagnosis/qualification remains pending future runner evidence;
+this package is not a claimed fix for the hosted startup failure.

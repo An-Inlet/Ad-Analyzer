@@ -6,14 +6,17 @@ selected executable is exported to all browser tests, not silently skipped.
 """
 
 import argparse
+import http.client
 import json
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import threading
 import time
 from collections import deque
+from contextlib import suppress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -40,7 +43,67 @@ setTimeout(()=>result('timeout'),8000);
 </script>"""
 
 
+def startup_evidence(directory: Path, expected_url: str) -> dict[str, Any]:
+    """Read only bounded local browser diagnostics; never a qualification signal."""
+    result: dict[str, Any] = {"devtools_ready": False}
+    try:
+        with (directory / "DevToolsActivePort").open() as source:
+            lines = source.read(512).splitlines()
+        port = int(lines[0])
+        if not 1 <= port <= 65535:
+            return result
+    except (OSError, ValueError, IndexError):
+        return result
+    result["devtools_ready"] = True
+    for endpoint, label in (("/json/version", "version"), ("/json/list", "targets")):
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=0.2)
+        try:
+            connection.request("GET", endpoint)
+            response = connection.getresponse()
+            body = response.read(8193)
+            if response.status != 200 or len(body) > 8192:
+                result[label] = "unavailable"
+                continue
+            value = json.loads(body)
+            if label == "version":
+                result[label] = "ready" if isinstance(value, dict) else "invalid"
+            elif isinstance(value, list):
+                result["page_targets"] = sum(
+                    isinstance(item, dict) and item.get("type") == "page" for item in value
+                )
+                result["expected_navigation"] = any(
+                    isinstance(item, dict) and item.get("url") == expected_url for item in value
+                )
+            else:
+                result[label] = "invalid"
+        except (OSError, ValueError, http.client.HTTPException):
+            result[label] = "unavailable"
+        finally:
+            connection.close()
+    return result
+
+
+def stop_browser(process: subprocess.Popen[bytes]) -> None:
+    """Stop the isolated browser group, including children after parent exit."""
+    if os.name == "posix":
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGTERM)
+    else:
+        process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+    finally:
+        if os.name == "posix":
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+
+
 def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[str, Any]]:
+    started = time.monotonic()
+    first_request: float | None = None
     complete = threading.Event()
     results: list[dict[str, Any]] = []
     requests: dict[str, int] = {}
@@ -52,6 +115,13 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
             pass
 
         def do_GET(self) -> None:
+            nonlocal first_request
+            if self.path == "/health":
+                self.send_response(204)
+                self.end_headers()
+                return
+            if first_request is None:
+                first_request = time.monotonic() - started
             key = self.path if self.path in {"/", "/silent", "/aac"} else "other"
             requests[key] = requests.get(key, 0) + 1
             data = clips.get(self.path, HTML)
@@ -85,6 +155,15 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    expected_url = f"http://127.0.0.1:{server.server_port}/"
+    connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=0.2)
+    try:
+        connection.request("GET", "/health")
+        loopback_ready = connection.getresponse().status == 204
+    except (OSError, http.client.HTTPException):
+        loopback_ready = False
+    finally:
+        connection.close()
     process = subprocess.Popen(
         [
             browser,
@@ -94,10 +173,13 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
             "--disable-background-networking",
             "--no-first-run",
             "--disable-extensions",
+            "--remote-debugging-address=127.0.0.1",
+            "--remote-debugging-port=0",
             "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
             f"--user-data-dir={directory}",
-            f"http://127.0.0.1:{server.server_port}/",
+            expected_url,
         ],
+        start_new_session=os.name == "posix",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         env={
@@ -122,6 +204,10 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
             return [
                 {
                     "event": "browser_no_result",
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                    "first_request_seconds": first_request,
+                    "loopback_ready": loopback_ready,
+                    "startup": startup_evidence(directory, expected_url),
                     "exit_code": process.poll(),
                     "requests": dict(requests),
                     "javascript": diagnostics[:4],
@@ -130,12 +216,7 @@ def probe(browser: str, clips: dict[str, bytes], directory: Path) -> list[dict[s
             ]
         return results
     finally:
-        process.terminate()
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait(timeout=5)
+        stop_browser(process)
         stderr_thread.join(timeout=2)
         if process.stderr is not None:
             process.stderr.close()

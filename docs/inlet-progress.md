@@ -5619,3 +5619,18 @@ a new immutable candidate must still pass Full before any hosted qualification.
 Logs `/tmp/inlet-oct07-meta-{delayed-baseline,race-repaired,fence-negative-control,
 final-cohort}.log`, original trace, exitcode and full log are preserved with hashes
 under `/workspace/inlet-evidence/20261007`. New product packages remain isolated.
+
+### Hosted codec preflight startup diagnostics (2026-10-07)
+
+- Isolated exact9450aa4 child investigates run37602978286/job112731582938.
+  Both hosted browsers were alive with zero loopback requests: no codec failure
+  or quota cause established. Unchanged probe passes matching Chrome154 in the
+  existing Ubuntu container as root/unprivileged user, and local Chromium151.
+- Added bounded loopback/DevTools/phase evidence and isolated browser process-group
+  cleanup; original codec qualification and 12s/8s limits unchanged. No retry,
+  real provider call, remote operation or Full. Detailed evidence and unresolved
+  hosted startup cause: [browser media record](inlet-browser-media-ci.md).
+- Eight focused tests pass (2.06s). Actual changed probe passes both silent/AAC
+  clips on local Chromium151 and matching unprivileged Chrome154. Ruff, targeted
+  mypy and diff clean. Initial targeted mypy command hit duplicate script module
+  names; corrected `--explicit-package-bases` invocation passes two files.

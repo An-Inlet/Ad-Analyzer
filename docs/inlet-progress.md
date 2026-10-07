@@ -5817,3 +5817,33 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   original-session final fence, generic consent/forward origin dispatch and current
   policy/qualification/exposure checks remain the next package. Structural fixture
   documents are explicitly not real admitted financial proof. No live source enabled.
+
+### 2026-10-07 — Configured Google/Meta Optimization Backend
+
+- Isolated actual merge59a1235+catalog2cc, API contracts2356077; inherited substrate382
+  as c120344 and metadata repairs302/68 as cced47a/d58d0c9. Added request-owned lazy
+  configured runtime, meaningful customer preparation/consent endpoints, atomic marked
+  revision+sidecar insertion and generic/forward origin guards. Actual typed source
+  admission precedes factories/credentials/HTTP; real transport denies contract_test.
+  Default registry remains empty. No legacy v1 financial/state hash changes.
+- Customers confirm budget/aggression/scope; all technical limits come from pinned
+  required server policy. New consent refreshes native inventory and separately
+  admitted qualification. Preserves original inventory audit digest while validating
+  fresh semantic scope/state/source identity/revision/evidence; acquisition timestamps
+  alone do not force new preparation. Review discovery uses real original mandate
+  period/binding. Policy/source/goal/session and financial/current-state gates retain
+  their original boundaries; no overall-cap increase from aggression or edit.
+- Final focused79 passed,1 expected SQLite-only assertion skipped on PostgreSQL,
+ 150.38s. Includes28 genuine configured API cases: Google/Meta budget/pause/unknown
+  journeys, +15s before consent/+10s before review, actual vault/native MockHTTP, no
+  seeded provider mandate/review/attempt/hold or runtime getter overrides; meaningful
+  native/qualification-revision drift denies. Unknown recovery retains one write,
+  attempt and held reservation. Independent session/source/generation changes during
+  HTTP deny; post-both-insert failure rolls back all financial/provenance records.
+  Generic/technical consent bypasses, cap increase and scenario real-transport deny.
+  Actual strict origin export, metadata/migration and legacy45 API/mandate checks pass.
+- Whole Ruff/mypy781, targeted format and git diffcheck pass. Evidence:
+  /tmp/inlet-opt-final-focused.log. No Full, remote, live calls or root candidate edits.
+  Optional replacement delegates only to admitted existing source ports; no new
+  settlement endpoint or empirical live proof. UI/TLS followup separately owns the
+  actual customer page; this checkpoint is backend offline acceptance only.

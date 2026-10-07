@@ -179,6 +179,7 @@ if TYPE_CHECKING:
         InitialPreviewReviewGuard,
         InitialPreviewReviewWriter,
     )
+    from app.production_runtime.optimization_origin import OriginGuard
     from app.publication.replacement_contracts import ReplacementReader
 
 
@@ -199,6 +200,7 @@ class OptimizationRuntime:
     automatic_authority_guard: CandidateReviewGuard | None = None
     initial_preview_review_guard: "InitialPreviewReviewGuard | None" = None
     initial_preview_review_writer: "InitialPreviewReviewWriter | None" = None
+    mandate_origin_guard: "OriginGuard | None" = None
 
     def transport(self, scope: ExecutionAccount) -> OptimizationTransport:
         adapter = {"google_ads": self.google, "meta_ads": self.meta, "tiktok_ads": self.tiktok}.get(

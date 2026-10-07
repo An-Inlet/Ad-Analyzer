@@ -88,6 +88,14 @@ def current(
         raise HTTPException(409, "optimization runtime unavailable")
     runtime.authorize(db, wid, actor)
     ledger, policy = mandates.checked(db, wid, binding, actor, clock)
+    from app.production_runtime import optimization_origin
+
+    revision = db.get(
+        ProviderExecutionRevision, (binding.mandate_id, binding.revision), populate_existing=True
+    )
+    if revision is None:
+        raise optimization_origin.unavailable()
+    optimization_origin.forward(db, revision, policy, runtime.mandate_origin_guard)
     if scope.workspace_id != wid or scope not in policy.accounts:
         raise HTTPException(409, "current owned optimization scope required")
     master = db.get(

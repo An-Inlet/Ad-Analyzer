@@ -176,6 +176,15 @@ class Settings(BaseSettings):
     optimization_execution_manifest_path: str | None = None
     optimization_execution_manifest_digest: str | None = None
     optimization_operating_policy_path: str | None = None
+    tiktok_execution_manifest_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_TIKTOK_EXECUTION_MANIFEST_PATH"
+    )
+    tiktok_execution_manifest_digest: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_TIKTOK_EXECUTION_MANIFEST_DIGEST"
+    )
+    tiktok_execution_bundle_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_TIKTOK_EXECUTION_BUNDLE_PATH"
+    )
     meta_execution_manifest_path: str | None = Field(
         default=None, validation_alias="AD_ANALYZER_META_EXECUTION_MANIFEST_PATH"
     )

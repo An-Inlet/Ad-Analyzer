@@ -1,0 +1,352 @@
+from pathlib import Path
+from typing import Any
+
+import pytest
+from app.publication.execution_models import (
+    ProviderExecutionAttempt,
+    ProviderExecutionReceipt,
+    ProviderExecutionReview,
+    ProviderExposureReservation,
+)
+from app.settings import Settings
+from sqlalchemy import Engine, func, select
+from sqlalchemy.orm import Session
+
+from tests.test_campaign_video import encoded as encoded
+from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import replicas as replicas
+from tests.test_customer_optimization_api import headers
+from tests.test_shopify_sales import configuration as configuration
+from tests.tiktok_runtime_fixture import configured_tiktok_customer
+
+
+@pytest.mark.parametrize(
+    "scenario", ["complete", "unknown_creation", "unknown_activation", "media", "confirmation"]
+)
+def test_configured_tiktok_creation_then_separate_activation(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    scenario: str,
+    encoded: Any,
+) -> None:
+    alice, base, policy_body, draft, revision, server, requests, control = (
+        configured_tiktok_customer(
+            customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+        )
+    )
+    with Session(customer_engine) as db:
+        for model in (
+            ProviderExecutionReview,
+            ProviderExecutionReceipt,
+            ProviderExecutionAttempt,
+            ProviderExposureReservation,
+        ):
+            assert db.scalar(select(func.count()).select_from(model)) == 0
+
+    def post(path: str, body: Any = None, expected: int = 200) -> Any:
+        response = alice.post(base + path, json=body, headers=headers(alice))
+        assert response.status_code == expected, response.text
+        assert control["opened"] == control["closed"]
+        return response.json()
+
+    policy = post("/mandates", policy_body, 201)
+    post(
+        f"/mandates/{policy['id']}/consent",
+        {"expected_revision": policy["revision"], "policy_digest": policy["policy_digest"]},
+    )
+    catalog = post("/social/options", {"draft_id": draft, "draft_revision": revision})
+    config = post(
+        "/social/reviews",
+        {
+            "draft_id": draft,
+            "draft_revision": revision,
+            "option_id": catalog["options"][0]["id"],
+            "answer": {"kind": "tiktok_cover", "reviewed_pair": True},
+            "cover_media_id": control["cover_id"],
+        },
+        201,
+    )
+    post(
+        f"/social/reviews/{config['id']}/confirmation",
+        {"expected_digest": config["digest"], "acknowledged": True},
+    )
+    reviewed = post(
+        "/social/creation-reviews",
+        {
+            "configuration_review_id": config["id"],
+            "expected_configuration_digest": config["digest"],
+            "mandate_id": policy["id"],
+            "mandate_revision": policy["revision"],
+        },
+        201,
+    )
+    run: dict[str, Any] = {}
+    for activation in (False, True):
+        if activation:
+            if scenario in {"media", "confirmation"}:
+                from app.campaign_review.models import MediaObject
+                from app.publication.social_review_models import SocialConfigurationApproval
+
+                with Session(customer_engine) as db:
+                    original = db.scalar(select(ProviderExposureReservation))
+                    assert original and original.state == "held"
+                    original_id = original.id
+                    if scenario == "media":
+                        cover = db.get(MediaObject, control["cover_id"])
+                        assert cover
+                        (tmp_path / str(cover.workspace_id) / cover.sha256).unlink()
+                    else:
+                        confirmation = db.get(SocialConfigurationApproval, config["id"])
+                        assert confirmation
+                        db.delete(confirmation)
+                        db.commit()
+                denied = alice.post(
+                    base + "/activation-reviews",
+                    headers=headers(alice),
+                    json={
+                        "parent_run_id": run["id"],
+                        "mandate_id": policy["id"],
+                        "mandate_revision": policy["revision"],
+                    },
+                )
+                assert denied.status_code in {409, 503}, denied.text
+                assert server.activations == 0 and control["opened"] == control["closed"]
+                with Session(customer_engine) as db:
+                    hold = db.get(ProviderExposureReservation, original_id)
+                    assert hold and hold.state == "held"
+                    assert (
+                        db.scalar(select(func.count()).select_from(ProviderExposureReservation))
+                        == 1
+                    )
+                return
+            reviewed = post(
+                "/activation-reviews",
+                {
+                    "parent_run_id": run["id"],
+                    "mandate_id": policy["id"],
+                    "mandate_revision": policy["revision"],
+                },
+                201,
+            )
+        post(
+            f"/reviews/{reviewed['id']}/approval",
+            {"review_digest": reviewed["review_digest"], "plan_digest": reviewed["plan_digest"]},
+        )
+        run = post(f"/reviews/{reviewed['id']}/runs", expected=201)
+        if scenario == "unknown_creation":
+            server.timeout = True
+            result = post(f"/runs/{run['id']}/advance")
+            assert result["state"] == "unknown", result
+            writes = server.posts
+            server.timeout = False
+            repeated = post(f"/runs/{run['id']}/advance")
+            assert repeated["state"] == "unknown", repeated
+            original_attempt = next(s["attempt_id"] for s in result["steps"] if s["attempt_id"])
+            reconciled = post(f"/runs/{run['id']}/reconcile", {"attempt_id": original_attempt})
+            assert reconciled["state"] == "unknown", reconciled
+            assert [s["attempt_id"] for s in reconciled["steps"] if s["attempt_id"]] == [
+                original_attempt
+            ]
+            assert server.posts == writes == 1
+            with Session(customer_engine) as db:
+                assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 1
+                assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
+                reservation = db.scalar(select(ProviderExposureReservation))
+                assert reservation and reservation.state == "held"
+            return
+        if activation and scenario == "unknown_activation":
+            server.activation_timeout = True
+            server.delay = True
+            first = post(f"/runs/{run['id']}/advance")
+            assert first["state"] == "unknown", first
+            server.activation_timeout = False
+            repeated = post(f"/runs/{run['id']}/advance")
+            assert repeated["state"] == "unknown", repeated
+            original_attempt = next(s["attempt_id"] for s in first["steps"] if s["attempt_id"])
+            reconciled = post(f"/runs/{run['id']}/reconcile", {"attempt_id": original_attempt})
+            assert reconciled["state"] == "unknown", reconciled
+            assert [s["attempt_id"] for s in reconciled["steps"] if s["attempt_id"]] == [
+                original_attempt
+            ]
+            assert server.activations == 1
+            with Session(customer_engine) as db:
+                assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
+            return
+        expected_state = "activation_observed" if activation else "created_paused"
+        for _ in range(30):
+            run = post(f"/runs/{run['id']}/advance")
+            assert run["state"] != "unknown", run
+            if run["state"] == expected_state:
+                break
+        assert run["state"] == expected_state
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1
+        row = db.scalar(select(ProviderExposureReservation))
+        assert row and row.state == "held"
+    assert server.posts > 0 and server.activations > 0 and requests
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "revoke",
+        "generation",
+        "profile",
+        "expired",
+        "unknown_expiry",
+        "naive_expiry",
+        "real_transport",
+        "missing",
+        "partial",
+        "billing",
+    ],
+)
+def test_tiktok_configuration_boundary(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    encoded: Any,
+    scenario: str,
+) -> None:
+    import time
+    from datetime import timedelta
+
+    import httpx
+    from app.customers.access import SESSION_COOKIE, digest
+    from app.customers.models import CustomerSession
+    from app.production_runtime import provider_composition
+    from app.production_runtime.tiktok_transport import tiktok_execution_transport
+    from app.settings import settings
+    from app.sources.models import SourceConnection
+    from app.sources.security import SourceVault
+
+    from tests.test_commerce_measurement import NOW
+
+    alice, base, _, draft, revision, server, requests, control = configured_tiktok_customer(
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+    )
+
+    def invalidate() -> None:
+        if scenario == "profile":
+            monkeypatch.setattr(settings, "tiktok_execution_manifest_digest", "f" * 64)
+            return
+        with Session(customer_engine) as db:
+            if scenario == "revoke":
+                session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
+                assert session
+                session.revoked_at = int(time.time())
+            else:
+                source = db.scalar(select(SourceConnection))
+                assert source
+                source.generation += 1
+            db.commit()
+
+    if scenario in {"revoke", "generation", "profile"}:
+        control["catalog_callback"] = invalidate
+    elif scenario in {"expired", "unknown_expiry", "naive_expiry"}:
+        with Session(customer_engine) as db:
+            source = db.scalar(select(SourceConnection))
+            assert source and source.encrypted_grant
+            grant = SourceVault().open(
+                wid := source.workspace_id, "tiktok_ads", source.id, source.encrypted_grant
+            )
+            grant["expires_at"] = (
+                None
+                if scenario == "unknown_expiry"
+                else (NOW + timedelta(hours=1)).replace(tzinfo=None).isoformat()
+                if scenario == "naive_expiry"
+                else (NOW - timedelta(seconds=1)).isoformat()
+            )
+            source.encrypted_grant = SourceVault().seal(wid, "tiktok_ads", source.id, grant)
+            db.commit()
+    elif scenario == "billing":
+        monkeypatch.setattr(settings, "billing_required", True)
+        monkeypatch.setattr(settings, "billing_price_id", None)
+    elif scenario == "partial":
+        monkeypatch.setattr(settings, "tiktok_execution_bundle_path", None)
+    elif scenario == "missing":
+        monkeypatch.setattr(provider_composition, "registered_tiktok_evidence", lambda _: None)
+    else:
+
+        def forbidden(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("contract scenario must not construct a real transport")
+
+        monkeypatch.setattr(httpx, "HTTPTransport", forbidden)
+        monkeypatch.setattr(
+            provider_composition, "tiktok_execution_transport", tiktok_execution_transport
+        )
+    response = alice.post(
+        base + "/social/options",
+        headers=headers(alice),
+        json={"draft_id": draft, "draft_revision": revision},
+    )
+    assert response.status_code == 503, response.text
+    assert requests == [] and server.posts == 0
+    assert control["opened"] == control["closed"]
+
+
+def test_meta_tiktok_composition_is_lazy_and_environment_exact(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    encoded: Any,
+) -> None:
+    import json
+
+    from app.production_runtime import provider_composition
+    from app.production_runtime.meta_configuration import MetaConfigurationBundleV1
+    from app.production_runtime.meta_contracts import (
+        MetaEvidenceDescriptor,
+        RegisteredMetaEvidenceSource,
+    )
+    from app.settings import settings
+
+    from tests.test_meta_runtime_contracts import bundle_document, manifest
+
+    alice, base, _, draft, revision, _, requests, control = configured_tiktok_customer(
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+    )
+    document = bundle_document()
+    selected = manifest(MetaConfigurationBundleV1.from_document(document))
+    descriptor = MetaEvidenceDescriptor(
+        source_id=selected.evidence_source_id,
+        profile_digest=selected.evidence_profile_digest,
+        environment="contract_test",
+        kind="contract_scenario",
+    )
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("TikTok must not construct the unused Meta source")
+
+    registered = RegisteredMetaEvidenceSource(descriptor, forbidden)
+    monkeypatch.setattr(provider_composition, "registered_meta_evidence", lambda _: registered)
+    mp, bp = tmp_path / "coexist-meta.json", tmp_path / "coexist-meta-bundle.json"
+    mp.write_text(selected.model_dump_json())
+    bp.write_text(json.dumps(document))
+    monkeypatch.setattr(settings, "meta_execution_manifest_path", str(mp))
+    monkeypatch.setattr(settings, "meta_execution_manifest_digest", selected.digest())
+    monkeypatch.setattr(settings, "meta_execution_bundle_path", str(bp))
+    capability = alice.get(base + "/capabilities")
+    assert capability.status_code == 200, capability.text
+    assert [p["available"] for p in capability.json()["providers"]] == [False, True, True]
+    assert control["builds"] == 0 and requests == []
+    result = alice.post(
+        base + "/social/options",
+        headers=headers(alice),
+        json={"draft_id": draft, "draft_revision": revision},
+    )
+    assert result.status_code == 200, result.text
+    assert "tiktok_native_catalog_parser_unverified" in result.json()["blockers"]
+    assert control["builds"] == 1 and requests == []
+    live = selected.model_copy(update={"environment": "live", "live_execution_enabled": True})
+    mp.write_text(live.model_dump_json())
+    monkeypatch.setattr(settings, "meta_execution_manifest_digest", live.digest())
+    assert alice.get(base + "/capabilities").status_code == 409
+    assert control["builds"] == 1 and control["opened"] == control["closed"]

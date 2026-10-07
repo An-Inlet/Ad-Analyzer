@@ -6217,3 +6217,101 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - Whole Ruff and mypy784, five-file format check and git diffcheck pass. Evidence:
   /tmp/inlet-budget-period-final.log. No goal/schema/legacy v1 hash, immutable ledger,
   commerce measurement or runtime qualification changes. No Full, remote or live calls.
+### TikTok configured runtime contracts and pinned loader (2026-10-07)
+
+- Isolated child of approved design `42760f60b72ac3b0bc417cc449e9057484ba78df`.
+  New TikTok-only manifest, evidence/source, reserved owned-context protocols,
+  canonical immutable configuration bundle and strict pinned loader are documented
+  in [the callable interface record](inlet-tiktok-runtime-contracts.md).
+- Decoded catalog callback is contract-test only; live identity admission always
+  denies while native identity/pixel catalog decoding remains unverified. Empty
+  default registry and existing mandatory catalog blockers remain unchanged. Real
+  transport refuses scenario manifests before construction, uses zero retries and
+  no environment proxies. No runtime assembly or source registration is installed.
+- Bundle pins exact profile/requirements pairs, explicit video-cover review and
+  nonblank wording; defensive typed copies preserve immutable canonical bytes.
+  Duplicate keys, partial inputs, unknown fields, oversized documents, version or
+  pin mismatches deny with sanitized errors. Existing social schemas and hashes,
+  Google/Meta code and settings are untouched. Credential expiry remains unknown
+  unless an eventual owned reader verifies it; no lifetime is invented here.
+- Checks: initial 34 pure contract/loader/catalog tests passed; final focused
+  TikTok/Meta/Google contracts, catalog and social producer compatibility cohort
+  **70 passed** in 27.89 seconds, including SQLite/PG producer cases. Log:
+  `/tmp/inlet-tiktok-runtime-contracts-final.log`. Whole Ruff, mypy (452 source
+  files) and diff check pass. No migration, Full, remote action, live calls,
+  production registration or API/TLS qualification. Runtime implementation waits
+  for review of these frozen interfaces.
+
+### TikTok owned configured runtime and ordinary API journeys (2026-10-07)
+
+- Isolated successor of `305ce1a96005d23c6e5fb316eac84db0bf2c477f` adds lazy
+  configured TikTok composition, private owned source-vault/media readers, pinned
+  settings and ordinary customer API assembly. Original session, exact account
+  generation, manifest, paid-work and explicit credential expiry are rechecked.
+  Missing, expired or timezone-naive credential expiry denies; no TTL is inferred.
+- Actual fixture starts with zero execution reviews, attempts, reservations and
+  receipts. Ordinary APIs exercise named decoded test catalog, real video/cover
+  validation and confirmation, separate mandate consent, exact creation approval,
+  paused graph, separate activation approval, actual HTTP adapter readback and
+  original-attempt reconciliation through injected MockTransport. No runtime getter
+  is overridden. Google/Meta composition and existing serialized contracts remain
+  compatible. Fixture and callable details: [runtime record](inlet-tiktok-configured-runtime.md).
+- Live source admission remains denied; default evidence registry stays empty.
+  Decoded catalog is explicitly contract-test data, not native catalog HTTP.
+  Native catalog decoding and genuine financial qualification are still missing.
+  No live execution, schema change, migration, Full or remote action occurred.
+- Adverse evidence: first fixture run failed because its cover binding used the
+  wrong mock-server key; the actual request remained unknown with its hold intact
+  (`/tmp/inlet-tiktok-configured-api.log`). Corrected fixture: six passed. Later
+  removal of the exact private cover reproduced uncaught FileNotFoundError on
+  both databases (two failed, six passed in
+  `/tmp/inlet-tiktok-extra-boundaries.log`). Approved narrow repair normalizes
+  OSError at the existing selection boundary to sanitized 409, with no existence
+  fallback, activation or reservation release. Both repaired cases pass.
+- Final focused TikTok API/contracts: **50 passed** in 357.67 seconds
+  (`/tmp/inlet-tiktok-configured-final.log`). Additional paid-work denial:
+  **2 passed** (`/tmp/inlet-tiktok-billing-denial.log`). Strengthened original
+  attempt reconciliation and unknown-expiry checks: **6 passed** in 110.30 seconds
+  (`/tmp/inlet-tiktok-original-reconcile.log`); no replay and original holds remain.
+- Google/Meta ordinary API and actual TLS compatibility: **54 passed** in 232.12
+  seconds, including six Google and fourteen Meta browser cases
+  (`/tmp/inlet-tiktok-provider-compatibility.log`). Whole Ruff and mypy over app
+  and tests (**762 source files**) pass; diff check passes. These are mocked
+  provider/offline results, not live qualification. Next package: actual TikTok
+  TLS customer journey using the frozen ordinary configured fixture.
+
+### Explicit source-vault settings follow-up (2026-10-07)
+
+- `SourceVault(configuration: Settings = settings)` preserves existing default
+  callers and ciphertext bytes while owned TikTok contexts pass their explicit
+  configuration. Non-global key tests prove missing/wrong global secrets cannot
+  replace the explicit key; foreign scope still denies.
+- Focused vault and TikTok complete/credential-expiry cases: **8 passed**, 26
+  deselected, SQLite/PG, 103.22 seconds (`/tmp/inlet-tiktok-vault-followup.log`).
+  Ruff, targeted mypy (three files) and diff check pass. No schema or gate change.
+
+### Actual configured TikTok TLS acceptance (2026-10-07)
+
+- Child of vault fix `7a352020449b1daf0d2225e68f9c4dbafab20293` adds only browser
+  tests/drivers and documentation. Actual local HTTPS application pages, original
+  API session, configured runtime, video/cover decoding and exact confirmation
+  lead through consent, paused creation, separate activation and owned readback.
+  Provider HTTP uses MockTransport; decoded catalog remains explicitly contract
+  test with native discovery unavailable. No runtime getter overrides or seeded
+  execution review/attempt/receipt/reservation, and no demo artifacts.
+- Complete flow **2 passed** across SQLite/PG in 92.19 seconds
+  (`/tmp/inlet-tiktok-browser-first.log`). Boundary cohort initially **12 passed,
+  2 failed** in 410.71 seconds (`/tmp/inlet-tiktok-browser-boundaries.log`): only
+  the profile scenarios failed because the new harness changed an unused fixture
+  Settings object instead of the actual server settings. No app guard was changed.
+  Corrected profile rerun **2 passed** in 73.75 seconds
+  (`/tmp/inlet-tiktok-browser-profile.log`). All sixteen scenarios therefore have
+  passing evidence; the failed invocation is not reported as a clean suite run.
+- Unknown creation/activation explicitly reconcile the original request without
+  replay; session revocation, source generation, missing cover, withdrawn exact
+  confirmation and changed profile deny activation. The original hold remains
+  held in every scenario. Complete flow also checks receipt interpretation,
+  consent revocation and logout clearing.
+- Whole Ruff, mypy app/tests (**764 source files**), both JavaScript syntax checks
+  and diff check pass. No production code changes in this browser package, no
+  Full, remote operations, native live calls, deployment or live qualification.

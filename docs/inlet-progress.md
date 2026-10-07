@@ -5662,3 +5662,17 @@ under `/workspace/inlet-evidence/20261007`. New product packages remain isolated
   timeout five minutes. Default-branch registration gate and separately reviewed
   registered-CI alternative are explicit. No active workflow, push, dispatch,
   paid run, Full or install. Container remains stopped as previously documented.
+
+### Existing CI manual startup-only mode, local preparation (2026-10-07)
+
+- Isolated child cea6644 adds required choice mode defaultfull to registered CI.
+  Manual browser-startup skips validation at the job boundary and runs only the
+  pinned five-minute/two-step startup diagnostic. Push/PR/full behavior unchanged;
+  unknown or empty manual modes do not fall back to Full. GitHub case-insensitive
+  expression semantics are represented explicitly in tests/documentation.
+- Structured YAML routing/pin/no-service assertions plus existing orchestration
+  and CLI checks:33 passed,16 existing PowerShell-unavailable skips. Final expanded
+  routing11 passed; Ruff/mypy/diff clean. Official docs consulted read-only for
+  registration/ref semantics. No push, merge, dispatch, paid run or Full; no retry
+  of any denied shell route. Exact runtime pins and authorization boundary are in
+  the [proposal](design/hosted-browser-startup-diagnostic-proposal.md).

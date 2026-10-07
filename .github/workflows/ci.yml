@@ -6,6 +6,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Validation or bounded startup diagnostics only
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - browser-startup
 
 permissions:
   contents: read
@@ -18,6 +27,7 @@ concurrency:
 jobs:
   validation:
     name: Validation
+    if: github.event_name != 'workflow_dispatch' || inputs.mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     services:
@@ -156,3 +166,19 @@ jobs:
           path: ${{ runner.temp }}/inlet-validation/summary.txt
           retention-days: 7
           if-no-files-found: warn
+
+  browser-startup:
+    name: Browser Startup Diagnostic (Not Codec Qualification)
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'browser-startup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out frozen diagnostic implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: c845ccaf30c71d0b707b73cc93a99023111720ba
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Collect bounded startup evidence only
+        timeout-minutes: 2
+        run: python3 -m scripts.diagnose_browser_startup

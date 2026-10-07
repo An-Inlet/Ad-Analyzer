@@ -112,3 +112,35 @@ launch failure. Ruff, explicit-package-bases mypy (four files), and diff checks 
 Actual local CLI returns expected `MEDIA_ELEMENT_ERROR: Format error` for both empty
 clips, establishing page startup only while keeping qualification not_attempted.
 Logs: `/tmp/inlet-startup-cli-final-tests.log` and `/tmp/inlet-startup-cli-real.log`.
+
+## Existing Registered CI Alternative — Locally Prepared, Not Dispatched
+
+The isolated successor now edits the existing `.github/workflows/ci.yml` locally:
+`workflow_dispatch.inputs.mode` is a required choice, default `full`, with only
+`full` and `browser-startup` offered. Push/PR triggers and the validation job's
+steps/services stay unchanged. Job-level conditions select validation for ordinary
+events or manual Full; manual browser-startup selects only the five-minute diagnostic
+job, whose two steps pin checkout and c845 implementation. No Postgres service,
+installation, test suite, artifact upload, or Full belongs to that diagnostic job.
+Empty/unknown manual modes select neither job, never fall back to Full. GitHub
+expression comparisons ignore string case, so case variants of the two documented
+values are semantic aliases; the UI offers lowercase and an approved dispatch must
+explicitly use `browser-startup`. No fallback treats any other value as Full.
+
+Official GitHub docs confirm the workflow must exist on the default branch and
+that an already run workflow can be dispatched against another branch/tag;
+[workflow dispatch documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
+The API takes a branch/tag ref and configured inputs;
+[workflow dispatch API](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event).
+This reuses the existing registered CI file instead of registering a new workflow.
+It still requires separately authorized publication of the exact branch and an
+available permitted dispatch mechanism. No previously denied shell dispatch route
+may be retried or bypassed. If no permitted mechanism is available, the owner must
+perform the exact reviewed dispatch; preparation is not authorization to run it.
+
+Focused routing/CLI/existing orchestration checks:33 passed,16 skipped because
+PowerShell is unavailable in this environment. Final expanded case-aware routing
+cohort:11 passed. Ruff, targeted mypy and diff checks passed. Logs are
+`/tmp/inlet-ci-startup-mode-tests.log` and
+`/tmp/inlet-ci-startup-mode-final-tests.log`. This local preparation did not change
+945 or launch any hosted job. Hosted startup cause remains unresolved.

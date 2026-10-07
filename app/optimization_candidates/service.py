@@ -1,6 +1,7 @@
 """Original-session-bound read work; no optimization mutation/admission is reachable."""
 
 from collections.abc import Callable
+from contextlib import AbstractContextManager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
@@ -489,16 +490,25 @@ def run_candidate_reads(
     factory: Callable[[], CandidateRuntime | None] = get_candidate_runtime,
     *,
     limit: int = 10,
+    scoped_provider: Callable[[Engine, int, str], AbstractContextManager[CandidateRuntime | None]]
+    | None = None,
+    environment: Environment | None = None,
+    clock: Clock | None = None,
 ) -> dict[str, int]:
-    runtime = factory()
-    if runtime is None:
+    runtime = factory() if scoped_provider is None else None
+    if scoped_provider is None and runtime is None:
         return {}
+    if scoped_provider is not None and (environment is None or clock is None):
+        raise ValueError("scoped candidate metadata required")
     if not 1 <= limit <= 100:
         raise ValueError("bounded candidate batch required")
-    now = runtime.clock()
+    if runtime is not None:
+        environment, clock = runtime.environment, runtime.clock
+    assert clock is not None
+    now = clock()
     with Session(engine) as db:
         due = (
-            CandidateJob.environment == runtime.environment,
+            CandidateJob.environment == environment,
             CandidateJob.due_at <= now,
             or_(
                 CandidateJob.state == "pending",
@@ -530,12 +540,58 @@ def run_candidate_reads(
     for wid, identifier in jobs:
         if identifier is not None:
             try:
-                result = process(engine, wid, identifier, runtime)
+                if scoped_provider is not None:
+                    with scoped_provider(engine, wid, identifier) as owned_runtime:
+                        result = (
+                            process(engine, wid, identifier, owned_runtime)
+                            if owned_runtime
+                            else "unavailable"
+                        )
+                else:
+                    assert runtime is not None
+                    result = process(engine, wid, identifier, runtime)
             except Exception:
                 # Failed read-job bookkeeping cannot starve other selected workspaces.
                 result = "unavailable"
+            if scoped_provider is not None and result == "unavailable":
+                with suppress(Exception):
+                    defer_candidate_admission(engine, wid, identifier, environment, clock)
             counts[result] = counts.get(result, 0) + 1
     return counts
+
+
+def defer_candidate_admission(
+    engine: Engine,
+    wid: int,
+    identifier: str,
+    environment: Environment | None,
+    clock: Clock,
+) -> None:
+    """Only scheduling metadata: unavailable original authority grants no retry rights."""
+    from app.workspaces.locking import lock_workspace_row
+
+    with Session(engine) as db:
+        if lock_workspace_row(db, wid) is None:
+            return
+        row = db.scalar(
+            select(CandidateJob)
+            .where(
+                CandidateJob.id == identifier,
+                CandidateJob.workspace_id == wid,
+                CandidateJob.environment == environment,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        now = clock()
+        if row is None or row.state not in {"pending", "claimed"} or utc(row.due_at) > now:
+            return
+        if row.lease_until is not None and utc(row.lease_until) > now:
+            return
+        row.due_at = now + timedelta(seconds=60)
+        row.error_code = "candidate_runtime_unavailable"
+        # Never clear another claim, manufacture an attempt or retire source history.
+        db.commit()
 
 
 def read_result(

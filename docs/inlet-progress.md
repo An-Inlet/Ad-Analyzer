@@ -6469,3 +6469,25 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 -108 assessment/parser/v1 compatibility tests passed, including original-instance
   mutation isolation and rejected nested result assignments. Whole Ruff/mypy832 and
   diffcheck passed. /tmp/inlet-linked-assessment-frozen.log. No DB/IO/live/remote.
+
+### 2026-10-07 — Owned Candidate API And Per-Job Runtime
+
+- Added ordinary configured candidate-only capabilities/read/status/review API,
+  per-original-principal shared native runtime, exact selection_for(mandate), and
+  per-job scheduler contexts. Private read sessions do not commit caller state;
+  pinned source registry remains empty, automatic first-decision remains unavailable.
+  Default-off stage uses existing customer tick/master switch. Manual/V2 preserved.
+- Actual configured Google/Meta bothDB API/worker with no seeded candidate/jobs:
+  unqualifiedblocked result, scenario separate exact review+approval, original-session
+  revocation before/during nativeHTTP and closed contexts.22 configured/manual/V2
+  checks passed108.99s; broader156pass4expectedSQLite skips terminal0.
+- Independent review found earliest pre-process admission failure could shadow later
+  same-workspace work. ReproducedSQLite+PG beforefix (preserved starvation-before logs).
+  Canonical locked60s metadata-only deferral preservesfences/leases/attempts and no
+  retryauthority. Final fairness/API/scheduler58passed79.69s. WholeRuff/mypy843,
+  fresh assembly/API/main imports and diffcheck pass. Exact logs/limits documented
+  docs/inlet-configured-candidates.md. No Full/remote/live/schema changes.
+- Evidence correction: initial8f93 purefixture IDs were invalid;1testfailed, trailing
+  staticcommand maskedpytestexit. Corrected2puretests passed withvalidIDs; no schema
+  relaxation. Parent notified immediately; original overwrittenlog limitation and
+  retained observed failureexcerpt documented. Do not treat initial claim aspass.

@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 def test_candidate_intent_cannot_supply_evidence() -> None:
     value = dict(
-        mandate_id="mandate", mandate_revision=1, policy=dict(policy_id="policy", revision=1)
+        mandate_id="b" * 32, mandate_revision=1, policy=dict(policy_id="a" * 32, revision=1)
     )
     assert CandidateReadIntent.model_validate(value).mandate_revision == 1
     for field in ("scope", "source", "evidence", "actor_id", "session_digest", "amount_micros"):

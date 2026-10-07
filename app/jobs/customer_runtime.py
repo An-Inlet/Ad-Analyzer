@@ -180,6 +180,10 @@ def run_customer_tick(
                 stage("tiktok", lambda: run_tiktok(engine, tiktok_factory(), current))
     if configuration.customer_analysis_outbox_enabled:
         stage("analysis_outbox", lambda: deliver_analysis(engine, _analyze, now=current))
+    if configuration.customer_candidate_reads_enabled:
+        from app.production_runtime.candidate_assembly import run_configured_candidate_reads
+
+        stage("candidate_reads", lambda: run_configured_candidate_reads(engine, configuration))
     if configuration.customer_session_automation_enabled:
         stage("session_automation", lambda: run_session_automation(engine, automation_factory))
     return outcomes

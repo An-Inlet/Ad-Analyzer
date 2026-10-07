@@ -5543,3 +5543,34 @@ mypy705 and diff checks passed. Failed/intermediate and final logs remain:
 All failures must be included in a final combined cohort on the repaired tree
 before one successor Full. Frozen9396839 has not yet reached terminal; no hosted
 qualification has begun.
+
+### Frozen Full Terminal Result — October 7, 07:01 UTC
+
+Exact frozen head9396839/treef0e6c2a ran **one** complete pytest invocation. Process
+ancestry also showed one complete-suite subprocess, not recursive Full children.
+Full started05:56:56 UTC and exit1 was recorded07:01:36.577 UTC: **64m40.58s**
+wall duration, including shutdown. Pytest reported **24 failed, 4,081 passed,
+72 skipped, 138 warnings in 3770.08s (62m50.08s)**. This is failed qualification.
+
+Disposable-target guard, reset and upgrade-to-head passed. Full stopped at pytest;
+Ruff, mypy, diff, PostgreSQL, Migrations, ReadOnly, Security, Privacy and Focused
+were **not reached within this Full**. Separately run static/focused checks are
+not represented as completed Full gates. Exact failure inventory and gate results:
+[immutable run record](validation/inlet-20261007-9396839.json). Full log, exitcode,
+process evidence and checksummed focused logs are preserved under
+`/workspace/inlet-evidence/20261007`. No hosted run has started; no dollar-savings
+claim is made.
+
+The final two failures were the two-brand pilot's fixture setup lambda rejecting
+the shared producer's explicit total_budget keyword. It now accepts that exact
+parameter and asserts False, preserving this pilot's reviewed daily-budget case
+instead of silently accepting another mode. Both SQLite/PostgreSQL cases passed
+in12.35s (`/tmp/inlet-oct07-pilot-fixed.log`). Whole Ruff, mypy705 and diff checks
+passed. All corrections remain tests/docs only.
+
+Independent read-only review of c906a9e's historical replacement correction found
+no actionable issue: absent-column assertions, actual owned forward guard and exact
+replacement-ID preservation remain. Next: include **all24** terminal failure IDs
+plus relevant fixture consumers in one combined invocation on the assembled repair
+tree, then exactly one successor Full. Existing115-pass/2-skip evidence at46d5566
+covered the first21 cases and is retained without overstating its scope.

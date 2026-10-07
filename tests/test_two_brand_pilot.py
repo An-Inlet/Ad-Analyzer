@@ -366,7 +366,13 @@ def test_two_brands_api_review_execution_and_closure_isolation(
             update={"connection_version": f"google:{native.id}:{native.generation}"}
         )
         execution_policy = execution_policy.model_copy(update={"accounts": [account]})
-    monkeypatch.setattr(creation_fixture, "setup", lambda *_: (execution_policy, a["actor"]))
+    def pilot_execution_setup(
+        *_args: object, total_budget: bool = False
+    ) -> tuple[ProviderMandatePolicy, str]:
+        assert total_budget is False  # This pilot's reviewed fixture uses a daily budget.
+        return execution_policy, a["actor"]
+
+    monkeypatch.setattr(creation_fixture, "setup", pilot_execution_setup)
     server = Server()
     with Session(customer_engine) as db:
         wid, parent, actor, store, runtime, binding = activation_ready(

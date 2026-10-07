@@ -302,8 +302,18 @@ class ConfiguredOptimization:
             mandate_origin_guard=self.origin_guard,
             replacement_reader=replacement if self.manifest.replacement_enabled else None,
         )
+        from dataclasses import replace
+
+        from app.planning_reporting.runtime import configured_bundle
+
+        bundle = configured_bundle(self.sessions, self.configuration)
+        planning = replace(bundle.initial, clock=self.clock) if bundle is not None else None
         return CustomerOptimizationRuntime(
-            execution=execution, catalog=self.catalog, clock=self.clock, configured=self
+            execution=execution,
+            catalog=self.catalog,
+            clock=self.clock,
+            configured=self,
+            initial_planning=planning,
         )
 
 

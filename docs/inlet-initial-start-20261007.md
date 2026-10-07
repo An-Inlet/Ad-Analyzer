@@ -122,3 +122,15 @@ positive fixture is explicit, not a changed production policy.
 Pending independent concurrency/stale-consent/spent-budget/populated-downgrade/maintenance
 checks, existing-page browser compatibility, further reviewed source optimization, and
 root review/integration. No Full, deployment, live provider action or product release.
+
+Post-freeze compatibility on `9e3ea5a`:
+
+- `pytest -q tests/test_initial_budget_mandate_browser.py tests/test_v2_execution_browser.py -k False --durations=4`:
+  **4 passed**, actual successful SQLite/PostgreSQL initial budget and manual review
+  browser journeys after the new module import. Whole PostgreSQL calls 6.06s/11.84s.
+- `pytest -q tests/test_session_automation.py::test_start_to_actual_provider_effect_with_zero_human_approvals tests/test_reported_rule_automatic.py -k 'start_to_actual or True-none' --durations=4`:
+  **8 passed**, existing Google/Meta/TikTok session automatic execution and reported-rule
+  automatic positive path on both databases. Offline MockHTTP only.
+- Parent independently reviewed `9e3ea5a` UI and host-page integration: no concrete P1/P2;
+  independently ran Node syntax and initial automation DOM successfully. Backend
+  concurrency/financial acceptance and latency qualification remain separately tracked.

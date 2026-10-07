@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.goals.schemas import StrictModel
 from app.optimization_candidates.contracts import CandidateDecision
@@ -54,4 +54,12 @@ class CandidateReadStatus(StrictModel):
     state: Literal["pending", "claimed", "completed", "blocked", "canceled"]
     result_id: Id | None
     decision: CandidateDecision | None
+    decision_digest: Digest | None
     spending_authority: Literal["none"] = "none"
+
+    @model_validator(mode="after")
+    def exact_decision_digest(self) -> "CandidateReadStatus":
+        expected = self.decision.digest() if self.decision is not None else None
+        if self.decision_digest != expected:
+            raise ValueError("candidate decision digest mismatch")
+        return self

@@ -226,8 +226,16 @@ def test_configured_candidate_api_and_actual_tick(
     assert status.json()["decision"]["evidence"]["qualification"] == (
         "contract_scenario" if mode == "scenario" else "unqualified"
     )
+    from app.optimization_candidates.contracts import CandidateDecision
+    from app.optimization_candidates.customer_contracts import CandidateReadStatus
+    from pydantic import ValidationError
+
+    assert status.json()["decision_digest"] == CandidateDecision.model_validate(
+        status.json()["decision"]
+    ).digest()
+    with pytest.raises(ValidationError):
+        CandidateReadStatus.model_validate({**status.json(), "decision_digest": "0" * 64})
     if mode == "scenario":
-        from app.optimization_candidates.contracts import CandidateDecision
 
         result = status.json()
         review = alice.post(
@@ -235,9 +243,7 @@ def test_configured_candidate_api_and_actual_tick(
             headers=headers(alice),
             json={
                 "result_id": result["result_id"],
-                "expected_decision_digest": CandidateDecision.model_validate(
-                    result["decision"]
-                ).digest(),
+                "expected_decision_digest": result["decision_digest"],
             },
         )
         assert review.status_code == 200, review.text

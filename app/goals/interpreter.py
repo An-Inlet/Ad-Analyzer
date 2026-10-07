@@ -1,5 +1,6 @@
 """Offline-only injectable interpretation. No provider client or network adapter exists."""
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
@@ -148,6 +149,8 @@ def run(
     body: InterpretationInput,
     adapter: GoalInterpreter,
     limits: InterpretationLimits | None = None,
+    *,
+    authorize_result: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     limits = limits or InterpretationLimits()
     row = reserve(db, goal, user_id, body, adapter, limits, datetime.now(UTC))
@@ -158,20 +161,34 @@ def run(
         if len(raw.encode()) > limits.output_bytes:
             raise ValueError("oversized output")
         result = InterpretationOutput.model_validate_json(raw)
-        row.state = "completed"
+        state = "completed"
         output = result.model_dump(mode="json")
     except TimeoutError:
-        row.state = "uncertain"
+        state = "uncertain"
         output = {"status": "unavailable", "reason": "interpretation_outcome_pending"}
     except (ValidationError, ValueError, TypeError, AttributeError):
-        row.state = "invalid"
+        state = "invalid"
         output = {"status": "unavailable", "reason": "invalid_interpretation"}
     except Exception:
-        row.state = "uncertain"
+        state = "uncertain"
         output = {"status": "unavailable", "reason": "interpretation_outcome_pending"}
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
+    # A completed call remains counted even if its result cannot be delivered.
+    # Do not dirty the usage row before the workspace-first authorization callback.
+    denied: HTTPException | None = None
+    if authorize_result is not None:
+        try:
+            authorize_result()
+        except HTTPException as error:
+            denied = error
+            db.rollback()
+    row.state = state
     db.commit()
+    if denied is not None:
+        raise denied
+    if authorize_result is not None:
+        authorize_result()  # commit released locks: recheck before returning the result.
     return {
         **output,
         "goal_revision": body.expected_revision,

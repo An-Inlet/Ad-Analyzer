@@ -5822,6 +5822,28 @@ passed. No live call, remote operation, schema change or Full run occurred.
 Existing v1/version/binder/guard/TLS browser regression invocation also passed
 22 tests (/tmp/inlet-feedback-v2-compatibility.log). `git diff --check` passed.
 
+## First Customer Budget UI — Consumer Checkpoint
+
+The initial-planning page now shows the selected native scope, confirmed goal
+budget/period/time zone/named aggressiveness, and an editable nonnegative USD
+limit that cannot exceed the goal. A separate exact review displays server-derived
+money caps and affected scope; an explicit checkbox and consent request bind the
+returned revision/policy/preparation digests. Returned IDs are selected internally,
+never requested as customer input. Consent remains conditional, with no exposure
+qualification, new-campaign approval, activation or execution claim.
+
+Goal/report/selection/amount/session changes clear the review; target/amount changes
+also clear the selected active plan. No mutation is automatically retried. A missing
+budget-review policy is explained as unavailable. Numeric server operating choices
+are not added to the form. Named aggression changes require goal reconfirmation.
+
+Existing actual initial-planning TLS browser regressions: four passed on both DBs
+(/tmp/inlet-budget-ui-regression-final.log). Node syntax checks passed for consumer
+and prepared new browser driver. Whole mypy733 passed. Whole Ruff encountered an
+inherited bcf4ed0 B010 in test_budget_mandate_contracts.py; producer owner notified,
+no unrelated edit made. Diff check passed. The new browser driver is prepared but
+not yet executed: actual no-preexisting-mandate backend fixture is awaiting freeze.
+This checkpoint is not acceptance of the new first-customer consent journey.
 ### 2026-10-07 — Conditional first-customer budget mandate backend
 
 - Isolated `codex/inlet-customer-budget-contract`, from02377c8; typed policy/ports
@@ -5982,3 +6004,120 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   screenshots, live requests, deployment or production code changes.
 - Final combined focused run: **14 passed, zero skips**, 91.27 seconds on SQLite
   and PostgreSQL (`/tmp/inlet-meta-configured-browser-final.log`).
+
+## First Customer Budget UI — Actual Backend Acceptance
+
+Actual merge 295e4c7 combines UI1671552 with backend4fadeda. The TLS Chromium
+journey begins with zero production mandates, consents, attempts and reservations,
+uses real customer capture/calibration and configured native GET readers, then
+selects a scope, reviews derived caps, explicitly consents, and creates a native
+v2 preview. No manually supplied mandate IDs, seeded authority or runtime getter
+overrides bridge the customer flow. One consent is persisted; attempts and
+reservations remain zero and all native requests remain GET. Amount edits clear
+the active plan; delayed actual prepare responses cannot restore a changed
+workspace. Existing legacy UI behavior remains covered.
+
+Adverse result retained: /tmp/inlet-first-budget-browser-final.log had 2 failed
+missing-policy cases and 6 passed. Backend correctly returned409 with its precise
+unavailable code; UI mapped it to generic changed-context wording. Added a fixed
+safe customer message for that known code. The repaired run passed8 tests in
+/tmp/inlet-first-budget-browser-repaired.log. Optional screenshot work was canceled
+by the owner and all dedicated uncommitted screenshot helper/endpoints were removed
+from this package; no walkthrough or deployment is claimed.
+
+Final exact package checks after artifact removal: 8 passed on SQLite/PostgreSQL
+(`/tmp/inlet-first-budget-browser-no-artifacts.log`,46.88s), whole Ruff clean,
+mypy741 clean, both Node syntax checks and `git diff --check` passed. The producer's
+inherited Ruff B010 is repaired by its frozen backend commit. No Full, remote
+operation, live provider request or change to qualification checkout/database.
+
+## Owned Goal Sales Progress Backend — Local Checkpoint
+
+The additive revision-scoped GET returns only complete closed store-local day
+prefix sales from the existing unchanged merchandise measurement reader. The goal's
+monthly/cumulative target remains unchanged; net refunds may produce signed negative
+progress and genuine zero remains distinct from unavailable null. Current recorded
+confirmation suffices for informational progress; there is no re-confirmation,
+achievement, causal attribution or spending authority. No snapshots or other rows
+are created by the read. Exact midnight/date/time-zone bindings reject ambiguous
+boundaries while preserving23/25-hour DST days.
+
+Original session and current read-role membership are fenced workspace-first,
+with fresh database/application wall clocks after waits. Privacy, disconnected,
+in-progress, missing-history and stale sources deny the amount. Real PostgreSQL
+workspace-lock wait plus session revocation denies the response. Existing goal API
+mutation behavior is unchanged.
+
+Actual normalized September sale/October processing-date refund and completed
+CommerceSyncService import underpin the reusable tests/goal_progress_fixture.py
+ready(engine,configuration,replicas) helper. It returns alice,provider,wid,gid,
+revision,store_id,original principal,now. Optional explicit fixture clock spans the
+confirmed target end without approving a goal after its deadline.
+
+Checks:30passed1expected SQLite row-lock skip (/tmp/inlet-goal-progress-delivery.log),
+then13 strict contract/DST tests passed after final UTC/date validation additions.
+Whole Ruff and mypy746 pass; diff check passed. Adverse fixture attempts were kept:
+future updatedAt relative to import cutoff correctly rejected; trying to confirm
+an already-ended goal correctly rejected. Fixtures were corrected, not product
+guards. UI/TLS integration is the separate dependent package. No Full/remote/live.
+
+## Goal API / Progress PostgreSQL Lock Order Repair
+
+Independent review identified an actual cycle: the existing goal GET locked Goal
+before its serialize→assessment→baseline→measurement path acquired Workspace,
+while new progress acquired Workspace then Goal. A controlled actual PostgreSQL
+HTTP interleave reproduced DeadlockDetected (backend8832↔8835) on57febe8 before
+product edits. `/tmp/inlet-goal-lock-baseline.log`:1failed1SQLite skip5.97s.
+The regression has a3-second database lock timeout and bounded workers/cleanup.
+
+Customer goal access now uses the existing canonical original-principal/provider
+workspace→user→session→membership guard before goal or measurement locks. Existing
+read roles remain owner/admin/analyst/viewer; edit remains owner/admin/analyst;
+confirm remains owner/admin. MutationPrincipal/CSRF requirements remain unchanged.
+Create/edit/confirm reacquire the guard before post-commit serialization. No Goal
+locks were removed and no measurement, privacy, retention or financial semantics
+were relaxed. The new regression explicitly covers all four role projections.
+
+The exact controlled interleave passes after repair (1passed1SQLite skip2.99s,
+/tmp/inlet-goal-lock-repaired.log). The reproduction is an actual two-request lock
+cycle, not a query-order-only assertion. No Full/remote/live/root-checkout edits.
+
+Final focused invocation:85passed2expected SQLite concurrency skips,3existing
+Alembic configuration warnings66.71s (/tmp/inlet-goal-lock-regressions.log).
+Includes controlled lock regression, exact roles, old goal services/migration,
+progress source/contract cases, actual goal-progress TLS and existing customer
+API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
+
+### Goal interpretation original-session delivery fence (2026-10-07)
+
+- Isolated child of `8a9cad1991c6848bd23a2aa5e9a5255b26f22b72`; fixes a
+  pre-existing interpretation gap, not a regression introduced by goal lock ordering.
+  The route authorized before `reserve()` committed, then returned adapter output
+  without rechecking original authority or goal revision after unlocked adapter work.
+- Controlled offline adapters reproduced eight actual API failures across SQLite
+  and PostgreSQL: revocation, expiry, owner-to-viewer change and goal revision drift
+  all returned HTTP 200. Corrected baseline: eight failed in 8.23 seconds,
+  `/tmp/inlet-goal-interpretation-baseline-corrected.log`. The first exploratory
+  baseline used an incorrect test session attribute for revoke/expiry; its evidence
+  is superseded by the corrected run, not counted as those reproductions.
+- `interpreter.run` now accepts an optional trusted `authorize_result` callback.
+  The customer route binds the actual original principal, canonical workspace-first
+  guard, refreshed owned goal and expected revision. It rechecks after adapter IO
+  before the usage update and again after the accounting commit before delivery.
+  Existing usage quotas, durable reservation and idempotency remain unchanged.
+- Guard denial suppresses output while retaining the actual completed/invalid/
+  uncertain call accounting. No proposal/result text is persisted. Tests verify
+  completed zero-cost usage remains counted and a newly authorized session cannot
+  replay the same call. A controlled post-accounting-commit revocation also denies
+  response delivery on both databases.
+- Exact prior source context is compared (store revision/status/basis, connection
+  identity/status, integration status and workspace privacy revision). This adds no
+  source freshness or baseline qualification requirement: the offline adapter still
+  receives only milestone text, and incomplete goals remain supported.
+- Checks: initial fixed interpreter/old-goal cohort **48 passed**; expanded
+  interpreter, old-goal, progress and controlled PG lock-order cohort **82 passed,
+  2 expected SQLite concurrency skips**, 3 existing Alembic warnings, 61.44 seconds
+  (`/tmp/inlet-goal-interpretation-final.log`). Final strengthened accounting/replay
+  cohort **14 passed**, 15.46 seconds (`/tmp/inlet-goal-interpretation-accounting.log`).
+  Whole Ruff, mypy (441 source files), and diff checks pass. No Full, remote action,
+  external model/provider call, live spending, schema change or deployment.

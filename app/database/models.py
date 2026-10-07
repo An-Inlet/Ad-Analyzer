@@ -26,6 +26,7 @@ MODEL_MODULES = (
     "app.imports.models",
     "app.intelligence.models",
     "app.initial_planning.models",
+    "app.initial_planning.budget_mandate_models",
     "app.initial_planning.review_models",
     "app.lifecycle.models",
     "app.mandates.models",

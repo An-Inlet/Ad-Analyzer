@@ -47,7 +47,7 @@ def test_policy_loader_pinned_immutable_and_no_inferred_mapping(tmp_path: Path) 
     assert load_budget_mandate_policy(str(path), policy.digest()) == policy
     assert policy.rule("conservative").aggressiveness_percent == 10
     with pytest.raises(ValidationError):
-        setattr(policy.rules[0], "action_limit", 3)
+        policy.rules[0].__setattr__("action_limit", 3)
     assert load_budget_mandate_policy(None, None) is None
     for location, digest in ((str(path), None), (None, policy.digest()), (str(path), "b" * 64)):
         with pytest.raises(

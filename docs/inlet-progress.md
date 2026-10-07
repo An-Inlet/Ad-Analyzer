@@ -5663,3 +5663,26 @@ inherited bcf4ed0 B010 in test_budget_mandate_contracts.py; producer owner notif
 no unrelated edit made. Diff check passed. The new browser driver is prepared but
 not yet executed: actual no-preexisting-mandate backend fixture is awaiting freeze.
 This checkpoint is not acceptance of the new first-customer consent journey.
+### 2026-10-07 — Conditional first-customer budget mandate backend
+
+- Isolated `codex/inlet-customer-budget-contract`, from02377c8; typed policy/ports
+  frozenbcf4ed0. Added ordinary read-runtime-backed prepare/consent endpoints and
+  separately pinned explicit server operating policy. Customers submit budget,
+  named aggression and native scope; technical policy fields are rejected.
+- Added0079down0078 minimal protected immutable provenance with owned revision FK,
+  policy-binding trigger, strict export and nonempty downgrade refusal. Existing
+  mandate revisions/consent/ledger reused. `revise(commit=False)` preserves default
+  old commit behavior and permits atomic draft+provenance+final session fencing.
+- Actual no-prior-production-authority fixture uses real imported/captured history,
+  normal goal edit/preview/confirm, configured native GET HTTP mock and normal API
+  prepare/consent/retry/v2 preview. No write-runtime overrides or exposure proof.
+- Checks:18 API/migration cases passed on SQLite/PostgreSQL (actual Alembic roundtrip
+  on PostgreSQL),27 contract/model-registry/existing mandate/lifecycle cases passed;
+  whole Ruff passed, mypy740 files passed, diff check passed. Logs:
+  `/tmp/inlet-budget-final-focused.log`, `/tmp/inlet-budget-compatibility.log`.
+  Concurrent DB session revocation inside provider HTTP denies consent; final guard
+  failure after sidecar insertion leaves neither draft nor provenance.
+- No Full, remote actions, live calls, merge or deployment. Dependent actual TLS UI
+  journey belongs scheduler_wiring and is not claimed by this backend checkpoint.
+  Required real operating-policy values, coherent process policy deployment and
+  independent provider execution qualification remain explicit prerequisites.

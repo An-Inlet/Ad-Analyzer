@@ -173,6 +173,12 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    budget_mandate_policy_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_BUDGET_MANDATE_POLICY_PATH"
+    )
+    budget_mandate_policy_digest: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_BUDGET_MANDATE_POLICY_DIGEST"
+    )
     planning_reporting_profile_path: str | None = Field(
         default=None, validation_alias="AD_ANALYZER_PLANNING_REPORTING_PROFILE_PATH"
     )

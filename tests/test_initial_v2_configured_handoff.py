@@ -7,8 +7,12 @@ from typing import Any
 import pytest
 from app.customers.access import SESSION_COOKIE, digest
 from app.customers.models import CustomerSession
+from app.goals.models import Goal
+from app.initial_planning import review_v2_bridge
 from app.initial_planning.models import PreviewRow
+from app.initial_planning.review_models import InitialPreviewReviewLink
 from app.initial_planning.review_v2_models import InitialPreviewExecutionProofRow
+from app.meta.models import MetaConnection
 from app.publication import optimization
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
@@ -17,10 +21,12 @@ from app.publication.execution_models import (
     ProviderPeriodLedger,
 )
 from app.settings import Settings
+from fastapi import HTTPException
 from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.orm import Session
 
 from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
@@ -38,6 +44,11 @@ from tests.v2_execution_fixture import ready
         "different_cap",
         "native_drift",
         "session_during_prepare",
+        "goal_during_prepare",
+        "source_during_prepare",
+        "tampered_digest",
+        "atomic_rollback",
+        "other_original_session",
     ],
 )
 def test_actual_v2_separate_consent_and_review(
@@ -105,11 +116,55 @@ def test_actual_v2_separate_consent_and_review(
                 db.commit()
 
         controls["callback"] = revoke
+    if mode == "other_original_session":
+        login(alice, "budget-first:second")
+    if mode == "tampered_digest":
+        body["expected_preview_digest"] = "0" * 64
+    if mode in {"goal_during_prepare", "source_during_prepare"}:
+
+        def drift() -> None:
+            with Session(customer_engine) as db:
+                if mode == "goal_during_prepare":
+                    goal = db.scalar(select(Goal))
+                    assert goal
+                    goal.revision += 1
+                else:
+                    source = db.scalar(select(MetaConnection))
+                    assert source
+                    source.generation += 1
+                db.commit()
+
+        controls["callback"] = drift
+    if mode == "atomic_rollback":
+
+        def failing_guard(*args: Any, **kwargs: Any) -> Any:
+            def fail(db: Session, *args: Any) -> None:
+                assert db.scalar(select(func.count()).select_from(InitialPreviewReviewLink)) == 1
+                assert (
+                    db.scalar(select(func.count()).select_from(InitialPreviewExecutionProofRow))
+                    == 1
+                )
+                raise HTTPException(409, "controlled_final_fence_failure")
+
+            return fail
+
+        monkeypatch.setattr(review_v2_bridge, "guard_for", failing_guard)
     response = alice.post(endpoint + "/execution-review", headers=headers(alice), json=body)
-    if mode in {"different_cap", "native_drift", "session_during_prepare"}:
+    if mode in {
+        "different_cap",
+        "native_drift",
+        "session_during_prepare",
+        "goal_during_prepare",
+        "source_during_prepare",
+        "tampered_digest",
+        "atomic_rollback",
+        "other_original_session",
+    }:
         assert response.status_code in {401, 409}, response.text
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 0
+            assert db.scalar(select(func.count()).select_from(InitialPreviewReviewLink)) == 0
+            assert db.scalar(select(func.count()).select_from(InitialPreviewExecutionProofRow)) == 0
         assert not server.posts
         return
     assert response.status_code == 200, response.text

@@ -6415,3 +6415,18 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - Whole Ruff/mypy827 and diffcheck passed. Reusable ready() fixture and limitations
   documented in docs/inlet-v2-configured-handoff.md. Genuine TLS and expanded
   compatibility remain dependent followups. No Full, live or remote actions.
+
+### 2026-10-07 — V2 Handoff Drift And Transaction Followup
+
+- Added ten passing SQLite/PostgreSQL negative cases: current goal revision/source
+  generation changed in an independent transaction during real mocked provider IO;
+  tampered expected preview digest; same owner with a newly authenticated original
+  session; and controlled final guard failure after both link and proof were flushed.
+  Every rejected preparation leaves no review/link/proof and emits no provider write.
+  The final-guard fault tests rollback, not an alternate authority implementation.
+- Exit0 for eight cases in /tmp/inlet-v2-handoff-final-negatives.log and two in
+  /tmp/inlet-v2-handoff-session.log. Whole Ruff/mypy827/diffcheck passed.
+  Duplicate local legacy compatibility cohort was interrupted when root took that
+  combined cohort; it is not pass evidence. No production edits after063243c;
+  independent source review of that exact head reported no actionable finding.
+  Genuine TLS remains owned by customer_signin. No Full, remote or live actions.

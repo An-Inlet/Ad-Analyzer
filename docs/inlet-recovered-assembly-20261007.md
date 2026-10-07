@@ -150,3 +150,21 @@ No performance guarantee or live qualification follows from these measurements.
 Remote main/pushed candidate9450aa48/draftPR130 and owner-pending hosted diagnostic
 are unchanged. No hosted retry, live provider/model call, credentials, spending,
 remote merge or deployment. Prior failed Full and recovered WIP remain preserved.
+
+### Initial Start Review And Timeout Clarification
+
+Independent simultaneous Start review3e6537d closed with no P1/P2 finding:
+two actual PostgreSQL sessions synchronize after both absence checks/native catalog
+reads and converge on one original run/link/job/opportunity without provider emission.
+Author's narrow race test passed (10.79s call); Ruff/mypy938/diff passed.
+
+The previously discussed **30seconds is an explicit contract-test native observation
+lifetime**, not a shipped production worker/request timeout. Production planning
+profile configuration defaults to absent; numeric policy fields require explicit
+configuration. The 120-second positive fixture demonstrates offline functional
+execution, not successful short-profile operation or a supported production envelope.
+Native acquisition, optimization transport, catalog and deployment limits are distinct
+and must not be collapsed into that observation lifetime. Current investigation is
+measuring actual evidence age at configured Start/admission/claim/emission boundaries.
+Initial package integration remains pending that operating-envelope evidence and
+review; Fulla8a10ca remains frozen and running unchanged.

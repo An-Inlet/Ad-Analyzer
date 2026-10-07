@@ -5640,3 +5640,26 @@ Evidence: /tmp/inlet-feedback-configured-v2.log (8 passed),
 passed. No live call, remote operation, schema change or Full run occurred.
 Existing v1/version/binder/guard/TLS browser regression invocation also passed
 22 tests (/tmp/inlet-feedback-v2-compatibility.log). `git diff --check` passed.
+
+## First Customer Budget UI — Consumer Checkpoint
+
+The initial-planning page now shows the selected native scope, confirmed goal
+budget/period/time zone/named aggressiveness, and an editable nonnegative USD
+limit that cannot exceed the goal. A separate exact review displays server-derived
+money caps and affected scope; an explicit checkbox and consent request bind the
+returned revision/policy/preparation digests. Returned IDs are selected internally,
+never requested as customer input. Consent remains conditional, with no exposure
+qualification, new-campaign approval, activation or execution claim.
+
+Goal/report/selection/amount/session changes clear the review; target/amount changes
+also clear the selected active plan. No mutation is automatically retried. A missing
+budget-review policy is explained as unavailable. Numeric server operating choices
+are not added to the form. Named aggression changes require goal reconfirmation.
+
+Existing actual initial-planning TLS browser regressions: four passed on both DBs
+(/tmp/inlet-budget-ui-regression-final.log). Node syntax checks passed for consumer
+and prepared new browser driver. Whole mypy733 passed. Whole Ruff encountered an
+inherited bcf4ed0 B010 in test_budget_mandate_contracts.py; producer owner notified,
+no unrelated edit made. Diff check passed. The new browser driver is prepared but
+not yet executed: actual no-preexisting-mandate backend fixture is awaiting freeze.
+This checkpoint is not acceptance of the new first-customer consent journey.

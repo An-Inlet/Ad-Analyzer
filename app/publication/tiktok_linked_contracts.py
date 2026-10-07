@@ -95,11 +95,6 @@ class IdentityInfoObservationV1(Frozen):
     def bounded(self) -> "IdentityInfoObservationV1":
         if not self.observed_at < self.expires_at <= self.observed_at + timedelta(minutes=5):
             raise ValueError("bounded identity evidence required")
-        if (
-            self.request.identity.identity_type == "TT_USER"
-            and self.ads_only_mode.presence != "absent"
-        ):
-            raise ValueError("identity ads-only capability is Business Center specific")
         return self
 
     def digest(self) -> str:

@@ -5686,3 +5686,29 @@ This checkpoint is not acceptance of the new first-customer consent journey.
   journey belongs scheduler_wiring and is not claimed by this backend checkpoint.
   Required real operating-policy values, coherent process policy deployment and
   independent provider execution qualification remain explicit prerequisites.
+
+## First Customer Budget UI — Actual Backend Acceptance
+
+Actual merge 295e4c7 combines UI1671552 with backend4fadeda. The TLS Chromium
+journey begins with zero production mandates, consents, attempts and reservations,
+uses real customer capture/calibration and configured native GET readers, then
+selects a scope, reviews derived caps, explicitly consents, and creates a native
+v2 preview. No manually supplied mandate IDs, seeded authority or runtime getter
+overrides bridge the customer flow. One consent is persisted; attempts and
+reservations remain zero and all native requests remain GET. Amount edits clear
+the active plan; delayed actual prepare responses cannot restore a changed
+workspace. Existing legacy UI behavior remains covered.
+
+Adverse result retained: /tmp/inlet-first-budget-browser-final.log had 2 failed
+missing-policy cases and 6 passed. Backend correctly returned409 with its precise
+unavailable code; UI mapped it to generic changed-context wording. Added a fixed
+safe customer message for that known code. The repaired run passed8 tests in
+/tmp/inlet-first-budget-browser-repaired.log. Optional screenshot work was canceled
+by the owner and all dedicated uncommitted screenshot helper/endpoints were removed
+from this package; no walkthrough or deployment is claimed.
+
+Final exact package checks after artifact removal: 8 passed on SQLite/PostgreSQL
+(`/tmp/inlet-first-budget-browser-no-artifacts.log`,46.88s), whole Ruff clean,
+mypy741 clean, both Node syntax checks and `git diff --check` passed. The producer's
+inherited Ruff B010 is repaired by its frozen backend commit. No Full, remote
+operation, live provider request or change to qualification checkout/database.

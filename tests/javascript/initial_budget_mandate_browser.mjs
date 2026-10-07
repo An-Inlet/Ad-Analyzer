@@ -16,6 +16,10 @@ $('native').click();await until(()=>settled()&&$('target').options.length===2,'r
 assert($('mandate').options.length===1,'no pre-seeded consent');
 change('target',$('target').options[1].value);assert(!$('budget').hidden,'budget form');
 assert($('budget-goal').textContent.includes('end excluded'),'exact confirmed goal period');
+if(__UNAVAILABLE__){
+$('budget-prepare').click();await until(()=>settled()&&$('status').textContent.includes('Spending-limit review is unavailable'),'unavailable configured policy');
+assert($('budget-review').hidden&&!$('mandate').value,'no manufactured consent');
+}else{
 const original=globalThis.fetch.bind(globalThis);let prepared,consented;
 globalThis.fetch=async(url,init)=>{const response=await original(url,init);if(init?.method==='POST'&&String(url).endsWith('/budget-mandates')){const body=JSON.parse(init.body);assert(Object.keys(body.intent).sort().join(',')==='aggressiveness,selection,total_cap_micros','customer intent only');prepared=await response.clone().json();}if(init?.method==='POST'&&String(url).endsWith('/consent'))consented=await response.clone().json();return response;};
 $('budget-prepare').click();await until(()=>settled()&&!$('budget-review').hidden,'exact derived cap review');
@@ -34,5 +38,6 @@ let entered=false,release;globalThis.fetch=async(url,init)=>{const response=awai
 $('budget-prepare').click();await until(()=>entered,'hold actual prepare response');change('workspace','');release();await new Promise(r=>setTimeout(r,100));
 assert($('budget').hidden&&$('budget-review').hidden&&!$('mandate').value,'late prepare discarded');globalThis.fetch=original;
 $('logout').click();await until(()=>settled()&&$('status').textContent==='Signed out.','logout');
+}
 await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
 }catch(error){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}

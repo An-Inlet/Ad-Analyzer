@@ -23,11 +23,11 @@ from app.goals.schemas import GoalDefinition
 from app.initial_planning.contracts import (
     CalibrationReportV1,
     EfficiencyObjectiveV1,
-    InitialPreviewV1,
     ObservationV1,
     PreviewIntentV1,
 )
 from app.initial_planning.export import bind_initial_document
+from app.initial_planning.preview_v2 import InitialPreview, PreviewIntentV2
 from app.initial_planning.review_export import export_review_link
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
 from app.lifecycle.export_domains import SettlementEvidence
@@ -173,8 +173,6 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("initial_observations", "document"): ObservationV1,
     ("initial_calibration_runs", "document"): CalibrationReportV1,
     ("initial_calibration_runs", "objective"): EfficiencyObjectiveV1,
-    ("initial_plan_previews", "document"): InitialPreviewV1,
-    ("initial_plan_previews", "intent"): PreviewIntentV1,
     ("customer_billing_offer_bindings", "profile"): OfferProfileV1,
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
     ("outcome_assessments_v3", "document"): OwnedV3Assessment,
@@ -200,6 +198,8 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_receipts", "receipt"): PublishReceipt,
 }
 ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
+    ("initial_plan_previews", "document"): TypeAdapter(InitialPreview),
+    ("initial_plan_previews", "intent"): TypeAdapter(PreviewIntentV1 | PreviewIntentV2),
     ("commerce_measurement_publications", "manifest"): MANIFEST,
     ("customer_social_configuration_reviews", "document"): TypeAdapter(
         Annotated[

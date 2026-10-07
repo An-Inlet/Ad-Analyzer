@@ -5483,3 +5483,78 @@ ActualHTTPS continues to verify response/session changes discard stale output.
 No live policy, spending permission, adjusted-preview handoff, remote actions or
 provider calls were enabled. V2 read-only native baseline integration remains a
 separate shared-interface follow-up; this package preserves v1 behavior.
+### Planning/Reporting Runtime First Contract Checkpoint — 2026-10-07
+
+Local successor of frozen9396839; proposal2230e15 approved for staged implementation.
+Added separate deeply frozen native budget request/observation/owner/catalog ports,
+without qualification IDs or a financial period. Tuple-based owner topology retains
+existing target-set semantics and checks its exact digest. No native IO or runtime
+activation is introduced. Added explicit initial/window/optional-feedback/read-limit
+profile and bounded local JSON loader: missing pair is unavailable, malformed or
+partial configuration, duplicate keys, oversized input, policy drift and digest
+mismatch fail with a fixed sanitized error. The caller retains the immutable profile;
+there is no implicit cache, principal, engine selection or hot reload.
+
+Validation:32 focused contract/configuration/legacy initial-policy tests passed in
+1.59s; whole-tree Ruff passed; whole-tree mypy passed711 source files; diff-check
+passed. First mypy attempt found only three frozen-assignment test typing errors,
+repaired before the final checks. No Full, remote, provider or deployment actions.
+Next: shared neutral Meta parser and actual owned GET-only collector, then API/worker
+assembly and explicit v2 preview with lifecycle/consumer version dispatch. This
+checkpoint does not implement those behaviors or qualify any writes. Feedback
+revision service/models/migration0078 remain owned by the separate package.
+
+### Owned Native Meta Budget Collection — 2026-10-07
+
+Successor of7767b54. Extracted one shared neutral Meta budget parser; existing
+qualified adapter delegates without changed serialized state. Added fixed-origin
+GET-only collector with private original-session vault assembly, full owner topology,
+explicit read limits and deadlines, no synthetic qualification/financial period.
+USD→2 is the initial explicit supported mapping; other currencies fail unsupported,
+and existing qualified adapter coverage stays intact. Daily/lifetime modes remain
+distinct. Factory owns transport cleanup; private DB sessions close before HTTP and
+recheck original authority/current goal/source after every response.
+
+Final78 focused tests passed11.10s (actual SQLite/PostgreSQL vault/session/gen/goal
+journeys, native HTTP/error bounds, profile/contract tests and legacy social HTTP
+regressions); whole-tree Ruff passed; mypy716 passed; diff-check passed. Earlier
+new-fixture failures exposed a goal-digest namespace/commerce-refresh mismatch and
+one renamed settings attribute; corrected using actual goal definition/commerce
+sync, not guard bypass. Frozen subtype equality was normalized in the shared parser
+before target comparison. Prior-parser byte comparison and pinned campaign/adset
+state digests verify legacy compatibility. No Full, live provider, remote or factory
+activation. See inlet-planning-native-budget-read.md for callable ports and remaining
+ordinary API/worker/v2 lifecycle assembly.
+
+### Explicit Initial Preview V2 Contract — 2026-10-07
+
+Added only the new typed v2 document and pure strict version-dispatch parser.
+The v2 commitment includes environment/profile and the full unqualified native
+observation; exact amount, scope/objective, goal revision, quantum and expiry bind
+together. There is no qualified native-state digest. Legacy v1 class/serialization
+and its bridge remain unchanged. No v2 persistence or route is enabled yet; root
+approved leaving nullable native_state_digest NULL when later v2 persistence lands.
+Owned read/export/consumer dispatch and explicit bridge rejection must land before
+v2 can be served. Scheduler coordinates its immutable0078 baseline accessor.
+
+Validation:23 new-version/native/legacy contract tests passed0.59s; whole-tree Ruff
+passed; mypy718 passed; diff-check passed. No migration, Full, remote or live calls.
+
+### Versioned Baseline Consumer Ports — 2026-10-07
+
+Isolated successor from9a75119. PreviewIntentV2 persists server-resolved objective,
+calibration/observation/profile/environment/goal commitment, opaque native option ID
+and exact optional mandate ID/revision. It never fabricates TargetChoice. Pure
+bind_preview_row and preview_mandate_reference enforce typed intent/document/scalar
+bindings; owned read_preview returns the strict v1/v2 union and preserves current
+session/source/goal/calibration/expiry/mandate checks. V2 requires the exact installed
+profile and nullable qualified native_state_digest staysNULL. Initial export uses
+strict version dispatch and the same row binder. Qualified review bridge explicitly
+rejects v2 before reading v1 native state. No v2 producer/route is enabled yet.
+
+Unchanged native configuration now has a stable opaque choice ID across acquisition
+timestamps; full observation digest still commits those timestamps and expiry.
+Changed budget/scope/profile/settings still changes the choice. Final53 focused
+binding/version/initial API/lifecycle tests passed,1skipped,44.43s; whole Ruff and
+mypy720 passed; diff-check passed. No Full/remote/live. Actual v2 producer/runtime
+journey remains next; scheduler owns feedback consumer changes after this freeze.

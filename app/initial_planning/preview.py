@@ -20,6 +20,8 @@ from app.initial_planning.contracts import (
     PreviewIntentV1,
 )
 from app.initial_planning.models import CalibrationRow, PreviewRow
+from app.initial_planning.preview_binding import bind_preview_row, preview_mandate_reference
+from app.initial_planning.preview_v2 import InitialPreviewV2, PreviewIntentV2
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.meta.security import utc
 from app.publication import customer_intents, execution_mandates
@@ -33,7 +35,7 @@ def inputs(
     db: Session,
     principal: CustomerPrincipal,
     provider: IdentityProvider,
-    intent: PreviewIntentV1,
+    intent: PreviewIntentV1 | PreviewIntentV2,
     runtime: InitialPlanningRuntime,
 ) -> tuple[CalibrationReportV1, ObservationV1, str]:
     objective = intent.objective
@@ -298,7 +300,7 @@ def read_preview(
     workspace_id: int,
     preview_id: str,
     runtime: InitialPlanningRuntime,
-) -> InitialPreviewV1:
+) -> InitialPreviewV1 | InitialPreviewV2:
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     row = db.get(PreviewRow, preview_id, populate_existing=True)
     if row is None or row.workspace_id != workspace_id:
@@ -308,8 +310,22 @@ def read_preview(
         or row.original_session_digest != principal.session.digest
     ):
         raise HTTPException(409, "Read this preview from its original customer session.")
-    intent = PreviewIntentV1.model_validate(row.intent)
-    document = InitialPreviewV1.model_validate(row.document)
+    values = {column.name: getattr(row, column.name) for column in row.__table__.columns}
+    try:
+        document = bind_preview_row(values)
+        intent: PreviewIntentV1 | PreviewIntentV2 = (
+            PreviewIntentV1.model_validate(row.intent)
+            if isinstance(document, InitialPreviewV1)
+            else PreviewIntentV2.model_validate(row.intent)
+        )
+    except ValueError:
+        raise HTTPException(409, "The preview is no longer current.") from None
+    if isinstance(document, InitialPreviewV2) and (
+        runtime.profile is None
+        or runtime.profile.digest() != document.profile_digest
+        or runtime.profile.environment != document.environment
+    ):
+        raise HTTPException(409, "The planning profile changed.")
     _, observation, goal_digest = inputs(db, principal, provider, intent, runtime)
     if (
         fingerprint(document.schema_version, document.model_dump(mode="json"))
@@ -325,7 +341,6 @@ def read_preview(
             document.objective.cohort.campaign_id,
         )
         != (row.workspace_id, row.account_id, row.campaign_id)
-        or row.native_state_digest != document.native_state_digest
         or utc(row.created_at) != document.created_at
         or utc(row.expires_at) != document.expires_at
         or document.objective != intent.objective
@@ -337,10 +352,10 @@ def read_preview(
     ):
         raise HTTPException(409, "The preview is no longer current.")
     if row.mandate_digest is not None:
-        assert intent.mandate_id is not None and intent.mandate_revision is not None
-        binding = customer_intents.binding(
-            db, workspace_id, intent.mandate_id, intent.mandate_revision
-        )
+        reference = preview_mandate_reference(values, document)
+        if reference is None:
+            raise HTTPException(409, "The separately consented plan changed.")
+        binding = customer_intents.binding(db, workspace_id, *reference)
         _, policy = execution_mandates.checked(
             db, workspace_id, binding, principal.user.id, runtime.clock
         )

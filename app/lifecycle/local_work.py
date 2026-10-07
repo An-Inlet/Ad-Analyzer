@@ -82,7 +82,6 @@ LOCAL_RUNS = {
 WORK_FAMILIES = {
     "commerce_acquisition_checkpoints": "erasable_derived_read_queue",
     "commerce_acquisition_jobs": "erasable_derived_read_queue",
-    "reported_rule_candidate_dependencies": "erasable_derived_read_queue",
     "reported_feedback_jobs": "erasable_derived_read_queue",
     "campaign_performance_completions": "retained_source_completion",
     "initial_calibration_runs": "erasable_derived_read_queue",

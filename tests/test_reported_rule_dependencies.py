@@ -174,3 +174,20 @@ def test_foreign_dependency_rejected(
             db.commit()
         db.rollback()
         assert db.get(CandidateJob, job.id)
+
+
+def test_reported_dependency_is_owned_provenance_not_a_worker_queue() -> None:
+    from app.database.models import register_models
+    from app.lifecycle.inventory import verify_registry
+    from app.lifecycle.local_work import WORK_FAMILIES, verify_work_registry
+    from app.lifecycle.registry import TABLES
+
+    metadata = register_models()
+    verify_registry()
+    verify_work_registry()
+    table = "reported_rule_candidate_dependencies"
+    assert table in metadata.tables
+    assert TABLES[table].scope == "workspace"
+    assert "workspace_id" in TABLES[table].fields
+    assert table not in WORK_FAMILIES
+    assert not {"state", "lease_until", "next_due_at"}.intersection(metadata.tables[table].c.keys())

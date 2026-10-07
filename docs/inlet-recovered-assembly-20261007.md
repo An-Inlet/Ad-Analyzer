@@ -52,3 +52,19 @@ provider/model calls, credential work, spending, remote merge or deployment.
 Actual configured HTTPS cohort: **8 passed in103.74s**, zero skips, both databases,
 `python -m pytest -x -ra tests/test_reported_rule_configured_browser.py`.
 Whole Ruff and mypy (948 files), Node syntax and diff checks passed.
+
+## Combined Cohort Follow-Up: Provenance Classification
+
+The first combined cohort found `verify_work_registry` failures on both databases.
+Independent narrow reproduction failed before any export:0083 had classified
+`reported_rule_candidate_dependencies` as a runnable queue despite its schema
+being an owned provenance edge with no state, lease or next-due fields. Remove
+only that erroneous WORK_FAMILIES entry. Keep its workspace lifecycle registry,
+immutable ownership/deletion guards and export policy unchanged; keep exact
+worker inventory checking unchanged. A regression asserts both distinctions.
+
+Narrow reproduction:1 failed in3.85s (`recovered-session-export-before.log`).
+After repair: both original session-authority export tests plus explicit
+provenance classification **3 passed in10.28s**, zero skips
+(`recovered-session-export-after.log`). Full affected cohort must rerun after its
+first terminal report; this narrow success does not qualify the whole assembly.

@@ -6804,3 +6804,17 @@ Limits: the configured dedicated worker must run; browser refresh does not run i
 Completion is an as-of observation, not settled/full-history/causal or automatic
 optimization evidence. Design and callables:
 `docs/design/customer-shopify-acquisition-flow.md`.
+### Linked TikTok Pull VIDEO catalogue — pure interface freeze
+
+- Reused unchanged linked owner/identity contracts from5e418b0. Added immutable
+  request/page/post/catalogue types and pure lossless decoder; exact owned request
+  binding is explicitly not returned per-row identity proof or eligibility.
+- Parent-rendered identity/video/get schema supplies the fields. First cursor is
+  omitted based on its absence from the required list; no guessed zero. Numeric
+  cursors retain original canonical strings and convert directly to integer, may
+  decrease, and reject continuation cycles/duplicate posts. Empty terminal pages
+  remain valid. Optional facts preserve null/absence; media URLs/signatures and
+  unnecessary authorization/anchor contents are discarded.
+-21pure tests passed0.27s with durations20. Actual owned HTTP collector and bothDB
+  revocation/pagination acceptance are next; no endpoint/UI or live-source claim.
+  Exact proposed callables and evidence limits:docs/design/tiktok-linked-posts-catalog.md.

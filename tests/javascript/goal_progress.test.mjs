@@ -14,7 +14,7 @@ test('signed actual amounts and complete zero are preserved without achievement 
   assert.equal(rows['Spending Permission'],'None');
 });
 test('unknown has no invented amount or day count',()=>{
-  const rows=Object.fromEntries(goalProgressRows({...value,status:'unavailable',net_sales_micros:null,coverage:null,reasons:['stale_source']},goal,1));
+  const rows=Object.fromEntries(goalProgressRows({...value,status:'unavailable',net_sales_micros:null,reasons:['stale_source']},goal,1));
   assert.equal(rows['Imported Net Sales'],'Unavailable');
   assert.equal(rows['Closed Day Count'],undefined);
   assert.match(goalProgressReasons(['stale_source']),/too old/);

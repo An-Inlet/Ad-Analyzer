@@ -12,7 +12,10 @@ from app.publication.tiktok_linked_contracts import (
     AdvertiserCapabilitiesObservationV1,
     IdentityInfoObservationV1,
 )
-from app.publication.tiktok_linked_plan import LinkedPushConfigurationV1
+from app.publication.tiktok_linked_plan import (
+    LinkedPushConfigurationV1,
+    LinkedPushPublicationReviewV1,
+)
 from app.publication.tiktok_linked_review_contracts import (
     LinkedPushConfigurationDocumentV1,
     LinkedPushCustomerAnswerV1,
@@ -24,8 +27,10 @@ from tests.test_commerce_measurement import NOW
 from tests.test_tiktok_linked_plan import linked_review
 
 
-def document() -> LinkedPushConfigurationDocumentV1:
-    review = linked_review()
+def document(
+    review: LinkedPushPublicationReviewV1 | None = None,
+) -> LinkedPushConfigurationDocumentV1:
+    review = review or linked_review()
     account = ExecutionAccount.from_publication(review.scope)
     request = catalog_request(review.source, account)
     owner = dict(
@@ -138,3 +143,34 @@ def test_literal_numeric_answer_and_live_rejected() -> None:
     saved["environment"] = "live"
     with pytest.raises(ValidationError):
         LinkedPushConfigurationDocumentV1.model_validate(saved)
+
+
+def test_fresh_unchanged_capabilities_do_not_require_clock_digest_reconsent() -> None:
+    from app.publication.tiktok_linked_review_service import current_capabilities
+    from fastapi import HTTPException
+
+    saved = document()
+    fresh_now = NOW + timedelta(minutes=1)
+    identity = IdentityInfoObservationV1.model_validate(
+        {
+            **saved.identity_observation.model_dump(),
+            "observed_at": fresh_now,
+            "expires_at": fresh_now + timedelta(minutes=5),
+        }
+    )
+    advertiser = AdvertiserCapabilitiesObservationV1.model_validate(
+        {
+            **saved.advertiser_observation.model_dump(),
+            "observed_at": fresh_now,
+            "expires_at": fresh_now + timedelta(minutes=5),
+        }
+    )
+    assert identity.digest() != saved.configuration.identity_observation_digest
+    current_capabilities(saved, identity, advertiser, fresh_now)
+    changed = IdentityInfoObservationV1.model_validate(
+        {**identity.model_dump(), "can_push_video": dict(presence="present", value=False)}
+    )
+    with pytest.raises(HTTPException, match="current_linked_capabilities_unavailable"):
+        current_capabilities(saved, changed, advertiser, fresh_now)
+    with pytest.raises(HTTPException, match="current_linked_capabilities_unavailable"):
+        current_capabilities(saved, identity, advertiser, identity.expires_at)

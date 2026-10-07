@@ -140,14 +140,15 @@ class AdvertiserCapabilitiesObservationV1(Frozen):
 
 
 def _plain_ad_text(value: str, maximum: int) -> str:
-    # Conservative supported text subset: letters/numbers/common punctuation/spaces.
-    # Symbols/emoji/variation controls are unsupported rather than guessed valid.
+    # Supported text includes ordinary currency prices, but not emoji/variation controls.
     import unicodedata
 
     if not value.strip() or any(unicodedata.category(c)[0] not in "LNPSZ" for c in value):
         raise ValueError("unsupported ad text character")
-    if any(unicodedata.category(c).startswith("S") for c in value):
-        raise ValueError("symbols and emoji are unsupported")
+    if any(
+        unicodedata.category(c).startswith("S") and unicodedata.category(c) != "Sc" for c in value
+    ):
+        raise ValueError("noncurrency symbols and emoji are unsupported")
     weighted = sum(
         2
         if (

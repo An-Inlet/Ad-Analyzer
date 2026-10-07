@@ -57,6 +57,14 @@ from app.publication.social_contracts import (
     SocialProviderResponse,
     SocialPublishPlan,
 )
+from app.publication.tiktok_creation_policy import new_creation_allowed
+from app.publication.tiktok_linked_plan import (
+    LINKED_OUTPUTS,
+    LinkedPushBoundRequestV1,
+    LinkedPushPlanV1,
+    compile_linked_push,
+    materialize_linked_push,
+)
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
 
@@ -64,11 +72,12 @@ Clock = Callable[[], datetime]
 
 
 def canonical(plan: CreationPlan) -> None:
-    rebuilt = (
-        compile_google(plan.review)
-        if isinstance(plan, ProviderPublishPlan)
-        else compile_social(plan.review)
-    )
+    if isinstance(plan, ProviderPublishPlan):
+        rebuilt: CreationPlan = compile_google(plan.review)
+    elif isinstance(plan, SocialPublishPlan):
+        rebuilt = compile_social(plan.review)
+    else:
+        rebuilt = compile_linked_push(plan.review)
     if rebuilt != plan:
         raise HTTPException(409, "registered canonical provider plan required")
 
@@ -84,6 +93,13 @@ def gate(runtime: CreationRuntime, environment: str, plan: CreationPlan | None =
             and runtime.social_configuration_current is None
         ):
             raise HTTPException(409, "current social configuration validator unavailable")
+    if isinstance(plan, LinkedPushPlanV1) and (
+        environment != "contract_test"
+        or runtime.linked_tiktok is None
+        or runtime.linked_context is None
+        or runtime.linked_configuration_current is None
+    ):
+        raise HTTPException(409, "linked configuration runtime unavailable")
 
 
 def source_current(
@@ -106,6 +122,10 @@ def source_current(
         from app.publication.social_review_service import verify_plan
 
         verify_plan(db, wid, plan, actor)
+    if isinstance(plan, LinkedPushPlanV1):
+        from app.publication.tiktok_linked_review_service import verify_plan as verify_linked
+
+        verify_linked(db, wid, plan, actor)
 
 
 def social_configuration_current(
@@ -126,6 +146,16 @@ def social_configuration_current(
         if runtime.social_configuration_current is None:
             raise HTTPException(409, "current social configuration validator unavailable")
         runtime.social_configuration_current(document, clock())
+    if isinstance(plan, LinkedPushPlanV1):
+        from app.publication.tiktok_linked_review_service import verify_plan as verify_linked
+
+        linked_document = verify_linked(db, wid, plan, actor)
+        if (
+            linked_document.environment != runtime.environment
+            or runtime.linked_configuration_current is None
+        ):
+            raise HTTPException(409, "linked configuration runtime unavailable")
+        runtime.linked_configuration_current(linked_document, clock())
 
 
 def prepare_creation(
@@ -138,6 +168,7 @@ def prepare_creation(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> ProviderExecutionReview:
+    new_creation_allowed(plan)
     gate(runtime, binding.environment, plan)
     runtime.authorize(db, wid, actor)
     _, policy = mandates.checked(db, wid, binding, actor, clock)
@@ -253,6 +284,7 @@ def approve_creation(
     clock: Clock,
 ) -> ProviderExecutionApproval:
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
+    new_creation_allowed(document.plan)
     if (digest, plan_digest) != (row.digest, row.plan_digest):
         raise HTTPException(409, "exact execution review and plan approval required")
     approval = db.get(ProviderExecutionApproval, row.id)
@@ -283,6 +315,7 @@ def create_run(
     clock: Clock,
 ) -> ProviderExecutionRun:
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
+    new_creation_allowed(document.plan)
     approval = db.get(ProviderExecutionApproval, row.id)
     if approval is None or (approval.review_digest, approval.plan_digest) != (
         row.digest,
@@ -350,11 +383,11 @@ def locked_run(
 
 
 def request_for(document: CreationExecutionReview, raw: dict[str, object]) -> CreationRequest:
-    return (
-        BoundProviderRequest.model_validate(raw)
-        if isinstance(document.plan, ProviderPublishPlan)
-        else SocialBoundRequest.model_validate(raw)
-    )
+    if isinstance(document.plan, ProviderPublishPlan):
+        return BoundProviderRequest.model_validate(raw)
+    if isinstance(document.plan, LinkedPushPlanV1):
+        return LinkedPushBoundRequestV1.model_validate(raw)
+    return SocialBoundRequest.model_validate(raw)
 
 
 def receipt_for(document: CreationExecutionReview, raw: dict[str, object]) -> CreationReceipt:
@@ -375,6 +408,7 @@ def claim_creation_step(
     clock: Clock,
 ) -> DispatchClaim | None:
     run, document = locked_run(db, wid, run_id, actor, store, runtime, clock)
+    new_creation_allowed(document.plan)
     ledger, policy = mandates.checked(db, wid, document.mandate, actor, clock)
     if run.reservation_id is None:
         e = document.exposure
@@ -479,6 +513,16 @@ def claim_creation_step(
             step.step_id,
             {k: v for k, v in receipts.items() if isinstance(v, ProviderReceipt)},
             {k: v for k, v in originals.items() if isinstance(v, BoundProviderRequest)},
+            fence,
+            now,
+        )
+    elif isinstance(document.plan, LinkedPushPlanV1):
+        request = materialize_linked_push(
+            document.plan,
+            run.id,
+            step.step_id,
+            {k: v for k, v in receipts.items() if isinstance(v, SocialProviderReceipt)},
+            {k: v for k, v in originals.items() if isinstance(v, LinkedPushBoundRequestV1)},
             fence,
             now,
         )
@@ -671,6 +715,8 @@ def record_receipt(
             from app.executors.google_publication import serialize
 
             expected_kind = serialize(request)[0]
+        elif isinstance(request, LinkedPushBoundRequestV1):
+            expected_kind = LINKED_OUTPUTS[request.step.operation.kind]
         else:
             from app.publication.social_contracts import OUTPUT_KINDS
 
@@ -845,6 +891,12 @@ def unknown(request: CreationRequest, now: datetime) -> CreationReceipt:
         evidence="unresolved",
         observed_at=now,
     )
+    if isinstance(request, LinkedPushBoundRequestV1):
+        values["resource_kind"] = LINKED_OUTPUTS[request.step.operation.kind]
+    elif isinstance(request, SocialBoundRequest):
+        from app.publication.social_contracts import OUTPUT_KINDS
+
+        values["resource_kind"] = OUTPUT_KINDS[request.step.operation.kind]
     return (
         ProviderReceipt.model_validate(values)
         if isinstance(request, BoundProviderRequest)
@@ -861,6 +913,7 @@ def checked_dispatch_step(
     clock: Clock,
 ) -> ProviderExecutionStep:
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, store, runtime, clock)
+    new_creation_allowed(document.plan)
     attempt = db.get(ProviderExecutionAttempt, claim.attempt_id)
     step = db.get(ProviderExecutionStep, (run.id, claim.request.step.step_id))
     if (
@@ -892,8 +945,13 @@ def execute_claim(
         runtime.google_context(request) if isinstance(request, BoundProviderRequest) else None
     )
     social_context = (
-        runtime.social_context(request) if not isinstance(request, BoundProviderRequest) else None
+        runtime.social_context(request) if isinstance(request, SocialBoundRequest) else None
     )
+    linked_context = None
+    if isinstance(request, LinkedPushBoundRequestV1):
+        if runtime.linked_context is None or runtime.linked_tiktok is None:
+            raise HTTPException(409, "linked runtime unavailable")
+        linked_context = runtime.linked_context(request)
     step = checked_dispatch_step(db, claim, actor, store, runtime, clock)
     step.state = "emitting"
     db.commit()  # durable one-emission marker; cancellation now preserves this in-flight attempt
@@ -904,6 +962,9 @@ def execute_claim(
         if isinstance(request, BoundProviderRequest):
             assert google_context is not None
             response = runtime.google.apply_once(request, google_context, clock())
+        elif isinstance(request, LinkedPushBoundRequestV1):
+            assert linked_context is not None and runtime.linked_tiktok is not None
+            response = runtime.linked_tiktok.apply_once(request, linked_context, clock())
         else:
             adapter = (
                 runtime.meta if request.scope.account.platform == "meta_ads" else runtime.tiktok
@@ -921,6 +982,13 @@ def execute_claim(
         if isinstance(request, BoundProviderRequest) and isinstance(response, ProviderResponse):
             receipt = runtime.google.read_back(
                 request, response, runtime.google_context(request), clock()
+            )
+        elif isinstance(request, LinkedPushBoundRequestV1) and isinstance(
+            response, SocialProviderResponse
+        ):
+            assert runtime.linked_context is not None and runtime.linked_tiktok is not None
+            receipt = runtime.linked_tiktok.read_back(
+                request, response, runtime.linked_context(request), clock()
             )
         elif isinstance(request, SocialBoundRequest) and isinstance(
             response, SocialProviderResponse
@@ -960,6 +1028,15 @@ def reconcile_attempt(
                 request,
                 [ProviderResponse.model_validate(r) for r in raw_history],
                 runtime.google_context(request),
+                clock(),
+            )
+        elif isinstance(request, LinkedPushBoundRequestV1):
+            if runtime.linked_context is None or runtime.linked_tiktok is None:
+                raise HTTPException(409, "linked runtime unavailable")
+            receipt = runtime.linked_tiktok.reconcile(
+                request,
+                [SocialProviderResponse.model_validate(r) for r in raw_history],
+                runtime.linked_context(request),
                 clock(),
             )
         else:

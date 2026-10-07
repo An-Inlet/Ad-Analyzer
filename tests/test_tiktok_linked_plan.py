@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 from app.publication.social_compiler import compile_social
-from app.publication.social_contracts import SocialProviderReceipt
+from app.publication.social_contracts import SocialProviderReceipt, SocialPublicationReview
 from app.publication.tiktok_linked_plan import (
     LINKED_OUTPUTS,
     LinkedPushBoundRequestV1,
@@ -20,8 +20,8 @@ from tests.test_commerce_measurement import NOW
 from tests.test_social_publication_http import tiktok_reviewed
 
 
-def linked_review() -> LinkedPushPublicationReviewV1:
-    old = tiktok_reviewed()
+def linked_review(old: SocialPublicationReview | None = None) -> LinkedPushPublicationReviewV1:
+    old = old or tiktok_reviewed()
     fields = old.configuration.model_dump(mode="json")
     del fields["identity_type"], fields["identity_id"]
     fields.update(

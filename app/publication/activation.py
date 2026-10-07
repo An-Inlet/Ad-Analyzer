@@ -42,6 +42,7 @@ from app.publication.execution_models import (
 from app.publication.provider_contracts import BoundProviderRequest, Id, ProviderResponse
 from app.publication.service import owner
 from app.publication.social_contracts import SocialProviderResponse
+from app.publication.tiktok_linked_plan import LinkedPushBoundRequestV1
 from app.shopify.security import utc
 from app.workspaces.models import Workspace
 
@@ -553,6 +554,15 @@ def preflight_graph(
                 original,
                 [ProviderResponse.model_validate(r) for r in raw_history],
                 base.google_context(original),
+                clock(),
+            )
+        elif isinstance(original, LinkedPushBoundRequestV1):
+            if base.linked_tiktok is None or base.linked_context is None:
+                raise HTTPException(409, "linked historical reader unavailable")
+            receipt = base.linked_tiktok.reconcile(
+                original,
+                [SocialProviderResponse.model_validate(r) for r in raw_history],
+                base.linked_context(original),
                 clock(),
             )
         else:

@@ -157,3 +157,18 @@ def test_special_capabilities_keep_missing_and_false_distinct() -> None:
     # AVAILABLE does not fill missing GPPPA or override denied push permission.
     assert facts.can_push_video.value is False and facts.is_gpppa.value is None
     assert "username" not in facts.model_dump_json()
+
+
+@pytest.mark.parametrize("text", ["Only $10", "Now £20", "€30 sale", "価格 ¥100", "中" * 50])
+def test_ordinary_currency_copy_preserves_weighted_limit(text: str) -> None:
+    values = creative()
+    values["ad_text"] = text
+    assert LinkedPushCreativeV1.model_validate(values).ad_text == text
+
+
+@pytest.mark.parametrize("text", ["$10 😀", "€20\ufe0f", "中" * 51, "$10\n"])
+def test_currency_does_not_bypass_emoji_controls_or_weighted_limit(text: str) -> None:
+    values = creative()
+    values["ad_text"] = text
+    with pytest.raises(ValueError):
+        LinkedPushCreativeV1.model_validate(values)

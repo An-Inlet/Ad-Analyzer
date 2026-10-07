@@ -8,6 +8,7 @@ from typing import Annotated, Literal, Protocol
 from pydantic import AwareDatetime, Field, model_validator
 from sqlalchemy.orm import Session
 
+from app.executors.tiktok_linked_publication import LinkedPushTikTokTransport
 from app.goals.schemas import StrictModel
 from app.publication.contracts import fingerprint
 from app.publication.execution_authorization import ExecutionAuthorizer, owner_authorizer
@@ -36,11 +37,14 @@ from app.publication.social_contracts import (
     SocialPublishPlan,
 )
 from app.publication.social_review_contracts import SocialConfigurationDocument
+from app.publication.tiktok_linked_plan import LinkedPushBoundRequestV1, LinkedPushPlanV1
+from app.publication.tiktok_linked_review_contracts import LinkedPushConfigurationDocumentV1
 
 CreationPlan = Annotated[
-    ProviderPublishPlan | SocialPublishPlan, Field(discriminator="schema_version")
+    ProviderPublishPlan | SocialPublishPlan | LinkedPushPlanV1,
+    Field(discriminator="schema_version"),
 ]
-CreationRequest = BoundProviderRequest | SocialBoundRequest
+CreationRequest = BoundProviderRequest | SocialBoundRequest | LinkedPushBoundRequestV1
 CreationReceipt = ProviderReceipt | SocialProviderReceipt
 CreationResponse = ProviderResponse | SocialProviderResponse
 
@@ -126,6 +130,11 @@ class CreationRuntime:
     social_configuration_current: Callable[[SocialConfigurationDocument, datetime], None] | None = (
         None
     )
+    linked_tiktok: LinkedPushTikTokTransport | None = None
+    linked_context: Callable[[LinkedPushBoundRequestV1], SocialProviderContext] | None = None
+    linked_configuration_current: (
+        Callable[[LinkedPushConfigurationDocumentV1, datetime], None] | None
+    ) = None
 
 
 class DispatchClaim(StrictModel):

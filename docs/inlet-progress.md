@@ -6901,3 +6901,17 @@ and 2 actual stored initial job/result export cases passed with durations record
 Whole Ruff and mypy (923 files) passed. See
 `docs/inlet-initial-rule-central-checkpoint.md` for commands, logs, limitations and
 the corrected test-only typing error. No Full, remote, hosted or live action.
+
+### Initial Start Concurrency And Admission Acceptance
+
+Test-only lane from4ec67ee adds real owned Start then revoked-original-mandate and
+spent-ledger denial, two simultaneous independent PostgreSQL workers, actual0085
+populated downgrade refusal, and ordinary configured maintenance dispatch. No
+production changes; no seeded execution/admission/approval. Complete narrow run
+9passed1expectedSQLiteconcurrencyskip149.94s. Positivefixture explicitlyuses120s
+native/preview lifetime beforeproduction, leaving ordinary30sdefault unchanged.
+WholeRuff/mypy934passed. Detailedfixtureboundaries/evidence and complementary
+unknown-provider authorcoverage: `inlet-initial-concurrency-acceptance.md`.
+Initial acceptance strengthened consumed-origin assertion: affected3positivecases
+passed131.58s (7deselected), `/tmp/inlet-initial-acceptance-origin.log`; exactone
+origin/admission/attempt/POST andzeroapproval onbothDBmaintenance andPGcompetition.

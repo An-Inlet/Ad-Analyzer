@@ -138,9 +138,12 @@ available permitted dispatch mechanism. No previously denied shell dispatch rout
 may be retried or bypassed. If no permitted mechanism is available, the owner must
 perform the exact reviewed dispatch; preparation is not authorization to run it.
 
-Focused routing/CLI/existing orchestration checks:33 passed,16 skipped because
-PowerShell is unavailable in this environment. Final expanded case-aware routing
-cohort:11 passed. Ruff, targeted mypy and diff checks passed. Logs are
+Focused routing/CLI/existing orchestration checks initially:33 passed,16 skipped
+because the available PowerShell launcher was absent from that invocation PATH.
+Corrected PATH `/workspace/inlet-tools:/workspace/inlet-venv/bin:$PATH`: all sixteen
+previously skipped PowerShell cases passed (9.68 seconds,18 other cases deselected).
+Final expanded case-aware routing cohort:11 passed. Ruff, targeted mypy and diff checks passed. Logs are
 `/tmp/inlet-ci-startup-mode-tests.log` and
-`/tmp/inlet-ci-startup-mode-final-tests.log`. This local preparation did not change
+`/tmp/inlet-ci-startup-mode-final-tests.log`, plus
+`/tmp/inlet-ci-startup-mode-powershell.log`. This local preparation did not change
 945 or launch any hosted job. Hosted startup cause remains unresolved.

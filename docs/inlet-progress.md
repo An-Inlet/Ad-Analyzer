@@ -5671,7 +5671,9 @@ under `/workspace/inlet-evidence/20261007`. New product packages remain isolated
   unknown or empty manual modes do not fall back to Full. GitHub case-insensitive
   expression semantics are represented explicitly in tests/documentation.
 - Structured YAML routing/pin/no-service assertions plus existing orchestration
-  and CLI checks:33 passed,16 existing PowerShell-unavailable skips. Final expanded
+  and CLI checks initially:33 passed,16 skips from a PATH omission of the available
+  PowerShell launcher. Corrected PATH rerun of precisely those cases:16 passed,
+  18 deselected in9.68seconds; no remaining skipped qualification. Final expanded
   routing11 passed; Ruff/mypy/diff clean. Official docs consulted read-only for
   registration/ref semantics. No push, merge, dispatch, paid run or Full; no retry
   of any denied shell route. Exact runtime pins and authorization boundary are in

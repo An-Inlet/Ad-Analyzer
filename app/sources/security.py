@@ -4,12 +4,12 @@ from typing import Any
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException
 
-from app.settings import settings
+from app.settings import Settings, settings
 
 
 class SourceVault:
-    def __init__(self) -> None:
-        key = settings.source_token_encryption_key
+    def __init__(self, configuration: Settings = settings) -> None:
+        key = configuration.source_token_encryption_key
         if key is None:
             raise HTTPException(503, "source encryption unavailable")
         try:

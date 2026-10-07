@@ -5864,3 +5864,13 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   and tests (**762 source files**) pass; diff check passes. These are mocked
   provider/offline results, not live qualification. Next package: actual TikTok
   TLS customer journey using the frozen ordinary configured fixture.
+
+### Explicit source-vault settings follow-up (2026-10-07)
+
+- `SourceVault(configuration: Settings = settings)` preserves existing default
+  callers and ciphertext bytes while owned TikTok contexts pass their explicit
+  configuration. Non-global key tests prove missing/wrong global secrets cannot
+  replace the explicit key; foreign scope still denies.
+- Focused vault and TikTok complete/credential-expiry cases: **8 passed**, 26
+  deselected, SQLite/PG, 103.22 seconds (`/tmp/inlet-tiktok-vault-followup.log`).
+  Ruff, targeted mypy (three files) and diff check pass. No schema or gate change.

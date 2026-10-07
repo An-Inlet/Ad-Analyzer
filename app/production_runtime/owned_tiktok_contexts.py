@@ -76,7 +76,7 @@ class OwnedTikTokContexts:
             if row is None or not row.encrypted_grant:
                 raise HTTPException(409, "tiktok_execution_credential_unavailable")
             try:
-                raw = SourceVault().open(
+                raw = SourceVault(self.configuration).open(
                     row.workspace_id, "tiktok_ads", row.id, row.encrypted_grant
                 )
                 token = raw["access_token"]

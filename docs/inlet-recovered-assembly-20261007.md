@@ -112,3 +112,41 @@ Independent test-repair review confirmed the ancestry correction and requested a
 literal0081 parent assertion instead of comparing the migration module to itself;
 that improvement is included. Final focused rerun:2 passed,2warnings in1.57s.
 Whole Ruff/mypy948/diff passed again after that correction.
+
+## Reviewed Successor Frozen For Full
+
+Third combined affected cohort on exact clean `a8a10ca` completed2026-10-07
+19:05:51UTC, exit0: **340 passed,3 skipped,23 warnings in1058.53s**;
+launcher1081.82s. All three skips are PostgreSQL-only lock/concurrency cases
+under SQLite; both native restore cases executed. Exact command, head/tree and
+JUnit are retained in `recovered-cohort-r3-start.json`, terminal JSON, log and XML.
+
+After checking successful terminal/JUnit results,343case inventory, expected skips,
+and unchanged clean checkout, the guarded continuation froze branch
+`codex/inlet-oct07-recovered-qualification` in
+`/workspace/inlet-oct07-recovered-qualification` at
+`a8a10cacbf6c0e7eac20d7e21574d91f4a0846c9`, tree
+`b8c07b5afbebd88fa8dc6447f56dbd2307b46432`.
+Exactly one successor **`bash scripts/validate.sh Full` started19:06:01UTC** against
+isolated disposable database `inlet_oct07_recovered_r3_ci`. It is RUNNING, not passed.
+LauncherPID635845 and passive resource sampler635846; `recovered-full-*` evidence
+records terminal status when available. Do not edit/reset/restart this frozen run.
+The instrumentation only adds per-pytest durations/JUnit; validation script unchanged.
+This ledger commit follows the freeze and is documentation only.
+
+Initial automatic work remains separate: backend4ec67ee, sourcefactor144786f,
+UI9e3ea5a, unknown-provider actualHTTPS testf3909b3, concurrency test086c426
+(integrated initialbranchadf8015). Reviewed browser/compatibility22 checks plus
+unknown-provider2 passed; concurrency9 passed/1expectedSQLite skip and strengthened
+positive3 passed. Simultaneous Start race still pending, distinct from competing
+worker coverage. Full candidate intentionally ends at schema0083, excluding0084/0085.
+
+Independent actual worker timing at144786f, three repeated PostgreSQL samples:
+22.204/21.272/20.503seconds; median21.272. Whole-call median30.844seconds.
+Each worker used36,884queries. Explicit120sfixture, concurrentR3 load, unquantified
+instrumentation overhead included. Ordinary30s operation remains unqualified.
+No performance guarantee or live qualification follows from these measurements.
+
+Remote main/pushed candidate9450aa48/draftPR130 and owner-pending hosted diagnostic
+are unchanged. No hosted retry, live provider/model call, credentials, spending,
+remote merge or deployment. Prior failed Full and recovered WIP remain preserved.

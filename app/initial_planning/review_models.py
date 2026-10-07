@@ -2,7 +2,15 @@
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Integer, String
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
@@ -11,6 +19,7 @@ from app.database.session import Base
 class InitialPreviewReviewLink(Base):
     __tablename__ = "initial_preview_reviews"
     __table_args__ = (
+        Index("uq_initial_review_owned", "review_id", "workspace_id", unique=True),
         ForeignKeyConstraint(
             ["review_id", "workspace_id"],
             ["provider_execution_reviews.id", "provider_execution_reviews.workspace_id"],

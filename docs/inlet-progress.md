@@ -6345,3 +6345,44 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   diffcheck pass. Evidence /tmp/inlet-v2-review-contracts.log. No DB, routes, runtime
   registration, UI, migration, Full, remote or live calls. This freeze grants no
   financial authority and does not implement the future durable handoff service.
+
+### 2026-10-07 — 0081 V2 Execution Proof Storage
+
+- Added immutable owned hash-only proof table, composite CASCADE FK and unique link
+  index without rebuilding populated SQLite parents. Portable insert guards bind
+  existing v2 preview/link/protected review commitments. ORM preinsert additionally
+  validates canonical proof/preview/native/review/plan hashes, full execution mandate,
+  separately bound planning references and reconstructed handoff intent. Missing or
+  NULL-retracted pointers deny insertion; retained protected review origin survives.
+- V2 link intent now explicitly means new handoff intent and mandate digest execution
+  policy; unchanged v1 interpretation is separated by immutable preview schema. No
+  additional version marker is needed, but future v2 guard must reject missing proof
+  without falling through. Strict16KiB hash-only historical export and protected
+  lifecycle registry added, no session secret; no claim export grants current authority.
+- Combined48 tests passed32.87s on SQLite/PostgreSQL: actual0081 populated prior-link
+  downgrade/upgrade, metadata/migration ownership/immutability/cascade/retraction,
+  validly rehashed contradictory parent insert denial, malformed export and existing
+  v1 lifecycle/contracts. Final storage11 passed15.34s after qualified-state hash
+  crosscheck plus migration graph/frozenSQL parity (one existing Alembic config
+  deprecation warning). Whole Ruff/mypy818, format/diffcheck pass. Logs:
+  /tmp/inlet-v2-proof-final.log and /tmp/inlet-v2-proof-final-storage.log.
+- Historical0076 fixture now removes/restores the real0081 child around its direct
+  parent migration roundtrip. Positive v2 storage parents are internally canonical
+  typed structural fixtures, not a customer handoff or claimed financial admission.
+  No route/runtime/UI, live calls, Full or remote actions. Remaining actual bridge
+  must perform original-session/current-source/policy/period/cap/consent validation
+  and every forward financial gate; historical reconciliation remains untouched.
+
+### 2026-10-07 — Bind V2 Proof Inner Commitments
+
+- Followup to af14eb8: proof qualification_digest now commits the entire retained
+  OptimizationQualification using inlet.initial-preview-execution-qualification.v1,
+  not only evidence_digest. semantic_match_digest must equal the existing
+  NativeReviewMatchV1 digest recomputed from retained native preview and review state.
+  Both canonical checks run before ORM proof insertion; no new eligibility fact or
+  authority is inferred. Domains documented in the storage design.
+- BothDB storage/migration tests now reject each contradictory inner hash after
+  recomputing a valid outer proof hash.35 affected tests passed14.14s (one existing
+  Alembic config deprecation warning); whole Ruff/mypy818, format/diffcheck pass.
+  Evidence /tmp/inlet-v2-proof-commitments.log. No schema expansion, route/runtime,
+  Full, remote or live actions.

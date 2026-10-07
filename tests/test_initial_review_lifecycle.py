@@ -57,9 +57,15 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
 ) -> None:
     migration = importlib.import_module("migrations.versions.20261006_0076_initial_preview_review")
     if actual_migration:
+        proof_migration = importlib.import_module(
+            "migrations.versions.20261007_0081_initial_execution_proof"
+        )
         with customer_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
+            # Remove the actual newer child before exercising its historical parent.
+            proof_migration.downgrade()
             migration.downgrade()
             migration.upgrade()
+            proof_migration.upgrade()
     wid, preview, principal, provider, runtime, server, _ = ready(
         customer_engine, configuration, monkeypatch, replicas
     )

@@ -59,3 +59,11 @@ and HTTPS/provider-contract journeys must not be replaced with stubs for speed.
 Sequence larger focused browser/database cohorts when the Full is active. Do not
 retry hosted validation or shorten local coverage to investigate this performance
 question. Hosted browser startup diagnosis remains a separate owner-pending task.
+
+
+Additional measured successor UI cohort:45passed244.08s. Slowest individual call
+phases were `test_customer_social_execution_ui.py::test_social_execution_real_browser`
+TikTok journeys,43.35s PostgreSQL and39.08s SQLite. Meta PostgreSQL journey10.37s
+and TikTok clarity9.56s/9.11s followed. These are exact focused-run durations;
+they identify worthwhile profiling targets without attributing the whole Full
+runtime to them or replacing genuine browser/video validation with mocks.

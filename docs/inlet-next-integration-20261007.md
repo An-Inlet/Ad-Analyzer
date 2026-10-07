@@ -487,3 +487,19 @@ Ruff/mypy877/diff passed. The only cherry-pick conflict was append-only progress
 documentation; both histories were retained. Exact log and terminal metadata are
 checksummed. This successor was not added to frozen2476 Full, and no live Shopify
 call, remote action or deployment occurred.
+
+
+## Customer Budget Observation — Integrated UI
+
+Reviewed source1f87ccf integrated atda6c1fd adds an explicit saved-run Google
+budget observation. It separates original/current native settings from the recorded
+reservation, validates exact response/run/environment/freshness, and clears stale
+workspace/run/session/logout/expiry results. No automatic native read or reservation
+change occurs; unsupported runs return a clear unavailable result.
+
+Root integrated new DOM/HTTPS plus existing Google/social execution UI cohort:
+**45passed244.08s**, zero skips, both databases. Whole Ruff/mypy879, both Node
+syntax checks and diff passed. Author's new3passed9.45s and all-three configured
+creation/activation6passed123.53s remain overlapping package evidence. Only appended
+progress documentation conflicted during cherry-pick; both histories were retained.
+Logs and terminal metadata are checksummed. This remains outside frozen2476 Full.

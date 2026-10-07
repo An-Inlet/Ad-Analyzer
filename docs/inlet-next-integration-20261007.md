@@ -461,3 +461,29 @@ file cache/reclaimable slab and later memory-limit reclamation events without OO
 These are observations, not a concluded bottleneck. Full quiet progress permits
 approximate group windows only; it cannot retrospectively provide precise per-test
 durations. Further heavy cohorts are sequenced to avoid unnecessary contention.
+
+
+## Owned Resumable Shopify Acquisition — Reviewed Integration
+
+Source512df29 (b0eeeeb implementation plus2cdc759 atomicity and512df29 deadline
+repairs) integrated at9860f13. The actual configured owner API creates a fixed
+acquisition request; each leased worker step performs at most one bounded GraphQL
+read. Migration0082 owns job/checkpoint/seen staging, invalidation and bounded cleanup.
+Existing v2 publications remain unresolved/unqualified, with no snapshot, settlement
+or directional claim. Dedicated cadence and expiry do not promise every store can
+complete within the limits.
+
+Independent review reproduced a genuine late-authorization publication leak in both
+databases (publication2vs1 despite unavailable job). A real savepoint now contains
+publication/revision/terminal staging changes and all final checks. Deadline is
+resampled after the last potentially blocking authority check. Author's10 focused
+ordinary/late-failure cases passed18.37s; independent final original-provider-denial
+cases2passed5.31s. Review closed with no remaining actionable finding. Earlier failed
+b0 evidence is retained, not relabeled as passing.
+
+Root actual API/worker/new storage and historical0081 cohort: **47passed60.50s**,
+zero skips, three existing Alembic path-separator warnings, both databases. Whole
+Ruff/mypy877/diff passed. The only cherry-pick conflict was append-only progress
+documentation; both histories were retained. Exact log and terminal metadata are
+checksummed. This successor was not added to frozen2476 Full, and no live Shopify
+call, remote action or deployment occurred.

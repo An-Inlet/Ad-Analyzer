@@ -7023,3 +7023,20 @@ response field names and the expected 0.25 rather than 1.00 adjustment. They wer
 corrected in the fixture/assertions without loosening application gates. Configured
 origin checks correctly required actual 0080 consent rather than the earlier
 component fixture's direct-service mandate.
+
+### Continuous Fresh Customer Purchase, Planning And Monitoring Recovery
+
+Successor to7bb02e9 on `codex/inlet-continuous-purchase-acceptance` extends the real
+fresh-customer HTTPS pilot without seeding customer steps: unknown Stripe test
+checkout recovery retains original purchase identity; Google reconnect keeps one
+owned connection; goal editing advances its revision; saved progress/reload retains
+its exact definition and honestly reports a not-yet-started period. Session
+revocation clears progress and denies reads without provider IO. Existing actual
+signup/provisioning, Shopify consent/import, paid-test webhook reconciliation,
+planning consent, separate campaign review and second-brand isolation remain.
+
+BothDB focused suite2passed19.54s, `/tmp/inlet-continuous-fresh-both.log`; initial
+SQLite probe passed. Whole Ruff/mypy948/diff passed. No product edit or Full/remote/
+live action. This is planning consent/offline campaign approval, not financial
+execution consent; the fresh customer→configured execution bridge remains explicit.
+See `inlet-continuous-purchase-acceptance.md` for exact fixture boundaries and gaps.

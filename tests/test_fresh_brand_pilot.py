@@ -41,7 +41,7 @@ from app.commerce.ledger import MEASUREMENT_SCOPES
 from app.commerce.models import CommerceEntry
 from app.commerce.sync import CommerceSyncService
 from app.customers.identity import get_identity_provider
-from app.customers.models import CustomerMembership, CustomerUser
+from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.database.session import Base, get_db
 from app.goals import service as goals
 from app.goals.models import Goal
@@ -452,6 +452,17 @@ def test_fresh_visible_brand_journey(
         root = f"/api/customer/v1/workspaces/{wid}"
         assert len(browser.api("/api/customer/v1/workspaces")["body"]) == 1
         browser.ready("!$('checkout').hidden && !$('checkout').disabled")
+        billing.lost = True
+        browser.js("$('checkout').click()")
+        browser.ready("$('message').className === 'error' && !$('billing-refresh').disabled")
+        assert len(billing.post_keys) == 1
+        original_checkout_key = billing.post_keys[0]
+        # Recover the provider-accepted checkout through the ordinary customer GET.
+        # No response loss may mint a replacement purchase or grant entitlement.
+        billing.lost = False
+        browser.js("$('billing-refresh').click()")
+        browser.ready("$('checkout').textContent.includes('Resume') && !$('checkout').disabled")
+        assert len(set(billing.post_keys)) == 1
         browser.js("$('checkout').click()")
         browser.ready("$('provider-return') !== null")
         browser.js("$('provider-return').click()")
@@ -499,6 +510,22 @@ def test_fresh_visible_brand_journey(
         browser.ready(
             "$('google-disconnect') && !$('google-disconnect').hidden && !$('retry').disabled"
         )
+        with factory() as db:
+            connected = db.scalar(select(GoogleCustomerConnection))
+            assert connected
+            original_google_id = connected.id
+        # Reauthorize the same selected account through the customer's OAuth UI.
+        browser.js("$('google-authorize').click()")
+        browser.ready("$('consent-approve') !== null")
+        browser.js("$('consent-approve').click()")
+        browser.ready("$('google-selection') && !$('google-selection').hidden")
+        browser.js("$('google-select').click()")
+        browser.ready(
+            "$('google-disconnect') && !$('google-disconnect').hidden && !$('retry').disabled"
+        )
+        with factory() as db:
+            assert db.scalar(select(func.count()).select_from(GoogleCustomerConnection)) == 1
+            assert db.scalar(select(GoogleCustomerConnection.id)) == original_google_id
         browser.js(
             "$('shopify-domain').value="
             + json.dumps(SHOP)
@@ -533,6 +560,18 @@ def test_fresh_visible_brand_journey(
         browser.ready(
             "$('message').textContent.includes('Goal draft saved') && !$('retry').disabled"
         )
+        original_goal = browser.api(root + "/goals")["body"][0]
+        browser.js(
+            "$('goal-form').elements.namedItem('target').value='12000';"
+            "$('goal-form').elements.namedItem('target').dispatchEvent(new Event('input',"
+            "{bubbles:true}));$('goal-form').requestSubmit()"
+        )
+        browser.ready(
+            "$('message').textContent.includes('Goal draft saved') && !$('retry').disabled"
+        )
+        edited_goal = browser.api(root + "/goals")["body"][0]
+        assert edited_goal["id"] == original_goal["id"]
+        assert edited_goal["revision"] == original_goal["revision"] + 1
         browser.js("$('preview').click()")
         browser.ready("!$('review').hidden && !$('confirm').disabled")
         assert "90.00" in browser.js("$('review-data').textContent")
@@ -705,7 +744,42 @@ def test_fresh_visible_brand_journey(
             assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
             assert db.scalar(select(func.count()).select_from(AutomaticDecisionAdmission)) == 0
-        assert len(billing.post_keys) == 1
+        assert set(billing.post_keys) == {original_checkout_key}
+        # A future target period is observable but cannot invent zero sales or success.
+        browser.js(
+            "$('goal').value=" + json.dumps(goal_id)
+            + ";$('goal').dispatchEvent(new Event('change'))"
+        )
+        browser.ready("!$('goal-progress').hidden && !$('goal-progress-refresh').disabled")
+        progress_path = root + "/goals/" + goal_id + "/progress?expected_revision=" + str(
+            edited_goal["revision"]
+        )
+        progress = browser.api(progress_path)
+        assert progress["status"] == 200
+        assert progress["body"]["status"] == "not_started"
+        assert progress["body"]["net_sales_micros"] is None
+        assert progress["body"]["spending_authorized"] is False
+        browser.navigate("/app?workspace=" + str(wid))
+        browser.ready("!$('workspace-content').hidden && !$('retry').disabled")
+        browser.js(
+            "$('goal').value=" + json.dumps(goal_id)
+            + ";$('goal').dispatchEvent(new Event('change'))"
+        )
+        browser.ready("!$('goal-progress').hidden && !$('goal-progress-refresh').disabled")
+        assert browser.api(progress_path)["body"]["definition_digest"] == progress["body"][
+            "definition_digest"
+        ]
+        # Operational revocation is an adverse control, never fixture provisioning.
+        with factory() as db:
+            for session in db.scalars(select(CustomerSession)):
+                session.revoked_at = int(time.time())
+            db.commit()
+        before = len(native_calls)
+        browser.js("$('goal-progress-refresh').click()")
+        browser.ready("$('application').hidden")
+        assert browser.api(progress_path)["status"] == 401
+        assert browser.js("$('goal-progress').hidden && $('goal-progress-data').textContent === ''")
+        assert len(native_calls) == before
     finally:
         if browser:
             browser.context.close()

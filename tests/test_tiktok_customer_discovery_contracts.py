@@ -49,3 +49,34 @@ def test_intent_cannot_supply_native_identity_or_proof(extra: str) -> None:
         TikTokDiscoveryIntentV1.model_validate(
             {"account_id": 1, "identity_type": "TT_USER", extra: "forbidden"}
         )
+
+
+@pytest.mark.parametrize(
+    "presence,count,truncated",
+    [
+        ("absent", 0, False),
+        ("null", None, True),
+        ("present", None, False),
+        ("present", 1, False),
+        ("present", 0, True),
+    ],
+)
+def test_event_display_cannot_invent_missing_counts(
+    presence: str,
+    count: int | None,
+    truncated: bool,
+) -> None:
+    from app.collectors.tiktok_customer_discovery_contracts import TikTokPixelDisplayV1
+
+    with pytest.raises(ValidationError):
+        TikTokPixelDisplayV1.model_validate(
+            dict(
+                label="Pixel",
+                ownership="unknown",
+                events_presence=presence,
+                events_count=count,
+                events=(),
+                events_display_truncated=truncated,
+                reasons=("pixel_scalar_shape_unverified", "tracking_readiness_unknown"),
+            )
+        )

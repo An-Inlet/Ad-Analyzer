@@ -40,6 +40,12 @@ class TikTokIdentityDisplayV1(Frozen):
     permissions: tuple[TikTokPermissionDisplayV1, ...] = Field(max_length=6)
     reasons: tuple[Literal["custom_identity_phaseout", "identity_route_not_assessed"], ...]
 
+    @model_validator(mode="after")
+    def unique_permissions(self) -> "TikTokIdentityDisplayV1":
+        if len({value.name for value in self.permissions}) != len(self.permissions):
+            raise ValueError("duplicate permission display")
+        return self
+
 
 EventReason = Literal[
     "event_deprecated",
@@ -63,6 +69,19 @@ class TikTokPixelDisplayV1(Frozen):
     events: tuple[TikTokEventDisplayV1, ...] = Field(max_length=20)
     events_display_truncated: bool
     reasons: tuple[Literal["pixel_scalar_shape_unverified", "tracking_readiness_unknown"], ...]
+
+    @model_validator(mode="after")
+    def event_display_consistency(self) -> "TikTokPixelDisplayV1":
+        if self.events_presence != "present":
+            if self.events_count is not None or self.events or self.events_display_truncated:
+                raise ValueError("unobserved events have no count or display")
+        elif (
+            self.events_count is None
+            or len(self.events) != min(20, self.events_count)
+            or self.events_display_truncated != (self.events_count > 20)
+        ):
+            raise ValueError("inconsistent event display")
+        return self
 
 
 class TikTokDiscoveryViewV1(Frozen):

@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
+from app.production_runtime.optimization_origin_metadata import register as register_origin_metadata
 from app.production_runtime.optimization_origin_triggers import register as register_origin
 
 
@@ -484,3 +485,5 @@ class GoogleOriginalCompletion(Base):
 
 
 register_origin(Base.metadata.tables["provider_execution_revisions"], parent=True)
+
+register_origin_metadata(Base.metadata.tables["provider_execution_revisions"])

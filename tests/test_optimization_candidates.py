@@ -513,11 +513,15 @@ def test_failed_tenant_does_not_starve_other_owned_read(
     from tests import test_google_action_plans as fixtures
     from tests.test_mandates import seed
 
-    monkeypatch.setattr(fixtures, "seed", lambda db, config: seed(db, config, "first"))
+    monkeypatch.setattr(
+        fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "first", **kwargs)
+    )
     with Session(customer_engine) as db:
         first, work1, observation1, _, runtime1, _ = fixture(db, configuration, tmp_path / "first")
         first_id = s.enqueue(db, first, work1, runtime1).id
-    monkeypatch.setattr(fixtures, "seed", lambda db, config: seed(db, config, "second"))
+    monkeypatch.setattr(
+        fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "second", **kwargs)
+    )
     with Session(customer_engine) as db:
         second, work2, observation2, _, runtime2, _ = fixture(
             db, configuration, tmp_path / "second"

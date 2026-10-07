@@ -5438,3 +5438,42 @@ Final combined automation/orchestration/diagnostics run: **83 passed, zero skips
 repeat/reset integration. Log /tmp/inlet-ci-powershell-closure-fixed.log. Real browser
 H.264/AAC preflight passed too. See inlet-ci-cost-recovery.md for source/install and
 review evidence. No hosted run or product qualification is claimed by these checks.
+
+## October 7 — Local Qualification Repairs In Progress
+
+Frozen candidate `9396839c9128bfa5862122fbc1674c541932cf24` remains unchanged in
+`/workspace/inlet-oct07-validation`. Its single Full run started about 05:56:57 UTC
+and is still running; it has a recorded failure and is not qualified. No hosted
+run, push, merge, deployment or live provider call has occurred in this package.
+
+The historical 0062 candidate migration test invokes current fixture producers.
+A newer planning privacy hook reached `reported_feedback_jobs`, which correctly
+does not exist at 0062. Reproduced against disposable PostgreSQL, then used the
+existing test-only `without_initial_planning` adapter, which asserts the historical
+planning tables are absent. The actual populated candidate upgrade/downgrade
+and retained-mandate assertions remain intact. Application guards are unchanged.
+
+Broader checks exposed two tenant-isolation fixture failures: seed wrappers did
+not forward the shared seed's `days` and `goal_budget_micros` keyword arguments.
+The two tenant wrappers and the identical feedback-erasure wrapper now forward
+those arguments while preserving their distinct workspace slugs.
+
+Checks actually run on `codex/inlet-oct07-validation-repairs`:
+
+- Historical migration reproduction failed with missing `reported_feedback_jobs`;
+  the repaired exact migration case passed. Logs: `/tmp/inlet-oct07-candidate-repro.log`
+  and `/tmp/inlet-oct07-candidate-fixed.log`.
+- Candidate migration, candidate service, initial-planning lifecycle and reported
+  lifecycle: **2 failed, 81 passed, 2 skipped in 215.04 seconds** before keyword
+  wrapper repair. Both failures were the tenant wrapper on SQLite/PostgreSQL.
+  Both skips are SQLite-only row-lock tests, whose PostgreSQL variants ran.
+  Log: `/tmp/inlet-oct07-repair-focused.log`.
+- Repaired tenant-isolation case plus all feedback-storage cases: **26 passed in
+  41.57 seconds**, SQLite and PostgreSQL. No skips.
+  Log: `/tmp/inlet-oct07-fixture-kwargs-fixed.log`.
+- Whole-tree Ruff passed; mypy passed **705 source files**; `git diff --check` passed.
+
+Remaining: collect the frozen Full terminal result and every gate, repair any
+additional failures locally, then qualify one new immutable candidate before the
+authorized single normal PR-triggered hosted run. These focused results are not
+a full-suite or live-qualification claim.

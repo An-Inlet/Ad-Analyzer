@@ -199,7 +199,9 @@ def test_any_dependency_erases_numeric_parent_and_workspace_candidate_cache(
         from tests.test_mandates import seed
         from tests.test_optimization_candidates import fixture
 
-        monkeypatch.setattr(fixtures, "seed", lambda db, config: seed(db, config, "unrelated"))
+        monkeypatch.setattr(
+            fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "unrelated", **kwargs)
+        )
         principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path / "unrelated")
         other_job = enqueue(db, principal, work, runtime)
         other_id, other_wid = other_job.id, other_job.workspace_id

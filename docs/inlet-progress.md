@@ -6198,3 +6198,22 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   Optional replacement delegates only to admitted existing source ports; no new
   settlement endpoint or empirical live proof. UI/TLS followup separately owns the
   actual customer page; this checkpoint is backend offline acceptance only.
+
+### 2026-10-07 — Exact Local Financial Budget Boundaries
+
+- Isolated child of c418bc4. Reproduced old implicit normalization: Havana
+  2026-11-01 midnight maps to either04:00 or05:00UTC by fold; Apia
+  2011-12-30 midnight previously maps to10:00UTC and roundtrips to December31.
+  Shared financial budget-period helper now rejects either ambiguous or missing
+  boundary with sanitized409 financial_budget_period_unavailable. Both configured
+  optimization and initial-budget preparation use it. Explicit dates/timezone remain
+  authoritative; valid New York23/25-hour DST periods and ordinaryUTC are unchanged.
+- Final focused55 tests passed (terminal exit0), covering seven pure boundary cases,
+  four actual confirmed-goal optimization API cases on SQLite/PostgreSQL, and existing
+  initial-budget/configured optimization API positives and authority guards. Invalid
+  API requests create zero mandates/revisions/ledgers/provenance and open no provider
+  factory or HTTP. Invalid initial-budget API behavior was not separately exercised;
+  it uses the same tested converter, with its existing actual API regressions passing.
+- Whole Ruff and mypy784, five-file format check and git diffcheck pass. Evidence:
+  /tmp/inlet-budget-period-final.log. No goal/schema/legacy v1 hash, immutable ledger,
+  commerce measurement or runtime qualification changes. No Full, remote or live calls.

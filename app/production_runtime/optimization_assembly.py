@@ -2,9 +2,8 @@
 
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
-from datetime import UTC, datetime, time
+from datetime import datetime
 from functools import lru_cache
-from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import HTTPException
@@ -39,6 +38,7 @@ from app.production_runtime.optimization_contracts import (
 from app.production_runtime.optimization_policy_contracts import OptimizationOperatingPolicyV1
 from app.production_runtime.optimization_sources import registered_optimization_evidence
 from app.production_runtime.optimization_transport import optimization_execution_transport
+from app.publication.budget_period import financial_budget_period
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import (
@@ -76,11 +76,7 @@ def pinned(
 
 
 def period(definition: GoalDefinition) -> tuple[datetime, datetime]:
-    zone = ZoneInfo(definition.target_window.time_zone)
-    return (
-        datetime.combine(definition.budget_start, time.min, zone).astimezone(UTC),
-        datetime.combine(definition.budget_end, time.min, zone).astimezone(UTC),
-    )
+    return financial_budget_period(definition)
 
 
 class ConfiguredOptimization:

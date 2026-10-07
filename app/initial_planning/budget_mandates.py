@@ -1,8 +1,5 @@
 """Actual owned read-only preparation of separately consented conditional authority."""
 
-from datetime import UTC, datetime, time
-from zoneinfo import ZoneInfo
-
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -26,6 +23,7 @@ from app.initial_planning.contracts import PreviewIntentV1
 from app.initial_planning.native_budget_contracts import NativeBudgetOptionV1
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.publication import execution_mandates as mandates
+from app.publication.budget_period import financial_budget_period
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.execution_contracts import ExecutionAccount, ProviderMandatePolicy
@@ -90,6 +88,7 @@ def resolve(
         raise denied("budget_mandate_goal_limits_changed")
     rule = operating.rule(intent.aggressiveness)
     per_plan = min(intent.total_cap_micros, rule.per_plan_cap_micros)
+    starts_at, ends_at = financial_budget_period(definition)
     policy = ProviderMandatePolicy(
         workspace_id=wid,
         environment=operating.environment,
@@ -97,12 +96,8 @@ def resolve(
         goal_revision=goal.revision,
         currency=native.currency,
         time_zone=native.time_zone,
-        starts_at=datetime.combine(
-            definition.budget_start, time.min, ZoneInfo(native.time_zone)
-        ).astimezone(UTC),
-        ends_at=datetime.combine(
-            definition.budget_end, time.min, ZoneInfo(native.time_zone)
-        ).astimezone(UTC),
+        starts_at=starts_at,
+        ends_at=ends_at,
         accounts=[ExecutionAccount.model_validate(native.request.scope.model_dump())],
         total_cap_micros=intent.total_cap_micros,
         per_plan_cap_micros=per_plan,

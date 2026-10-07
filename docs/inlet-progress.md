@@ -6433,3 +6433,16 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - Next: independently review this parser; implement separately owned bounded native
   collector and linked-identity contract only after shared interfaces are approved.
   See [frozen parser interface and evidence limits](design/tiktok-native-discovery-parser-v1.md).
+
+### 2026-10-07 — Pure Linked TikTok Discovery Assessment
+
+- Added strict versioned assessment over frozen native parser pages and supplied
+  account scope. Retains selected observations/ID scalar qualification and fixed
+  reasons; publication eligibility always not_assessed, spend none, ownership only
+  scope consistency. No DB/freshness claim, catalog promotion or ad/create changes.
+-93 pure assessment/parser cases passed, including rehashed tampering and exact
+  SHOPPING with parser recognition deliberately unevaluated; whole Ruff/mypy832
+  pass. Log /tmp/inlet-linked-assessment.log. One expected serializer warning from
+  intentional wrong-type model_copy input. No DB, Full, remote or live operations.
+- Existing social publication contract compatibility:14 tests passed, preserving
+  original v1 source contracts; /tmp/inlet-linked-v1-compat.log. Diffcheck clean.

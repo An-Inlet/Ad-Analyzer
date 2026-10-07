@@ -50,3 +50,19 @@ Unknown enum recognition and applicability come from the frozen parser. Contradi
 ## Focused Acceptance After Approval
 
 Use actual pure parser fixtures, not fabricated eligible catalog objects. Cases: all necessary TT/BC facts present still not_assessed; CustomIdentity no missing-status false alarm; AUTH_CODE unsupported; each absent/null/false permission; GPPPA; wrong BC/account/digest/duplicate identity; UNBOUND versus SHARED and null/TRANSFERRED ownership; empty delayed events; deprecated/null PAGE_VIEW/unknown/non-SHOPPING; strict integer-versus-string IDs retained; model_copy tampering rejected; deterministic digest/reasons; no IO or mutation. Preserve all historical social configuration/compiler hashes. Run focused pure tests, Ruff/mypy/diff only; no DB, Full, remote or live calls.
+
+## Implemented Checkpoint
+
+`app/publication/tiktok_linked_assessment.py` implements the proposed pure callable
+and strict request/result. `ownership_assessment="scope_consistency_only"` explicitly
+labels the supplied account comparison; it is not database ownership or freshness
+proof. SHOPPING is compared as the exact returned current-profile necessary fact,
+accepting the parser's deliberate `not_evaluated` enum recognition without treating
+that as unsupported. No source registration, catalog conversion, ad wire or TTL.
+
+Actual parser-backed tests cover complete TT/BC facts without eligibility, other
+routes, negative/null permissions, BC binding, shared/unbound/transferred ownership,
+deprecated/PAGE_VIEW/other events, delayed empty events, exact string/integer IDs,
+and malicious model_copy plus recomputed digest.93 assessment/parser tests passed;
+the deliberately wrong-type model_copy case emits the expected Pydantic serializer
+warning before strict revalidation rejects it. Whole Ruff/mypy832 passed.

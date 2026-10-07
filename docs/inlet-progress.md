@@ -5769,3 +5769,37 @@ Alembic configuration warnings66.71s (/tmp/inlet-goal-lock-regressions.log).
 Includes controlled lock regression, exact roles, old goal services/migration,
 progress source/contract cases, actual goal-progress TLS and existing customer
 API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
+
+### Goal interpretation original-session delivery fence (2026-10-07)
+
+- Isolated child of `8a9cad1991c6848bd23a2aa5e9a5255b26f22b72`; fixes a
+  pre-existing interpretation gap, not a regression introduced by goal lock ordering.
+  The route authorized before `reserve()` committed, then returned adapter output
+  without rechecking original authority or goal revision after unlocked adapter work.
+- Controlled offline adapters reproduced eight actual API failures across SQLite
+  and PostgreSQL: revocation, expiry, owner-to-viewer change and goal revision drift
+  all returned HTTP 200. Corrected baseline: eight failed in 8.23 seconds,
+  `/tmp/inlet-goal-interpretation-baseline-corrected.log`. The first exploratory
+  baseline used an incorrect test session attribute for revoke/expiry; its evidence
+  is superseded by the corrected run, not counted as those reproductions.
+- `interpreter.run` now accepts an optional trusted `authorize_result` callback.
+  The customer route binds the actual original principal, canonical workspace-first
+  guard, refreshed owned goal and expected revision. It rechecks after adapter IO
+  before the usage update and again after the accounting commit before delivery.
+  Existing usage quotas, durable reservation and idempotency remain unchanged.
+- Guard denial suppresses output while retaining the actual completed/invalid/
+  uncertain call accounting. No proposal/result text is persisted. Tests verify
+  completed zero-cost usage remains counted and a newly authorized session cannot
+  replay the same call. A controlled post-accounting-commit revocation also denies
+  response delivery on both databases.
+- Exact prior source context is compared (store revision/status/basis, connection
+  identity/status, integration status and workspace privacy revision). This adds no
+  source freshness or baseline qualification requirement: the offline adapter still
+  receives only milestone text, and incomplete goals remain supported.
+- Checks: initial fixed interpreter/old-goal cohort **48 passed**; expanded
+  interpreter, old-goal, progress and controlled PG lock-order cohort **82 passed,
+  2 expected SQLite concurrency skips**, 3 existing Alembic warnings, 61.44 seconds
+  (`/tmp/inlet-goal-interpretation-final.log`). Final strengthened accounting/replay
+  cohort **14 passed**, 15.46 seconds (`/tmp/inlet-goal-interpretation-accounting.log`).
+  Whole Ruff, mypy (441 source files), and diff checks pass. No Full, remote action,
+  external model/provider call, live spending, schema change or deployment.

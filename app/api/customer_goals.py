@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, Query, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy import func, select
 
 from app.customers.access import (
@@ -206,7 +206,20 @@ def interpret(
     access(db, principal, provider, workspace_id, response, edit=True)
     item = service.owned(db, workspace_id, goal_id)
     service.expect(item, body.expected_revision)
-    return run(db, item, principal.user.id, body, adapter)
+    from app.goals.interpretation_context import context
+
+    original_context = context(db, item)
+
+    def authorize_result() -> None:
+        access(db, principal, provider, workspace_id, response, edit=True)
+        # Force a refresh even if this Session retains the pre-call Goal instance.
+        db.expire(item)
+        current = service.owned(db, workspace_id, goal_id)
+        service.expect(current, body.expected_revision)
+        if context(db, current) != original_context:
+            raise HTTPException(409, "goal interpretation context changed")
+
+    return run(db, item, principal.user.id, body, adapter, authorize_result=authorize_result)
 
 
 @router.get("/{goal_id}/progress", response_model=GoalSalesProgressV1)

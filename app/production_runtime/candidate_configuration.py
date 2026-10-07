@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from app.optimization_candidates.contracts import CandidatePolicy
 from app.optimization_candidates.service import ACTUAL_UNQUALIFIED_SCHEMAS
@@ -15,6 +15,11 @@ from app.production_runtime.optimization_contracts import OptimizationExecutionM
 from app.publication.contracts import fingerprint
 from app.publication.execution_contracts import Environment
 from app.publication.provider_contracts import Digest, Id
+from app.reported_feedback.candidate_configuration import (
+    ReportedRuleAssemblyManifestV1,
+    ReportedRuleEvidenceDescriptorV1,
+    ReportedRulePolicyBundleV1,
+)
 from app.session_automation.contracts import BudgetOperation, SessionAutomaticPolicy
 
 Name = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
@@ -161,10 +166,36 @@ class CandidateConfigurationError(ValueError):
 
 
 def validate_candidate_source(
-    manifest: CandidateAssemblyManifestV1,
-    bundle: CandidatePolicyBundleV1,
-    descriptor: CandidateEvidenceDescriptorV1,
+    manifest: CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
+    bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
+    descriptor: CandidateEvidenceDescriptorV1 | ReportedRuleEvidenceDescriptorV1,
 ) -> None:
+    if isinstance(manifest, ReportedRuleAssemblyManifestV1):
+        manifest = ReportedRuleAssemblyManifestV1.model_validate_json(manifest.model_dump_json())
+        if isinstance(bundle, ReportedRulePolicyBundleV1):
+            bundle = ReportedRulePolicyBundleV1.model_validate_json(bundle.model_dump_json())
+        if isinstance(descriptor, ReportedRuleEvidenceDescriptorV1):
+            descriptor = ReportedRuleEvidenceDescriptorV1.model_validate_json(
+                descriptor.model_dump_json()
+            )
+        if (
+            not isinstance(bundle, ReportedRulePolicyBundleV1)
+            or not isinstance(descriptor, ReportedRuleEvidenceDescriptorV1)
+            or manifest.policy_bundle_digest != bundle.digest()
+            or manifest.environment != bundle.environment
+            or manifest.environment != descriptor.environment
+            or descriptor.source_id != manifest.evidence_source_id
+            or descriptor.digest() != manifest.evidence_descriptor_digest
+            or descriptor.policy_bundle_digest != bundle.digest()
+            or (manifest.mode == "candidates_only" and bundle.automatic_policies)
+            or (manifest.mode == "session_automatic" and not bundle.automatic_policies)
+        ):
+            raise CandidateConfigurationError("candidate_configuration_invalid")
+        return
+    if not isinstance(bundle, CandidatePolicyBundleV1) or not isinstance(
+        descriptor, CandidateEvidenceDescriptorV1
+    ):
+        raise CandidateConfigurationError("candidate_configuration_invalid")
     manifest = CandidateAssemblyManifestV1.model_validate_json(manifest.model_dump_json())
     bundle = CandidatePolicyBundleV1.model_validate_json(bundle.model_dump_json())
     descriptor = CandidateEvidenceDescriptorV1.model_validate_json(descriptor.model_dump_json())
@@ -192,8 +223,16 @@ def load_candidate_configuration(
     policy_path: str | None,
     *,
     optimization_manifest: OptimizationExecutionManifestV1 | None,
-    source_descriptor: CandidateEvidenceDescriptorV1 | None = None,
-) -> tuple[CandidateAssemblyManifestV1, CandidatePolicyBundleV1] | None:
+    source_descriptor: CandidateEvidenceDescriptorV1
+    | ReportedRuleEvidenceDescriptorV1
+    | None = None,
+) -> (
+    tuple[
+        CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
+        CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
+    ]
+    | None
+):
     """Parse/pin documents only; a result does not mean a source is registered.
 
     Source validation is mandatory when assembly resolves a real registration.
@@ -223,14 +262,35 @@ def load_candidate_configuration(
         optimization = OptimizationExecutionManifestV1.model_validate_json(
             optimization_manifest.model_dump_json()
         )
-        manifest = CandidateAssemblyManifestV1.model_validate_json(read(manifest_path, 16384))
-        bundle = CandidatePolicyBundleV1.model_validate_json(read(policy_path, 65536))
+        manifest: CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1 = TypeAdapter(
+            Annotated[
+                CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
+                Field(discriminator="schema_version"),
+            ]
+        ).validate_json(read(manifest_path, 16384))
+        bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 = TypeAdapter(
+            Annotated[
+                CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
+                Field(discriminator="schema_version"),
+            ]
+        ).validate_json(read(policy_path, 65536))
         if (
-            not hmac.compare_digest(manifest.digest(), expected_manifest_digest)
+            isinstance(manifest, ReportedRuleAssemblyManifestV1)
+            != isinstance(bundle, ReportedRulePolicyBundleV1)
+            or not hmac.compare_digest(manifest.digest(), expected_manifest_digest)
             or manifest.optimization_manifest_digest != optimization.digest()
             or manifest.policy_bundle_digest != bundle.digest()
             or manifest.environment != bundle.environment
             or manifest.environment != optimization.environment
+            or (
+                isinstance(manifest, ReportedRuleAssemblyManifestV1)
+                and "meta_ads" not in optimization.providers
+            )
+            or (
+                isinstance(manifest, ReportedRuleAssemblyManifestV1)
+                and manifest.mode == "session_automatic"
+                and not bundle.automatic_policies
+            )
             or (manifest.mode == "candidates_only" and bundle.automatic_policies)
             or any(
                 {

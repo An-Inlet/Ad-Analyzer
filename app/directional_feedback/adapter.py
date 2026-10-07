@@ -29,8 +29,10 @@ from app.optimization_candidates.contracts import (
     CandidateDecision,
     CandidateEvidence,
     CandidateObservation,
+    CandidateWork,
 )
 from app.optimization_candidates.models import CandidateJob, CandidateResult
+from app.optimization_candidates.selection_contracts import CandidateWorkV2
 from app.outcome_feedback.models import ContributionSlot, FeedbackRecord
 from app.session_automation.contracts import SemanticDecisionEpoch
 from app.session_automation.runtime import SemanticEpochProducer
@@ -207,6 +209,8 @@ class DirectionalCandidateAdapter:
             if saved != decision or saved.status != "suggested":
                 raise HTTPException(409, "current directional candidate required")
             work = candidates.owned_work(job)
+            if not isinstance(work, (CandidateWork, CandidateWorkV2)):
+                raise HTTPException(409, "directional source kind mismatch")
             result, current_profile = self.check_current(db, principal, work, decision.evidence)
             if (
                 current_profile.producer_family != profile.producer_family

@@ -6900,3 +6900,126 @@ Meta drivers are unchanged.
 `/tmp/tiktok-legacy-ui-fixed.log`, durations20. Whole Ruff/mypy890, Node syntax/diff
 pass. Initial new-test line-length formatting fixed before final static check.
 Test-only successor to4c1b05e; no application changes/Full/remote/live.
+
+### 2026-10-07: separate reported-rule contract/compiler checkpoint (local)
+
+Approved interface854fa69 now has strict ReportedRulePolicy/Evidence/Observation/
+Work/Candidate variants and pure nominal compiler in reported_feedback. No old v1
+literal/hash/parser changed; no source registered, no runtime consumer enabled.
+Actual report evaluator fixture supplies before/after totals; 11 focused cases
+passed, covering no qualified-learning cast, complete distinct report references,
+direction/absence/environment contradictions, stale/actions/native/quantum blockers
+and cumulative increase clipping without changing the mandate. Scoped Ruff/mypy
+(3files) and diff check pass. Initial static invocation found import sorting and
+optional-action test annotations; fixed before checkpoint. 0083 dependency relation
+reserved; owned source/worker/API/TLS remain in implementation, not yet accepted.
+
+## Reported-rule owned evidence and erasure foundation (2026-10-07, local)
+
+The separate operational reported-efficiency reader now consumes actual retained
+Meta comparisons/capsule dependencies and a fresh whole-owner native snapshot.
+It checks the original session, current source, original request/ledger/native
+scope, and final lifetime after authorization waits. It never labels these facts
+qualified learning or grants spending authority. The reader performs no network
+calls, commits or financial mutations.
+
+Reserved migration 0083 adds immutable, composite-owned candidate dependencies.
+Capsule/comparison/job erasure retracts derived suggestions; explicit replacement
+requests invalidate previous candidate dependencies transactionally. Original
+attempts and held financial obligations are retained. A populated downgrade is
+rejected. Registry, archive allowlist, local-work classification and historical
+0074 fixture ordering include the new relation.
+
+Evidence: actual mocked original Meta operation, four report acquisitions, fresh
+native GET and ordinary commerce import feed the source tests on SQLite and
+PostgreSQL. The erasure cohort covers candidate/comparison/capsule deletion,
+explicit changed-objective replacement, foreign lineage rejection and retained
+obligations. Initial fixture failures (missing commerce publication, wrong review
+binding accessor, SQLite foreign keys disabled), a test expecting IntegrityError
+instead of PostgreSQL trigger RaiseException, and an attempted reobserve of a
+sufficient comparison were corrected; none qualified a product pass. Their logs
+remain under /tmp/inlet-reported-rule-*. Whole mypy passes 893 files; Ruff and diff
+checks pass. Configured worker/review/explicit-Start composition is still pending;
+this foundation is not completion of usable automatic optimization and no
+production rule/profile is registered.
+
+Foundation check completion: pure compiler 11 passed; owned source/final-wait
+expiry 4 passed; final erasure/foreign-owner/lossless-downgrade cohort 10 passed;
+actual 0083 empty roundtrip 2 passed. Existing service/authority/lifecycle cohort
+had 41 passed, two historical-fixture failures and one PostgreSQL-only skip on
+SQLite; explicit 0083 predecessor handling repaired both. Final historical
+0077/0074 cohort: 7 passed, one SQLite-only Alembic skip. Whole Ruff, mypy
+(893 files) and diff checks passed. The 0083 fixture correction also covers the
+previous Full's exact 0074 test on both databases. No Full/remote/live run.
+
+Independent source review follow-up: the final rule helper previously depended
+on its future caller to repeat the commerce source fence. Two controlled source
+revision drift tests reproduced acceptance on both databases. The helper now
+checks owner and exact current commerce source itself after the original-session
+workspace fence. All six source/final-wait/source-drift cases pass; no financial
+admission or production source registration changed. Baseline/fixed logs:
+/tmp/inlet-reported-source-final-before.log and -after.log.
+
+### Operational reported-rule dispatcher checkpoint (local, 2026-10-07)
+
+The new discriminated work/policy/decision parsers preserve legacy v1/v2 documents. Real Meta native catalog reads now select the exact current owned comparison and original receipt, enqueue a dependency-bound job, compile the separate reported-efficiency result, and export it through strict versioned parsers. The reported work requires the original attempt and receipt commitment in the existing source fence. All result publication rechecks the original session, source, comparison and dependency after I/O. Legacy qualified-learning transforms and automatic admission explicitly reject the new operational variant; distinct automatic Start/configured policy assembly is still pending.
+
+Actual SQLite/PostgreSQL catalog→selection→queue→worker cases pass with unchanged provider writes, attempts and reservations. Late session revocation, source revision and capsule erasure deny result publication. The combined worker/selection/pure-rule/directional compatibility cohort passed 54 tests with 3 expected SQLite-only skips; the all-provider legacy candidate review + automatic execution + exact numeric-policy binding subset passed 14 tests. Whole Ruff, mypy (896 files), and diff checks passed. Logs: `/tmp/inlet-reported-dispatch-final.log`, `/tmp/inlet-reported-dispatch-legacy.log`, `/tmp/inlet-reported-dispatch-mypy.log`.
+
+Adverse evidence retained: initial worker fixture used an already-expired original mandate period and correctly failed admission. The fixture now genuinely consents an explicit extended period before the original action; no production freshness or financial guard changed. Subsequent test-only context typing and annotation errors were corrected before the final checks. This checkpoint is not configured customer/TLS acceptance, an operational automatic Start implementation, or production policy qualification. Those remain ordinary follow-on implementation within the approved package. No Full, remote, provider-live, or qualification checkout/DB action occurred.
+
+### Reported customer basis / explicit Start interface freeze
+
+The additive candidate basis projection is now constructed from the actual owned current comparison and exact rule. Pure contract tests4 pass; genuine report acquisition→selection→worker→safe basis projection2 pass across SQLite/PostgreSQL. Exact CPA strings5000000→2500000, four completions versus one original, nominal delta-250000 and omitted capsule bodies verified. Whole Ruff/mypy899/diff passed. Separate operational automatic policy/option/Start models freeze the dependent UI surface, but their route union and runtime/admission wiring remain pending, explicitly documented in `docs/design/reported-rule-customer-interface.md`. No automatic or production qualification claim.
+
+### Operational repeat admission and exact own-successor continuation
+
+The actual reported acquisition→candidate→review→manual approval or distinct original-session reported-rule Start→automatic admission→Meta HTTP path now completes on SQLite and PostgreSQL. Automatic execution adds no human approval; the original exposure transfers through the existing reviewed replacement proof and one held reservation remains. Financial closure/exposure in this component fixture is explicitly the existing contract scenario, not inferred from reports or promoted to production.
+
+Adverse baseline: `/tmp/inlet-rule-auto-actual.log` reproduced self-invalidation at claim after the successor reservation transfer. The strict original-head anchor was correctly rejecting a changed head. The bounded repair adds a private forward review context, validated against exact composite candidate/result/job/session/review and direct immutable replacement lineage. Only its own still-dispatching, not-emitting original attempt without response/receipt is excluded from intervention checks. Normal reads and unrelated review IDs remain denied; the original anchor retains its original reservation commitment. Details: `docs/design/reported-rule-own-successor-context.md`.
+
+Twelve actual both-DB cases passed in `/tmp/inlet-rule-auto-negative.log` (slowest PostgreSQL automatic happy15.96s): manual/automatic success, revocation/capsule deletion/original latest unknown receipt before emission, unknown successor no replay and reconciliation after candidate erasure. A further exact policy revision/restart dedupe regression passed both DB in `/tmp/inlet-rule-auto-restart.log` (16.19s PostgreSQL,7.88s SQLite); the existing semantic admission remains one. Legacy API/automatic contracts plus reported comparison/service compatibility33 passed in `/tmp/inlet-rule-continuation-compat.log`. Commands used `pytest -q ... --durations=20` against the isolated per-test PostgreSQL schemas; no Full or qualification database touched. Whole Ruff/mypy901/diff clean.
+
+API Start now accepts the distinct reported request only for its matching registered policy/digest; legacy bodies cannot select it, and cross-basis fallback rejects. Capabilities emits the separate frozen option with explicit parameters/cadence/lifetime when such a runtime is actually provided. Pinned configured assembly and genuine configured HTTPS acceptance remain next; this checkpoint does not install any policy/source/runtime default or claim that assembly complete.
+
+### 2026-10-07 — configured operational repeat API and original-session worker
+
+On isolated `codex/inlet-learning-requirement-trace` after reviewed 7a89035,
+implemented pinned, separately discriminated reported-rule configuration and the
+ordinary request/worker assembly (`docs/design/reported-rule-configured-runtime.md`).
+Default source registration remains absent. Existing configured optimization
+qualification/origin/exposure/replacement gates are unchanged.
+
+Genuine API fixture starts with the actual 0080 customer mandate origin and first
+Meta HTTP operation, discovers campaign data through HTTP, requests the comparison,
+and acquires four reports through `run_meta_tick`. It then uses ordinary configured
+candidate/review and explicit automatic Start endpoints; no runtime getter override
+or execution/candidate row seeding. The rule changes the observed nominal budget
+45.00→44.75 under explicit fixture parameters. This is operational reported evidence,
+not qualified learning or production financial proof. Automatic admission creates
+zero new human approval rows and retains one linked held reservation.
+
+Checks (all local, disposable per-test SQLite/PG schemas, `--durations=20`):
+- `tests/test_configured_reported_rule_api.py`: 12 both-DB candidate/review and
+  Start success/session/capsule/source/unknown cases passed in
+  `/tmp/inlet-configured-reported-final.log`; slowest PG unknown 17.86s.
+- Added master-off and same-workspace revoked-session fairness cases: 4 passed,
+  `/tmp/inlet-configured-reported-fairness.log`; slowest PG fairness 6.10s.
+- Strengthened subsequent-due-tick fence/no-replay checks: affected 4 automatic
+  success/unknown cases passed, `/tmp/inlet-reported-configured-replay.log`;
+  slowest PG success 21.58s. Original attempt IDs/fences remain unchanged.
+- Reported/legacy configuration, legacy session API and original acquisition-helper
+  compatibility: 41 passed, `/tmp/inlet-reported-configured-compat2.log`.
+- Entire existing customer scheduler cohort: 32 passed,
+  `/tmp/inlet-reported-configured-scheduler.log`.
+- Whole Ruff, mypy (906 files) and diff check passed. No Full, hosted, live or
+  remote action. Dependent actual HTTPS UI qualification remains separate.
+
+Adverse invocation evidence retained: the first compatibility invocation named
+nonexistent `tests/test_customer_runtime.py`; it ran no tests and was corrected to
+`tests/test_customer_runtime_scheduler.py`. Early new-fixture failures concerned
+an invalid one-day policy (existing minimum is seven days), absent campaign import,
+response field names and the expected 0.25 rather than 1.00 adjustment. They were
+corrected in the fixture/assertions without loosening application gates. Configured
+origin checks correctly required actual 0080 consent rather than the earlier
+component fixture's direct-service mandate.

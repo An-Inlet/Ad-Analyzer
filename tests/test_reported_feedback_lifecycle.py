@@ -203,14 +203,17 @@ def test_actual_0077_graph_triggers_and_foreign_parent_constraints(
     revisions = importlib.import_module(
         "migrations.versions.20261007_0078_reported_preview_revisions"
     )
+    rules = importlib.import_module("migrations.versions.20261007_0083_reported_rule_dependencies")
     with (
         customer_engine.begin() as connection,
         Operations.context(MigrationContext.configure(connection)),
     ):
+        rules.downgrade()
         revisions.downgrade()
         migration.downgrade()
         migration.upgrade()
         revisions.upgrade()
+        rules.upgrade()
     data = graph(customer_engine, configuration, monkeypatch, replicas)
     with Session(customer_engine) as db:
         for model in MODELS:

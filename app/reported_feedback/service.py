@@ -40,6 +40,7 @@ from app.reported_feedback.contracts import (
     ReportWindowV1,
 )
 from app.reported_feedback.evaluator import bounded_delta, compare, midnight
+from app.reported_feedback.forward_context import ReportedForwardContext
 from app.reported_feedback.invalidation import retract_account_comparisons
 from app.reported_feedback.models import (
     ReportedActionComparison,
@@ -255,6 +256,9 @@ def _request(
         )
     )
     for previous_row in previous:
+        from app.reported_feedback.candidate_invalidation import erase_reported_candidates
+
+        erase_reported_candidates(db, wid, previous_row.id)
         previous_row.state = "blocked"
         previous_row.error_code = "superseded_by_explicit_request"
 
@@ -463,7 +467,11 @@ def read_comparison(
 
 
 def validate_comparison_dependencies(
-    db: Session, row: ReportedActionComparison, now: datetime
+    db: Session,
+    row: ReportedActionComparison,
+    now: datetime,
+    *,
+    forward_context: ReportedForwardContext | None = None,
 ) -> OperationalReportedComparisonV1:
     value = OperationalReportedComparisonV1.model_validate(row.document)
     job = db.get(ReportedFeedbackJob, row.job_id, populate_existing=True)
@@ -471,7 +479,19 @@ def validate_comparison_dependencies(
         raise HTTPException(409, "reported_feedback_original_request_unavailable")
     principal = local_job_authority(db, job, now)
     request = ReportedAcquisitionRequestV1.model_validate(job.document)
-    current = resolve_anchor(db, row.workspace_id, row.original_attempt_id, principal.user.id, now)
+    if forward_context is not None and (
+        forward_context.actor_id != principal.user.id
+        or forward_context.original_session_digest != principal.session.digest
+    ):
+        raise HTTPException(409, "reported_rule_forward_session_changed")
+    current = resolve_anchor(
+        db,
+        row.workspace_id,
+        row.original_attempt_id,
+        principal.user.id,
+        now,
+        forward_context=forward_context,
+    )
     capsules = _capsules(db, job, request, now)
     refs = tuple(value.before.capsules) + tuple(value.after.capsules)
     dependencies = set(
@@ -780,9 +800,7 @@ def apply_feedback_preview(
     )
     if reference is None:
         raise HTTPException(409, "reported_feedback_budget_baseline_required")
-    binding = customer_intents.binding(
-        db, workspace_id, *reference
-    )
+    binding = customer_intents.binding(db, workspace_id, *reference)
     _, mandate = execution_mandates.checked(
         db, workspace_id, binding, principal.user.id, lambda: effective_now(db, runtime.initial)
     )

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
 from app.optimization_candidates import review_bridge
-from app.optimization_candidates.contracts import CandidateDecision
+from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.review_models import CandidateReviewLink
 from app.publication import optimization
 from app.publication.contracts import fingerprint
@@ -21,20 +21,43 @@ from app.publication.execution_models import (
     ProviderExecutionRun,
 )
 from app.publication.optimization_execution_contracts import OptimizationRuntime
+from app.reported_feedback.automatic_contracts import (
+    REPORTED_RULE_EPOCH_FAMILY,
+    ReportedRuleAutomaticPolicyV1,
+)
+from app.reported_feedback.candidate_contracts import ReportedRuleCandidateV1
 from app.session_automation import service
 from app.session_automation.contracts import SemanticDecisionEpoch, SessionMandateDecisionAuthority
 from app.session_automation.models import AutomaticDecisionAdmission
-from app.session_automation.runtime import SessionAutomationRuntime
+from app.session_automation.runtime import AutomaticPolicyDocument, SessionAutomationRuntime
 from app.shopify.security import utc
 
 
 def epoch_for(
     db: Session,
     principal: CustomerPrincipal,
-    decision: CandidateDecision,
-    families: list[str],
+    decision: CandidateDecisionDocument,
+    families: list[str] | tuple[str, ...],
     runtime: SessionAutomationRuntime,
+    policy: AutomaticPolicyDocument | None = None,
 ) -> SemanticDecisionEpoch:
+    if isinstance(decision, ReportedRuleCandidateV1):
+        if (
+            not isinstance(policy, ReportedRuleAutomaticPolicyV1)
+            or decision.policy_digest != policy.candidate_policy_digest
+            or tuple(families) != (REPORTED_RULE_EPOCH_FAMILY,)
+        ):
+            raise HTTPException(409, "explicit operational automatic policy required")
+        # Caller first bound the owned result through the final DB-only source guard.
+        # Use immutable original request opportunity, never a report/policy/session refresh.
+        return SemanticDecisionEpoch(
+            producer_family=REPORTED_RULE_EPOCH_FAMILY,
+            source_schema=decision.evidence.source_schema,
+            source_reference=decision.evidence.opportunity.original_attempt_id,
+            semantic_digest=decision.evidence.opportunity.semantic_digest,
+        )
+    if isinstance(policy, ReportedRuleAutomaticPolicyV1):
+        raise HTTPException(409, "automatic policy basis changed")
     matches = [
         p
         for p in runtime.epoch_producers
@@ -68,7 +91,7 @@ def epoch_for(
     return epoch
 
 
-def account_identity(decision: CandidateDecision) -> str:
+def account_identity(decision: CandidateDecisionDocument) -> str:
     account = decision.scope.account
     return fingerprint(
         "inlet.automatic-native-account.v1",
@@ -97,9 +120,15 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
         if link is None or link.candidate_result_id is None or link.workspace_id != wid:
             raise HTTPException(409, "candidate review source retracted")
         _, decision, _, _ = review_bridge.bound_candidate(
-            db, wid, link.candidate_result_id, actor, row.original_session_digest, runtime.review
+            db,
+            wid,
+            link.candidate_result_id,
+            actor,
+            row.original_session_digest,
+            runtime.review,
+            forward_review_id=review_id,
         )
-        epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, fresh)
+        epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, fresh, policy)
         review = db.get(ProviderExecutionReview, review_id, populate_existing=True)
         db.refresh(admission, with_for_update=True)
         if (
@@ -166,12 +195,15 @@ def admit(
             principal.user.id,
             session_run.original_session_digest,
             runtime.review,
+            forward_review_id=review_id,
         )
         if decision.scope.mandate != service.binding(session_run) or (
             decision.action is None or decision.action.kind not in policy.allowed_operations
         ):
             raise HTTPException(409, "automatic decision outside mandate budget scope")
-        epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, runtime)
+        epoch = epoch_for(
+            db, principal, decision, policy.semantic_producer_families, runtime, policy
+        )
         # Workspace/ledger locks serialize semantic consumption. The DB unique key
         # also defends competing sessions/revisions without minting a replacement.
         existing = db.scalar(

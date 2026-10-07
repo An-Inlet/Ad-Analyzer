@@ -30,6 +30,13 @@ from app.publication.customer_optimization_contracts import (
     TargetRequest,
 )
 from app.publication.execution_contracts import ProviderMandateBinding
+from app.publication.optimization_contracts import MetaCurrentState
+from app.reported_feedback.candidate_contracts import (
+    ReportedRulePolicyV1,
+    ReportedRuleSelectionBatchV1,
+    ReportedRuleWorkV1,
+)
+from app.reported_feedback.candidate_selection import select_reported_work
 
 
 class SelectionReadRequest(StrictModel):
@@ -101,7 +108,7 @@ def plan_candidate_reads(
     binding: ProviderMandateBinding,
     policy_ref: CandidatePolicyRef,
     runtime: CandidateSelectionRuntime,
-) -> CandidateSelectionBatch:
+) -> CandidateSelectionBatch | ReportedRuleSelectionBatchV1:
     service.authorize(db, principal, wid, runtime.candidate)
     _, mandate = mandates.checked(db, wid, binding, principal.user.id, runtime.clock)
     if (
@@ -109,7 +116,9 @@ def plan_candidate_reads(
         or "existing_campaign_optimize" not in mandate.allowed_purposes
     ):
         raise HTTPException(409, "current optimization mandate required")
-    policy = runtime.candidate.policy_reader(db, wid, policy_ref.policy_id, policy_ref.revision)
+    policy = service.registered_policy(
+        db, wid, policy_ref.policy_id, policy_ref.revision, runtime.candidate
+    )
     if policy is None or policy.workspace_id != wid or policy.environment != mandate.environment:
         raise HTTPException(409, "registered candidate policy required")
     goal = goals.owned(db, wid, mandate.goal_id)
@@ -145,7 +154,8 @@ def plan_candidate_reads(
     _, current_policy = mandates.checked(db, wid, binding, actor, runtime.clock)
     if current_policy != mandate:
         raise HTTPException(409, "candidate mandate changed")
-    selected = []
+    selected: list[CandidateWorkV2] = []
+    reported_selected: list[ReportedRuleWorkV1] = []
     blocked = []
     manifest = fingerprint(
         "inlet.candidate-selection-manifest.v1",
@@ -190,29 +200,44 @@ def plan_candidate_reads(
             target_set_digest=state.budget_owner.target_set_digest(),
             source=source,
         )
-        work = CandidateWorkV2(
-            scope=scope,
-            policy=policy,
-            selection=SelectionProvenance(
-                actor_id=actor,
-                scope_digest=scope.digest(),
-                policy_digest=policy.digest(),
-                catalog_digest=catalog_digest(catalog),
-                option_id=option.identifier(catalog.request),
-                state_digest=state.digest(),
-                manifest_digest=manifest,
-                observed_at=catalog.observed_at,
-                expires_at=min(catalog.expires_at, mandate.ends_at),
-            ),
+        provenance = SelectionProvenance(
+            actor_id=actor,
+            scope_digest=scope.digest(),
+            policy_digest=policy.digest(),
+            catalog_digest=catalog_digest(catalog),
+            option_id=option.identifier(catalog.request),
+            state_digest=state.digest(),
+            manifest_digest=manifest,
+            observed_at=catalog.observed_at,
+            expires_at=min(catalog.expires_at, mandate.ends_at),
         )
-        service.current(db, work, principal, runtime.candidate)
-        selected.append(work)
+        if isinstance(policy, ReportedRulePolicyV1):
+            if not isinstance(state, MetaCurrentState):
+                raise HTTPException(409, "reported_rule_provider_unavailable")
+            reported = select_reported_work(
+                db,
+                principal,
+                runtime.candidate.identity,
+                scope,
+                policy,
+                state,
+                provenance,
+                runtime.clock,
+            )
+            service.current(db, reported, principal, runtime.candidate)
+            reported_selected.append(reported)
+        else:
+            work = CandidateWorkV2(scope=scope, policy=policy, selection=provenance)
+            service.current(db, work, principal, runtime.candidate)
+            selected.append(work)
     # Even wholly blocked structural selection must recheck session, goal and policy.
     service.authorize(db, principal, wid, runtime.candidate)
     _, latest = mandates.checked(db, wid, binding, actor, runtime.clock)
     if (
         latest != mandate
-        or runtime.candidate.policy_reader(db, wid, policy_ref.policy_id, policy_ref.revision)
+        or service.registered_policy(
+            db, wid, policy_ref.policy_id, policy_ref.revision, runtime.candidate
+        )
         != policy
     ):
         raise HTTPException(409, "candidate selection policy changed")
@@ -220,6 +245,13 @@ def plan_candidate_reads(
     now = runtime.clock()
     if any(not c.observed_at <= now < c.expires_at for c, _ in observations):
         raise HTTPException(409, "candidate selection expired during admission")
+    if isinstance(policy, ReportedRulePolicyV1):
+        return ReportedRuleSelectionBatchV1(
+            workspace_id=wid,
+            manifest_digest=manifest,
+            selected=tuple(reported_selected),
+            blocked=tuple(blocked),
+        )
     return CandidateSelectionBatch(
         workspace_id=wid, manifest_digest=manifest, selected=selected, blocked=blocked
     )
@@ -232,7 +264,7 @@ def enqueue_candidate_selection(
     binding: ProviderMandateBinding,
     policy_ref: CandidatePolicyRef,
     runtime: CandidateSelectionRuntime,
-) -> tuple[CandidateSelectionBatch, list[CandidateJob]]:
+) -> tuple[CandidateSelectionBatch | ReportedRuleSelectionBatchV1, list[CandidateJob]]:
     # Caller supplies intent references only; a previously rendered batch is not proof.
     try:
         batch = plan_candidate_reads(db, principal, wid, binding, policy_ref, runtime)

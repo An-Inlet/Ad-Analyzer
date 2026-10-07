@@ -13,6 +13,7 @@ from app.optimization_candidates.service import (
     CandidateRuntime,
 )
 from app.production_runtime.candidate_configuration import CandidateEvidenceDescriptorV1
+from app.reported_feedback.candidate_configuration import ReportedRuleEvidenceDescriptorV1
 from app.session_automation.runtime import SemanticEpochProducer
 
 
@@ -97,6 +98,22 @@ def validate_candidate_binding(
         raise ValueError("candidate_source_binding_invalid")
 
 
-def registered_candidate_source(source_id: str) -> RegisteredCandidateEvidenceSource | None:
+@dataclass(frozen=True)
+class RegisteredReportedRuleSource:
+    """The implementation is the owned DB comparison reader, never a learning callback."""
+
+    descriptor: ReportedRuleEvidenceDescriptorV1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "descriptor",
+            ReportedRuleEvidenceDescriptorV1.model_validate_json(self.descriptor.model_dump_json()),
+        )
+
+
+def registered_candidate_source(
+    source_id: str,
+) -> RegisteredCandidateEvidenceSource | RegisteredReportedRuleSource | None:
     # No dynamic imports, mutable global registry or default scenario producer.
     return None

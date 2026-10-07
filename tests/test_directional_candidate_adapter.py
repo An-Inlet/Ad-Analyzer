@@ -13,7 +13,11 @@ import pytest
 from app.directional_feedback.adapter import SCHEMA, DirectionalCandidateAdapter
 from app.executors.google_optimization import GoogleOptimizationTransport
 from app.optimization_candidates import service as candidates
-from app.optimization_candidates.contracts import CandidateEvidence, CandidateObservation
+from app.optimization_candidates.contracts import (
+    CandidateDecision,
+    CandidateEvidence,
+    CandidateObservation,
+)
 from app.optimization_candidates.models import CandidateJob, CandidateResult
 from app.outcome_feedback.models import ContributionSlot
 from app.publication.optimization_contracts import OptimizationContext
@@ -102,6 +106,7 @@ def run(db: Session, principal: Any, work: Any, adapter: DirectionalCandidateAda
     result = db.scalar(select(CandidateResult).where(CandidateResult.job_id == job_id))
     assert result
     decision = candidates.read_result(db, wid, result.id, principal, bound, erase_invalid=False)
+    assert isinstance(decision, CandidateDecision)
     assert decision.status == "suggested" and decision.evidence.source_schema == SCHEMA
     assert decision.evidence.observation_count == 2
     return decision

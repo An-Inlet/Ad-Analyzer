@@ -37,7 +37,8 @@ from app.lifecycle.inventory import scalar
 from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
-from app.optimization_candidates.selection_contracts import WORK_ADAPTER, CandidateWorkV2
+from app.optimization_candidates.documents import DECISION_DOCUMENT_ADAPTER, WORK_DOCUMENT_ADAPTER
+from app.optimization_candidates.selection_contracts import CandidateWorkV2
 from app.outcomes.feedback import FeedbackContribution
 from app.outcomes.owned_contracts import OwnedAssessment
 from app.outcomes.owned_v3 import OwnedV3Assessment
@@ -75,6 +76,7 @@ from app.publication.social_review_contracts import (
     SocialConfigurationDocument,
 )
 from app.publication.tiktok_linked_review_contracts import LinkedPushConfigurationDocumentV1
+from app.reported_feedback.candidate_contracts import ReportedRuleCandidateV1, ReportedRuleWorkV1
 from app.reported_feedback.contracts import (
     OperationalReportedComparisonV1,
     ReportedAcquisitionRequestV1,
@@ -184,7 +186,6 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("customer_workspace_billing", "qualification"): OfferQualificationV1,
     ("outcome_assessments_v3", "document"): OwnedV3Assessment,
     ("outcome_feedback_records", "document"): FeedbackContribution,
-    ("optimization_candidate_results", "decision"): CandidateDecision,
     ("provider_reservation_replacements", "document"): ReplacementAuditDocument,
     ("action_outcome_assessments", "assessment"): OwnedAssessment,
     ("crm_events", "normalized_payload"): CrmEvent,
@@ -254,7 +255,8 @@ RESPONSE_ADAPTERS: dict[str, TypeAdapter[Any]] = {
 }
 # These are deliberately not customer-owned business content. New omissions that
 # do not match this explicit set become unsupported omissions, never successful export.
-ADAPTERS[("optimization_candidate_jobs", "work")] = WORK_ADAPTER
+ADAPTERS[("optimization_candidate_jobs", "work")] = WORK_DOCUMENT_ADAPTER
+ADAPTERS[("optimization_candidate_results", "decision")] = DECISION_DOCUMENT_ADAPTER
 
 INTERNAL = {
     "original_session_digest",
@@ -422,20 +424,20 @@ def bind_document(
             or assessment_digest(document.model_dump(mode="json")) != row["document_digest"]
         ):
             raise ValueError("feedback ownership mismatch")
-    elif isinstance(document, (CandidateWork, CandidateWorkV2)):
+    elif isinstance(document, (CandidateWork, CandidateWorkV2, ReportedRuleWorkV1)):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.policy.environment != row["environment"]
             or document.scope.source.publication_id != row["publication_id"]
             or document.scope.source.attempt_id != row["attempt_id"]
             or (
-                isinstance(document, CandidateWorkV2)
+                isinstance(document, (CandidateWorkV2, ReportedRuleWorkV1))
                 and document.selection.actor_id != row["actor_id"]
             )
             or document.digest() != row["input_digest"]
         ):
             raise ValueError("candidate work ownership mismatch")
-    elif isinstance(document, CandidateDecision):
+    elif isinstance(document, (CandidateDecision, ReportedRuleCandidateV1)):
         if (
             document.scope.account.workspace_id != row["workspace_id"]
             or document.digest() != row["decision_digest"]
@@ -653,14 +655,16 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                     if adapter is None:
                         raise ValueError("unsupported response digest")
                 if adapter is not None:
-                    if (
+                    if table in {
+                        "optimization_candidate_jobs", "optimization_candidate_results"
+                    } or (
                         table == "customer_social_configuration_reviews"
                         and isinstance(value, dict)
                         and value.get("schema_version")
                         == "inlet.tiktok-linked-push-configuration-review.v1"
                     ):
-                        # This new strict schema contains JSON timestamps and arrays;
-                        # decode as JSON without changing historical Python validation.
+                        # Strict JSON schemas decode dates/arrays as JSON; preserve
+                        # historical Python validation for other documents.
                         document = adapter.validate_json(json.dumps(value, allow_nan=False))
                     else:
                         document = adapter.validate_python(value)

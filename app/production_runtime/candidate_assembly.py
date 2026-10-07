@@ -28,12 +28,16 @@ from app.optimization_candidates.selection import CandidateSelectionRuntime, Sel
 from app.production_runtime.candidate_configuration import (
     CandidateConfigurationError,
     CandidatePolicyBundleV1,
+    FrozenCandidatePolicy,
     load_candidate_configuration,
     validate_candidate_source,
 )
 from app.production_runtime.candidate_sources import (
-    registered_candidate_source,
+    RegisteredReportedRuleSource,
     validate_candidate_binding,
+)
+from app.production_runtime.candidate_sources import (
+    registered_candidate_source as registered_candidate_source,
 )
 from app.production_runtime.optimization_assembly import configured_optimization, pinned
 from app.publication import customer_optimization, execution_mandates
@@ -42,6 +46,7 @@ from app.publication.customer_optimization_contracts import (
     TargetRequest,
 )
 from app.publication.execution_contracts import ProviderMandateBinding
+from app.reported_feedback.candidate_configuration import ReportedRulePolicyBundleV1
 from app.settings import Settings
 
 
@@ -53,9 +58,10 @@ def unavailable() -> HTTPException:
 class CandidateRuntimeBundle:
     candidate: service.CandidateRuntime
     review: CandidateReviewRuntime
-    policies: CandidatePolicyBundleV1
+    policies: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1
     owned: "OwnedCandidateReads"
     automatic_unavailable_reason: str = "first_decision_producer_unavailable"
+    mode: str = "candidates_only"
 
     def selection_for(self, binding: ProviderMandateBinding) -> CandidateSelectionRuntime:
         binding = ProviderMandateBinding.model_validate(binding.model_dump())
@@ -204,7 +210,10 @@ def configured_candidates(
             raise unavailable()
         manifest, policies = parsed
         registered = registered_candidate_source(manifest.evidence_source_id)
-        if registered is None or manifest.mode != "candidates_only":
+        if registered is None or (
+            manifest.mode != "candidates_only"
+            and not isinstance(registered, RegisteredReportedRuleSource)
+        ):
             yield None
             return
         validate_candidate_source(manifest, policies, registered.descriptor)
@@ -232,7 +241,8 @@ def configured_candidates(
                 (
                     p.as_policy()
                     for p in policies.candidate_policies
-                    if (p.workspace_id, p.policy_id, p.revision) == (wid, identifier, revision)
+                    if isinstance(p, FrozenCandidatePolicy)
+                    and (p.workspace_id, p.policy_id, p.revision) == (wid, identifier, revision)
                 ),
                 None,
             )
@@ -240,25 +250,31 @@ def configured_candidates(
         base = service.CandidateRuntime(
             manifest.environment, identity, owned.read, policy_reader, native.clock
         )
-        binding = registered.build(base, principal, identity, native.clock)
-        validate_candidate_binding(registered.descriptor, binding)
-        candidate = replace(
-            base,
-            learning_profiles=frozenset(
-                (p.source_schema, p.profile, p.revision, p.digest)
-                for p in registered.descriptor.qualified_profiles
-            ),
-            feedback_dependent_schemas=frozenset({registered.descriptor.source_schema})
-            if registered.descriptor.feedback_dependent
-            else frozenset(),
-            authorized_evidence_transform=binding.authorized_transform,
-            authorized_final_evidence_current=binding.authorized_final_current,
-        )
+        if isinstance(registered, RegisteredReportedRuleSource):
+            if not isinstance(policies, ReportedRulePolicyBundleV1):
+                raise unavailable()
+            candidate = replace(base, operational_policies=policies.candidate_policies)
+        else:
+            binding = registered.build(base, principal, identity, native.clock)
+            validate_candidate_binding(registered.descriptor, binding)
+            candidate = replace(
+                base,
+                learning_profiles=frozenset(
+                    (p.source_schema, p.profile, p.revision, p.digest)
+                    for p in registered.descriptor.qualified_profiles
+                ),
+                feedback_dependent_schemas=frozenset({registered.descriptor.source_schema})
+                if registered.descriptor.feedback_dependent
+                else frozenset(),
+                authorized_evidence_transform=binding.authorized_transform,
+                authorized_final_evidence_current=binding.authorized_final_current,
+            )
         yield CandidateRuntimeBundle(
             candidate,
             CandidateReviewRuntime(candidate, native.execution, native.clock),
             policies,
             owned,
+            mode=manifest.mode,
         )
 
 
@@ -312,7 +328,9 @@ def run_configured_candidate_reads(engine: Engine, configuration: Settings) -> d
         return {}
     manifest, policies = parsed
     source = registered_candidate_source(manifest.evidence_source_id)
-    if source is None or manifest.mode != "candidates_only":
+    if source is None or (
+        manifest.mode != "candidates_only" and not isinstance(source, RegisteredReportedRuleSource)
+    ):
         return {}
     validate_candidate_source(manifest, policies, source.descriptor)
     identity = get_identity_provider()

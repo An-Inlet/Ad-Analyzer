@@ -11,17 +11,22 @@ from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.optimization_candidates import review_bridge
 from app.optimization_candidates import service as candidates
+from app.optimization_candidates.contracts import CandidatePolicy
 from app.publication import execution_mandates as mandates
 from app.publication.execution_contracts import ProviderMandateBinding, ProviderMandatePolicy
 from app.publication.service import owner
+from app.reported_feedback.automatic_contracts import (
+    ReportedRuleAutomaticPolicyV1,
+    StartReportedRuleAutomationV1,
+)
+from app.reported_feedback.candidate_contracts import ReportedRulePolicyV1
 from app.session_automation.contracts import (
     AutomaticPolicyRef,
-    SessionAutomaticPolicy,
     SessionAutomationStatus,
     StartSessionAutomation,
 )
 from app.session_automation.models import SessionAutomationRun
-from app.session_automation.runtime import SessionAutomationRuntime
+from app.session_automation.runtime import AutomaticPolicyDocument, SessionAutomationRuntime
 from app.shopify.security import utc
 
 SESSION_MESSAGE = (
@@ -43,7 +48,7 @@ def binding(row: SessionAutomationRun) -> ProviderMandateBinding:
 
 def policy_for(
     db: Session, runtime: SessionAutomationRuntime, wid: int, ref: AutomaticPolicyRef
-) -> SessionAutomaticPolicy:
+) -> AutomaticPolicyDocument:
     matches = [
         p
         for p in runtime.policies
@@ -52,14 +57,24 @@ def policy_for(
     if len(matches) != 1 or matches[0].environment != runtime.review.execution.environment:
         raise HTTPException(409, "policy_not_available")
     policy = matches[0]
-    numeric = runtime.selection.candidate.policy_reader(
-        db, wid, policy.candidate_policy.policy_id, policy.candidate_policy.revision
+    numeric = candidates.registered_policy(
+        db,
+        wid,
+        policy.candidate_policy.policy_id,
+        policy.candidate_policy.revision,
+        runtime.selection.candidate,
     )
     if (
         numeric is None
         or numeric.digest() != policy.candidate_policy_digest
-        or numeric.budget_step_micros is None
-        or numeric.minimum_observations is None
+        or (
+            isinstance(policy, ReportedRuleAutomaticPolicyV1)
+            != isinstance(numeric, ReportedRulePolicyV1)
+        )
+        or (
+            isinstance(numeric, CandidatePolicy)
+            and (numeric.budget_step_micros is None or numeric.minimum_observations is None)
+        )
         or (policy.environment == "live" and not runtime.review.execution.live_enabled)
     ):
         raise HTTPException(409, "policy_not_available")
@@ -67,11 +82,14 @@ def policy_for(
         runtime.selection.candidate.environment != policy.environment
         or runtime.review.candidate.environment != policy.environment
         or runtime.review.execution.environment != policy.environment
-        or not any(
-            p.environment == policy.environment
-            and p.family in policy.semantic_producer_families
-            and (p.authorized_read is not None or p.read is not None)
-            for p in runtime.epoch_producers
+        or (
+            not isinstance(policy, ReportedRuleAutomaticPolicyV1)
+            and not any(
+                p.environment == policy.environment
+                and p.family in policy.semantic_producer_families
+                and (p.authorized_read is not None or p.read is not None)
+                for p in runtime.epoch_producers
+            )
         )
     ):
         raise HTTPException(409, "evidence_not_ready")
@@ -87,7 +105,7 @@ def load(db: Session, wid: int, identifier: str) -> SessionAutomationRun:
 
 def current(
     db: Session, wid: int, identifier: str, runtime: SessionAutomationRuntime
-) -> tuple[SessionAutomationRun, CustomerPrincipal, SessionAutomaticPolicy, ProviderMandatePolicy]:
+) -> tuple[SessionAutomationRun, CustomerPrincipal, AutomaticPolicyDocument, ProviderMandatePolicy]:
     row = load(db, wid, identifier)
     principal = review_bridge.original(db, row.actor_id, row.original_session_digest)
     candidates.authorize(db, principal, wid, runtime.review.candidate)
@@ -117,11 +135,19 @@ def start(
     db: Session,
     principal: CustomerPrincipal,
     wid: int,
-    intent: StartSessionAutomation,
+    intent: StartSessionAutomation | StartReportedRuleAutomationV1,
     runtime: SessionAutomationRuntime,
 ) -> SessionAutomationRun:
     candidates.authorize(db, principal, wid, runtime.review.candidate)
     policy = policy_for(db, runtime, wid, intent.policy)
+    if isinstance(policy, ReportedRuleAutomaticPolicyV1):
+        if (
+            not isinstance(intent, StartReportedRuleAutomationV1)
+            or intent.expected_policy_digest != policy.digest()
+        ):
+            raise HTTPException(409, "explicit_reported_rule_start_required")
+    elif not isinstance(intent, StartSessionAutomation):
+        raise HTTPException(409, "automatic_policy_basis_changed")
     ledger, mandate = mandates.checked(db, wid, intent.mandate, principal.user.id, runtime.clock)
     if policy.environment != intent.mandate.environment or (
         "existing_campaign_optimize" not in mandate.allowed_purposes

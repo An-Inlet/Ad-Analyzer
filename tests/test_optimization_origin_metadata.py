@@ -88,9 +88,11 @@ def test_actual_metadata_sqlite_postgres_sqlite_keeps_deferred_origin(
         admin.dispose()
 
 
+@pytest.mark.parametrize("trigger_source", ["orm", "migration"])
 def test_sqlite_marked_insert_denied_if_physical_origin_fk_is_absent(
     configuration: Settings,
     tmp_path: Path,
+    trigger_source: str,
 ) -> None:
     from sqlalchemy import event
     from sqlalchemy.schema import AddConstraint
@@ -116,6 +118,14 @@ def test_sqlite_marked_insert_denied_if_physical_origin_fk_is_absent(
             for fk in inspect(engine).get_foreign_keys(table.name)
         )
         with engine.begin() as connection:
+            if trigger_source == "migration":
+                from importlib import import_module
+
+                migration = import_module("migrations.versions.20261007_0080_optimization_origin")
+                for name in ("omr_insert", "omr_update", "omr_delete"):
+                    connection.exec_driver_sql(f'DROP TRIGGER "{name}"')
+                for statement in migration.PARENT_SQL["sqlite"]:
+                    connection.exec_driver_sql(statement)
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
         with Session(engine) as db:
             policy, actor = setup(db, configuration, tmp_path)

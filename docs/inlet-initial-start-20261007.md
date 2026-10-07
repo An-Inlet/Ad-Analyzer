@@ -150,3 +150,23 @@ native POST, one admission/attempt/reservation and zero human approvals.
 passed **2** (SQLite/PostgreSQL), separately from the preceding 22 checks. Ruff,
 repository mypy (936 files) and diff checks passed after replacing an untyped mock
 return with an explicit Response type assertion. No product semantics changed.
+
+## Independent acceptance integration and simultaneous Start
+
+Reviewed test-only `086c426` was integrated as `adf8015`. Its dedicated ledger records
+9 passed / 1 expected SQLite row-lock concurrency skip, plus three final positive
+origin-count checks. Cases cover revoked execution consent, exhausted period ledger,
+actual competing PostgreSQL workers (one completed/one not_due), retained populated
+0085 downgrade refusal, and the configured maintenance entry point. Its scope and
+fixture limitations remain explicit; these results were produced on its frozen base.
+
+Added a distinct actual PostgreSQL **Start race**, because competing worker ticks do
+not establish concurrent Start behavior. Two independent sessions use the same real
+producer preview/original customer session/policy and synchronize after the first
+catalog read, outside locks and after both initial no-existing checks. Both Start calls
+return the same original run. Exactly one run, protected link, candidate job and stable
+opportunity remain; zero provider attempts or POSTs exist before a worker is invoked.
+
+`pytest -q tests/test_initial_concurrent_start.py -k postgres --durations=1` passed
+**1** (10.79s call). Ruff, repository mypy (938 files) and diff checks passed. This is
+one narrow test while the parent's separate Full run executes; no initial Full run.

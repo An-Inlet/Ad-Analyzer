@@ -26,8 +26,10 @@ because the library's schema generator does not expose its `AddConstraint` optio
 The actual cross-dialect test protects this compatibility assumption.
 
 The SQLite insert trigger additionally requires the physical exact single-column
-origin FK, independently of `PRAGMA foreign_keys`. The shared trigger definition
-is used by both ORM creation and the unreleased 0080 migration. Existing sidecar
+origin FK, independently of `PRAGMA foreign_keys`. The ORM trigger and the separately frozen SQL in the unreleased 0080 migration
+both enforce this check. Migration SQL remains literal and imports no application
+trigger definitions. The initial repair omitted that frozen SQL update; this
+follow-up corrects it and tests both installed variants independently. Existing sidecar
 immutability, populated financial relationships and lossy-downgrade refusal stay
 intact. No deployed database repair is claimed.
 
@@ -36,7 +38,7 @@ intact. No deployed database repair is claimed.
 - Before repair: actual cross-dialect test failed on missing final SQLite FK;
   separate baseline missing-sidecar COMMIT was accepted.
 - After repair: metadata, actual 0080 DDL, optimization contracts and provider
-  mandate suite: **27 passed, 1 expected PostgreSQL skip**, terminal exit 0.
+  mandate suite: **28 passed, 1 expected PostgreSQL skip**, terminal exit 0.
 - Regression verifies physical FK columns/target/deferral, successful parent
   INSERT followed by missing-sidecar COMMIT rejection, plus independent malformed
   SQLite schema denial with FK enforcement enabled.

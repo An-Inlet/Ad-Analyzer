@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from app.session_automation.contracts import SemanticDecisionEpoch
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
@@ -48,6 +48,8 @@ from app.publication.optimization_contracts import (
 from app.publication.replacement_contracts import parse_review
 from app.publication.service import owner
 from app.session_automation.models import AutomaticDecisionAdmission
+
+MAX_PRIOR_BUDGET_ATTEMPTS = 512
 
 
 def unavailable() -> HTTPException:
@@ -99,6 +101,11 @@ def no_prior_budget(
         .limit(1)
     ):
         raise unavailable()
+    # Creation history is not budget-decision history and must not exhaust this
+    # bounded scan. Unknown/missing discriminators remain included and fail closed
+    # in the strict parser below. Financial reservations are checked independently.
+    schema = ProviderExecutionReview.document["schema_version"].as_string()
+    purpose = ProviderExecutionReview.document["purpose"].as_string()
     rows = db.execute(
         select(ProviderExecutionAttempt, ProviderExecutionReview)
         .join(
@@ -106,10 +113,18 @@ def no_prior_budget(
             ProviderExecutionRun.id == ProviderExecutionAttempt.run_id,
         )
         .join(ProviderExecutionReview, ProviderExecutionReview.id == ProviderExecutionRun.review_id)
-        .where(ProviderExecutionAttempt.workspace_id == scope.account.workspace_id)
-        .limit(513)
+        .where(
+            ProviderExecutionAttempt.workspace_id == scope.account.workspace_id,
+            or_(
+                schema.is_(None),
+                purpose.is_(None),
+                schema != "inlet.execution-creation-review.v1",
+                purpose != "create_paused",
+            ),
+        )
+        .limit(MAX_PRIOR_BUDGET_ATTEMPTS + 1)
     ).all()
-    if len(rows) > 512:
+    if len(rows) > MAX_PRIOR_BUDGET_ATTEMPTS:
         raise unavailable()
     for attempt, review in rows:
         # Creation/activation are not prior budget-learning actions. Their unresolved

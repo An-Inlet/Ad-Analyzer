@@ -135,3 +135,66 @@ def test_postgres_raw_delete_fails_fast_then_retries_under_workspace_fence(
         db.commit()
         assert db.get(InitialRuleOpportunity, identifier) is None
         assert workspace_export_revision(db, wid) > before
+
+
+def test_new_explicit_basis_reuses_expired_unused_key_without_extending_active_origin(
+    export_engine: Engine,
+) -> None:
+    from app.initial_planning.automatic_dependencies import ensure_opportunity
+    from app.initial_planning.automatic_keys import native_identity, opportunity_key, owner_identity
+    from app.shopify.security import utc
+
+    from tests.test_initial_rule_candidates import fixture
+
+    _, wid = prepared(export_engine)
+    now = datetime.now(UTC)
+    with Session(export_engine) as db:
+        ledger = ProviderPeriodLedger(
+            id=uuid4().hex,
+            workspace_id=wid,
+            environment="contract_test",
+            currency="USD",
+            starts_at=now - timedelta(days=1),
+            ends_at=now + timedelta(days=1),
+        )
+        db.add(ledger)
+        db.flush()
+        template, _, _, _ = fixture()
+        scope = template.scope.model_copy(
+            update={
+                "account": template.scope.account.model_copy(update={"workspace_id": wid}),
+                "mandate": template.scope.mandate.model_copy(update={"ledger_id": ledger.id}),
+            }
+        )
+        key = opportunity_key(scope)
+        db.add(
+            InitialRuleOpportunity(
+                id=key[:32],
+                workspace_id=wid,
+                environment="contract_test",
+                ledger_id=ledger.id,
+                native_account_identity_digest=native_identity(scope),
+                budget_owner_identity_digest=owner_identity(scope),
+                semantic_key_digest=key,
+                created_at=now - timedelta(minutes=2),
+                pending_expires_at=now - timedelta(seconds=1),
+            )
+        )
+        db.commit()
+        before = workspace_export_revision(db, wid)
+        from app.commerce.evidence import lock_workspace
+
+        lock_workspace(db, wid, active=True)
+        recreated = ensure_opportunity(db, scope, now, now + timedelta(seconds=30))
+        assert recreated.id == key[:32] and recreated.semantic_key_digest == key
+        deadline = utc(recreated.pending_expires_at)
+        again = ensure_opportunity(db, scope, now, now + timedelta(seconds=120))
+        assert utc(again.pending_expires_at) == deadline
+        with pytest.raises(HTTPException, match="initial_rule_dependency_unavailable"):
+            ensure_opportunity(
+                db, scope, now + timedelta(seconds=120), now + timedelta(seconds=150)
+            )
+        assert db.get(InitialRuleOpportunity, key[:32]) is not None
+        assert utc(again.pending_expires_at) == deadline
+        db.commit()
+        assert workspace_export_revision(db, wid) == before

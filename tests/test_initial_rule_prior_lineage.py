@@ -35,3 +35,51 @@ def test_actual_prior_budget_cannot_be_reinterpreted_as_first_action(
         )
         with pytest.raises(HTTPException, match="initial_rule_current_evidence_unavailable"):
             no_prior_budget(db, future_scope)
+
+
+def test_actual_creation_history_does_not_consume_budget_history_bound(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.initial_planning import automatic_source
+    from app.publication import coordinator
+    from app.publication.execution_models import ProviderExecutionRun, ProviderExposureReservation
+
+    from tests.test_initial_rule_candidates import fixture
+    from tests.test_social_coordinator_journeys import NOW, SocialServer, ready
+
+    server = SocialServer("meta_ads")
+    with Session(customer_engine) as db:
+        wid, run_id, actor, media, runtime, _ = ready(
+            db,
+            configuration,
+            tmp_path,
+            "meta_ads",
+            None,
+            server,
+        )
+        count = 0
+        while claim := coordinator.claim_creation_step(
+            db, wid, run_id, actor, media, runtime, lambda: NOW
+        ):
+            receipt = coordinator.execute_claim(db, claim, actor, media, runtime, lambda: NOW)
+            assert receipt.outcome == "verified_effect"
+            count += 1
+        assert count == 5
+        template, _, _, _ = fixture()
+        scope = template.scope.model_copy(
+            update={
+                "account": template.scope.account.model_copy(
+                    update={"workspace_id": wid},
+                )
+            }
+        )
+        monkeypatch.setattr(automatic_source, "MAX_PRIOR_BUDGET_ATTEMPTS", 1)
+        assert no_prior_budget(db, scope) is None
+        # This grants no execution permission: the creation reservation remains held.
+        run = db.get(ProviderExecutionRun, run_id)
+        assert run is not None and run.reservation_id is not None
+        reservation = db.get(ProviderExposureReservation, run.reservation_id)
+        assert reservation is not None and reservation.state == "held"

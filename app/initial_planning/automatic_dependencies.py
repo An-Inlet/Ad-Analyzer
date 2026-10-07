@@ -41,6 +41,29 @@ def ensure_opportunity(
     now, expires_at = utc(now), utc(expires_at)
     key = opportunity_key(scope)
     row = db.get(InitialRuleOpportunity, key[:32], populate_existing=True)
+    if row is not None and (
+        row.semantic_key_digest != key
+        or row.workspace_id != scope.account.workspace_id
+        or row.environment != scope.mandate.environment
+        or row.ledger_id != scope.mandate.ledger_id
+        or row.native_account_identity_digest != native_identity(scope)
+        or row.budget_owner_identity_digest != owner_identity(scope)
+    ):
+        raise unavailable()
+    if row is not None and utc(row.pending_expires_at) <= now:
+        from app.lifecycle.privacy import database_utc_now
+
+        consumed = db.scalar(
+            select(InitialRuleAdmissionOrigin.admission_id).where(
+                InitialRuleAdmissionOrigin.opportunity_id == row.id,
+            )
+        )
+        # Only actually DB-expired unused bookkeeping can be replaced. The stable
+        # key remains identical; an ahead application clock cannot erase live data.
+        if consumed is None and utc(row.pending_expires_at) <= database_utc_now(db):
+            db.delete(row)
+            db.flush()
+            row = None
     if row is None:
         if now >= expires_at:
             raise unavailable()

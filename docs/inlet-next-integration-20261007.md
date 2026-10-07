@@ -601,3 +601,20 @@ No production exemptions were added; linked positive journeys remain covered.
 Failure and repair logs are retained/checksummed. Known preflight failures are
 closed; next step is the already-required immutable Full, with separate database
 and unique per-invocation timing files. Later0083 operational rule work is excluded.
+
+## Successor Full Started — Not Yet Qualified
+
+At2026-10-07T14:35:08.997585Z, started the unchanged prescribed Full script in
+`/workspace/inlet-oct07-linked-qualification`, frozen cleanhead
+`bb836c207c8fb846d8e184b2736f618f3bf49806`, tree
+`b1a6a9d55370857b17af6b12b2aa83789fff45ed`. Dedicated disposable database:
+`inlet_oct07_linked_r2_ci`; no old qualification database was reset.
+Reset/migration through0082 passed and primary pytest began. This is a running
+check, not a passing Full. Out-of-tree Python wrapper records durations30 and a
+unique JUnit file for each prescribed pytest invocation; no coverage was removed.
+Start/log/timing/passive-resource evidence is under the20261007 evidence directory.
+
+The14:34 disconnect notification did not indicate executor loss:14:34:57 UTC shell,
+clean Git state and PostgreSQL readiness succeeded; uptime exceeded9hours. No run
+was interrupted at that point. No GitHub quota explanation is inferred. Hosted
+startup diagnostic remains owner-pending; no hosted run/poll/retry was performed.

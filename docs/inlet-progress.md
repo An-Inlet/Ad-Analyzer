@@ -5459,3 +5459,25 @@ Next: shared neutral Meta parser and actual owned GET-only collector, then API/w
 assembly and explicit v2 preview with lifecycle/consumer version dispatch. This
 checkpoint does not implement those behaviors or qualify any writes. Feedback
 revision service/models/migration0078 remain owned by the separate package.
+
+### Owned Native Meta Budget Collection — 2026-10-07
+
+Successor of7767b54. Extracted one shared neutral Meta budget parser; existing
+qualified adapter delegates without changed serialized state. Added fixed-origin
+GET-only collector with private original-session vault assembly, full owner topology,
+explicit read limits and deadlines, no synthetic qualification/financial period.
+USD→2 is the initial explicit supported mapping; other currencies fail unsupported,
+and existing qualified adapter coverage stays intact. Daily/lifetime modes remain
+distinct. Factory owns transport cleanup; private DB sessions close before HTTP and
+recheck original authority/current goal/source after every response.
+
+Final78 focused tests passed11.10s (actual SQLite/PostgreSQL vault/session/gen/goal
+journeys, native HTTP/error bounds, profile/contract tests and legacy social HTTP
+regressions); whole-tree Ruff passed; mypy716 passed; diff-check passed. Earlier
+new-fixture failures exposed a goal-digest namespace/commerce-refresh mismatch and
+one renamed settings attribute; corrected using actual goal definition/commerce
+sync, not guard bypass. Frozen subtype equality was normalized in the shared parser
+before target comparison. Prior-parser byte comparison and pinned campaign/adset
+state digests verify legacy compatibility. No Full, live provider, remote or factory
+activation. See inlet-planning-native-budget-read.md for callable ports and remaining
+ordinary API/worker/v2 lifecycle assembly.

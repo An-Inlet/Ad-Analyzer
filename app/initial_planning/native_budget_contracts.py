@@ -8,6 +8,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
 from app.initial_planning.contracts import CohortV1, Frozen
 from app.mandates.schemas import AccountScope
+from app.meta.budget_currency import supported_budget_exponent
 from app.publication.contracts import fingerprint
 from app.publication.execution_contracts import ExecutionAccount
 from app.publication.optimization_contracts import BudgetOwnerRef, OptimizationTarget
@@ -117,18 +118,25 @@ class NativeBudgetObservationV1(Frozen):
     @model_validator(mode="after")
     def exact(self) -> "NativeBudgetObservationV1":
         if (
-            self.budget_owner.provider != "meta_ads"
+            self.currency_exponent != supported_budget_exponent(self.currency)
+            or self.budget_owner.provider != "meta_ads"
             or self.budget_owner.owner != self.request.target
             or self.currency != self.request.cohort.currency
             or self.time_zone != self.request.cohort.time_zone
             or self.observation_started_at > self.observed_at
             or not 0 < (self.expires_at - self.observed_at).total_seconds() <= 300
+            or (
+                self.amount_micros is not None
+                and self.amount_micros % 10 ** (6 - self.currency_exponent) != 0
+            )
             or (self.budget_mode is None) != (self.amount_micros is None)
             or len(set(self.unsupported_reasons)) != len(self.unsupported_reasons)
             or (
                 not self.unsupported_reasons
                 and (
                     self.amount_micros is None
+                    or self.account_status != "1"
+                    or self.configured_status not in {"ACTIVE", "PAUSED"}
                     or any(
                         v is not False
                         for v in (

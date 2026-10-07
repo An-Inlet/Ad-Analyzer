@@ -380,3 +380,27 @@ Logs and terminal metadata for these packages are retained and SHA256-listed in
 the executor evidence directory. At11:59:07 successful tools confirmed the original
 Full wrapper/timeout/bash/pytest processes still alive after the11:58 disconnect
 notification; checkout clean and unchanged. No quota indication was observed.
+
+
+## Google Original Operation Evidence — Integrated Successor
+
+Source2a520d0 is independently reviewed and integrated at
+`c942e700546d2b26190f008d1029dce32a8095f5` (tree
+`10aed380c31b7eb1ac61f904024cde369689681c`). Actual single-operation creation and
+activation responses now retain exact owned original-request/run/step/fence,
+operation and result commitments in the existing protected evidence table. A new
+versioned document preserves old v1 and normalized response bytes. Existing receipt
+GET consumes the evidence with fresh historical owner/session checks, including
+closing workspaces, and explicitly unavailable financial finality. Unknown or
+contradictory responses never create completion; no reservation is released.
+
+Author's actual configured API/protocol/legacy/coordinator cohort passed154 with
+one expected SQLite-only concurrency skip in167.25s; conflict rollback2passed5.95s.
+Actual populated PostgreSQL v1/v2 dump/restore, immutable ownership and downgrade
+refusal2passed68.81s (initial missing-tools invocation skipped2, subsequently rerun
+with the existing tools). Root reviewed exact contracts, append transaction,
+original-response/receipt binding, fresh authorization and strict export behavior;
+no actionable finding remained. Root whole Ruff, mypy859, diff and fresh import
+orders passed. Additional combined capture/contracts/Google+Meta+TikTok actual HTTPS
+compatibility is still running and is not yet a pass. This successor remains outside
+frozen2476 Full and has no live/financial qualification.

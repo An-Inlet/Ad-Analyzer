@@ -6469,3 +6469,34 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 -108 assessment/parser/v1 compatibility tests passed, including original-instance
   mutation isolation and rejected nested result assignments. Whole Ruff/mypy832 and
   diffcheck passed. /tmp/inlet-linked-assessment-frozen.log. No DB/IO/live/remote.
+## 2026-10-07 — Bounded Owned TikTok Discovery Reads
+
+- Isolated `codex/inlet-tiktok-owned-discovery` descends parser `1b5cee8`;
+  proposal `caaddb3`, strict aggregate interfaces `8864036` + expected frozen-model
+  mutation test annotation `57c01c9`. Contract-only five cases passed. The first
+  static invocation correctly flagged the intentional assignment to a frozen model;
+  a narrowly scoped expected-error annotation corrected that test, not its behavior.
+- Added `TikTokOwnedDiscovery.identities(...)` / `.pixels()`, GET-only MockTransport
+  contract-test assembly using existing owned TikTok vault/session contexts. Exact
+  scope/token/current generation/original session rechecked around every HTTP read
+  and after transport close. No DB locks during HTTP, no new secret reader, no retry.
+- Full requested-scope traversal requires consistent cardinality, totals and unique
+  IDs. Unknown/missing native IDs cannot establish completeness. Scalar-shape and
+  publication/financial qualification remain explicitly unavailable. Ten-page,
+  per-page/cumulative-byte and total elapsed-time bounds; duplicate raw JSON keys,
+  nonfinite scalars and deep nesting fail closed and sanitize without raw output.
+- Final parser/aggregate/owned-context tests: **113 passed, zero skips**, 64.01s,
+  SQLite + PostgreSQL. Intermediate 36-case cohort passed. Adverse initial byte-limit
+  test: 24 passed/one failure because the fixture's950-byte allowance exceeded the
+  actual total response; corrected to first actual encoded response length+1. No
+  production limit or guard relaxed. Logs `/tmp/inlet-tiktok-owned-discovery-tests.log`
+  and `/tmp/inlet-tiktok-owned-discovery-final-strict.log` preserve this distinction.
+- Whole Ruff and configured mypy834 passed. Extra elapsed context/stream-delay and transport-mode tests: **4 passed**
+  (42 deselected) in7.36s across both DBs. Final `git diff --check` passed.
+- **Not wired:** native customer API/browser, new linked identity publisher, native
+  production qualification. Existing decoded CUSTOMIZED_USER runtime remains as-is.
+  No schema, root qualification checkout, Full, remote or live provider action.
+- Final requested ownership boundary: caller-supplied wrong workspace and stale
+  connection generation both reject before the first GET on SQLite and PostgreSQL:
+  **4 passed** (46 deselected),7.77s. Product code remains `17cb712`; this successor
+  adds only focused tests/ledger. Focused Ruff/mypy and diff check pass.

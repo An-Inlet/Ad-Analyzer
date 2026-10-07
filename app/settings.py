@@ -173,6 +173,15 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    meta_execution_manifest_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_META_EXECUTION_MANIFEST_PATH"
+    )
+    meta_execution_manifest_digest: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_META_EXECUTION_MANIFEST_DIGEST"
+    )
+    meta_execution_bundle_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_META_EXECUTION_BUNDLE_PATH"
+    )
     google_execution_manifest_path: str | None = Field(
         default=None, validation_alias="AD_ANALYZER_GOOGLE_EXECUTION_MANIFEST_PATH"
     )

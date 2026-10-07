@@ -53,6 +53,7 @@ from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
 from app.portal.router import router as portal_router
 from app.production_runtime.configuration import GoogleRuntimeConfigurationError
+from app.production_runtime.meta_configuration import MetaRuntimeConfigurationError
 from app.readiness import database_available, database_schema_current
 from app.shopify.logging import install_access_filter
 
@@ -134,6 +135,7 @@ async def budget_mandate_configuration_error(
     return JSONResponse(status_code=503, content={"detail": "budget_mandate_configuration_invalid"})
 
 
+@app.exception_handler(MetaRuntimeConfigurationError)
 @app.exception_handler(GoogleRuntimeConfigurationError)
 async def google_runtime_configuration_error(
     _request: Request, _exc: GoogleRuntimeConfigurationError

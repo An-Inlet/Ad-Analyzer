@@ -213,7 +213,13 @@ def test_configured_admission_denies_before_source_or_http(
         assert result.status_code == 409, result.text
         assert requests == []
         return
-    result = alice.post(base + "/mandates", headers=headers(alice), json=policy_body)
+    # Lazy composition permits local consent preparation without constructing an
+    # unused provider transport. Discovery is the first typed provider IO boundary.
+    result = alice.post(
+        base + ("/configuration-options" if scenario == "real_transport" else "/mandates"),
+        headers=headers(alice),
+        json={"draft_id": draft} if scenario == "real_transport" else policy_body,
+    )
     assert result.status_code == 409, result.text
     assert requests == [] and server.posts == 0
     assert control["transports_opened"] == control["transports_closed"] == 0

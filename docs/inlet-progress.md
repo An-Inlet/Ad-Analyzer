@@ -5739,3 +5739,34 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   mypy754 and diff check passed. No DB, Full, remote or live operations. Next is
   request-owned contexts and lazy typed provider composition after sharing this
   freeze; actual configured API/TLS journey remains outstanding.
+
+### 2026-10-07 — Configured Meta Image And Lazy Provider Composition
+
+- Successor to bd35908 wires request-owned Meta vault/media contexts, ordinary
+  social-review dependency and typed lazy Google/Meta execution composition.
+  `configured_execution(db, principal, provider, settings, media_store_factory,
+  social_only=False)` owns resources until request exit. Actual original session,
+  DB bind, current source/generation and exact declaration/profile guards retained.
+- Same-environment Google+Meta capability discovery builds no evidence source or
+  transport. Typed Meta work never builds Google; unsupported TikTok catalog/plans
+  and inert HTTP slot deny before factories/IO. Missing Meta leaves Google working.
+  Native Meta four qualification blockers remain; no registered live source or
+  blocker-filtering code. Real transport rejects contract-test before construction.
+- Actual configured Meta fixture seeds no execution review/attempt/receipt/hold and
+  overrides no runtime getters. Ordinary API performs mandate consent, actual named
+  HTTP catalog, explicit declaration review/confirmation, exact creation approval,
+  image/paused graph and separate activation/readback. Unknown create/activate retain
+  original hold and do not replay. Session revocation or generation change during
+  catalog HTTP, expired credentials and absent source deny without writes.
+- Checks:42 combined Meta/Google/legacy API cases passed; final49 Meta contracts/API,
+  legacy social API and all6 configured Google TLS regression cases passed on both
+  DBs. Logs `/tmp/inlet-meta-composition-focused.log` and
+  `/tmp/inlet-meta-composition-final.log`. Whole Ruff/mypy758/diff check passed.
+  Exploratory old Google real-transport regression initially expected eager denial
+  during local mandate preparation; lazy behavior requires no unused transport.
+  It now exercises actual configuration discovery and preserves the forbidden-real-
+  constructor/no-IO assertion. No production/hash/financial check was relaxed.
+- Callable composition and `tests/meta_runtime_fixture.py:configured_meta_customer`
+  are frozen for dependent actual Meta TLS acceptance. That new Meta browser journey
+  remains outstanding; Google browser compatibility is verified. No Full, remote,
+  live calls, merge or deployment, and no claims of live qualification.

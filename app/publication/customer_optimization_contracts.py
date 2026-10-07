@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Annotated, Literal, Protocol
 from pydantic import AwareDatetime, Field, model_validator
 
 from app.goals.schemas import StrictModel
+from app.publication.clock import utc_now
 from app.publication.contracts import fingerprint
-from app.publication.customer_runtime import utc_now
 from app.publication.execution_contracts import ExecutionAccount
 from app.publication.optimization_contracts import OptimizationState
 from app.publication.optimization_execution_contracts import OptimizationRuntime

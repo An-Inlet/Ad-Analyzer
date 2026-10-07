@@ -6315,3 +6315,14 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - Whole Ruff, mypy app/tests (**764 source files**), both JavaScript syntax checks
   and diff check pass. No production code changes in this browser package, no
   Full, remote operations, native live calls, deployment or live qualification.
+
+### 2026-10-07 — Standalone Planning Contract Import Repair
+
+- Reproduced fresh-process ImportError on initial_planning.contracts: TargetChoice
+  pulled customer_runtime solely for utc_now, then activation/coordinator/mandates
+  reentered partially initialized Frozen through optimization-origin contracts.
+- Extracted identical UTC clock into import-neutral publication.clock; legacy runtime
+  reexports the same callable and both dataclass defaults retain its identity. No
+  schema/default behavior changes. Three fresh-import/default identity regressions
+  passed within27 focused tests; whole mypy814 passed. No application-bootstrap
+  workaround remains in tests. No DB, Full, remote or live calls.

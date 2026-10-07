@@ -309,3 +309,31 @@ observed or initiated. The separate candidate worker has a reproduced both-datab
 admission starvation defect under repair; it is not yet integrated. The owner-run
 startup diagnostic remains pending. The new assembled qualification branch is
 local and distinct from the preserved Full-qualified `9450aa48` artifact.
+
+
+## Candidate API And Original-Session Worker Integration
+
+Reviewed package `9580eb98c6adf348ffda3622f1beb44328c9c9ad` is integrated after
+independent exact-head review closed with no remaining actionable finding. The
+review discovered admission starvation before process bookkeeping; author reproduced
+it on both databases, then added guarded60-second scheduling deferral preserving
+leases, attempts and fences. Actual configured Google/Meta API selection, queued
+reads and separate exact review use original-session private contexts; default source
+registration remains absent, unqualified facts remain blocked and automatic
+first-decision production remains unavailable. Manual and V2 review paths retain
+their existing separate authority.
+
+Root combined API/scoped-worker/scheduler/manual optimization/legacy preview review
+cohort: **90 passed in158.94s**, exit0, both databases. The initial command named a
+nonexistent test file and collected zero tests (exit4); the retained initial path-error
+log is not a pass. Corrected test paths changed no product behavior. Whole Ruff,
+`mypy app tests` (**852 files**) and diff check passed. Separate actual V2 handoff
+compatibility passed **26 tests in205.74s**, no skips, on both databases before
+the merge freeze. All author before-failure,
+repair and configured compatibility logs are copied and hashed in the executor
+October7 evidence directory.
+
+The next UI package will add a server-computed decision digest and customer
+selection/status/review controls on an isolated successor. It is excluded from the
+upcoming immutable Full candidate. The owner authorized one assembled local Full;
+no hosted retry or live action follows from that authorization.

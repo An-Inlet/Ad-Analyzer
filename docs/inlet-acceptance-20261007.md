@@ -45,8 +45,9 @@ passes are not a claim that every newer package passed one aggregate run.
 3. Implement genuine server-owned financial/qualification evidence producers and
    register only reviewed sources. Existing adapters and typed callbacks do not
    prove complete liabilities, future exposure or eligibility. Candidate selection/read/review API and original-session worker composition are
-   implemented on an isolated branch under final fairness repair and review; they
-   are not yet accepted into this assembled artifact. Automatic first-decision
+   implemented and independently reviewed, including repaired unavailable-session
+   queue fairness; root combined90-case acceptance passed. The customer candidate
+   UI remains a separate successor package. Automatic first-decision
    production remains absent; the manual runtime does not supply that authority.
    Google/TikTok comparable selected-event feedback producers and strict v3
    independent reconciliation/timing/directional sources remain separate code gaps.

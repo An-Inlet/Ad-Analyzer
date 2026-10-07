@@ -149,3 +149,11 @@ first_decision_producer_unavailable. CandidateReadPrepared returns existing sele
 batch and job IDs; CandidateReadStatus returns owned progress and optional actual
 decision/result ID. CandidateReviewIntent remains existing exact result/digest input.
 No caller proof objects or execution authority fields are accepted.
+
+## Additive Exact Review Display Projection
+
+`CandidateReadStatus.decision_digest` is the canonical server-computed decision
+hash, or null when no decision exists. Its schema validates exact consistency.
+Customer UI sends it unchanged as `expected_decision_digest`; it must not reconstruct
+canonical hashing. This adds a display field and does not change CandidateDecision
+bytes, policy qualification, worker authority, or separate approval requirements.

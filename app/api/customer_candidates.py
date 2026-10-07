@@ -186,7 +186,11 @@ def status(
     )
     service.authorize(db, principal, workspace_id, bundle.candidate)
     return CandidateReadStatus(
-        job_id=row.id, state=row.state, result_id=result.id if result else None, decision=decision
+        job_id=row.id,
+        state=row.state,
+        result_id=result.id if result else None,
+        decision=decision,
+        decision_digest=decision.digest() if decision is not None else None,
     )
 
 

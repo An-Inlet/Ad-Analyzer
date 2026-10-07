@@ -1,5 +1,16 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Existing Campaigns · Inlet</title><link rel="stylesheet" href="/app/assets/portal.css"><script type="module" src="/app/assets/optimization.mjs"></script></head><body><header><a class="brand" href="/app/settings">Inlet<small>An Inlet</small></a><button id="opt-logout" hidden>Sign Out</button></header><main><h1>Existing Campaigns</h1><p><a href="/app/settings">Your Workspace And Sign In</a> · <a href="/app/execution">New Campaign Execution</a> · <a href="/app/activity">Activity</a> · <a href="/app/account-diagnostics">Account Diagnostics</a></p><p id="opt-message" role="status" aria-live="polite">Checking Your Session…</p><button id="opt-refresh">Refresh Session And Status</button>
 <section id="opt-selection" hidden><label>Workspace<select id="opt-workspace"></select></label><p id="opt-environment"></p><ul id="opt-capabilities"></ul><label>Confirmed Goal<select id="opt-goal"></select></label><label>Connected Advertising Account<select id="opt-account"></select></label><button id="opt-discover" disabled>Find Named Existing Targets</button><label>Existing Target<select id="opt-target"></select></label><dl id="opt-target-summary"></dl></section>
+<section id="opt-candidates" hidden><h2>Read Candidate Recommendations</h2>
+<p>This read-only check uses a named server policy and a separately consented spending mandate. It does not approve or run a change, increase your overall limit, or start automation.</p>
+<button id="opt-candidate-load">Load Available Policies And Mandates</button>
+<p id="opt-candidate-message" role="status"></p>
+<label>Server Policy<select id="opt-candidate-policy"><option value="">Choose…</option></select></label>
+<label>Consented Spending Mandate<select id="opt-candidate-mandate"><option value="">Choose…</option></select></label>
+<button id="opt-candidate-read" disabled>Request Read-Only Recommendations</button>
+<button id="opt-candidate-refresh" disabled>Refresh Results</button>
+<p id="opt-candidate-progress"></p><ul id="opt-candidate-results"></ul>
+<p>Each suggested result needs a new exact review and your separate approval. Qualified evidence and spending checks can still prevent that review. Automatic changes are unavailable here.</p></section>
+
 <section id="opt-automation" hidden><h2>Session Automation</h2>
 <p>Runs only while the session that started it remains valid. Signing out stops future changes. Stopping cannot undo a change already sent.</p>
 <p>Automation may adjust existing campaign budgets only within your exact consented spending mandate and an available registered policy. It cannot raise your overall spending limit or create campaigns or creative.</p>

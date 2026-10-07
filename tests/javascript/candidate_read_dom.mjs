@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {candidateReads,checkedCandidateStatus} from '../../app/portal/static/candidate-read.mjs';
+class Element {value='';textContent='';hidden=false;disabled=false;children=[];replaceChildren(...v){this.children=v;this.value='';}append(...v){this.children.push(...v);}remove(){this.removed=true;}}
+const elements=new Map([...fs.readFileSync('app/portal/static/optimization.html','utf8').matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+globalThis.document={getElementById:id=>elements.get(id)};globalThis.Option=class extends Element{constructor(t,v){super();this.textContent=t;this.value=v;}};
+const $=id=>elements.get('opt-candidate-'+id),node=(tag,t)=>Object.assign(new Element(),{tag,textContent:t});
+const jid='a'.repeat(32),rid='b'.repeat(32),mid='c'.repeat(32),pid='d'.repeat(32),h='e'.repeat(64),calls=[];
+const decision={schema_version:'inlet.optimization-candidate.v1',status:'suggested',action:{amount_micros:123},reasons:['non_authorizing_budget_suggestion'],evidence:{qualification:'contract_scenario',direction:'decrease'},spending_authority:'none',dispatch_ready:false,requires_new_execution_admission:true};
+const status={job_id:jid,state:'completed',result_id:rid,decision,decision_digest:h,spending_authority:'none'};
+assert.equal(checkedCandidateStatus(status,jid),status);assert.throws(()=>checkedCandidateStatus({...status,decision_digest:null},jid));assert.throws(()=>checkedCandidateStatus({...status,spending_authority:'approved'},jid));
+let pending=null,hold=false;
+const controller=candidateReads({state:()=>({busy:false,wid:'1',epoch:1,user:'owner'}),path:p=>'/workspaces/1/execution'+p,node,guarded:fn=>fn(1),api:async(url,turn,method='GET',body)=>{calls.push({url,method,body});if(url.endsWith('/capabilities'))return {configured:true,automatic_available:false,spending_authority:'none',truncated:false,policies:[{policy:{policy_id:pid,revision:1},label:'Policy <script>'}],mandates:[{mandate_id:mid,revision:1,policy_digest:h,label:'Brand budget USD 50'}]};if(url.endsWith('/reads'))return {selection:{authority:'none',blocked:[]},job_ids:[jid],spending_authority:'none'};if(url.endsWith('/review'))return {status:'review_required',review_id:'f'.repeat(32),review_digest:h,plan_digest:h};if(hold)await new Promise(r=>pending=r);return status;}});
+controller.clear();controller.enable();assert.equal(calls.length,0);await $('load').onclick();assert.equal($('policy').children[1].textContent,'Policy <script>');$('policy').value='1';$('mandate').value='1';await $('read').onclick();assert.deepEqual(calls.at(-1).body,{mandate_id:mid,mandate_revision:1,policy:{policy_id:pid,revision:1}});assert.equal($('read').disabled,true);await $('refresh').onclick();const item=$('results').children[0],button=item.children.find(n=>n.tag==='button');assert.ok(button);await button.onclick();assert.deepEqual(calls.at(-1).body,{result_id:rid,expected_decision_digest:h});assert.match(item.children.at(-1).href,/\/app\/optimization\?workspace=1&review=/);assert.ok(!calls.some(c=>/approval|advance|start/.test(c.url)));
+hold=true;const late=$('refresh').onclick();await new Promise(r=>setImmediate(r));controller.clear();pending();await late;assert.equal($('results').children.length,0);
+
+const before=calls.length;await button.onclick();assert.equal(calls.length,before,'detached stale review control cannot send a request');

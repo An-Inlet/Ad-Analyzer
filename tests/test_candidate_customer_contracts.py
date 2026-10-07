@@ -2,6 +2,7 @@ import pytest
 from app.optimization_candidates.customer_contracts import (
     CandidateCapabilities,
     CandidateReadIntent,
+    CandidateReadStatus,
 )
 from pydantic import ValidationError
 
@@ -23,3 +24,12 @@ def test_candidate_capability_cannot_advertise_automatic_authority() -> None:
     assert not parsed.automatic_available
     with pytest.raises(ValidationError):
         CandidateCapabilities.model_validate({**value, "automatic_available": True})
+
+
+def test_pending_candidate_digest_is_explicitly_absent() -> None:
+    value = dict(
+        job_id="a" * 32, state="pending", result_id=None, decision=None, decision_digest=None
+    )
+    assert CandidateReadStatus.model_validate(value).decision_digest is None
+    with pytest.raises(ValidationError):
+        CandidateReadStatus.model_validate({**value, "decision_digest": "b" * 64})

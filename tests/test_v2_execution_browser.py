@@ -110,7 +110,8 @@ def test_v2_execution_review_browser(
         if path.startswith("/app/assets/"):
             name = path.removeprefix("/app/assets/")
             if name in {"initial-planning.mjs", "initial-execution.mjs", "session-context.mjs",
-                        "optimization.mjs", "optimization-budget.mjs", "session-automation.mjs"}:
+                        "optimization.mjs", "optimization-budget.mjs", "session-automation.mjs",
+                        "candidate-read.mjs"}:
                 await Response(
                     Path("app/portal/static", name).read_text(), media_type="text/javascript"
                 )(scope, receive, send)

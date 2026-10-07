@@ -111,3 +111,31 @@ warnings in 116.37 seconds**, exit 0. Whole Ruff, mypy795 and diff check passed.
 Log: `inlet-next-integration-optimization-api.log`. This is focused integration
 evidence, not Full qualification or live verification. The separately reviewed
 financial-period boundary followup remains pending integration.
+
+## Configured Customer Journey Integration — Terminal Result
+
+Code merge `c7c54f3c887d3297ae732a087d7650f3259a909a` integrates reviewed
+optimization UI `e8ce58b`, financial-period repair `0d965b1`, and TikTok backend/HTTPS
+`d02159a`. The settings merge preserves both additive configurations; append-only
+ledger conflicts retain both histories. Subsequent changes through `e15c4c4` are docs.
+
+The combined nine-file cohort passed **105 tests, zero skips, in 722.83 seconds**,
+terminal exit0: financial-period pure/API, initial budget mandate API, configured
+optimization API/UI/HTTPS, and Google/Meta/TikTok configured execution HTTPS.
+SQLite and disposable PostgreSQL both ran. Actual customer sessions/pages/routes
+and provider MockHTTP were used; no live provider qualification is claimed. Whole
+Ruff, mypy809, optimization JavaScript syntax and baseline diff check passed.
+Log: `inlet-next-integration-configured-final.log`; copied to durable executor
+evidence with SHA256SUMS. No new Full or hosted attempt was launched.
+
+The independent read-only TikTok browser review found no actionable issue. Root
+reviewed the financial boundary and optimization UI changes. Original invalid
+local midnights now reject rather than choose a fold or normalize a skipped date;
+ordinary23/25-hour DST periods remain valid.
+
+Separate frozen945 remains locally Full-qualified; its hosted run failed before
+application tests. See [exact hosted evidence](inlet-hosted-qualification-20261007.md).
+Diagnostic-only `d50947c` is separate and has8 focused passes plus real local151/154
+decoding; no hosted fix is claimed. Next package is the
+[configured v2 preview/review bridge](design/configured-v2-preview-review-bridge.md),
+starting with shared pure interfaces. No migration is reserved yet.

@@ -100,3 +100,12 @@ no financial execution authority. No automatic runtime registration changed.
 Logs: `/tmp/inlet-initial-rule-retention-followup.log`,
 `/tmp/inlet-initial-rule-creation-bound-baseline.log` (2 reproduced failures),
 `/tmp/inlet-initial-rule-creation-bound-fixed.log` (4 passing cases).
+
+The real setup is now reusable through
+`tests.initial_rule_fixture.configured_initial_rule(...)`, a context manager retaining
+the actual configured runtime and transport lifetime. It returns the original principal,
+provider, typed work/native observation, planning/policy/readers and API/server controls.
+It creates no candidate jobs or execution rows. The existing source tests retain their
+own explicit inert dependency-test job and all assertions. All10 SQLite/PostgreSQL
+source cases pass after extraction; scoped Ruff/mypy2 pass.
+Log: `/tmp/inlet-initial-rule-reusable-source.log`.

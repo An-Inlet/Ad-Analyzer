@@ -43,6 +43,7 @@ def test_production_configuration_validation_accepts_safe_managed_postgresql() -
         "required_secrets",
         "write_guards",
         "production_allowlists",
+        "planning_reporting_profile",
     }
 
 

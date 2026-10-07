@@ -5712,3 +5712,33 @@ Final exact package checks after artifact removal: 8 passed on SQLite/PostgreSQL
 mypy741 clean, both Node syntax checks and `git diff --check` passed. The producer's
 inherited Ruff B010 is repaired by its frozen backend commit. No Full, remote
 operation, live provider request or change to qualification checkout/database.
+
+## Owned Goal Sales Progress Backend — Local Checkpoint
+
+The additive revision-scoped GET returns only complete closed store-local day
+prefix sales from the existing unchanged merchandise measurement reader. The goal's
+monthly/cumulative target remains unchanged; net refunds may produce signed negative
+progress and genuine zero remains distinct from unavailable null. Current recorded
+confirmation suffices for informational progress; there is no re-confirmation,
+achievement, causal attribution or spending authority. No snapshots or other rows
+are created by the read. Exact midnight/date/time-zone bindings reject ambiguous
+boundaries while preserving23/25-hour DST days.
+
+Original session and current read-role membership are fenced workspace-first,
+with fresh database/application wall clocks after waits. Privacy, disconnected,
+in-progress, missing-history and stale sources deny the amount. Real PostgreSQL
+workspace-lock wait plus session revocation denies the response. Existing goal API
+mutation behavior is unchanged.
+
+Actual normalized September sale/October processing-date refund and completed
+CommerceSyncService import underpin the reusable tests/goal_progress_fixture.py
+ready(engine,configuration,replicas) helper. It returns alice,provider,wid,gid,
+revision,store_id,original principal,now. Optional explicit fixture clock spans the
+confirmed target end without approving a goal after its deadline.
+
+Checks:30passed1expected SQLite row-lock skip (/tmp/inlet-goal-progress-delivery.log),
+then13 strict contract/DST tests passed after final UTC/date validation additions.
+Whole Ruff and mypy746 pass; diff check passed. Adverse fixture attempts were kept:
+future updatedAt relative to import cutoff correctly rejected; trying to confirm
+an already-ended goal correctly rejected. Fixtures were corrected, not product
+guards. UI/TLS integration is the separate dependent package. No Full/remote/live.

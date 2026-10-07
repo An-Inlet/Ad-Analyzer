@@ -3,13 +3,21 @@
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy import func, select
 
-from app.customers.access import Database, MutationPrincipal, Principal, customer_workspace
+from app.customers.access import (
+    Database,
+    MutationPrincipal,
+    Principal,
+    Provider,
+    customer_workspace,
+)
 from app.goals import service
 from app.goals.interpreter import GoalInterpreter, get_interpreter, run
 from app.goals.models import Goal, GoalRevision, GoalUsage
+from app.goals.progress import read_goal_progress
+from app.goals.progress_contracts import GoalSalesProgressV1
 from app.goals.schemas import ConfirmInput, DraftInput, EditInput, InterpretationInput, PreviewInput
 
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/goals", tags=["customer"])
@@ -177,3 +185,16 @@ def interpret(
     item = service.owned(db, workspace_id, goal_id)
     service.expect(item, body.expected_revision)
     return run(db, item, principal.user.id, body, adapter)
+
+
+@router.get("/{goal_id}/progress", response_model=GoalSalesProgressV1)
+def progress(
+    workspace_id: int, goal_id: str, principal: Principal, provider: Provider,
+    db: Database, response: Response,
+    expected_revision: Annotated[int, Query(ge=1)],
+) -> GoalSalesProgressV1:
+    response.headers["Cache-Control"] = "no-store"
+    return read_goal_progress(
+        db, principal, provider, workspace_id, goal_id, expected_revision,
+        clock=lambda: datetime.now(UTC),
+    )

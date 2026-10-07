@@ -1,7 +1,8 @@
 """Informational current goal progress; no achievement or spending authority."""
 
-from datetime import date
+from datetime import UTC, date, datetime, time
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -13,10 +14,20 @@ class Frozen(BaseModel):
 
 
 ProgressReason = Literal[
-    "goal_not_confirmed", "goal_definition_unavailable", "source_unavailable",
-    "measurement_basis_changed", "ambiguous_local_boundary", "no_closed_days",
-    "outside_retention", "missing_history", "incomplete_window", "stale_source",
-    "import_in_progress", "source_error", "unreconciled_source", "privacy_suppressed_source",
+    "goal_not_confirmed",
+    "goal_definition_unavailable",
+    "source_unavailable",
+    "measurement_basis_changed",
+    "ambiguous_local_boundary",
+    "no_closed_days",
+    "outside_retention",
+    "missing_history",
+    "incomplete_window",
+    "stale_source",
+    "import_in_progress",
+    "source_error",
+    "unreconciled_source",
+    "privacy_suppressed_source",
 ]
 
 
@@ -67,8 +78,12 @@ class GoalSalesProgressV1(Frozen):
         if len(set(self.reasons)) != len(self.reasons):
             raise ValueError("unique reasons required")
         definition = (
-            self.definition_digest, self.target_window, self.target_micros,
-            self.store_id, self.currency, self.time_zone,
+            self.definition_digest,
+            self.target_window,
+            self.target_micros,
+            self.store_id,
+            self.currency,
+            self.time_zone,
         )
         if any(value is None for value in definition) and any(
             value is not None for value in definition
@@ -76,25 +91,46 @@ class GoalSalesProgressV1(Frozen):
             raise ValueError("complete definition metadata required")
         window = self.target_window
         if window is not None and (window.currency, window.time_zone) != (
-            self.currency, self.time_zone
+            self.currency,
+            self.time_zone,
         ):
             raise ValueError("exact goal measurement basis required")
         coverage = self.coverage
         if coverage is not None and (
-            window is None or coverage.starts_on != window.start
+            window is None
+            or coverage.starts_on != window.start
             or coverage.ends_on_exclusive > window.end
-            or (coverage.extent == "full_window_as_of") != (
-                coverage.ends_on_exclusive == window.end
-            )
+            or (coverage.extent == "full_window_as_of")
+            != (coverage.ends_on_exclusive == window.end)
         ):
             raise ValueError("coverage must be a prefix of the unchanged goal")
+        if coverage is not None and window is not None:
+            zone = ZoneInfo(window.time_zone)
+            for day, instant in (
+                (coverage.starts_on, coverage.starts_at),
+                (coverage.ends_on_exclusive, coverage.ends_at_exclusive),
+            ):
+                local = datetime.combine(day, time.min)
+                first = local.replace(tzinfo=zone, fold=0).astimezone(UTC)
+                second = local.replace(tzinfo=zone, fold=1).astimezone(UTC)
+                if (
+                    first != second
+                    or first.astimezone(zone).replace(tzinfo=None) != local
+                    or instant != first
+                ):
+                    raise ValueError("exact unambiguous store-local midnight required")
         if self.status == "available_as_of":
             if (
-                any(value is None for value in definition) or coverage is None
-                or self.net_sales_micros is None or self.source_watermark is None
-                or self.source_revision is None or self.import_in_progress is not False
-                or self.reasons or coverage.ends_at_exclusive > self.source_watermark
-                or coverage.ends_at_exclusive > self.as_of or self.source_watermark > self.as_of
+                any(value is None for value in definition)
+                or coverage is None
+                or self.net_sales_micros is None
+                or self.source_watermark is None
+                or self.source_revision is None
+                or self.import_in_progress is not False
+                or self.reasons
+                or coverage.ends_at_exclusive > self.source_watermark
+                or coverage.ends_at_exclusive > self.as_of
+                or self.source_watermark > self.as_of
             ):
                 raise ValueError("available progress requires complete current closed-day coverage")
         elif self.net_sales_micros is not None or not self.reasons:

@@ -173,6 +173,13 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    planning_reporting_profile_path: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_PLANNING_REPORTING_PROFILE_PATH"
+    )
+    planning_reporting_profile_digest: str | None = Field(
+        default=None, validation_alias="AD_ANALYZER_PLANNING_REPORTING_PROFILE_DIGEST"
+    )
+
     media_storage_mode: str = Field(default="disabled", alias="AD_ANALYZER_MEDIA_STORAGE_MODE")
     media_gcs_bucket: str = Field(default="", alias="AD_ANALYZER_MEDIA_GCS_BUCKET")
     media_local_directory: str = Field(default="", alias="AD_ANALYZER_MEDIA_LOCAL_DIRECTORY")

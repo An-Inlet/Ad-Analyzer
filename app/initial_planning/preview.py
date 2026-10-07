@@ -11,7 +11,7 @@ from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
-from app.initial_planning import calibration, capture, limits, native
+from app.initial_planning import calibration, capture, limits, native, native_budget
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
     CalibrationReportV1,
@@ -326,6 +326,12 @@ def read_preview(
         or runtime.profile.environment != document.environment
     ):
         raise HTTPException(409, "The planning profile changed.")
+    if isinstance(document, InitialPreviewV2) and document.native_observation is not None:
+        current_request = native_budget.owned_request(
+            db, principal, provider, document.objective, runtime
+        )
+        if current_request != document.native_observation.request:
+            raise HTTPException(409, "The native observation scope changed.")
     _, observation, goal_digest = inputs(db, principal, provider, intent, runtime)
     if (
         fingerprint(document.schema_version, document.model_dump(mode="json"))

@@ -20,10 +20,14 @@ class CalibrationIntent(Frozen):
     maximum_reported_cpa_micros: int = Field(strict=True, gt=0, le=10**15)
 
 
+class NativeBudgetChoice(Frozen):
+    option_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
 class PreviewIntent(Frozen):
     calibration_id: str = Field(pattern=r"^[a-f0-9]{32}$")
     observation_id: str = Field(pattern=r"^[a-f0-9]{32}$")
-    choice: TargetChoice | None = None
+    choice: TargetChoice | NativeBudgetChoice | None = None
     mandate_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     mandate_revision: int | None = Field(default=None, strict=True, gt=0)
 
@@ -56,7 +60,7 @@ class PlanningOptions(Frozen):
 
 class NativeOption(Frozen):
     id: str = Field(pattern=r"^[a-f0-9]{64}$")
-    choice: TargetChoice
+    choice: TargetChoice | NativeBudgetChoice
     label: str = Field(min_length=1, max_length=160)
     currency: str = Field(pattern=r"^[A-Z]{3}$")
     budget_kind: Literal["daily", "lifetime"]

@@ -161,11 +161,11 @@ def test_actual_owned_vault_and_original_session_after_http(
         assert commerce.page(wid, now=clock[0])["status"] == "complete"
         db.commit()
         goal = goals.owned(db, wid, acquisition.anchor.goal_id)
+        definition = goals.current(db, goal).definition
+        assert definition is not None
         goal_digest = fingerprint(
-            "inlet.optimization-goal.v1",
-            {
-                "definition": goals.current(db, goal).definition,
-            },
+            "inlet.initial-preview-goal.v1",
+            definition,
         )
         scope = customer_intents.account(db, wid, acquisition.anchor.cohort.account_id)
         value = NativeBudgetRequestV1.model_validate(

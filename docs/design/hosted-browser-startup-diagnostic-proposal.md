@@ -66,3 +66,15 @@ Only after those facts identify a repair should any normal paid validation run b
 proposed. The current evidence does not justify declaring d509 a fix, disabling
 sandbox controls beyond existing test flags, bypassing network restrictions,
 relaxing decode assertions or raising launch deadlines.
+
+Parent subsequently downloaded and verified the hosted artifact archive. It
+contains only `summary.txt`: `No nested JUnit report was produced.` Preserved
+paths are `/workspace/inlet-evidence/20261007/inlet-hosted-37602978286.zip` and
+`hosted-artifact-summary.txt`. It supplies no additional browser startup facts.
+
+Local environment cleanup: the temporary matching container is stopped and its
+original bridge network restored. Docker's zero-CPU update did not clear its
+NanoCPUs setting; it retains the explicit two-CPU test cap while stopped. The
+attempted period/quota reset was rejected as conflicting. No daemon configuration
+or container replacement workaround was attempted; future reuse must account for
+that retained cap. No customer data or credentials were involved.

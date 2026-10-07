@@ -563,7 +563,7 @@ def test_job_run_error_messages_are_replaced_at_the_http_boundary() -> None:
         account = db.get(AdvertisingAccount, ids["a1"])
         assert account is not None
         db.add(
-            JobRun(
+            JobRun(workspace_id=1,
                 platform=account.platform,
                 account_id=account.id,
                 job_name="sync",
@@ -640,7 +640,7 @@ def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> 
         same_start = datetime(2026, 7, 17, tzinfo=UTC)
         db.add_all(
             [
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=a1.platform,
                     account_id=a1.id,
                     job_name="sync",
@@ -649,7 +649,7 @@ def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> 
                     finished_at=same_start,
                     records_processed=8,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=a1.platform,
                     account_id=a1.id,
                     job_name="sync",
@@ -658,7 +658,7 @@ def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> 
                     finished_at=same_start,
                     records_processed=9,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=a2.platform,
                     account_id=a2.id,
                     job_name="sync",
@@ -667,7 +667,7 @@ def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> 
                     finished_at=datetime(2026, 7, 15, tzinfo=UTC),
                     records_processed=4,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=a1.platform,
                     account_id=a1.id,
                     job_name="backfill",
@@ -676,7 +676,7 @@ def test_sync_status_is_account_scoped_paginated_and_uses_latest_timestamp() -> 
                     finished_at=datetime(2026, 7, 14, tzinfo=UTC),
                     records_processed=11,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=a1.platform,
                     account_id=None,
                     job_name="platform-sync",
@@ -725,7 +725,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
     with make_client(foreign_keys=False) as (client, db, ids):
         google_account = db.get(AdvertisingAccount, ids["a1"])
         assert google_account is not None
-        meta_account = AdvertisingAccount(
+        meta_account = AdvertisingAccount(workspace_id=1,
             platform=AdvertisingPlatform.META_ADS,
             external_account_id="meta-100",
             name="Meta account",
@@ -737,7 +737,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
         correct_success = datetime(2026, 7, 17, tzinfo=UTC)
         db.add_all(
             [
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.GOOGLE_ADS,
                     account_id=google_account.id,
                     job_name="sync",
@@ -746,7 +746,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
                     finished_at=correct_success,
                     records_processed=12,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.META_ADS,
                     account_id=google_account.id,
                     job_name="malformed",
@@ -755,7 +755,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
                     finished_at=datetime(2026, 7, 20, tzinfo=UTC),
                     records_processed=100,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.META_ADS,
                     account_id=meta_account.id,
                     job_name="sync",
@@ -764,7 +764,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
                     finished_at=correct_success,
                     records_processed=13,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.META_ADS,
                     account_id=meta_account.id,
                     job_name="sync",
@@ -773,7 +773,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
                     finished_at=datetime(2026, 7, 18, tzinfo=UTC),
                     records_processed=14,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.GOOGLE_ADS,
                     account_id=meta_account.id,
                     job_name="malformed",
@@ -782,7 +782,7 @@ def test_sync_status_ignores_cross_platform_job_runs() -> None:
                     finished_at=datetime(2026, 7, 20, tzinfo=UTC),
                     records_processed=101,
                 ),
-                JobRun(
+                JobRun(workspace_id=1,
                     platform=AdvertisingPlatform.GOOGLE_ADS,
                     account_id=None,
                     job_name="platform-sync",
@@ -816,7 +816,7 @@ def test_job_run_account_delete_is_restricted_and_unscoped_runs_are_valid() -> N
         db.rollback()
 
         db.add(
-            JobRun(
+            JobRun(workspace_id=1,
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 account_id=None,
                 job_name="platform-sync",

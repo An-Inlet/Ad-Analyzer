@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
-  title: Denticode private CRM inlet
-  version: "1.0"
+  title: Inlet scoped CRM ingress
+  version: "2.0"
 schemes: [https]
 produces: [application/json]
 paths:
@@ -14,7 +14,7 @@ paths:
         path_translation: APPEND_PATH_TO_ADDRESS
       responses:
         "200": {description: Healthy}
-  /v1/crm/events:
+  /v1/crm/workspaces/{workspace_id}/connections/{connection_id}/events:
     post:
       operationId: receiveCrmEvent
       x-google-backend:
@@ -22,6 +22,8 @@ paths:
         jwt_audience: ${gateway_url}
         path_translation: APPEND_PATH_TO_ADDRESS
       parameters:
+        - {name: workspace_id, in: path, required: true, type: integer, minimum: 1}
+        - {name: connection_id, in: path, required: true, type: integer, minimum: 1}
         - {name: X-AnInlet-Event-Id, in: header, required: true, type: string}
         - {name: X-AnInlet-Timestamp, in: header, required: true, type: string}
         - {name: X-AnInlet-Signature, in: header, required: true, type: string}
@@ -31,3 +33,4 @@ paths:
         "401": {description: Authentication failed}
         "409": {description: Duplicate event}
         "422": {description: Invalid event}
+        "503": {description: Ownership database or connection secret unavailable}

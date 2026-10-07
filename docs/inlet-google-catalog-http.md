@@ -1,0 +1,22 @@
+# Google Named Configuration Catalog
+
+`app/collectors/google_catalog.py` implements the frozen `GoogleCatalogReader` port with actual Google Ads v25 REST search serialization and injectable HTTP. It is not registered in a default factory. Construction makes no network request. Tests use only `httpx.MockTransport`.
+
+The server supplies `GoogleCatalogContext` for the exact request digest and current `ExecutionAccount`, including connection generation, draft revision and source digest through that binding. Access/developer tokens are excluded from serialization and representation. The optional legacy developer token and manager login header are server configuration, never customer fields. The context resolver and caller must enforce current ownership; the caller repeats its canonical actor/session/role/account-generation/draft checks after network IO before exposing or accepting results. The reader performs no database commits or lock release.
+
+The collector queries only the fixed `googleAds:search` endpoint. It verifies the selected customer is enabled and not a manager, discovers named enabled custom conversion goals, and accepts a goal only when its complete action set is enabled, owned by that customer, and `PURCHASE`/`WEBPAGE`. It resolves the exact requested country codes to enabled Country constants and languages to targetable language constants. Cross-account/system actions, missing members and unsupported conversion types never become options. This intentionally matches the current narrow purchase qualification profile; it does not create tracking, prove tag operation, or equate Google conversions with Shopify financial sales.
+
+Choices use provider human names and the shared opaque identifier. The reader never appends native numeric IDs to labels. Empty/control-character/resource-path labels and ambiguous duplicate names fail closed. The portal must render labels as text, not HTML. Native resources remain server-side catalog contents; the public projection exposes only named opaque choices. Selection still triggers independent current resource qualification; catalog discovery is not publication, activation or spending authority.
+
+Bounds are 50 goals/options, 200 conversion-action rows, 10 pages per inventory, 1 MB per response, the shared 64 KiB catalog bound, 12-second IO/5-second connection timeout, and a 60-second overall deadline checked around every response and chunk. Evidence expires no later than the credential context or five minutes after observation started. Pagination cycles, overflow, ambiguous target mappings, provider errors and expiration fail without partial choices. No redirects, environment proxies, compressed responses, raw response logging or automatic retries are allowed. The existing context-local HTTP log filter suppresses URL/credential-bearing HTTP diagnostics.
+
+A missing purchase goal is an honest empty catalog with `catalog_no_supported_purchase_goal`; an unsupported goal adds `catalog_unsupported_conversion_goal`. Transport/identity/target failures raise a fixed `GoogleCatalogUnavailable` code. A composition root must map that to a safe unavailable state rather than expose exception internals. Missing target codes are not silently substituted (for example, an unavailable regional language is not changed to another language).
+
+Primary documentation checked 2026-10-06:
+
+- [CustomConversionGoal](https://developers.google.com/google-ads/api/reference/rpc/v25/CustomConversionGoal): name, status, action membership and customer-scoped resource identity.
+- [ConversionAction](https://developers.google.com/google-ads/api/reference/rpc/v25/ConversionAction): owner customer, category/type/status. Custom goals can make secondary actions biddable; no invented `primary_for_goal` restriction is imposed.
+- [GeoTargetConstant](https://developers.google.com/google-ads/api/reference/rpc/v25/GeoTargetConstant): country, target type, status and resource identity.
+- [LanguageConstant](https://developers.google.com/google-ads/api/reference/rpc/v25/LanguageConstant): language code and targetability.
+
+Remaining release work: explicit server credential resolver/composition with current DB authorization, runtime lifecycle/operational gates and live qualification in an approved environment. Those are distinct from this implemented HTTP producer. No live credentials, calls, configuration or advertising changes occurred. Native total-exposure evidence remains unqualified; this catalog does not resolve that separate capability gap.

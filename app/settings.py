@@ -173,6 +173,113 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    media_storage_mode: str = Field(default="disabled", alias="AD_ANALYZER_MEDIA_STORAGE_MODE")
+    media_gcs_bucket: str = Field(default="", alias="AD_ANALYZER_MEDIA_GCS_BUCKET")
+    media_local_directory: str = Field(default="", alias="AD_ANALYZER_MEDIA_LOCAL_DIRECTORY")
+    klaviyo_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_KLAVIYO_RUNTIME_MODE")
+    klaviyo_client_id: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_CLIENT_ID")
+    klaviyo_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_KLAVIYO_CLIENT_SECRET"
+    )
+    klaviyo_api_revision: str = Field(default="", alias="AD_ANALYZER_KLAVIYO_API_REVISION")
+    hubspot_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_HUBSPOT_RUNTIME_MODE")
+    hubspot_client_id: str = Field(default="", alias="AD_ANALYZER_HUBSPOT_CLIENT_ID")
+    hubspot_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_HUBSPOT_CLIENT_SECRET"
+    )
+
+    omnisend_runtime_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_OMNISEND_RUNTIME_MODE"
+    )
+    omnisend_client_id: str = Field(default="", alias="AD_ANALYZER_OMNISEND_CLIENT_ID")
+    omnisend_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_OMNISEND_CLIENT_SECRET"
+    )
+    omnisend_api_revision: str = Field(default="", alias="AD_ANALYZER_OMNISEND_API_REVISION")
+
+    tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
+    tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
+    tiktok_app_secret: SecretStr | None = Field(default=None, alias="AD_ANALYZER_TIKTOK_APP_SECRET")
+    customer_native_diagnostics_enabled: bool = Field(
+        default=False, validation_alias="INLET_CUSTOMER_NATIVE_DIAGNOSTICS_ENABLED"
+    )
+    google_customer_runtime_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_GOOGLE_CUSTOMER_RUNTIME_MODE"
+    )
+    google_customer_api_version: str = Field(
+        default="", alias="AD_ANALYZER_GOOGLE_CUSTOMER_API_VERSION"
+    )
+    google_customer_client_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_SECRET"
+    )
+    google_customer_developer_token: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_GOOGLE_CUSTOMER_DEVELOPER_TOKEN"
+    )
+    billing_provider_mode: str = Field(
+        default="disabled", alias="AD_ANALYZER_BILLING_PROVIDER_MODE"
+    )
+    billing_offer_profile: str | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_OFFER_PROFILE"
+    )
+    billing_live_max_accounts: int | None = Field(
+        default=None, ge=1, le=100, alias="AD_ANALYZER_BILLING_LIVE_MAX_ACCOUNTS"
+    )
+    billing_live_enabled: bool = Field(default=False, alias="AD_ANALYZER_BILLING_LIVE_ENABLED")
+    billing_receipt_read_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_BILLING_RECEIPT_READ_ENABLED"
+    )
+    billing_receipt_environment: str = Field(
+        default="", alias="AD_ANALYZER_BILLING_RECEIPT_ENVIRONMENT"
+    )
+    billing_merchant_account_id: str = Field(
+        default="", alias="AD_ANALYZER_BILLING_MERCHANT_ACCOUNT_ID"
+    )
+    billing_live_webhook_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_LIVE_WEBHOOK_SECRET"
+    )
+    billing_api_key: SecretStr | None = Field(default=None, alias="AD_ANALYZER_BILLING_API_KEY")
+    billing_api_version: str = Field(default="", alias="AD_ANALYZER_BILLING_API_VERSION")
+    billing_portal_configuration: str = Field(
+        default="", alias="AD_ANALYZER_BILLING_PORTAL_CONFIGURATION"
+    )
+    customer_session_automation_enabled: bool = Field(
+        default=False, alias="INLET_CUSTOMER_SESSION_AUTOMATION_ENABLED"
+    )
+    customer_google_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_GOOGLE_SCHEDULER_ENABLED"
+    )
+    customer_tiktok_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_TIKTOK_SCHEDULER_ENABLED"
+    )
+    customer_billing_scheduler_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_BILLING_SCHEDULER_ENABLED"
+    )
+    customer_analysis_outbox_enabled: bool = Field(
+        default=False, alias="AD_ANALYZER_CUSTOMER_ANALYSIS_OUTBOX_ENABLED"
+    )
+    billing_required: bool = Field(default=False, alias="AD_ANALYZER_BILLING_REQUIRED")
+    billing_price_id: str = Field(default="", alias="AD_ANALYZER_BILLING_PRICE_ID")
+    billing_max_accounts: int = Field(
+        default=1, ge=1, le=100, alias="AD_ANALYZER_BILLING_MAX_ACCOUNTS"
+    )
+    billing_webhook_secret: SecretStr | None = Field(
+        default=None, alias="AD_ANALYZER_BILLING_WEBHOOK_SECRET"
+    )
+
+    source_token_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="AD_ANALYZER_SOURCE_TOKEN_ENCRYPTION_KEY"
+    )
+
+    google_customer_encryption_key: SecretStr | None = Field(
+        default=None, validation_alias="AD_ANALYZER_GOOGLE_CUSTOMER_ENCRYPTION_KEY"
+    )
+    google_customer_client_id: str = Field(
+        default="", validation_alias="AD_ANALYZER_GOOGLE_CUSTOMER_CLIENT_ID"
+    )
+
+    mandate_simulation_enabled: bool = Field(
+        default=True, validation_alias="AD_ANALYZER_MANDATE_SIMULATION_ENABLED"
+    )
     """Application settings loaded from environment variables."""
 
     def __init__(self, **data: Any) -> None:
@@ -182,6 +289,8 @@ class Settings(BaseSettings):
             data = {key: value for key, value in data.items() if not _is_sync_lock_key_name(key)}
             data[_SYNC_LOCK_FIELD] = resolved
         super().__init__(**data)
+
+    operational_observations_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -232,6 +341,12 @@ class Settings(BaseSettings):
     crm_webhook_secret: SecretStr | None = Field(
         default=None, validation_alias="AD_ANALYZER_CRM_WEBHOOK_SECRET"
     )
+    crm_push_oidc_audience: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_OIDC_AUDIENCE"
+    )
+    crm_push_service_account_email: str = Field(
+        default="", validation_alias="AD_ANALYZER_CRM_PUSH_SERVICE_ACCOUNT_EMAIL"
+    )
     crm_pubsub_project_id: str = Field(
         default="", validation_alias="AD_ANALYZER_CRM_PUBSUB_PROJECT_ID"
     )
@@ -245,6 +360,30 @@ class Settings(BaseSettings):
         default=False,
         validation_alias="AD_ANALYZER_DASHBOARD_ALLOW_INSECURE_LOCAL_HTTP",
     )
+    google_ads_workspace_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_WORKSPACE_ID"
+    )
+    google_ads_connection_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_CONNECTION_ID"
+    )
+    google_ads_account_id: int | None = Field(
+        default=None, ge=1, alias="INLET_GOOGLE_ADS_ACCOUNT_ID"
+    )
+    google_ads_credentials_reference: str = Field(
+        default="", alias="INLET_GOOGLE_ADS_CREDENTIALS_REFERENCE"
+    )
+
+    customer_export_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_EXPORT_ENABLED")
+    customer_auth_enabled: bool = Field(default=False, alias="INLET_CUSTOMER_AUTH_ENABLED")
+    customer_identity_project_id: str = Field(default="", alias="INLET_IDENTITY_PROJECT_ID")
+    customer_app_origin: str = Field(default="", alias="INLET_CUSTOMER_APP_ORIGIN")
+    customer_browser_auth_enabled: bool = Field(
+        default=False, alias="INLET_CUSTOMER_BROWSER_AUTH_ENABLED"
+    )
+    # Firebase web configuration is public; never put an admin/service-account key here.
+    customer_identity_web_api_key: str = Field(default="", alias="INLET_IDENTITY_WEB_API_KEY")
+    customer_identity_web_app_id: str = Field(default="", alias="INLET_IDENTITY_WEB_APP_ID")
+
     iap_audience: str = Field(
         default="",
         validation_alias="AD_ANALYZER_IAP_AUDIENCE",
@@ -256,6 +395,13 @@ class Settings(BaseSettings):
     github_control_token: SecretStr | None = Field(
         default=None,
         validation_alias="AD_ANALYZER_GITHUB_CONTROL_TOKEN",
+    )
+    meta_detail_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_META_DETAIL_ENABLED"
+    )
+
+    meta_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_META_CUSTOMER_ENABLED"
     )
     meta_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_META_ENABLED")
     meta_client_id: str = Field(default="", validation_alias="META_CLIENT_ID")
@@ -269,6 +415,12 @@ class Settings(BaseSettings):
     meta_sync_pages: int = Field(default=3, ge=1, le=10, validation_alias="META_SYNC_PAGES")
     meta_sync_interval_minutes: int = Field(
         default=60, ge=15, le=1440, validation_alias="META_SYNC_INTERVAL_MINUTES"
+    )
+    shopify_measurement_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_SHOPIFY_MEASUREMENT_ENABLED"
+    )
+    shopify_customer_enabled: bool = Field(
+        default=False, validation_alias="AD_ANALYZER_SHOPIFY_CUSTOMER_ENABLED"
     )
     shopify_enabled: bool = Field(default=False, validation_alias="AD_ANALYZER_SHOPIFY_ENABLED")
     shopify_client_id: str = Field(default="", validation_alias="SHOPIFY_CLIENT_ID")

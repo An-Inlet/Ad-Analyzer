@@ -22,3 +22,10 @@
 - Prefer dry-run planning and explicit policy checks for optimizer logic.
 - Keep collectors and executors separated. Collectors may read data; executors are the only future location for controlled mutations.
 - Do not implement advertising API collectors, write access, or campaign mutations unless explicitly requested.
+
+## Inlet offline MVP assignment exception
+
+The owner approved continuing the remaining offline Inlet MVP backlog on 2026-10-05
+23:33:14 UTC without package-by-package approval. Dependent branches/draft PRs may
+start from reviewed predecessor heads before merge; preserve main and predecessor PRs.
+See `docs/automation-policy.md` for the scoped exception and remaining live gates.

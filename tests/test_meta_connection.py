@@ -355,6 +355,9 @@ def test_connection_failures_and_controls_are_independent(
         service.page(row.workspace_id, now=NOW, manual=True)["status"] == "meta_reconnect_required"
     )
     assert row.status == "reconnect_required"
+    failed = db.scalar(select(JobRun).where(JobRun.status == JobRunStatus.FAILED))
+    assert failed and failed.connection_id == row.workspace_integration_id
+    assert failed.connection_id is not None
 
 
 def test_reconnect_resets_event_coverage_and_disconnect_keeps_history(
@@ -668,3 +671,20 @@ def test_cross_site_oauth_return_uses_flow_cookie_and_verified_identity(
     assert response.status_code == 303 and client.cookies.get(FLOW_COOKIE) is None
     # Malformed nonsecret cookie values must never break the connection screen.
     assert client.get(root, headers={"Cookie": FLOW_COOKIE + "=malformed"}).status_code == 200
+
+
+def test_verified_reauthorization_advances_grant_generation(
+    db: Session, configuration: Settings
+) -> None:
+    connection = connected(db, configuration)
+    assert connection.generation == 1
+    service = ConnectionService(db, configuration, FakeMeta(configuration))
+    current = service.get(connection.workspace_id)
+    assert current is not None and current.generation == 1
+    service = authorized(db, configuration, connection.workspace_id, FakeMeta(configuration))
+    renewed = service.select_account(
+        connection.workspace_id, "owner-session", "101", "", "owner", NOW
+    )
+    assert renewed.id == connection.id and renewed.generation == 2
+    current = service.get(connection.workspace_id)
+    assert current is not None and current.generation == 2

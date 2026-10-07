@@ -6,6 +6,8 @@ import logging
 class OAuthAccessFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         message = record.getMessage()
+        if "/api/customer/v1/" in message and "/callback" in message:
+            return False
         return not any(
             path in message for path in ("/dashboard/shopify/callback", "/dashboard/meta/callback")
         )

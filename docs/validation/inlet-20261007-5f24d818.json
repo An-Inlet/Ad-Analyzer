@@ -1,0 +1,39 @@
+{
+  "started_at": "2026-10-07T07:08:27.779224+00:00",
+  "head": "5f24d8187757ff757eea6dbbe3147a1640ee1841",
+  "tree": "a79799db4ce9665051a677ac55c71dc65eb0180c",
+  "database": "inlet_oct07_full_r2_ci",
+  "command": "bash scripts/validate.sh Full",
+  "pytest_addopts": "-ra",
+  "exit_recorded_at": "2026-10-07T08:19:52.009603+00:00",
+  "wall_seconds": 4284.23,
+  "exit_code": 1,
+  "pytest": {
+    "failed": 1,
+    "passed": 4104,
+    "skipped": 72,
+    "warnings": 149,
+    "duration_seconds": 4171.13
+  },
+  "full_suite_invocations": 1,
+  "gates": {
+    "disposable_target_guard": "passed",
+    "reset_disposable_postgres": "passed",
+    "alembic_upgrade_head": "passed",
+    "complete_pytest": "failed",
+    "ruff": "not reached",
+    "mypy": "not reached",
+    "diff_check": "not reached",
+    "PostgreSQL": "not reached",
+    "Migrations": "not reached",
+    "ReadOnly": "not reached",
+    "Security": "not reached",
+    "Privacy": "not reached",
+    "Focused": "not reached"
+  },
+  "failed_cases": [
+    "tests/test_meta_first_connection_race.py::test_simultaneous_first_meta_connections_resolve_without_deadlock[postgres]"
+  ],
+  "failure_stage": "five-second first-worker inserted.wait; second worker not yet started; worker exception not surfaced by original harness",
+  "hosted_run_started": false
+}

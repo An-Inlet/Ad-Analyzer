@@ -23,7 +23,7 @@ from app.measurement.models import (
 )
 from app.measurement.unified import UnifiedOutcomeService
 from app.settings import settings
-from app.workspaces.models import Workspace
+from app.workspaces.models import Workspace, WorkspaceIntegration
 from fastapi.testclient import TestClient
 from pydantic import SecretStr, ValidationError
 from sqlalchemy import create_engine, event, select, text
@@ -77,9 +77,7 @@ def seed_workspace(
         workspace_id=workspace.id,
         version=1,
         status=contract_status,
-        effective_at=(
-            datetime(2026, 1, 1, tzinfo=UTC) if contract_status == "active" else None
-        ),
+        effective_at=(datetime(2026, 1, 1, tzinfo=UTC) if contract_status == "active" else None),
         currency_code="USD",
         source_of_truth="crm",
         platform_conversion_role="diagnostic_only",
@@ -156,9 +154,20 @@ def seed_workspace(
     )
     db.add(campaign)
     db.flush()
+    integration = WorkspaceIntegration(
+        workspace_id=workspace.id,
+        integration_key="crm-source",
+        provider="hubspot",
+        display_name="CRM",
+        status="active",
+        configuration={},
+    )
+    db.add(integration)
+    db.flush()
     db.add(
         CrmConnection(
             workspace_id=workspace.id,
+            workspace_integration_id=integration.id,
             name="primary",
             status="active",
             secret_manager_reference=f"projects/example/secrets/{slug}-crm",
@@ -246,9 +255,13 @@ def process_crm_event(
     value: str | None = None,
     currency: str | None = None,
 ) -> None:
+    connection = db.scalar(select(CrmConnection).where(CrmConnection.workspace_id == workspace.id))
+    assert connection is not None and connection.workspace_integration_id is not None
     payload: dict[str, object] = {
         "workspace_id": workspace.id,
-        "payload_version": 1,
+        "payload_version": 2,
+        "connection_id": connection.workspace_integration_id,
+        "provider": "hubspot",
         "event_id": event_id,
         "event_type": event_type,
         "occurred_at": occurred_at.isoformat(),
@@ -344,9 +357,7 @@ def test_ga4_ingestion_rejects_query_strings_phi_like_ids_and_cross_workspace_sc
     with pytest.raises(ValidationError):
         Ga4EventCreate.model_validate({**base, "landing_page_path": "/demo?email=a@b.test"})
     with pytest.raises(ValidationError):
-        Ga4EventCreate.model_validate(
-            {**base, "analytics_pseudonymous_id": "person@example.test"}
-        )
+        Ga4EventCreate.model_validate({**base, "analytics_pseudonymous_id": "person@example.test"})
     with pytest.raises(ValidationError):
         Ga4EventCreate.model_validate({**base, "source": "person@example.test"})
     with pytest.raises(ValidationError):
@@ -403,9 +414,7 @@ def test_crm_schema_accepts_only_safe_pseudonymous_correlation_id() -> None:
 
 
 def test_draft_contract_blocks_all_downstream_outcome_metrics(db: Session) -> None:
-    workspace, account, campaign = seed_workspace(
-        db, "denticode", contract_status="draft"
-    )
+    workspace, account, campaign = seed_workspace(db, "denticode", contract_status="draft")
     WebAnalyticsRepository(db).record_ga4_event(ga4_event(workspace, account, campaign))
     add_metric(db, campaign)
     add_complete_journey(db, workspace)
@@ -759,14 +768,12 @@ def test_read_only_api_and_dashboard_expose_aggregates_not_identifiers(
         client = TestClient(app, base_url="https://testserver")
         headers = {"Authorization": f"Bearer {token}"}
         response = client.get(
-            "/api/v1/workspaces/denticode/outcome-analysis"
-            "?date_from=2026-06-01&date_to=2026-06-30",
+            "/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-06-01&date_to=2026-06-30",
             headers=headers,
         )
         client.get("/dashboard", headers=headers)
         dashboard = client.get(
-            "/dashboard/workspaces/denticode/outcomes"
-            "?date_from=2026-06-01&date_to=2026-06-30"
+            "/dashboard/workspaces/denticode/outcomes?date_from=2026-06-01&date_to=2026-06-30"
         )
     finally:
         app.dependency_overrides.clear()
@@ -790,9 +797,7 @@ def test_read_only_api_and_dashboard_expose_aggregates_not_identifiers(
 
 def test_unified_data_migration_upgrades_and_reverses_on_disposable_schema() -> None:
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    migration = import_module(
-        "migrations.versions.20260808_0010_unified_outcome_data"
-    )
+    migration = import_module("migrations.versions.20260808_0010_unified_outcome_data")
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE workspaces (id INTEGER PRIMARY KEY)"))
         connection.execute(

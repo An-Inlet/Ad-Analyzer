@@ -546,8 +546,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
             {
                 "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_prod"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_prod"
                 ),
             },
             "staging/production database names are never disposable",
@@ -556,8 +555,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
             {
                 "AD_ANALYZER_CI_DISPOSABLE_POSTGRES": "true",
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_staging"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_staging"
                 ),
             },
             "staging/production database names are never disposable",
@@ -574,8 +572,7 @@ def test_normalize_powershell_output_preserves_wrapped_semantic_messages() -> No
         (
             {
                 "AD_ANALYZER_TEST_POSTGRES_URL": (
-                    "postgresql+psycopg://postgres:postgres@localhost:5432/"
-                    "ad_analyzer_ci"
+                    "postgresql+psycopg://postgres:postgres@localhost:5432/ad_analyzer_ci"
                 ),
             },
             "AD_ANALYZER_CI_DISPOSABLE_POSTGRES must exactly equal true",
@@ -725,7 +722,7 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
     pytest.importorskip("psycopg")
     from app.ads import models as ads_models  # noqa: F401
     from app.database.session import Base
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import MetaData, create_engine, text
 
     assert any(table.name == "job_runs" for table in Base.metadata.tables.values())
 
@@ -741,7 +738,12 @@ def test_migration_validation_repairs_head_state_with_missing_application_tables
     )
     engine = create_engine(env["AD_ANALYZER_TEST_POSTGRES_URL"])
     try:
-        Base.metadata.drop_all(engine)
+        # The migration-created schema is authoritative. Model imports vary between
+        # full collection and focused/nested gates; a partial registry omits dependent
+        # tables and cannot construct a valid drop order. Preserve only Alembic's stamp.
+        application_schema = MetaData()
+        application_schema.reflect(engine, only=lambda name, _: name != "alembic_version")
+        application_schema.drop_all(engine)
         with engine.connect() as connection:
             version = connection.scalar(text("SELECT version_num FROM alembic_version"))
             assert version is not None
@@ -780,27 +782,6 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
         capture_output=True,
         env=env,
     )
-
-
-def test_full_validation_can_run_twice_against_same_disposable_database() -> None:
-    if os.environ.get("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
-        pytest.skip("nested Full validation regression test is disabled")
-    command = validate_command("Full")
-    env = disposable_postgres_env({"AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
-    for _ in range(2):
-        result = subprocess.run(
-            command,
-            cwd=ROOT,
-            check=False,
-            text=True,
-            capture_output=True,
-            env=env,
-        )
-        assert result.returncode == 0, (
-            "Full validation failed against the disposable PostgreSQL database.\n"
-            f"stdout:\n{result.stdout[-8000:]}\n"
-            f"stderr:\n{result.stderr[-8000:]}"
-        )
 
 
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:

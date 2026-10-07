@@ -83,7 +83,7 @@ def test_postgres_ownership_checks_do_not_commit_session_writes(
         session = sessionmaker(bind=pinned, autoflush=False, autocommit=False)()
         try:
             add_default_workspace(session)
-            account = AdvertisingAccount(
+            account = AdvertisingAccount(workspace_id=1,
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 external_account_id="uncommitted-account",
                 name="Uncommitted account",
@@ -133,7 +133,7 @@ def test_postgres_session_commits_are_visible_while_lock_is_held(
         session = sessionmaker(bind=pinned, autoflush=False, autocommit=False)()
         try:
             add_default_workspace(session)
-            job_run = AdvertisingMetricsRepository(session).create_job_run(
+            job_run = AdvertisingMetricsRepository(session).create_job_run(workspace_id=1,
                 platform=AdvertisingPlatform.GOOGLE_ADS,
                 job_name="google_ads_read_only_sync",
                 status=JobRunStatus.RUNNING,

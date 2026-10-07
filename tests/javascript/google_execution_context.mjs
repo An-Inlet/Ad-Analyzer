@@ -1,0 +1,30 @@
+const $=id=>document.getElementById(id), assert=(ok,message)=>{if(!ok)throw new Error(message);};
+const until=async(test,message)=>{const end=Date.now()+20000;while(!test()){if(Date.now()>end)throw new Error(message+' · '+$('execution-message').textContent);await new Promise(r=>setTimeout(r,20));}};
+try{
+assert((await fetch('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'execution-owner:browser'})})).ok,'actual login');
+await import('/app/assets/execution.mjs');await until(()=>$('execution-workspace').options.length===2&&!$('execution-refresh').disabled,'workspaces');
+assert($('execution-workspace').textContent.includes('<img src=x>')&&!document.querySelector('img'),'workspace rendered literally');
+$('execution-workspace').value='__WORKSPACE__';$('execution-workspace').dispatchEvent(new Event('change'));await until(()=>$('execution-draft').options.length===2&&!$('execution-refresh').disabled,'drafts');
+assert($('execution-environment').textContent.includes('Contract Test'),'no live claim');assert($('execution-capabilities').textContent.includes('Meta Ads')&&$('execution-capabilities').textContent.includes('not available'),'honest social blocker');
+$('execution-draft').selectedIndex=1;$('execution-draft').dispatchEvent(new Event('change'));$('execution-context').click();await until(()=>!$('execution-policy').hidden&&!$('execution-refresh').disabled,'source context');
+const p=__POLICY__;for(const [id,value]of [['execution-total',p.total_cap_micros/1e6],['execution-per-plan',p.per_plan_cap_micros/1e6],['execution-change',p.positive_change_cap_micros/1e6],['execution-actions',p.action_limit],['execution-cooldown',p.cooldown_seconds],['execution-aggressiveness',p.aggressiveness_percent]])$(id).value=value;
+$('execution-policy-form').requestSubmit();await until(()=>$('execution-policy-summary').textContent.includes('Total Period Limit')&&!$('execution-refresh').disabled,'saved policy');
+assert($('execution-consent').disabled,'separate consent requires explicit acknowledgement');$('execution-consent-check').checked=true;$('execution-consent-check').dispatchEvent(new Event('change'));$('execution-consent').click();await until(()=>!$('execution-configuration').hidden&&!$('execution-refresh').disabled,'consent and named catalog');
+assert($('execution-catalog').textContent.includes('Shop Purchases')&&!$('execution-catalog').textContent.includes('customers/'),'named catalog not provider paths');$('execution-catalog').selectedIndex=1;$('execution-daily').value='0.00002';$('execution-bid').value='0.000001';
+const realFetch=window.fetch.bind(window);let release=null, endpoint='/creation-reviews';
+window.fetch=async(...args)=>{const r=await realFetch(...args);if(String(args[0]).endsWith(endpoint)&&!release){assert(r.ok,'actual API request succeeded');await new Promise(resolve=>{release=resolve;});}return r;};
+$('execution-prepare').click();await until(()=>release!==null,'creation response held');
+$('execution-bid').value='0.000002';$('execution-bid').dispatchEvent(new Event('input'));
+release();await until(()=>!$('execution-refresh').disabled,'late creation resolved');
+assert($('execution-review').hidden&&$('execution-approve').disabled&&$('execution-start').disabled,'edited Google bid rejects late exact creation review');
+window.fetch=realFetch;$('execution-prepare').click();await until(()=>!$('execution-review').hidden&&!$('execution-refresh').disabled,'fresh exact bid review');
+assert($('execution-review-summary').textContent.includes('0.000002'),'review shows returned exact Google bid');
+release=null;endpoint='/approval';
+window.fetch=async(...args)=>{const r=await realFetch(...args);if(String(args[0]).endsWith(endpoint)&&!release){assert(r.ok,'actual exact approval succeeded');await new Promise(resolve=>{release=resolve;});}return r;};
+$('execution-review-check').checked=true;$('execution-review-check').dispatchEvent(new Event('change'));$('execution-approve').click();await until(()=>release!==null,'approval response held');
+$('execution-bid').value='0.000003';$('execution-bid').dispatchEvent(new Event('input'));
+release();await until(()=>!$('execution-refresh').disabled,'late approval resolved');
+assert($('execution-review').hidden&&$('execution-start').disabled,'late approval never marks changed Google context approved');
+assert($('execution-message').textContent.includes('may have completed'),'does not falsely claim the sent approval was canceled');
+await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
+}catch(error){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}

@@ -6,12 +6,15 @@ from sqlalchemy import Engine, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.automation import AutomationControlKey, AutomationControlService
+from app.imports.native import bind_shopify
+from app.imports.scope import ImportScopeError
 from app.settings import Settings, settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOrder, ShopifyTombstone
 from app.shopify.normalize import normalized_order, order_key
 from app.shopify.security import ShopifyError, Vault, configuration_ready, utc
 from app.shopify.service import ConnectionService
+from app.workspaces.models import Workspace
 
 
 def syncing_allowed(session: Session, workspace_id: int) -> bool:
@@ -36,6 +39,18 @@ class ShopifySyncService:
             self.session, workspace_id
         ):
             return {"status": "disabled", "imported": 0}
+        # Match customer authorization/disconnect lock order; never hold a connection
+        # while waiting for their workspace fence. Scheduled reads skip busy owners.
+        workspace = self.session.scalar(
+            select(Workspace)
+            .where(Workspace.id == workspace_id)
+            .with_for_update(skip_locked=True, key_share=True)
+        )
+        if workspace is None:
+            return {"status": "not_connected_or_busy", "imported": 0}
+        if workspace.status != "active":
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         row = self.session.scalar(
             select(ShopifyConnection)
             .where(ShopifyConnection.workspace_id == workspace_id)
@@ -43,6 +58,11 @@ class ShopifySyncService:
         )
         if row is None or row.status != "connected":
             return {"status": "not_connected_or_busy", "imported": 0}
+        try:
+            bind_shopify(self.session, row)
+        except ImportScopeError:
+            self.session.rollback()
+            return {"status": "shopify_ownership_unavailable", "imported": 0}
         if row.next_attempt_at and utc(row.next_attempt_at) > now:
             return {"status": "retry_later", "imported": 0}
         if (
@@ -61,12 +81,18 @@ class ShopifySyncService:
             )
         row.last_attempt_at = now
         try:
+            from app.commerce.ledger import identity_key, legacy_store
+
+            store = legacy_store(self.session, row)
             token = ConnectionService(self.session, self.settings, self.client).access_token(
                 row, now
             )
             # A savepoint rolls back a failed page while retaining the row lock and
             # any rotated credentials until the outer transaction commits.
             with self.session.begin_nested():
+                from app.lifecycle.privacy import bump_workspace_export_revision
+
+                bump_workspace_export_revision(self.session, workspace_id)
                 query = (
                     f"updated_at:>='{utc(row.window_start).isoformat()}' "
                     f"updated_at:<='{utc(row.window_end).isoformat()}' "
@@ -98,11 +124,21 @@ class ShopifySyncService:
                         )
                     )
                     tombstone = self.session.get(ShopifyTombstone, (row.id, key))
-                    if source.get("test") is True or tombstone:
+                    from app.shopify.privacy_identity import legacy_erased
+
+                    if (
+                        source.get("test") is True
+                        or tombstone
+                        or legacy_erased(self.session, row, key)
+                    ):
                         if existing:
                             self.session.delete(existing)
                         continue
                     values = normalized_order(self.session, row, source, vault)
+                    if store is not None:
+                        values["commerce_order_key"] = identity_key(
+                            vault, store, "order", source["id"]
+                        )
                     if existing and utc(existing.source_updated_at) > values["source_updated_at"]:
                         continue
                     if existing is None:
@@ -191,3 +227,7 @@ def run_shopify_tick(engine: Engine) -> None:
                     break
             if result["status"] != "syncing":
                 break
+
+    from app.commerce.sync import run_commerce_tick
+
+    run_commerce_tick(engine, settings)

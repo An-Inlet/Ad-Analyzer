@@ -16,8 +16,10 @@ def has_platform_conversion_metrics(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> bool:
-    if platform != AdvertisingPlatform.META_ADS:
+    if platform == AdvertisingPlatform.GOOGLE_ADS:
         return True
+    if platform != AdvertisingPlatform.META_ADS:
+        return False
     # An unselected event uses storage placeholders, not observed zero outcomes.
     from app.meta.models import MetaConnection
 
@@ -43,8 +45,10 @@ def has_platform_conversion_value_metrics(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> bool:
-    if platform != AdvertisingPlatform.META_ADS:
+    if platform == AdvertisingPlatform.GOOGLE_ADS:
         return True
+    if platform != AdvertisingPlatform.META_ADS:
+        return False
     from app.meta.models import MetaConnection
     from app.meta.security import PURCHASE_ACTIONS
 

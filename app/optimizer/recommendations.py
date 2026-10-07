@@ -65,14 +65,19 @@ def generate_findings(
     if (
         conversion_metrics_available
         and current.clicks >= 20
-        and (current.conversions == 0 or current.cost_per_conversion_micros > Decimal("2000000"))
+        and current.cost_micros > 0
+        and current.conversions == 0
     ):
         findings.append(
             Finding(
                 "spend_without_conversions",
                 "high",
                 "Spend and clicks have not produced conversions.",
-                {"clicks": str(current.clicks), "cost_micros": str(current.cost_micros)},
+                {
+                    "clicks": str(current.clicks),
+                    "cost_micros": str(current.cost_micros),
+                    "conversions": str(current.conversions),
+                },
             )
         )
     if (

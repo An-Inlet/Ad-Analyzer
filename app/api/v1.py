@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, ExecutionStatus, JobRunStatus, RecommendationStatus
@@ -55,6 +55,7 @@ from app.learning.schemas import (
 from app.measurement.repository import MeasurementRepository
 from app.measurement.schemas import MeasurementContractResponse, UnifiedOutcomeResponse
 from app.measurement.unified import UnifiedOutcomeService
+from app.operations.attention import Attention, attention
 from app.optimizer.analytics import MetricWindow, inclusive_window_days
 from app.optimizer.recommendations import generate_findings, recommendations_from_findings
 from app.settings import settings
@@ -328,11 +329,19 @@ def get_sync_health(db: Annotated[Session, Depends(get_db)]) -> SyncHealthRespon
     return SyncHealthResponse.model_validate(sync_health(db, settings).__dict__)
 
 
+@router.get("/operations/attention", response_model=Attention)
+def get_operations_attention(
+    db: Annotated[Session, Depends(get_db)], response: Response
+) -> Attention:
+    response.headers["Cache-Control"] = "no-store"
+    return attention(db, datetime.now(UTC))
+
+
 def job_run_response(job_run: JobRun) -> JobRunResponse:
     """Expose only the bounded public error message, never stored job diagnostics."""
     return JobRunResponse(
         id=job_run.id,
-        workspace_id=job_run.workspace_id or 1,
+        workspace_id=job_run.workspace_id,
         platform=job_run.platform,
         account_id=job_run.account_id,
         job_name=job_run.job_name,

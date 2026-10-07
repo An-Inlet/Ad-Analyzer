@@ -4,7 +4,7 @@ This phase defines deployment packaging without choosing a cloud provider or con
 
 ## Processes
 
-- `web`: FastAPI application served by Uvicorn. It exposes `/health` for process health and `/ready` for startup configuration readiness.
+- `web`: FastAPI application served by Uvicorn. It exposes `/health` for process health and `/ready` for startup configuration and read-only database dependency readiness.
 - `worker`: one-shot read-only Google Ads sync process for controlled job execution.
 - `scheduler`: long-running read-only scheduler that triggers sync jobs on an interval, runs the
   successful job's post-sync analysis, and checks due nightly/weekly local analyses.
@@ -75,7 +75,12 @@ mutations.
 ## Startup and readiness
 
 - `/health` confirms the web process is alive.
-- `/ready` validates startup configuration without contacting Google Ads or production databases.
+- `/ready` validates startup configuration, then opens a fresh read-only PostgreSQL connection
+  and executes `SELECT 1`. Invalid configuration or an unavailable database returns503;
+  `/health` remains process liveness. The probe uses a separate NullPool connection, a
+  two-second connect timeout and one-second statement timeout. These do not claim a
+  universal wall-clock bound on DNS/networking. No provider APIs are contacted. The
+  probe confirms reachability, not migration/schema correctness or production readiness.
 - `scripts/validate_deployment_startup.py --process web|worker|scheduler|migration` fails fast when required safety guards or PostgreSQL URL settings are invalid.
 
 ## Graceful shutdown and restart

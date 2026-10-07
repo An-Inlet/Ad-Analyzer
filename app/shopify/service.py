@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from typing import Any
@@ -8,10 +9,20 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.imports.native import bind_shopify, revoke_native_integration
 from app.settings import Settings
 from app.shopify.client import ShopifyClient
 from app.shopify.models import ShopifyAudit, ShopifyConnection, ShopifyOAuthState
-from app.shopify.security import SCOPES, ShopifyError, Vault, configuration_ready, shop_domain, utc
+from app.shopify.security import (
+    SCOPES,
+    ShopifyError,
+    Vault,
+    configuration_ready,
+    customer_redirect_uri,
+    shop_domain,
+    utc,
+)
+from app.workspaces.models import Workspace
 
 
 def credentials(
@@ -55,8 +66,10 @@ class ConnectionService:
             query = query.with_for_update()
         return self.session.scalar(query)
 
-    def begin(self, workspace_id: int, shop: str, actor: str, now: datetime) -> str:
-        if not configuration_ready(self.settings):
+    def begin(
+        self, workspace_id: int, shop: str, actor: str, now: datetime, *, customer: bool = False
+    ) -> str:
+        if not configuration_ready(self.settings, customer=customer):
             raise ShopifyError("shopify_configuration_required")
         shop = shop_domain(shop)
         existing = self.get(workspace_id)
@@ -98,8 +111,10 @@ class ConnectionService:
         return f"https://{shop}/admin/oauth/authorize?" + urlencode(
             {
                 "client_id": self.settings.shopify_client_id,
-                "scope": ",".join(sorted(SCOPES)),
-                "redirect_uri": self.settings.shopify_redirect_uri,
+                "scope": ",".join(sorted(self.required_scopes())),
+                "redirect_uri": customer_redirect_uri(self.settings)
+                if customer
+                else self.settings.shopify_redirect_uri,
                 "state": nonce,
             }
         )
@@ -118,8 +133,19 @@ class ConnectionService:
             raise ShopifyError("invalid_oauth_state")
         return row
 
+    def required_scopes(self) -> frozenset[str]:
+        from app.commerce.ledger import MEASUREMENT_SCOPES
+
+        return MEASUREMENT_SCOPES if self.settings.shopify_measurement_enabled else SCOPES
+
     def finish(
-        self, state: ShopifyOAuthState, code: str, role: str, now: datetime
+        self,
+        state: ShopifyOAuthState,
+        code: str,
+        role: str,
+        now: datetime,
+        *,
+        before_persist: Callable[[], None] | None = None,
     ) -> ShopifyConnection:
         workspace_id, shop, digest = state.workspace_id, state.shop_domain, state.digest
         result = self.session.execute(
@@ -129,13 +155,20 @@ class ConnectionService:
         )
         if result.rowcount != 1:  # type: ignore[attr-defined]
             raise ShopifyError("invalid_oauth_state")
-        self.session.commit()  # Consume the authorization attempt before exchanging a one-use code.
+        if before_persist is None:
+            self.session.commit()  # Existing operator flow consumes before exchange.
+        # Customer caller holds workspace/session/state locks through the bounded exchange.
+        # Its nonce delete and credential persistence commit atomically.
         bundle = credentials(self.client.token(shop, code=code), now)
         metadata = self.client.shop(shop, bundle["access_token"])
         try:
             details = metadata["shop"]
             granted = {s["handle"] for s in metadata["currentAppInstallation"]["accessScopes"]}
-            if not granted >= SCOPES or any(not s.startswith("read_") for s in granted):
+            if (
+                not granted >= self.required_scopes()
+                or not set(bundle["scopes"]) >= self.required_scopes()
+                or any(not s.startswith("read_") for s in granted)
+            ):
                 raise ValueError("scopes")
             if shop_domain(details["myshopifyDomain"]) != shop:
                 raise ValueError("shop")
@@ -147,6 +180,9 @@ class ConnectionService:
             name = str(details["name"])[:255]
         except (ValueError, KeyError, TypeError, ZoneInfoNotFoundError):
             raise ShopifyError("shopify_store_verification_failed") from None
+        if before_persist is not None:
+            before_persist()
+        self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)
         if row and row.shop_domain != shop:
             raise ShopifyError("disconnect_existing_store_first")
@@ -162,6 +198,12 @@ class ConnectionService:
             ShopifyAudit(workspace_id=workspace_id, action="connected", actor_role=role)
         )
         try:
+            bind_shopify(self.session, row, reconnect=True)
+            from app.commerce.ledger import bind_store
+
+            if self.settings.shopify_measurement_enabled or details.get("id") is not None:
+                # Disabling imports cannot discard a previously verified privacy identity.
+                bind_store(self.session, row, details["id"], self.settings, now)
             self.session.commit()
         except IntegrityError:
             self.session.rollback()
@@ -181,8 +223,20 @@ class ConnectionService:
         return str(bundle["access_token"])
 
     def disconnect(self, workspace_id: int, role: str) -> None:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(self.session, workspace_id)
+        # Fence customer OAuth callbacks, including disconnect of a pending first install.
+        self.session.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.shopify.privacy_identity import preserve
+
+            preserve(self.session, row)
+            from app.commerce.privacy import remove_store
+
+            remove_store(self.session, row.commerce_store_id)
+            revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)  # Cascades imported facts and encrypted authorization.
         self.session.execute(
             delete(ShopifyOAuthState)

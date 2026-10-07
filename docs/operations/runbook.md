@@ -12,6 +12,7 @@ Ad Analyzer platform. New platform resources and environment names use Ad Analyz
 ## Backup and restore
 - Take a PostgreSQL logical backup before each migration.
 - Restore into disposable PostgreSQL and run `alembic upgrade head` before promoting backups as valid.
+- For offline engineering qualification, run the [synthetic restore drill](../inlet-restore-drill.md). It does not qualify production backups or post-snapshot privacy/revocation reconciliation.
 
 ## Phase 11.4 execution operations dashboard
 - Use `/dashboard/accounts/{account_id}/execution-operations` for the authenticated, operator-only, account-scoped execution operations view.
@@ -104,3 +105,25 @@ Ad Analyzer platform. New platform resources and environment names use Ad Analyz
 4. Run `python scripts/validate_deployment_startup.py --process migration`, then `alembic upgrade head`, then validate and start web, worker, and scheduler.
 5. For rotation, create a new secret version, point runtime references to it, validate, restart safely, verify readiness, then revoke the old version.
 6. For rollback, restore previous known-good configuration references, keep Google Ads writes disabled, keep the kill switch enabled, and rerun validation before restart.
+
+## Inlet Persisted Attention Signals
+
+Use the existing operator API's `GET /api/v1/operations/attention` for bounded,
+sanitized persisted work evidence. Follow the [signal contract and response guide](../inlet-operations-attention.md).
+Unknown publication/action outcomes require preserving reservations and reconciling
+receipts; neither an expired lease nor an alert authorizes retry or live changes.
+Future provider backoff is expected. A response without observed alerts is not a
+storage/provider availability result or proof of complete coverage. External alert
+routing remains unconfigured and must be qualified separately before release.
+
+### Customer Export Privacy Deployment Gate
+
+Keep `INLET_CUSTOMER_EXPORT_ENABLED=false` until a quiescent upgrade establishes
+that **all** API/operator/import/scheduler/privacy writers sharing the database run
+the verified workspace-revision hooks. Migrating the column alone cannot fence old
+writers. Mixed old/new writer rolling releases are not qualified. Drain/stop old
+processes and transactions, apply the release migrations, start uniform verified
+writers, then obtain the release owner's decision before enabling exports. Unknown
+running versions keep the feature disabled. Turning it off aborts ongoing exports
+at their next checkpoint. See `docs/inlet-customer-export.md` for source coverage
+and the bounded snapshot/stream contract; no live rollout is implied by tests.

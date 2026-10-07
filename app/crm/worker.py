@@ -9,8 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.crm.models import CrmConnection, CrmEventRecord, LeadAttribution
+from app.crm.models import CrmEventRecord, LeadAttribution
+from app.crm.ownership import connection_for_scope
 from app.crm.schemas import CrmEvent
+from app.imports.models import ImportRejection
+from app.imports.scope import ImportScopeError
+from app.workspaces.models import WorkspaceIntegration
 
 logger = logging.getLogger(__name__)
 _ATTRIBUTION_FIELDS = (
@@ -44,27 +48,26 @@ class CrmEventProcessor:
 
     def process(self, payload: Mapping[str, object]) -> bool:
         version = payload.get("payload_version")
-        workspace_id = payload.get("workspace_id", 1)
-        if isinstance(workspace_id, bool) or not isinstance(workspace_id, int) or workspace_id < 1:
-            raise ValueError("invalid workspace scope")
+        workspace_id, connection_id = payload.get("workspace_id"), payload.get("connection_id")
+        if type(version) is not int or version != 2:
+            raise ImportScopeError("unsupported CRM envelope")
+        if (
+            type(workspace_id) is not int
+            or type(connection_id) is not int
+            or workspace_id < 1
+            or connection_id < 1
+        ):
+            raise ImportScopeError("invalid CRM scope")
+        connection = connection_for_scope(self.session, workspace_id, connection_id)
+        integration = self.session.get(WorkspaceIntegration, connection_id)
+        if integration is None or payload.get("provider") != integration.provider:
+            raise ImportScopeError("CRM provider mismatch")
         event_data = {
             key: value
             for key, value in payload.items()
-            if key not in {"payload_version", "workspace_id"}
+            if key not in {"payload_version", "workspace_id", "connection_id", "provider"}
         }
         event = CrmEvent.model_validate(event_data)
-        if version != 1:
-            raise ValueError("unsupported payload version")
-        connection = self.session.scalar(
-            select(CrmConnection)
-            .where(
-                CrmConnection.workspace_id == workspace_id,
-                CrmConnection.status == "active",
-            )
-            .order_by(CrmConnection.id)
-        )
-        if connection is None:
-            raise RuntimeError("no active CRM connection")
         existing = self.session.scalar(
             select(CrmEventRecord).where(
                 CrmEventRecord.connection_id == connection.id,
@@ -83,7 +86,7 @@ class CrmEventProcessor:
             event_type=event.event_type.value,
             occurred_at=event.occurred_at,
             crm_lead_id=event.crm_lead_id,
-            payload_version=1,
+            payload_version=2,
             payload_hash=payload_hash,
             normalized_payload=canonical,
             processing_status="processed",
@@ -117,8 +120,27 @@ class CrmEventProcessor:
             self.session.commit()
         except IntegrityError:
             self.session.rollback()
+            duplicate = self.session.scalar(
+                select(CrmEventRecord.id).where(
+                    CrmEventRecord.connection_id == connection.id,
+                    CrmEventRecord.external_event_id == event.event_id,
+                )
+            )
+            if duplicate is None:
+                raise
             return False
         return True
+
+
+def record_scope_rejection(session: Session, data: bytes) -> None:
+    session.rollback()
+    fingerprint = hashlib.sha256(data).hexdigest()
+    if session.get(ImportRejection, fingerprint) is None:
+        session.add(ImportRejection(digest=fingerprint, reason="crm_scope_rejected"))
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
 
 
 def handle_message(message: AcknowledgeableMessage, session: Session) -> None:
@@ -128,6 +150,15 @@ def handle_message(message: AcknowledgeableMessage, session: Session) -> None:
         if not isinstance(payload, dict):
             raise ValueError("event must be an object")
         CrmEventProcessor(session).process(payload)
+    except ImportScopeError:
+        try:
+            record_scope_rejection(session, message.data)
+        except Exception:
+            session.rollback()
+            logger.warning("CRM quarantine index unavailable; delivery will retry")
+        logger.warning("CRM scope rejected; payload omitted; dead-letter delivery required")
+        message.nack()
+        return
     except Exception as exc:
         session.rollback()
         logger.warning("CRM event processing failed: %s (payload omitted)", exc.__class__.__name__)

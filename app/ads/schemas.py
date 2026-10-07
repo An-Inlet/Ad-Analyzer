@@ -11,7 +11,7 @@ class OrmModel(BaseModel):
 
 
 class AdvertisingAccountCreate(BaseModel):
-    workspace_id: int = Field(default=1, ge=1)
+    workspace_id: int = Field(ge=1)
     platform: AdvertisingPlatform
     external_account_id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=255)
@@ -63,6 +63,8 @@ class AdCreate(BaseModel):
     status: str | None = Field(default=None, max_length=64)
     ad_group_id: int | None = None
     ad_set_id: int | None = None
+    creative_external_id: str | None = Field(default=None, max_length=128)
+    creative_name: str | None = Field(default=None, max_length=255)
 
     @model_validator(mode="after")
     def require_one_parent(self) -> "AdCreate":
@@ -93,6 +95,8 @@ class DailyMetricCreate(BaseModel):
     entity_type: MetricEntityType
     entity_id: int
     campaign_id: int = Field(ge=1)
+    ad_set_id: int | None = Field(default=None, ge=1)
+    ad_id: int | None = Field(default=None, ge=1)
     ad_group_id: int | None = Field(default=None, ge=1)
     keyword_id: int | None = Field(default=None, ge=1)
     search_term_id: int | None = Field(default=None, ge=1)
@@ -104,6 +108,26 @@ class DailyMetricCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_entity_scope(self) -> "DailyMetricCreate":
+        if self.entity_type in {MetricEntityType.AD_SET, MetricEntityType.AD}:
+            if self.keyword_id is not None or self.search_term_id is not None:
+                raise ValueError("ad detail cannot contain keyword/query grain")
+            if self.entity_type is MetricEntityType.AD_SET:
+                if (
+                    self.ad_set_id is None
+                    or self.entity_id != self.ad_set_id
+                    or self.ad_id is not None
+                    or self.ad_group_id is not None
+                ):
+                    raise ValueError("ad-set metric requires exact parent scope")
+            elif (
+                self.ad_id is None
+                or self.entity_id != self.ad_id
+                or (self.ad_group_id is None) == (self.ad_set_id is None)
+            ):
+                raise ValueError("ad metric requires exactly one parent")
+            return self
+        if self.ad_set_id is not None or self.ad_id is not None:
+            raise ValueError("unexpected ad-detail scope")
         if self.entity_type is MetricEntityType.CAMPAIGN:
             if (
                 self.entity_id != self.campaign_id
@@ -147,7 +171,7 @@ class DailyMetricRead(DailyMetricCreate, OrmModel):
 
 
 class ConversionEventCreate(BaseModel):
-    workspace_id: int = Field(default=1, ge=1)
+    workspace_id: int = Field(ge=1)
     platform: AdvertisingPlatform
     external_conversion_id: str = Field(min_length=1, max_length=128)
     campaign_id: int | None = None
@@ -158,7 +182,7 @@ class ConversionEventCreate(BaseModel):
 
 
 class JobRunCreate(BaseModel):
-    workspace_id: int = Field(default=1, ge=1)
+    workspace_id: int = Field(ge=1)
     platform: AdvertisingPlatform
     account_id: int | None = None
     job_name: str = Field(min_length=1, max_length=128)

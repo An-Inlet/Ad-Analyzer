@@ -1,4 +1,6 @@
 import logging
+from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
@@ -53,10 +55,13 @@ def run_post_sync_analysis(
     source_job_run_id: int,
     *,
     as_of: datetime | None = None,
+    retry_failed: bool = False,
+    session: Session | None = None,
+    revalidate: Callable[[Session], None] | None = None,
 ) -> AnalysisRun | None:
     """Run the lightweight analysis once for a successful, account-scoped sync."""
     session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    with session_factory() as session:
+    with nullcontext(session) if session is not None else session_factory() as session:
         source_job = session.get(JobRun, source_job_run_id)
         if (
             source_job is None
@@ -83,6 +88,8 @@ def run_post_sync_analysis(
             window_days=policy.post_sync.window_days,
             policy_version=policy.version,
             as_of=resolved_as_of,
+            retry_failed=retry_failed,
+            revalidate=revalidate,
         )
 
 

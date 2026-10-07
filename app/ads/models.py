@@ -74,6 +74,13 @@ execution_status_enum = Enum(
 class AdvertisingAccount(TimestampMixin, Base):
     __tablename__ = "advertising_accounts"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_account_connection_workspace",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "workspace_id", "connection_id", name="uq_account_connection_scope"),
         UniqueConstraint(
             "workspace_id",
             "platform",
@@ -83,11 +90,19 @@ class AdvertisingAccount(TimestampMixin, Base):
         UniqueConstraint("id", "platform", name="uq_ad_accounts_id_platform"),
         UniqueConstraint("id", "workspace_id", name="uq_ad_accounts_id_workspace"),
         Index("ix_ad_accounts_workspace_platform", "workspace_id", "platform"),
+        Index(
+            "uq_meta_external_account_owner",
+            "external_account_id",
+            unique=True,
+            postgresql_where=text("platform = 'meta_ads'"),
+            sqlite_where=text("platform = 'meta_ads'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_account_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -198,6 +213,7 @@ class AdSet(TimestampMixin, Base):
             name="uq_ad_sets_campaign_platform_external",
         ),
         UniqueConstraint("id", "platform", name="uq_ad_sets_id_platform"),
+        UniqueConstraint("id", "campaign_id", "platform", name="uq_ad_sets_id_campaign_platform"),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
             ["campaigns.id", "campaigns.platform"],
@@ -221,6 +237,8 @@ class AdSet(TimestampMixin, Base):
 class Ad(TimestampMixin, Base):
     __tablename__ = "ads"
     __table_args__ = (
+        UniqueConstraint("id", "ad_group_id", "platform", name="uq_ads_id_group_platform"),
+        UniqueConstraint("id", "ad_set_id", "platform", name="uq_ads_id_set_platform"),
         UniqueConstraint(
             "ad_group_id",
             "platform",
@@ -258,6 +276,8 @@ class Ad(TimestampMixin, Base):
     external_ad_id: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str | None] = mapped_column(String(64))
+    creative_external_id: Mapped[str | None] = mapped_column(String(128))
+    creative_name: Mapped[str | None] = mapped_column(String(255))
     ad_group_id: Mapped[int | None] = mapped_column(Integer)
     ad_set_id: Mapped[int | None] = mapped_column(Integer)
 
@@ -349,7 +369,7 @@ class DailyMetric(TimestampMixin, Base):
         ),
         CheckConstraint("cost_micros >= 0", name="ck_daily_metrics_cost_nonnegative"),
         CheckConstraint(
-            "(entity_type = 'campaign' AND entity_id = campaign_id "
+            "((entity_type = 'campaign' AND entity_id = campaign_id "
             "AND ad_group_id IS NULL AND keyword_id IS NULL AND search_term_id IS NULL) OR "
             "(entity_type = 'ad_group' AND entity_id = ad_group_id "
             "AND ad_group_id IS NOT NULL AND keyword_id IS NULL AND search_term_id IS NULL) OR "
@@ -358,8 +378,34 @@ class DailyMetric(TimestampMixin, Base):
             "AND search_term_id IS NULL) OR "
             "(entity_type = 'search_term' AND entity_id = search_term_id "
             "AND ad_group_id IS NOT NULL AND keyword_id IS NULL "
-            "AND search_term_id IS NOT NULL)",
+            "AND search_term_id IS NOT NULL)) "
+            "AND ad_set_id IS NULL AND ad_id IS NULL OR "
+            "(entity_type = 'ad_set' AND entity_id = ad_set_id AND ad_set_id IS NOT NULL "
+            "AND ad_id IS NULL AND ad_group_id IS NULL AND keyword_id IS NULL "
+            "AND search_term_id IS NULL) OR "
+            "(entity_type = 'ad' AND entity_id = ad_id AND ad_id IS NOT NULL "
+            "AND keyword_id IS NULL AND search_term_id IS NULL "
+            "AND ((ad_set_id IS NOT NULL AND ad_group_id IS NULL) OR "
+            "(ad_set_id IS NULL AND ad_group_id IS NOT NULL)))",
             name="ck_daily_metrics_entity_scope",
+        ),
+        ForeignKeyConstraint(
+            ["ad_set_id", "campaign_id", "platform"],
+            ["ad_sets.id", "ad_sets.campaign_id", "ad_sets.platform"],
+            name="fk_metric_ad_set",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["ad_id", "ad_set_id", "platform"],
+            ["ads.id", "ads.ad_set_id", "ads.platform"],
+            name="fk_metric_ad_set_ad",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["ad_id", "ad_group_id", "platform"],
+            ["ads.id", "ads.ad_group_id", "ads.platform"],
+            name="fk_metric_ad_group_ad",
+            ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             ["campaign_id", "platform"],
@@ -410,6 +456,8 @@ class DailyMetric(TimestampMixin, Base):
     )
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
     campaign_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    ad_set_id: Mapped[int | None] = mapped_column(Integer)
+    ad_id: Mapped[int | None] = mapped_column(Integer)
     ad_group_id: Mapped[int | None] = mapped_column(Integer)
     keyword_id: Mapped[int | None] = mapped_column(Integer)
     search_term_id: Mapped[int | None] = mapped_column(Integer)
@@ -443,7 +491,7 @@ class ConversionEvent(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     external_conversion_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -459,6 +507,22 @@ class ConversionEvent(TimestampMixin, Base):
 class JobRun(TimestampMixin, Base):
     __tablename__ = "job_runs"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_job_connection_workspace",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["account_id", "workspace_id", "connection_id"],
+            [
+                "advertising_accounts.id",
+                "advertising_accounts.workspace_id",
+                "advertising_accounts.connection_id",
+            ],
+            name="fk_job_account_connection",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("id", "workspace_id", name="uq_job_runs_id_workspace"),
         ForeignKeyConstraint(
             ["account_id", "platform"],
@@ -493,8 +557,9 @@ class JobRun(TimestampMixin, Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    connection_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
-        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False, default=1
+        ForeignKey("workspaces.id", ondelete="RESTRICT"), nullable=False
     )
     platform: Mapped[AdvertisingPlatform] = mapped_column(platform_enum, nullable=False)
     account_id: Mapped[int | None] = mapped_column(Integer)

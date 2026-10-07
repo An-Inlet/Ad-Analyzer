@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -50,6 +51,9 @@ class Workspace(WorkspaceTimestampMixin, Base):
     client_name: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    export_privacy_revision: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
 
 
 class WorkspaceConfiguration(WorkspaceTimestampMixin, Base):
@@ -93,6 +97,7 @@ class WorkspaceMembership(WorkspaceTimestampMixin, Base):
 class WorkspaceIntegration(WorkspaceTimestampMixin, Base):
     __tablename__ = "workspace_integrations"
     __table_args__ = (
+        UniqueConstraint("id", "workspace_id", name="uq_workspace_integrations_id_workspace"),
         UniqueConstraint("workspace_id", "integration_key", name="uq_workspace_integrations_key"),
         Index("ix_workspace_integrations_provider_status", "provider", "status"),
     )

@@ -11,11 +11,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.orm import Session
 
-from app.crm.worker import CrmEventProcessor
+from app.crm.push_auth import require_crm_push_identity
+from app.crm.worker import CrmEventProcessor, record_scope_rejection
 from app.database.session import get_db
+from app.imports.scope import ImportScopeError
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/internal/pubsub", include_in_schema=False)
+router = APIRouter(
+    prefix="/internal/pubsub",
+    include_in_schema=False,
+    dependencies=[Depends(require_crm_push_identity)],
+)
 
 
 class PubSubMessage(BaseModel):
@@ -42,7 +48,8 @@ def receive_crm_event(
 ) -> Response:
     """Process one push delivery, acknowledging only successful or duplicate events.
 
-    Cloud Run verifies the Pub/Sub OIDC token before this application is reached.
+    Application OIDC authentication runs before this processor. Cloud Run IAM remains
+    defense in depth, not the sole worker identity boundary.
     Any non-2xx response causes Pub/Sub to apply the subscription retry/dead-letter policy.
     """
     try:
@@ -56,6 +63,9 @@ def receive_crm_event(
 
     try:
         CrmEventProcessor(db).process(payload)
+    except ImportScopeError:
+        record_scope_rejection(db, decoded)
+        return JSONResponse(status_code=400, content={"detail": "scope_rejected"})
     except (ValidationError, ValueError):
         db.rollback()
         logger.warning("CRM push delivery failed event validation (payload omitted)")

@@ -27,10 +27,24 @@ def utc_now() -> datetime:
 class ShopifyConnection(Base):
     __tablename__ = "shopify_connections"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_integration_id", "workspace_id"],
+            ["workspace_integrations.id", "workspace_integrations.workspace_id"],
+            name="fk_shopifyconnection_integration_scope",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["commerce_store_id", "workspace_id"],
+            ["commerce_stores.id", "commerce_stores.workspace_id"],
+            name="fk_shopify_commerce_store",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint("id", "workspace_id", name="uq_shopify_connection_workspace"),
         CheckConstraint("status IN ('connected','reconnect_required')", name="ck_shopify_status"),
     )
     id: Mapped[int] = mapped_column(primary_key=True)
+    commerce_store_id: Mapped[str | None] = mapped_column(String(32))
+    workspace_integration_id: Mapped[int | None] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE"), unique=True
     )
@@ -77,6 +91,7 @@ class ShopifyOrder(Base):
     connection_id: Mapped[int] = mapped_column(Integer)
     workspace_id: Mapped[int] = mapped_column(Integer)
     order_key: Mapped[str] = mapped_column(String(64))
+    commerce_order_key: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     source_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     currency_code: Mapped[str] = mapped_column(String(3))
@@ -121,6 +136,9 @@ class ShopifyPrivacyRequest(Base):
     workspace_id: Mapped[int] = mapped_column(Integer)
     request_key: Mapped[str] = mapped_column(String(64))
     order_keys: Mapped[list[str]] = mapped_column(JSON)
+    commerce_keys: Mapped[list[str]] = mapped_column(JSON, default=list)
+    customer_key: Mapped[str | None] = mapped_column(String(64))
+    resolution_pending: Mapped[bool] = mapped_column(Boolean, default=False)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -134,3 +152,20 @@ class ShopifyAudit(Base):
     actor_role: Mapped[str] = mapped_column(String(32))
     record_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+# Register related tables wherever the legacy Shopify models are loaded.
+from app.commerce import models as commerce_models  # noqa: E402, F401
+
+
+class ShopifyPrivacyIdentity(Base):
+    """Minimal erasure identity survives native disconnect and measurement enablement."""
+
+    __tablename__ = "shopify_privacy_identities"
+    workspace_id: Mapped[int] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True
+    )
+    shop_domain: Mapped[str] = mapped_column(String(253), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    object_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    pending_legacy: Mapped[bool] = mapped_column(Boolean, default=False)

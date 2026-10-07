@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount
-from app.analysis.enums import AnalysisCadence
+from app.analysis.enums import AnalysisCadence, AnalysisRunStatus
 from app.analysis.granular import GranularAnalysisService
 from app.analysis.models import AnalysisRun
 from app.analysis.platform_evidence import has_platform_conversion_metrics
@@ -25,6 +26,7 @@ from app.recommendations import (
     RecommendationGenerationService,
     RecommendationScopeType,
 )
+from app.workspaces.locking import require_active_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +98,8 @@ class AnalysisRunService:
         source_job_run_id: int | None = None,
         policy_version: str = "v1",
         as_of: datetime | None = None,
+        retry_failed: bool = False,
+        revalidate: Callable[[Session], None] | None = None,
     ) -> AnalysisRun:
         resolved_as_of = _utc(as_of or datetime.now(UTC))
         metric_end = resolved_as_of.date() - timedelta(days=1)
@@ -121,10 +125,16 @@ class AnalysisRunService:
             outcome_date_from=outcome_start,
             outcome_date_to=outcome_end,
             started_at=resolved_as_of,
+            retry_failed=retry_failed,
         )
         if not claimed:
             return row
         try:
+            # Claim commits durably; reacquire authority before any local output.
+            # Keep this workspace lock through result persistence.
+            require_active_workspace(self.session, workspace_id)
+            if revalidate is not None:
+                revalidate(self.session)
             summary = self._analyze(
                 workspace_id=workspace_id,
                 account_id=account_id,
@@ -171,6 +181,11 @@ class AnalysisRunService:
             return row
         except Exception as exc:
             self.session.rollback()
+            # A commit acknowledgement/refresh can fail after success was persisted.
+            # Never relabel that authoritative success as retryable failure.
+            persisted = self.session.get(AnalysisRun, row.id, populate_existing=True)
+            if persisted is not None and persisted.status == AnalysisRunStatus.SUCCEEDED:
+                return persisted
             logger.error(
                 "analysis_run_failed cadence=%s error_type=%s",
                 cadence.value,

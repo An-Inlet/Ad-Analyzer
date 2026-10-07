@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/inlet-*']
   push:
     branches: [main]
   workflow_dispatch:
@@ -10,10 +10,16 @@ on:
 permissions:
   contents: read
 
+# Cancel stale revisions of the same PR/ref; preserve deliberate manual evidence.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validation:
     name: Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16
@@ -46,8 +52,58 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      - name: Set up Node.js for customer portal checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: browser/auth/package-lock.json
+
+      - name: Verify pinned self-hosted authentication bundle
+        run: |
+          npm ci --prefix browser/auth --ignore-scripts --no-audit --no-fund
+          npm run --prefix browser/auth build
+          git diff --exit-code -- app/portal/static/firebase-auth.mjs
+
+      - name: Require a browser for customer portal checks
+        run: |
+          set -euo pipefail
+          for browser in chromium chromium-browser google-chrome google-chrome-stable; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              "$browser" --version
+              exit 0
+            fi
+          done
+          echo "Customer portal checks require Chromium or Google Chrome on the runner." >&2
+          exit 1
+
+      - name: Install bounded media decoder tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Require bounded media decoder tools
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -version
+          ffprobe -version
+
+      - name: Require actual H.264 and AAC browser decoding
+        run: python scripts/check_browser_media.py --github-env "$GITHUB_ENV"
+
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e '.[dev]'
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy
+
+      - name: Fast bounded orchestration feedback
+        timeout-minutes: 5
+        run: python -m pytest tests/test_validation_orchestration.py tests/test_validation_diagnostics.py
 
       - name: Fail closed for unsafe PostgreSQL targets
         run: ./scripts/validate.sh PostgreSQL
@@ -56,13 +112,8 @@ jobs:
         run: alembic upgrade head
 
       - name: Complete pytest suite including PostgreSQL integration tests
-        run: python -m pytest
-
-      - name: Ruff
-        run: ruff check .
-
-      - name: Mypy
-        run: mypy
+        timeout-minutes: 90
+        run: python -m pytest -ra --basetemp "$RUNNER_TEMP/inlet-pytest" --junitxml "$RUNNER_TEMP/inlet-validation/aggregate.xml"
 
       - name: Whitespace diff check
         run: |
@@ -89,3 +140,19 @@ jobs:
 
       - name: Account-isolation and project automation gates
         run: ./scripts/validate.sh Focused
+
+      - name: Collect bounded validation failure evidence
+        if: failure()
+        run: |
+          python -m tests.validation_diagnostics \
+            --root "$RUNNER_TEMP/inlet-validation" \
+            --output "$RUNNER_TEMP/inlet-validation/summary.txt"
+
+      - name: Retain bounded validation failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inlet-nested-validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/inlet-validation/summary.txt
+          retention-days: 7
+          if-no-files-found: warn

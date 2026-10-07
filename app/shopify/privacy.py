@@ -5,20 +5,24 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import Engine, delete, select
+from sqlalchemy import Engine, delete, or_, select, union
 from sqlalchemy.orm import Session
 
+from app.imports.native import revoke_native_integration
+from app.lifecycle.privacy import bump_workspace_export_revision
 from app.settings import Settings, settings
 from app.shopify.models import (
     ShopifyAudit,
     ShopifyConnection,
     ShopifyOAuthState,
     ShopifyOrder,
+    ShopifyPrivacyIdentity,
     ShopifyPrivacyRequest,
     ShopifyTombstone,
 )
 from app.shopify.normalize import order_key, resource_id
 from app.shopify.security import ShopifyError, Vault, shop_domain, utc
+from app.workspaces.models import Workspace
 
 TOPICS = {
     "orders/delete",
@@ -41,26 +45,117 @@ def process_event(
     if topic not in TOPICS:
         raise ShopifyError("shopify_unknown_event")
     shop = shop_domain(shop)
+    if payload.get("shop_domain") and shop_domain(str(payload["shop_domain"])) != shop:
+        raise ShopifyError("shopify_event_shop_mismatch")
+    from app.commerce.models import CommerceShopAlias, CommerceStore
+    from app.commerce.privacy import process_measurement_event
+
+    matching_stores = select(CommerceStore.id).where(
+        or_(
+            CommerceStore.shop_domain == shop,
+            CommerceStore.id.in_(
+                select(CommerceShopAlias.store_id).where(CommerceShopAlias.shop_domain == shop)
+            ),
+        )
+    )
+    # Privacy operations share the customer callback/disconnect fence. Include pending
+    # installs and historical aliases/identities before taking native/store locks.
+    owners_query = union(
+        select(ShopifyConnection.workspace_id).where(ShopifyConnection.shop_domain == shop),
+        select(ShopifyOAuthState.workspace_id).where(ShopifyOAuthState.shop_domain == shop),
+        select(CommerceStore.workspace_id).where(CommerceStore.id.in_(matching_stores)),
+        select(ShopifyPrivacyIdentity.workspace_id).where(
+            ShopifyPrivacyIdentity.shop_domain == shop
+        ),
+    )
+    locked_owners = set(
+        session.scalars(
+            select(Workspace.id)
+            .where(Workspace.id.in_(owners_query))
+            .order_by(Workspace.id)
+            .with_for_update()
+        )
+    )
+    if topic in {"orders/delete", "customers/redact", "shop/redact", "app/uninstalled"}:
+        for workspace_id in sorted(locked_owners):
+            bump_workspace_export_revision(session, workspace_id)
     row = session.scalar(
         select(ShopifyConnection).where(ShopifyConnection.shop_domain == shop).with_for_update()
     )
     if row is None:
-        return
-    if payload.get("shop_domain") and shop_domain(str(payload["shop_domain"])) != shop:
-        raise ShopifyError("shopify_event_shop_mismatch")
-    if topic in {"shop/redact", "app/uninstalled"}:
-        if utc(published_at) < utc(row.connected_at):
-            return  # An event from a previous installation must not erase a new authorization.
+        # Keep native -> store lock order when a delayed event uses a verified old domain.
+        row = session.scalar(
+            select(ShopifyConnection)
+            .where(
+                ShopifyConnection.commerce_store_id.in_(matching_stores),
+            )
+            .with_for_update()
+        )
+    if (
+        row is not None
+        and topic in {"shop/redact", "app/uninstalled"}
+        and utc(published_at) >= utc(row.connected_at)
+    ):
+        # Nonce cleanup precedes store locks, matching the retention sweeper.
         session.execute(
             delete(ShopifyOAuthState)
             .execution_options(synchronize_session="fetch")
             .where(ShopifyOAuthState.shop_domain == shop)
         )
+    commerce_keys = []
+    stores = list(
+        session.scalars(
+            select(CommerceStore)
+            .where(
+                CommerceStore.id.in_(matching_stores),
+            )
+            .with_for_update()
+        )
+    )
+    from app.shopify.privacy_identity import (
+        finish_reconciliation,
+        legacy_key,
+        preserve,
+        record_erasure,
+        unclassified,
+    )
+
+    owners = {s.workspace_id for s in stores}
+    owners.update(
+        session.scalars(
+            select(ShopifyPrivacyIdentity.workspace_id).where(
+                ShopifyPrivacyIdentity.shop_domain == shop,
+            )
+        )
+    )
+    if row is not None:
+        owners.add(row.workspace_id)
+    if not owners.issubset(locked_owners):
+        # A newly created owner appeared after discovery. Retry without any local writes.
+        raise ShopifyError("shopify_privacy_ownership_changed")
+    if row is not None:
+        preserve(session, row)
+    erasure_markers = [
+        record_erasure(session, configuration, owner, shop, topic, payload) for owner in owners
+    ]
+    for store in stores:
+        keys_for_store = process_measurement_event(
+            session, store, topic, payload, configuration, published_at
+        )
+        if row is not None and row.commerce_store_id == store.id:
+            commerce_keys.extend(keys_for_store)
+    if row is None:
+        session.commit()
+        return
+    if topic in {"shop/redact", "app/uninstalled"}:
+        if utc(published_at) < utc(row.connected_at):
+            return  # An event from a previous installation must not erase a new authorization.
         session.add(
             ShopifyAudit(
                 workspace_id=row.workspace_id, action="store_removed", actor_role="shopify"
             )
         )
+        revoke_native_integration(session, row.workspace_integration_id)
         session.delete(row)
     else:
         vault = Vault(configuration)
@@ -74,15 +169,51 @@ def process_event(
             raise ShopifyError("shopify_invalid_event")
         keys = sorted({order_key(vault, row, value) for value in raw_ids})
         if topic == "customers/data_request":
+            for offset in range(0, len(commerce_keys), 500):
+                keys.extend(
+                    session.scalars(
+                        select(ShopifyOrder.order_key).where(
+                            ShopifyOrder.connection_id == row.id,
+                            ShopifyOrder.commerce_order_key.in_(
+                                commerce_keys[offset : offset + 500]
+                            ),
+                        )
+                    )
+                )
+            keys = sorted(set(keys))
             request_key = vault.digest(
                 f"privacy:{shop}", resource_id(payload["data_request"]["id"], "DataRequest")
             )
             existing = session.scalar(
-                select(ShopifyPrivacyRequest.id).where(
+                select(ShopifyPrivacyRequest).where(
                     ShopifyPrivacyRequest.connection_id == row.id,
                     ShopifyPrivacyRequest.request_key == request_key,
                 )
             )
+            requested_customer = payload.get("customer")
+            has_customer_identity = bool(
+                requested_customer and requested_customer.get("id") is not None
+            )
+            requested_key = (
+                legacy_key(
+                    vault,
+                    row.workspace_id,
+                    row.shop_domain,
+                    "customer",
+                    (requested_customer or {})["id"],
+                )
+                if has_customer_identity
+                else None
+            )
+            unresolved = unclassified(session, row) and (has_customer_identity or not raw_ids)
+            if existing is not None:
+                # Authenticated replay can supply identity missing from older requests.
+                # Resolve its facts before making the export available, retaining all
+                # previously identified orders across idempotent deliveries.
+                existing.order_keys = sorted(set(existing.order_keys) | set(keys))
+                existing.commerce_keys = sorted(set(existing.commerce_keys) | set(commerce_keys))
+                existing.customer_key = requested_key or existing.customer_key
+                existing.resolution_pending = unresolved
             if existing is None:
                 session.add(
                     ShopifyPrivacyRequest(
@@ -90,6 +221,9 @@ def process_event(
                         workspace_id=row.workspace_id,
                         request_key=request_key,
                         order_keys=keys,
+                        commerce_keys=commerce_keys,
+                        customer_key=requested_key,
+                        resolution_pending=unresolved,
                         requested_at=utc(published_at),
                     )
                 )
@@ -116,14 +250,28 @@ def process_event(
                                 connection_id=row.id, workspace_id=row.workspace_id, order_key=key
                             )
                         )
+            unresolved = bool((payload.get("customer") or {}).get("id")) and unclassified(
+                session, row
+            )
+            for marker in erasure_markers:
+                if marker is not None and marker.workspace_id == row.workspace_id:
+                    marker.pending_legacy = unresolved
+            if unresolved:
+                row.error_code, row.last_sync_at, row.covered_from = (
+                    "shopify_privacy_reconciliation_required",
+                    None,
+                    None,
+                )
             session.add(
                 ShopifyAudit(
                     workspace_id=row.workspace_id,
-                    action="orders_erased",
+                    action="privacy_reconciliation_pending" if unresolved else "orders_erased",
                     actor_role="shopify",
                     record_count=len(keys),
                 )
             )
+    if row is not None and topic not in {"shop/redact", "app/uninstalled"}:
+        finish_reconciliation(session, row)
     session.commit()  # Acknowledge the event only after the database commit succeeds.
 
 
@@ -131,7 +279,7 @@ def run_privacy_tick(engine: Engine) -> None:
     # Privacy handling continues when imports or integration enablement are switched off.
     if not settings.shopify_webhook_subscription or not settings.shopify_identifier_hash_key:
         return
-    from google.cloud import pubsub_v1  # type: ignore[import-untyped]
+    import google.cloud.pubsub_v1 as pubsub_v1  # type: ignore[import-untyped]
 
     with pubsub_v1.SubscriberClient() as subscriber:
         response = subscriber.pull(
@@ -175,31 +323,31 @@ def run_privacy_tick(engine: Engine) -> None:
 
 def purge_expired_facts(engine: Engine, *, now: datetime | None = None) -> None:
     now = utc(now or datetime.now(UTC))
-    with Session(engine) as session:
-        # Retention applies even while imports are paused or access has been revoked.
-        session.execute(
-            delete(ShopifyOrder)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyOrder.created_at < now - timedelta(days=59))
-        )
-        session.execute(
-            delete(ShopifyTombstone)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyTombstone.created_at < now - timedelta(days=61))
-        )
-        session.execute(
-            delete(ShopifyOAuthState)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyOAuthState.expires_at < now)
-        )
-        session.execute(
-            delete(ShopifyPrivacyRequest)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyPrivacyRequest.completed_at < now - timedelta(days=30))
-        )
-        session.execute(
-            delete(ShopifyAudit)
-            .execution_options(synchronize_session="fetch")
-            .where(ShopifyAudit.created_at < now - timedelta(days=90))
-        )
-        session.commit()
+    from app.commerce.evidence import lock_workspace
+    from app.commerce.privacy import purge_measurements
+
+    # Process one owner per transaction; closing owners still receive privacy maintenance.
+    with Session(engine) as discovery:
+        owners = list(discovery.scalars(select(Workspace.id).order_by(Workspace.id)))
+    for owner in owners:
+        with Session(engine) as session:
+            lock_workspace(session, owner)
+            bump_workspace_export_revision(session, owner)
+            session.execute(
+                delete(ShopifyOAuthState).where(
+                    ShopifyOAuthState.workspace_id == owner,
+                    ShopifyOAuthState.expires_at < now,
+                )
+            )
+            purge_measurements(session, now, workspace_id=owner)
+            for model, cutoff in (
+                (ShopifyOrder, ShopifyOrder.created_at < now - timedelta(days=59)),
+                (ShopifyTombstone, ShopifyTombstone.created_at < now - timedelta(days=61)),
+                (
+                    ShopifyPrivacyRequest,
+                    ShopifyPrivacyRequest.completed_at < now - timedelta(days=30),
+                ),
+                (ShopifyAudit, ShopifyAudit.created_at < now - timedelta(days=90)),
+            ):
+                session.execute(delete(model).where(model.workspace_id == owner, cutoff))
+            session.commit()

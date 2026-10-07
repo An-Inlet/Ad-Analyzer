@@ -1,10 +1,21 @@
 # Human decisions required
 
-Last refreshed: 2026-07-20
+Legacy roadmap snapshot: 2026-07-20. Scope clarification: 2026-10-06.
 
-The automated buildout has completed the technically implementable roadmap work that can be performed safely without live advertising changes, production infrastructure, credentials, or release approval. The remaining roadmap units require explicit human decisions before implementation or activation.
+This document records decisions from the earlier Ad Analyzer roadmap, including
+Denticode-specific work. It is not a current Inlet completion assessment. The
+previous assertion that all technically implementable work was complete is
+superseded: Inlet engineering, customer-session automation and validation continue,
+and some unsupported features require code rather than owner credentials or approval.
 
-## Blocking decisions
+For Inlet's minimal commercial inputs, use the
+[commercial owner worksheet](inlet-commercial-owner-worksheet.md). For current
+implemented behavior, open work and release limits, use the
+[current acceptance matrix](inlet-current-acceptance.md) and package evidence.
+The historical list below must not trigger redundant permission requests for routine
+offline work already authorized in [the automation policy](automation-policy.md).
+
+## Historical Roadmap Decisions
 
 | Decision | Blocks roadmap units | Required human input |
 |---|---|---|

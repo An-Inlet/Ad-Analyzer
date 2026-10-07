@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from secrets import token_urlsafe
 from typing import Any
@@ -11,7 +12,9 @@ from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, Campaign, DailyMetric
 from app.ads.repository import AdvertisingMetricsRepository
 from app.ads.schemas import AdvertisingAccountCreate
+from app.imports.native import bind_meta, revoke_native_integration
 from app.meta.client import MetaClient, unpack_page
+from app.meta.locking import lock_workspace
 from app.meta.models import (
     MetaAudit,
     MetaConnection,
@@ -58,11 +61,12 @@ class ConnectionService:
     def get(self, workspace_id: int, *, lock: bool = False) -> MetaConnection | None:
         query = select(MetaConnection).where(MetaConnection.workspace_id == workspace_id)
         if lock:
-            query = query.with_for_update()
+            lock_workspace(self.session, workspace_id)
+            query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
-    def begin(self, workspace_id: int, actor: str, now: datetime) -> str:
-        if not configuration_ready(self.settings):
+    def begin(self, workspace_id: int, actor: str, now: datetime, *, customer: bool = False) -> str:
+        if not configuration_ready(self.settings, customer=customer):
             raise MetaError("meta_configuration_required")
         vault = Vault(self.settings)
         digest = vault.digest("actor", actor)
@@ -179,7 +183,8 @@ class ConnectionService:
             MetaPendingGrant.expires_at > now,
         )
         if lock:
-            query = query.with_for_update()
+            lock_workspace(self.session, workspace_id)
+            query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
     def more_accounts(self, workspace_id: int, actor: str, now: datetime) -> None:
@@ -195,6 +200,16 @@ class ConnectionService:
         grant.accounts, grant.cursor = [account_metadata(item) for item in items], cursor
         self.session.commit()
 
+    def _require_account_owner(self, workspace_id: int, external_id: str) -> None:
+        if self.session.scalar(
+            select(AdvertisingAccount.id).where(
+                AdvertisingAccount.platform == AdvertisingPlatform.META_ADS,
+                AdvertisingAccount.external_account_id == external_id,
+                AdvertisingAccount.workspace_id != workspace_id,
+            )
+        ):
+            raise MetaError("meta_account_already_connected")
+
     def select_account(
         self,
         workspace_id: int,
@@ -203,6 +218,8 @@ class ConnectionService:
         action_type: str,
         role: str,
         now: datetime,
+        *,
+        before_persist: Callable[[], None] | None = None,
     ) -> MetaConnection:
         if action_type not in CONVERSION_ACTIONS:
             raise MetaError("meta_invalid_conversion_event")
@@ -213,60 +230,87 @@ class ConnectionService:
         existing = self.get(workspace_id, lock=True)
         if existing and existing.external_account_id != external_id:
             raise MetaError("meta_disconnect_existing_first")
-        if self.session.scalar(
-            select(AdvertisingAccount.id).where(
-                AdvertisingAccount.platform == AdvertisingPlatform.META_ADS,
-                AdvertisingAccount.external_account_id == external_id,
-                AdvertisingAccount.workspace_id != workspace_id,
-            )
-        ):
-            raise MetaError("meta_account_already_connected")
+        self._require_account_owner(workspace_id, external_id)
         vault = Vault(self.settings)
         bundle = vault.open(
             workspace_id, "grant:" + grant.actor_digest, grant.encrypted_credentials
         )
+        grant_id = grant.id
+        generation = (existing.id, existing.generation) if existing else None
+        if before_persist:
+            self.session.commit()  # Release customer locks before provider IO.
         details = account_metadata(self.client.account(external_id, bundle["access_token"]))
+        if before_persist:
+            before_persist()
+            grant = self.grant(workspace_id, actor, now, lock=True)
+            existing = self.get(workspace_id, lock=True)
+            if (
+                grant is None
+                or grant.id != grant_id
+                or ((existing.id, existing.generation) if existing else None) != generation
+            ):
+                raise MetaError("meta_authorization_expired")
         if details["account_id"] != external_id:
             raise MetaError("meta_account_not_authorized")
-        account = AdvertisingMetricsRepository(self.session).upsert_account(
-            AdvertisingAccountCreate(
-                workspace_id=workspace_id,
-                platform=AdvertisingPlatform.META_ADS,
-                external_account_id=external_id,
-                name=details["name"],
-                currency_code=details["currency_code"],
-                time_zone=details["time_zone"],
-            )
-        )
-        if existing is None:
-            existing = MetaConnection(
-                workspace_id=workspace_id, account_id=account.id, external_account_id=external_id
-            )
-            self.session.add(existing)
-        existing.encrypted_credentials = vault.seal(workspace_id, external_id, bundle)
-        existing.status, existing.conversion_action_type = "connected", action_type or None
-        existing.connected_at, existing.last_sync_at = now, None
-        existing.covered_from, existing.covered_through = None, None
-        existing.last_attempt_at, existing.next_attempt_at, existing.error_code = None, None, None
-        existing.window_start, existing.window_end, existing.cursor = None, None, None
-        existing.phase = "campaigns"
-        if existing.id:
-            self.session.execute(
-                delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == existing.id)
-            )
-        self.session.execute(
-            update(DailyMetric)
-            .where(
-                DailyMetric.campaign_id.in_(
-                    select(Campaign.id).where(Campaign.account_id == account.id)
-                ),
-                DailyMetric.platform == AdvertisingPlatform.META_ADS,
-            )
-            .values(conversions=0, conversion_value_micros=0)
-        )
-        self.session.delete(grant)
-        self.session.add(MetaAudit(workspace_id=workspace_id, action="connected", actor_role=role))
+        # Provider IO can release customer locks. Recheck retained ownership here;
+        # the Meta-only unique index serializes concurrent inserts after this read.
+        self._require_account_owner(workspace_id, external_id)
         try:
+            account = AdvertisingMetricsRepository(self.session).upsert_account(
+                AdvertisingAccountCreate(
+                    workspace_id=workspace_id,
+                    platform=AdvertisingPlatform.META_ADS,
+                    external_account_id=external_id,
+                    name=details["name"],
+                    currency_code=details["currency_code"],
+                    time_zone=details["time_zone"],
+                )
+            )
+            if existing is None:
+                existing = MetaConnection(
+                    workspace_id=workspace_id,
+                    account_id=account.id,
+                    external_account_id=external_id,
+                )
+                self.session.add(existing)
+            else:
+                from app.lifecycle.privacy import bump_workspace_export_revision
+
+                bump_workspace_export_revision(self.session, workspace_id)
+                existing.generation += 1
+            existing.encrypted_credentials = vault.seal(workspace_id, external_id, bundle)
+            existing.status, existing.conversion_action_type = "connected", action_type or None
+            existing.connected_at, existing.last_sync_at = now, None
+            existing.covered_from, existing.covered_through = None, None
+            existing.last_attempt_at, existing.next_attempt_at, existing.error_code = (
+                None,
+                None,
+                None,
+            )
+            existing.window_start, existing.window_end, existing.cursor = None, None, None
+            existing.phase = "campaigns"
+            if existing.id:
+                from app.meta.staging import clear
+
+                clear(self.session, existing.id)
+                self.session.execute(
+                    delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == existing.id)
+                )
+            self.session.execute(
+                update(DailyMetric)
+                .where(
+                    DailyMetric.campaign_id.in_(
+                        select(Campaign.id).where(Campaign.account_id == account.id)
+                    ),
+                    DailyMetric.platform == AdvertisingPlatform.META_ADS,
+                )
+                .values(conversions=0, conversion_value_micros=0)
+            )
+            bind_meta(self.session, existing, reconnect=True)
+            self.session.delete(grant)
+            self.session.add(
+                MetaAudit(workspace_id=workspace_id, action="connected", actor_role=role)
+            )
             self.session.commit()
         except IntegrityError:
             self.session.rollback()
@@ -285,8 +329,15 @@ class ConnectionService:
             raise MetaError("meta_reconnect_required") from None
 
     def disconnect(self, workspace_id: int, role: str) -> None:
+        from app.lifecycle.privacy import bump_workspace_export_revision
+
+        bump_workspace_export_revision(self.session, workspace_id)
         row = self.get(workspace_id, lock=True)
         if row:
+            from app.meta.staging import clear
+
+            clear(self.session, row.id)
+            revoke_native_integration(self.session, row.workspace_integration_id)
             self.session.delete(row)
         for model in (MetaOAuthState, MetaPendingGrant):
             self.session.execute(delete(model).where(model.workspace_id == workspace_id))

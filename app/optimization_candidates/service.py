@@ -231,6 +231,18 @@ def current(
     *,
     forward_review_id: str | None = None,
 ) -> tuple[ProviderMandatePolicy, int, int]:
+    return _current(db, work, principal, runtime, forward_review_id=forward_review_id)
+
+
+def _current(
+    db: Session,
+    work: CandidateWorkDocument,
+    principal: CustomerPrincipal,
+    runtime: CandidateRuntime,
+    *,
+    forward_review_id: str | None = None,
+    _defer_initial: bool = False,
+) -> tuple[ProviderMandatePolicy, int, int]:
     wid, scope = work.scope.account.workspace_id, work.scope
     authorize(db, principal, wid, runtime)
     if work.policy.environment != runtime.environment:
@@ -265,7 +277,7 @@ def current(
         from app.reported_feedback.candidate_source import current_comparison
 
         current_comparison(db, principal, work, runtime.clock, forward_review_id=forward_review_id)
-    if isinstance(work, InitialReportedRuleWorkV1):
+    if isinstance(work, InitialReportedRuleWorkV1) and not _defer_initial:
         from app.initial_planning.automatic_source import resolve_initial_work
 
         resolved = resolve_initial_work(
@@ -707,7 +719,16 @@ def read_result(
     job = load(db, wid, result.job_id)
     work = owned_work(job)
     try:
-        current(db, work, principal, runtime, forward_review_id=forward_review_id)
+        # Initial result validation below reconstructs the complete owned preview,
+        # calibration and all observations once, after result/dependency checks.
+        _current(
+            db,
+            work,
+            principal,
+            runtime,
+            forward_review_id=forward_review_id,
+            _defer_initial=isinstance(work, InitialReportedRuleWorkV1),
+        )
     except HTTPException:
         if not erase_invalid:
             raise HTTPException(409, "candidate source invalidated") from None

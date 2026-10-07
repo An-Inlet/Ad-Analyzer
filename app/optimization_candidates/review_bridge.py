@@ -109,6 +109,54 @@ def validate_plan(decision: CandidateDecisionDocument, document: OptimizationRev
         raise HTTPException(409, "candidate and exact optimization plan changed")
 
 
+def validate_bound_review(
+    db: Session,
+    wid: int,
+    review_id: str,
+    actor: str,
+    principal: CustomerPrincipal,
+    decision: CandidateDecisionDocument,
+    result: CandidateResult,
+    work: CandidateWorkV2 | ReportedRuleWorkV1 | InitialReportedRuleWorkV1,
+    runtime: CandidateReviewRuntime,
+    clock: Callable[[], datetime],
+) -> None:
+    """Internal second half of a guard, only with a freshly bound locked candidate."""
+    # Workspace/session/source locks precede this FK fence. A concurrent derived
+    # deletion must either retract before this check or wait for admission commit.
+    link = db.get(CandidateReviewLink, review_id, populate_existing=True, with_for_update=True)
+    if (
+        link is None
+        or link.workspace_id != wid
+        or link.actor_id != actor
+        or link.candidate_result_id != result.id
+        or link.candidate_workspace_id != wid
+    ):
+        raise HTTPException(409, "candidate review retracted during admission")
+    row = db.get(ProviderExecutionReview, review_id, populate_existing=True)
+    if row is None or row.workspace_id != wid:
+        raise HTTPException(409, "candidate review unavailable")
+    document = parse_review(row.document)
+    validate_plan(decision, document)
+    if (
+        row.digest != link.review_digest
+        or row.plan_digest != link.plan_digest
+        or document.digest() != link.review_digest
+        or document.plan.digest() != link.plan_digest
+        or result.decision_digest != link.candidate_digest
+        or result.input_digest != link.input_digest
+        or work.selection.manifest_digest != link.selection_digest
+        or work.policy.digest() != link.policy_digest
+        or decision.evidence_digest != link.evidence_digest
+        or source_digest(work) != link.source_digest
+        or work.policy.environment != link.environment
+    ):
+        raise HTTPException(409, "candidate review provenance changed")
+    candidates.authorize(db, principal, wid, runtime.candidate)
+    if min(decision.expires_at, work.selection.expires_at) <= clock():
+        raise HTTPException(409, "candidate review expired after authority check")
+
+
 def guard_for(runtime: CandidateReviewRuntime):  # type: ignore[no-untyped-def]
     def guard(
         db: Session, wid: int, review_id: str, actor: str, clock: Callable[[], datetime]
@@ -133,39 +181,9 @@ def guard_for(runtime: CandidateReviewRuntime):  # type: ignore[no-untyped-def]
             fresh,
             forward_review_id=review_id,
         )
-        # Workspace/session/source locks precede this FK fence. A concurrent derived
-        # deletion must either retract before this check or wait for admission commit.
-        link = db.get(CandidateReviewLink, review_id, populate_existing=True, with_for_update=True)
-        if (
-            link is None
-            or link.workspace_id != wid
-            or link.actor_id != actor
-            or link.candidate_result_id != result_id
-            or link.candidate_workspace_id != wid
-        ):
-            raise HTTPException(409, "candidate review retracted during admission")
-        row = db.get(ProviderExecutionReview, review_id, populate_existing=True)
-        if row is None or row.workspace_id != wid:
-            raise HTTPException(409, "candidate review unavailable")
-        document = parse_review(row.document)
-        validate_plan(decision, document)
-        if (
-            row.digest != link.review_digest
-            or row.plan_digest != link.plan_digest
-            or document.digest() != link.review_digest
-            or document.plan.digest() != link.plan_digest
-            or result.decision_digest != link.candidate_digest
-            or result.input_digest != link.input_digest
-            or work.selection.manifest_digest != link.selection_digest
-            or work.policy.digest() != link.policy_digest
-            or decision.evidence_digest != link.evidence_digest
-            or source_digest(work) != link.source_digest
-            or work.policy.environment != link.environment
-        ):
-            raise HTTPException(409, "candidate review provenance changed")
-        candidates.authorize(db, principal, wid, fresh.candidate)
-        if min(decision.expires_at, work.selection.expires_at) <= clock():
-            raise HTTPException(409, "candidate review expired after authority check")
+        validate_bound_review(
+            db, wid, review_id, actor, principal, decision, result, work, fresh, clock
+        )
 
     return guard
 

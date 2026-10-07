@@ -9,6 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
+from app.initial_planning.automatic_contracts import InitialReportedRulePolicyV1
+from app.initial_planning.start_contracts import (
+    InitialRuleAutomaticPolicyV1,
+    StartInitialReportedRuleAutomationV1,
+)
 from app.optimization_candidates import review_bridge
 from app.optimization_candidates import service as candidates
 from app.optimization_candidates.contracts import CandidatePolicy
@@ -72,6 +77,10 @@ def policy_for(
             != isinstance(numeric, ReportedRulePolicyV1)
         )
         or (
+            isinstance(policy, InitialRuleAutomaticPolicyV1)
+            != isinstance(numeric, InitialReportedRulePolicyV1)
+        )
+        or (
             isinstance(numeric, CandidatePolicy)
             and (numeric.budget_step_micros is None or numeric.minimum_observations is None)
         )
@@ -83,7 +92,7 @@ def policy_for(
         or runtime.review.candidate.environment != policy.environment
         or runtime.review.execution.environment != policy.environment
         or (
-            not isinstance(policy, ReportedRuleAutomaticPolicyV1)
+            not isinstance(policy, (ReportedRuleAutomaticPolicyV1, InitialRuleAutomaticPolicyV1))
             and not any(
                 p.environment == policy.environment
                 and p.family in policy.semantic_producer_families
@@ -128,6 +137,10 @@ def current(
     candidates.authorize(db, principal, wid, runtime.review.candidate)
     if utc(row.expires_at) <= runtime.clock():
         raise HTTPException(409, "original_session_ended")
+    if isinstance(policy, InitialRuleAutomaticPolicyV1):
+        from app.initial_planning.start_service import linked_work
+
+        linked_work(db, row, runtime)
     return row, principal, policy, mandate
 
 
@@ -135,11 +148,19 @@ def start(
     db: Session,
     principal: CustomerPrincipal,
     wid: int,
-    intent: StartSessionAutomation | StartReportedRuleAutomationV1,
+    intent: StartSessionAutomation
+    | StartReportedRuleAutomationV1
+    | StartInitialReportedRuleAutomationV1,
     runtime: SessionAutomationRuntime,
 ) -> SessionAutomationRun:
+    if isinstance(intent, StartInitialReportedRuleAutomationV1):
+        from app.initial_planning.start_service import start_initial
+
+        return start_initial(db, principal, wid, intent, runtime)
     candidates.authorize(db, principal, wid, runtime.review.candidate)
     policy = policy_for(db, runtime, wid, intent.policy)
+    if isinstance(policy, InitialRuleAutomaticPolicyV1):
+        raise HTTPException(409, "explicit_initial_rule_start_required")
     if isinstance(policy, ReportedRuleAutomaticPolicyV1):
         if (
             not isinstance(intent, StartReportedRuleAutomationV1)

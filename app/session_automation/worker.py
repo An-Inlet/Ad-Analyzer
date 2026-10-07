@@ -33,15 +33,22 @@ def advance(engine: Engine, wid: int, identifier: str, runtime: SessionAutomatio
         try:
             # Original current authority is reloaded around selection's external reads.
             row, principal, policy, _ = service.current(db, wid, identifier, runtime)
-            _, jobs = selection.enqueue_candidate_selection(
-                db,
-                principal,
-                wid,
-                service.binding(row),
-                policy.candidate_policy,
-                runtime.selected(service.binding(row)),
-            )
-            identifiers = [job.id for job in jobs]
+            from app.initial_planning.start_contracts import InitialRuleAutomaticPolicyV1
+            from app.initial_planning.start_service import linked_work
+
+            if isinstance(policy, InitialRuleAutomaticPolicyV1):
+                job, _ = linked_work(db, row, runtime)
+                identifiers = [job.id]
+            else:
+                _, jobs = selection.enqueue_candidate_selection(
+                    db,
+                    principal,
+                    wid,
+                    service.binding(row),
+                    policy.candidate_policy,
+                    runtime.selected(service.binding(row)),
+                )
+                identifiers = [job.id for job in jobs]
             db.commit()
             completed = 0
             for job_id in identifiers:

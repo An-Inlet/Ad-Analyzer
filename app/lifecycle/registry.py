@@ -12,6 +12,22 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "initial_rule_session_starts": TablePolicy(
+        "workspace",
+        (
+            "session_run_id",
+            "workspace_id",
+            "candidate_job_id",
+            "candidate_workspace_id",
+            "input_digest",
+            "preview_digest",
+            "semantic_key_digest",
+            "policy_digest",
+            "created_at",
+            "expires_at",
+        ),
+        protected=True,
+    ),
     "initial_rule_opportunities": TablePolicy(
         "workspace",
         (

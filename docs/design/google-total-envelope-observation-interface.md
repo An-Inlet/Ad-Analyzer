@@ -135,3 +135,37 @@ fields and v1 serialization compatibility. No arithmetic allocation release or a
 
 Qualification remains deliberately unavailable. This package supplies genuine native and
 local provenance observations; a reviewed financial source/profile is a separate consumer.
+
+## Implemented Read-Only Consumer (2026-10-07)
+
+`GoogleTotalEnvelopeViewV1` is the frozen customer projection. The POST route lives in
+`customer_account_diagnostics.py`, reusing its existing default-disabled native factory.
+Unsupported original runs or incomplete original captured pairs return controlled 409;
+no required original facts are fabricated to produce an unavailable response. Current
+missing/inconsistent native inventory returns the typed unavailable projection.
+
+The binder verifies historical exact consent/revision and original captures/receipts,
+without requiring that old spending consent remain active. It still requires the current
+original owner/session, active workspace/source and paid read eligibility. Transactions
+end before HTTP; after transport closes, original binding and source are reloaded and
+compared, and fresh database wallclock/session expiry gate delivery. Native account
+currency must match the original definition; the reviewed account timezone is preserved
+separately from the mandate's potentially different timezone. Campaign UTC dates retain
+the original definition. The auxiliary diagnostic cost query covers a past UTC day only;
+its amount is never used in this projection or as envelope coverage.
+
+Actual configured creation/capture/vault/native-HTTP tests ran on SQLite/PostgreSQL.
+Matching and decreased native amounts, disabled reads, CSRF/foreign run, session revocation
+and generation change during HTTP, expiry during transport close, inconsistent owner
+count, and latest unknown receipt are covered. No observer mutation, reservation change,
+settlement or financial qualification occurs. Creation fixture adds an optional total
+budget mode; default existing Google scenarios are unchanged.
+
+Validation: final affected suite **74 passed in 91.45s**, whole Ruff clean and configured
+mypy **867 files** clean. Log `/tmp/inlet-total-envelope-final.log`; no Full/remote/live run.
+Adverse development results retained: initial overly strict mandate/native timezone
+comparison rejected a valid configured case; fixed by preserving both timezone meanings.
+The shared-owner fixture correctly yielded unavailable inventory rather than simple drift;
+test expectation corrected. A negative fixture omitted record_receipt's clock argument;
+corrected before the final both-database run. Initial test annotations/import order were
+fixed before clean static checks. No qualification or public UI claim follows these tests.

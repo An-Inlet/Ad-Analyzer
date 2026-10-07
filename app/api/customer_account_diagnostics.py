@@ -20,6 +20,7 @@ from app.google_connections.http import GoogleReadError
 from app.publication import customer_intents
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_runtime import utc_now
+from app.publication.google_total_envelope_contracts import GoogleTotalEnvelopeViewV1
 from app.settings import settings
 
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/execution", tags=["customer"])
@@ -78,3 +79,61 @@ def read_account_diagnostics(
         raise HTTPException(
             409, "Account diagnostics could not be completed. Check your connection and try again."
         ) from None
+
+
+@router.post("/runs/{run_id}/envelope-observation")
+def read_total_envelope(
+    workspace_id: int,
+    run_id: str,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+    response: Response,
+) -> "GoogleTotalEnvelopeViewV1":
+    from datetime import UTC, datetime, timedelta
+
+    from app.collectors.google_native_inventory import GoogleNativeInventory
+    from app.lifecycle.privacy import database_utc_now
+    from app.publication.google_total_envelope_observation import (
+        bind_owned_original_total_envelope,
+        observe_total_envelope,
+    )
+
+    authorize = bind_authority(principal, provider)
+    response.headers["Cache-Control"] = "no-store"
+
+    def now() -> datetime:
+        return max(utc_now(), database_utc_now(db))
+
+    original = bind_owned_original_total_envelope(
+        db, workspace_id, run_id, principal.user.id, authorize=authorize, clock=now
+    )
+    # This interval is only the collector's auxiliary reported-cost query. It is not
+    # the campaign envelope period or a claim about covered liabilities.
+    ended = now().replace(hour=0, minute=0, second=0, microsecond=0)
+    request = AccountDiagnosticRequest(
+        workspace_id=workspace_id,
+        actor=principal.user.id,
+        account_id=original.account.account.account_id,
+        expected_account=original.account,
+        starts_at=ended - timedelta(days=1),
+        ends_at=ended,
+    )
+    engine = db.get_bind()
+    db.rollback()
+    try:
+        with account_diagnostics.get_native_account_diagnostic_service(
+            lambda: Session(engine), authorize, "google_ads", utc_now
+        ) as service:
+            result = service.read(request, utc_now())
+        current = bind_owned_original_total_envelope(
+            db, workspace_id, run_id, principal.user.id, authorize=authorize, clock=now
+        )
+        paid_work(db, workspace_id, now())
+        if current != original or not isinstance(result, GoogleNativeInventory):
+            raise HTTPException(409, "Original allocation or source evidence changed.")
+        authorize(db, workspace_id, principal.user.id)
+        session_expiry = datetime.fromtimestamp(principal.session.expires_at, UTC)
+        return observe_total_envelope(current, result, now=now(), expires_at=session_expiry)
+    except (GoogleNativeInventoryUnavailable, GoogleReadError, ValidationError):
+        raise HTTPException(409, "The budget observation could not be completed.") from None

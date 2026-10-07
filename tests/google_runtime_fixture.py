@@ -42,7 +42,13 @@ from tests.test_provider_qualification import response_rows
 
 
 def configured_customer(
-    engine: Engine, config: Settings, path: Path, monkeypatch: pytest.MonkeyPatch, replicas: Any
+    engine: Engine,
+    config: Settings,
+    path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    *,
+    total_budget: bool = False,
 ) -> Any:
     alice, _, provider = replicas
     monkeypatch.setattr(settings, "google_customer_client_id", "offline-client")
@@ -55,7 +61,7 @@ def configured_customer(
     monkeypatch.setattr(settings, "media_storage_mode", "local_dev")
     monkeypatch.setattr(settings, "media_local_directory", str(path))
     with Session(engine) as db:
-        policy, actor = setup(db, config, path)
+        policy, actor = setup(db, config, path, total_budget=total_budget)
         user = db.get(CustomerUser, actor)
         assert user
         user.issuer, user.subject = ISSUER, "configured-google"

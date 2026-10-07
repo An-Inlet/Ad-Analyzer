@@ -6616,3 +6616,20 @@ Source, exact interfaces, adverse fixture evidence and remaining financial gaps:
 `docs/design/google-publication-completion-extension.md`. Next independent work is
 review/integration; native financial source/control-boundary qualification remains
 unavailable and is not inferred from this operation evidence.
+
+### Google Original Total-Envelope Observation — Local Read-Only Package
+
+- Source root `d94cd6a`, isolated `codex/inlet-total-envelope-observation`; public contract
+  freeze `fc29011`. Explicit owned CSRF POST `/execution/runs/{run_id}/envelope-observation`
+  binds actual captured original total-budget creation to the existing native inventory.
+- Original native amount and retained reservation remain separate; current matching/drift
+  never grants spending authority, financial bounds or settlement. Historical consent is
+  lineage, not a requirement to reactivate an old grant. Current session/source/paid-read
+  checks and fresh post-I/O binding/clock are mandatory; no DB locks span provider reads.
+- Actual configured API + vault + MockHTTP SQLite/PostgreSQL verification, exact guards,
+  default-off behavior and Google regressions: **74 passed in 91.45s**. Whole Ruff and
+  configured mypy **867 files** pass; diff clean. Evidence and adverse intermediate results:
+  `docs/design/google-total-envelope-observation-interface.md`,
+  `/tmp/inlet-total-envelope-final.log`. No schema, persistence, Full, remote or live calls.
+- Next: independent source review and optional customer UI consuming the frozen response.
+  Financial quantity/history/complete-allocation qualification remains explicitly unresolved.

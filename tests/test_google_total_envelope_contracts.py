@@ -1,11 +1,12 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from app.publication.google_total_envelope_contracts import GoogleTotalEnvelopeViewV1
 from pydantic import ValidationError
 
 
-def document():
+def document() -> dict[str, Any]:
     now = datetime(2026, 10, 7, tzinfo=UTC)
     return dict(
         run_id="a" * 32,
@@ -28,7 +29,7 @@ def document():
     )
 
 
-def test_observation_preserves_distinct_native_and_reserved_amounts():
+def test_observation_preserves_distinct_native_and_reserved_amounts() -> None:
     result = GoogleTotalEnvelopeViewV1.model_validate(document())
     assert result.original_total_micros != result.reservation_micros
     assert result.financial_upper_micros is None
@@ -46,6 +47,6 @@ def test_observation_preserves_distinct_native_and_reserved_amounts():
         {"status": "configuration_drift"},
     ],
 )
-def test_inconsistent_or_authorizing_projection_rejected(change):
+def test_inconsistent_or_authorizing_projection_rejected(change: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         GoogleTotalEnvelopeViewV1.model_validate(document() | change)

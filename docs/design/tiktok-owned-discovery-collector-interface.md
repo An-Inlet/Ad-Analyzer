@@ -1,11 +1,13 @@
 # Owned TikTok Discovery Collector — Proposed Interface
 
 Base parser: `1b5cee8459e7de27c4dcdb23221dfb50877195ec`. Pure parser review found
-no remaining actionable findings. This is the next proposed package, not implemented.
+no remaining actionable findings. The standalone collector is implemented and tested
+with owned SQLite/PostgreSQL contexts and MockTransport; no API/UI is wired.
 
 ## Concrete Composition
 
-A server constructs `TikTokOwnedDiscovery(scope: ExecutionAccount,
+`app.collectors.tiktok_owned_discovery` exposes
+`TikTokOwnedDiscovery(scope: ExecutionAccount,
 contexts: OwnedTikTokContexts, transport: httpx.MockTransport,
 clock: Callable[[], datetime])`. It exposes:
 
@@ -57,7 +59,7 @@ shared HTTP adapter has no discovery paths and a 30-second individual timeout;
 avoid broadening it or changing existing collector semantics. A small dedicated
 GET-only transport applies a timeout clipped to remaining total duration.
 
-Proposed fixed engineering bounds: ten pages, two million decoded bytes per page,
+Fixed engineering bounds: ten pages, two million decoded bytes per page,
 eight million total decoded bytes, thirty seconds total, connect timeout at most
 five seconds and per-operation timeouts clipped to remaining duration. No retry.
 Stop before the next request if a deadline or credential lifetime cannot support it.
@@ -74,7 +76,9 @@ rate-limited or interrupted reads return unavailable, not partial-complete inven
 - `publication_eligibility='not_assessed'`, `spending_authority='none'`;
 - pixel result `scalar_shape_qualification='unverified'` unchanged.
 
-No persisted snapshot or schema is introduced. Per-page `pagination_consistency`
+Result scope uses immutable scalar `TikTokDiscoveryScopeV1`, copied from the exact
+ExecutionAccount; this avoids retaining its mutable nested models. No persisted
+snapshot or schema is introduced. Per-page `pagination_consistency`
 remains unverified because those are original parser observations; the aggregate
 separately attests the bounded cross-page checks. Validate identical reported totals
 and page size across every page, page numbers contiguous from one, expected final
@@ -106,3 +110,28 @@ owned lookup, bounded readable observations and explicit uncertainty. It cannot
 send discovery results into the existing CUSTOMIZED_USER publisher. Linked identity
 publication contracts are separately owned and reviewed. No live eligibility or
 financial gate is changed by this proposal.
+
+
+## Validation At Freeze
+
+The combined strict parser, aggregate and owned transport cohort passed **113 tests**
+across SQLite/PostgreSQL (64.01 seconds). Additional four both-DB context/stream-delay
+and transport-mode guard tests are recorded in the ledger. Whole Ruff and configured
+mypy passed all 834 source files. All HTTP was MockTransport; real transport admission
+was tested as rejected without issuing a request.
+
+Raw JSON decoding rejects duplicate keys, NaN/infinity and excessive nesting with
+sanitized errors. A first cumulative-byte test used a threshold larger than both
+actual responses, so the intended breach did not occur (24 passed, one test failed).
+The test now sets total allowance to the first actual encoded response length plus
+one byte, proving the second page exceeds it; production limits were not weakened.
+The intermediate pre-strict-decoder cohort then passed 36 cases. Reviewer-requested
+raw-wire ambiguity regressions are included in the final 113.
+
+`observed_ended_at` is the response observation end sampled before final authorization,
+not a TTL, permission timestamp or eligibility promise. The final original-session
+check runs after response and client/transport closure. A synchronous callback or DB
+wait cannot be forcibly interrupted by the monotonic guard; elapsed time is checked
+immediately after it and forbids delivery/further HTTP if the deadline expired.
+The actual HTTP timeout is clipped to remaining duration and streaming is checked
+between chunks. This package does not provide a background cancellation worker.

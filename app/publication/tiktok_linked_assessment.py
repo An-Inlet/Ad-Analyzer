@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field, ValidationError
+from pydantic import Field, ValidationError, field_validator
 
 from app.collectors.tiktok_discovery_contracts import (
     Frozen,
@@ -47,16 +47,38 @@ class TikTokLinkedAssessmentInputError(ValueError):
     """No raw payload, identifiers or provider errors in the public error."""
 
 
+class TikTokAssessmentAccountV1(Frozen):
+    account_id: int = Field(gt=0)
+    connection_id: int = Field(gt=0)
+    platform: Literal["google_ads", "meta_ads", "tiktok_ads"]
+
+
+class TikTokAssessmentScopeV1(Frozen):
+    """Immutable exact-shape projection, never a database ownership assertion."""
+
+    workspace_id: int = Field(gt=0)
+    account: TikTokAssessmentAccountV1
+    external_advertiser_id: str = Field(min_length=1, max_length=128)
+    connection_version: str = Field(min_length=1, max_length=100)
+
+
 class TikTokLinkedAssessmentRequestV1(Frozen):
     schema_version: Literal["inlet.tiktok-linked-assessment-request.v1"] = (
         "inlet.tiktok-linked-assessment-request.v1"
     )
-    scope: ExecutionAccount
+    scope: TikTokAssessmentScopeV1
     identity_page_digest: Digest
     pixel_page_digest: Digest
     identity_id: str = Field(min_length=1, max_length=128)
     pixel_index: int = Field(ge=0, lt=20)
-    event_index: int | None = Field(default=None, ge=0)
+    event_index: int | None = Field(default=None, ge=0, lt=1000)
+
+    @field_validator("scope", mode="before")
+    @classmethod
+    def snapshot_scope(cls, value: object) -> object:
+        if isinstance(value, ExecutionAccount):
+            return value.model_dump()
+        return value
 
 
 class TikTokLinkedAssessmentV1(Frozen):

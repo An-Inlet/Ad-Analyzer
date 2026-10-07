@@ -66,3 +66,9 @@ deprecated/PAGE_VIEW/other events, delayed empty events, exact string/integer ID
 and malicious model_copy plus recomputed digest.93 assessment/parser tests passed;
 the deliberately wrong-type model_copy case emits the expected Pydantic serializer
 warning before strict revalidation rejects it. Whole Ruff/mypy832 passed.
+
+Nested immutability followup: the request now snapshots ExecutionAccount into
+`TikTokAssessmentScopeV1` with frozen `TikTokAssessmentAccountV1`, preserving its
+exact field shape without changing the shared execution models. Mutating the
+original account cannot mutate the assessment, and both nested result assignments
+are rejected. event_index is bounded to0–999, matching the parser's1000-event cap.

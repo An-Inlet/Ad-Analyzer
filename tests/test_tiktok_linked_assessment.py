@@ -206,3 +206,27 @@ def test_reject_rehashed_and_model_copy_input_damage(damage: str) -> None:
         TikTokLinkedAssessmentInputError, match="^tiktok_linked_assessment_input_invalid$"
     ):
         assess_linked_identity(request, identities, pixels)
+
+
+def test_nested_scope_is_frozen_and_does_not_alias_execution_account() -> None:
+    from app.publication.execution_contracts import ExecutionAccount
+    from pydantic import ValidationError
+
+    request, identities, pixels = assess()
+    original = ExecutionAccount.model_validate(request.scope.model_dump())
+    copied = TikTokLinkedAssessmentRequestV1.model_validate(
+        {**request.model_dump(), "scope": original}
+    )
+    result = assess_linked_identity(copied, identities, pixels)
+    original.account.account_id = 999
+    original.connection_version = "changed"
+    assert result.request.scope.account.account_id == 1
+    assert result.request.scope.connection_version == "generation1"
+    with pytest.raises(ValidationError, match="frozen"):
+        result.request.scope.account.account_id = 2  # type: ignore[misc]
+    with pytest.raises(ValidationError, match="frozen"):
+        result.request.scope.connection_version = "changed"  # type: ignore[misc]
+    with pytest.raises(ValidationError):
+        TikTokLinkedAssessmentRequestV1.model_validate(
+            {**request.model_dump(), "event_index": 1000}
+        )

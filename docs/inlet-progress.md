@@ -6446,3 +6446,12 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   intentional wrong-type model_copy input. No DB, Full, remote or live operations.
 - Existing social publication contract compatibility:14 tests passed, preserving
   original v1 source contracts; /tmp/inlet-linked-v1-compat.log. Diffcheck clean.
+
+### 2026-10-07 — Freeze Nested Linked Assessment Scope
+
+- Root review found the frozen request still held mutable ExecutionAccount and
+  AccountScope instances. Added exact-shape frozen local projections and a copied
+  input conversion; shared financial models unchanged. Event index now bounds0–999.
+-108 assessment/parser/v1 compatibility tests passed, including original-instance
+  mutation isolation and rejected nested result assignments. Whole Ruff/mypy832 and
+  diffcheck passed. /tmp/inlet-linked-assessment-frozen.log. No DB/IO/live/remote.

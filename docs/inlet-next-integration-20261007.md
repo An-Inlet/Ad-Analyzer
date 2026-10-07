@@ -188,3 +188,17 @@ issue in the storage-only package; root additionally reviewed canonical inner bi
 The next isolated package is the actual configured V2 API/runtime handoff. Its options
 and prepare interfaces must be frozen before dependent UI work. No Full, live
 qualification, new hosted run, main change or remote merge occurred in this package.
+
+## V2 API Interface Freeze
+
+Reviewed `bf29197` and integrated at `d15f104dbfe8df608a850865ceecd986be2e5668`.
+The GET options and POST exact-review callable contracts are frozen before parallel
+backend/frontend implementation. Options are bounded to50, explicitly show financial
+qualification not checked and no spending authority, and expose fixed unavailable
+reasons. POST retains only preview digest and chosen mandate ID/revision.
+
+Current-root API/native/proof contract tests: **32 passed in1.45s**, exit0. Whole
+Ruff, mypy820 and baseline diffcheck passed. Log: `inlet-v2-api-contract-integration.log`.
+Actual V2 runtime/routes and UI remain work in progress; no actual handoff journey is
+claimed by this pure contract result. The startup diagnostic separately awaits the
+owner's one-time action; it has not been dispatched or duplicated by the executor.

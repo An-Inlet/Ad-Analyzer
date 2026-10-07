@@ -5770,3 +5770,20 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   are frozen for dependent actual Meta TLS acceptance. That new Meta browser journey
   remains outstanding; Google browser compatibility is verified. No Full, remote,
   live calls, merge or deployment, and no claims of live qualification.
+
+### 2026-10-07 — Optimization Assembly Contract And Origin Proposal
+
+- Isolated child of cd5c2b8/Meta55: additive typed manifest, true catalog-admission,
+  existing qualification/exposure/replacement/settlement ports and owned-context
+  protocols; no installed runtime or native-to-qualified cast. Separate required
+  operating policy and simple customer amount/aggression/opaque-selection intent
+  preserve all existing v1 hashes. Action count aligns with existing1000 maximum.
+- Proposed minimal dedicated immutable optimization mandate sidecar plus parent
+  revision origin discriminator/digest and deferred owned FK. Missing origin cannot
+  silently downgrade to legacy consent; configured forward gates must require new
+  origin while preserving historical attempts/holds. Exact export/retention and
+  nonempty downgrade refusal are documented; no migration/ORM edits yet.
+- Pure contract checks16 passed (new optimization plus Google/Meta/budget contracts),
+  whole Ruff/mypy761/diffcheck passed. No DB, Full, remote or live actions. Next is
+  root review of origin schema/anti-bypass gates before inventory/runtime/consumer
+  implementation. Owner operating/evidence inputs remain explicit, never defaults.

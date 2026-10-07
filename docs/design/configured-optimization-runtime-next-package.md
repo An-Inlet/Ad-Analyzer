@@ -231,3 +231,19 @@ are missing. That identity/pixel evidence gap must not be guessed or endlessly
 researched again. Existing-campaign inventory would additionally require its own
 exact campaign/adgroup response completeness/owner schemas before offering named
 options; existing typed mutation adapters do not supply discovery qualification.
+
+## First Contract Freeze And Origin Proposal
+
+New additive modules `production_runtime/optimization_contracts.py` and
+`optimization_policy_contracts.py` define the manifest, scoped inventory/admission,
+trusted evidence/context ports and separate explicit operating-policy/customer
+intent models. No getters, factories, database schema or existing v1 models changed.
+
+The concrete immutable origin and anti-bypass plan is in
+[optimization-mandate-provenance-schema.md](optimization-mandate-provenance-schema.md).
+It proposes a dedicated sidecar plus immutable revision origin discriminator and
+preparation digest, with a deferred owned FK requiring atomic sidecar insertion.
+Generic consent/forward gates must require provenance for marked revisions;
+configured optimization must not fall back through the legacy technical-knob route.
+Existing legacy authority remains readable/reconcilable without reclassification.
+Migration implementation and number remain pending root review.

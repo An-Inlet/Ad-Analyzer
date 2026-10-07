@@ -38,13 +38,17 @@ def test_owned_assessment_populated_roundtrip(
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
     try:
-        command.upgrade(config, "20261006_0056")
-        from tests.candidate_historical_schema import without_candidates
-
-        without_candidates(monkeypatch, engine)
+        # Current receipt producers require current review-authority columns.
+        # Retain their real financial graph through downgrade before exercising
+        # the historical owned-assessment migration.
+        command.upgrade(config, "head")
         with Session(engine) as db:
             wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
             db.commit()
+        command.downgrade(config, "20261006_0056")
+        from tests.candidate_historical_schema import without_candidates
+
+        without_candidates(monkeypatch, engine)
         command.upgrade(config, "20261006_0057")
         with Session(engine) as db:
             row = owned.create(db, wid, actor, body, lambda: None, lambda: NOW)

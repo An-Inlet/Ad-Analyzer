@@ -5477,3 +5477,32 @@ Remaining: collect the frozen Full terminal result and every gate, repair any
 additional failures locally, then qualify one new immutable candidate before the
 authorized single normal PR-triggered hosted run. These focused results are not
 a full-suite or live-qualification claim.
+
+### Historical Financial Producer Fixtures
+
+The frozen Full exposed the same later-planning-table mismatch in the populated
+0064 feedback migration. Isolated reproduction failed; adding only the historical
+planning-hook adapter then exposed the newer `initial_preview_origin_id` ORM
+column absent from the historical review table (**1 failed, 24 feedback-storage
+cases passed in 38.15 seconds**). These failed results remain in
+`/tmp/inlet-oct07-feedback-migration-repro.log` and
+`/tmp/inlet-oct07-feedback-migration-fixed.log`.
+
+The final repair creates the genuine mocked-provider receipt graph at the current
+schema, then downgrades to the historical predecessor before testing the target
+upgrade, populated dependency erasure and roundtrip. It preserves application
+authority guards and does not add historical columns or a missing-table runtime
+fallback. Receipt/reservation identities are captured before the preparatory
+downgrade and asserted unchanged throughout the feedback migration.
+
+The related 0056→0057 owned-outcome migration independently reproduced the same
+missing review-origin column (**1 failed, 1 passed in 6.26 seconds** in
+`/tmp/inlet-oct07-historical-financial.log`) and now uses the same genuine graph
+preparation. Actual owned-assessment create/read and repeated-upgrade assertions
+remain. Final paired migration check: **2 passed in 6.89 seconds**, disposable
+PostgreSQL, `/tmp/inlet-oct07-historical-financial-fixed.log`. The preceding exact
+feedback migration check passed in 4.34 seconds.
+
+The original Full is still running on unchanged9396839; its results are not
+relabelled with these repairs. A subsequent frozen candidate must pass Full before
+the single authorized hosted qualification.

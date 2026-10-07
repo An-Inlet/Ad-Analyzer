@@ -41,15 +41,21 @@ def test_populated_feedback_migration_roundtrip(
     monkeypatch.setattr(settings, "database_url", scoped.render_as_string(hide_password=False))
     config = Config("alembic.ini")
     try:
-        command.upgrade(config, "20261006_0064")
-        from tests.candidate_historical_schema import without_candidate_reviews
-
-        without_candidate_reviews(monkeypatch, engine)
+        # Current producer helpers require current authority/provenance columns.
+        # Build the real owned receipt at head, then migrate its retained financial
+        # graph to the historical predecessor before testing the 0064 upgrade.
+        command.upgrade(config, "head")
         value = make_assessment(engine, configuration, tmp_path)
         with Session(engine) as db:
-            identifier, historical, job, slot = seed_graph(db, value, configuration)
             receipts = set(db.scalars(select(ProviderExecutionReceipt.id)))
             reservations = set(db.scalars(select(ProviderExposureReservation.id)))
+            assert receipts and reservations
+        command.downgrade(config, "20261006_0062")
+        command.upgrade(config, "20261006_0064")
+        with Session(engine) as db:
+            identifier, historical, job, slot = seed_graph(db, value, configuration)
+            assert set(db.scalars(select(ProviderExecutionReceipt.id))) == receipts
+            assert set(db.scalars(select(ProviderExposureReservation.id))) == reservations
             db.execute(
                 delete(CommerceMeasurementPublication).where(
                     CommerceMeasurementPublication.id == historical

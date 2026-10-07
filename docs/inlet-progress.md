@@ -5574,3 +5574,48 @@ replacement-ID preservation remain. Next: include **all24** terminal failure IDs
 plus relevant fixture consumers in one combined invocation on the assembled repair
 tree, then exactly one successor Full. Existing115-pass/2-skip evidence at46d5566
 covered the first21 cases and is retained without overstating its scope.
+
+
+### October 7 Successor Full — Terminal Failure And Concurrency Diagnostics
+
+Frozen `5f24d8187757ff757eea6dbbe3147a1640ee1841` ran one complete pytest
+invocation. Pytest finished **1 failed, 4,104 passed, 72 skipped in 4171.13s**.
+Full exited1 at08:19:52 UTC after **4284.23s (71m24.23s)** including shutdown.
+Guard/reset/upgrade passed; all later Full gates were not reached. The exact
+[run record](validation/inlet-20261007-5f24d818.json) and external evidence preserve
+this failed qualification. No hosted run or dollar-savings claim follows from it.
+
+The failure was `test_simultaneous_first_meta_connections_resolve_without_deadlock`
+(PostgreSQL), at the five-second first-worker insertion wait, before the second
+connection started. The original harness did not surface the first worker outcome
+on this path. Its precise delay or exception cause is therefore **not established**;
+isolated passes are not evidence that the full-suite failure was fixed.
+
+Investigation confirmed a fresh unique schema per customer-engine test, explicit
+pool disposal/schema cleanup, and the existing workspace-first Meta lock order.
+Unchanged isolated cases passed2 in2.76s. The immediately preceding seven Meta files,
+including the failing case, passed73 with2 expected SQLite-only skips in46.32s.
+Neither run reproduced the original failure. Independently, the harness's separate
+5s startup and5s observation allowances competed with its10s winner-release wait.
+
+A controlled six-second delay before the first worker's database work reproduced
+exactly the old insertion-wait assertion:1 failed in9.37s. The repaired harness
+uses one bounded30s observation deadline, longer worker/database watchdogs, a bounded
+observer query, monotonic stage diagnostics and surfaced worker exceptions. It
+retains actual PostgreSQL blocker observation, the blocked second future, exact loser
+error and all one-connection/account/integration/grant ownership assertions.
+New regressions exercise delayed startup and immediate first-worker failure. No
+production code or account-lock behavior changed.
+
+Normal and delayed cases initially passed4 in9.59s. A temporary negative control
+removing only the test's workspace-lock delegation still failed in2.88s when the
+second account reached insertion; the delegation was restored immediately. Thus the
+harness does not accept missing serialization. Final preceding-Meta cohort plus both
+new regressions: **77 passed,2 expected SQLite-only skips in51.94s**. Whole Ruff,
+mypy705 and diff checks passed. Independent read-only review found no actionable
+issue and retained the unresolved-original-cause caveat. These are focused results;
+a new immutable candidate must still pass Full before any hosted qualification.
+
+Logs `/tmp/inlet-oct07-meta-{delayed-baseline,race-repaired,fence-negative-control,
+final-cohort}.log`, original trace, exitcode and full log are preserved with hashes
+under `/workspace/inlet-evidence/20261007`. New product packages remain isolated.

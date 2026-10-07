@@ -5481,3 +5481,17 @@ before target comparison. Prior-parser byte comparison and pinned campaign/adset
 state digests verify legacy compatibility. No Full, live provider, remote or factory
 activation. See inlet-planning-native-budget-read.md for callable ports and remaining
 ordinary API/worker/v2 lifecycle assembly.
+
+### Explicit Initial Preview V2 Contract — 2026-10-07
+
+Added only the new typed v2 document and pure strict version-dispatch parser.
+The v2 commitment includes environment/profile and the full unqualified native
+observation; exact amount, scope/objective, goal revision, quantum and expiry bind
+together. There is no qualified native-state digest. Legacy v1 class/serialization
+and its bridge remain unchanged. No v2 persistence or route is enabled yet; root
+approved leaving nullable native_state_digest NULL when later v2 persistence lands.
+Owned read/export/consumer dispatch and explicit bridge rejection must land before
+v2 can be served. Scheduler coordinates its immutable0078 baseline accessor.
+
+Validation:23 new-version/native/legacy contract tests passed0.59s; whole-tree Ruff
+passed; mypy718 passed; diff-check passed. No migration, Full, remote or live calls.

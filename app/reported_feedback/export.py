@@ -126,7 +126,11 @@ def numeric_dependency_stamp(db: "Session", workspace_id: int, *, validate: bool
 
     from app.lifecycle.archive import MAX_ROWS
     from app.lifecycle.privacy import database_utc_now
-    from app.reported_feedback.models import ReportedActionComparison, ReportedFeedbackSlot
+    from app.reported_feedback.models import (
+        ReportedActionComparison,
+        ReportedFeedbackCurrent,
+        ReportedFeedbackSlot,
+    )
     from app.reported_feedback.service import (
         validate_comparison_dependencies,
         validate_preview_dependencies,
@@ -159,6 +163,28 @@ def numeric_dependency_stamp(db: "Session", workspace_id: int, *, validate: bool
                     )
             digest.update(row.id.encode())
             digest.update(row.document_digest.encode())
+    for pointer in db.scalars(
+        select(ReportedFeedbackCurrent)
+        .where(ReportedFeedbackCurrent.workspace_id == workspace_id)
+        .order_by(ReportedFeedbackCurrent.id)
+        .limit(MAX_ROWS + 1)
+    ):
+        count += 1
+        if count > MAX_ROWS or time.monotonic() - start > 10:
+            raise HTTPException(409, "reported feedback export validation bound exceeded")
+        if validate:
+            from app.reported_feedback.revisions import require_current_slot
+
+            pointed_row = db.get(ReportedFeedbackSlot, pointer.slot_id, populate_existing=True)
+            if pointed_row is None:
+                raise HTTPException(409, "reported feedback export pointer unavailable")
+            require_current_slot(db, pointed_row)
+        digest.update(
+            json.dumps(
+                [pointer.id, pointer.slot_id, pointer.revision, pointer.opportunity_digest],
+                separators=(",", ":"),
+            ).encode()
+        )
     return digest.hexdigest()
 
 

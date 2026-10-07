@@ -88,6 +88,22 @@ TABLES: dict[str, TablePolicy] = {
     "reported_comparison_dependencies": TablePolicy(
         "workspace", ("comparison_id", "capsule_id", "workspace_id", "account_id", "campaign_id")
     ),
+    "reported_feedback_current": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "environment",
+            "original_attempt_id",
+            "policy_family",
+            "cohort_digest",
+            "opportunity_digest",
+            "slot_id",
+            "revision",
+        ),
+    ),
     "reported_feedback_slots": TablePolicy(
         "workspace",
         (

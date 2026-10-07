@@ -95,3 +95,39 @@ def register(metadata: MetaData) -> None:
                     "after_create",
                     DDL(statement).execute_if(dialect=dialect),  # type: ignore[no-untyped-call]
                 )
+
+
+def current_statements(dialect: str) -> tuple[str, ...]:
+    name = "reported_feedback_current"
+    fields = (
+        "id",
+        "workspace_id",
+        "account_id",
+        "campaign_id",
+        "environment",
+        "original_attempt_id",
+        "policy_family",
+        "cohort_digest",
+        "opportunity_digest",
+    )
+    comparison = "IS NOT" if dialect == "sqlite" else "IS DISTINCT FROM"
+    invalid = " OR ".join(f"NEW.{f} {comparison} OLD.{f}" for f in fields)
+    invalid += " OR NEW.revision != OLD.revision+1 OR NEW.slot_id = OLD.slot_id"
+    if dialect == "sqlite":
+        return (
+            f"CREATE TRIGGER {name}_advance BEFORE UPDATE ON {name} WHEN {invalid} "
+            "BEGIN SELECT RAISE(ABORT, 'invalid reported feedback pointer advance'); END",
+        )
+    return (
+        f"CREATE FUNCTION {name}_advance_fn() RETURNS trigger LANGUAGE plpgsql AS $$ "
+        f"BEGIN IF {invalid} THEN RAISE EXCEPTION 'invalid reported feedback pointer advance'; "
+        "END IF; PERFORM id FROM workspaces WHERE id=OLD.workspace_id FOR UPDATE NOWAIT; "
+        "RETURN NEW; END; $$",
+        f"CREATE TRIGGER {name}_advance BEFORE UPDATE ON {name} FOR EACH ROW "
+        f"EXECUTE FUNCTION {name}_advance_fn()",
+        f"CREATE FUNCTION {name}_guard_fn() RETURNS trigger LANGUAGE plpgsql AS $$ "
+        "BEGIN PERFORM id FROM workspaces WHERE id=OLD.workspace_id FOR UPDATE NOWAIT; "
+        "RETURN OLD; END; $$",
+        f"CREATE TRIGGER {name}_guard BEFORE DELETE ON {name} FOR EACH ROW "
+        f"EXECUTE FUNCTION {name}_guard_fn()",
+    )

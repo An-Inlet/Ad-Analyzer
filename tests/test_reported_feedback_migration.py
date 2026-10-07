@@ -171,9 +171,14 @@ def test_phase_constraint_change_preserves_native_staging(customer_engine: Engin
 
     before = snapshots()
     migration = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
+    revisions = importlib.import_module(
+        "migrations.versions.20261007_0078_reported_preview_revisions"
+    )
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
+        revisions.downgrade()
         migration.downgrade()
     assert snapshots() == before
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
         migration.upgrade()
+        revisions.upgrade()
     assert snapshots() == before

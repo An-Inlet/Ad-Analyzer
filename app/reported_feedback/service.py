@@ -799,15 +799,16 @@ def apply_feedback_preview(
         created_at=now,
         expires_at=expiry,
     )
-    old = db.scalar(
-        select(ReportedFeedbackSlot).where(
-            ReportedFeedbackSlot.workspace_id == workspace_id,
-            ReportedFeedbackSlot.environment == policy.environment,
-            ReportedFeedbackSlot.original_attempt_id == job.original_attempt_id,
-            ReportedFeedbackSlot.policy_family == policy.family,
-            ReportedFeedbackSlot.cohort_digest == value.cohort.digest(),
-        )
+    from app.reported_feedback.revisions import append_revision, current_slot
+
+    probe = ReportedFeedbackSlot(
+        workspace_id=workspace_id,
+        environment=policy.environment,
+        original_attempt_id=job.original_attempt_id,
+        policy_family=policy.family,
+        cohort_digest=value.cohort.digest(),
     )
+    old = current_slot(db, probe)
     if old is not None and utc(old.expires_at) > now:
         previous = ReportedFeedbackPreviewV1.model_validate(old.document)
         if (
@@ -823,9 +824,6 @@ def apply_feedback_preview(
             local_job_current(db, job, runtime, effective_now(db, runtime.initial))
             return validate_preview_dependencies(db, old, effective_now(db, runtime.initial))
     revision = old.revision + 1 if old else 1
-    if old:
-        db.delete(old)
-        db.flush()
     saved = ReportedFeedbackSlot(
         id=value.id,
         workspace_id=workspace_id,
@@ -846,13 +844,11 @@ def apply_feedback_preview(
         revision=revision,
         created_at=now,
     )
-    db.add(saved)
-    db.flush()
+    append_revision(db, saved)
     authorize(db, workspace_id, principal.user.id)
     local_job_current(db, job, runtime, effective_now(db, runtime.initial))
-    # Replacing a retained derived slot can advance the export/privacy fence.
-    # Never return a newly saved result whose exact initial evidence is already
-    # unavailable. The caller must roll back this transaction on rejection.
+    # Appending preserves source/privacy epochs; final evidence still must be current.
+    # The caller rolls back both revision and pointer on any rejection.
     initial_preview.read_preview(
         db, principal, provider, workspace_id, baseline.id, runtime.initial
     )
@@ -878,6 +874,9 @@ def read_feedback_preview(
     )
     if row is None:
         raise HTTPException(404, "reported_feedback_preview_not_found")
+    from app.reported_feedback.revisions import require_current_slot
+
+    require_current_slot(db, row)
     value = validate_preview_dependencies(db, row, effective_now(db, runtime.initial))
     if runtime.feedback_policy != value.policy:
         raise HTTPException(409, "reported_feedback_policy_changed")

@@ -290,7 +290,9 @@ def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -
             revision=1,
             created_at=now,
         )
-        db.add(slot)
+        from app.reported_feedback.revisions import append_revision
+
+        append_revision(db, slot)
         db.commit()
         assert db.get(ProviderExecutionReceipt, anchor.latest_receipt_id)
         return dict(

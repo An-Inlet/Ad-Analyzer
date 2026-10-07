@@ -5438,3 +5438,48 @@ Final combined automation/orchestration/diagnostics run: **83 passed, zero skips
 repeat/reset integration. Log /tmp/inlet-ci-powershell-closure-fixed.log. Real browser
 H.264/AAC preflight passed too. See inlet-ci-cost-recovery.md for source/install and
 review evidence. No hosted run or product qualification is claimed by these checks.
+
+### 0078 Immutable Feedback Revisions And Current Pointer — Local Package
+
+Existing `reported_feedback_slots` now retains immutable revisions (same v1 IDs,
+JSON bytes/digests and old revision values). `reported_feedback_current` identifies
+the exact owned current revision with a composite FK and immutable group fields;
+updates permit only a different slot at exact revision+1. The service serializes
+append/pointer advance under original workspace/session authority, reuses an exact
+current replay, caps retained rows at128 including unswept expiry, and revalidates
+baseline/source/session before commit. Pointer loss never selects an older row.
+Existing public reads are current-only; exports retain strictly validated as-of
+rows and commit the pointer in their freshness stamp. Appending changes that stamp
+without erasing data or rebasing source privacy. Genuine erasure, correction,
+retention and financial-history isolation remain intact.
+
+Migration20261007_0078 follows0077. It preserves populated row bytes/revisions,
+seeds exact pointers, and refuses downgrade when retained history or deleted
+current state would be lost/revived. SQLite batch alteration temporarily preserves
+and restores exact referencing trigger SQL; FK enforcement remains enabled.
+Explicit lifecycle/strict scalar export classification includes the new table.
+
+Checks actually run (SQLite and PostgreSQL, no Full):
+- Revision/guard/actualHTTPS suite26passed,2expectedSQLite concurrency skips:
+  `/tmp/reported-revisions-final.log`.
+- Missing-pointer downgrade regression2passed:
+  `/tmp/reported-revisions-missing-pointer.log`.
+- Schema/lifecycle/historical0077 suite32passed,2expectedSQLite skips:
+  `/tmp/reported-revisions-schema.log`.
+- Targeted populatedDDL/concurrency/finalsession run6passed,2expectedSQLite skips:
+  `/tmp/reported-revisions-races.log`.
+- Broader performance/API/comparison run33passed,2historical0074 fixture failures
+  (`/tmp/reported-revisions-regressions.log`). Fixed the remaining historical
+  teardown block to remove0078 before0077 and restore it afterward; both failing
+  cases thenpassed (`/tmp/reported-revisions-historical-fixed.log`). The earlier
+  invocation is not represented as green.
+- Whole Ruff, mypy707files and diff checks pass.
+
+Covered genuine changed-policy and newly prepared unadjusted-baseline replacement,
+no compounding, old bytes preserved, superseded/public-read rejection, pointer and
+current-row deletion no fallback, exact replay, PostgreSQL identical/different
+concurrent requests, final authority rollback, FK/+1 guards and bounded retention.
+ActualHTTPS continues to verify response/session changes discard stale output.
+No live policy, spending permission, adjusted-preview handoff, remote actions or
+provider calls were enabled. V2 read-only native baseline integration remains a
+separate shared-interface follow-up; this package preserves v1 behavior.

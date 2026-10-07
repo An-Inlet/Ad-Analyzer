@@ -200,12 +200,17 @@ def test_actual_0077_graph_triggers_and_foreign_parent_constraints(
     from sqlalchemy.exc import DBAPIError, IntegrityError
 
     migration = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
+    revisions = importlib.import_module(
+        "migrations.versions.20261007_0078_reported_preview_revisions"
+    )
     with (
         customer_engine.begin() as connection,
         Operations.context(MigrationContext.configure(connection)),
     ):
+        revisions.downgrade()
         migration.downgrade()
         migration.upgrade()
+        revisions.upgrade()
     data = graph(customer_engine, configuration, monkeypatch, replicas)
     with Session(customer_engine) as db:
         for model in MODELS:

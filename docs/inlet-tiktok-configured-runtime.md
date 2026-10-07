@@ -68,3 +68,20 @@ The fixture pins `assembly.execution_clock` to its explicit October 5 scenario
 clock. A dependent browser harness visiting the pre-existing campaign-draft preview
 route must use that same test clock for the route, as the configured Meta TLS
 harness does; a real October 7 preview of the old fixture is correctly stale.
+
+## Actual Browser Acceptance
+
+`tests/test_configured_tiktok_execution_browser.py` serves the real social
+configuration and execution page assets over local HTTPS with an ordinary API
+session. Its drivers select the named decoded contract-test catalog option, decode
+actual video/cover media, record exact pair confirmation, consent the spending
+mandate, approve paused creation and separately approve activation. No execution
+review, attempt, receipt or reservation is seeded and no runtime getter is replaced.
+Injected provider transport remains MockTransport; browser success is not live
+provider qualification or native catalog parser acceptance.
+
+The browser suite also checks unknown original creation/activation requests through
+explicit reconciliation without mutation replay, and denial after original-session
+revocation, source-generation changes, missing media, withdrawn confirmation or
+changed configuration pin. These cases retain the original reservation. Results
+and exact checked package are recorded in the progress ledger.

@@ -5874,3 +5874,29 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
 - Focused vault and TikTok complete/credential-expiry cases: **8 passed**, 26
   deselected, SQLite/PG, 103.22 seconds (`/tmp/inlet-tiktok-vault-followup.log`).
   Ruff, targeted mypy (three files) and diff check pass. No schema or gate change.
+
+### Actual configured TikTok TLS acceptance (2026-10-07)
+
+- Child of vault fix `7a352020449b1daf0d2225e68f9c4dbafab20293` adds only browser
+  tests/drivers and documentation. Actual local HTTPS application pages, original
+  API session, configured runtime, video/cover decoding and exact confirmation
+  lead through consent, paused creation, separate activation and owned readback.
+  Provider HTTP uses MockTransport; decoded catalog remains explicitly contract
+  test with native discovery unavailable. No runtime getter overrides or seeded
+  execution review/attempt/receipt/reservation, and no demo artifacts.
+- Complete flow **2 passed** across SQLite/PG in 92.19 seconds
+  (`/tmp/inlet-tiktok-browser-first.log`). Boundary cohort initially **12 passed,
+  2 failed** in 410.71 seconds (`/tmp/inlet-tiktok-browser-boundaries.log`): only
+  the profile scenarios failed because the new harness changed an unused fixture
+  Settings object instead of the actual server settings. No app guard was changed.
+  Corrected profile rerun **2 passed** in 73.75 seconds
+  (`/tmp/inlet-tiktok-browser-profile.log`). All sixteen scenarios therefore have
+  passing evidence; the failed invocation is not reported as a clean suite run.
+- Unknown creation/activation explicitly reconcile the original request without
+  replay; session revocation, source generation, missing cover, withdrawn exact
+  confirmation and changed profile deny activation. The original hold remains
+  held in every scenario. Complete flow also checks receipt interpretation,
+  consent revocation and logout clearing.
+- Whole Ruff, mypy app/tests (**764 source files**), both JavaScript syntax checks
+  and diff check pass. No production code changes in this browser package, no
+  Full, remote operations, native live calls, deployment or live qualification.

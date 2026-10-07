@@ -173,6 +173,9 @@ class _SyncLockKeySettingsSource(PydanticBaseSettingsSource):
 
 
 class Settings(BaseSettings):
+    optimization_execution_manifest_path: str | None = None
+    optimization_execution_manifest_digest: str | None = None
+    optimization_operating_policy_path: str | None = None
     meta_execution_manifest_path: str | None = Field(
         default=None, validation_alias="AD_ANALYZER_META_EXECUTION_MANIFEST_PATH"
     )

@@ -6,7 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
 from app.ads.models import AdvertisingAccount
+from app.api.customer_optimization_runtime import get_configured_customer_optimization_runtime
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
+from app.production_runtime import optimization_mandates
+from app.production_runtime.optimization_policy_contracts import (
+    ConsentOptimizationMandateV1,
+    PreparedOptimizationMandateV1,
+    PrepareOptimizationMandateV1,
+)
 from app.publication import customer_intents as intents
 from app.publication import customer_optimization as service
 from app.publication import execution_mandates as mandates
@@ -18,7 +25,6 @@ from app.publication.customer_optimization_contracts import (
     OptimizationPolicyIntent,
     RepeatOptimizationIntent,
     TargetQuery,
-    get_customer_optimization_runtime,
 )
 from app.publication.customer_schemas import ConsentIntent
 from app.publication.service import owner
@@ -26,7 +32,9 @@ from app.publication.service import owner
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/execution/optimization", tags=["customer"]
 )
-Runtime = Annotated[CustomerOptimizationRuntime | None, Depends(get_customer_optimization_runtime)]
+Runtime = Annotated[
+    CustomerOptimizationRuntime | None, Depends(get_configured_customer_optimization_runtime)
+]
 
 
 @router.get("/accounts")
@@ -141,6 +149,8 @@ def create_mandate(
     response: Response,
 ) -> dict[str, Any]:
     server = service.bind(runtime, principal, provider)
+    if server.configured is not None:
+        raise intents.unavailable("optimization_customer_budget_review_required")
     policy = service.make_policy(db, workspace_id, body, principal.user.id, server)
     row = mandates.revise(db, workspace_id, policy, principal.user.id, server.clock)
     response.headers["Cache-Control"] = "no-store"
@@ -159,6 +169,8 @@ def edit_mandate(
     response: Response,
 ) -> dict[str, Any]:
     server = service.bind(runtime, principal, provider)
+    if server.configured is not None:
+        raise intents.unavailable("optimization_customer_budget_review_required")
     policy = service.make_policy(db, workspace_id, body, principal.user.id, server)
     row = mandates.revise(
         db,
@@ -185,6 +197,8 @@ def consent(
     response: Response,
 ) -> dict[str, Any]:
     server = service.bind(runtime, principal, provider)
+    if server.configured is not None:
+        raise intents.unavailable("optimization_customer_exact_consent_required")
     service.current_policy_catalog(db, workspace_id, mandate_id, principal.user.id, server)
     mandates.consent(
         db,
@@ -229,3 +243,36 @@ def repeat_review(
     row = service.prepare(db, workspace_id, body, principal.user.id, server)
     response.headers["Cache-Control"] = "no-store"
     return service.review_view(row, db)
+
+
+@router.post("/budget-mandates", status_code=201, response_model=PreparedOptimizationMandateV1)
+def prepare_customer_budget(
+    workspace_id: int,
+    body: PrepareOptimizationMandateV1,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+    runtime: Runtime,
+    response: Response,
+) -> PreparedOptimizationMandateV1:
+    server = service.bind(runtime, principal, provider)
+    response.headers["Cache-Control"] = "no-store"
+    return optimization_mandates.prepare(db, workspace_id, body, principal.user.id, server)
+
+
+@router.post("/budget-mandates/{mandate_id}/consent", response_model=PreparedOptimizationMandateV1)
+def consent_customer_budget(
+    workspace_id: int,
+    mandate_id: str,
+    body: ConsentOptimizationMandateV1,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+    runtime: Runtime,
+    response: Response,
+) -> PreparedOptimizationMandateV1:
+    server = service.bind(runtime, principal, provider)
+    response.headers["Cache-Control"] = "no-store"
+    return optimization_mandates.consent(
+        db, workspace_id, mandate_id, body, principal.user.id, server
+    )

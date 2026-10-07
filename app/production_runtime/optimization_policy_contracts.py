@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from app.initial_planning.budget_mandate_contracts import (
     Aggressiveness,
@@ -82,3 +82,39 @@ class ConsentOptimizationMandateV1(Frozen):
     expected_revision: int = Field(strict=True, gt=0)
     policy_digest: Digest
     preparation_digest: Digest
+
+
+class PreparedOptimizationMandateV1(Frozen):
+    """Customer review of exact conditional authority; never proof of headroom."""
+
+    schema_version: Literal["inlet.prepared-optimization-mandate.v1"] = (
+        "inlet.prepared-optimization-mandate.v1"
+    )
+    mandate_id: Identifier
+    revision: int = Field(strict=True, gt=0)
+    policy_digest: Digest
+    preparation_digest: Digest
+    state: Literal["draft", "active"]
+    selection: OptimizationSelectionV1
+    environment: Literal["contract_test", "live"]
+    currency: Literal["USD"]
+    time_zone: str = Field(min_length=1, max_length=100)
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    total_cap_micros: Amount
+    per_plan_cap_micros: Amount
+    positive_change_cap_micros: Amount
+    aggressiveness: Aggressiveness
+    target_label: str = Field(min_length=1, max_length=160)
+    affected_target_count: int = Field(strict=True, ge=1, le=200)
+    dispatch_qualified: Literal[False] = False
+
+    @model_validator(mode="after")
+    def bounds(self) -> "PreparedOptimizationMandateV1":
+        if (
+            self.starts_at >= self.ends_at
+            or self.per_plan_cap_micros > self.total_cap_micros
+            or self.positive_change_cap_micros > self.per_plan_cap_micros
+        ):
+            raise ValueError("exact bounded conditional mandate required")
+        return self

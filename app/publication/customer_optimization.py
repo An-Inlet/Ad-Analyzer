@@ -10,6 +10,7 @@ from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.executors.optimization_http import OptimizationUnavailable
 from app.goals import service as goals
+from app.production_runtime.optimization_catalog import OwnedOptimizationCatalogUnavailable
 from app.publication import customer_intents as intents
 from app.publication import execution_mandates as mandates
 from app.publication import optimization, replacement
@@ -27,7 +28,7 @@ from app.publication.customer_optimization_contracts import (
     TargetQuery,
     TargetRequest,
 )
-from app.publication.execution_contracts import ProviderMandatePolicy
+from app.publication.execution_contracts import ProviderMandateBinding, ProviderMandatePolicy
 from app.publication.execution_models import ProviderExecutionReview, ProviderExecutionRevision
 from app.publication.optimization_contracts import (
     GoogleBudgetSetV1,
@@ -83,15 +84,25 @@ def request(
 
 
 def discover(
-    db: Session, wid: int, query: TargetQuery, actor: str, runtime: CustomerOptimizationRuntime
+    db: Session,
+    wid: int,
+    query: TargetQuery,
+    actor: str,
+    runtime: CustomerOptimizationRuntime,
+    original_mandate: ProviderMandateBinding | None = None,
 ) -> TargetCatalog:
     if runtime.catalog is None:
         raise intents.unavailable("owned_target_catalog_unavailable")
     before = request(db, wid, query, actor, runtime)
     db.commit()
     try:
-        result = TargetCatalog.model_validate(runtime.catalog(before, runtime.clock()).model_dump())
-    except (ValueError, TypeError, OptimizationUnavailable):
+        read = (
+            runtime.configured.catalog(before, runtime.clock(), original_mandate)
+            if runtime.configured
+            else runtime.catalog(before, runtime.clock())
+        )
+        result = TargetCatalog.model_validate(read.model_dump())
+    except (ValueError, TypeError, OptimizationUnavailable, OwnedOptimizationCatalogUnavailable):
         raise intents.unavailable("owned_target_catalog_unavailable") from None
     current = request(db, wid, query, actor, runtime)
     if (
@@ -104,7 +115,12 @@ def discover(
 
 
 def choose(
-    db: Session, wid: int, choice: TargetChoice, actor: str, runtime: CustomerOptimizationRuntime
+    db: Session,
+    wid: int,
+    choice: TargetChoice,
+    actor: str,
+    runtime: CustomerOptimizationRuntime,
+    original_mandate: ProviderMandateBinding | None = None,
 ) -> TargetOption:
     catalog = discover(
         db,
@@ -112,6 +128,7 @@ def choose(
         TargetQuery.model_validate(choice.model_dump(exclude={"option_id"})),
         actor,
         runtime,
+        original_mandate,
     )
     for option in catalog.options:
         if option.identifier(catalog.request) == choice.option_id:
@@ -220,8 +237,8 @@ def _prepare(
     actor: str,
     runtime: CustomerOptimizationRuntime,
 ) -> ProviderExecutionReview:
-    option = choose(db, wid, body.choice, actor, runtime)
     binding = intents.binding(db, wid, body.mandate_id, body.mandate_revision)
+    option = choose(db, wid, body.choice, actor, runtime, binding)
     _, policy = mandates.checked(db, wid, binding, actor, runtime.clock)
     state = option.state
     if (

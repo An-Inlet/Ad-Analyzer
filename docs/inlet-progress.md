@@ -5801,3 +5801,28 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   screenshots, live requests, deployment or production code changes.
 - Final combined focused run: **14 passed, zero skips**, 91.27 seconds on SQLite
   and PostgreSQL (`/tmp/inlet-meta-configured-browser-final.log`).
+
+### TikTok configured runtime contracts and pinned loader (2026-10-07)
+
+- Isolated child of approved design `42760f60b72ac3b0bc417cc449e9057484ba78df`.
+  New TikTok-only manifest, evidence/source, reserved owned-context protocols,
+  canonical immutable configuration bundle and strict pinned loader are documented
+  in [the callable interface record](inlet-tiktok-runtime-contracts.md).
+- Decoded catalog callback is contract-test only; live identity admission always
+  denies while native identity/pixel catalog decoding remains unverified. Empty
+  default registry and existing mandatory catalog blockers remain unchanged. Real
+  transport refuses scenario manifests before construction, uses zero retries and
+  no environment proxies. No runtime assembly or source registration is installed.
+- Bundle pins exact profile/requirements pairs, explicit video-cover review and
+  nonblank wording; defensive typed copies preserve immutable canonical bytes.
+  Duplicate keys, partial inputs, unknown fields, oversized documents, version or
+  pin mismatches deny with sanitized errors. Existing social schemas and hashes,
+  Google/Meta code and settings are untouched. Credential expiry remains unknown
+  unless an eventual owned reader verifies it; no lifetime is invented here.
+- Checks: initial 34 pure contract/loader/catalog tests passed; final focused
+  TikTok/Meta/Google contracts, catalog and social producer compatibility cohort
+  **70 passed** in 27.89 seconds, including SQLite/PG producer cases. Log:
+  `/tmp/inlet-tiktok-runtime-contracts-final.log`. Whole Ruff, mypy (452 source
+  files) and diff check pass. No migration, Full, remote action, live calls,
+  production registration or API/TLS qualification. Runtime implementation waits
+  for review of these frozen interfaces.

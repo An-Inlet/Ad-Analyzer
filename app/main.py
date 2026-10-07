@@ -45,6 +45,7 @@ from app.dashboard.router import router as dashboard_router
 from app.dashboard.shopify import router as shopify_dashboard_router
 from app.database.models import register_models
 from app.deployment import DeploymentProcess, validate_deployment_startup
+from app.planning_reporting.configuration import PlanningReportingConfigurationError
 from app.portal.auth import customer_content_security_policy
 from app.portal.auth import router as browser_auth_router
 from app.portal.router import STATIC as portal_static
@@ -121,6 +122,15 @@ def read_ready(response: Response) -> ReadinessResponse:
 
 
 logger = logging.getLogger(__name__)
+
+
+@app.exception_handler(PlanningReportingConfigurationError)
+def planning_configuration_error(
+    _request: Request, _exc: PlanningReportingConfigurationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503, content={"detail": "planning_reporting_configuration_invalid"}
+    )
 
 
 @app.exception_handler(SQLAlchemyError)

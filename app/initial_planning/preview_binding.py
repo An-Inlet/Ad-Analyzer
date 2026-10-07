@@ -28,6 +28,7 @@ def bind_preview_row(row: Mapping[str, Any]) -> InitialPreviewV1 | InitialPrevie
         native = document.native_observation
         if native is not None and (
             intent.native_option_id != native_budget_choice_digest(native)
+            or native.request.goal_digest != row["goal_digest"]
             or native.request.scope.connection_version.split(":")[-1]
             != str(row["source_generation"])
             or row["mandate_digest"] is None

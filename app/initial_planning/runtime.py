@@ -32,4 +32,8 @@ class InitialPlanningRuntime:
 
 
 def get_initial_planning_configuration() -> InitialPlanningConfiguration | None:
-    return None
+    from app.planning_reporting.runtime import configured_profile
+    from app.settings import settings
+
+    profile = configured_profile(settings)
+    return profile.initial if profile else None

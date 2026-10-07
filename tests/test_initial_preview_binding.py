@@ -20,7 +20,7 @@ def bound_row() -> dict[str, Any]:
         observation_id=value.observation_id,
         environment=value.environment,
         profile_digest=value.profile_digest,
-        goal_digest="8" * 64,
+        goal_digest=value.native_observation.request.goal_digest,
         native_option_id=native_budget_choice_digest(value.native_observation),
         mandate_id="9" * 32,
         mandate_revision=1,

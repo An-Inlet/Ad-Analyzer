@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import Engine, delete, func, insert, or_, select
+from sqlalchemy import Engine, delete, exists, func, insert, or_, select
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus
@@ -28,7 +28,7 @@ from app.meta.normalize import metric_values
 from app.meta.security import MetaError, configuration_ready, identifier, utc
 from app.meta.service import ConnectionService
 from app.reported_feedback.contracts import FixedWindowLeaseV1
-from app.reported_feedback.runtime import ReportedFeedbackRuntime, get_reported_feedback_runtime
+from app.reported_feedback.runtime import ReportedFeedbackRuntime
 from app.settings import Settings, settings
 
 PLATFORM = AdvertisingPlatform.META_ADS
@@ -58,7 +58,13 @@ class MetaSyncService:
     ) -> None:
         self.session, self.settings = session, configuration
         self.client = client or MetaClient(configuration)
-        self.reported_feedback = reported_feedback or get_reported_feedback_runtime()
+        if reported_feedback is None:
+            from app.planning_reporting.runtime import configured_bundle
+
+            engine = session.get_bind()
+            bundle = configured_bundle(lambda: Session(engine), configuration)
+            reported_feedback = bundle.reported if bundle else None
+        self.reported_feedback = reported_feedback
         self._fixed_lease: FixedWindowLeaseV1 | None = None
         self._feedback_job_id: str | None = None
 
@@ -265,7 +271,14 @@ class MetaSyncService:
     def page(
         self, workspace_id: int, *, now: datetime | None = None, manual: bool = False
     ) -> dict[str, Any]:
-        now = utc(now or datetime.now(UTC))
+        now = utc(
+            now
+            or (
+                self.reported_feedback.initial.clock()
+                if self.reported_feedback
+                else datetime.now(UTC)
+            )
+        )
         if not configuration_ready(self.settings) or not syncing_allowed(
             self.session, workspace_id
         ):
@@ -504,7 +517,10 @@ class MetaSyncService:
 
 
 def run_meta_tick(engine: Engine) -> None:
-    now = datetime.now(UTC)
+    from app.planning_reporting.runtime import configured_bundle
+
+    bundle = configured_bundle(lambda: Session(engine), settings)
+    now = bundle.initial.clock() if bundle else datetime.now(UTC)
     # Expiring pending credentials are cleaned even when imports are switched off.
     with Session(engine) as session:
         session.execute(
@@ -520,6 +536,34 @@ def run_meta_tick(engine: Engine) -> None:
         session.commit()
     if not configuration_ready(settings):
         return
+    rolling_or_feedback_due = or_(
+        MetaConnection.last_sync_at.is_(None),
+        MetaConnection.window_end.is_not(None),
+        MetaConnection.last_sync_at <= now - timedelta(minutes=settings.meta_sync_interval_minutes),
+    )
+    if bundle is not None:
+        from app.reported_feedback.models import ReportedFeedbackJob
+
+        fixed_due = exists(
+            select(ReportedFeedbackJob.id).where(
+                ReportedFeedbackJob.workspace_id == MetaConnection.workspace_id,
+                ReportedFeedbackJob.account_id == MetaConnection.account_id,
+                ReportedFeedbackJob.document["anchor"]["integration_id"].as_integer()
+                == MetaConnection.workspace_integration_id,
+                ReportedFeedbackJob.source_connection_id == MetaConnection.id,
+                ReportedFeedbackJob.source_generation == MetaConnection.generation,
+                ReportedFeedbackJob.environment == bundle.profile.environment,
+                ReportedFeedbackJob.policy_digest == bundle.profile.windows.digest(),
+                ReportedFeedbackJob.policy_family == bundle.profile.windows.family,
+                ReportedFeedbackJob.expires_at > now,
+                or_(
+                    ReportedFeedbackJob.state == "acquiring",
+                    ReportedFeedbackJob.state.in_(("pending", "waiting"))
+                    & (ReportedFeedbackJob.next_due_at <= now),
+                ),
+            )
+        )
+        rolling_or_feedback_due = or_(rolling_or_feedback_due, fixed_due)
     with Session(engine) as session:
         ids = list(
             session.scalars(
@@ -530,12 +574,7 @@ def run_meta_tick(engine: Engine) -> None:
                         MetaConnection.next_attempt_at.is_(None),
                         MetaConnection.next_attempt_at <= now,
                     ),
-                    or_(
-                        MetaConnection.last_sync_at.is_(None),
-                        MetaConnection.window_end.is_not(None),
-                        MetaConnection.last_sync_at
-                        <= now - timedelta(minutes=settings.meta_sync_interval_minutes),
-                    ),
+                    rolling_or_feedback_due,
                 )
                 .order_by(MetaConnection.last_attempt_at.asc().nullsfirst())
                 .limit(10)
@@ -545,7 +584,9 @@ def run_meta_tick(engine: Engine) -> None:
         for _page in range(settings.meta_sync_pages):
             with Session(engine) as session:
                 try:
-                    result = MetaSyncService(session, settings).page(workspace_id)
+                    result = MetaSyncService(
+                        session, settings, reported_feedback=bundle.reported if bundle else None
+                    ).page(workspace_id)
                 except Exception:
                     session.rollback()
                     logging.getLogger(__name__).warning("meta_sync_failed")

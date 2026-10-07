@@ -1,7 +1,7 @@
 """Original-session-owned Meta vault assembly with private database transactions."""
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from datetime import datetime, timedelta
 
 import httpx
@@ -20,7 +20,7 @@ from app.customers.identity import IdentityProvider
 from app.goals import service as goals
 from app.initial_planning.native_budget_contracts import NativeBudgetRequestV1
 from app.meta.models import MetaConnection
-from app.meta.security import Vault
+from app.meta.security import MetaError, Vault
 from app.planning_reporting.contracts import PlanningReportingProfileV1
 from app.publication import customer_intents
 from app.publication.contracts import fingerprint
@@ -33,7 +33,6 @@ def native_budget_transport() -> httpx.BaseTransport:
     return httpx.HTTPTransport(retries=0, trust_env=False)
 
 
-@contextmanager
 def owned_meta_budget_reader(
     sessions: Callable[[], Session],
     principal: CustomerPrincipal,
@@ -42,13 +41,15 @@ def owned_meta_budget_reader(
     configuration: Settings,
     *,
     clock: Callable[[], datetime],
-) -> Iterator[MetaBudgetHTTP]:
+) -> AbstractContextManager[MetaBudgetHTTP]:
     """Capture only this original principal. No shared owner or global DB engine."""
     authorize = bind_authority(principal, provider)
     actor = principal.user.id
 
     def context(request: NativeBudgetRequestV1, now: datetime) -> NativeBudgetContext:
         wid = request.scope.workspace_id
+        if not configuration.meta_enabled:
+            raise NativeBudgetUnavailable("native_budget_reads_disabled")
         if request.profile_digest != profile.digest() or request.environment != profile.environment:
             raise NativeBudgetUnavailable("native_budget_profile_changed")
         with sessions() as db:
@@ -61,13 +62,14 @@ def owned_meta_budget_reader(
                 raise NativeBudgetUnavailable("native_budget_account_changed")
             goal = goals.owned(db, wid, request.goal_id)
             goals.expect(goal, request.goal_revision)
+            definition = goals.current(db, goal).definition
+            if definition is None:
+                raise NativeBudgetUnavailable("native_budget_goal_changed")
             if (
                 goals.assessment(db, goal, now) != "confirmed"
                 or fingerprint(
-                    "inlet.optimization-goal.v1",
-                    {
-                        "definition": goals.current(db, goal).definition,
-                    },
+                    "inlet.initial-preview-goal.v1",
+                    definition,
                 )
                 != request.goal_digest
             ):
@@ -100,9 +102,12 @@ def owned_meta_budget_reader(
                 raise NativeBudgetUnavailable("native_budget_credential_unavailable")
             if source.conversion_action_type != request.cohort.selected_event:
                 raise NativeBudgetUnavailable("native_budget_cohort_changed")
-            bundle = Vault(configuration).open(
-                wid, source.external_account_id, source.encrypted_credentials
-            )
+            try:
+                bundle = Vault(configuration).open(
+                    wid, source.external_account_id, source.encrypted_credentials
+                )
+            except MetaError:
+                raise NativeBudgetUnavailable("native_budget_credential_unavailable") from None
             raw, raw_expiry = bundle.get("access_token"), bundle.get("expires_at")
             try:
                 if (
@@ -128,10 +133,14 @@ def owned_meta_budget_reader(
                 label=campaign.name[:200] or "Owned Campaign",
             )
 
-    transport = native_budget_transport()
-    try:
-        yield MetaBudgetHTTP(
-            context, profile.native_read, transport=_BorrowedTransport(transport), clock=clock
-        )
-    finally:
-        transport.close()
+    @contextmanager
+    def managed() -> Iterator[MetaBudgetHTTP]:
+        transport = native_budget_transport()
+        try:
+            yield MetaBudgetHTTP(
+                context, profile.native_read, transport=_BorrowedTransport(transport), clock=clock
+            )
+        finally:
+            transport.close()
+
+    return managed()

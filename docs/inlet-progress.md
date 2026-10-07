@@ -5579,3 +5579,39 @@ Checkpoint checks: `pytest -ra tests/test_reported_feedback_versions.py
  tests/test_initial_preview_binding.py tests/test_reported_feedback_preview_guards.py`
 passed **20 tests** on SQLite/PostgreSQL (`/tmp/inlet-feedback-v2-final.log`).
 Whole Ruff and mypy **723 files** passed; `git diff --check` passed.
+### Actual Configured Planning/Reporting Assembly — 2026-10-07
+
+Successor of42c20ba. Added explicit profile settings and sanitized readiness check,
+pinned loader/actual-engine bundle, ordinary initial/reporting API getters and Meta
+worker construction. No installed profile remains unavailable; no global principal
+or implicit background engine. Added actual owned native-option discovery and v2
+producer with separate consent/cap/quantum checks. Public native selection is only
+an opaque option ID; full unqualified observation is committed, qualified state
+column staysNULL, v1 serialization/optimizer hashes remain intact. New native goal
+commitment now matches the existing initial-preview goal namespace and strict row
+binding. Original identity is captured before releasing DB transactions for HTTP.
+
+Actual run_meta_tick previously omitted due fixed jobs on fresh rolling coverage.
+Installed-profile selection now also considers bounded exact owned source/account/
+integration/generation/environment/window-policy obligations, preserving due time,
+expiry, connection backoff and existing page authority/lease checks. No new queue
+or retry authorization. The actual entrypoint fixture proves four fixed observations
+while preserving the original rolling completion timestamp.
+
+Validation: broad targeted run133passed1skipped with one outdated expected readiness
+checklist failure (140.78s); corrected that assertion to include the genuinely added
+profile check and added partial-profile rejection. Deployment9passed1.48s. Final
+actual configured producer/entrypoint/authority-negative/export/bridge+deployment
+run19passed45.77s, both SQLite/PostgreSQL. Whole Ruff passed; mypy725 passed;
+diff-check passed. The initial typo in the broad test filename collected no tests,
+then the actual documented run above executed. No Full or remote/provider live IO.
+
+Reusable tests/planning_runtime_fixture.py:configured_journey installs explicit
+fixture profile, uses ordinary API runtime getters, actual run_meta_tick, real report
+captures/calibration/commerce refresh and encrypted-vault GETs to produce USD45→46.
+Only DB/identity harness, low-level HTTP and clock seams are substituted; no runtime
+getter override or fabricated native qualification. Session/generation/profile/
+expiry changes deny reads; actual strict export excludes original session digest;
+v2 qualified bridge returns explicit409. Consumer930feaca+0078 integration and its
+actual adjusted-preview/browser journey remain dependent work, not claimed here.
+See inlet-planning-runtime-assembly.md for callable ports and remaining scope.

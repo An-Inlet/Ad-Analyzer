@@ -2,9 +2,12 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app.database.session import get_db
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.reported_feedback.contracts import ReportedFeedbackPolicyV1, ReportedWindowPolicyV1
 
@@ -20,5 +23,14 @@ class ReportedFeedbackRuntime:
         return self.initial.session_factory
 
 
-def get_reported_feedback_runtime() -> ReportedFeedbackRuntime | None:
-    return None
+def get_reported_feedback_runtime(
+    db: Annotated[Session | None, Depends(get_db)] = None,
+) -> ReportedFeedbackRuntime | None:
+    from app.planning_reporting.runtime import configured_bundle
+    from app.settings import settings
+
+    if db is None:
+        return None  # No implicit global engine for background callers.
+    engine = db.get_bind()
+    bundle = configured_bundle(lambda: Session(engine), settings)
+    return bundle.reported if bundle else None

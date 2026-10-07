@@ -72,3 +72,10 @@ period/policy references cannot bootstrap again. These are source/graph tests, n
 claim that the customer automatic API/worker journey is assembled. Ruff and scoped
 mypy2 test files pass. Logs: `/tmp/inlet-initial-rule-source-faults.log`,
 `/tmp/inlet-initial-rule-source-faults-postgres.log`, `/tmp/inlet-initial-rule-prior.log`.
+
+Raw PostgreSQL deletion under another transaction's workspace fence now proves actual
+NOWAIT rejection (`55P03`), unchanged row/export revision, then successful explicit
+workspace-first retry and counter advancement.1 pass,1 expected SQLite row-lock skip.
+Pending timestamps are normalized to UTC before storage; real configured current-source
+checks pass2 cases again after that normalization. Scoped Ruff/mypy2 pass.
+Logs: `/tmp/inlet-initial-rule-retention-race.log`, `/tmp/inlet-initial-rule-utc.log`.

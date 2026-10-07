@@ -87,3 +87,51 @@ def test_actual_expired_pending_cleanup_preserves_counter_and_cannot_deliver(
     # Captured retention deadline remains authoritative even after rows disappear.
     with pytest.raises(HTTPException, match="retention expired"):
         authority.check_retention(datetime.now(UTC))
+
+
+def test_postgres_raw_delete_fails_fast_then_retries_under_workspace_fence(
+    export_engine: Engine,
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.workspaces.models import Workspace
+    from sqlalchemy import select
+    from sqlalchemy.exc import DBAPIError
+
+    if export_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL NOWAIT row-lock semantics")
+    _, wid = prepared(export_engine)
+    with Session(export_engine) as db:
+        identifier = pending(db, wid, datetime.now(UTC) + timedelta(minutes=1))
+        before = workspace_export_revision(db, wid)
+
+    def raw_delete() -> str | None:
+        try:
+            with Session(export_engine) as db:
+                db.execute(
+                    delete(InitialRuleOpportunity).where(InitialRuleOpportunity.id == identifier)
+                )
+                db.commit()
+        except DBAPIError as exc:
+            return getattr(exc.orig, "sqlstate", None)
+        return None
+
+    pool = ThreadPoolExecutor(max_workers=1)
+    with Session(export_engine) as owner:
+        owner.scalar(
+            select(Workspace.id).where(Workspace.id == wid).with_for_update(key_share=True)
+        )
+        future = pool.submit(raw_delete)
+        try:
+            assert future.result(timeout=30) == "55P03"
+        finally:
+            owner.rollback()
+            pool.shutdown(wait=True)
+    with Session(export_engine) as db:
+        assert db.get(InitialRuleOpportunity, identifier) is not None
+        assert workspace_export_revision(db, wid) == before
+        db.scalar(select(Workspace.id).where(Workspace.id == wid).with_for_update(key_share=True))
+        db.execute(delete(InitialRuleOpportunity).where(InitialRuleOpportunity.id == identifier))
+        db.commit()
+        assert db.get(InitialRuleOpportunity, identifier) is None
+        assert workspace_export_revision(db, wid) > before

@@ -38,6 +38,7 @@ def ensure_opportunity(
     *,
     allowed_admission_id: str | None = None,
 ) -> InitialRuleOpportunity:
+    now, expires_at = utc(now), utc(expires_at)
     key = opportunity_key(scope)
     row = db.get(InitialRuleOpportunity, key[:32], populate_existing=True)
     if row is None:

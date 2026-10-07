@@ -8,6 +8,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
+from app.initial_planning.start_configuration import (
+    InitialRuleAssemblyManifestV1,
+    InitialRuleEvidenceDescriptorV1,
+    InitialRulePolicyBundleV1,
+)
 from app.optimization_candidates.contracts import CandidatePolicy
 from app.optimization_candidates.service import ACTUAL_UNQUALIFIED_SCHEMAS
 from app.planning_reporting.configuration import _unique_object
@@ -166,10 +171,36 @@ class CandidateConfigurationError(ValueError):
 
 
 def validate_candidate_source(
-    manifest: CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
-    bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
-    descriptor: CandidateEvidenceDescriptorV1 | ReportedRuleEvidenceDescriptorV1,
+    manifest: CandidateAssemblyManifestV1
+    | ReportedRuleAssemblyManifestV1
+    | InitialRuleAssemblyManifestV1,
+    bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 | InitialRulePolicyBundleV1,
+    descriptor: CandidateEvidenceDescriptorV1
+    | ReportedRuleEvidenceDescriptorV1
+    | InitialRuleEvidenceDescriptorV1,
 ) -> None:
+    if isinstance(manifest, InitialRuleAssemblyManifestV1):
+        manifest = InitialRuleAssemblyManifestV1.model_validate_json(manifest.model_dump_json())
+        if isinstance(bundle, InitialRulePolicyBundleV1):
+            bundle = InitialRulePolicyBundleV1.model_validate_json(bundle.model_dump_json())
+        if isinstance(descriptor, InitialRuleEvidenceDescriptorV1):
+            descriptor = InitialRuleEvidenceDescriptorV1.model_validate_json(
+                descriptor.model_dump_json()
+            )
+        if (
+            not isinstance(bundle, InitialRulePolicyBundleV1)
+            or not isinstance(descriptor, InitialRuleEvidenceDescriptorV1)
+            or manifest.policy_bundle_digest != bundle.digest()
+            or manifest.environment != bundle.environment
+            or manifest.environment != descriptor.environment
+            or descriptor.source_id != manifest.evidence_source_id
+            or descriptor.digest() != manifest.evidence_descriptor_digest
+            or descriptor.policy_bundle_digest != bundle.digest()
+            or (manifest.mode == "candidates_only" and bundle.automatic_policies)
+            or (manifest.mode == "session_automatic" and not bundle.automatic_policies)
+        ):
+            raise CandidateConfigurationError("candidate_configuration_invalid")
+        return
     if isinstance(manifest, ReportedRuleAssemblyManifestV1):
         manifest = ReportedRuleAssemblyManifestV1.model_validate_json(manifest.model_dump_json())
         if isinstance(bundle, ReportedRulePolicyBundleV1):
@@ -225,11 +256,14 @@ def load_candidate_configuration(
     optimization_manifest: OptimizationExecutionManifestV1 | None,
     source_descriptor: CandidateEvidenceDescriptorV1
     | ReportedRuleEvidenceDescriptorV1
+    | InitialRuleEvidenceDescriptorV1
     | None = None,
 ) -> (
     tuple[
-        CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
-        CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
+        CandidateAssemblyManifestV1
+        | ReportedRuleAssemblyManifestV1
+        | InitialRuleAssemblyManifestV1,
+        CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 | InitialRulePolicyBundleV1,
     ]
     | None
 ):
@@ -262,20 +296,32 @@ def load_candidate_configuration(
         optimization = OptimizationExecutionManifestV1.model_validate_json(
             optimization_manifest.model_dump_json()
         )
-        manifest: CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1 = TypeAdapter(
+        manifest: (
+            CandidateAssemblyManifestV1
+            | ReportedRuleAssemblyManifestV1
+            | InitialRuleAssemblyManifestV1
+        ) = TypeAdapter(
             Annotated[
-                CandidateAssemblyManifestV1 | ReportedRuleAssemblyManifestV1,
+                CandidateAssemblyManifestV1
+                | ReportedRuleAssemblyManifestV1
+                | InitialRuleAssemblyManifestV1,
                 Field(discriminator="schema_version"),
             ]
         ).validate_json(read(manifest_path, 16384))
-        bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 = TypeAdapter(
-            Annotated[
-                CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1,
-                Field(discriminator="schema_version"),
-            ]
-        ).validate_json(read(policy_path, 65536))
+        bundle: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 | InitialRulePolicyBundleV1 = (
+            TypeAdapter(
+                Annotated[
+                    CandidatePolicyBundleV1
+                    | ReportedRulePolicyBundleV1
+                    | InitialRulePolicyBundleV1,
+                    Field(discriminator="schema_version"),
+                ]
+            ).validate_json(read(policy_path, 65536))
+        )
         if (
-            isinstance(manifest, ReportedRuleAssemblyManifestV1)
+            isinstance(manifest, InitialRuleAssemblyManifestV1)
+            != isinstance(bundle, InitialRulePolicyBundleV1)
+            or isinstance(manifest, ReportedRuleAssemblyManifestV1)
             != isinstance(bundle, ReportedRulePolicyBundleV1)
             or not hmac.compare_digest(manifest.digest(), expected_manifest_digest)
             or manifest.optimization_manifest_digest != optimization.digest()
@@ -283,11 +329,15 @@ def load_candidate_configuration(
             or manifest.environment != bundle.environment
             or manifest.environment != optimization.environment
             or (
-                isinstance(manifest, ReportedRuleAssemblyManifestV1)
+                isinstance(
+                    manifest, (ReportedRuleAssemblyManifestV1, InitialRuleAssemblyManifestV1)
+                )
                 and "meta_ads" not in optimization.providers
             )
             or (
-                isinstance(manifest, ReportedRuleAssemblyManifestV1)
+                isinstance(
+                    manifest, (ReportedRuleAssemblyManifestV1, InitialRuleAssemblyManifestV1)
+                )
                 and manifest.mode == "session_automatic"
                 and not bundle.automatic_policies
             )

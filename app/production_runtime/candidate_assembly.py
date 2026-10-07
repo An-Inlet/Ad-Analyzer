@@ -16,6 +16,7 @@ from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.start_configuration import InitialRulePolicyBundleV1
 from app.optimization_candidates import service
 from app.optimization_candidates.contracts import (
     CandidateEvidence,
@@ -33,6 +34,7 @@ from app.production_runtime.candidate_configuration import (
     validate_candidate_source,
 )
 from app.production_runtime.candidate_sources import (
+    RegisteredInitialRuleSource,
     RegisteredReportedRuleSource,
     validate_candidate_binding,
 )
@@ -58,7 +60,7 @@ def unavailable() -> HTTPException:
 class CandidateRuntimeBundle:
     candidate: service.CandidateRuntime
     review: CandidateReviewRuntime
-    policies: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1
+    policies: CandidatePolicyBundleV1 | ReportedRulePolicyBundleV1 | InitialRulePolicyBundleV1
     owned: "OwnedCandidateReads"
     automatic_unavailable_reason: str = "first_decision_producer_unavailable"
     mode: str = "candidates_only"
@@ -212,7 +214,9 @@ def configured_candidates(
         registered = registered_candidate_source(manifest.evidence_source_id)
         if registered is None or (
             manifest.mode != "candidates_only"
-            and not isinstance(registered, RegisteredReportedRuleSource)
+            and not isinstance(
+                registered, (RegisteredReportedRuleSource, RegisteredInitialRuleSource)
+            )
         ):
             yield None
             return
@@ -250,7 +254,20 @@ def configured_candidates(
         base = service.CandidateRuntime(
             manifest.environment, identity, owned.read, policy_reader, native.clock
         )
-        if isinstance(registered, RegisteredReportedRuleSource):
+        if isinstance(registered, RegisteredInitialRuleSource):
+            from app.api.customer_initial_planning import get_initial_planning_runtime
+            from app.initial_planning.review_v2_api_contracts import InitialPreviewExecutionRuntime
+
+            if not isinstance(policies, InitialRulePolicyBundleV1):
+                raise unavailable()
+            candidate = replace(
+                base,
+                operational_policies=policies.candidate_policies,
+                initial_planning=InitialPreviewExecutionRuntime(
+                    get_initial_planning_runtime(db), native
+                ),
+            )
+        elif isinstance(registered, RegisteredReportedRuleSource):
             if not isinstance(policies, ReportedRulePolicyBundleV1):
                 raise unavailable()
             candidate = replace(base, operational_policies=policies.candidate_policies)
@@ -329,7 +346,8 @@ def run_configured_candidate_reads(engine: Engine, configuration: Settings) -> d
     manifest, policies = parsed
     source = registered_candidate_source(manifest.evidence_source_id)
     if source is None or (
-        manifest.mode != "candidates_only" and not isinstance(source, RegisteredReportedRuleSource)
+        manifest.mode != "candidates_only"
+        and not isinstance(source, (RegisteredReportedRuleSource, RegisteredInitialRuleSource))
     ):
         return {}
     validate_candidate_source(manifest, policies, source.descriptor)

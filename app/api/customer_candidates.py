@@ -11,6 +11,7 @@ from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.goals import service as goals
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.automatic_contracts import InitialReportedRulePolicyV1
 from app.optimization_candidates import review_bridge, selection, service
 from app.optimization_candidates.customer_contracts import (
     CandidateCapabilities,
@@ -147,6 +148,7 @@ def capabilities(
                 ),
             )
             for p in policies[:20]
+            if not isinstance(p, InitialReportedRulePolicyV1)
         ],
         mandates=options,
         truncated=len(rows) > 20 or len(policies) > 20,

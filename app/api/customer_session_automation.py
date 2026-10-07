@@ -8,6 +8,11 @@ from sqlalchemy import select
 
 from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
+from app.initial_planning.start_contracts import (
+    InitialRuleAutomaticOptionsV1,
+    InitialRuleAutomaticPolicyV1,
+    StartInitialReportedRuleAutomationV1,
+)
 from app.optimization_candidates.service import registered_policy
 from app.publication import customer_intents, execution_mandates
 from app.publication.execution_models import ProviderExecutionMandate
@@ -73,6 +78,8 @@ def capabilities(
     mandates: list[AutomaticMandateOption] = []
     if runtime is not None:
         for p in runtime.policies:
+            if isinstance(p, InitialRuleAutomaticPolicyV1):
+                continue  # Exact preview choices are exposed by the initial-planning API.
             if p.workspace_id != workspace_id:
                 continue
             try:
@@ -177,7 +184,9 @@ def capabilities(
 @router.post("/start", response_model=SessionAutomationStatus)
 def start(
     workspace_id: int,
-    body: StartSessionAutomation | StartReportedRuleAutomationV1,
+    body: StartSessionAutomation
+    | StartReportedRuleAutomationV1
+    | StartInitialReportedRuleAutomationV1,
     principal: MutationPrincipal,
     db: Database,
     runtime: Runtime,
@@ -236,3 +245,20 @@ def stop(
     read_access(db, principal, workspace_id, response)
     service.stop(db, principal, workspace_id, run_id, identity, runtime)
     return service.status(db, workspace_id, run_id, runtime)
+
+
+@router.get("/initial-options/{preview_id}")
+def initial_options(
+    workspace_id: int,
+    preview_id: str,
+    principal: Principal,
+    db: Database,
+    runtime: Runtime,
+    response: Response,
+) -> "InitialRuleAutomaticOptionsV1":
+    from app.initial_planning.start_options import options
+
+    read_access(db, principal, workspace_id, response)
+    if runtime is None:
+        raise HTTPException(409, "initial_automatic_runtime_unavailable")
+    return options(db, principal, workspace_id, preview_id, runtime)

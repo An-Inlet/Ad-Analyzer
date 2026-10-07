@@ -7,6 +7,7 @@ from typing import Protocol
 
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
+from app.initial_planning.start_configuration import InitialRuleEvidenceDescriptorV1
 from app.optimization_candidates.service import (
     AuthorizedEvidenceTransform,
     AuthorizedFinalEvidenceCurrent,
@@ -112,8 +113,25 @@ class RegisteredReportedRuleSource:
         )
 
 
+@dataclass(frozen=True)
+class RegisteredInitialRuleSource:
+    descriptor: InitialRuleEvidenceDescriptorV1
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "descriptor",
+            InitialRuleEvidenceDescriptorV1.model_validate_json(self.descriptor.model_dump_json()),
+        )
+
+
 def registered_candidate_source(
     source_id: str,
-) -> RegisteredCandidateEvidenceSource | RegisteredReportedRuleSource | None:
+) -> (
+    RegisteredCandidateEvidenceSource
+    | RegisteredReportedRuleSource
+    | RegisteredInitialRuleSource
+    | None
+):
     # No dynamic imports, mutable global registry or default scenario producer.
     return None

@@ -7,8 +7,10 @@ from app.initial_planning.models import CalibrationRow, ObservationRow
 
 
 def erase_source_observations(db: Session, workspace_id: int, account_id: int) -> None:
+    from app.initial_planning.automatic_retention import erase_unused_initial_origins
     from app.reported_feedback.invalidation import erase_account_feedback
 
+    erase_unused_initial_origins(db, workspace_id)
     erase_account_feedback(db, workspace_id, account_id)
     invalidate_account_calibrations(db, workspace_id, account_id)
     db.execute(
@@ -20,8 +22,10 @@ def erase_source_observations(db: Session, workspace_id: int, account_id: int) -
 
 
 def erase_workspace_observations(db: Session, workspace_id: int) -> None:
+    from app.initial_planning.automatic_retention import erase_unused_initial_origins
     from app.reported_feedback.invalidation import erase_workspace_feedback
 
+    erase_unused_initial_origins(db, workspace_id)
     erase_workspace_feedback(db, workspace_id)
     db.execute(delete(CalibrationRow).where(CalibrationRow.workspace_id == workspace_id))
     db.execute(delete(ObservationRow).where(ObservationRow.workspace_id == workspace_id))

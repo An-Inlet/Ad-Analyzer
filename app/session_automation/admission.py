@@ -10,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
+from app.initial_planning.automatic_contracts import InitialReportedRuleCandidateV1
+from app.initial_planning.automatic_source import INITIAL_RULE_PRODUCER_FAMILY
+from app.initial_planning.start_contracts import InitialRuleAutomaticPolicyV1
+from app.initial_planning.start_service import linked_work
 from app.optimization_candidates import review_bridge
+from app.optimization_candidates.contracts import CandidateDecision
 from app.optimization_candidates.documents import CandidateDecisionDocument
 from app.optimization_candidates.review_models import CandidateReviewLink
 from app.publication import optimization
@@ -41,6 +46,21 @@ def epoch_for(
     runtime: SessionAutomationRuntime,
     policy: AutomaticPolicyDocument | None = None,
 ) -> SemanticDecisionEpoch:
+    if isinstance(decision, InitialReportedRuleCandidateV1):
+        if (
+            not isinstance(policy, InitialRuleAutomaticPolicyV1)
+            or decision.policy_digest != policy.candidate_policy_digest
+            or tuple(families) != (INITIAL_RULE_PRODUCER_FAMILY,)
+        ):
+            raise HTTPException(409, "explicit initial automatic policy required")
+        return SemanticDecisionEpoch(
+            producer_family=INITIAL_RULE_PRODUCER_FAMILY,
+            source_schema=decision.evidence.source_schema,
+            source_reference=decision.evidence.basis.opportunity_id,
+            semantic_digest=decision.evidence.basis.semantic_key_digest,
+        )
+    if isinstance(policy, InitialRuleAutomaticPolicyV1):
+        raise HTTPException(409, "initial automatic policy basis changed")
     if isinstance(decision, ReportedRuleCandidateV1):
         if (
             not isinstance(policy, ReportedRuleAutomaticPolicyV1)
@@ -58,6 +78,8 @@ def epoch_for(
         )
     if isinstance(policy, ReportedRuleAutomaticPolicyV1):
         raise HTTPException(409, "automatic policy basis changed")
+    if not isinstance(decision, CandidateDecision):
+        raise HTTPException(409, "initial automatic admission unavailable")
     matches = [
         p
         for p in runtime.epoch_producers
@@ -119,7 +141,7 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
         link = db.get(CandidateReviewLink, review_id, populate_existing=True)
         if link is None or link.candidate_result_id is None or link.workspace_id != wid:
             raise HTTPException(409, "candidate review source retracted")
-        _, decision, _, _ = review_bridge.bound_candidate(
+        _, decision, result, work = review_bridge.bound_candidate(
             db,
             wid,
             link.candidate_result_id,
@@ -128,6 +150,10 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
             runtime.review,
             forward_review_id=review_id,
         )
+        if isinstance(policy, InitialRuleAutomaticPolicyV1):
+            job, exact = linked_work(db, row, fresh)
+            if result.job_id != job.id or work != exact:
+                raise HTTPException(409, "initial Start candidate changed")
         epoch = epoch_for(db, principal, decision, policy.semantic_producer_families, fresh, policy)
         review = db.get(ProviderExecutionReview, review_id, populate_existing=True)
         db.refresh(admission, with_for_update=True)
@@ -154,7 +180,12 @@ def guard_for(runtime: SessionAutomationRuntime):  # type: ignore[no-untyped-def
             raise HTTPException(409, "automatic decision binding changed")
         # The caller has already fenced candidate provenance. Resample the original
         # session and expiry after the semantic source/admission locks as well.
-        review_bridge.guard_for(runtime.review)(db, wid, review_id, actor, clock)
+        if isinstance(decision, InitialReportedRuleCandidateV1):
+            review_bridge.validate_bound_review(
+                db, wid, review_id, actor, principal, decision, result, work, runtime.review, clock
+            )
+        else:
+            review_bridge.guard_for(runtime.review)(db, wid, review_id, actor, clock)
         service.current(db, wid, row.id, fresh)
         if utc(admission.expires_at) <= clock():
             raise HTTPException(409, "automatic decision expired")
@@ -188,7 +219,7 @@ def admit(
         link = db.get(CandidateReviewLink, row.id, populate_existing=True)
         if link is None or link.candidate_result_id is None:
             raise HTTPException(409, "candidate review source retracted")
-        _, decision, _, _ = review_bridge.bound_candidate(
+        _, decision, result, work = review_bridge.bound_candidate(
             db,
             wid,
             link.candidate_result_id,
@@ -197,6 +228,10 @@ def admit(
             runtime.review,
             forward_review_id=review_id,
         )
+        if isinstance(policy, InitialRuleAutomaticPolicyV1):
+            job, exact = linked_work(db, session_run, runtime)
+            if result.job_id != job.id or work != exact:
+                raise HTTPException(409, "initial Start candidate changed")
         if decision.scope.mandate != service.binding(session_run) or (
             decision.action is None or decision.action.kind not in policy.allowed_operations
         ):
@@ -255,6 +290,13 @@ def admit(
             db.add(admission)
             row.automatic_authority_required = True
             db.flush()
+        if isinstance(decision, InitialReportedRuleCandidateV1):
+            from app.initial_planning.automatic_contracts import InitialReportedRuleWorkV1
+            from app.initial_planning.automatic_dependencies import consume_origin
+
+            if not isinstance(work, InitialReportedRuleWorkV1):
+                raise HTTPException(409, "initial work changed")
+            consume_origin(db, principal, work, decision, admission.id, runtime.clock)
         run = optimization.create_run(
             db,
             wid,

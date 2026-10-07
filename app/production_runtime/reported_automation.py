@@ -12,6 +12,7 @@ from app.automation import AutomationControlKey, AutomationControlService
 from app.commerce.evidence import lock_workspace
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
+from app.initial_planning.start_configuration import InitialRulePolicyBundleV1
 from app.optimization_candidates import review_bridge
 from app.optimization_candidates.selection import CandidateSelectionRuntime
 from app.production_runtime import candidate_assembly
@@ -20,7 +21,10 @@ from app.production_runtime.candidate_configuration import (
     load_candidate_configuration,
     validate_candidate_source,
 )
-from app.production_runtime.candidate_sources import RegisteredReportedRuleSource
+from app.production_runtime.candidate_sources import (
+    RegisteredInitialRuleSource,
+    RegisteredReportedRuleSource,
+)
 from app.production_runtime.optimization_assembly import pinned
 from app.reported_feedback.candidate_configuration import ReportedRulePolicyBundleV1
 from app.session_automation import service, worker
@@ -44,7 +48,9 @@ def configured_session_automation(
         if (
             bundle is None
             or bundle.mode != "session_automatic"
-            or not isinstance(bundle.policies, ReportedRulePolicyBundleV1)
+            or not isinstance(
+                bundle.policies, (ReportedRulePolicyBundleV1, InitialRulePolicyBundleV1)
+            )
         ):
             yield None
             return
@@ -91,7 +97,9 @@ def run_configured_session_automation(
         return {}
     manifest, policies = parsed
     source = candidate_assembly.registered_candidate_source(manifest.evidence_source_id)
-    if manifest.mode != "session_automatic" or not isinstance(source, RegisteredReportedRuleSource):
+    if manifest.mode != "session_automatic" or not isinstance(
+        source, (RegisteredReportedRuleSource, RegisteredInitialRuleSource)
+    ):
         return {}
     validate_candidate_source(manifest, policies, source.descriptor)
     from app.customers.identity import get_identity_provider

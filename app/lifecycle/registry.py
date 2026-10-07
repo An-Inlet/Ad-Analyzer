@@ -12,6 +12,67 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "initial_rule_session_starts": TablePolicy(
+        "workspace",
+        (
+            "session_run_id",
+            "workspace_id",
+            "candidate_job_id",
+            "candidate_workspace_id",
+            "input_digest",
+            "preview_digest",
+            "semantic_key_digest",
+            "policy_digest",
+            "created_at",
+            "expires_at",
+        ),
+        protected=True,
+    ),
+    "initial_rule_opportunities": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "environment",
+            "ledger_id",
+            "native_account_identity_digest",
+            "budget_owner_identity_digest",
+            "semantic_key_digest",
+            "created_at",
+            "pending_expires_at",
+        ),
+        protected=True,
+    ),
+    "initial_rule_admission_origins": TablePolicy(
+        "workspace",
+        ("admission_id", "workspace_id", "opportunity_id"),
+        protected=True,
+    ),
+    "initial_rule_candidate_dependencies": TablePolicy(
+        "workspace",
+        (
+            "candidate_job_id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "opportunity_id",
+            "preview_id",
+            "calibration_id",
+            "selected_observation_id",
+            "expires_at",
+        ),
+    ),
+    "initial_rule_candidate_observations": TablePolicy(
+        "workspace",
+        (
+            "candidate_job_id",
+            "workspace_id",
+            "account_id",
+            "campaign_id",
+            "observation_id",
+            "expires_at",
+        ),
+    ),
     "reported_rule_candidate_dependencies": TablePolicy(
         "workspace",
         (

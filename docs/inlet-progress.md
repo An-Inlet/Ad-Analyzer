@@ -7049,3 +7049,31 @@ or product defect established, no billing code changed. Docs corrected to avoid
 GET-onlyrecovery implication. Final strengthened2DBjourney2pass16.94s, whole
 Ruff/mypy948/diffpass. Logs `/tmp/inlet-continuous-fresh-review.log` (failed proposed
 assertion) and `/tmp/inlet-continuous-fresh-review-final.log` (passed).
+## 2026-10-07 — initial reported-rule central worker/review checkpoint
+
+Composed the strict initial document discriminator, actual owned source and 0084
+source dependencies into central enqueue/worker/result/exact-review/export paths.
+Generic selection cannot silently select an initial preview. Original-session and
+observation erasure deny forward review; no attempts or holds are created by these
+component tests. Initial automatic admission remains explicitly unavailable until
+the separately proposed exact Start binding is implemented.
+
+Evidence: 14 both-DB initial/repeat worker cases, 25 strict compiler/dispatch cases,
+and 2 actual stored initial job/result export cases passed with durations recorded.
+Whole Ruff and mypy (923 files) passed. See
+`docs/inlet-initial-rule-central-checkpoint.md` for commands, logs, limitations and
+the corrected test-only typing error. No Full, remote, hosted or live action.
+
+### Initial Start Concurrency And Admission Acceptance
+
+Test-only lane from4ec67ee adds real owned Start then revoked-original-mandate and
+spent-ledger denial, two simultaneous independent PostgreSQL workers, actual0085
+populated downgrade refusal, and ordinary configured maintenance dispatch. No
+production changes; no seeded execution/admission/approval. Complete narrow run
+9passed1expectedSQLiteconcurrencyskip149.94s. Positivefixture explicitlyuses120s
+native/preview lifetime beforeproduction, leaving the ordinary contract-test30sTTL unchanged; no productionTTL selected.
+WholeRuff/mypy934passed. Detailedfixtureboundaries/evidence and complementary
+unknown-provider authorcoverage: `inlet-initial-concurrency-acceptance.md`.
+Initial acceptance strengthened consumed-origin assertion: affected3positivecases
+passed131.58s (7deselected), `/tmp/inlet-initial-acceptance-origin.log`; exactone
+origin/admission/attempt/POST andzeroapproval onbothDBmaintenance andPGcompetition.

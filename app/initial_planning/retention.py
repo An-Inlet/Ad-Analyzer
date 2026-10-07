@@ -83,4 +83,8 @@ def purge_expired_observations(
 
 
 def run_retention_tick(engine: Engine) -> int:
-    return purge_expired_observations(lambda: Session(engine))
+    from app.initial_planning.automatic_retention import purge_expired_initial_rules
+
+    return purge_expired_observations(lambda: Session(engine)) + purge_expired_initial_rules(
+        lambda: Session(engine)
+    )

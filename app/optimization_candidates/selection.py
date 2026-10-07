@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.customers.access import CustomerPrincipal
 from app.goals import service as goals
 from app.goals.schemas import StrictModel
+from app.initial_planning.automatic_contracts import InitialReportedRulePolicyV1
 from app.optimization_candidates import service
 from app.optimization_candidates.contracts import CandidateScope, SourceFence
 from app.optimization_candidates.models import CandidateJob
@@ -155,6 +156,8 @@ def plan_candidate_reads(
     if current_policy != mandate:
         raise HTTPException(409, "candidate mandate changed")
     selected: list[CandidateWorkV2] = []
+    if isinstance(policy, InitialReportedRulePolicyV1):
+        raise HTTPException(409, "explicit_initial_preview_basis_required")
     reported_selected: list[ReportedRuleWorkV1] = []
     blocked = []
     manifest = fingerprint(

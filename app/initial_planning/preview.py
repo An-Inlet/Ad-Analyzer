@@ -7,11 +7,10 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
-from app.initial_planning import calibration, capture, limits, native, native_budget
+from app.initial_planning import calibration, limits, native, native_budget
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
     CalibrationReportV1,
@@ -42,13 +41,15 @@ def inputs(
     wid = objective.cohort.workspace_id
     authorize = bind_authority(principal, provider)
     authorize(db, wid, principal.user.id)
-    report = calibration.read_calibration(
+    checked = calibration._read_calibration_inputs(
         db, principal, provider, wid, intent.calibration_id, runtime
     )
-    saved = calibration.read_objective(db, principal, provider, wid, intent.calibration_id, runtime)
-    observation = capture.read_observation(
-        db, principal, provider, wid, intent.observation_id, runtime
+    report, saved = checked.report, checked.objective
+    observation = next(
+        (item for item in checked.observations if item.id == intent.observation_id), None
     )
+    if observation is None:
+        raise HTTPException(409, "The current objective and reporting history must match.")
     configuration = runtime.configuration
     if (
         configuration is None
@@ -61,23 +62,13 @@ def inputs(
         or observation.id not in report.observation_ids
     ):
         raise HTTPException(409, "The current objective and reporting history must match.")
-    read_current(
-        db,
-        wid,
-        principal.user.id,
-        objective.cohort.account_id,
-        objective.cohort.campaign_id,
-        observation.completion_id,
-        authorize,
-    )
-    goal = goals.owned(db, wid, objective.goal_id)
+    if checked.current_objective.report.completion_id != observation.completion_id:
+        raise HTTPException(409, "The current objective and reporting history must match.")
+    goal = checked.current_objective.goal
     goals.expect(goal, objective.goal_revision)
     if goals.assessment(db, goal, effective_now(db, runtime)) != "confirmed":
         raise HTTPException(409, "Confirm the current goal before preparing a preview.")
-    definition = goals.current(db, goal).definition
-    if definition is None:
-        raise HTTPException(409, "The goal definition is unavailable.")
-    goal_digest = fingerprint("inlet.initial-preview-goal.v1", definition)
+    goal_digest = checked.current_objective.goal_definition_digest
     authorize(db, wid, principal.user.id)
     if effective_now(db, runtime) >= min(report.expires_at, observation.expires_at):
         raise HTTPException(409, "The reporting evidence expired.")

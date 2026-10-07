@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
+from app.initial_planning.start_contracts import InitialRuleAutomaticPolicyV1
 from app.optimization_candidates.contracts import CandidateDecision
 from app.optimization_candidates.review_bridge import CandidateReviewRuntime
 from app.optimization_candidates.selection import CandidateSelectionRuntime
@@ -14,7 +15,9 @@ from app.publication.execution_contracts import ProviderMandateBinding
 from app.reported_feedback.automatic_contracts import ReportedRuleAutomaticPolicyV1
 from app.session_automation.contracts import SemanticDecisionEpoch, SessionAutomaticPolicy
 
-AutomaticPolicyDocument = SessionAutomaticPolicy | ReportedRuleAutomaticPolicyV1
+AutomaticPolicyDocument = (
+    SessionAutomaticPolicy | ReportedRuleAutomaticPolicyV1 | InitialRuleAutomaticPolicyV1
+)
 
 
 @dataclass(frozen=True)

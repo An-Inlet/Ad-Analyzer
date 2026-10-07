@@ -1,5 +1,6 @@
 """Reproducible reported-efficiency sensitivity, never predictive qualification."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Literal
@@ -9,11 +10,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.campaign_performance.contracts import CampaignPerformanceV1, CampaignPerformanceV2
 from app.campaign_performance.models import PerformanceCompletion
 from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
+from app.goals.models import Goal
 from app.goals.schemas import GoalDefinition
 from app.initial_planning.capture import configuration, read_observation, unavailable
 from app.initial_planning.clock import effective_now
@@ -59,6 +62,15 @@ def classify(
     return "hold"
 
 
+@dataclass(frozen=True)
+class _CurrentObjectiveInputs:
+    """Fresh report and locked goal for the immediate DB-only calibration consumer."""
+
+    report: CampaignPerformanceV1 | CampaignPerformanceV2
+    goal: Goal
+    goal_definition_digest: str
+
+
 def current_objective(
     db: Session,
     principal: CustomerPrincipal,
@@ -66,6 +78,16 @@ def current_objective(
     objective: EfficiencyObjectiveV1,
     runtime: InitialPlanningRuntime,
 ) -> None:
+    _read_current_objective(db, principal, provider, objective, runtime)
+
+
+def _read_current_objective(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    objective: EfficiencyObjectiveV1,
+    runtime: InitialPlanningRuntime,
+) -> _CurrentObjectiveInputs:
     policy = configuration(runtime)
     c = objective.cohort
     authorize = bind_authority(principal, provider)
@@ -74,7 +96,10 @@ def current_objective(
     goals.expect(goal, objective.goal_revision)
     if goals.assessment(db, goal, effective_now(db, runtime)) != "confirmed":
         raise unavailable("current_confirmed_goal_required")
-    definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
+    raw_definition = goals.current(db, goal).definition
+    if raw_definition is None:
+        raise unavailable("current_confirmed_goal_required")
+    definition = GoalDefinition.model_validate(raw_definition)
     if definition.target_window.currency != c.currency:
         raise unavailable("initial_objective_currency_mismatch")
     report = read_current(
@@ -98,6 +123,9 @@ def current_objective(
         <= timedelta(seconds=policy.maximum_report_age_seconds)
     ):
         raise unavailable("initial_current_report_stale")
+    return _CurrentObjectiveInputs(
+        report, goal, fingerprint("inlet.initial-preview-goal.v1", raw_definition)
+    )
 
 
 def evaluate(
@@ -308,14 +336,24 @@ def run_calibration(
     return report
 
 
-def read_calibration(
+@dataclass(frozen=True)
+class _CalibrationInputs:
+    """Fresh DB-only validation result; never accepted as reusable authority."""
+
+    report: CalibrationReportV1
+    objective: EfficiencyObjectiveV1
+    observations: tuple[ObservationV1, ...]
+    current_objective: _CurrentObjectiveInputs
+
+
+def _read_calibration_inputs(
     db: Session,
     principal: CustomerPrincipal,
     provider: IdentityProvider,
     workspace_id: int,
     calibration_id: str,
     runtime: InitialPlanningRuntime,
-) -> CalibrationReportV1:
+) -> _CalibrationInputs:
     policy = configuration(runtime)
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     row = db.scalar(
@@ -346,7 +384,7 @@ def read_calibration(
         or not report.evaluated_at <= effective_now(db, runtime) < report.expires_at
     ):
         raise unavailable("initial_calibration_expired_or_changed")
-    current_objective(db, principal, provider, objective, runtime)
+    objective_inputs = _read_current_objective(db, principal, provider, objective, runtime)
     dependency_ids = set(
         db.scalars(
             select(CalibrationDependency.observation_id).where(
@@ -366,7 +404,20 @@ def read_calibration(
         raise unavailable("initial_calibration_inputs_changed")
     if effective_now(db, runtime) >= report.expires_at:
         raise unavailable("initial_calibration_expired")
-    return report
+    return _CalibrationInputs(report, objective, observations, objective_inputs)
+
+
+def read_calibration(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    calibration_id: str,
+    runtime: InitialPlanningRuntime,
+) -> CalibrationReportV1:
+    return _read_calibration_inputs(
+        db, principal, provider, workspace_id, calibration_id, runtime
+    ).report
 
 
 def read_objective(
@@ -377,7 +428,6 @@ def read_objective(
     calibration_id: str,
     runtime: InitialPlanningRuntime,
 ) -> EfficiencyObjectiveV1:
-    read_calibration(db, principal, provider, workspace_id, calibration_id, runtime)
-    row = db.get(CalibrationRow, calibration_id)
-    assert row is not None
-    return EfficiencyObjectiveV1.model_validate(row.objective)
+    return _read_calibration_inputs(
+        db, principal, provider, workspace_id, calibration_id, runtime
+    ).objective

@@ -35,7 +35,7 @@ def test_v2_execution_review_browser(
     unavailable: bool,
 ) -> None:
     chromium = portal_executable("chromium", "chromium-browser", "google-chrome")
-    alice, planning_root, execution_base, query, _, native_server, _, _ = ready(
+    alice, planning_root, execution_base, query, _, native_server, _, planning = ready(
         customer_engine, configuration, tmp_path, monkeypatch, replicas
     )
     from app.publication.execution_models import (
@@ -92,7 +92,9 @@ def test_v2_execution_review_browser(
             return
         if path == "/__fixture__/driver.mjs":
             script = Path("tests/javascript/v2_execution_browser.mjs").read_text()
-            script = script.replace("__UNAVAILABLE__", str(unavailable).lower())
+            script = script.replace("__UNAVAILABLE__", str(unavailable).lower()).replace(
+                "__PLANNING_MANDATE__", planning["mandate_id"]
+            )
             await Response(script, media_type="text/javascript")(scope, receive, send)
             return
         if path == "/app/optimization":
@@ -108,7 +110,7 @@ def test_v2_execution_review_browser(
         if path.startswith("/app/assets/"):
             name = path.removeprefix("/app/assets/")
             if name in {"initial-planning.mjs", "initial-execution.mjs", "session-context.mjs",
-                        "optimization.mjs", "optimization-budget.mjs"}:
+                        "optimization.mjs", "optimization-budget.mjs", "session-automation.mjs"}:
                 await Response(
                     Path("app/portal/static", name).read_text(), media_type="text/javascript"
                 )(scope, receive, send)

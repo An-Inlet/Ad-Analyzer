@@ -23,10 +23,30 @@ repopulate owned values. Refreshing choices clears the old review link; unknown
 POST outcomes are not automatically retried. Names are rendered with textContent
 or Option text, never HTML.
 
-Verification at the frontend checkpoint: three focused tests pass, including
-versioned response/intent validation and DOM/fetch unit doubles exercising V1,
-V2, exact POST fields, no consent/approval/execution requests, late-result rejection
-and session clearing. Node syntax, Ruff and focused mypy checks also pass.
-These are frontend checks, not real API/TLS acceptance. Actual configured
-SQLite/PostgreSQL browser acceptance waits for the backend service/fixture freeze;
-no runtime getter override or seeded execution records will substitute for it.
+Verification: three focused frontend tests cover strict response/intent validation,
+V1/V2 rendering, exact POST fields, no consent/approval/execution requests, late
+results after goal edits and session clearing. The actual configured TLS browser
+suite passes on SQLite and PostgreSQL for both available and absent separate
+execution consent (four cases). It uses backend `063243c`'s actual imported
+history/configured native adapters, API-created original session, real planning
+consent and real separate execution-consent APIs. There are no runtime getter
+overrides or seeded execution reviews, attempts or approvals. Only provider HTTP
+is replaced with MockTransport and explicit contract-scenario evidence.
+
+The browser creates a fresh capture/calibration/native V2 preview, reads the actual
+options endpoint, makes an explicit selection, submits the exact handoff and opens
+the normal optimization page for separate approval. Database assertions verify
+exact preview amount, retained V2 proof, distinct consented mandates on one ledger,
+one review/approval, zero attempts/reservations and zero provider writes. Missing
+execution consent displays the fixed recovery reason and cannot submit a review.
+This is offline contract qualification, not live financial-source qualification.
+Final combined cohort: 15 passed in 84.63 seconds. Whole-repository Ruff, scoped
+mypy for the three affected Python test modules, Node syntax checks and
+`git diff --check` passed.
+
+The first test run exposed two fixture assumptions: its static allowlist omitted
+the optimizer's session-automation module, and it selected a random first mandate
+instead of the API-created planning mandate. Both were corrected without changing
+production authority checks or weakening assertions. Existing V1 planning and
+first-budget TLS checks also pass (eight both-database cases). No Full, remote
+operation, credential access, recording or advertising mutation was performed.

@@ -5438,3 +5438,24 @@ Final combined automation/orchestration/diagnostics run: **83 passed, zero skips
 repeat/reset integration. Log /tmp/inlet-ci-powershell-closure-fixed.log. Real browser
 H.264/AAC preflight passed too. See inlet-ci-cost-recovery.md for source/install and
 review evidence. No hosted run or product qualification is claimed by these checks.
+
+### Planning/Reporting Runtime First Contract Checkpoint — 2026-10-07
+
+Local successor of frozen9396839; proposal2230e15 approved for staged implementation.
+Added separate deeply frozen native budget request/observation/owner/catalog ports,
+without qualification IDs or a financial period. Tuple-based owner topology retains
+existing target-set semantics and checks its exact digest. No native IO or runtime
+activation is introduced. Added explicit initial/window/optional-feedback/read-limit
+profile and bounded local JSON loader: missing pair is unavailable, malformed or
+partial configuration, duplicate keys, oversized input, policy drift and digest
+mismatch fail with a fixed sanitized error. The caller retains the immutable profile;
+there is no implicit cache, principal, engine selection or hot reload.
+
+Validation:32 focused contract/configuration/legacy initial-policy tests passed in
+1.59s; whole-tree Ruff passed; whole-tree mypy passed711 source files; diff-check
+passed. First mypy attempt found only three frozen-assignment test typing errors,
+repaired before the final checks. No Full, remote, provider or deployment actions.
+Next: shared neutral Meta parser and actual owned GET-only collector, then API/worker
+assembly and explicit v2 preview with lifecycle/consumer version dispatch. This
+checkpoint does not implement those behaviors or qualify any writes. Feedback
+revision service/models/migration0078 remain owned by the separate package.

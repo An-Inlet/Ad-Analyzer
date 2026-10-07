@@ -61,3 +61,14 @@ historical reconciliation. Current checks do not claim a completed automatic cus
 journey. Actual Start→worker→one admission→status/Stop API/TLS, final privacy/export
 races and broader integration remain pending. Existing live/provider and financial
 qualification gates are unchanged.
+
+## Source Guard Follow-up
+
+The typed dependency binder, final-current assertion and stable epoch now have actual
+configured-input tests:5 SQLite and5 PostgreSQL cases pass (current, original-session
+revocation, expiry, historical observation erasure, native budget drift). Two additional
+both-database cases use a real original optimization attempt to prove that changing
+period/policy references cannot bootstrap again. These are source/graph tests, not a
+claim that the customer automatic API/worker journey is assembled. Ruff and scoped
+mypy2 test files pass. Logs: `/tmp/inlet-initial-rule-source-faults.log`,
+`/tmp/inlet-initial-rule-source-faults-postgres.log`, `/tmp/inlet-initial-rule-prior.log`.

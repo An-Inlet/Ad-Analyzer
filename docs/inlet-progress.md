@@ -5742,3 +5742,30 @@ Whole Ruff and mypy746 pass; diff check passed. Adverse fixture attempts were ke
 future updatedAt relative to import cutoff correctly rejected; trying to confirm
 an already-ended goal correctly rejected. Fixtures were corrected, not product
 guards. UI/TLS integration is the separate dependent package. No Full/remote/live.
+
+## Goal API / Progress PostgreSQL Lock Order Repair
+
+Independent review identified an actual cycle: the existing goal GET locked Goal
+before its serialize→assessment→baseline→measurement path acquired Workspace,
+while new progress acquired Workspace then Goal. A controlled actual PostgreSQL
+HTTP interleave reproduced DeadlockDetected (backend8832↔8835) on57febe8 before
+product edits. `/tmp/inlet-goal-lock-baseline.log`:1failed1SQLite skip5.97s.
+The regression has a3-second database lock timeout and bounded workers/cleanup.
+
+Customer goal access now uses the existing canonical original-principal/provider
+workspace→user→session→membership guard before goal or measurement locks. Existing
+read roles remain owner/admin/analyst/viewer; edit remains owner/admin/analyst;
+confirm remains owner/admin. MutationPrincipal/CSRF requirements remain unchanged.
+Create/edit/confirm reacquire the guard before post-commit serialization. No Goal
+locks were removed and no measurement, privacy, retention or financial semantics
+were relaxed. The new regression explicitly covers all four role projections.
+
+The exact controlled interleave passes after repair (1passed1SQLite skip2.99s,
+/tmp/inlet-goal-lock-repaired.log). The reproduction is an actual two-request lock
+cycle, not a query-order-only assertion. No Full/remote/live/root-checkout edits.
+
+Final focused invocation:85passed2expected SQLite concurrency skips,3existing
+Alembic configuration warnings66.71s (/tmp/inlet-goal-lock-regressions.log).
+Includes controlled lock regression, exact roles, old goal services/migration,
+progress source/contract cases, actual goal-progress TLS and existing customer
+API/browser journey. Whole Ruff and mypy749 passed; diff check passed.

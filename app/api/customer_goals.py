@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Header, Query, Response
 from sqlalchemy import func, select
 
 from app.customers.access import (
@@ -11,7 +11,7 @@ from app.customers.access import (
     MutationPrincipal,
     Principal,
     Provider,
-    customer_workspace,
+    lock_customer_mutation,
 )
 from app.goals import service
 from app.goals.interpreter import GoalInterpreter, get_interpreter, run
@@ -25,19 +25,23 @@ router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/goals", ta
 
 def access(
     db: Database,
-    user_id: str,
+    principal: Principal,
+    provider: Provider,
     workspace_id: int,
     response: Response,
     *,
     confirm: bool = False,
     edit: bool = False,
 ) -> None:
-    _, role = customer_workspace(db, user_id, workspace_id)
+    roles = (
+        frozenset({"owner", "admin"})
+        if confirm
+        else frozenset({"owner", "admin", "analyst"})
+        if edit
+        else frozenset({"owner", "admin", "analyst", "viewer"})
+    )
+    lock_customer_mutation(db, principal, workspace_id, provider, allowed_roles=roles)
     response.headers["Cache-Control"] = "no-store"
-    if (confirm and role not in {"owner", "admin"}) or (
-        edit and role not in {"owner", "admin", "analyst"}
-    ):
-        raise HTTPException(403, "insufficient role")
 
 
 @router.post("", status_code=201)
@@ -48,22 +52,24 @@ def create(
         str, Header(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     ],
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response, edit=True)
+    access(db, principal, provider, workspace_id, response, edit=True)
     item = service.create(
         db, workspace_id, principal.user.id, idempotency_key, body.definition, datetime.now(UTC)
     )
     db.commit()
+    access(db, principal, provider, workspace_id, response)
     return service.serialize(db, item)
 
 
 @router.get("")
 def listing(
-    workspace_id: int, principal: Principal, db: Database, response: Response
+    workspace_id: int, principal: Principal, provider: Provider, db: Database, response: Response
 ) -> list[dict[str, Any]]:
-    access(db, principal.user.id, workspace_id, response)
+    access(db, principal, provider, workspace_id, response)
     return [
         service.serialize(db, g)
         for g in db.scalars(select(Goal).where(Goal.workspace_id == workspace_id))
@@ -72,9 +78,9 @@ def listing(
 
 @router.get("/usage")
 def usage(
-    workspace_id: int, principal: Principal, db: Database, response: Response
+    workspace_id: int, principal: Principal, provider: Provider, db: Database, response: Response
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response)
+    access(db, principal, provider, workspace_id, response)
     day = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     base = select(func.count()).select_from(GoalUsage).where(GoalUsage.workspace_id == workspace_id)
     today = db.scalar(base.where(GoalUsage.created_at >= day)) or 0
@@ -89,17 +95,27 @@ def usage(
 
 @router.get("/{goal_id}")
 def read(
-    workspace_id: int, goal_id: str, principal: Principal, db: Database, response: Response
+    workspace_id: int,
+    goal_id: str,
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response)
+    access(db, principal, provider, workspace_id, response)
     return service.serialize(db, service.owned(db, workspace_id, goal_id))
 
 
 @router.get("/{goal_id}/history")
 def history(
-    workspace_id: int, goal_id: str, principal: Principal, db: Database, response: Response
+    workspace_id: int,
+    goal_id: str,
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    response: Response,
 ) -> list[dict[str, Any]]:
-    access(db, principal.user.id, workspace_id, response)
+    access(db, principal, provider, workspace_id, response)
     service.owned(db, workspace_id, goal_id)
     return [
         {
@@ -122,14 +138,16 @@ def edit(
     goal_id: str,
     body: EditInput,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response, edit=True)
+    access(db, principal, provider, workspace_id, response, edit=True)
     item = service.owned(db, workspace_id, goal_id)
     service.expect(item, body.expected_revision)
     service.revise(db, item, body.definition, principal.user.id, datetime.now(UTC))
     db.commit()
+    access(db, principal, provider, workspace_id, response)
     return service.serialize(db, item)
 
 
@@ -139,10 +157,11 @@ def preview(
     goal_id: str,
     body: PreviewInput,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response, edit=True)
+    access(db, principal, provider, workspace_id, response, edit=True)
     item = service.owned(db, workspace_id, goal_id)
     service.expect(item, body.expected_revision)
     p = service.preview(db, item, datetime.now(UTC))
@@ -161,13 +180,15 @@ def confirm(
     goal_id: str,
     body: ConfirmInput,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response, confirm=True)
+    access(db, principal, provider, workspace_id, response, confirm=True)
     item = service.owned(db, workspace_id, goal_id)
     service.confirm(db, item, body, datetime.now(UTC), actor_id=principal.user.id)
     db.commit()
+    access(db, principal, provider, workspace_id, response)
     return service.serialize(db, item)
 
 
@@ -177,11 +198,12 @@ def interpret(
     goal_id: str,
     body: InterpretationInput,
     principal: MutationPrincipal,
+    provider: Provider,
     db: Database,
     response: Response,
     adapter: Annotated[GoalInterpreter, Depends(get_interpreter)],
 ) -> dict[str, Any]:
-    access(db, principal.user.id, workspace_id, response, edit=True)
+    access(db, principal, provider, workspace_id, response, edit=True)
     item = service.owned(db, workspace_id, goal_id)
     service.expect(item, body.expected_revision)
     return run(db, item, principal.user.id, body, adapter)
@@ -189,12 +211,21 @@ def interpret(
 
 @router.get("/{goal_id}/progress", response_model=GoalSalesProgressV1)
 def progress(
-    workspace_id: int, goal_id: str, principal: Principal, provider: Provider,
-    db: Database, response: Response,
+    workspace_id: int,
+    goal_id: str,
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    response: Response,
     expected_revision: Annotated[int, Query(ge=1)],
 ) -> GoalSalesProgressV1:
     response.headers["Cache-Control"] = "no-store"
     return read_goal_progress(
-        db, principal, provider, workspace_id, goal_id, expected_revision,
+        db,
+        principal,
+        provider,
+        workspace_id,
+        goal_id,
+        expected_revision,
         clock=lambda: datetime.now(UTC),
     )

@@ -6818,3 +6818,29 @@ optimization evidence. Design and callables:
 -21pure tests passed0.27s with durations20. Actual owned HTTP collector and bothDB
   revocation/pagination acceptance are next; no endpoint/UI or live-source claim.
   Exact proposed callables and evidence limits:docs/design/tiktok-linked-posts-catalog.md.
+
+
+### Linked TikTok Pull VIDEO catalogue — owned collector
+
+Implemented the frozen reader with actual original-session/source/Vault contexts,
+GET-only fixed endpoint, before/after-page and post-close authority checks, exact
+cursor serialization and lossless decimals. Traversal is bounded by 25 pages,
+500 rows, 2 MB/page, 8 MB total and 30 seconds; incomplete traversal returns no
+catalogue. No media URLs are fetched or retained. Only explicit contract-test
+MockTransport works; constructors reject live/nonmock before credential access.
+
+Validation (isolated `codex/inlet-tiktok-linked-posts`, base 5e418b0):
+- Actual owned SQLite/PostgreSQL suite: 14 passed, 24.37 seconds, including request
+  and close-time revocation, generation/manifest drift and foreign workspace.
+  `/tmp/tiktok-linked-posts-owned.log`; dedicated disposable database
+  `inlet_tiktok_posts_test`, isolated fixture schemas.
+- Pure parser/resource bounds: 32 passed, 1.58 seconds before two constructor
+  denial additions. Final parser/bounds plus existing linked contracts/compiler/
+  wire cohort: 59 passed (exit 0), `/tmp/tiktok-linked-posts-compat.log`.
+  Both planned cohorts retained `--durations=20` output.
+- Whole Ruff and whole app/tests mypy passed; diff check passed.
+
+No routes/UI/schema, source registration, live calls, advertising changes, remote
+writes or Full validation. Publication eligibility remains `not_assessed`, spending
+authority `none`; pagination does not imply stable snapshot/full-history coverage.
+Details: `docs/design/tiktok-linked-posts-catalog.md`.

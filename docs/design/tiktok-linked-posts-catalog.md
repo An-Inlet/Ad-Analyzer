@@ -51,7 +51,7 @@ publication qualification.
 
 ## Owned Reader Seam
 
-The next implementation is `TikTokLinkedPosts(scope, contexts, transport, clock)`
+The implemented reader is `TikTokLinkedPosts(scope, contexts, transport, clock)`
 with `.videos(identity, *, exclude_adsonly, count=20)`. It reuses actual
 OwnedTikTokContexts, original principal/session, source-generation and Vault checks.
 Only explicit MockTransport and contract_test contexts are accepted; construction
@@ -61,3 +61,25 @@ with observation expiry no later than the earliest credential expiry or five
 minutes from read start. Sessions close before IO, checks repeat after pages and
 transport close, and all exceptions return no partial catalogue. There are no
 routes, UI, native-media downloads, stored records or live factory enablement here.
+
+## Verification And Remaining Integration
+
+The actual owned-context suite passed 14 cases on SQLite and PostgreSQL, including
+TT_USER/BC pagination, exact large cursor/decimal decoding, foreign scope rejection,
+original-session revocation during HTTP and transport closure, generation changes
+and manifest drift. HTTP callbacks perform real independent database mutations;
+the context closes its private sessions before each mocked provider request.
+
+The 59-case parser/bounds/linked-contract/compiler/wire cohort passed. Limits cover
+page/aggregate bytes, page count, duplicate posts/JSON, cycles, redirects, nonfinite
+numbers, monotonic timeout and expiry. Constructor tests reject live environments
+and nonmock transports before credential access. Existing linked compiler tests
+continue to preserve original custom-identity hashes. No production endpoint or
+advertising account was called. The collector owns/closes the supplied transport;
+the caller owns/closes the borrowed OwnedTikTokContexts.
+
+This is an injectable read collector, not customer discovery wiring or Pull
+publication approval. Returned post visibility and request-bound identity do not
+prove advertising rights. Provider publication/financial admission and a customer
+consumer remain separate packages. A bounded completed traversal is not a
+point-in-time snapshot, and a capped unfinished traversal returns no catalogue.

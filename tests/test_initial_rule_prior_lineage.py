@@ -47,8 +47,9 @@ def test_actual_creation_history_does_not_consume_budget_history_bound(
     from app.publication import coordinator
     from app.publication.execution_models import ProviderExecutionRun, ProviderExposureReservation
 
+    from tests.test_commerce_measurement import NOW
     from tests.test_initial_rule_candidates import fixture
-    from tests.test_social_coordinator_journeys import NOW, SocialServer, ready
+    from tests.test_social_coordinator_journeys import SocialServer, ready
 
     server = SocialServer("meta_ads")
     with Session(customer_engine) as db:

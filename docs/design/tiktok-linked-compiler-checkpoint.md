@@ -38,3 +38,22 @@ future-creation fixtures and the configured path use linked Push. Historical v1
 readback/reconciliation and existing-campaign optimization must remain supported.
 The official Pull catalog schema is now available; actual catalog implementation
 is still pending, not blocked by a missing response contract.
+
+## Linked HTTP Follow-up
+
+`app.executors.tiktok_linked_publication.LinkedPushTikTokTransport(media,
+transport=MockTransport(...))` now accepts the independent bound request directly;
+it never casts into social v1. It implements local validation, one mutation call,
+exact readback, and read-only reconciliation using existing typed response and
+receipt envelopes. All creative fields are nested in `creatives`; Push permits no
+post ID before review. Real HTTP transports reject before I/O. Duplicate JSON
+keys, nonfinite/deep JSON and unsuccessful responses become sanitized uncertainty;
+no mutation replay or name search is used. Original context expiry and owned scope
+are checked before each operation.
+
+Validation: 36 combined compiler/wire/HTTP tests passed before an additional
+real-transport rejection test; final HTTP file 12 passed. Whole Ruff, scoped mypy
+(two transport/test modules), and diff checks passed. These are mocked protocol
+checks, not provider qualification or a completed configured customer journey.
+Coordinator dispatch, live gates, owned capability revalidation, separate
+activation and configured API/TLS remain outstanding.

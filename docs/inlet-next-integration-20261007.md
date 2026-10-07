@@ -427,3 +427,37 @@ capabilities. This resolves the exact-field research blocker. Implementation rem
 offline and separately tested; the prior CUSTOMIZED_USER mock journey is historical
 contract evidence, not proof of current native new-ad eligibility. No live account
 access, publication, source qualification or spending authority follows from research.
+
+
+## Original Google Allocation Observation And Startup Fixture Repair
+
+Reviewed source2655940 integrated at7f10a42 adds an explicit owned CSRF-protected
+POST for a saved Google total-budget creation run. It joins actual original
+creation captures/receipts, reviewed native amount, separate retained reservation
+and current owned native inventory. Both original lineage and customer/source
+authority are rechecked after transport closure. Native matching is explicitly
+nonfinancial: no upper bound, settlement, portfolio coverage or spending authority.
+
+Root combined actual envelope API/contracts and existing multi-platform native
+diagnostic/account API cohort: **171passed183.28s**, zero skips, both databases.
+Whole Ruff/mypy863/diff passed. Source author's overlapping impacted cohort74passed
+91.45s. Exact logs and terminal metadata are checksummed in the executor evidence
+directory. Separate customer UI work uses the frozen interface; this backend
+package is not a new Full or live qualification.
+
+Frozen2476 Full reported a third failure at collected node2913: the managed
+startup positive test's expected check-name set omitted the existing
+planning_reporting_profile validation. Root reproduced1failed0.42s and corrected
+only that expectation at749b85b. Startup/deployment/planning-profile cohort
+**35passed1.90s**, Ruff/mypy/diff passed. Production startup guards are unchanged.
+The earlier two historical0074 fixture failures retain their separate93e5275
+repair. The frozen Full checkout remains unchanged and must finish before the
+combined repair preflight and next immutable candidate.
+
+Validation timing evidence now includes --durations=20 in new focused cohorts and
+a passive30-second Full process/progress/cgroup sampler. No Full flags or coverage
+were changed. Initial samples show four CPU quota cores, rising pytest RSS, large
+file cache/reclaimable slab and later memory-limit reclamation events without OOM.
+These are observations, not a concluded bottleneck. Full quiet progress permits
+approximate group windows only; it cannot retrospectively provide precise per-test
+durations. Further heavy cohorts are sequenced to avoid unnecessary contention.

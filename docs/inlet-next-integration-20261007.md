@@ -530,3 +530,25 @@ behavior/migration checks. Repairs93e5275/749b85b therefore pass the combined
 preflight alongside integrated0082. No new Full or hosted run was started. The
 next immutable candidate must include only reviewed passing packages, and record
 duration/JUnit instrumentation before launch without truncating coverage.
+
+## Shopify Customer Acquisition — Integrated And Independently Checked
+
+Source70780aa/13e6d09 integrated as1ec7757/4101773. The Measurement History page
+now exposes explicit completed-local-day read requests, bounded recovery for the
+original customer session, manual refresh/cancel, and a v2 publication reference
+with unresolved-correction/unqualified-maturity limits. Existing v1 measurement
+rendering remains separate. Source/runtime absence does not hide authorized
+operational recovery; it does not grant source readiness or replay authority.
+
+Independent source review checked owner/goal/store/original-session bindings,
+20+probe bound, final authorization and async UI selection/cookie fencing. Root
+ran new recovery contract/API/actual customer HTTPS suites on SQLite/PostgreSQL:
+**9 passed16.40s**, zero skips. Real API→dedicated worker→publication uses provider
+MockHTTP fixtures, not seeded acquisitions/publications or runtime getter overrides.
+Ruff, repository-prescribed mypy (**886 source files**) and diff checks passed.
+An exploratory `mypy .` command found duplicate script module names; required
+no-argument `mypy` passed without modifying configuration. Author evidence42pass
+and4post-fence browser checks is overlapping, not extra independent Full coverage.
+
+Logs and terminal evidence are checksummed. This package remains outside failed
+frozen2476 Full; no new Full, hosted retry, live calls or deployment occurred.

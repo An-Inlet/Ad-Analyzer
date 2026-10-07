@@ -19,9 +19,10 @@ from app.initial_planning.contracts import (
     CohortV1,
     EfficiencyObjectiveV1,
     InitialPreviewV1,
-    PreviewIntentV1,
 )
 from app.initial_planning.models import PreviewRow
+from app.initial_planning.preview_binding import bind_preview_row, preview_mandate_reference
+from app.initial_planning.preview_v2 import InitialPreviewV2
 from app.meta.security import utc
 from app.publication import customer_intents, execution_mandates
 from app.publication.contracts import fingerprint
@@ -677,10 +678,20 @@ def validate_preview_dependencies(
         or utc(baseline.expires_at) < value.expires_at
     ):
         raise HTTPException(409, "reported_feedback_preview_changed_or_expired")
-    base_document = InitialPreviewV1.model_validate(baseline.document)
+    try:
+        base_document = bind_preview_row(
+            {column.name: getattr(baseline, column.name) for column in baseline.__table__.columns}
+        )
+    except ValueError as exc:
+        raise HTTPException(409, "reported_feedback_baseline_changed") from exc
+    require_native_quantum(base_document, value.proposed_budget_micros)
     if (
         base_document.digest() != baseline.document_digest
         or base_document.id != baseline.id
+        or (
+            isinstance(base_document, InitialPreviewV2)
+            and base_document.environment != value.environment
+        )
         or base_document.objective != comparison.objective
         or base_document.after_budget_micros != value.baseline_budget_micros
         or base_document.recommendation_status != "proposed"
@@ -693,6 +704,16 @@ def validate_preview_dependencies(
     ):
         raise HTTPException(409, "reported_feedback_baseline_changed")
     return value
+
+
+def require_native_quantum(
+    baseline: InitialPreviewV1 | InitialPreviewV2, proposed_micros: int
+) -> None:
+    """V2 observed currency precision is a display constraint, never spending authority."""
+    if isinstance(baseline, InitialPreviewV2):
+        native = baseline.native_observation
+        if native is None or proposed_micros % 10 ** (6 - native.currency_exponent):
+            raise HTTPException(409, "reported_feedback_native_amount_unrepresentable")
 
 
 def apply_feedback_preview(
@@ -731,7 +752,8 @@ def apply_feedback_preview(
     baseline_row = db.get(PreviewRow, baseline.id)
     assert baseline_row is not None
     if (
-        baseline.objective != comparison.objective
+        (isinstance(baseline, InitialPreviewV2) and baseline.environment != policy.environment)
+        or baseline.objective != comparison.objective
         or baseline.after_budget_micros is None
         or baseline.created_at
         < max(ref.acquired_at for ref in (*comparison.before.capsules, *comparison.after.capsules))
@@ -746,13 +768,20 @@ def apply_feedback_preview(
     proposed = baseline.after_budget_micros + delta
     if proposed <= 0:
         raise HTTPException(409, "reported_feedback_proposed_budget_nonpositive")
+    require_native_quantum(baseline, proposed)
     # Displayed nominal amount stays inside the separately consented plan too;
     # this calculation creates no reservation, authority, or execution intent.
-    baseline_intent = PreviewIntentV1.model_validate(baseline_row.intent)
-    if baseline_intent.mandate_id is None or baseline_intent.mandate_revision is None:
+    reference = preview_mandate_reference(
+        {
+            column.name: getattr(baseline_row, column.name)
+            for column in baseline_row.__table__.columns
+        },
+        baseline,
+    )
+    if reference is None:
         raise HTTPException(409, "reported_feedback_budget_baseline_required")
     binding = customer_intents.binding(
-        db, workspace_id, baseline_intent.mandate_id, baseline_intent.mandate_revision
+        db, workspace_id, *reference
     )
     _, mandate = execution_mandates.checked(
         db, workspace_id, binding, principal.user.id, lambda: effective_now(db, runtime.initial)

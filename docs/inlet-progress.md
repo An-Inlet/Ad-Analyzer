@@ -5558,3 +5558,24 @@ Changed budget/scope/profile/settings still changes the choice. Final53 focused
 binding/version/initial API/lifecycle tests passed,1skipped,44.43s; whole Ruff and
 mypy720 passed; diff-check passed. No Full/remote/live. Actual v2 producer/runtime
 journey remains next; scheduler owns feedback consumer changes after this freeze.
+
+## Version-aware reported baseline consumer — local checkpoint
+
+Based on frozen 0078 c9b019c and actual merge of producer ports 42c20ba.
+The feedback consumer now uses the strict versioned row binder and persisted
+mandate reference, preserves the final owned reader recheck, and rejects v2
+cross-environment or nonrepresentable currency amounts in both application and
+as-of dependency validation. Existing v1 bytes, revision pointers, authority and
+privacy behavior remain unchanged. No initial-planning producer/export files
+were modified by this consumer package.
+
+Pure version/quantum tests and existing genuine v1 baseline guards are validation
+of the consumer boundary only. Actual v2 producer → owned GET → adjusted-preview
+acceptance remains pending the producer fixture; no hand-built document test is
+claimed as that journey. Runtime defaults and financial gates remain unchanged.
+No remote action, Full suite or live provider call was made.
+
+Checkpoint checks: `pytest -ra tests/test_reported_feedback_versions.py
+ tests/test_initial_preview_binding.py tests/test_reported_feedback_preview_guards.py`
+passed **20 tests** on SQLite/PostgreSQL (`/tmp/inlet-feedback-v2-final.log`).
+Whole Ruff and mypy **723 files** passed; `git diff --check` passed.

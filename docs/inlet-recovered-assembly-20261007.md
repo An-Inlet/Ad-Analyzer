@@ -68,3 +68,30 @@ After repair: both original session-authority export tests plus explicit
 provenance classification **3 passed in10.28s**, zero skips
 (`recovered-session-export-after.log`). Full affected cohort must rerun after its
 first terminal report; this narrow success does not qualify the whole assembly.
+
+First combined affected cohort on7bb02e9 completed18:25:07UTC, exit1:
+**313 passed,4 skipped,4 failed,10 warnings in890.50s** (launcher912.97s).
+All four failures were the same exact WORK_FAMILIES classification problem:
+both databases for `test_registry_export_keeps_authority_lineage_without_session_secret`
+and `test_strict_export_and_foreign_read`. No other failed assertion was observed.
+The reviewed correction51e55e0 is integrated as782bf39. Independent follow-up
+review closed with no P1/P2 findings, retaining ownership/erasure/export policies.
+Two skips were PostgreSQL-only concurrency checks on SQLite. Two native restore
+checks lacked the launcher container setting; the second combined invocation
+sets `INLET_RESTORE_POSTGRES_CONTAINER=inlet-b01-postgres` to execute them.
+
+Fresh-customer acceptance608c96f and assertion follow-up696e85c are integrated.
+Independent review closed, no P1/P2 findings. Actual twoDB journey2 passed19.54s;
+strengthened final assertions2 passed16.94s. Customer goal is exactly12000000000
+micros after editing. Status GET preserves one checkout POST; explicit customer
+Resume makes exactly one additional POST with the same original idempotency key.
+This is deliberate idempotent Resume, not automatic retry or a replacement
+purchase. A temporary overstrong one-total-POST assertion failed and was corrected
+without changing billing behavior. Planning consent remains distinct from financial
+execution authority; see `inlet-continuous-purchase-acceptance.md`.
+
+18:13 disconnect notification was investigated at18:13:51UTC: tool/Git/filesystem
+access and the original active cohort processes were healthy and its log advancing.
+No local execution interruption or GitHub quota evidence was observed. Old worktree
+changes were left intact; inventory and hashed backups of seven untracked review
+or reproduction tests plus a tracked historical diff are in evidence20261007.

@@ -5495,3 +5495,22 @@ v2 can be served. Scheduler coordinates its immutable0078 baseline accessor.
 
 Validation:23 new-version/native/legacy contract tests passed0.59s; whole-tree Ruff
 passed; mypy718 passed; diff-check passed. No migration, Full, remote or live calls.
+
+### Versioned Baseline Consumer Ports — 2026-10-07
+
+Isolated successor from9a75119. PreviewIntentV2 persists server-resolved objective,
+calibration/observation/profile/environment/goal commitment, opaque native option ID
+and exact optional mandate ID/revision. It never fabricates TargetChoice. Pure
+bind_preview_row and preview_mandate_reference enforce typed intent/document/scalar
+bindings; owned read_preview returns the strict v1/v2 union and preserves current
+session/source/goal/calibration/expiry/mandate checks. V2 requires the exact installed
+profile and nullable qualified native_state_digest staysNULL. Initial export uses
+strict version dispatch and the same row binder. Qualified review bridge explicitly
+rejects v2 before reading v1 native state. No v2 producer/route is enabled yet.
+
+Unchanged native configuration now has a stable opaque choice ID across acquisition
+timestamps; full observation digest still commits those timestamps and expiry.
+Changed budget/scope/profile/settings still changes the choice. Final53 focused
+binding/version/initial API/lifecycle tests passed,1skipped,44.43s; whole Ruff and
+mypy720 passed; diff-check passed. No Full/remote/live. Actual v2 producer/runtime
+journey remains next; scheduler owns feedback consumer changes after this freeze.

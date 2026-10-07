@@ -166,7 +166,7 @@ class NativeBudgetOptionV1(Frozen):
         return self
 
     def identifier(self) -> str:
-        return fingerprint("inlet.native-budget-option.v1", self.model_dump(mode="json"))
+        return native_budget_choice_digest(self.observation)
 
 
 class NativeBudgetCatalogV1(Frozen):
@@ -190,3 +190,18 @@ class NativeBudgetCatalogV1(Frozen):
 
 class NativeBudgetReader(Protocol):
     def read(self, request: NativeBudgetRequestV1, now: datetime) -> NativeBudgetCatalogV1: ...
+
+
+def native_budget_choice_digest(observation: NativeBudgetObservationV1) -> str:
+    """Stable unchanged configuration choice; full observation still commits its age."""
+    return fingerprint(
+        "inlet.native-budget-choice.v1",
+        observation.model_dump(
+            mode="json",
+            exclude={
+                "observation_started_at",
+                "observed_at",
+                "expires_at",
+            },
+        ),
+    )

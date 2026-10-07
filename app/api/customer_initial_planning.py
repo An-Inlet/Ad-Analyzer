@@ -30,6 +30,7 @@ from app.initial_planning.contracts import (
     ObservationV1,
     PreviewIntentV1,
 )
+from app.initial_planning.preview_v2 import InitialPreview, InitialPreviewV2
 from app.initial_planning.review_contracts import (
     InitialPreviewReviewIntent,
     InitialPreviewReviewPrepared,
@@ -327,7 +328,7 @@ def prepare(
     return preview.prepare_preview(principal, provider, intent, runtime)
 
 
-@router.get("/previews/{preview_id}", response_model=InitialPreviewV1)
+@router.get("/previews/{preview_id}", response_model=InitialPreview)
 def read_preview(
     workspace_id: int,
     preview_id: str,
@@ -336,7 +337,7 @@ def read_preview(
     db: Database,
     runtime: Runtime,
     response: Response,
-) -> InitialPreviewV1:
+) -> InitialPreviewV1 | InitialPreviewV2:
     response.headers["Cache-Control"] = "no-store"
     return preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
 
@@ -355,7 +356,9 @@ def review_status(
     document = preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
     configured = review_configured(runtime, optimization_runtime)
     exact = (
-        document.recommendation_status == "proposed" and document.native_state_digest is not None
+        isinstance(document, InitialPreviewV1)
+        and document.recommendation_status == "proposed"
+        and document.native_state_digest is not None
     )
     response.headers["Cache-Control"] = "no-store"
     return PreviewReviewStatus(

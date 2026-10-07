@@ -89,3 +89,25 @@ InitialPreview = Annotated[
 def parse_initial_preview(document: object) -> InitialPreviewV1 | InitialPreviewV2:
     """Pure strict version dispatch, never an ownership or financial authorization."""
     return TypeAdapter(InitialPreview).validate_python(document)
+
+
+class PreviewIntentV2(Frozen):
+    """Server-resolved persisted intent, never accepted as browser proof JSON."""
+
+    schema_version: Literal["inlet.initial-preview-intent.v2"] = "inlet.initial-preview-intent.v2"
+    objective: EfficiencyObjectiveV1
+    calibration_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    observation_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    environment: Literal["contract_test", "live"]
+    profile_digest: Digest
+    goal_digest: Digest
+    native_option_id: Digest | None = None
+    mandate_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    mandate_revision: int | None = Field(default=None, strict=True, gt=0)
+
+    @model_validator(mode="after")
+    def exact_selection(self) -> "PreviewIntentV2":
+        fields = (self.native_option_id, self.mandate_id, self.mandate_revision)
+        if any(v is not None for v in fields) and any(v is None for v in fields):
+            raise ValueError("exact native selection and mandate reference required")
+        return self

@@ -6909,7 +6909,7 @@ spent-ledger denial, two simultaneous independent PostgreSQL workers, actual0085
 populated downgrade refusal, and ordinary configured maintenance dispatch. No
 production changes; no seeded execution/admission/approval. Complete narrow run
 9passed1expectedSQLiteconcurrencyskip149.94s. Positivefixture explicitlyuses120s
-native/preview lifetime beforeproduction, leaving ordinary30sdefault unchanged.
+native/preview lifetime beforeproduction, leaving the ordinary contract-test30sTTL unchanged; no productionTTL selected.
 WholeRuff/mypy934passed. Detailedfixtureboundaries/evidence and complementary
 unknown-provider authorcoverage: `inlet-initial-concurrency-acceptance.md`.
 Initial acceptance strengthened consumed-origin assertion: affected3positivecases

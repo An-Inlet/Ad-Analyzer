@@ -31,8 +31,8 @@ execution attempt is seeded.
   supplies the same fake identity provider to the direct worker identity boundary.
 
 The positive fixture explicitly chooses120second native/preview lifetimes before
-producing evidence, matching the existing positive Start test. Ordinary30second
-production defaults are unchanged and have separate expiry evidence. Worker cadence
+producing evidence, matching the existing positive Start test. The ordinary contract-test profile
+uses30seconds; no production lifetime is selected or changed and have separate expiry evidence. Worker cadence
 and lifetime are test policies, not registered launch defaults.
 
 ## Complementary Author Coverage

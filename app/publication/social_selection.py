@@ -108,7 +108,8 @@ def resolve_selection(
             runtime.clock,
             authorize,
         )
-    except ValueError:
+    except (ValueError, OSError):
+        # Missing/unreadable exact private media is unavailable, never a new binding.
         raise HTTPException(409, "supported_exact_configuration_required") from None
 
     return document, artifact, catalog

@@ -5826,3 +5826,41 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   files) and diff check pass. No migration, Full, remote action, live calls,
   production registration or API/TLS qualification. Runtime implementation waits
   for review of these frozen interfaces.
+
+### TikTok owned configured runtime and ordinary API journeys (2026-10-07)
+
+- Isolated successor of `305ce1a96005d23c6e5fb316eac84db0bf2c477f` adds lazy
+  configured TikTok composition, private owned source-vault/media readers, pinned
+  settings and ordinary customer API assembly. Original session, exact account
+  generation, manifest, paid-work and explicit credential expiry are rechecked.
+  Missing, expired or timezone-naive credential expiry denies; no TTL is inferred.
+- Actual fixture starts with zero execution reviews, attempts, reservations and
+  receipts. Ordinary APIs exercise named decoded test catalog, real video/cover
+  validation and confirmation, separate mandate consent, exact creation approval,
+  paused graph, separate activation approval, actual HTTP adapter readback and
+  original-attempt reconciliation through injected MockTransport. No runtime getter
+  is overridden. Google/Meta composition and existing serialized contracts remain
+  compatible. Fixture and callable details: [runtime record](inlet-tiktok-configured-runtime.md).
+- Live source admission remains denied; default evidence registry stays empty.
+  Decoded catalog is explicitly contract-test data, not native catalog HTTP.
+  Native catalog decoding and genuine financial qualification are still missing.
+  No live execution, schema change, migration, Full or remote action occurred.
+- Adverse evidence: first fixture run failed because its cover binding used the
+  wrong mock-server key; the actual request remained unknown with its hold intact
+  (`/tmp/inlet-tiktok-configured-api.log`). Corrected fixture: six passed. Later
+  removal of the exact private cover reproduced uncaught FileNotFoundError on
+  both databases (two failed, six passed in
+  `/tmp/inlet-tiktok-extra-boundaries.log`). Approved narrow repair normalizes
+  OSError at the existing selection boundary to sanitized 409, with no existence
+  fallback, activation or reservation release. Both repaired cases pass.
+- Final focused TikTok API/contracts: **50 passed** in 357.67 seconds
+  (`/tmp/inlet-tiktok-configured-final.log`). Additional paid-work denial:
+  **2 passed** (`/tmp/inlet-tiktok-billing-denial.log`). Strengthened original
+  attempt reconciliation and unknown-expiry checks: **6 passed** in 110.30 seconds
+  (`/tmp/inlet-tiktok-original-reconcile.log`); no replay and original holds remain.
+- Google/Meta ordinary API and actual TLS compatibility: **54 passed** in 232.12
+  seconds, including six Google and fourteen Meta browser cases
+  (`/tmp/inlet-tiktok-provider-compatibility.log`). Whole Ruff and mypy over app
+  and tests (**762 source files**) pass; diff check passes. These are mocked
+  provider/offline results, not live qualification. Next package: actual TikTok
+  TLS customer journey using the frozen ordinary configured fixture.

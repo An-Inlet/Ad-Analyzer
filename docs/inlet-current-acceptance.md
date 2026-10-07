@@ -1,5 +1,10 @@
 # Inlet Current Acceptance Matrix
 
+> Historical October6 snapshot. The [October7 acceptance checkpoint](inlet-acceptance-20261007.md)
+> supersedes the current-status claims below, including local Full results and
+> configured runtime availability. Original criteria and historical evidence remain
+> preserved here; newer integration does not inherit older validation results.
+
 **Review snapshot: 2026-10-06 12:56 UTC.** Assembled code head
 `1e337f9eff86353d068e46e2b9ed91c9a2bdec95`, tree
 `861f1b557d0c3610865694e31f747269baefb31a`, migration `0076`.

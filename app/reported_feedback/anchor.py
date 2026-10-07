@@ -18,8 +18,10 @@ from app.publication.execution_mandates import current_account
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
     ProviderExecutionReceipt,
+    ProviderExecutionResponse,
     ProviderExecutionReview,
     ProviderExecutionRun,
+    ProviderExecutionStep,
     ProviderExposureReservation,
     ProviderPeriodLedger,
 )
@@ -32,6 +34,7 @@ from app.publication.optimization_contracts import (
 from app.publication.replacement_contracts import parse_review
 from app.publication.replacement_lineage import ancestors
 from app.reported_feedback.contracts import ConfigurationObservationAnchorV1
+from app.reported_feedback.forward_context import ReportedForwardContext, owned_successor
 
 
 def unavailable(reason: str) -> HTTPException:
@@ -39,7 +42,13 @@ def unavailable(reason: str) -> HTTPException:
 
 
 def resolve_anchor(
-    db: Session, wid: int, attempt_id: str, actor: str, now: datetime
+    db: Session,
+    wid: int,
+    attempt_id: str,
+    actor: str,
+    now: datetime,
+    *,
+    forward_context: ReportedForwardContext | None = None,
 ) -> ConfigurationObservationAnchorV1:
     lock_workspace(db, wid, active=True)
     receipt = read_owned_outcome_receipt(db, wid, attempt_id, actor)
@@ -115,8 +124,13 @@ def resolve_anchor(
             .limit(2)
         )
     )
-    if len(held) != 1 or run.reservation_id != held[0].id:
+    own_successor_id = None
+    if len(held) != 1:
         raise unavailable("reported_feedback_current_original_head_required")
+    if run.reservation_id != held[0].id:
+        if forward_context is None or forward_context.actor_id != actor:
+            raise unavailable("reported_feedback_current_original_head_required")
+        own_successor_id = owned_successor(db, wid, attempt_id, run, held[0], forward_context)
     ledger = db.get(
         ProviderPeriodLedger, held[0].ledger_id, with_for_update=True, populate_existing=True
     )
@@ -167,7 +181,44 @@ def resolve_anchor(
         if intervening.intent.scope != receipt.account:
             raise unavailable("reported_feedback_later_action_scope_changed")
         if intervening.intent.target.campaign_id == plan.intent.target.campaign_id:
-            raise unavailable("reported_feedback_later_campaign_intervention")
+            if candidate.run_id != own_successor_id:
+                raise unavailable("reported_feedback_later_campaign_intervention")
+            step = db.get(
+                ProviderExecutionStep, (candidate.run_id, candidate.step_id), populate_existing=True
+            )
+            successor = db.get(ProviderExecutionRun, candidate.run_id, populate_existing=True)
+            successor_review = (
+                db.get(ProviderExecutionReview, successor.review_id, populate_existing=True)
+                if successor
+                else None
+            )
+            if successor_review is None or step is None:
+                raise unavailable("reported_rule_successor_claim_unavailable")
+            next_plan = parse_review(successor_review.document).plan
+            if (
+                step.workspace_id != wid
+                or step.state != "dispatching"
+                or intervening.action_id != candidate.run_id
+                or intervening.attempt_id != candidate.id
+                or intervening.fence != candidate.fence
+                or next_plan.request(
+                    candidate.run_id, candidate.id, candidate.fence, intervening.dispatched_at
+                )
+                != intervening
+                or db.scalar(
+                    select(ProviderExecutionResponse.attempt_id)
+                    .where(ProviderExecutionResponse.attempt_id == candidate.id)
+                    .limit(1)
+                )
+                is not None
+                or db.scalar(
+                    select(ProviderExecutionReceipt.id)
+                    .where(ProviderExecutionReceipt.attempt_id == candidate.id)
+                    .limit(1)
+                )
+                is not None
+            ):
+                raise unavailable("reported_rule_successor_already_emitted")
     source = source_current(db, wid, receipt.account.account.account_id)
     if source.conversion_action_type not in PURCHASE_ACTIONS:
         raise unavailable("reported_feedback_selected_purchase_event_required")
@@ -200,6 +251,7 @@ def resolve_anchor(
         raise unavailable("reported_feedback_exact_budget_change_required")
     from app.publication.contracts import fingerprint
 
+    assert run.reservation_id is not None
     return ConfigurationObservationAnchorV1(
         environment=receipt.environment,
         cohort=CohortV1(
@@ -219,7 +271,7 @@ def resolve_anchor(
         original_attempt_id=attempt_id,
         original_request_digest=receipt.request_digest,
         original_plan_digest=receipt.plan_digest,
-        reservation_id=held[0].id,
+        reservation_id=run.reservation_id,
         ledger_id=ledger.id,
         latest_receipt_id=receipt.receipt_id,
         latest_receipt_digest=receipt.receipt_digest,

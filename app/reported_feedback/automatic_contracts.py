@@ -4,11 +4,17 @@ from typing import Literal
 
 from pydantic import Field
 
+from app.initial_planning.contracts import Frozen
 from app.optimization_candidates.selection_contracts import CandidatePolicyRef
 from app.publication.execution_contracts import ProviderMandateBinding
 from app.publication.provider_contracts import Digest, Id
 from app.reported_feedback.candidate_contracts import Committed
-from app.session_automation.contracts import AutomaticPolicyRef
+from app.session_automation.contracts import (
+    AutomaticMandateOption,
+    AutomaticPolicyOption,
+    AutomaticPolicyRef,
+    AutomationReason,
+)
 
 # Protocol identities, independent of deployment, policy revision or numeric calibration.
 REPORTED_RULE_FAMILY = "7e6f69dfd2fa43fd8c72a9757e35541f"
@@ -79,3 +85,16 @@ class ReportedRuleAutomaticPolicyOptionV1(Committed):
     financial_qualification: Literal["checked_separately_before_each_change"] = (
         "checked_separately_before_each_change"
     )
+
+
+# Same outer wire shape as legacy capabilities; only the explicit policy option
+# union is additive. Legacy persisted policy/Start documents are untouched.
+class SessionAutomationCapabilitiesWithReportedRules(Frozen):
+    available: bool
+    reason: AutomationReason
+    policies: list[AutomaticPolicyOption | ReportedRuleAutomaticPolicyOptionV1] = Field(
+        max_length=20
+    )
+    mandates: list[AutomaticMandateOption] = Field(max_length=20)
+    session_bound: Literal[True] = True
+    message: str = Field(min_length=1, max_length=300)

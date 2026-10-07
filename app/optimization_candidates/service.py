@@ -221,6 +221,8 @@ def current(
     work: CandidateWorkDocument,
     principal: CustomerPrincipal,
     runtime: CandidateRuntime,
+    *,
+    forward_review_id: str | None = None,
 ) -> tuple[ProviderMandatePolicy, int, int]:
     wid, scope = work.scope.account.workspace_id, work.scope
     authorize(db, principal, wid, runtime)
@@ -253,7 +255,7 @@ def current(
     if isinstance(work, ReportedRuleWorkV1):
         from app.reported_feedback.candidate_source import current_comparison
 
-        current_comparison(db, principal, work, runtime.clock)
+        current_comparison(db, principal, work, runtime.clock, forward_review_id=forward_review_id)
     if registered != work.policy:
         raise HTTPException(409, "candidate policy unavailable")
     source_current(db, scope, principal.user.id)
@@ -654,6 +656,7 @@ def read_result(
     runtime: CandidateRuntime,
     *,
     erase_invalid: bool = True,
+    forward_review_id: str | None = None,
 ) -> CandidateDecisionDocument:
     authorize(db, principal, wid, runtime)
     result = db.scalar(
@@ -666,7 +669,7 @@ def read_result(
     job = load(db, wid, result.job_id)
     work = owned_work(job)
     try:
-        current(db, work, principal, runtime)
+        current(db, work, principal, runtime, forward_review_id=forward_review_id)
     except HTTPException:
         if not erase_invalid:
             raise HTTPException(409, "candidate source invalidated") from None
@@ -693,7 +696,15 @@ def read_result(
         if not isinstance(decision, ReportedRuleCandidateV1):
             raise HTTPException(409, "reported candidate document mismatch")
         require_dependency(db, job.id, work)
-        assert_reported_rule_current(db, principal, runtime.identity, work, decision, runtime.clock)
+        assert_reported_rule_current(
+            db,
+            principal,
+            runtime.identity,
+            work,
+            decision,
+            runtime.clock,
+            forward_review_id=forward_review_id,
+        )
     elif not isinstance(decision, CandidateDecision):
         raise HTTPException(409, "candidate document mismatch")
     if decision.expires_at <= runtime.clock():

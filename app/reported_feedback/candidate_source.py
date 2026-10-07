@@ -23,6 +23,7 @@ from app.reported_feedback.candidate_contracts import (
 )
 from app.reported_feedback.contracts import OperationalReportedComparisonV1
 from app.reported_feedback.evaluator import bounded_delta
+from app.reported_feedback.forward_context import ReportedForwardContext
 from app.reported_feedback.models import ReportedActionComparison, ReportedFeedbackJob
 from app.reported_feedback.service import validate_comparison_dependencies
 
@@ -167,6 +168,8 @@ def assert_reported_rule_current(
     work: ReportedRuleWorkV1,
     decision: ReportedRuleCandidateV1,
     clock: Callable[[], datetime],
+    *,
+    forward_review_id: str | None = None,
 ) -> None:
     """Final original evidence check; never refresh a result's persisted lifetime."""
     wid = work.scope.account.workspace_id
@@ -178,7 +181,16 @@ def assert_reported_rule_current(
     if row is None or job is None or row.workspace_id != wid:
         raise unavailable()
     now = clock()
-    value = validate_comparison_dependencies(db, row, now)
+    value = validate_comparison_dependencies(
+        db,
+        row,
+        now,
+        forward_context=ReportedForwardContext(
+            forward_review_id, principal.user.id, principal.session.digest
+        )
+        if forward_review_id
+        else None,
+    )
     if (
         job.original_actor_id != principal.user.id
         or job.original_session_digest != principal.session.digest
@@ -207,6 +219,8 @@ def current_comparison(
     principal: CustomerPrincipal,
     work: ReportedRuleWorkV1,
     clock: Callable[[], datetime],
+    *,
+    forward_review_id: str | None = None,
 ) -> tuple[ReportedActionComparison, OperationalReportedComparisonV1]:
     """Caller owns original workspace/session fences before local lineage locks."""
     row = db.get(ReportedActionComparison, work.comparison_id, populate_existing=True)
@@ -222,7 +236,16 @@ def current_comparison(
         or job.original_session_digest != principal.session.digest
     ):
         raise unavailable()
-    value = validate_comparison_dependencies(db, row, clock())
+    value = validate_comparison_dependencies(
+        db,
+        row,
+        clock(),
+        forward_context=ReportedForwardContext(
+            forward_review_id, principal.user.id, principal.session.digest
+        )
+        if forward_review_id
+        else None,
+    )
     if (
         value.status != "operational_reported_as_of"
         or value.policy_digest != work.policy.comparison_policy_digest

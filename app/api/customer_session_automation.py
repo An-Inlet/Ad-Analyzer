@@ -7,15 +7,23 @@ from sqlalchemy import select
 
 from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
+from app.optimization_candidates.service import registered_policy
 from app.publication import customer_intents, execution_mandates
 from app.publication.execution_models import ProviderExecutionMandate
 from app.publication.service import owner
+from app.reported_feedback.automatic_contracts import (
+    ReportedRuleAutomaticPolicyOptionV1,
+    ReportedRuleAutomaticPolicyV1,
+    SessionAutomationCapabilitiesWithReportedRules,
+    StartReportedRuleAutomationV1,
+)
+from app.reported_feedback.candidate_contracts import ReportedRulePolicyV1
+from app.reported_feedback.customer_contracts import rule_parameters
 from app.session_automation import service
 from app.session_automation.contracts import (
     AutomaticMandateOption,
     AutomaticPolicyOption,
     AutomaticPolicyRef,
-    SessionAutomationCapabilities,
     SessionAutomationHistory,
     SessionAutomationStatus,
     StartSessionAutomation,
@@ -34,12 +42,12 @@ def read_access(db: Database, principal: Principal, wid: int, response: Response
     response.headers["Cache-Control"] = "no-store"
 
 
-@router.get("/capabilities", response_model=SessionAutomationCapabilities)
+@router.get("/capabilities", response_model=SessionAutomationCapabilitiesWithReportedRules)
 def capabilities(
     workspace_id: int, principal: Principal, db: Database, runtime: Runtime, response: Response
-) -> SessionAutomationCapabilities:
+) -> SessionAutomationCapabilitiesWithReportedRules:
     read_access(db, principal, workspace_id, response)
-    policies: list[AutomaticPolicyOption] = []
+    policies: list[AutomaticPolicyOption | ReportedRuleAutomaticPolicyOptionV1] = []
     mandates: list[AutomaticMandateOption] = []
     if runtime is not None:
         for p in runtime.policies:
@@ -53,6 +61,29 @@ def capabilities(
                     AutomaticPolicyRef(policy_id=p.policy_id, revision=p.revision),
                 )
             except HTTPException:
+                continue
+            if isinstance(p, ReportedRuleAutomaticPolicyV1):
+                numeric = registered_policy(
+                    db,
+                    workspace_id,
+                    p.candidate_policy.policy_id,
+                    p.candidate_policy.revision,
+                    runtime.selection.candidate,
+                )
+                if not isinstance(numeric, ReportedRulePolicyV1):
+                    continue
+                policies.append(
+                    ReportedRuleAutomaticPolicyOptionV1(
+                        policy=AutomaticPolicyRef(policy_id=p.policy_id, revision=p.revision),
+                        policy_digest=p.digest(),
+                        label=f"Reported-efficiency rule · {p.policy_id[:12]}",
+                        environment=p.environment,
+                        decision_basis=p.decision_basis,
+                        rule_parameters=rule_parameters(numeric),
+                        lifetime_seconds=p.lifetime_seconds,
+                        cadence_seconds=p.cadence_seconds,
+                    )
+                )
                 continue
             policies.append(
                 AutomaticPolicyOption(
@@ -110,7 +141,7 @@ def capabilities(
             except HTTPException:
                 continue
     available = bool(policies and mandates)
-    return SessionAutomationCapabilities(
+    return SessionAutomationCapabilitiesWithReportedRules(
         available=available,
         reason="ready" if available else "automation_not_available",
         policies=policies[:20],
@@ -124,7 +155,7 @@ def capabilities(
 @router.post("/start", response_model=SessionAutomationStatus)
 def start(
     workspace_id: int,
-    body: StartSessionAutomation,
+    body: StartSessionAutomation | StartReportedRuleAutomationV1,
     principal: MutationPrincipal,
     db: Database,
     runtime: Runtime,

@@ -58,6 +58,8 @@ def bound_candidate(
     actor: str,
     session_digest: str,
     runtime: CandidateReviewRuntime,
+    *,
+    forward_review_id: str | None = None,
 ) -> tuple[
     CustomerPrincipal,
     CandidateDecisionDocument,
@@ -66,7 +68,13 @@ def bound_candidate(
 ]:
     principal = original(db, actor, session_digest)
     decision = candidates.read_result(
-        db, wid, result_id, principal, runtime.candidate, erase_invalid=False
+        db,
+        wid,
+        result_id,
+        principal,
+        runtime.candidate,
+        erase_invalid=False,
+        forward_review_id=forward_review_id,
     )
     result = db.get(CandidateResult, result_id, populate_existing=True)
     if result is None or result.workspace_id != wid:
@@ -116,7 +124,13 @@ def guard_for(runtime: CandidateReviewRuntime):  # type: ignore[no-untyped-def]
         fresh = replace(runtime, clock=clock, candidate=replace(runtime.candidate, clock=clock))
         result_id = link.candidate_result_id
         principal, decision, result, work = bound_candidate(
-            db, wid, result_id, actor, link.original_session_digest, fresh
+            db,
+            wid,
+            result_id,
+            actor,
+            link.original_session_digest,
+            fresh,
+            forward_review_id=review_id,
         )
         # Workspace/session/source locks precede this FK fence. A concurrent derived
         # deletion must either retract before this check or wait for admission commit.

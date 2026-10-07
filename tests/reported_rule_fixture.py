@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -46,12 +47,30 @@ from tests.test_customer_identity import FakeProvider
 from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
 
 
-def ready_reported_rule(db: Session, config: Settings, path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+def ready_reported_rule(
+    db: Session,
+    config: Settings,
+    path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    execution_out: list[Any] | None = None,
+) -> tuple[Any, ...]:
     if db.get_bind().dialect.name == "sqlite":
         db.execute(text("PRAGMA foreign_keys=ON"))
-    wid, principal, runtime, job, _, _, clock, runner, requests, control, server = (
-        acquisition_fixture(db, config, path, monkeypatch, period_end=NOW + timedelta(days=30))
-    )
+    from tests import reported_feedback_fixture
+    from tests.test_durable_optimization import ready as actual_ready
+
+    def recorded(*args, **kwargs):  # type: ignore[no-untyped-def]
+        result = actual_ready(*args, **kwargs)
+        if execution_out is not None:
+            execution_out.append(result[6])
+        return result
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(reported_feedback_fixture, "ready", recorded)
+        wid, principal, runtime, job, _, _, clock, runner, requests, control, server = (
+            acquisition_fixture(db, config, path, monkeypatch, period_end=NOW + timedelta(days=30))
+        )
     control.update(before_conversions="2", after_conversions="4")
     for _ in range(3):
         complete(runner, wid, clock[0])

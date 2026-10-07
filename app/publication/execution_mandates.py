@@ -244,6 +244,7 @@ def revise(
     *,
     mandate_id: str | None = None,
     expected_revision: int | None = None,
+    commit: bool = True,
 ) -> ProviderExecutionMandate:
     p = ProviderMandatePolicy.model_validate(p.model_dump())
     if p.workspace_id != wid:
@@ -312,7 +313,9 @@ def revise(
             created_at=clock(),
         )
     )
-    db.commit()
+    db.flush()
+    if commit:
+        db.commit()
     return row
 
 

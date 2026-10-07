@@ -20,6 +20,7 @@ from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
 from app.crm.schemas import CrmEvent
 from app.goals.schemas import GoalDefinition
+from app.initial_planning.budget_mandate_contracts import BudgetMandatePreparationV1
 from app.initial_planning.contracts import (
     CalibrationReportV1,
     EfficiencyObjectiveV1,
@@ -113,6 +114,7 @@ JSON_FIELDS: dict[str, tuple[str, ...]] = {
     "mandate_actions": ("draft",),
     "publication_plans": ("document",),
     "provider_reviews": ("review", "plan"),
+    "initial_budget_mandate_preparations": ("document",),
     "provider_execution_revisions": ("policy",),
     "provider_execution_reviews": ("document",),
     "provider_reservation_replacements": ("document",),
@@ -189,6 +191,7 @@ TYPED: dict[tuple[str, str], type[BaseModel]] = {
     ("publication_plans", "document"): PublishPlan,
     ("provider_reviews", "review"): ProviderPublicationReview,
     ("provider_reviews", "plan"): ProviderPublishPlan,
+    ("initial_budget_mandate_preparations", "document"): BudgetMandatePreparationV1,
     ("provider_execution_revisions", "policy"): ProviderMandatePolicy,
     ("provider_exposure_reservations", "evidence"): ExposureEvidence,
     ("provider_execution_receipts", "projection"): NormalizedProviderReceipt,
@@ -433,6 +436,18 @@ def bind_document(
         }
         if any(row[key] != value for key, value in expected.items()):
             raise ValueError("assessment row ownership mismatch")
+    elif isinstance(document, BudgetMandatePreparationV1):
+        if any(
+            row[key] != value
+            for key, value in {
+                "workspace_id": document.workspace_id,
+                "mandate_id": document.mandate_id,
+                "mandate_revision": document.mandate_revision,
+                "policy_digest": document.policy_digest,
+                "digest": document.digest(),
+            }.items()
+        ):
+            raise ValueError("mandate preparation ownership mismatch")
     elif isinstance(document, GoogleCompletionDocument):
         capture = document.capture
         expected = {

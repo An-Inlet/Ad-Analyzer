@@ -1,15 +1,18 @@
 """Export real owned coordinator records through strict versioned serializers."""
 
+import json
 from pathlib import Path
 
 import pytest
 from app.customers.models import CustomerMembership
 from app.lifecycle.contracts import LifecycleInputV1, LifecycleScopeV1
+from app.lifecycle.export_serializers import serialize
 from app.lifecycle.exports import Authority
 from app.lifecycle.service import begin
 from app.publication import coordinator
+from app.publication.execution_models import GoogleOriginalCompletion
 from app.settings import Settings
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from tests.test_commerce_measurement import NOW as PROVIDER_NOW
@@ -33,6 +36,12 @@ def test_owned_execution_json_export_is_complete_and_strict(
         assert claim is not None
         receipt = coordinator.execute_claim(db, claim, actor, store, runtime, lambda: PROVIDER_NOW)
         assert receipt.outcome == "verified_effect"
+        captured = dict(db.execute(select(GoogleOriginalCompletion.__table__)).mappings().one())
+        for field in ("fence", "request_digest"):
+            _, missing = serialize(
+                "google_original_completions", {**captured, field: "different-original"}
+            )
+            assert missing == ["document"]
         principal, _ = seed(db, "exporting-owner")
         db.add(
             CustomerMembership(
@@ -57,6 +66,9 @@ def test_owned_execution_json_export_is_complete_and_strict(
         assert manifest["supported_customer_data_complete"], [
             s for s in manifest["sections"] if not s["complete"]
         ]
+        completion = json.loads(entries["data/google_original_completions.jsonl"])
+        assert "document" in completion
+        assert "fence" not in completion and "request_digest" not in completion
         for table, field in {
             "provider_execution_revisions": "policy",
             "provider_execution_reviews": "document",

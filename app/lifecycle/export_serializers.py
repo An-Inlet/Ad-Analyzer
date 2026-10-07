@@ -323,6 +323,11 @@ def fields(table: str) -> tuple[str, ...]:
     )
 
 
+def validation_fields(table: str) -> tuple[str, ...]:
+    """Internal scalar lineage needed for validation, never added to export fields."""
+    return ("fence", "request_digest") if table == "google_original_completions" else ()
+
+
 def exclusion(table: str, column: str) -> str:
     if (
         table in PRIVATE_STAGING_TABLES

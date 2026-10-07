@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.campaign_review.contracts import MAX_LIBRARY_BYTES, MAX_MEDIA_BYTES, MediaStore
 from app.database.session import Base
 from app.lifecycle.contracts import LifecycleScopeV1
-from app.lifecycle.export_serializers import exclusion, fields, serialize
+from app.lifecycle.export_serializers import exclusion, fields, serialize, validation_fields
 from app.lifecycle.inventory import predicate, verify_registry
 from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
 
@@ -101,6 +101,7 @@ def build(
                             continue
                         table = Base.metadata.tables[name]
                         selected = fields(name)
+                        validated = tuple(dict.fromkeys((*selected, *validation_fields(name))))
                         excluded = {
                             key: exclusion(name, key)
                             for key in table.c.keys()  # noqa: SIM118 — ColumnCollection iteration yields columns
@@ -118,7 +119,7 @@ def build(
                                 sum(
                                     [
                                         func.coalesce(func.length(cast(table.c[key], Text)), 0) * 4
-                                        for key in selected
+                                        for key in validated
                                     ],
                                     start=literal(0),
                                 )
@@ -128,7 +129,7 @@ def build(
                                 select(
                                     *(
                                         case((oversized, None), else_=table.c[key]).label(key)
-                                        for key in selected
+                                        for key in validated
                                     ),
                                     oversized.label("_export_oversized"),
                                 )

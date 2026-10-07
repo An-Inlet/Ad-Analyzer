@@ -47,9 +47,19 @@ def test_owned_assessment_populated_roundtrip(
         # Retain their real financial graph through downgrade before exercising
         # the historical owned-assessment migration.
         command.upgrade(config, "head")
-        with Session(engine) as db:
-            wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
-            db.commit()
+        # This fixture represents pre0066 history. Keep real execution/receipt
+        # producers but omit only the later original-capture append while seeding.
+        # Never delete protected evidence or weaken the populated downgrade guard.
+        from app.publication import google_completion, google_execution_completion
+
+        with monkeypatch.context() as historical:
+            historical.setattr(google_completion, "capture_response", lambda *a, **k: None)
+            historical.setattr(
+                google_execution_completion, "capture_execution_response", lambda *a, **k: None
+            )
+            with Session(engine) as db:
+                wid, actor, body, _, _ = evidence(db, configuration, tmp_path)
+                db.commit()
         command.downgrade(config, "20261006_0056")
         legacy_origin(engine)
         from tests.candidate_historical_schema import without_candidates

@@ -1,6 +1,6 @@
 """New handoff commitments; never rewrite native preview bytes or grant authority."""
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
@@ -8,6 +8,16 @@ from app.initial_planning.contracts import Frozen
 from app.publication.contracts import fingerprint
 from app.publication.execution_contracts import ProviderMandateBinding
 from app.publication.provider_contracts import Digest, Id
+
+if TYPE_CHECKING:
+    from app.publication.optimization_execution_contracts import OptimizationQualification
+
+
+def qualification_commitment(value: "OptimizationQualification") -> str:
+    """Commit the full retained qualification envelope, not only its evidence digest."""
+    return fingerprint(
+        "inlet.initial-preview-execution-qualification.v1", value.model_dump(mode="json")
+    )
 
 
 class FrozenMandateBinding(ProviderMandateBinding):

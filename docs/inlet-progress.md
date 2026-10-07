@@ -6372,3 +6372,17 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   No route/runtime/UI, live calls, Full or remote actions. Remaining actual bridge
   must perform original-session/current-source/policy/period/cap/consent validation
   and every forward financial gate; historical reconciliation remains untouched.
+
+### 2026-10-07 — Bind V2 Proof Inner Commitments
+
+- Followup to af14eb8: proof qualification_digest now commits the entire retained
+  OptimizationQualification using inlet.initial-preview-execution-qualification.v1,
+  not only evidence_digest. semantic_match_digest must equal the existing
+  NativeReviewMatchV1 digest recomputed from retained native preview and review state.
+  Both canonical checks run before ORM proof insertion; no new eligibility fact or
+  authority is inferred. Domains documented in the storage design.
+- BothDB storage/migration tests now reject each contradictory inner hash after
+  recomputing a valid outer proof hash.35 affected tests passed14.14s (one existing
+  Alembic config deprecation warning); whole Ruff/mypy818, format/diffcheck pass.
+  Evidence /tmp/inlet-v2-proof-commitments.log. No schema expansion, route/runtime,
+  Full, remote or live actions.

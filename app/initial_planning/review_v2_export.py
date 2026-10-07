@@ -35,7 +35,12 @@ def bind_execution_proof(
 ) -> InitialPreviewExecutionProofV1:
     """Strict preinsert commitment check, not original-session/financial authorization."""
     from app.initial_planning.preview_v2 import InitialPreviewV2, PreviewIntentV2
-    from app.initial_planning.review_v2_contracts import InitialPreviewExecutionIntentV1
+    from app.initial_planning.review_v2_contracts import (
+        InitialPreviewExecutionIntentV1,
+        qualification_commitment,
+    )
+    from app.initial_planning.review_v2_projection import native_review_match
+    from app.publication.optimization_contracts import MetaCurrentState
     from app.publication.replacement_contracts import parse_review
 
     exported = export_execution_proof(row)
@@ -43,13 +48,18 @@ def bind_execution_proof(
     value = InitialPreviewV2.model_validate(preview["document"])
     saved_intent = PreviewIntentV2.model_validate(preview["intent"])
     financial = parse_review(review["document"])
+    if value.native_observation is None or not isinstance(financial.plan.before, MetaCurrentState):
+        raise ValueError("execution proof native profile mismatch")
+    match = native_review_match(value.native_observation, financial.plan.before)
     intent = InitialPreviewExecutionIntentV1(
         expected_preview_digest=proof.preview_digest,
         mandate_id=proof.execution_mandate.mandate_id,
         mandate_revision=proof.execution_mandate.revision,
     )
     if (
-        proof.intent_digest != intent.digest()
+        proof.qualification_digest != qualification_commitment(financial.plan.qualification)
+        or proof.semantic_match_digest != match.digest()
+        or proof.intent_digest != intent.digest()
         or proof.intent_digest != link["intent_digest"]
         or proof.execution_mandate.policy_digest != link["mandate_digest"]
         or proof.execution_mandate.consent_id != review["consent_id"]

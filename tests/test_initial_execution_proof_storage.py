@@ -36,7 +36,12 @@ def stored_proof(engine: Engine, prepared: Any) -> tuple[str, dict[str, Any]]:
     """Canonical typed storage parents, not an implemented v2 authorization journey."""
     from app.initial_planning.native_budget_contracts import NativeBudgetObservationV1
     from app.initial_planning.preview_v2 import PreviewIntentV2
-    from app.initial_planning.review_v2_contracts import InitialPreviewExecutionIntentV1
+    from app.initial_planning.review_v2_contracts import (
+        InitialPreviewExecutionIntentV1,
+        qualification_commitment,
+    )
+    from app.initial_planning.review_v2_projection import native_review_match
+    from app.publication.optimization_contracts import MetaCurrentState
     from app.publication.replacement_contracts import parse_review
 
     with Session(engine) as db:
@@ -56,6 +61,7 @@ def stored_proof(engine: Engine, prepared: Any) -> tuple[str, dict[str, Any]]:
         }
         financial = parse_review(financial_raw)
         current = financial.plan.before
+        assert isinstance(current, MetaCurrentState)
         at = utc(old.created_at)
         end = min(utc(old.expires_at), at + timedelta(seconds=20))
         native = document().native_observation
@@ -171,6 +177,8 @@ def stored_proof(engine: Engine, prepared: Any) -> tuple[str, dict[str, Any]]:
             planning_mandate=planning,
             execution_mandate=execution.model_dump(),
             intent_digest=handoff.digest(),
+            qualification_digest=qualification_commitment(financial.plan.qualification),
+            semantic_match_digest=native_review_match(native, current).digest(),
         )
         typed = InitialPreviewExecutionProofV1.model_validate(value)
         row = dict(
@@ -237,6 +245,18 @@ def test_storage_owned_binding_erasure_and_populated_migration(
                 db.execute(insert(InitialPreviewExecutionProofRow).values(**bad_row))
             with pytest.raises(ValueError), db.begin_nested():
                 db.add(InitialPreviewExecutionProofRow(**bad_row))
+                db.flush()
+        for key in ("qualification_digest", "semantic_match_digest"):
+            contradicted = InitialPreviewExecutionProofV1.model_validate(
+                {**row["document"], key: "0" * 64}
+            )
+            bad = {
+                **row,
+                "document": contradicted.model_dump(mode="json"),
+                "digest": contradicted.digest(),
+            }
+            with pytest.raises(ValueError, match="commitment mismatch"), db.begin_nested():
+                db.add(InitialPreviewExecutionProofRow(**bad))
                 db.flush()
         for bad in (
             {**row, "digest": "0" * 64},

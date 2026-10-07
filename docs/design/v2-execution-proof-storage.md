@@ -45,3 +45,15 @@ parents; it deliberately does not claim a customer-created v2 authorization jour
 qualified financial evidence. The future service must still validate original session,
 current source/profile/goal, real consents, caps and period, and every forward financial
 gate. Historical receipt/reconciliation/settlement paths are untouched.
+
+## Canonical Inner Hash Domains
+
+`qualification_digest` is `fingerprint("inlet.initial-preview-execution-qualification.v1",
+financial.plan.qualification.model_dump(mode="json"))`: the entire retained typed
+qualification envelope, including scope, revision, validity times and evidence digest.
+It is not an alias for qualification.evidence_digest. `semantic_match_digest` is
+`native_review_match(preview.native_observation, financial.plan.before).digest()` in
+the existing inlet.native-review-match.v1 domain; it commits both source digests and
+the common semantic projection. The ORM binder recomputes both from retained parents
+and rejects contradictions even when the outer proof hash is validly recomputed.
+These checks establish commitment consistency, not fresh financial eligibility.

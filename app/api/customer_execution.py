@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app.api.customer_execution_runtime import get_configured_customer_execution_runtime
 from app.api.customer_optimization import Runtime as OptimizationRuntime
 from app.campaign_review.contracts import MediaStore
 from app.campaign_review.storage import get_media_store
@@ -25,7 +26,6 @@ from app.publication import customer_optimization as opt
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_runtime import (
     CustomerExecutionRuntime,
-    get_customer_execution_runtime,
 )
 from app.publication.customer_schemas import (
     ActivationIntent,
@@ -48,7 +48,9 @@ from app.publication.social_catalog import MetaConfigurationProfile
 from app.publication.social_execution_intents import refresh_social_execution
 
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/execution", tags=["customer"])
-Runtime = Annotated[CustomerExecutionRuntime | None, Depends(get_customer_execution_runtime)]
+Runtime = Annotated[
+    CustomerExecutionRuntime | None, Depends(get_configured_customer_execution_runtime)
+]
 Store = Annotated[MediaStore, Depends(get_media_store)]
 
 

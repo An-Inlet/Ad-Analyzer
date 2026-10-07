@@ -325,6 +325,10 @@ def prepare_activation(
         result = creation.reconcile_attempt(db, wid, ref.attempt_id, runtime.creation, clock)
         if result.outcome != "verified_effect":
             raise HTTPException(409, "original graph no longer exactly verified")
+    # An identical reconciliation receipt is an idempotent no-op and may retain
+    # its evidence locks. Always release this read phase before private credential
+    # sessions/provider qualification; current() reacquires exact authority below.
+    db.commit()
     qualification = runtime.creation.qualification_reader(original, clock())
     parent = db.get(ProviderExecutionRun, parent_id)
     assert parent is not None and parent.reservation_id is not None

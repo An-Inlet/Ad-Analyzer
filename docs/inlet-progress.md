@@ -5664,3 +5664,35 @@ Existing v1/version/binder/guard/TLS browser regression invocation also passed
   journey belongs scheduler_wiring and is not claimed by this backend checkpoint.
   Required real operating-policy values, coherent process policy deployment and
   independent provider execution qualification remain explicit prerequisites.
+
+### 2026-10-07 — Configured Google Creation And Separate Activation
+
+- Local successor to frozen `9209c14d`: ordinary request-scoped API assembly now
+  uses the actual DB engine, original principal/session, owned vault credentials,
+  actual OAuth/catalog/qualification/create/readback/activation HTTP adapters and
+  existing financial readers. Missing manifest or server evidence source denies;
+  no shipped live source, proof JSON admission or runtime getter test override.
+- Shipped real transport refuses contract-test manifests before construction.
+  Explicit MockHTTP injection is required for synthetic evidence tests; a live
+  manifest with scenario evidence and direct social API bodies deny before IO.
+  Ephemeral contexts/transports close on successful and denied requests.
+- Genuine configured API builds production mandate consent, exact creation review,
+  paused graph and separate activation approval without seeded execution reviews,
+  attempts, receipts or holds. Unknown mutation retains one attempt/hold and never
+  replays. This is offline contract evidence, not live provider/financial evidence.
+- Reproduced PostgreSQL self-lock in activation preparation after identical receipt
+  reconciliation: backend7331 waited on7325 (receipt lookup transaction). Stopped
+  that exact test and canceled its waiting query; interrupted run is not a pass.
+  Narrow explicit commit before external qualification releases the completed
+  read phase. Final authority/graph checks remain; regression revokes the original
+  session during qualification and verifies denial, no duplicate receipt/write,
+  and one retained hold.
+- Checks: combined API/contracts/legacy execution/activation suite 46 passed
+  (`/tmp/inlet-google-runtime-final-checks.log`); final transport-guard successor
+  contracts/configured API suite 16 passed, both DBs
+  (`/tmp/inlet-google-runtime-transport-checks.log`). Whole Ruff and mypy749 passed;
+  diff check passed. No Full, remote, live calls, merge or deployment.
+- Next: actual TLS customer journey through this configured assembly. Real approved
+  evidence-source implementation and policy qualification remain prerequisites;
+  this package does not enable live writes or complete remaining provider/worker
+  assembly. Process-pinned manifest rollout assumptions are documented.

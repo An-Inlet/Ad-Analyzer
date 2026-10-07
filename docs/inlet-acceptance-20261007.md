@@ -48,7 +48,7 @@ passes are not a claim that every newer package passed one aggregate run.
    they do not constitute a new Full qualification.
 3. Implement genuine server-owned financial/qualification evidence producers and
    register only reviewed sources. Existing adapters and typed callbacks do not
-   prove complete liabilities, future exposure or eligibility. Candidate selection/read/review API and original-session worker composition are
+   prove complete liabilities, future exposure or eligibility. The [mandate traceability review](design/mandate-requirement-traceability.md) separates the approved spending obligation from stronger implementation-selected proof domains: universal prevention of independent account changes is not an original requirement. Existing accounting safeguards remain in force while conditional native profiles are developed. Candidate selection/read/review API and original-session worker composition are
    implemented and independently reviewed, including repaired unavailable-session
    queue fairness; root combined90-case acceptance passed. The customer candidate
    UI is implemented and passed24 combined API/HTTPS/contract tests on a separate
@@ -60,9 +60,13 @@ passes are not a claim that every newer package passed one aggregate run.
    qualification decisions remain explicit, with no invented numerical defaults.
 4. Preserve the completed strict TikTok discovery parsers, bounded owned collector
    and configured customer API/UI. [Rendered official tables](design/tiktok-rendered-response-contract-20261007.md)
-   resolved the former owner-export request. The versioned linked-profile Spark
-   Push publication route remains unimplemented pending exact official conditional
-   create/readback fields; see the [concrete proposal](design/tiktok-linked-identity-publication-proposal.md).
+   resolved the former owner-export request. The parent completed detailed official
+   create/readback, identity-info and advertiser-capability table verification on
+   October7. Versioned linked Spark Push/Pull implementation is now in progress;
+   exact conditional field evidence is no longer an owner blocker. New obsolete
+   CUSTOMIZED_USER TikTok-placement creation must be blocked while historical
+   records, reconciliation and existing-campaign optimization are preserved; see
+   the [concrete proposal](design/tiktok-linked-identity-publication-proposal.md).
    Unknown pixel/event scalar shapes remain explicitly unverified. Discovery is
    not publication eligibility, including during the2026 Custom Identity transition.
 5. Complete coherent newest-artifact customer acceptance and relevant recovery

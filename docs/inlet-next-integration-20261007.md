@@ -407,3 +407,23 @@ Productc942e70 was unchanged throughout; terminal documentation head6c86d9c.
 Exact log `inlet-google-completion-integrated.log` and terminal metadata
 `google-completion-integrated-terminal.json` are retained with checksums. This successor remains outside
 frozen2476 Full and has no live/financial qualification.
+
+
+## Mandate Traceability And TikTok Contract Evidence
+
+Integrated documentation-only source0a192f8 at49f98a5. The
+[traceability review](design/mandate-requirement-traceability.md) maps the approved
+spending mandate to current safeguards and identifies universal outside-writer
+protection as a stronger implementation assumption, not an original promise. It
+retains current accounting and admission guards, rejects unapproved recommendation-only
+scope reductions, and proposes a nonauthorizing original-allocation/native-envelope
+producer before conditional financial qualification. Complete audit text was unavailable
+for this particular review; its source limitations are explicit. Relative links and
+diff checks passed; no runtime tests are attributed to this documentation change.
+
+The parent supplied complete rendered official TikTok endpoint-table evidence for
+linked Push/Pull creation, readback, identity details and explicit advertiser special
+capabilities. This resolves the exact-field research blocker. Implementation remains
+offline and separately tested; the prior CUSTOMIZED_USER mock journey is historical
+contract evidence, not proof of current native new-ad eligibility. No live account
+access, publication, source qualification or spending authority follows from research.

@@ -7,7 +7,6 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
@@ -63,23 +62,13 @@ def inputs(
         or observation.id not in report.observation_ids
     ):
         raise HTTPException(409, "The current objective and reporting history must match.")
-    read_current(
-        db,
-        wid,
-        principal.user.id,
-        objective.cohort.account_id,
-        objective.cohort.campaign_id,
-        observation.completion_id,
-        authorize,
-    )
-    goal = goals.owned(db, wid, objective.goal_id)
+    if checked.current_objective.report.completion_id != observation.completion_id:
+        raise HTTPException(409, "The current objective and reporting history must match.")
+    goal = checked.current_objective.goal
     goals.expect(goal, objective.goal_revision)
     if goals.assessment(db, goal, effective_now(db, runtime)) != "confirmed":
         raise HTTPException(409, "Confirm the current goal before preparing a preview.")
-    definition = goals.current(db, goal).definition
-    if definition is None:
-        raise HTTPException(409, "The goal definition is unavailable.")
-    goal_digest = fingerprint("inlet.initial-preview-goal.v1", definition)
+    goal_digest = checked.current_objective.goal_definition_digest
     authorize(db, wid, principal.user.id)
     if effective_now(db, runtime) >= min(report.expires_at, observation.expires_at):
         raise HTTPException(409, "The reporting evidence expired.")

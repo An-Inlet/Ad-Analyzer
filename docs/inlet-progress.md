@@ -6776,3 +6776,41 @@ and cumulative increase clipping without changing the mandate. Scoped Ruff/mypy
 (3files) and diff check pass. Initial static invocation found import sorting and
 optional-action test annotations; fixed before checkpoint. 0083 dependency relation
 reserved; owned source/worker/API/TLS remain in implementation, not yet accepted.
+
+## Reported-rule owned evidence and erasure foundation (2026-10-07, local)
+
+The separate operational reported-efficiency reader now consumes actual retained
+Meta comparisons/capsule dependencies and a fresh whole-owner native snapshot.
+It checks the original session, current source, original request/ledger/native
+scope, and final lifetime after authorization waits. It never labels these facts
+qualified learning or grants spending authority. The reader performs no network
+calls, commits or financial mutations.
+
+Reserved migration 0083 adds immutable, composite-owned candidate dependencies.
+Capsule/comparison/job erasure retracts derived suggestions; explicit replacement
+requests invalidate previous candidate dependencies transactionally. Original
+attempts and held financial obligations are retained. A populated downgrade is
+rejected. Registry, archive allowlist, local-work classification and historical
+0074 fixture ordering include the new relation.
+
+Evidence: actual mocked original Meta operation, four report acquisitions, fresh
+native GET and ordinary commerce import feed the source tests on SQLite and
+PostgreSQL. The erasure cohort covers candidate/comparison/capsule deletion,
+explicit changed-objective replacement, foreign lineage rejection and retained
+obligations. Initial fixture failures (missing commerce publication, wrong review
+binding accessor, SQLite foreign keys disabled), a test expecting IntegrityError
+instead of PostgreSQL trigger RaiseException, and an attempted reobserve of a
+sufficient comparison were corrected; none qualified a product pass. Their logs
+remain under /tmp/inlet-reported-rule-*. Whole mypy passes 893 files; Ruff and diff
+checks pass. Configured worker/review/explicit-Start composition is still pending;
+this foundation is not completion of usable automatic optimization and no
+production rule/profile is registered.
+
+Foundation check completion: pure compiler 11 passed; owned source/final-wait
+expiry 4 passed; final erasure/foreign-owner/lossless-downgrade cohort 10 passed;
+actual 0083 empty roundtrip 2 passed. Existing service/authority/lifecycle cohort
+had 41 passed, two historical-fixture failures and one PostgreSQL-only skip on
+SQLite; explicit 0083 predecessor handling repaired both. Final historical
+0077/0074 cohort: 7 passed, one SQLite-only Alembic skip. Whole Ruff, mypy
+(893 files) and diff checks passed. The 0083 fixture correction also covers the
+previous Full's exact 0074 test on both databases. No Full/remote/live run.

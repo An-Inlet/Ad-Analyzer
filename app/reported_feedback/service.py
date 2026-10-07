@@ -255,6 +255,9 @@ def _request(
         )
     )
     for previous_row in previous:
+        from app.reported_feedback.candidate_invalidation import erase_reported_candidates
+
+        erase_reported_candidates(db, wid, previous_row.id)
         previous_row.state = "blocked"
         previous_row.error_code = "superseded_by_explicit_request"
 

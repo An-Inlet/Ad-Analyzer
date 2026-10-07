@@ -587,3 +587,17 @@ future success, while old-schema tests must explicitly verify forward denial.
 No successor Full has started at this checkpoint. The old2476 result remains
 failed; hosted diagnostic is owner-pending. First automatic/repeat operational
 rule composition remains separate in-progress work, not part of this candidate.
+
+## Final Legacy UI Preflight Closed
+
+Source637188b integrated as5e42399. The four remaining old TikTok UI expectations
+were reproduced as failures, then migrated to exact future-creation denial while
+preserving historical identity/pixel/cover distinction and actual decoded media.
+Tests additionally prove no new review/attempt/receipt/reservation or provider
+write. The repaired four TikTok and four unchanged Meta journey/clarity cases
+passed on both databases: **8passed55.94s**,26other scenarios deselected.
+Whole Ruff, required mypy923 and diff checks passed on the assembled root.
+No production exemptions were added; linked positive journeys remain covered.
+Failure and repair logs are retained/checksummed. Known preflight failures are
+closed; next step is the already-required immutable Full, with separate database
+and unique per-invocation timing files. Later0083 operational rule work is excluded.

@@ -187,4 +187,4 @@ issue in the storage-only package; root additionally reviewed canonical inner bi
 
 The next isolated package is the actual configured V2 API/runtime handoff. Its options
 and prepare interfaces must be frozen before dependent UI work. No Full, live
-qualification, new hosted run, main change or merge occurred in this package.
+qualification, new hosted run, main change or remote merge occurred in this package.

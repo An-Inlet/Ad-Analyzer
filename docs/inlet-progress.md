@@ -6649,3 +6649,60 @@ unavailable and is not inferred from this operation evidence.
   seven cross-context/checkpoint tamper cases, immutable fields and invalid cadence.
   No DB/Full/remote/live calls. No maturity/direction registration. Next: portable
   0082guards and actual bounded enqueue→leased worker→unchanged v2publication.
+
+### Resumable Shopify acquisition — configured operational package
+
+- Added actual original-session owner API enqueue/status/cancel and dedicated
+  default-off `app.jobs.commerce_acquisition_worker`. The ordinary configured API
+  reads an explicit server profile; actual mocked GraphQL steps publish through
+  the existing unchanged v2 independent-publication format. No acquisition jobs,
+  publications, runtime getters or authority guards are seeded/overridden in the
+  new enqueue-to-worker acceptance. Existing fixture source connection/confirmed
+  goal setup is reused; identity/clock/HTTP are explicit offline provider seams.
+- Migration0082 down0081 adds only owned job/checkpoint/HMAC-seen leaf tables and
+  frozen portable guards. Request/profile/scope/deadline are immutable; active
+  store uniqueness, composite ownership, SQLite FK enforcement, nonempty downgrade
+  refusal and populated parent preservation are exercised. PostgreSQL fixture uses
+  real Alembic history; SQLite uses existing metadata parents then actual0082
+  downgrade/upgrade. The historical0081 graph test now asserts its own ancestry,
+  rather than incorrectly requiring0081 to remain the latest revision.
+- Each leased claim emits at most one provider request. Canonical principal/source
+  locks precede the queue row; no DB transaction is held during HTTP. Exact source,
+  original session, generation, lease and sequence are rechecked before persistence.
+  Bounded round-robin selection excludes active leases. Factory failure/backoff and
+  abandoned lease recovery preserve original acquisition ID/start/deadline; failed
+  request byte reservations are distinct from successful response-byte counts.
+- Existing metric normalization is reused, including older-order refunds on their
+  processing date. Nested sale and order pagination round-trip durable JSON. Late
+  logout/generation/goal/cancel denies publication and removes staging. Another
+  session belonging to the same owner cannot adopt/replay the active job. Every
+  publication remains unresolved/unqualified, with no advertising authority.
+- Native handles are encrypted under the existing Vault with full checkpoint and
+  deadline purpose binding; malformed/mismatched pending handles deny before IO.
+  Supplied transports close even when local pre-IO validation fails. Handle reads
+  deny at the fixed deadline; bounded physical cleanup remains reachable while
+  disabled through the runner and existing privacy maintenance. This is not a
+  guaranteed exact-time physical erasure or cryptographic key-destruction claim.
+  Lifecycle registry/export explicitly excludes private checkpoint/seen tables and
+  private job fields. Protected financial records are unaffected.
+- Validation, all offline and on a dedicated disposable database:
+  - Initial expanded compatibility:143passed/3expected skips/5failed. Failures were
+    explicit export dispositions and the old assumption every owned table exports;
+    fixed without weakening private-field omission. Exact five-case rerun passed.
+  - Final acquisition + archive/lifecycle cohort:107passed/2expected skips in144.56s
+    (`/tmp/inlet-acquisition-final.log`). Earlier focused independent-publication/
+    source/proof0081 compatibility cohort:124passed, terminal0.
+  - Actual same-ID abandoned lease recovery:2passed5.17s; frozen DDL/guard inventory:
+    1passed; final reducer/transport closure:6passed0.37s; final actual configured
+    API publication+retry:4passed8.54s with `--durations=20`. Longest test call in
+    that bounded sample was PostgreSQL retry1.77s, not a Full performance diagnosis.
+  - Whole Ruff, whole mypy857 and diffcheck pass. No Full, remote, live store calls,
+    source qualification, automatic registration, deployment or advertising changes.
+- Retained intermediate failures: SQLite aware-deadline projection corrected;
+  dedicated migration database renamed to the repository's required `_test`
+  convention; two-tenant fixture needed distinct login tokens/workspace/shop names.
+  None were treated as passing checks or repaired by relaxing production ownership.
+- Next: independent source review and parent integration; production scope access,
+  runtime deployment and measured real-store capacity remain unverified. The
+  acquisition itself does not supply settled/mature assurance. See
+  `docs/inlet-resumable-shopify-acquisition.md` for configuration and limitations.

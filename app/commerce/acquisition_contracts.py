@@ -127,6 +127,7 @@ class NativeHandles(Frozen):
     last_order_number: Annotated[str, Field(pattern=r"^[0-9]{1,24}$")]
     order_cursor: Annotated[str, Field(max_length=4096)] | None
     agreement_cursor: Annotated[str, Field(max_length=4096)] | None
+    agreement_next_cursor: Annotated[str, Field(max_length=4096)] | None = None
     sale_cursor: Annotated[str, Field(max_length=4096)] | None
     agreement_id: Annotated[str, Field(max_length=128)] | None
 

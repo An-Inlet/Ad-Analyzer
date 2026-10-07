@@ -323,8 +323,11 @@ def run_privacy_tick(engine: Engine) -> None:
 
 def purge_expired_facts(engine: Engine, *, now: datetime | None = None) -> None:
     now = utc(now or datetime.now(UTC))
+    from app.commerce.acquisition_worker import cleanup
     from app.commerce.evidence import lock_workspace
     from app.commerce.privacy import purge_measurements
+
+    cleanup(engine, clock=lambda: now)
 
     # Process one owner per transaction; closing owners still receive privacy maintenance.
     with Session(engine) as discovery:

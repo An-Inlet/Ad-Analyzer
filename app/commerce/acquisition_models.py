@@ -73,7 +73,8 @@ class CommerceAcquisitionJob(Base):
         ),
         CheckConstraint(
             "step_sequence >= 0 AND request_attempts >= 0 AND requests_completed >= 0 "
-            "AND requests_completed <= request_attempts AND charged_bytes >= 0",
+            "AND requests_completed <= request_attempts AND charged_bytes >= response_bytes "
+            "AND response_bytes >= 0",
             name="ck_acquisition_counts",
         ),
         CheckConstraint(
@@ -126,6 +127,7 @@ class CommerceAcquisitionJob(Base):
     request_attempts: Mapped[int] = mapped_column(Integer)
     requests_completed: Mapped[int] = mapped_column(Integer)
     charged_bytes: Mapped[int] = mapped_column(BigInteger)
+    response_bytes: Mapped[int] = mapped_column(BigInteger)
     error_code: Mapped[str | None] = mapped_column(String(64))
     publication_id: Mapped[str | None] = mapped_column(String(32))
     terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

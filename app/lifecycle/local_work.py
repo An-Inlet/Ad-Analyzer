@@ -80,6 +80,8 @@ LOCAL_RUNS = {
 # New persisted worker tables using these established suffixes require an explicit
 # category before a local observation can be reported as complete.
 WORK_FAMILIES = {
+    "commerce_acquisition_checkpoints": "erasable_derived_read_queue",
+    "commerce_acquisition_jobs": "erasable_derived_read_queue",
     "reported_feedback_jobs": "erasable_derived_read_queue",
     "campaign_performance_completions": "retained_source_completion",
     "initial_calibration_runs": "erasable_derived_read_queue",

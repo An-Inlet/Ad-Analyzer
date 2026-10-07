@@ -12,6 +12,33 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "commerce_acquisition_jobs": TablePolicy(
+        "workspace",
+        (
+            "id",
+            "workspace_id",
+            "store_id",
+            "goal_id",
+            "goal_revision",
+            "environment",
+            "state",
+            "created_at",
+            "deadline_at",
+            "started_at",
+            "due_at",
+            "last_served_at",
+            "step_sequence",
+            "request_attempts",
+            "requests_completed",
+            "response_bytes",
+            "error_code",
+            "publication_id",
+            "terminal_at",
+            "cleanup_at",
+        ),
+    ),
+    "commerce_acquisition_checkpoints": TablePolicy("workspace", ()),
+    "commerce_acquisition_seen": TablePolicy("workspace", ()),
     "reported_feedback_jobs": TablePolicy(
         "workspace",
         (
@@ -1666,3 +1693,8 @@ TABLES: dict[str, TablePolicy] = {
         False,
     ),
 }
+
+
+PRIVATE_STAGING_TABLES = frozenset(
+    {"commerce_acquisition_checkpoints", "commerce_acquisition_seen"}
+)

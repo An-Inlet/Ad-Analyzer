@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -78,9 +79,15 @@ def test_handles_bound_to_exact_owned_checkpoint(drift: str) -> None:
         sale_cursor=None,
         agreement_id=None,
     )
-    encrypted = seal_handles(vault, scan, checkpoint, handles)
+    now = datetime(2026, 10, 3, tzinfo=UTC)
+    deadline = now + timedelta(minutes=30)
+    encrypted = seal_handles(vault, scan, checkpoint, handles, deadline_at=deadline)
     assert "gid://" not in encrypted
-    assert open_handles(vault, scan, checkpoint, encrypted) == handles
+    with pytest.raises(ScanUnavailable, match="acquisition_expired"):
+        open_handles(vault, scan, checkpoint, encrypted, deadline_at=deadline, now=deadline)
+    assert (
+        open_handles(vault, scan, checkpoint, encrypted, deadline_at=deadline, now=now) == handles
+    )
     if drift in {"workspace", "store"}:
         scope = scan.scope.model_copy(
             update={
@@ -109,7 +116,7 @@ def test_handles_bound_to_exact_owned_checkpoint(drift: str) -> None:
             }
         )
     with pytest.raises(ScanUnavailable, match="acquisition_checkpoint_invalid"):
-        open_handles(vault, scan, checkpoint, encrypted)
+        open_handles(vault, scan, checkpoint, encrypted, deadline_at=deadline, now=now)
 
 
 def test_native_handles_have_no_customer_or_payload_slot() -> None:

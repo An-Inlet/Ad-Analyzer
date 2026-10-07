@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.crm import router as crm_router
 from app.api.customer import router as customer_router
 from app.api.customer_account_diagnostics import router as customer_account_diagnostics_router
+from app.api.customer_acquisitions import router as customer_acquisitions_router
 from app.api.customer_activity import router as customer_activity_router
 from app.api.customer_ad_detail import router as customer_ad_detail_router
 from app.api.customer_billing import router as customer_billing_router
@@ -208,6 +209,7 @@ app.include_router(customer_optimization_router)
 app.include_router(customer_candidates_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
+app.include_router(customer_acquisitions_router)
 app.include_router(customer_shopify_router)
 app.include_router(customer_billing_router)
 app.include_router(pubsub_router)

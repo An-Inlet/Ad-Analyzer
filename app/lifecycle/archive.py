@@ -19,7 +19,7 @@ from app.database.session import Base
 from app.lifecycle.contracts import LifecycleScopeV1
 from app.lifecycle.export_serializers import exclusion, fields, serialize
 from app.lifecycle.inventory import predicate, verify_registry
-from app.lifecycle.registry import TABLES
+from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
 
 MAX_ARCHIVE_BYTES = 192 * 1024 * 1024
 MAX_DATA_BYTES = 32 * 1024 * 1024
@@ -93,6 +93,11 @@ def build(
                         checkpoint()
                         if policy.scope in {"identity_global", "platform_global", "unclassified"}:
                             omissions.append({"table": name, "reason": policy.scope})
+                            continue
+                        if name in PRIVATE_STAGING_TABLES:
+                            omissions.append(
+                                {"table": name, "reason": "private_acquisition_staging"}
+                            )
                             continue
                         table = Base.metadata.tables[name]
                         selected = fields(name)

@@ -342,6 +342,8 @@ def test_frozen_migration_matches_metadata_guards_and_graph() -> None:
     from app.initial_planning.review_v2_triggers import statements
 
     migration = importlib.import_module("migrations.versions.20261007_0081_initial_execution_proof")
-    assert ScriptDirectory.from_config(Config("alembic.ini")).get_heads() == ["20261007_0081"]
+    scripts = ScriptDirectory.from_config(Config("alembic.ini"))
+    assert scripts.get_revision("20261007_0081").down_revision == "20261007_0080"
+    assert "20261007_0081" in {r.revision for r in scripts.walk_revisions()}
     for dialect in ("sqlite", "postgresql"):
         assert migration.SQL[dialect] == statements(dialect)

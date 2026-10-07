@@ -13,7 +13,7 @@ from app.database.session import Base
 from app.lifecycle.contracts import LifecycleInputV1, LifecycleScopeV1
 from app.lifecycle.inventory import export_section, inventory, verify_registry
 from app.lifecycle.models import LifecycleRequest
-from app.lifecycle.registry import TABLES
+from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
 from app.lifecycle.service import begin, claim_inventory, finish_inventory
 from app.workspaces.models import Workspace, WorkspaceConfiguration
 from fastapi import HTTPException
@@ -82,6 +82,10 @@ def test_every_scoped_section_executes_without_querying_global_rows(
         for section in manifest["sections"]:
             if section["scope"] in {"unclassified", "identity_global", "platform_global"}:
                 assert section["count"] is None
+                with pytest.raises(ValueError):
+                    export_section(db, scope, section["table"])
+            elif section["table"] in PRIVATE_STAGING_TABLES:
+                # Owned private read staging is erasable/inventoried, never an export section.
                 with pytest.raises(ValueError):
                     export_section(db, scope, section["table"])
             else:

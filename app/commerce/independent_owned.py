@@ -340,79 +340,84 @@ class OwnedAcquisition:
         return self._publish(completion)
 
     def _publish(self, completion: ScanCompletion) -> str:
-        # Internal-only persistence; never accept a client-supplied completion.
-        completion = ScanCompletion.model_validate(completion.model_dump())
         with self.sessions() as db:
-            _, store, fence = self._check(db, completion.request)
-            now = utc(self.clock())
-            if not completion.started_at <= completion.completed_at <= now:
-                raise ScanUnavailable("acquisition_time_invalid")
-            key = digest(
-                ["inlet.commerce-independent-completion.v2", completion.model_dump(mode="json")]
-            )
-            previous = db.scalar(
-                select(CommerceMeasurementPublication).where(
-                    CommerceMeasurementPublication.workspace_id == store.workspace_id,
-                    CommerceMeasurementPublication.store_id == store.id,
-                    CommerceMeasurementPublication.completion_digest == key,
-                )
-            )
-            if previous is not None:
-                existing = parse_publication(previous)
-                if (
-                    not isinstance(existing, IndependentManifest)
-                    or existing.environment != self.environment
-                ):
-                    raise ScanUnavailable("acquisition_environment_mismatch")
-                return previous.id
-            fence.publication_revision += 1
-            fence.updated_at = now
-            manifest = IndependentManifest(
-                workspace_id=store.workspace_id,
-                store_id=store.id,
-                generation=fence.generation,
-                privacy_epoch=fence.privacy_epoch,
-                publication_revision=fence.publication_revision,
-                source_revision=store.revision,
-                source="shopify",
-                source_api_version=completion.source_api_version,
-                source_window_start=completion.started_at,
-                source_window_end=completion.completed_at,
-                as_of=now,
-                definition=DEFINITION,
-                definition_digest=digest(DEFINITION),
-                currency=store.currency,
-                time_zone=store.time_zone,
-                unit="monetary_micros",
-                grain="store_local_day",
-                attribution="not_applicable_store_total",
-                environment=self.environment,
-                acquisition=completion,
-            )
-            raw = manifest.model_dump(mode="json")
-            row = CommerceMeasurementPublication(
-                id=uuid4().hex,
-                workspace_id=store.workspace_id,
-                store_id=store.id,
-                generation=fence.generation,
-                privacy_epoch=fence.privacy_epoch,
-                publication_revision=fence.publication_revision,
-                source_revision=store.revision,
-                source_window_start=completion.started_at,
-                source_window_end=completion.completed_at,
-                published_at=now,
-                earliest_source_day=completion.request.start,
-                completion_digest=key,
-                manifest_digest=digest(raw),
-                manifest=raw,
-            )
-            db.add(row)
-            db.flush()
-            # Repeat original authority and fresh retention under held source/session locks.
-            self._check(db, completion.request)
-            parse_publication(row)
+            identifier = self.publish_in_transaction(db, completion)
             db.commit()
-            return row.id
+            return identifier
+
+    def publish_in_transaction(self, db: Session, completion: ScanCompletion) -> str:
+        """Internal owned write; caller commits this with its leased completion receipt."""
+        completion = ScanCompletion.model_validate(completion.model_dump())
+        _, store, fence = self._check(db, completion.request)
+        now = utc(self.clock())
+        if not completion.started_at <= completion.completed_at <= now:
+            raise ScanUnavailable("acquisition_time_invalid")
+        key = digest(
+            ["inlet.commerce-independent-completion.v2", completion.model_dump(mode="json")]
+        )
+        previous = db.scalar(
+            select(CommerceMeasurementPublication).where(
+                CommerceMeasurementPublication.workspace_id == store.workspace_id,
+                CommerceMeasurementPublication.store_id == store.id,
+                CommerceMeasurementPublication.completion_digest == key,
+            )
+        )
+        if previous is not None:
+            existing = parse_publication(previous)
+            if (
+                not isinstance(existing, IndependentManifest)
+                or existing.environment != self.environment
+            ):
+                raise ScanUnavailable("acquisition_environment_mismatch")
+            return previous.id
+        fence.publication_revision += 1
+        fence.updated_at = now
+        manifest = IndependentManifest(
+            workspace_id=store.workspace_id,
+            store_id=store.id,
+            generation=fence.generation,
+            privacy_epoch=fence.privacy_epoch,
+            publication_revision=fence.publication_revision,
+            source_revision=store.revision,
+            source="shopify",
+            source_api_version=completion.source_api_version,
+            source_window_start=completion.started_at,
+            source_window_end=completion.completed_at,
+            as_of=now,
+            definition=DEFINITION,
+            definition_digest=digest(DEFINITION),
+            currency=store.currency,
+            time_zone=store.time_zone,
+            unit="monetary_micros",
+            grain="store_local_day",
+            attribution="not_applicable_store_total",
+            environment=self.environment,
+            acquisition=completion,
+        )
+        raw = manifest.model_dump(mode="json")
+        row = CommerceMeasurementPublication(
+            id=uuid4().hex,
+            workspace_id=store.workspace_id,
+            store_id=store.id,
+            generation=fence.generation,
+            privacy_epoch=fence.privacy_epoch,
+            publication_revision=fence.publication_revision,
+            source_revision=store.revision,
+            source_window_start=completion.started_at,
+            source_window_end=completion.completed_at,
+            published_at=now,
+            earliest_source_day=completion.request.start,
+            completion_digest=key,
+            manifest_digest=digest(raw),
+            manifest=raw,
+        )
+        db.add(row)
+        db.flush()
+        # Repeat original authority and fresh retention under held source/session locks.
+        self._check(db, completion.request)
+        parse_publication(row)
+        return row.id
+
 
     def load(self, wid: int, identifier: str) -> IndependentManifest:
         with self.sessions() as db:

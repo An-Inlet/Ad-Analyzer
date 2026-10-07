@@ -34,7 +34,7 @@ from app.initial_planning.review_v2_export import export_execution_proof
 from app.intelligence.schemas import PAYLOAD_MODELS, RecordKind
 from app.lifecycle.export_domains import SettlementEvidence
 from app.lifecycle.inventory import scalar
-from app.lifecycle.registry import TABLES
+from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
 from app.mandates.schemas import ActionDraft, MandateDefinition
 from app.optimization_candidates.contracts import CandidateDecision, CandidateWork
 from app.optimization_candidates.selection_contracts import WORK_ADAPTER, CandidateWorkV2
@@ -285,6 +285,21 @@ INTERNAL = {
     "principal",
 }
 INTERNAL_TABLE_FIELDS = {
+    *(
+        ("commerce_acquisition_jobs", field)
+        for field in (
+            "native_connection_id",
+            "integration_id",
+            "actor_id",
+            "authenticated_at",
+            "identity_digest",
+            "request",
+            "profile",
+            "profile_digest",
+            "lease_token",
+            "charged_bytes",
+        )
+    ),
     ("meta_detail_staged_pages", "payload"),
     ("provider_qualifications", "evidence"),
 }
@@ -306,7 +321,11 @@ def fields(table: str) -> tuple[str, ...]:
 
 
 def exclusion(table: str, column: str) -> str:
-    if column in INTERNAL or (table, column) in INTERNAL_TABLE_FIELDS:
+    if (
+        table in PRIVATE_STAGING_TABLES
+        or column in INTERNAL
+        or (table, column) in INTERNAL_TABLE_FIELDS
+    ):
         return "security_or_internal"
     if column == "digest" and table.endswith(("authorizations", "oauth_states")):
         return "security_or_internal"

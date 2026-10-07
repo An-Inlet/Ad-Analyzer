@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import (
@@ -177,6 +177,9 @@ class Settings(BaseSettings):
     candidate_assembly_manifest_digest: str | None = None
     candidate_policy_bundle_path: str | None = None
     customer_candidate_reads_enabled: bool = False
+    customer_independent_acquisition_enabled: bool = False
+    independent_acquisition_profile_path: str | None = None
+    independent_acquisition_environment: Literal["live", "contract_test"] = "live"
     optimization_execution_manifest_path: str | None = None
     optimization_execution_manifest_digest: str | None = None
     optimization_operating_policy_path: str | None = None

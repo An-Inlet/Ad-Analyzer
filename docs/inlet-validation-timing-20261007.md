@@ -1,7 +1,7 @@
 # Local Validation Timing Investigation
 
-Observation checkpoint only; the frozen2476b87 Full has not reached a terminal
-result at this checkpoint. No coverage, timeout, worker count or test semantics
+The frozen2476b87 Full reached terminal failure on October7 at13:36:50 UTC:
+4881passed,77skipped,3failed; primary suite6198.77 seconds, overall6383.57 seconds. No coverage, timeout, worker count or test semantics
 have been changed. One aggregate Full runs on its own immutable checkout and
 PostgreSQL database. Separate focused implementation/review cohorts sometimes
 share the same host and PostgreSQL server; therefore this is not an uncontended
@@ -67,3 +67,14 @@ TikTok journeys,43.35s PostgreSQL and39.08s SQLite. Meta PostgreSQL journey10.37
 and TikTok clarity9.56s/9.11s followed. These are exact focused-run durations;
 they identify worthwhile profiling targets without attributing the whole Full
 runtime to them or replacing genuine browser/video validation with mocks.
+
+
+## Completed Passive Sample
+
+Sampling ended13:36:32 UTC before pytest exited. Last pytest RSS was4,839,296KiB;
+cgroup memory-limit reclamation events totaled1128, with no OOM/kill event. The
+sampled latter portion spent approximate windows of332s in TikTok runtime API
+tests,211s in session automation,151s each in reported-feedback lifecycle and
+social activation journeys. These are thirty-second sampled windows, exclude the
+unsampled first part, and are not exact per-test rankings. The original command
+was left unchanged and its three test failures remain failures.

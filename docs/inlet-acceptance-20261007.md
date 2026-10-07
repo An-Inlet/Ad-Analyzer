@@ -10,14 +10,18 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
   `00c2de4f6fa5f02843e8f4ef8bebb81cbf79f9f3`. Every required local gate passed.
   Its single hosted attempt failed browser startup/navigation preflight before
   application tests. [Exact qualification and resource evidence](inlet-hosted-qualification-20261007.md).
-- **Assembled local qualification:** `2476b87ac55b116d848f80f1286aae6551eeed7c`,
-  tree `6beebdd913d9fbaf06a7143d6bacb7e1a3daaf8f`, is frozen for one Full run.
-  The run remains active but has two reproduced historical-fixture failures; it
-  is not Full-qualified. Later UI, Google wire and fixture repairs are separate
-  locally tested successors, recorded in the integration ledger. This assembly
-  adds the packages below. Focused package evidence is recorded in their ledgers;
-  it does not inherit the older artifact's Full pass. Combined integration results
-  belong in [the integration ledger](inlet-next-integration-20261007.md).
+- **Completed assembled Full, failed:** `2476b87ac55b116d848f80f1286aae6551eeed7c`,
+  tree `6beebdd913d9fbaf06a7143d6bacb7e1a3daaf8f`. Terminal October7 13:36:50 UTC:
+  4881passed,77skipped,3failed. The exact two historical0074 fixture cases and
+  managed-startup expectation failed; later script stages did not run. The clean
+  frozen artifact is not Full-qualified.
+- **Reviewed successor packages:** Google original operation capture, nonauthorizing
+  native budget observation/API/UI, and owned resumable Shopify acquisition are
+  integrated locally. Their package checks and the combined42-case Full-repair
+  preflight passed; no successor aggregate Full has run. Linked TikTok components
+  and service coordinator passed separate reviews, but configured customer API,
+  browser and activation work is still in progress. Exact heads and checks belong
+  in [the integration ledger](inlet-next-integration-20261007.md).
 - **Live-qualified:** none. No deployment, purchase, real-provider mutation or live
   customer pilot is claimed. PR130 remains draft; no merge authorization is inferred.
 
@@ -27,13 +31,14 @@ not reduce launch scope or claim that Inlet is ready for purchase or live ads.
 | --- | --- | --- |
 | B01 | Positive conversions are distinguished from genuine zero conversions | The required 100click/10conversion/$100 case remains covered in the Full-qualified artifact; no known open diagnostic defect. |
 | B02–B04, B06 | Existing scoped identities, revocable sessions, atomic owner provisioning and owned imports/jobs preserved; goal progress and interpretation delivery receive current original-session fences | New PostgreSQL lock-order and interpretation/accounting regressions pass separately. Intended-environment identity/provider qualification remains. |
-| B07, B09 | Configured Google/Meta optimization catalog, credentials, draft budget mandate, explicit digest consent, exact review and readback are assembled; additive0080 provenance binds origin and is protected | Actual APIs and HTTPS customers use MockHTTP and fixture financial evidence. Native financial/qualification producers and approved operating policies remain absent; source registries are empty. |
+| B05 | Owned resumable Shopify window acquisition, fixed-deadline worker, private staging and recovery-safe publication are integrated | Actual API/worker/storage integration47passed; late-authority publication rollback and deadline fixes passed independent review. Output remains unresolved/unqualified. Ordinary customer recovery/UI is in progress; no live Shopify qualification follows. |
+| B07, B09 | Configured Google/Meta optimization catalog, credentials, draft budget mandate, explicit digest consent, exact review and readback are assembled; additive0080 provenance binds origin and is protected | Actual APIs and HTTPS customers use MockHTTP and fixture financial evidence. Actual original/native total-budget observations are available through an explicit customer read; they do not provide financial qualification. Qualified financial sources and approved operating policies remain absent; source registries are empty. |
 | B14–B16 | Ordinary configured Google and Meta creation/activation composition, and contract-test TikTok composition, now exist with private owned media and current session/source checks | Actual HTTPS tests cover separate review, unknown outcomes without replay and retained reservations. A later Google successor retains exact original synchronous creation/activation completion and exposes freshly authorized receipt evidence;70 combined capture/contracts/three-platform HTTPS tests pass, without financial finality or hold release. Strict TikTok identity/pixel parsers, bounded owned discovery and the configured read-only customer API/UI are integrated; no live qualification follows. |
 | B17 | Meta fixed-window acquisition and worker routing, operational-as-of comparisons, bounded explained feedback, immutable previews and the configured V2 durable review handoff exist | Actual API and HTTPS acceptance verifies separate0080 consent on the same ledger, exact review and separate approval. Reporting is not qualified learning; Google/TikTok comparable feedback and genuine independent directional producers remain separate gaps. |
 | B18 | Named goal budget/aggressiveness, exact derived limits and separate consent now replace technical optimization controls; invalidated sessions clear customer state | Standalone configured journeys pass. Complete fresh-customer purchase→connections→planning→review composition remains to be completed and qualified. |
 | B19–B20 | Current migration integrity repairs, populated historical compatibility and focused configured customer journeys add offline coverage | Newest integration has no Full qualification yet; hosted preflight cause is unresolved. Intended alert delivery, complete environment/object recovery and unrelated real pilots remain unqualified. |
 
-B05 Shopify, B08 Google connections, B10 Meta reporting, B11 TikTok connections,
+B08 Google connections, B10 Meta reporting, B11 TikTok connections,
 B12 Klaviyo/HubSpot/Omnisend and B13 environment-scoped billing retain their recorded
 implementation and external qualification boundaries. Their historical focused
 passes are not a claim that every newer package passed one aggregate run.

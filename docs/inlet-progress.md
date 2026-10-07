@@ -5696,3 +5696,31 @@ Existing v1/version/binder/guard/TLS browser regression invocation also passed
   evidence-source implementation and policy qualification remain prerequisites;
   this package does not enable live writes or complete remaining provider/worker
   assembly. Process-pinned manifest rollout assumptions are documented.
+
+## Configured Google Execution — Actual TLS Browser Acceptance
+
+On frozen backend6586d46, the new dedicated browser harness uses
+configured_customer's ordinary request-scoped runtime, pinned manifest, actual
+owned OAuth/vault/catalog/qualification/creation/activation adapters, and explicit
+server-side contract-scenario evidence with MockHTTP. No runtime getter override
+or seeded execution review, attempt, reservation or receipt bridges the journey.
+Approved creative is an existing prerequisite, not claimed as generated here.
+
+The actual execution page obtains the catalog, records separate spending consent,
+prepares and explicitly approves exact paused creation, advances the resource graph,
+then prepares and separately approves activation. It reads the resulting receipt,
+recovers the saved owned run and revokes local consent. The single parent reservation
+remains held. Contract-test state is not live advertising or causal-effect evidence.
+
+Additional actual browser scenarios cover timeout/unknown creation: one original
+attempt/write and one held reservation; Continue is disabled and Check Original
+Request reconciles without replay. Revoking the original session during the actual
+post-release qualification callback blocks activation review and makes no activation
+write, preserving the existing hold.
+
+Final SQLite/PostgreSQL six-case TLS suite:6passed34.51s
+(/tmp/inlet-google-configured-browser-v3.log). Whole Ruff, Node syntax, mypy750,
+and diff checks passed. Earlier harness failures are retained: first omitted the
+existing campaign-draft listing router; second expected legacy injected-runtime
+social-blocker wording. Fixed only harness route mounting/assertion specificity;
+no application changes or weakened gates. No Full/remote/live/artifacts.

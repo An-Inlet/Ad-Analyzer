@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.commerce.acquisition_contracts import (
     AcquisitionIntent,
     AcquisitionProfile,
+    AcquisitionRecovery,
+    AcquisitionRecoveryItem,
     AcquisitionStatus,
     Checkpoint,
     NativeHandles,
@@ -327,3 +329,74 @@ def status(
         if cancel:
             db.commit()
         return result
+
+
+def recover(
+    engine: Engine,
+    principal: CustomerPrincipal,
+    identity: IdentityProvider,
+    settings: Settings,
+    wid: int,
+    goal_id: str,
+    *,
+    clock: Callable[[], datetime] = now,
+) -> AcquisitionRecovery:
+    """Bounded operational metadata, not current source readiness or replay authority."""
+    owner = OwnedAcquisition(
+        lambda: Session(engine),
+        principal,
+        identity,
+        settings,
+        environment=settings.independent_acquisition_environment,
+        clock=clock,
+    )  # Authorization has no environment/provider IO; each saved request binds its own environment.
+    with Session(engine) as db:
+        owner._authorize(db, wid)
+        goal = db.get(Goal, goal_id)
+        if goal is None or goal.workspace_id != wid:
+            raise HTTPException(404, "acquisition_unavailable")
+        revision = db.get(GoalRevision, (goal.id, goal.revision))
+        if revision is None:
+            raise HTTPException(409, "acquisition_goal_changed")
+        sid = GoalDefinition.model_validate(revision.definition).store_id
+        rows = list(
+            db.scalars(
+                select(Job)
+                .where(
+                    Job.workspace_id == wid,
+                    Job.goal_id == goal_id,
+                    Job.store_id == sid,
+                    Job.actor_id == principal.user.id,
+                    Job.session_digest == principal.session.digest,
+                )
+                .order_by(Job.created_at.desc(), Job.id.desc())
+                .limit(21)
+            )
+        )
+        items = []
+        for job in rows[:20]:
+            request, _ = bind_job(job)
+            checkpoint = db.get(CheckpointRow, job.id)
+            items.append(
+                AcquisitionRecoveryItem(
+                    goal_id=job.goal_id,
+                    goal_revision=job.goal_revision,
+                    start=request.start,
+                    end=request.end,
+                    status=AcquisitionStatus(
+                        job_id=job.id,
+                        state=job.state,
+                        phase=checkpoint.phase if checkpoint else None,
+                        deadline_at=utc(job.deadline_at),
+                        publication_id=job.publication_id,
+                        error_code=job.error_code,
+                    ),
+                )
+            )
+        owner._authorize(db, wid)
+        return AcquisitionRecovery(
+            workspace_id=wid,
+            goal_id=goal_id,
+            items=tuple(items),
+            truncated=len(rows) > 20,
+        )

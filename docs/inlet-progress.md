@@ -6763,3 +6763,44 @@ unavailable and is not inferred from this operation evidence.
 - Independent Shopify0082 review also closed at `512df29`: reproduced late-authority
   publication commit leak (both DBs), author savepoint+post-final-check deadline repair,
   independent final regressions **2 passed in 5.31s**. No reviewer source edits.
+
+
+### Customer Shopify Window Reads And Original-Session Recovery
+
+Branch `codex/inlet-commerce-acquisition-ui`, base 19ff2fa; response contract freeze
+70780aa. Added bounded original-session recovery GET (20 + probe, explicit
+truncation) without changing AcquisitionIntent/Status or schema. Measurement History
+now supports confirmed-goal/local-window selection, explicit request, named status,
+fixed deadline, cancel, reload recovery and independent publication reference.
+Unresolved corrections, unqualified maturity and no spending authority remain
+visible. Existing v1 measurements/descriptive behavior remains separate.
+
+Actual configured TLS → API → worker → newly produced v2 publication passed on both
+DBs, including disabled configuration, lost ID, conflicting active request,
+cancellation, original-session revocation and delayed-response selection fencing.
+Separate API tests prove another original session cannot list/adopt/cancel the job;
+21 actual enqueue/cancel requests prove recovery truncation. Existing worker
+atomicity/fairness/privacy/lease tests remained green.
+
+Exact validation: 42 passed in 57.72s, `/tmp/acquisition-customer-final.log`; final
+frontend original-cookie/pre-IO guard then 4 impacted TLS passed in 13.31s,
+`/tmp/acquisition-customer-session-final.log`. Both ran `--durations=20`. Whole Ruff,
+mypy882 (`/tmp/acquisition-customer-mypy.log`), Node syntax and diff checks passed.
+No Full, remote/hosted, live provider calls, new schema, runtime enablement or
+advertising actions. Dedicated disposable PostgreSQL fixture schemas were used.
+
+Failure record: initial API fixture used datetime for integer session revoked_at
+and replayed an already-exchanged identity token; corrected to integer/fresh token
+without production changes. Initial TLS exposed tied-timestamp recovery selecting
+an older completed job over the newly requested job; fixed exact selection/active
+priority. Next TLS ran all browser actions but its final fixture wrongly expected
+jobs after existing session-revocation erasure; corrected to verify actual job and
+publication before revoke, then verify queue deletion. Initial Ruff UTC alias and
+unused-ignore mypy issues were corrected before final checks. Failed logs retained
+at `/tmp/acquisition-recovery-api.log`, `/tmp/acquisition-recovery-api-fixed.log`,
+`/tmp/acquisition-customer-browser.log`, `/tmp/acquisition-customer-combined.log`.
+
+Limits: the configured dedicated worker must run; browser refresh does not run it.
+Completion is an as-of observation, not settled/full-history/causal or automatic
+optimization evidence. Design and callables:
+`docs/design/customer-shopify-acquisition-flow.md`.

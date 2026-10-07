@@ -1,0 +1,21 @@
+const $=id=>document.getElementById(id),assert=(ok,m)=>{if(!ok)throw Error(m);};
+async function until(fn,m){const end=Date.now()+20000;while(!fn()){if(Date.now()>end)throw Error(m+': '+$('measurement-message').textContent+' / '+$('acquisition-message').textContent);await new Promise(r=>setTimeout(r,20));}}
+const control=async action=>{const r=await fetch('/__fixture__/'+action,{method:'POST'});assert(r.ok,'control '+action);return r.json();};
+const select=(id,v)=>{$(id).value=v;$(id).dispatchEvent(new Event('change'));};
+async function choose(){await until(()=>!$('measurement-selection').hidden&&!$('measurement-retry').disabled,'session');select('measurement-workspace',$('measurement-workspace').options[1].value);await until(()=>$('measurement-store').options.length>1&&!$('measurement-retry').disabled,'stores');select('measurement-store',$('measurement-store').options[1].value);await until(()=>$('acquisition-goal').options.length>1&&!$('measurement-retry').disabled,'goals');select('acquisition-goal',$('acquisition-goal').options[1].value);await until(()=>!$('measurement-retry').disabled&&$('acquisition-basis').textContent.includes('Goal Revision'),'recovery');}
+async function request(){ $('acquisition-start').value='2026-10-01';$('acquisition-end').value='2026-10-02';$('acquisition-form').requestSubmit();await until(()=>$('acquisition-results').textContent.includes('Waiting For The Read Worker')&&!$('measurement-retry').disabled,'requested');}
+try{
+ await import('/app/assets/measurement-history.mjs');await choose();
+ await control('disable');$('acquisition-start').value='2026-10-01';$('acquisition-end').value='2026-10-02';$('acquisition-form').requestSubmit();await until(()=>$('measurement-message').textContent.includes('not configured')&&!$('measurement-retry').disabled,'disabled configuration');await control('enable');await request();
+ // Ordinary refresh reselects server-owned rows; no local job ID or job fixture.
+ $('measurement-retry').click();await choose();await until(()=>$('acquisition-results').textContent.includes('Waiting For The Read Worker'),'recovered');
+ await control('tick');$('acquisition-refresh').click();await until(()=>$('acquisition-results').textContent.includes('Completed Read')&&!$('measurement-retry').disabled,'completed');
+ assert($('acquisition-results').textContent.includes('Corrections Unresolved · Maturity Unqualified · No Spending Authority'),'honest quality');
+ assert(!$('acquisition-results').textContent.includes('No Publication Created'),'publication reference');
+ await control('hold');$('acquisition-history-refresh').click();await control('held');select('measurement-store','');await control('release');await until(()=>!$('measurement-retry').disabled,'late response');assert($('acquisition-section').hidden&&!$('acquisition-results').textContent&&!$('acquisition-history').textContent,'late recovery cannot restore cleared selection');
+ select('measurement-store',$('measurement-store').options[1].value);await until(()=>$('acquisition-goal').options.length>1,'reload goals');select('acquisition-goal',$('acquisition-goal').options[1].value);await until(()=>!$('measurement-retry').disabled&&$('acquisition-results').textContent.includes('Completed Read'),'recover completed');
+ await request();$('acquisition-end').value='2026-10-03';$('acquisition-form').requestSubmit();await until(()=>$('measurement-message').textContent.includes('Another read is still active')&&!$('measurement-retry').disabled,'active conflict');
+ $('acquisition-history-refresh').click();await until(()=>!$('acquisition-cancel').disabled&&!$('measurement-retry').disabled,'recover conflict');$('acquisition-cancel').click();await until(()=>$('acquisition-results').textContent.includes('Cancelled')&&!$('measurement-retry').disabled,'cancel');
+ await request();await control('revoke');$('acquisition-refresh').click();await until(()=>$('measurement-selection').hidden,'revoked');assert($('acquisition-section').hidden&&!$('acquisition-results').textContent,'revoked data clear');
+ await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
+}catch(e){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:e.message,stack:e.stack})});}

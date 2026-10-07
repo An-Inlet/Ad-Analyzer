@@ -1,11 +1,17 @@
 """Customer-owned independent read jobs; no caller source facts or maturity flags."""
 
-from fastapi import APIRouter, HTTPException, Response
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import Engine
 
 from app.commerce import acquisition_runtime as runtime
 from app.commerce import acquisition_service as service
-from app.commerce.acquisition_contracts import AcquisitionIntent, AcquisitionStatus
+from app.commerce.acquisition_contracts import (
+    AcquisitionIntent,
+    AcquisitionRecovery,
+    AcquisitionStatus,
+)
 from app.commerce.independent_contracts import ScanUnavailable
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.settings import settings
@@ -107,6 +113,29 @@ def cancel(
             identifier,
             cancel=True,
             clock=runtime.utcnow,
+        )
+    except ScanUnavailable as exc:
+        raise HTTPException(409, exc.code) from None
+
+
+@router.get("", response_model=AcquisitionRecovery)
+def recover(
+    workspace_id: int,
+    goal_id: Annotated[str, Query(pattern=r"^[a-f0-9]{32}$")],
+    db: Database,
+    principal: Principal,
+    provider: Provider,
+    response: Response,
+) -> AcquisitionRecovery:
+    response.headers["Cache-Control"] = "no-store"
+    engine = engine_for(db)
+    _ = principal.user.issuer, principal.user.subject, principal.session.authenticated_at
+    db.expunge(principal.user)
+    db.expunge(principal.session)
+    db.rollback()
+    try:
+        return service.recover(
+            engine, principal, provider, settings, workspace_id, goal_id, clock=runtime.utcnow
         )
     except ScanUnavailable as exc:
         raise HTTPException(409, exc.code) from None

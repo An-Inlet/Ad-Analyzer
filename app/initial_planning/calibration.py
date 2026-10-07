@@ -1,5 +1,6 @@
 """Reproducible reported-efficiency sensitivity, never predictive qualification."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Literal
@@ -308,14 +309,23 @@ def run_calibration(
     return report
 
 
-def read_calibration(
+@dataclass(frozen=True)
+class _CalibrationInputs:
+    """Fresh DB-only validation result; never accepted as reusable authority."""
+
+    report: CalibrationReportV1
+    objective: EfficiencyObjectiveV1
+    observations: tuple[ObservationV1, ...]
+
+
+def _read_calibration_inputs(
     db: Session,
     principal: CustomerPrincipal,
     provider: IdentityProvider,
     workspace_id: int,
     calibration_id: str,
     runtime: InitialPlanningRuntime,
-) -> CalibrationReportV1:
+) -> _CalibrationInputs:
     policy = configuration(runtime)
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     row = db.scalar(
@@ -366,7 +376,20 @@ def read_calibration(
         raise unavailable("initial_calibration_inputs_changed")
     if effective_now(db, runtime) >= report.expires_at:
         raise unavailable("initial_calibration_expired")
-    return report
+    return _CalibrationInputs(report, objective, observations)
+
+
+def read_calibration(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    workspace_id: int,
+    calibration_id: str,
+    runtime: InitialPlanningRuntime,
+) -> CalibrationReportV1:
+    return _read_calibration_inputs(
+        db, principal, provider, workspace_id, calibration_id, runtime
+    ).report
 
 
 def read_objective(
@@ -377,7 +400,6 @@ def read_objective(
     calibration_id: str,
     runtime: InitialPlanningRuntime,
 ) -> EfficiencyObjectiveV1:
-    read_calibration(db, principal, provider, workspace_id, calibration_id, runtime)
-    row = db.get(CalibrationRow, calibration_id)
-    assert row is not None
-    return EfficiencyObjectiveV1.model_validate(row.objective)
+    return _read_calibration_inputs(
+        db, principal, provider, workspace_id, calibration_id, runtime
+    ).objective

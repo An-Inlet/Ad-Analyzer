@@ -11,7 +11,7 @@ from app.campaign_performance.service import read_current
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals import service as goals
-from app.initial_planning import calibration, capture, limits, native, native_budget
+from app.initial_planning import calibration, limits, native, native_budget
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import (
     CalibrationReportV1,
@@ -42,13 +42,15 @@ def inputs(
     wid = objective.cohort.workspace_id
     authorize = bind_authority(principal, provider)
     authorize(db, wid, principal.user.id)
-    report = calibration.read_calibration(
+    checked = calibration._read_calibration_inputs(
         db, principal, provider, wid, intent.calibration_id, runtime
     )
-    saved = calibration.read_objective(db, principal, provider, wid, intent.calibration_id, runtime)
-    observation = capture.read_observation(
-        db, principal, provider, wid, intent.observation_id, runtime
+    report, saved = checked.report, checked.objective
+    observation = next(
+        (item for item in checked.observations if item.id == intent.observation_id), None
     )
+    if observation is None:
+        raise HTTPException(409, "The current objective and reporting history must match.")
     configuration = runtime.configuration
     if (
         configuration is None

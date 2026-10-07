@@ -1,6 +1,7 @@
 """Owned retained initial observations to operational rule facts. No network or commits."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -23,9 +24,9 @@ from app.initial_planning.automatic_contracts import (
     InitialRuleBasisV1,
 )
 from app.initial_planning.automatic_keys import opportunity_key
-from app.initial_planning.calibration import classify, read_calibration
-from app.initial_planning.capture import read_observation
+from app.initial_planning.calibration import _CalibrationInputs, _read_calibration_inputs, classify
 from app.initial_planning.clock import effective_now
+from app.initial_planning.preview_v2 import InitialPreviewV2
 from app.initial_planning.review_v2_api_contracts import InitialPreviewExecutionRuntime
 from app.initial_planning.review_v2_owned import current_preview, policy_pair
 from app.initial_planning.review_v2_projection import native_review_match
@@ -188,6 +189,15 @@ def no_prior_budget(
     return allowed.id if allowed else None
 
 
+@dataclass(frozen=True)
+class _InitialRuleInputs:
+    """Private result of one locked, DB-only resolution, not a cached permission."""
+
+    work: InitialReportedRuleWorkV1
+    preview: InitialPreviewV2
+    calibration: _CalibrationInputs
+
+
 def resolve_initial_work(
     db: Session,
     principal: CustomerPrincipal,
@@ -201,6 +211,33 @@ def resolve_initial_work(
     *,
     forward_review_id: str | None = None,
 ) -> InitialReportedRuleWorkV1:
+    return _resolve_initial_inputs(
+        db,
+        principal,
+        provider,
+        scope,
+        selection,
+        preview_id,
+        expected_digest,
+        policy,
+        planning,
+        forward_review_id=forward_review_id,
+    ).work
+
+
+def _resolve_initial_inputs(
+    db: Session,
+    principal: CustomerPrincipal,
+    provider: IdentityProvider,
+    scope: CandidateScope,
+    selection: SelectionProvenance,
+    preview_id: str,
+    expected_digest: str,
+    policy: InitialReportedRulePolicyV1,
+    planning: InitialPreviewExecutionRuntime,
+    *,
+    forward_review_id: str | None = None,
+) -> _InitialRuleInputs:
     from app.optimization_candidates.service import source_current
 
     wid = scope.account.workspace_id
@@ -238,7 +275,10 @@ def resolve_initial_work(
         planning.planning.clock,
     )
     allowed_admission = no_prior_budget(db, scope, forward_review_id=forward_review_id)
-    report = read_calibration(db, principal, provider, wid, value.calibration_id, planning.planning)
+    checked = _read_calibration_inputs(
+        db, principal, provider, wid, value.calibration_id, planning.planning
+    )
+    report = checked.report
     if (
         report.status != "evaluated"
         or report.training_windows < policy.initial.minimum_training_windows
@@ -247,12 +287,10 @@ def resolve_initial_work(
         raise unavailable()
     references = tuple(
         InitialObservationReferenceV1(
-            observation_id=identifier,
-            digest=read_observation(
-                db, principal, provider, wid, identifier, planning.planning
-            ).digest(),
+            observation_id=item.id,
+            digest=item.digest(),
         )
-        for identifier in sorted(report.observation_ids)
+        for item in sorted(checked.observations, key=lambda item: item.id)
     )
     from app.initial_planning.automatic_dependencies import ensure_opportunity
 
@@ -265,7 +303,7 @@ def resolve_initial_work(
         allowed_admission_id=allowed_admission,
     )
     key = opportunity_key(scope)
-    return InitialReportedRuleWorkV1(
+    work = InitialReportedRuleWorkV1(
         scope=scope,
         policy=policy,
         selection=selection,
@@ -283,6 +321,8 @@ def resolve_initial_work(
         ),
     )
 
+    return _InitialRuleInputs(work, value, checked)
+
 
 def read_initial_rule(
     db: Session,
@@ -294,7 +334,7 @@ def read_initial_rule(
     clock: Callable[[], datetime],
 ) -> InitialReportedRuleObservationV1:
     work = InitialReportedRuleWorkV1.model_validate_json(work.model_dump_json())
-    current = resolve_initial_work(
+    checked = _resolve_initial_inputs(
         db,
         principal,
         provider,
@@ -306,27 +346,22 @@ def read_initial_rule(
         planning,
     )
     if (
-        current != work
+        checked.work != work
         or native.scope != work.scope
         or not isinstance(native.state, MetaCurrentState)
     ):
         raise unavailable()
-    value, _, _ = current_preview(
-        db, principal, provider, work.scope.account.workspace_id, work.basis.preview_id, planning
-    )
+    value = checked.preview
     if value.native_observation is None:
         raise unavailable()
     try:
         native_review_match(value.native_observation, native.state)
     except ValueError as exc:
         raise unavailable() from exc
-    item = read_observation(
-        db,
-        principal,
-        provider,
-        work.scope.account.workspace_id,
-        work.basis.selected_observation_id,
-        planning.planning,
+    item = next(
+        item
+        for item in checked.calibration.observations
+        if item.id == work.basis.selected_observation_id
     )
     rule = next(r for r in work.policy.initial.rules if r.name == work.policy.initial.selected_rule)
     direction = classify(item, value.objective, rule)
@@ -341,18 +376,13 @@ def read_initial_rule(
     expires = min(
         value.expires_at,
         work.selection.expires_at,
+        checked.calibration.report.expires_at,
+        *(item.expires_at for item in checked.calibration.observations),
         now + timedelta(seconds=work.policy.maximum_candidate_age_seconds),
     )
     if now >= expires:
         raise unavailable()
-    report = read_calibration(
-        db,
-        principal,
-        provider,
-        work.scope.account.workspace_id,
-        work.basis.calibration_id,
-        planning.planning,
-    )
+    report = checked.calibration.report
     evidence = InitialReportedRuleEvidenceV1(
         scope_digest=work.scope.digest(),
         environment=work.policy.environment,
@@ -366,6 +396,13 @@ def read_initial_rule(
         observed_at=now,
         expires_at=expires,
     )
+    # Reusing parsed immutable inputs never replaces final current authority or time.
+    from app.optimization_candidates.service import source_current
+
+    lock_customer_mutation(db, principal, work.scope.account.workspace_id, provider)
+    source_current(db, work.scope, principal.user.id)
+    if max(clock(), effective_now(db, planning.planning)) >= expires:
+        raise unavailable()
     return InitialReportedRuleObservationV1(scope=work.scope, state=native.state, evidence=evidence)
 
 

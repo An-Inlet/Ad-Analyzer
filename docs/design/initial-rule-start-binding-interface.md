@@ -62,3 +62,29 @@ human approval rows; duplicate Start and concurrent admission; privacy/source/se
 and expired-preview denial; nullable FK erasure; no retry after unknown; Stop/read after
 erasure; migration round-trip and lossless downgrade refusal. Numerical/financial
 fixture scenarios remain explicit, with no production registration or defaults.
+
+## Frozen wire direction for 0085
+
+Initial policy choices are deliberately excluded from the existing-campaign
+`/execution/automation/capabilities` response. Initial Planning will expose a
+preview-bound choices endpoint; it must not silently route an initial policy through
+the repeat-policy UI. The shared Start endpoint accepts the additive strict schema
+`inlet.start-initial-reported-rule-automation.v1` with
+`decision_basis=initial_reported_efficiency_rule`, `preview_id`,
+`expected_preview_digest`, complete separately consented `mandate`, named `policy`,
+and `expected_policy_digest`. No source observation, delta or server proof is accepted
+from the browser. Its response and existing owner history/Stop contracts stay unchanged.
+
+Implementation branch: `codex/inlet-initial-start-binding`, based on `50b47b8`.
+Migration reservation: 0085 after 0084. Numeric policies remain explicitly registered
+fixture inputs; this interface selects no production defaults.
+
+The preview-specific read route is
+`GET /execution/automation/initial-options/{preview_id}`. It returns
+`inlet.initial-rule-automatic-options.v1`, the exact preview ID/digest, bounded
+20 named options and `truncated`. Each option includes the exact separately
+consented mandate binding, policy reference/digest, explicitly configured rule name,
+maximum nominal adjustment, total limit, lifetime and cadence. The response states
+unsettled reported data, unavailable causal lift and separately checked financial
+qualification. It grants no authority. Initial policies are also excluded from the
+ordinary candidate-selection dropdown, which cannot accept an initial preview basis.

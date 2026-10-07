@@ -162,6 +162,26 @@ def test_owned_reported_queue_produces_separate_decision(
         assert decision.evidence.basis == "operational_reported_efficiency_rule"
         assert decision.evidence.causal_lift == "unavailable"
         assert decision.spending_authority == "none"
+        from app.optimization_candidates.customer_contracts import CandidateReadStatus
+        from app.reported_feedback.candidate_source import current_comparison
+        from app.reported_feedback.customer_contracts import basis_details
+
+        _, comparison = current_comparison(db, principal, work, lambda: clock[0])
+        view = CandidateReadStatus(
+            job_id=identifier,
+            state="completed",
+            result_id=result.id,
+            decision=decision,
+            decision_digest=decision.digest(),
+            basis_details=basis_details(decision, comparison, work.policy),
+        )
+        assert view.basis_details
+        assert view.basis_details.before.reported_cpa_micros == "5000000"
+        assert view.basis_details.after.reported_cpa_micros == "2500000"
+        assert view.basis_details.proposed_delta_micros == -250_000
+        assert view.basis_details.original_attempt_count == 1
+        assert view.basis_details.reported_completion_count == 4
+        assert "capsules" not in view.basis_details.model_dump_json()
         from app.lifecycle.export_serializers import serialize
         from app.optimization_candidates.models import CandidateJob
 

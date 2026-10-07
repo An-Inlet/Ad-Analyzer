@@ -11,7 +11,11 @@ from app.optimization_candidates.selection_contracts import (
     CandidateSelectionBatch,
 )
 from app.publication.provider_contracts import Digest, Id
-from app.reported_feedback.candidate_contracts import ReportedRuleSelectionBatchV1
+from app.reported_feedback.candidate_contracts import (
+    ReportedRuleCandidateV1,
+    ReportedRuleSelectionBatchV1,
+)
+from app.reported_feedback.customer_contracts import ReportedRuleBasisDetailsV1
 
 
 class CandidateReadIntent(StrictModel):
@@ -56,11 +60,27 @@ class CandidateReadStatus(StrictModel):
     result_id: Id | None
     decision: CandidateDecisionDocument | None
     decision_digest: Digest | None
+    basis_details: ReportedRuleBasisDetailsV1 | None = None
     spending_authority: Literal["none"] = "none"
 
     @model_validator(mode="after")
     def exact_decision_digest(self) -> "CandidateReadStatus":
         expected = self.decision.digest() if self.decision is not None else None
+        reported = isinstance(self.decision, ReportedRuleCandidateV1)
+        if reported != (self.basis_details is not None):
+            raise ValueError("candidate basis details mismatch")
+        if isinstance(self.decision, ReportedRuleCandidateV1) and self.basis_details is not None:
+            details = self.basis_details
+            if (
+                details.environment != self.decision.evidence.environment
+                or details.nominal_before_micros != self.decision.nominal_before_micros
+                or details.nominal_after_micros != self.decision.nominal_after_micros
+                or details.observed_at != self.decision.observed_at
+                or details.expires_at != self.decision.expires_at
+                or details.reported_completion_count
+                != self.decision.evidence.reported_completion_count
+            ):
+                raise ValueError("candidate basis details changed")
         if self.decision_digest != expected:
             raise ValueError("candidate decision digest mismatch")
         return self

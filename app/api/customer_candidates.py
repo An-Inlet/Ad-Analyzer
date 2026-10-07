@@ -30,6 +30,9 @@ from app.production_runtime.candidate_assembly import CandidateRuntimeBundle, co
 from app.publication import customer_intents, execution_mandates
 from app.publication.execution_models import ProviderExecutionMandate
 from app.publication.service import owner
+from app.reported_feedback.candidate_contracts import ReportedRuleCandidateV1, ReportedRuleWorkV1
+from app.reported_feedback.candidate_source import current_comparison
+from app.reported_feedback.customer_contracts import basis_details
 from app.settings import settings
 
 router = APIRouter(
@@ -184,12 +187,20 @@ def status(
         if result
         else None
     )
+    details = None
+    if isinstance(decision, ReportedRuleCandidateV1):
+        work = service.owned_work(row)
+        if not isinstance(work, ReportedRuleWorkV1):
+            raise HTTPException(409, "candidate basis unavailable")
+        _, comparison = current_comparison(db, principal, work, bundle.candidate.clock)
+        details = basis_details(decision, comparison, work.policy)
     service.authorize(db, principal, workspace_id, bundle.candidate)
     return CandidateReadStatus(
         job_id=row.id,
         state=row.state,
         result_id=result.id if result else None,
         decision=decision,
+        basis_details=details,
         decision_digest=decision.digest() if decision is not None else None,
     )
 

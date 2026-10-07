@@ -15,7 +15,7 @@ SHA256 domain-separated semantic commitment, not an alleged original attempt.
 Insertion/read checks full digest + all scalars and rejects collisions.
 
 `initial_rule_admission_origins`: admission_id PK, workspace_id, opportunity_id;
-(admission_id,workspace_id)→automatic_decision_admissions(id,workspace_id) RESTRICT;
+(admission_id,workspace_id)→provider_automatic_decisions(id,workspace_id) RESTRICT;
 (opportunity_id,workspace_id)→initial_rule_opportunities(id,workspace_id) RESTRICT.
 Immutable owned linkage inserted atomically with actual automatic admission. Triggers
 check matching ledger,environment,native-account digest,whole-owner commitment and

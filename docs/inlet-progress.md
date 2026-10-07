@@ -6461,3 +6461,7 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
 - **Not wired:** native customer API/browser, new linked identity publisher, native
   production qualification. Existing decoded CUSTOMIZED_USER runtime remains as-is.
   No schema, root qualification checkout, Full, remote or live provider action.
+- Final requested ownership boundary: caller-supplied wrong workspace and stale
+  connection generation both reject before the first GET on SQLite and PostgreSQL:
+  **4 passed** (46 deselected),7.77s. Product code remains `17cb712`; this successor
+  adds only focused tests/ledger. Focused Ruff/mypy and diff check pass.

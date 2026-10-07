@@ -354,3 +354,35 @@ def test_elapsed_context_or_stream_delay_discards_and_closes(
     assert len(calls) == (1 if delay == "stream" else 0)
     assert closed == (["stream", "transport"] if delay == "stream" else ["transport"])
     contexts.close()
+
+
+@pytest.mark.parametrize("change", ["workspace", "generation"])
+def test_wrong_owned_scope_denied_before_first_http(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replicas: Any,
+    encoded: Any,
+    change: str,
+) -> None:
+    scope, contexts, _ = prepare(
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+    )
+    wrong = (
+        scope.model_copy(update={"workspace_id": scope.workspace_id + 99999})
+        if (change == "workspace")
+        else scope.model_copy(update={"connection_version": "foreign-generation"})
+    )
+    calls: list[httpx.Request] = []
+
+    def wire(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=response(request))
+
+    reader = discovery.TikTokOwnedDiscovery(wrong, contexts, httpx.MockTransport(wire), lambda: NOW)
+    with pytest.raises(HTTPException) as error:
+        reader.pixels()
+    assert error.value.status_code in {401, 403, 404, 409}
+    assert calls == []
+    contexts.close()

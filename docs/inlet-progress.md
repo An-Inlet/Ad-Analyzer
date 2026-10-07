@@ -6121,3 +6121,50 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   cohort **14 passed**, 15.46 seconds (`/tmp/inlet-goal-interpretation-accounting.log`).
   Whole Ruff, mypy (441 source files), and diff checks pass. No Full, remote action,
   external model/provider call, live spending, schema change or deployment.
+
+### 2026-10-07 — Optimization Assembly Contract And Origin Proposal
+
+- Isolated child of cd5c2b8/Meta55: additive typed manifest, true catalog-admission,
+  existing qualification/exposure/replacement/settlement ports and owned-context
+  protocols; no installed runtime or native-to-qualified cast. Separate required
+  operating policy and simple customer amount/aggression/opaque-selection intent
+  preserve all existing v1 hashes. Action count aligns with existing1000 maximum.
+- Proposed minimal dedicated immutable optimization mandate sidecar plus parent
+  revision origin discriminator/digest and deferred owned FK. Missing origin cannot
+  silently downgrade to legacy consent; configured forward gates must require new
+  origin while preserving historical attempts/holds. Exact export/retention and
+  nonempty downgrade refusal are documented; no migration/ORM edits yet.
+- Pure contract checks16 passed (new optimization plus Google/Meta/budget contracts),
+  whole Ruff/mypy761/diffcheck passed. No DB, Full, remote or live actions. Next is
+  root review of origin schema/anti-bypass gates before inventory/runtime/consumer
+  implementation. Owner operating/evidence inputs remain explicit, never defaults.
+
+### 2026-10-07 — Optimization Origin0080 Schema Freeze
+
+- Standalone child of7796d09: strict minimal retained preparation document/model,
+  canonical protected lifecycle/export classification and migration0080 down0079.
+  Parent financial policy JSON/v1 digests remain unchanged. New parent discriminator
+  and nullable deferred digest FK bind a globally unique exact owned sidecar;
+  parent digest uniqueness prevents simultaneous borrowing before proof insertion.
+  Exact reverse scope/policy guards and marked-revision immutability preserve origin.
+  Legacy unrelated updates keep existing behavior; legacy-to-marked update denies.
+- Actual0080 uses only additive parent columns/index/triggers, never a populated
+  financial-table rebuild or disabled integrity. BothDB populated downgrade/reupgrade
+  preserves existing real revision bytes and RESTRICT consent. Nonempty downgrade
+  refuses. SQLite downgrade initially exposed a sidecar-trigger ordering defect;
+  the final migration drops that dependent trigger before removing its column.
+- Existing SQLite connections are not universally FK-enabled. Marked INSERT now
+  explicitly denies when pragma_foreign_keys is off; future configured service must
+  preflight this too. No global engine/fixture behavior changed. SQLite's empty ORM
+  test fixture is normalized to pre0080 structure before actual migration execution;
+  PostgreSQL starts from real Alembic heads. The populated test never rebuilds tables.
+- Final focused suite:31 passed,1 expected SQLite-specific test skipped on PostgreSQL
+  in24.09s. Includes actual migration/atomic rollback/missing proof/wrong workspace
+  and policy/both insertion orders/duplicate digest/update/delete/FK-off denial,
+  strict export and model registry, existing execution mandate/lifecycle regressions.
+  Whole Ruff and mypy765 passed; git diffcheck passed. Evidence:
+  /tmp/inlet-origin-final.log. No Full, remote, live calls or candidate changes.
+- This is storage provenance, not configured execution acceptance. Runtime preparation,
+  original-session final fence, generic consent/forward origin dispatch and current
+  policy/qualification/exposure checks remain the next package. Structural fixture
+  documents are explicitly not real admitted financial proof. No live source enabled.

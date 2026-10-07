@@ -500,6 +500,18 @@ TABLES: dict[str, TablePolicy] = {
         None,
         True,
     ),
+    "optimization_mandate_preparations": TablePolicy(
+        "workspace",
+        (
+            "mandate_id",
+            "mandate_revision",
+            "workspace_id",
+            "provider_policy_digest",
+            "preparation_digest",
+        ),
+        None,
+        True,
+    ),
     "initial_budget_mandate_preparations": TablePolicy(
         "workspace",
         ("mandate_id", "mandate_revision", "workspace_id", "policy_digest", "digest"),
@@ -517,6 +529,8 @@ TABLES: dict[str, TablePolicy] = {
             "digest",
             "actor",
             "created_at",
+            "origin_kind",
+            "origin_preparation_digest",
         ),
         None,
         True,

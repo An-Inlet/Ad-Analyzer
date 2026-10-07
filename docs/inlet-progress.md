@@ -6500,3 +6500,24 @@ API/browser journey. Whole Ruff and mypy749 passed; diff check passed.
   connection generation both reject before the first GET on SQLite and PostgreSQL:
   **4 passed** (46 deselected),7.77s. Product code remains `17cb712`; this successor
   adds only focused tests/ledger. Focused Ruff/mypy and diff check pass.
+
+## 2026-10-07 — Customer TikTok Discovery API
+
+- Isolated `codex/inlet-tiktok-discovery-api` from root `dc75330283e674f70f3053f0bbcdb7f9c15ac881`.
+  Contracts frozen2052a5b, strict event/permission consistency e3887f6. Added owned
+  CSRF POST `/execution/tiktok/discovery`, bounded safe customer projection and normal
+  pinned-source/owned-vault read assembly. Default source unavailable; BC selection
+  unavailable until server-owned source exists. No provider identifiers accepted.
+- Preserves original bound authorizer across rollback, separate fresh transport per
+  traversal, original credentials across both reads and final source/session delivery
+  checks. Counts describe complete requested traversal; visible lists max20 with
+  explicit truncation, missing event totals stay null. No financial builder or writes.
+- Final actual configured API + contracts + route-boundaries: **41 passed**, zero
+  skips,50.35s on SQLite/PostgreSQL. Intermediate20API passed38.94s. Initial test-only
+  privacy substring assertion failed because `scope` occurred in the literal
+  `complete_requested_scope`; exact forbidden-key assertion corrected it. Evidence
+  logs `/tmp/inlet-tiktok-discovery-api.log` and `...-api-checked.log` retain results.
+- Whole Ruff + configured mypy848 passed; diff clean. Reusable fixture and exact UI
+  schema documented in [customer discovery API](design/tiktok-customer-discovery-api.md).
+- Remaining dependent acceptance: actual customer UI/TLS. No old social serializer,
+  eligibility gate, schema, Full, remote or live-provider changes.

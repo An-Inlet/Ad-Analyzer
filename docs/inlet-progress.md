@@ -5770,3 +5770,34 @@ no application changes or weakened gates. No Full/remote/live/artifacts.
   are frozen for dependent actual Meta TLS acceptance. That new Meta browser journey
   remains outstanding; Google browser compatibility is verified. No Full, remote,
   live calls, merge or deployment, and no claims of live qualification.
+
+### Configured Meta customer TLS acceptance (2026-10-07)
+
+- Isolated successor of `55e6a35387593483a34e86ebbd002d27473d2802` adds
+  dedicated browser tests only. The actual social configuration page performs
+  named HTTP catalog discovery, explicit no-special-category declaration, private
+  image decoding, saved exact review and separate confirmation. The same original
+  session then uses the actual execution page for mandate consent, creation review,
+  explicit approval, paused resource graph, separate activation review/approval,
+  status recovery and owned receipt readback.
+- Ordinary configured runtime and vault/HTTP adapters are used with lower-level
+  MockTransport. No runtime getter overrides or seeded execution reviews, attempts,
+  receipts or reservations. Explicit server contract-scenario evidence remains
+  test-only; this does not establish live provider qualification.
+- Unknown creation and activation responses are reconciled through the actual
+  Check Original Request control without replay. Original session revocation,
+  source-generation change, missing private media and withdrawn declaration
+  confirmation block activation while retaining the held reservation.
+- Adverse harness evidence: initial SQLite run correctly rejected previewing the
+  October 5 fixture draft using the route's real October 7 clock (409). The harness
+  now supplies the existing fixture clock to that route as well; no product
+  freshness, approval or financial gate was changed. Logs:
+  `/tmp/inlet-meta-configured-browser.log` and
+  `/tmp/inlet-meta-configured-browser-v2.log`.
+- Preliminary cohorts: eight complete/unknown/session cases passed; six additional
+  source/media/declaration cases passed (38.94 seconds), all across SQLite and PG.
+  Final combined result recorded below. Whole Ruff, mypy (449 source files), both
+  JavaScript syntax checks and diff check passed. No new Full, remote activity,
+  screenshots, live requests, deployment or production code changes.
+- Final combined focused run: **14 passed, zero skips**, 91.27 seconds on SQLite
+  and PostgreSQL (`/tmp/inlet-meta-configured-browser-final.log`).

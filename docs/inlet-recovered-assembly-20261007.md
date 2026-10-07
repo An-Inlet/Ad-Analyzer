@@ -95,3 +95,20 @@ access and the original active cohort processes were healthy and its log advanci
 No local execution interruption or GitHub quota evidence was observed. Old worktree
 changes were left intact; inventory and hashed backups of seven untracked review
 or reproduction tests plus a tracked historical diff are in evidence20261007.
+
+Second combined cohort on d6a4471 completed18:46:31UTC, exit1:
+**338 passed,3 skipped,1 failed,22 warnings in1061.50s** (launcher1083.07s).
+Both native PostgreSQL restore tests executed successfully. Remaining skips are
+explicit PostgreSQL-only row-lock/FK-race tests under SQLite. The sole failure was
+`test_frozen_migration_guard_inventory_matches_current_contract`, which incorrectly
+required historical commerce migration0082 to remain the current head after0083.
+The repair checks one coherent head and0082's retained ancestry/exact parent while
+keeping byte-exact frozen guard SQL assertions. No product or migration SQL changes.
+Focused inventory/coherent-head checks: **2 passed**, with two existing Alembic
+configuration deprecation warnings. Whole Ruff, prescribed mypy948 and diff passed.
+Evidence: `recovered-cohort-r2-*`, `recovered-migration-inventory.log`.
+The third combined run must pass before the planned successor Full starts.
+Independent test-repair review confirmed the ancestry correction and requested a
+literal0081 parent assertion instead of comparing the migration module to itself;
+that improvement is included. Final focused rerun:2 passed,2warnings in1.57s.
+Whole Ruff/mypy948/diff passed again after that correction.

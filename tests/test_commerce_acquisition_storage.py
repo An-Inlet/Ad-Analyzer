@@ -112,7 +112,13 @@ def test_frozen_migration_guard_inventory_matches_current_contract() -> None:
     from app.commerce.acquisition_guards import statements
 
     migration = importlib.import_module("migrations.versions.20261007_0082_commerce_acquisition")
-    assert ScriptDirectory.from_config(Config("alembic.ini")).get_heads() == ["20261007_0082"]
+    scripts = ScriptDirectory.from_config(Config("alembic.ini"))
+    assert len(scripts.get_heads()) == 1
+    # Later additive migrations must retain 0082 in the current ancestry; they
+    # do not change its frozen guard contract or make it the latest head again.
+    assert migration.revision in {revision.revision for revision in scripts.walk_revisions()}
+    revision = scripts.get_revision(migration.revision)
+    assert revision is not None and revision.down_revision == "20261007_0081"
     for dialect in ("sqlite", "postgresql"):
         guards = statements(dialect)
         assert migration.SQL[dialect][-len(guards) :] == guards

@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-
-from tests.validation_diagnostics import nested_failure_summary
 
 ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github" / "workflows" / "ci.yml"
@@ -785,32 +782,6 @@ def test_postgresql_tests_followed_by_migration_validation_succeed() -> None:
         capture_output=True,
         env=env,
     )
-
-
-def test_full_validation_can_run_twice_against_same_disposable_database(tmp_path: Path) -> None:
-    if os.environ.get("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION") == "true":
-        pytest.skip("nested Full validation regression test is disabled")
-    command = validate_command("Full")
-    env = disposable_postgres_env({"AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION": "true"})
-    for iteration in range(2):
-        report = tmp_path / f"nested-full-{iteration}.xml"
-        run_env = dict(env)
-        run_env["PYTEST_ADDOPTS"] = shlex.join(
-            [
-                *shlex.split(env.get("PYTEST_ADDOPTS", "")),
-                "--tb=short",
-                f"--junitxml={report}",
-            ]
-        )
-        result = subprocess.run(
-            command,
-            cwd=ROOT,
-            check=False,
-            text=True,
-            capture_output=True,
-            env=run_env,
-        )
-        assert result.returncode == 0, nested_failure_summary(report, result.stdout, result.stderr)
 
 
 def test_ci_uses_disposable_postgresql_and_project_wide_gates() -> None:

@@ -56,7 +56,13 @@ def collect_nested_diagnostics(root: Path, output: Path) -> None:
     base = root.resolve()
     reports: set[Path] = set()
     summaries = []
-    for candidate in sorted(root.glob("test_full_validation_can_run_t*/nested-full-*.xml")):
+    candidates = [
+        root / "aggregate.xml",
+        *sorted(root.glob("test_full_validation_can_run_t*/nested-full-*.xml")),
+    ]
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
         report = candidate.resolve()
         if not report.is_relative_to(base) or report in reports:
             continue

@@ -1,12 +1,8 @@
-import shlex
-import subprocess
 from pathlib import Path
-from typing import Any
 from xml.etree import ElementTree as ET
 
 import pytest
 
-from tests import test_automation_foundation as foundation
 from tests.validation_diagnostics import (
     MAX_ARTIFACT_BYTES,
     MAX_FAILURES,
@@ -48,7 +44,7 @@ def test_large_passing_parameter_ids_do_not_hide_small_failure(tmp_path: Path) -
         output.write("large-passing-parameter-" * 450000)
         output.write('"/><testcase classname="tests.browser" name="actual_failure">')
         output.write('<failure message="expected ready">specific assertion</failure>')
-        output.write('</testcase></testsuite>')
+        output.write("</testcase></testsuite>")
     assert 8 * 1024 * 1024 < path.stat().st_size < MAX_REPORT_BYTES
     text = nested_failure_summary(path, "", "")
     assert "Nested test failures/errors: 1" in text
@@ -107,42 +103,10 @@ def test_missing_or_bad_report_keeps_bounded_tool_failure(tmp_path: Path, kind: 
     assert "migration failed" in text and "safe tool error" in text
 
 
-def test_nested_failure_still_fails_and_includes_original_test_case(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION", raising=False)
-    monkeypatch.setattr(foundation, "disposable_postgres_env", lambda extra: dict(extra))
-    calls = []
-
-    def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append(command)
-        options = shlex.split(kwargs["env"]["PYTEST_ADDOPTS"])
-        assert "--tb=short" in options
-        path = Path(
-            next(value.split("=", 1)[1] for value in options if value.startswith("--junitxml="))
-        )
-        report(path)
-        assert kwargs["env"]["AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION"] == "true"
-        return subprocess.CompletedProcess(command, 1, "later output" * 10000, "")
-
-    monkeypatch.setattr(subprocess, "run", run)
-    with pytest.raises(AssertionError, match="tests.test_billing_browser_journey::case0"):
-        foundation.test_full_validation_can_run_twice_against_same_disposable_database(tmp_path)
-    assert len(calls) == 1 and calls[0][-1] == "Full"
-
-
-def test_success_still_runs_both_complete_validations(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("AD_ANALYZER_SKIP_NESTED_FULL_VALIDATION_REGRESSION", raising=False)
-    monkeypatch.setattr(foundation, "disposable_postgres_env", lambda extra: dict(extra))
-    reports = []
-
-    def run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        assert command[-1] == "Full"
-        reports.append(kwargs["env"]["PYTEST_ADDOPTS"])
-        return subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(subprocess, "run", run)
-    foundation.test_full_validation_can_run_twice_against_same_disposable_database(tmp_path)
-    assert len(reports) == 2 and reports[0] != reports[1]
+def test_real_aggregate_failure_artifact_survives_without_nested_suite(tmp_path: Path) -> None:
+    report(tmp_path / "aggregate.xml")
+    output = tmp_path / "summary.txt"
+    collect_nested_diagnostics(tmp_path, output)
+    assert "Report: aggregate.xml" in output.read_text()
+    assert "tests.test_billing_browser_journey::case0" in output.read_text()
+    assert output.stat().st_size <= MAX_ARTIFACT_BYTES

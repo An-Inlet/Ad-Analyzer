@@ -5393,3 +5393,36 @@ Alembic configuration warnings, **61.79s**; log
 `/tmp/inlet-populated-planning-restore-final-pass.log`. `ruff check .`, configured
 `mypy` (**702 source files**) and `git diff --check` passed. Dedicated database:
 `inlet_initial_restore_test_20261006`; active candidate databases were untouched.
+
+
+## October 7 Recovery And CI Cost Package
+
+Owner resumed Inlet only, reporting a $10 monthly Actions budget and confirming
+full-scope Inlet as the MVP. Recommendation-only is not an accepted replacement.
+Existing live/credential/spending/merge/deployment gates remain. A confirmed renewed
+usage limit stops work again. Other projects and website work remain paused/outside scope.
+
+Preserved a1adc737 on an isolated codex/inlet-ci-cost-reliability worktree. Remote
+reads verified main ea3591c and development d897d1d. Shell Actions API is Forbidden;
+the connector succeeds. Repository-scoped in-progress, queued and waiting queries
+all returned zero; no cancellation, push or hosted run was performed.
+
+Replaced recursive test-owned Full execution with bounded real Bash/PowerShell
+orchestration coverage. Scripts and product code are unchanged. One real entire
+suite and every downstream gate remain required. Added per-workflow/PR/ref stale-run
+cancellation, preserved manual runs, pip/npm caching and explicit timeouts. Workflow
+triggers and Validation context unchanged. Static/preflight checks precede aggregate;
+bounded failure artifacts now consume the actual aggregate JUnit report.
+
+Checks: automation/orchestration/diagnostics with actual dedicated disposable PG,
+60 passed/22 PowerShell skips in 30.55s; final bounded checks 27 passed/16 PowerShell
+skips in 6.27s; unchanged real Focused gate 37 passed/6 PowerShell skips/29 deselected
+in 27.52s. Whole Ruff, mypy705 and diff checks passed. Structural full-suite invocation
+count drops five to one; hosted savings unmeasured. Historical job112185728275 took
+144.6 runner minutes, including57.18 in final Focused. Do not equate local seconds
+with hosted billed savings. Details and logs: [CI cost recovery](inlet-ci-cost-recovery.md).
+
+Next: preserve this reviewable package; run known repaired product fixtures on the
+assembled candidate, then one real local Full before a single deliberate hosted
+qualification. The October6 interrupted runs remain non-passing evidence. Product
+backlog/production runtime and qualified financial evidence gaps are not solved by CI.

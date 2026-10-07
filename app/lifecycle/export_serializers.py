@@ -74,6 +74,7 @@ from app.publication.social_review_contracts import (
     LegacySocialConfigurationDocumentV1,
     SocialConfigurationDocument,
 )
+from app.publication.tiktok_linked_review_contracts import LinkedPushConfigurationDocumentV1
 from app.reported_feedback.contracts import (
     OperationalReportedComparisonV1,
     ReportedAcquisitionRequestV1,
@@ -216,7 +217,9 @@ ADAPTERS: dict[tuple[str, str], TypeAdapter[Any]] = {
     ("commerce_measurement_publications", "manifest"): MANIFEST,
     ("customer_social_configuration_reviews", "document"): TypeAdapter(
         Annotated[
-            SocialConfigurationDocument | LegacySocialConfigurationDocumentV1,
+            SocialConfigurationDocument
+            | LegacySocialConfigurationDocumentV1
+            | LinkedPushConfigurationDocumentV1,
             Field(discriminator="schema_version"),
         ]
     ),
@@ -435,7 +438,14 @@ def bind_document(
             or document.evidence_digest != row["evidence_digest"]
         ):
             raise ValueError("candidate result ownership mismatch")
-    elif isinstance(document, (SocialConfigurationDocument, LegacySocialConfigurationDocumentV1)):
+    elif isinstance(
+        document,
+        (
+            SocialConfigurationDocument,
+            LegacySocialConfigurationDocumentV1,
+            LinkedPushConfigurationDocumentV1,
+        ),
+    ):
         account = document.request.account
         if (
             account.workspace_id != row["workspace_id"]
@@ -638,7 +648,17 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                     if adapter is None:
                         raise ValueError("unsupported response digest")
                 if adapter is not None:
-                    document = adapter.validate_python(value)
+                    if (
+                        table == "customer_social_configuration_reviews"
+                        and isinstance(value, dict)
+                        and value.get("schema_version")
+                        == "inlet.tiktok-linked-push-configuration-review.v1"
+                    ):
+                        # This new strict schema contains JSON timestamps and arrays;
+                        # decode as JSON without changing historical Python validation.
+                        document = adapter.validate_json(json.dumps(value, allow_nan=False))
+                    else:
+                        document = adapter.validate_python(value)
                     bind_document(table, field, row, document, value)
                     value = (
                         value

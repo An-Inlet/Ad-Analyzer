@@ -8,6 +8,7 @@ from typing import Literal
 
 import httpx
 
+from app import advertising_capabilities
 from app.executors.google_publication import (
     GooglePublicationHTTP,
     GooglePublicationUnavailable,
@@ -104,6 +105,7 @@ class GoogleActivationHTTP:
     def apply_once(
         self, request: ActivationRequest, context: ActivationContext, now: datetime
     ) -> ActivationResponse:
+        advertising_capabilities.require_advertising_write()
         original, converted = self.check(request, context, now)
         before = self.read_exact(request, context, "paused", now)
         if (

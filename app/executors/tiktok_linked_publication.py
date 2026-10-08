@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from app import advertising_capabilities
+from app.executors import planning_reads
 from app.executors.social_http import (
     SocialPublicationUnavailable,
     _private_http,
@@ -62,6 +64,16 @@ class LinkedPushTikTokTransport:
         files: dict[str, tuple[str, bytes, str]] | None = None,
     ) -> dict[str, Any]:
         # No live transport admission exists for this unqualified linked profile.
+        planning_reads.social_read(
+            "tiktok_ads",
+            method,
+            path,
+            headers=headers,
+            params=params,
+            body=body,
+            form=form,
+            files=files,
+        )
         if not isinstance(self.transport, httpx.MockTransport):
             raise SocialPublicationUnavailable("linked_real_transport_unavailable")
         if not path.startswith("/open_api/v1.3/") or any(c in path for c in ("..", ":", "?")):
@@ -337,6 +349,7 @@ class LinkedPushTikTokTransport:
     def apply_once(
         self, request: LinkedPushBoundRequestV1, context: SocialProviderContext, now: datetime
     ) -> SocialProviderResponse:
+        advertising_capabilities.require_advertising_write()
         request = self.check(request, context, now)
         endpoint, body = self.prepare(request)
         path = f"/open_api/{request.api_version}/{endpoint}"

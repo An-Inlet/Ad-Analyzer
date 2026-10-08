@@ -11,6 +11,8 @@ from typing import Any
 
 import httpx
 
+from app import advertising_capabilities
+from app.executors import planning_reads
 from app.publication.contracts import fingerprint
 from app.publication.google_execution_completion_contracts import (
     GoogleCapturedCreationResponse,
@@ -253,6 +255,9 @@ class GooglePublicationHTTP:
         suffix: str,
         body: dict[str, Any],
     ) -> dict[str, Any]:
+        planning_reads.google_read(suffix, body)
+        if not re.fullmatch(r"[0-9]{10}", request.scope.external_advertiser_id):
+            advertising_capabilities.require_advertising_write()
         url = (
             f"https://googleads.googleapis.com/v25/customers/"
             f"{request.scope.external_advertiser_id}/{suffix}"
@@ -314,6 +319,7 @@ class GooglePublicationHTTP:
     def apply_once(
         self, request: BoundProviderRequest, context: ProviderContext, now: datetime
     ) -> ProviderResponse:
+        advertising_capabilities.require_advertising_write()
         self._check(request, context, now)
         collection, _, operation = serialize(request)
         try:

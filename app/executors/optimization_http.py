@@ -13,6 +13,7 @@ from typing import Any
 
 import httpx
 
+from app.executors import planning_reads
 from app.executors.social_http import SocialPublicationUnavailable, _private_http
 from app.publication.execution_contracts import ExecutionAccount
 from app.publication.optimization_contracts import (
@@ -92,6 +93,7 @@ class OptimizationHTTP:
         params: dict[str, str] | None = None,
         body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        planning_reads.social_read(self.provider, method, path, params=params, body=body)
         if not re.fullmatch(r"/[A-Za-z0-9_./]+", path) or ".." in path:
             raise OptimizationUnavailable("optimization_path_invalid")
         token = context.access_token.get_secret_value()

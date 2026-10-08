@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from app import advertising_capabilities
+from app.executors import planning_reads
 from app.executors.optimization_http import (
     OptimizationHTTP,
     OptimizationUnavailable,
@@ -89,6 +91,7 @@ class GoogleOptimizationTransport(OptimizationHTTP):
     def post(
         self, context: OptimizationContext, endpoint: str, body: dict[str, Any]
     ) -> dict[str, Any]:
+        planning_reads.google_read(endpoint, body)
         if endpoint not in {"googleAds:search", "campaigns:mutate", "campaignBudgets:mutate"}:
             raise OptimizationUnavailable("google_optimization_endpoint_invalid")
         customer = context.scope.external_advertiser_id
@@ -468,6 +471,7 @@ class GoogleOptimizationTransport(OptimizationHTTP):
     def apply_once(
         self, request: OptimizationRequest, context: OptimizationContext, now: datetime
     ) -> OptimizationResponse:
+        advertising_capabilities.require_advertising_write()
         validation = super().validate_only(request, context, now)
         if not validation.valid:
             raise OptimizationUnavailable("optimization_not_qualified")

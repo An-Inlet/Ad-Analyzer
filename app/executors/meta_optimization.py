@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from app import advertising_capabilities
 from app.executors.optimization_http import (
     OptimizationHTTP,
     OptimizationUnavailable,
@@ -142,6 +143,7 @@ class MetaOptimizationTransport(OptimizationHTTP):
     def apply_once(
         self, request: OptimizationRequest, context: OptimizationContext, now: datetime
     ) -> OptimizationResponse:
+        advertising_capabilities.require_advertising_write()
         validation = self.validate_only(request, context, now)
         if not validation.valid:
             raise OptimizationUnavailable("optimization_not_qualified")

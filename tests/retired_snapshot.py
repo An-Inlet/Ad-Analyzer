@@ -65,5 +65,3 @@ def run_bounded(command: list[str], cwd: Path, env: dict[str, str], log: Path,
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGKILL)
                     process.wait(timeout=5)
-
-

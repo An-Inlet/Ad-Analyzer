@@ -74,5 +74,3 @@ def test_target_picker_exact_choices_revocation_expiry_and_bounds(
         server.shutdown()
         server.server_close()
         worker.join(timeout=5)
-
-

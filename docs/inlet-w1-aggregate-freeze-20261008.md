@@ -59,3 +59,15 @@ on a successor branch and cannot be presented as this frozen run's result.
 Hosted diagnostics, remote pushes, deployment, live provider/model calls and all
 advertising writes remain held. No full-suite pass, expert acceptance, live operation
 or purchasable SaaS claim follows from this freeze.
+
+## Preflight Whitespace Correction
+
+Candidate `35aced79d46ed3bf2419cd6063b8e740479de6c7` passed auth bundle
+reproduction, actual Chromium H.264/AAC decoding, isolated Alembic head→base→head,
+whole Ruff and bare mypy (1,117 files). The baseline whitespace check identified
+one extra EOF blank line each in `tests/retired_snapshot.py` and
+`tests/test_plan_target_picker.py`. The successor removes only those blank lines;
+no executable statements or test expectations change. The original candidate
+checkout/evidence is kept, and a separate final checkout is used for the still
+unstarted single aggregate. This is a preflight formatting correction, not another
+feature package or a repeated aggregate.

@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.initial_planning.start_contracts import (
@@ -74,6 +75,11 @@ def capabilities(
     workspace_id: int, principal: Principal, db: Database, runtime: Runtime, response: Response
 ) -> SessionAutomationCapabilitiesWithReportedRules:
     read_access(db, principal, workspace_id, response)
+    if not advertising_capabilities.advertising_writes_enabled():
+        return SessionAutomationCapabilitiesWithReportedRules(
+            available=False, reason="automation_not_available", policies=[], mandates=[],
+            message="This product supports planning only. Advertising changes are disabled.",
+        )
     policies: list[AutomaticPolicyOption | ReportedRuleAutomaticPolicyOptionV1] = []
     mandates: list[AutomaticMandateOption] = []
     if runtime is not None:
@@ -192,6 +198,8 @@ def start(
     runtime: Runtime,
     response: Response,
 ) -> SessionAutomationStatus:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     read_access(db, principal, workspace_id, response)
     if runtime is None:
         raise HTTPException(409, "automation_not_available")
@@ -256,6 +264,8 @@ def initial_options(
     runtime: Runtime,
     response: Response,
 ) -> "InitialRuleAutomaticOptionsV1":
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     from app.initial_planning.start_options import options
 
     read_access(db, principal, workspace_id, response)

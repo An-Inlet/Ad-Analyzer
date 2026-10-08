@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter, Response
 
+from app import advertising_capabilities
 from app.api.customer_initial_planning import Runtime
 from app.api.customer_optimization import Runtime as OptimizationRuntime
-from app.customers.access import MutationPrincipal, Principal, Provider
+from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.initial_planning.review_v2_api_contracts import (
     InitialPreviewExecutionOptionsV1,
     InitialPreviewExecutionRuntime,
@@ -17,6 +18,7 @@ from app.initial_planning.review_v2_contracts import (
     InitialPreviewExecutionIntentV1,
     InitialPreviewExecutionPreparedV1,
 )
+from app.publication.service import owner
 
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/initial-planning/previews/{preview_id}",
@@ -30,10 +32,13 @@ def options(
     preview_id: str,
     principal: Principal,
     provider: Provider,
+    db: Database,
     planning: Runtime,
     optimization: OptimizationRuntime,
     response: Response,
 ) -> InitialPreviewExecutionOptionsV1:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     response.headers["Cache-Control"] = "no-store"
     return execution_review_options(
         InitialPreviewExecutionRuntime(planning, optimization),
@@ -51,10 +56,13 @@ def prepare(
     body: InitialPreviewExecutionIntentV1,
     principal: MutationPrincipal,
     provider: Provider,
+    db: Database,
     planning: Runtime,
     optimization: OptimizationRuntime,
     response: Response,
 ) -> InitialPreviewExecutionPreparedV1:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     response.headers["Cache-Control"] = "no-store"
     return prepare_preview_execution(
         InitialPreviewExecutionRuntime(planning, optimization),

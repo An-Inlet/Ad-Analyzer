@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Response
 from sqlalchemy import select
 
+from app import advertising_capabilities
 from app.customers.access import (
     Database,
     MutationPrincipal,
@@ -26,6 +27,7 @@ from app.mandates.schemas import (
     ReviewInput,
     RevisionInput,
 )
+from app.publication.service import owner
 
 router = APIRouter(prefix="/api/customer/v1/workspaces/{workspace_id}/mandates", tags=["customer"])
 
@@ -185,6 +187,8 @@ def review(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     mutation_access(db, principal, provider, workspace_id, response, "start")
     m = s.owned(db, workspace_id, mandate_id)
     a = s.action(db, m, action_id)
@@ -204,6 +208,8 @@ def claim(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     mutation_access(db, principal, provider, workspace_id, response, "start")
     m = s.owned(db, workspace_id, mandate_id)
     a = s.action(db, m, action_id)
@@ -222,6 +228,8 @@ def dispatch(
     db: Database,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     mutation_access(db, principal, provider, workspace_id, response, "start")
     m = s.owned(db, workspace_id, mandate_id)
     a = s.action(db, m, action_id)

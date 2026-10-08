@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app import advertising_capabilities
 from app.api.customer_execution_runtime import get_configured_customer_execution_runtime
 from app.api.customer_optimization import Runtime as OptimizationRuntime
 from app.campaign_review.contracts import MediaStore
@@ -87,9 +88,7 @@ def capabilities(
     workspace_id: int, principal: Principal, db: Database, runtime: Runtime, response: Response
 ) -> dict[str, Any]:
     read_access(db, principal, workspace_id, response)
-    available = runtime is not None and (
-        runtime.creation.environment != "live" or runtime.creation.live_enabled
-    )
+    available = False  # Planning artifact never offers publication or activation.
 
     def configured(platform: str) -> bool:
         if not available or runtime is None:
@@ -133,9 +132,8 @@ def capabilities(
             for platform in ("google_ads", "meta_ads", "tiktok_ads")
         ],
         "activation_available": bool(available and runtime and runtime.activation),
-        "scope": "contract_test_no_provider_changes"
-        if runtime and runtime.creation.environment == "contract_test"
-        else "separate_exact_consent_required",
+        "advertising_writes_enabled": False,
+        "scope": "planning_only",
     }
 
 
@@ -163,6 +161,8 @@ def create_mandate(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = bound(runtime, principal, provider)
     server.creation.authorize(db, workspace_id, principal.user.id)
     p = intents.policy(db, workspace_id, body, server)
@@ -182,6 +182,8 @@ def edit_mandate(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = bound(runtime, principal, provider)
     server.creation.authorize(db, workspace_id, principal.user.id)
     p = intents.policy(db, workspace_id, body.intent, server)
@@ -210,6 +212,8 @@ def consent(
     optimization_runtime: OptimizationRuntime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     _, mandate_row = execution_mandates.owned(db, workspace_id, mandate_id)
     if "existing_campaign_optimize" in execution_mandates.policy(db, mandate_row).allowed_purposes:
@@ -288,6 +292,8 @@ def prepare_creation(
     media: Store,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = bound(runtime, principal, provider)
     catalog = intents.discover(db, workspace_id, body.draft_id, principal.user.id, media, server)
     selected = next(
@@ -345,6 +351,8 @@ def prepare_activation(
     media: Store,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = bound(runtime, principal, provider)
     if server.activation is None:
         raise intents.unavailable("activation_runtime_unavailable")
@@ -390,6 +398,8 @@ def approve(
     media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
     kind = opt.purpose(row)
@@ -455,6 +465,8 @@ def start_run(
     media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     row = intents.review(db, workspace_id, review_id)
     kind = opt.purpose(row)
@@ -527,6 +539,8 @@ def advance(
     media_factory: MediaFactory,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     run = intents.run(db, workspace_id, run_id)
     row = intents.review(db, workspace_id, run.review_id)
@@ -585,6 +599,7 @@ def reconcile(
     optimization_runtime: OptimizationRuntime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
     bind_authority(principal, provider)(db, workspace_id, principal.user.id)
     run = intents.run(db, workspace_id, run_id)
     row = intents.review(db, workspace_id, run.review_id)

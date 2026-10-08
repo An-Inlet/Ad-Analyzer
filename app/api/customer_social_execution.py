@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Response
 from sqlalchemy import select
 
+from app import advertising_capabilities
 from app.api.customer_execution import Runtime, Store, bound
 from app.api.customer_social_review import view
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
@@ -33,6 +34,8 @@ def create_review(
     media: Store,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = bound(runtime, principal, provider)
     row = prepare_creation(db, workspace_id, body, principal.user.id, media, server)
     response.headers["Cache-Control"] = "no-store"

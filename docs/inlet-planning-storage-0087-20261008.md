@@ -42,3 +42,23 @@ Independent review repair: stored version `privacy_revision` now must equal ever
 canonical evidence reference privacy revision during load/export. Both a tampered scalar
 and mixed canonical evidence with recomputed digest are rejected. Focused two-case repair
 cohort passed; whole Ruff/mypy1027 passed before starting the separate authority/DTO WIP.
+
+## Authority/DTO Interface Slice
+
+Added planning-local immutable scalar identity fact and fixed5second monotonic final
+acceptance helper; no global auth changes/provider IO under local lock helper. Pure
+boundary tests: **5 passed in1.41s** (exact/overage/backward interval, provider-side
+identity mutation, revocation, session expiry). Later rerun final timing in handoff.
+Concrete request/response DTOs and public route/service shape are documented in
+`docs/design/planning-customer-service-api.md`. These do not install routes or claim
+working customer service. Root can implement dependent UI against this interface.
+Whole Ruff/mypy **1031 files** passed; diffcheck passed. Service lock-wait/race/IO
+integration tests remain the next implementation slice, not implied by pure helpers.
+
+Authority review repair: detached request principal can no longer conceal current DB
+issuer/subject/authenticated_at changes. `authority.lock` re-fetches locked rows in its
+own transaction, compares the exact externally checked scalar tuple, and returns the
+fresh principal for final acceptance. Separate-session SQLite/PostgreSQL tests cover
+all three changed fields plus the positive canonical transaction identity. Full authority
+cohort **13 passed in8.22s**; mypy1031 passed. Repository service WIP remains untracked
+and outside this frozen repair.

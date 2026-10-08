@@ -10,7 +10,7 @@ const text = (doc, tag, value) => {
 };
 const fail = message => { throw new Error(message); };
 
-function micros(value) {
+export function parsePlanningMicros(value) {
   if (typeof value !== 'string' || !/^(0|[1-9][0-9]{0,15})(\.[0-9]{1,6})?$/.test(value)) {
     fail('Enter a nonnegative decimal amount with at most six decimal places.');
   }
@@ -81,7 +81,7 @@ export function renderPlanTargetPicker(host, catalog, options, onChange, now = D
     for (const {choice, amount, selector} of controls) {
       if (choice.value === 'exclude') exclusions.push({...selector});
       else if (choice.value === 'fixed') {
-        const value = micros(amount.value); total += value;
+        const value = parsePlanningMicros(amount.value); total += value;
         fixed_allocations.push({target: {...selector}, amount_micros: Number(value)});
       } else if (choice.value !== 'include') fail('Select a supported planning choice.');
     }

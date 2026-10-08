@@ -10,25 +10,29 @@ import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import pytest
 from app.planning_catalog.projection_v2 import project_v2
 
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_metadata_binding import bundle
 
 
-def test_target_picker_exact_choices_revocation_expiry_and_bounds(tmp_path: Path) -> None:
+@pytest.mark.parametrize("driver", ["plan_target_picker_dom", "plan_scenarios_dom"])
+def test_target_picker_exact_choices_revocation_expiry_and_bounds(
+    tmp_path: Path, driver: str
+) -> None:
     chromium = portal_executable("chromium", "chromium-browser", "google-chrome")
     catalogs = [
         project_v2(*bundle(platform)).model_dump(mode="json")
         for platform in ("google", "meta", "tiktok")
     ]
     (tmp_path / "catalogs.json").write_text(json.dumps(catalogs))
-    for name in ("plan-target-picker.mjs", "native-targets.mjs"):
+    for name in ("plan-target-picker.mjs", "native-targets.mjs", "plan-scenarios.mjs"):
         shutil.copy(Path("app/portal/static") / name, tmp_path / name)
     (tmp_path / "index.html").write_text(
         '<div id="host"></div><pre id="result"></pre><script type="module" src="test.mjs"></script>'
     )
-    shutil.copy("tests/javascript/plan_target_picker_dom.mjs", tmp_path / "test.mjs")
+    shutil.copy(f"tests/javascript/{driver}.mjs", tmp_path / "test.mjs")
     complete = threading.Event()
     reports: list[str] = []
 

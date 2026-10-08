@@ -36,7 +36,7 @@ pytestmark = pytest.mark.planning_boundary
 @pytest.mark.parametrize(
     ("journey", "platform"),
     [("documents", "google_ads"), ("targets", "google_ads"),
-     ("targets", "meta_ads"), ("targets", "tiktok_ads")],
+     ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads")],
 )
 def test_actual_planning_browser_lost_response_recovery_and_versions(
     journey: str,

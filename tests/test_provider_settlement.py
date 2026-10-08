@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.publication import coordinator as c
 from app.publication import settlement as s
 from app.publication.execution_models import (
@@ -21,6 +22,8 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_google_activation import Server
 from tests.test_provider_coordinator import ready
 from tests.test_shopify_sales import configuration as configuration
+
+pytestmark = pytest.mark.planning_boundary
 
 
 def qualified(snapshot: s.SettlementSnapshot, now: datetime) -> s.SettlementObservation:
@@ -47,10 +50,14 @@ def test_completed_paused_graph_requires_terminal_proof_and_preserves_accounting
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
         server = Server()
-        wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, server)
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, server)
+        assert advertising_capabilities.advertising_writes_enabled() is False
         run = db.get(ProviderExecutionRun, parent)
         assert run is not None and run.reservation_id is not None
         rid = run.reservation_id
@@ -92,9 +99,13 @@ def test_incomplete_stale_or_foreign_terminal_proof_retains_reservation(
     configuration: Settings,
     tmp_path: Path,
     change: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, Server())
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, Server())
+        assert advertising_capabilities.advertising_writes_enabled() is False
         run = db.get(ProviderExecutionRun, parent)
         assert run is not None and run.reservation_id is not None
         rid = run.reservation_id
@@ -136,11 +147,15 @@ def test_committed_unknown_attempt_blocks_even_after_period_end(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
         server = Server()
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
-        claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+            claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+        assert advertising_capabilities.advertising_writes_enabled() is False
         assert claim is not None
         c.cancel_creation(db, wid, run_id, actor, lambda: NOW)
         run = db.get(ProviderExecutionRun, run_id)
@@ -172,7 +187,10 @@ def test_canceled_parent_with_no_original_attempt_can_release_locally(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, Server())
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, Server())
+        assert advertising_capabilities.advertising_writes_enabled() is False
         commit = db.commit
         canceled = False
 
@@ -185,8 +203,11 @@ def test_canceled_parent_with_no_original_attempt_can_release_locally(
                     c.cancel_creation(other, wid, run_id, actor, lambda: NOW)
 
         monkeypatch.setattr(db, "commit", cancel_gap)
-        with pytest.raises(HTTPException, match="canceled"):
-            c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            with pytest.raises(HTTPException, match="canceled"):
+                c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+        assert advertising_capabilities.advertising_writes_enabled() is False
         db.rollback()
         run = db.get(ProviderExecutionRun, run_id)
         assert run is not None and run.reservation_id is not None
@@ -204,9 +225,13 @@ def test_new_unknown_during_terminal_read_invalidates_snapshot(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, Server())
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, parent, actor, _, _, _ = activation_ready(db, configuration, tmp_path, Server())
+        assert advertising_capabilities.advertising_writes_enabled() is False
         run = db.get(ProviderExecutionRun, parent)
         assert run is not None and run.reservation_id is not None
         c.cancel_creation(db, wid, parent, actor, lambda: NOW)
@@ -240,17 +265,24 @@ def test_no_effect_later_step_does_not_erase_earlier_provider_resource(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, Server())
-        first = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
-        assert first is not None
-        assert (
-            c.execute_claim(db, first, actor, store, runtime, lambda: NOW).outcome
-            == "verified_effect"
-        )
-        second = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
-        assert second is not None
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, Server())
+        assert advertising_capabilities.advertising_writes_enabled() is False
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            first = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+            assert first is not None
+            assert (
+                c.execute_claim(db, first, actor, store, runtime, lambda: NOW).outcome
+                == "verified_effect"
+            )
+            second = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+            assert second is not None
+        assert advertising_capabilities.advertising_writes_enabled() is False
         # Explicit test authority; production absence is never converted into no-effect.
         receipt = c.unknown(second.request, NOW).model_copy(
             update={
@@ -272,6 +304,7 @@ def test_full_activation_settlement_requires_canceling_both_related_runs(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.publication import activation as a
     from app.publication import activation_review as r
@@ -280,20 +313,23 @@ def test_full_activation_settlement_requires_canceling_both_related_runs(
 
     with Session(customer_engine) as db:
         server = Server()
-        wid, parent, actor, store, review, binding = activation_ready(
-            db, configuration, tmp_path, server
-        )
-        row = r.prepare_activation(db, wid, parent, binding, actor, store, review, lambda: NOW)
-        r.approve_activation(
-            db, wid, row.id, row.digest, row.plan_digest, actor, store, review, lambda: NOW
-        )
-        run = r.create_run(db, wid, row.id, actor, store, review, lambda: NOW)
-        runtime = runtime_for(review, server)
-        while claim := a.claim_step(db, wid, run.id, actor, store, runtime, lambda: NOW):
-            assert (
-                a.execute_claim(db, claim, actor, store, runtime, lambda: NOW).outcome
-                == "verified_target_state"
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, parent, actor, store, review, binding = activation_ready(
+                db, configuration, tmp_path, server
             )
+            row = r.prepare_activation(db, wid, parent, binding, actor, store, review, lambda: NOW)
+            r.approve_activation(
+                db, wid, row.id, row.digest, row.plan_digest, actor, store, review, lambda: NOW
+            )
+            run = r.create_run(db, wid, row.id, actor, store, review, lambda: NOW)
+            runtime = runtime_for(review, server)
+            while claim := a.claim_step(db, wid, run.id, actor, store, runtime, lambda: NOW):
+                assert (
+                    a.execute_claim(db, claim, actor, store, runtime, lambda: NOW).outcome
+                    == "verified_target_state"
+                )
+        assert advertising_capabilities.advertising_writes_enabled() is False
         assert run.reservation_id is not None
         c.cancel_creation(db, wid, run.id, actor, lambda: NOW)
         with pytest.raises(HTTPException, match="cancel all"):

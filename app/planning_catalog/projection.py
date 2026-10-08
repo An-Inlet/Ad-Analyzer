@@ -45,8 +45,15 @@ def project(result: Inventory) -> TargetCatalogV1:
                 name=None,
                 name_source="unavailable",
                 settings=settings,
-                unavailable_fields=["name", *[k for k, v in settings.items() if v is None]],
-                reasons=["native_name_not_collected"],
+                unavailable_fields=[
+                    "name",
+                    *(["budget_owner"] if budget is None else []),
+                    *[k for k, v in settings.items() if v is None],
+                ],
+                reasons=[
+                    "native_name_not_collected",
+                    *(["budget_owner_unresolved"] if budget is None else []),
+                ],
             )
         )
 
@@ -91,13 +98,9 @@ def project(result: Inventory) -> TargetCatalogV1:
             for row in rows:
                 settings = row.model_dump(exclude={"id", "account_id", "campaign_id"})
                 settings["platform"] = platform
-                # Identify only explicit observed budget ownership. Do not guess inheritance.
-                budget = (
-                    key(kind, row.id)
-                    if row.daily_budget_native is not None or row.lifetime_budget_native is not None
-                    else None
-                )
-                target(kind, row.id, row.campaign_id, budget, settings)
+                # Amount presence is not evidence of independent budget ownership.
+                # Campaign pooling/sharing and unknown modes remain unresolved.
+                target(kind, row.id, row.campaign_id, None, settings)
             cover(
                 kind, "partial", "sdk_known_effective_statuses", ["effective_status_scope_limited"]
             )
@@ -110,7 +113,7 @@ def project(result: Inventory) -> TargetCatalogV1:
                     kind,
                     tiktok_row.id,
                     tiktok_row.campaign_id if kind != "campaign" else None,
-                    key(kind, tiktok_row.id) if tiktok_row.budget_native is not None else None,
+                    None,
                     settings,
                 )
             cover(kind, "partial", "regular_campaign_families", ["campaign_family_scope_limited"])

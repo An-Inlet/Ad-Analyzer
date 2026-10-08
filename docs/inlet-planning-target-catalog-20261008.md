@@ -20,3 +20,9 @@ Initial exploratory test failures came from reusing the old diagnostics fixture,
 Raw check logs: `/workspace/inlet-evidence/20261008/planning-target-catalog/`. No live-provider, hosted or production behavior verified; no deployment/merge performed. Root integration and independent review remain pending at this package boundary.
 
 Remaining P02 usability work: Google adgroups are explicitly unavailable/not collected; Meta coverage is limited to known effective statuses; TikTok coverage is limited to regular campaign families. Native names and provider-identifiable references are required before customers can locate targets for manual application. No customer UI, comprehensive scenarios, manual implementation briefs or completed-plan claim is included in this package. Next package should complete the catalog usability fields/Google child collection under the same read-only boundary, then connect reviewed planning consumers.
+
+## Independent Review Repair
+
+Review identified that Meta/TikTok amount presence does not establish budget-pool ownership. Projection now leaves social budget_owner_key null with budget_owner_unresolved and an unavailable field; observed amounts, hierarchy, settings and targets remain visible. Google explicit campaignBudget resource linkage is unchanged. No inferred ownership from absent/unknown pooling flags.
+
+Repair checks: focused catalog API/contracts/projection cohort across SQLite/PostgreSQL **85 passed in78.48s**. Then strengthened amount-preservation assertions and corrected fixture typing/native decimal expectation: projection-only **6 passed in0.29s**. Whole Ruff passed; mypy passed993 source files; diff check passed. Six MockHTTP regressions cover TikTok parent budget optimization True/False/None and Meta sharing True/False/None. Independent repair closure requested. Raw repair logs are alongside the original evidence logs.

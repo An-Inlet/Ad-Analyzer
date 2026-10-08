@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.customers.models import CustomerMembership
 from app.lifecycle.contracts import LifecycleInputV1, LifecycleScopeV1
 from app.lifecycle.export_serializers import serialize
@@ -36,6 +37,8 @@ from tests.test_provider_settlement import qualified
 from tests.test_shopify_sales import SHOP
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def authorize_export(db: Session, engine: Engine, wid: int) -> Authority:
     principal, _ = seed(db, "archive-owner")
@@ -58,30 +61,33 @@ def authorize_export(db: Session, engine: Engine, wid: int) -> Authority:
 
 
 def test_create_activate_settle_then_export_actual_owned_records(
-    export_engine: Engine, configuration: Settings, tmp_path: Path
+    export_engine: Engine, configuration: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with Session(export_engine) as db:
         server = Server()
-        wid, parent, actor, store, review, binding = activation_ready(
-            db, configuration, tmp_path, server
-        )
-        row = reviews.prepare_activation(
-            db, wid, parent, binding, actor, store, review, lambda: PROVIDER_NOW
-        )
-        reviews.approve_activation(
-            db, wid, row.id, row.digest, row.plan_digest, actor, store, review, lambda: PROVIDER_NOW
-        )
-        run = reviews.create_run(db, wid, row.id, actor, store, review, lambda: PROVIDER_NOW)
-        runtime = runtime_for(review, server)
-        while claim := activation.claim_step(
-            db, wid, run.id, actor, store, runtime, lambda: PROVIDER_NOW
-        ):
-            assert (
-                activation.execute_claim(
-                    db, claim, actor, store, runtime, lambda: PROVIDER_NOW
-                ).outcome
-                == "verified_target_state"
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, parent, actor, store, review, binding = activation_ready(
+                db, configuration, tmp_path, server
             )
+            row = reviews.prepare_activation(
+                db, wid, parent, binding, actor, store, review, lambda: PROVIDER_NOW
+            )
+            reviews.approve_activation(
+                db, wid, row.id, row.digest, row.plan_digest, actor, store, review,
+                lambda: PROVIDER_NOW
+            )
+            run = reviews.create_run(db, wid, row.id, actor, store, review, lambda: PROVIDER_NOW)
+            runtime = runtime_for(review, server)
+            while claim := activation.claim_step(
+                db, wid, run.id, actor, store, runtime, lambda: PROVIDER_NOW
+            ):
+                receipt = activation.execute_claim(
+                    db, claim, actor, store, runtime, lambda: PROVIDER_NOW
+                )
+                assert receipt.outcome == "verified_target_state"
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         assert run.reservation_id is not None
         coordinator.cancel_creation(db, wid, run.id, actor, lambda: PROVIDER_NOW)
         coordinator.cancel_creation(db, wid, parent, actor, lambda: PROVIDER_NOW)

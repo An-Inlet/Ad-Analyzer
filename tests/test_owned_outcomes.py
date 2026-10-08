@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from app import advertising_capabilities
 from app.api.customer_outcomes import router
 from app.commerce.models import CommerceMeasurementPublication, CommerceStore
 from app.commerce.sync import CommerceSyncService
@@ -31,6 +32,8 @@ from tests.test_provider_coordinator import GoogleServer, ready
 from tests.test_shopify_sales import SHOP
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def evidence(
     db: Session, config: Settings, path: Path
@@ -38,10 +41,15 @@ def evidence(
     if db.get_bind().dialect.name == "sqlite":
         db.execute(text("PRAGMA foreign_keys=ON"))
     server = GoogleServer()
-    wid, run_id, actor, media, runtime = ready(db, config, path, server)
-    claim = coordinator.claim_creation_step(db, wid, run_id, actor, media, runtime, lambda: NOW)
-    assert claim is not None
-    coordinator.execute_claim(db, claim, actor, media, runtime, lambda: NOW)
+    # Authentic historical receipt only; current commerce/outcome reads stay guarded.
+    with pytest.MonkeyPatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        wid, run_id, actor, media, runtime = ready(db, config, path, server)
+        claim = coordinator.claim_creation_step(db, wid, run_id, actor, media, runtime, lambda: NOW)
+        assert claim is not None
+        coordinator.execute_claim(db, claim, actor, media, runtime, lambda: NOW)
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
     native = db.scalar(select(ShopifyConnection).where(ShopifyConnection.workspace_id == wid))
     assert native is not None
     store = db.get(CommerceStore, native.commerce_store_id)

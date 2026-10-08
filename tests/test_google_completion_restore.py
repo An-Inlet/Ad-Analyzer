@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from app import advertising_capabilities
 from app.publication.execution_models import (
     GoogleOriginalCompletion,
     ProviderExecutionAttempt,
@@ -23,6 +24,8 @@ from sqlalchemy.orm import Session
 from tests.test_commerce_measurement import NOW
 from tests.test_google_completion_evidence import emitted
 from tests.test_shopify_sales import configuration as configuration
+
+pytestmark = pytest.mark.planning_boundary
 
 
 @pytest.mark.parametrize("purpose", ["optimization", "creation"])
@@ -86,7 +89,13 @@ def test_native_completion_migration_restore(
         # Keep the exact 0066 roundtrip above, then populate the actual full schema.
         command.upgrade(config, "heads")
         with Session(engine) as db:
-            wid, actor, attempt = emit(db)
+            with monkeypatch.context() as historical:
+                historical.setattr(
+                    advertising_capabilities, "require_advertising_write", lambda: None
+                )
+                wid, actor, attempt = emit(db)
+            with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+                advertising_capabilities.require_advertising_write()
             original = read(db, wid, attempt, actor)
             assert original is not None
             holds = [

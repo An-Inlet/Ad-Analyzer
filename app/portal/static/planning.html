@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your Advertising Plans · Inlet</title><link rel="stylesheet" href="/app/assets/portal.css"><script type="module" src="/app/assets/planning.mjs"></script></head><body>
+<header><a class="brand" href="/app/settings">Inlet<small>An Inlet</small></a><button id="planning-logout" hidden>Sign Out</button></header><main>
+<h1>Your Advertising Plans</h1><p><a href="/app/settings">Your Workspace And Goals</a> · <a href="/app/account-diagnostics">Account Diagnostics</a></p>
+<p>Review a plan and apply any changes yourself. Inlet does not publish, pause or change advertising. Current plans provide descriptive review guidance; recommendation quality has not been expert-qualified.</p>
+<p id="planning-message" role="status" aria-live="polite">Checking Your Session…</p><button id="planning-refresh">Refresh Session</button>
+<section id="planning-pending" hidden><h2>Check The Previous Request</h2><p>The previous save may have completed. Check its recorded result before making another change. Nothing is retried automatically.</p><p id="planning-pending-reference"></p><button id="planning-recover">Check Recorded Result</button></section>
+<section id="planning-selection" hidden><label>Workspace<select id="planning-workspace"></select></label>
+<h2>Saved Plans</h2><button id="planning-list-refresh">Refresh Plans</button><ul id="planning-plans"></ul><button id="planning-list-next" hidden>Next Plans</button>
+<button id="planning-new" hidden>Prepare A New Plan</button></section>
+<section id="planning-editor" hidden><h2 id="planning-editor-title">Prepare A New Plan</h2><p>Choose a confirmed goal. Its budget ceiling and aggressiveness remain exactly as confirmed. Edit and confirm your goal in Your Workspace before changing those values.</p>
+<form id="planning-form"><label>Confirmed Goal<select id="planning-goal" required></select></label><p id="planning-goal-summary"></p>
+<fieldset><legend>Connected Advertising Accounts</legend><div id="planning-accounts"></div></fieldset>
+<label>Milestone<textarea id="planning-milestone" maxlength="2000" required></textarea></label>
+<label>Product And Offer Facts<textarea id="planning-product" maxlength="2000"></textarea></label>
+<label>Constraints — One Per Line<textarea id="planning-constraints"></textarea></label>
+<label>Customer Assumptions — One Per Line<textarea id="planning-assumptions"></textarea></label>
+<label>Reporting Starts (UTC)<input id="planning-start" type="datetime-local" step="60" required></label><label>Reporting Ends (UTC, Exclusive)<input id="planning-end" type="datetime-local" step="60" required></label>
+<label>Maximum Creative Concepts<input id="planning-creative" type="number" min="0" max="30" step="1" value="1" required></label>
+<p>This form currently prepares account-level plans. Target-specific allocations and exclusions require retained catalog selections.</p>
+<button id="planning-save" type="submit">Save Plan Inputs</button><button id="planning-cancel" type="button">Cancel</button></form></section>
+<section id="planning-current" hidden><h2 id="planning-plan-title">Selected Plan</h2><p id="planning-head"></p><button id="planning-read">Read Current Plan</button><button id="planning-edit" hidden>Edit Plan Inputs</button><button id="planning-generate" hidden>Generate A New Version</button><button id="planning-export" hidden>Download Version Artifact</button>
+<p>A version artifact contains the selected document. Customer decisions and reports appear separately below and in the workspace archive.</p>
+<label>Saved Version<select id="planning-version"></select></label><button id="planning-versions-next" hidden>Next Versions</button><button id="planning-compare" hidden>Compare With Previous Version</button></section>
+<section id="planning-document" hidden></section><section id="planning-comparison" hidden></section>
+<section id="planning-review" hidden><h2>Record Your Review Or Application Report</h2>
+<p>These records never publish or change advertising. A customer report is not independent verification. To correct an earlier record, first display its history page below and choose that exact record. The server rejects an obsolete correction.</p>
+<form id="planning-review-form"><label>Action<select id="planning-action" required></select></label>
+<label>Record Type<select id="planning-record-type"><option value="accepted_for_manual_application">Accept For Manual Application</option><option value="rejected">Reject</option><option value="deferred">Defer</option><option value="customer_reports_applied">Report That I Applied It</option><option value="retracted">Withdraw An Earlier Application Report</option></select></label>
+<label>Earlier Record To Replace<select id="planning-prior"></select></label>
+<label>Your Reason Or Statement<textarea id="planning-statement" maxlength="2000" required></textarea></label>
+<label id="planning-applied-label" hidden>When You Applied It (UTC)<input id="planning-applied" type="datetime-local" step="60"></label>
+<label><input id="planning-confirm-review" type="checkbox" required>I reviewed this exact displayed version and action. This records my statement only.</label>
+<button id="planning-record" type="submit">Save Customer Record</button></form></section>
+<section id="planning-events-controls" hidden><h2>Review History</h2><button id="planning-events-refresh">Read Customer Decisions And Reports</button><button id="planning-events-next" hidden>Next History Page</button></section><section id="planning-events" hidden></section>
+</main><footer>An Inlet · Customer Application</footer></body></html>

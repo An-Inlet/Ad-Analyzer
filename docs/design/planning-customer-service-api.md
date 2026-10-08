@@ -103,3 +103,15 @@ and an empty mapping. Decision requests still bind their supplied hashes against
 the current server-owned document inside the locked acceptance transaction.
 
 Historical reads return current retained inputs and input_revision, but selected historical document/version. Thus old document inputs may have a lower revision; current freshness requires exact input equality. Null document requires version0/not_generated. Export filenames and UI labels must say version artifact, not complete plan history.
+
+### Historical Report Withdrawal
+
+A `retracted` assertion may withdraw the exact current manual-report chain head
+on a retained historical version even after evidence expiry or a newer input/version.
+Current owner/session, exact document/action/family/supersedes binding and global
+per-plan event sequence CAS still apply. The original immutable report remains.
+New reports and decisions require current input/version and source proof. Erased
+history cannot be resurrected; foreign or obsolete chain nodes cannot be withdrawn.
+Malformed report/retraction timing is request-validation422; stale document/action
+bindings are409. Target-bearing create/edit remains explicit409 until the separate
+owned catalog-receipt package supports exact observed selections without remapping.

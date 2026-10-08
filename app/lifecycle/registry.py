@@ -12,6 +12,19 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "initial_planning_consents": TablePolicy(
+        "workspace",
+        (
+            "mandate_id",
+            "mandate_revision",
+            "workspace_id",
+            "policy_digest",
+            "preparation_digest",
+            "actor",
+            "confirmed_at",
+            "digest",
+        ),
+    ),
     "initial_rule_session_starts": TablePolicy(
         "workspace",
         (

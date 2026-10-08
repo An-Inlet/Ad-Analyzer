@@ -201,3 +201,50 @@ def test_owned_catalog_filters_inactive_sources_and_rechecks_membership(
         db.commit()
     assert client.get(path).status_code in {403, 404}
     assert not server.posts
+
+
+def test_route_denial_precedes_runtime_and_media_dependencies(
+    customer_engine: Engine,
+    replicas: Any,
+) -> None:
+    from fastapi.routing import APIRoute
+
+    client, outsider, _ = replicas
+    actor = login(client, "planning-owner:1")
+    login(outsider, "planning-outsider:1")
+    with Session(customer_engine) as db:
+        wid = owned_workspace(db, actor)
+    calls: list[str] = []
+
+    def forbidden() -> None:
+        calls.append("external dependency")
+        raise AssertionError("execution runtime or media factory resolved before denial")
+
+    for module, names in GUARDED:
+        for c in (client, outsider):
+            c.app.include_router(module.router)
+        for route in module.router.routes:
+            if not isinstance(route, APIRoute) or route.endpoint.__name__ not in names:
+                continue
+            for dependency in route.dependant.dependencies:
+                call = dependency.call
+                if call is not None and call.__name__.startswith("get_"):
+                    # Do not replace actual authentication/DB dependencies.
+                    if call.__module__.startswith(("app.customers", "app.database")):
+                        continue
+                    for c in (client, outsider):
+                        c.app.dependency_overrides[call] = forbidden
+            path = route.path_format.replace("{workspace_id}", str(wid))
+            import re
+
+            path = re.sub(r"\{[^}]+\}", "a" * 32, path)
+            assert route.methods
+            method = next(iter(route.methods))
+            denied = client.request(method, path, headers=headers(client), json={})
+            assert denied.status_code == 409, (path, denied.text)
+            assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+            foreign = outsider.request(method, path, headers=headers(outsider), json={})
+            assert foreign.status_code in {403, 404}, (path, foreign.text)
+            if method != "GET":
+                assert client.request(method, path, json={}).status_code == 403
+    assert calls == []

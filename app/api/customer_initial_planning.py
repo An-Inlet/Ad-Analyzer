@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app import advertising_capabilities
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, Campaign
+from app.api.planning_boundary import deny_advertising_mutation
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.initial_planning import (
     calibration,
@@ -40,6 +41,8 @@ from app.initial_planning.contracts import (
     PreviewIntentV1,
 )
 from app.initial_planning.native_budget_contracts import NativeBudgetOptionV1
+from app.initial_planning.planning_consent_models import PlanningConsentRow
+from app.initial_planning.planning_consents import checked_planning_limits
 from app.initial_planning.preview_v2 import InitialPreview, InitialPreviewV2
 from app.initial_planning.review_contracts import (
     InitialPreviewReviewIntent,
@@ -48,7 +51,7 @@ from app.initial_planning.review_contracts import (
 )
 from app.initial_planning.runtime import InitialPlanningRuntime, get_initial_planning_configuration
 from app.planning_reporting.runtime import configured_bundle
-from app.publication import customer_intents, customer_optimization, execution_mandates
+from app.publication import customer_intents, customer_optimization
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import (
@@ -261,12 +264,20 @@ def native_options(
         raise HTTPException(409, "The reporting context changed.")
     mandates = list(
         db.scalars(
-            select(ProviderExecutionMandate)
-            .where(
-                ProviderExecutionMandate.workspace_id == workspace_id,
-                ProviderExecutionMandate.state == "active",
+            select(PlanningConsentRow)
+            .join(
+                ProviderExecutionMandate,
+                (
+                    (ProviderExecutionMandate.id == PlanningConsentRow.mandate_id)
+                    & (ProviderExecutionMandate.revision == PlanningConsentRow.mandate_revision)
+                    & (ProviderExecutionMandate.workspace_id == PlanningConsentRow.workspace_id)
+                ),
             )
-            .order_by(ProviderExecutionMandate.id)
+            .where(
+                ProviderExecutionMandate.state == "draft",
+                PlanningConsentRow.workspace_id == workspace_id,
+            )
+            .order_by(PlanningConsentRow.mandate_id)
             .limit(51)
         )
     )
@@ -275,9 +286,8 @@ def native_options(
     choices = []
     for row in mandates:
         try:
-            binding = customer_intents.binding(db, workspace_id, row.id, row.revision)
-            _, policy = execution_mandates.checked(
-                db, workspace_id, binding, principal.user.id, lambda: effective_now(db, runtime)
+            policy = checked_planning_limits(
+                db, principal, provider, workspace_id, row.mandate_id, row.mandate_revision, runtime
             )
         except HTTPException as exc:
             if exc.status_code != 409:
@@ -307,10 +317,11 @@ def native_options(
         ):
             choices.append(
                 {
-                    "id": row.id,
-                    "revision": row.revision,
+                    "id": row.mandate_id,
+                    "revision": row.mandate_revision,
                     "label": (
-                        f"Spending Plan {row.id[:8]} · Revision {row.revision} · {policy.currency}"
+                        f"Planning Limits {row.mandate_id[:8]} · "
+                        f"Revision {row.mandate_revision} · {policy.currency}"
                     ),
                 }
             )
@@ -436,7 +447,11 @@ def review_status(
     )
 
 
-@router.post("/previews/{preview_id}/review", response_model=InitialPreviewReviewPrepared)
+@router.post(
+    "/previews/{preview_id}/review",
+    response_model=InitialPreviewReviewPrepared,
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def prepare_review(
     workspace_id: int,
     preview_id: str,

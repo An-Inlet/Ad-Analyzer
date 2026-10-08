@@ -15,9 +15,10 @@ from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import EfficiencyObjectiveV1, PreviewIntentV1
 from app.initial_planning.models import CalibrationRow, PreviewRow
 from app.initial_planning.native_budget_contracts import NativeBudgetObservationV1
+from app.initial_planning.planning_consents import checked_planning_limits
 from app.initial_planning.preview_v2 import InitialPreviewV2, PreviewIntentV2
 from app.initial_planning.runtime import InitialPlanningRuntime
-from app.publication import customer_intents, execution_mandates
+from app.publication import customer_intents
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 
@@ -72,9 +73,8 @@ def amount(
     wid = intent.objective.cohort.workspace_id
     authorize = bind_authority(principal, provider)
     authorize(db, wid, principal.user.id)
-    binding = customer_intents.binding(db, wid, intent.mandate_id, intent.mandate_revision)
-    _, policy = execution_mandates.checked(
-        db, wid, binding, principal.user.id, lambda: effective_now(db, runtime)
+    policy = checked_planning_limits(
+        db, principal, provider, wid, intent.mandate_id, intent.mandate_revision, runtime
     )
     cohort = intent.objective.cohort
     if (

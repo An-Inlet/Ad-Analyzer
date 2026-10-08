@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
+from app.api.planning_boundary import deny_advertising_mutation
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.goals import service as goals
 from app.goals.schemas import GoalDefinition
@@ -221,7 +222,11 @@ def status(
     )
 
 
-@router.post("/results/{result_id}/review", response_model=CandidateReviewPrepared)
+@router.post(
+    "/results/{result_id}/review",
+    response_model=CandidateReviewPrepared,
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def review(
     workspace_id: int,
     result_id: str,

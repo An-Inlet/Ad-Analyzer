@@ -28,7 +28,7 @@ $('budget-prepare').click();await until(()=>settled()&&!$('budget-review').hidde
 assert(prepared.state==='draft'&&prepared.execution_available===false,'draft is not activation');
 assert($('budget-consent').disabled,'explicit checkbox required');
 $('budget-confirm').checked=true;$('budget-confirm').dispatchEvent(new Event('change'));$('budget-consent').click();
-await until(()=>settled()&&!!$('mandate').value,'exact consent');assert(consented.state==='active'&&!consented.exposure_qualified,'conditional consent only');
+await until(()=>settled()&&!!$('mandate').value,'exact consent');assert(consented.state==='confirmed'&&consented.planning_only&&consented.spending_authority==='none'&&!consented.exposure_qualified,'planning confirmation only');
 assert($('mandate').value===prepared.mandate_id,'server returned identity, no pasted ID');
 $('preview').click();await until(()=>settled()&&!$('result').hidden,'actual native v2 preview');
 assert(!$('preview-summary').textContent.includes('Unavailable'),'native amount present');

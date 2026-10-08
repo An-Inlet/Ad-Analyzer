@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 from app.initial_planning.budget_mandate_models import BudgetMandatePreparationRow
+from app.initial_planning.planning_consent_models import PlanningConsentRow
 from app.publication.customer_optimization_contracts import get_customer_optimization_runtime
 from app.publication.customer_runtime import get_customer_execution_runtime
 from app.publication.execution_models import (
@@ -46,13 +47,21 @@ def test_first_customer_mandate_and_preview(
         "policy_digest": value["policy_digest"],
         "preparation_digest": value["preparation_digest"],
     }
+    previous = None
     for _ in range(2):
         result = alice.post(
             root + "/budget-mandates/" + value["mandate_id"] + "/consent",
             json=consent,
             headers=headers(alice),
         )
-        assert result.status_code == 200 and result.json()["state"] == "active", result.text
+        assert result.status_code == 200 and result.json()["state"] == "confirmed", result.text
+        with Session(customer_engine) as db:
+            confirmation = db.get(PlanningConsentRow, (value["mandate_id"], value["revision"]))
+            assert confirmation
+            snapshot = (confirmation.digest, confirmation.actor, confirmation.confirmed_at)
+            if previous is not None:
+                assert snapshot == previous
+            previous = snapshot
     selection = body["intent"]["selection"]
     preview = alice.post(
         root + "/previews",
@@ -68,15 +77,30 @@ def test_first_customer_mandate_and_preview(
     assert preview.status_code == 200, preview.text
     assert preview.json()["schema_version"] == "inlet.initial-efficiency-preview.v2"
     assert not preview.json()["spending_authorized"]
+    reread = alice.get(root + "/previews/" + preview.json()["id"])
+    assert reread.status_code == 200, reread.text
+    refreshed = alice.post(
+        root + "/native-options",
+        headers=headers(alice),
+        json={
+            "calibration_id": selection["calibration_id"],
+            "observation_id": selection["observation_id"],
+        },
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    assert [m["id"] for m in refreshed.json()["mandates"]] == [value["mandate_id"]]
     with Session(customer_engine) as db:
         for model, count in (
             (ProviderExecutionMandate, 1),
-            (ProviderExecutionConsent, 1),
+            (ProviderExecutionConsent, 0),
+            (PlanningConsentRow, 1),
             (BudgetMandatePreparationRow, 1),
             (ProviderExecutionAttempt, 0),
             (ProviderExposureReservation, 0),
         ):
             assert db.scalar(select(func.count()).select_from(model)) == count
+    with Session(customer_engine) as db:
+        assert db.scalar(select(ProviderExecutionMandate.state)) == "draft"
     assert requests and not server.posts
 
 

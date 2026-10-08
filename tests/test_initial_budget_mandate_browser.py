@@ -37,6 +37,7 @@ def test_first_customer_budget_browser(
     alice, _, _, _, requests, _, _, native_server = first_customer(
         customer_engine, configuration, tmp_path, monkeypatch, replicas
     )
+    from app.initial_planning.planning_consent_models import PlanningConsentRow
     from app.publication.execution_models import (
         ProviderExecutionAttempt,
         ProviderExecutionConsent,
@@ -162,7 +163,8 @@ def test_first_customer_budget_browser(
         thread.join(timeout=10)
         listener.close()
     with Session(customer_engine) as db:
-        assert db.scalar(select(func.count()).select_from(ProviderExecutionConsent)) == (
+        assert db.scalar(select(func.count()).select_from(ProviderExecutionConsent)) == 0
+        assert db.scalar(select(func.count()).select_from(PlanningConsentRow)) == (
             0 if unavailable else 1
         )
         assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0

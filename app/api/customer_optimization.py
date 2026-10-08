@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Response
 from app import advertising_capabilities
 from app.api.customer_optimization_runtime import get_configured_customer_optimization_runtime
 from app.api.customer_planning_catalog import accounts as planning_accounts
+from app.api.planning_boundary import deny_advertising_mutation
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.production_runtime import optimization_mandates
 from app.production_runtime.optimization_policy_contracts import (
@@ -113,7 +114,7 @@ def target_options(
     }
 
 
-@router.post("/mandates", status_code=201)
+@router.post("/mandates", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
 def create_mandate(
     workspace_id: int,
     body: OptimizationPolicyIntent,
@@ -134,7 +135,7 @@ def create_mandate(
     return intents.policy_view(db, row)
 
 
-@router.put("/mandates/{mandate_id}")
+@router.put("/mandates/{mandate_id}", dependencies=[Depends(deny_advertising_mutation)])
 def edit_mandate(
     workspace_id: int,
     mandate_id: str,
@@ -164,7 +165,7 @@ def edit_mandate(
     return intents.policy_view(db, row)
 
 
-@router.post("/mandates/{mandate_id}/consent")
+@router.post("/mandates/{mandate_id}/consent", dependencies=[Depends(deny_advertising_mutation)])
 def consent(
     workspace_id: int,
     mandate_id: str,
@@ -194,7 +195,7 @@ def consent(
     return {"state": "consented", "revision": body.expected_revision}
 
 
-@router.post("/initial-reviews", status_code=201)
+@router.post("/initial-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
 def initial_review(
     workspace_id: int,
     body: InitialOptimizationIntent,
@@ -212,7 +213,7 @@ def initial_review(
     return service.review_view(row, db)
 
 
-@router.post("/repeat-reviews", status_code=201)
+@router.post("/repeat-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
 def repeat_review(
     workspace_id: int,
     body: RepeatOptimizationIntent,
@@ -230,7 +231,12 @@ def repeat_review(
     return service.review_view(row, db)
 
 
-@router.post("/budget-mandates", status_code=201, response_model=PreparedOptimizationMandateV1)
+@router.post(
+    "/budget-mandates",
+    status_code=201,
+    response_model=PreparedOptimizationMandateV1,
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def prepare_customer_budget(
     workspace_id: int,
     body: PrepareOptimizationMandateV1,
@@ -247,7 +253,11 @@ def prepare_customer_budget(
     return optimization_mandates.prepare(db, workspace_id, body, principal.user.id, server)
 
 
-@router.post("/budget-mandates/{mandate_id}/consent", response_model=PreparedOptimizationMandateV1)
+@router.post(
+    "/budget-mandates/{mandate_id}/consent",
+    response_model=PreparedOptimizationMandateV1,
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def consent_customer_budget(
     workspace_id: int,
     mandate_id: str,

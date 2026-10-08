@@ -19,11 +19,12 @@ from app.initial_planning.contracts import (
     PreviewIntentV1,
 )
 from app.initial_planning.models import CalibrationRow, PreviewRow
+from app.initial_planning.planning_consents import checked_planning_limits
 from app.initial_planning.preview_binding import bind_preview_row, preview_mandate_reference
 from app.initial_planning.preview_v2 import InitialPreviewV2, PreviewIntentV2
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.meta.security import utc
-from app.publication import customer_intents, execution_mandates
+from app.publication import customer_intents
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import TargetOption
@@ -89,9 +90,8 @@ def amount(
     wid = intent.objective.cohort.workspace_id
     authorize = bind_authority(principal, provider)
     authorize(db, wid, principal.user.id)
-    binding = customer_intents.binding(db, wid, intent.mandate_id, intent.mandate_revision)
-    _, policy = execution_mandates.checked(
-        db, wid, binding, principal.user.id, lambda: effective_now(db, runtime)
+    policy = checked_planning_limits(
+        db, principal, provider, wid, intent.mandate_id, intent.mandate_revision, runtime
     )
     state = option.state
     cohort = intent.objective.cohort
@@ -352,9 +352,8 @@ def read_preview(
         reference = preview_mandate_reference(values, document)
         if reference is None:
             raise HTTPException(409, "The separately consented plan changed.")
-        binding = customer_intents.binding(db, workspace_id, *reference)
-        _, policy = execution_mandates.checked(
-            db, workspace_id, binding, principal.user.id, runtime.clock
+        policy = checked_planning_limits(
+            db, principal, provider, workspace_id, *reference, runtime
         )
         if policy.digest() != row.mandate_digest:
             raise HTTPException(409, "The separately consented plan changed.")

@@ -2,12 +2,13 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select
 
 from app import advertising_capabilities
 from app.api.customer_execution import Runtime, Store, bound
 from app.api.customer_social_review import view
+from app.api.planning_boundary import deny_advertising_mutation
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.publication import customer_intents
 from app.publication.provider_contracts import Id
@@ -23,7 +24,9 @@ router = APIRouter(
 )
 
 
-@router.post("/creation-reviews", status_code=201)
+@router.post(
+    "/creation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
+)
 def create_review(
     workspace_id: int,
     body: SocialCreationIntent,
@@ -61,9 +64,9 @@ def configurations(
         .where(
             SocialConfigurationReview.workspace_id == workspace_id,
             SocialConfigurationReview.draft_id == draft_id,
-            SocialConfigurationReview.document["schema_version"].as_string().in_(
-                ["inlet.social-configuration-review.v1", "inlet.social-configuration-review.v2"]
-            ),
+            SocialConfigurationReview.document["schema_version"]
+            .as_string()
+            .in_(["inlet.social-configuration-review.v1", "inlet.social-configuration-review.v2"]),
         )
         .order_by(SocialConfigurationReview.created_at.desc(), SocialConfigurationReview.id)
         .limit(50)

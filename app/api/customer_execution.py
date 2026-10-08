@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app import advertising_capabilities
 from app.api.customer_execution_runtime import get_configured_customer_execution_runtime
 from app.api.customer_optimization import Runtime as OptimizationRuntime
+from app.api.planning_boundary import deny_advertising_mutation
 from app.campaign_review.contracts import MediaStore
 from app.campaign_review.storage import get_media_store
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
@@ -151,7 +152,7 @@ def list_mandates(
     return [intents.policy_view(db, row) for row in rows]
 
 
-@router.post("/mandates", status_code=201)
+@router.post("/mandates", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
 def create_mandate(
     workspace_id: int,
     body: PolicyIntent,
@@ -171,7 +172,7 @@ def create_mandate(
     return intents.policy_view(db, row)
 
 
-@router.put("/mandates/{mandate_id}")
+@router.put("/mandates/{mandate_id}", dependencies=[Depends(deny_advertising_mutation)])
 def edit_mandate(
     workspace_id: int,
     mandate_id: str,
@@ -200,7 +201,7 @@ def edit_mandate(
     return intents.policy_view(db, row)
 
 
-@router.post("/mandates/{mandate_id}/consent")
+@router.post("/mandates/{mandate_id}/consent", dependencies=[Depends(deny_advertising_mutation)])
 def consent(
     workspace_id: int,
     mandate_id: str,
@@ -281,7 +282,9 @@ def options(
     }
 
 
-@router.post("/creation-reviews", status_code=201)
+@router.post(
+    "/creation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
+)
 def prepare_creation(
     workspace_id: int,
     body: CreationIntent,
@@ -340,7 +343,9 @@ def prepare_creation(
     return intents.review_view(row, db)
 
 
-@router.post("/activation-reviews", status_code=201)
+@router.post(
+    "/activation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
+)
 def prepare_activation(
     workspace_id: int,
     body: ActivationIntent,
@@ -385,7 +390,7 @@ def get_review(
     return intents.review_view(intents.review(db, workspace_id, review_id), db)
 
 
-@router.post("/reviews/{review_id}/approval")
+@router.post("/reviews/{review_id}/approval", dependencies=[Depends(deny_advertising_mutation)])
 def approve(
     workspace_id: int,
     review_id: str,
@@ -453,7 +458,9 @@ def approve(
     return {"state": "approved", "provider_dispatch_complete": False}
 
 
-@router.post("/reviews/{review_id}/runs", status_code=201)
+@router.post(
+    "/reviews/{review_id}/runs", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
+)
 def start_run(
     workspace_id: int,
     review_id: str,
@@ -527,7 +534,7 @@ def get_run(
     return intents.run_view(db, intents.run(db, workspace_id, run_id))
 
 
-@router.post("/runs/{run_id}/advance")
+@router.post("/runs/{run_id}/advance", dependencies=[Depends(deny_advertising_mutation)])
 def advance(
     workspace_id: int,
     run_id: str,

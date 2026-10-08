@@ -128,7 +128,9 @@ class BudgetMandatePreparedV1(Frozen):
     revision: int = Field(strict=True, gt=0)
     policy_digest: Digest
     preparation_digest: Digest
-    state: Literal["draft", "active", "paused", "revoked"]
+    state: Literal["draft", "confirmed", "paused", "revoked"]
+    planning_only: Literal[True] = True
+    spending_authority: Literal["none"] = "none"
     total_cap_micros: Amount
     per_plan_cap_micros: Amount
     positive_change_cap_micros: Amount

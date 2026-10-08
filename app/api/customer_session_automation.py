@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
+from app.api.planning_boundary import deny_advertising_mutation, deny_advertising_options
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.initial_planning.start_contracts import (
     InitialRuleAutomaticOptionsV1,
@@ -77,7 +78,10 @@ def capabilities(
     read_access(db, principal, workspace_id, response)
     if not advertising_capabilities.advertising_writes_enabled():
         return SessionAutomationCapabilitiesWithReportedRules(
-            available=False, reason="automation_not_available", policies=[], mandates=[],
+            available=False,
+            reason="automation_not_available",
+            policies=[],
+            mandates=[],
             message="This product supports planning only. Advertising changes are disabled.",
         )
     policies: list[AutomaticPolicyOption | ReportedRuleAutomaticPolicyOptionV1] = []
@@ -187,7 +191,11 @@ def capabilities(
     )
 
 
-@router.post("/start", response_model=SessionAutomationStatus)
+@router.post(
+    "/start",
+    response_model=SessionAutomationStatus,
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def start(
     workspace_id: int,
     body: StartSessionAutomation
@@ -255,7 +263,7 @@ def stop(
     return service.status(db, workspace_id, run_id, runtime)
 
 
-@router.get("/initial-options/{preview_id}")
+@router.get("/initial-options/{preview_id}", dependencies=[Depends(deny_advertising_options)])
 def initial_options(
     workspace_id: int,
     preview_id: str,

@@ -21,6 +21,8 @@ from app.initial_planning.budget_mandate_models import BudgetMandatePreparationR
 from app.initial_planning.clock import effective_now
 from app.initial_planning.contracts import PreviewIntentV1
 from app.initial_planning.native_budget_contracts import NativeBudgetOptionV1
+from app.initial_planning.planning_consent_models import PlanningConsentRow
+from app.initial_planning.planning_consents import checked_planning_limits, consent_digest
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.publication import execution_mandates as mandates
 from app.publication.budget_period import financial_budget_period
@@ -263,17 +265,38 @@ def consent_budget_mandate(
             raise denied("budget_mandate_preparation_changed")
         if effective_now(db, runtime) >= option.observation.expires_at:
             raise denied("budget_mandate_native_expired")
-        result = projection(row, policy, document, option).model_copy(update={"state": "active"})
-        mandates.consent(
-            db,
-            workspace_id,
-            mandate_id,
-            body.expected_revision,
-            body.policy_digest,
-            principal.user.id,
-            lambda: effective_now(db, runtime),
+        if row.state != "draft":
+            raise denied("planning_draft_required")
+        confirmed_at = effective_now(db, runtime)
+        record = db.get(PlanningConsentRow, (mandate_id, body.expected_revision))
+        if record is None:
+            record = PlanningConsentRow(
+                mandate_id=mandate_id,
+                mandate_revision=body.expected_revision,
+                workspace_id=workspace_id,
+                policy_digest=policy.digest(),
+                preparation_digest=document.digest(),
+                actor=principal.user.id,
+                confirmed_at=confirmed_at,
+                digest=consent_digest(
+                    workspace_id,
+                    mandate_id,
+                    body.expected_revision,
+                    policy.digest(),
+                    document.digest(),
+                    principal.user.id,
+                    confirmed_at,
+                ),
+            )
+            db.add(record)
+            db.flush()
+        checked_planning_limits(
+            db, principal, provider, workspace_id, mandate_id, body.expected_revision, runtime
         )
-        # Projection is assembled from the exact committed policy, never fresh authority.
+        if effective_now(db, runtime) >= option.observation.expires_at:
+            raise denied("budget_mandate_native_expired")
+        result = projection(row, policy, document, option).model_copy(update={"state": "confirmed"})
+        db.commit()
         return result
     except ValidationError:
         db.rollback()

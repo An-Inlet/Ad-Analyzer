@@ -3,10 +3,11 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
 from app import advertising_capabilities
+from app.api.planning_boundary import deny_advertising_mutation
 from app.customers.access import (
     Database,
     MutationPrincipal,
@@ -176,7 +177,9 @@ def draft(
     return s.action_view(a)
 
 
-@router.post("/{mandate_id}/actions/{action_id}/review")
+@router.post(
+    "/{mandate_id}/actions/{action_id}/review", dependencies=[Depends(deny_advertising_mutation)]
+)
 def review(
     workspace_id: int,
     mandate_id: str,
@@ -197,7 +200,10 @@ def review(
     return s.action_view(a)
 
 
-@router.post("/{mandate_id}/actions/{action_id}/simulate/claim")
+@router.post(
+    "/{mandate_id}/actions/{action_id}/simulate/claim",
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def claim(
     workspace_id: int,
     mandate_id: str,
@@ -217,7 +223,10 @@ def claim(
     return s.action_view(a)
 
 
-@router.post("/{mandate_id}/actions/{action_id}/simulate/dispatch")
+@router.post(
+    "/{mandate_id}/actions/{action_id}/simulate/dispatch",
+    dependencies=[Depends(deny_advertising_mutation)],
+)
 def dispatch(
     workspace_id: int,
     mandate_id: str,

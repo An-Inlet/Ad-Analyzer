@@ -10,7 +10,42 @@ a composer comparison, or add public comparison output/UI.
 
 Proposed new module `app/planning_documents/window_reader.py` owns
 `OwnedWindowReadContext`, `prepare_owned_window_context`, and
-`read_owned_requested_window`, using the signatures from the phase-two proposal.
+`read_owned_requested_window`. Refine the phase-two signatures explicitly:
+
+```python
+def prepare_owned_window_context(
+    db: Session, *, principal: CustomerPrincipal, account: AccountRef,
+    expected_source: SourceFence, expected_reporting_pin: ReportingPresencePin,
+    catalog: CatalogEvidence, authorize: Authorize,
+    clock: Callable[[], datetime],
+) -> OwnedWindowReadContext: ...
+
+def read_owned_requested_window(
+    context: OwnedWindowReadContext, *, target: TargetRef,
+    requested_window: ReportingWindow,
+) -> RequestedWindowPerformanceV1 | KnownWindowGap: ...
+```
+
+The caller supplies its existing trusted clock, locked read context, and DB-only
+authorization callback. There is no implicit wallclock/provider callback or new
+identity flow. Sample the supplied clock after waits for resolve_source_fences and
+actual catalog expiry checks; preserve caller final authority-age checks and its
+existing database-clock freshness comparisons. Tests may supply a deterministic
+clock but production does not acquire a new adjustable freshness policy.
+
+`catalog` is the actual current server-owned CatalogEvidence (including a validated
+saved original receipt where that is the established path), not a caller-asserted
+target list. Revalidate its exact source/account/privacy binding, server-owned
+receipt provenance when applicable, and original deadline through existing caller
+resolution before preparing this context. Prepare binds it to expected_source and
+reporting pin account and builds an exact campaign target map including catalog
+reference key, canonical key, snapshot selection key, kind, provider reference,
+display name and budget-owner key. Every requested TargetRef must equal the target
+derived from that catalog, not just match a native ID. Validate local campaign
+mapping separately. A DTO constructor cannot prove ownership or replace those
+caller-owned catalog/receipt and current source checks; neither a TargetRef alone
+nor a canonical-key lookup grants membership/selection. Catalog-unavailable paths
+remain adapter gaps without inventing an owned reader context.
 It depends on planning AccountRef/SourceFence/ReportingPresencePin/TargetRef and
 therefore must not live in generic campaign_performance. KnownWindowGap belongs
 to the separately reviewed private window evidence contracts. No reverse runtime

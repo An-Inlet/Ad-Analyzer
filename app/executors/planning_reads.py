@@ -31,7 +31,7 @@ def social_read(
     # Reject method-override headers and unknown query keys, even on a GET path.
     override = any("method" in key.lower().replace("-", "_") for key in (headers or {}))
     allowed_params = (
-        {"fields", "limit", "after", "before", "hashes", "appsecret_proof"}
+        {"fields", "limit", "after", "before", "hashes", "appsecret_proof", "effective_status"}
         if provider == "meta_ads"
         else {
             "advertiser_id",
@@ -45,7 +45,7 @@ def social_read(
         }
     )
     allowed_path = (
-        re.fullmatch(r"/v26\.0/(?:[0-9]+(?:/adsets)?|act_[0-9]+/adimages)", path)
+        re.fullmatch(r"/v26\.0/(?:[0-9]+(?:/adsets)?|act_[0-9]+(?:/adimages)?)", path)
         if provider == "meta_ads"
         else re.fullmatch(
             r"/open_api/v1\.3/(?:(?:campaign|adgroup|ad)/get/|advertiser/info/|file/(?:image|video)/ad/info/)",

@@ -16,3 +16,11 @@ Validation actually run:
 - `git diff --check`: passed.
 
 Mock HTTP only; no live/provider calls, deployment or Full. Raw final logs retained at `/workspace/inlet-evidence/20261008/planning-transports/`. An initial test collection failure from a mistaken linked class name and initial test-only type errors were repaired before this final cohort. No claim is made that these focused passes qualify the complete planning deployment.
+
+## Independent Review P2: Preserve Actual Meta Current Reads
+
+Review found that the initial semantic allowlist omitted bare `/v26.0/act_<id>` and the `effective_status` query key used by `MetaOptimizationTransport.read_current` and `children`. The successor adds precisely those read allowances; mutation and override checks remain unchanged.
+
+New unpatched default-policy regressions exercise actual `read_current` for campaign and ad-set targets through MockHTTP, compare the complete returned state, verify the bare account endpoint and all-status child request, and assert zero POSTs. POST and method-override attempts against the newly allowed account path still deny without HTTP.
+
+Final successor checks: boundary + existing Google catalog/inventory cohort **115 passed in0.58s**; whole Ruff passed; prescribed whole mypy passed984 files; diff-check passed. Logs: `/workspace/inlet-evidence/20261008/planning-transports/planning-meta-read-{tests,ruff,mypy}.log`. No real provider calls, production settings or test capability patches were used. Independent closure requested after commit.

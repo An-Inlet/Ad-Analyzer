@@ -197,3 +197,41 @@ def test_google_read_cannot_override_path_through_customer_id() -> None:
             {"query": "SELECT campaign.id FROM campaign"},
         )
     assert calls == []
+
+
+@pytest.mark.parametrize("campaign", [False, True])
+def test_actual_meta_current_read_preserves_account_and_all_status_children(campaign: bool) -> None:
+    import json
+
+    from tests.test_provider_publication_contracts import NOW
+    from tests.test_social_optimization_http import setup
+
+    adapter, server, request, context = setup("meta_ads", campaign=campaign)
+    calls: list[httpx.Request] = []
+
+    def handle(incoming: httpx.Request) -> httpx.Response:
+        calls.append(incoming)
+        assert incoming.method == "GET"
+        return server(incoming)
+
+    adapter.transport = httpx.MockTransport(handle)
+    state = adapter.read_current(
+        request.intent.scope,
+        request.intent.target,
+        request.before.money,
+        request.intent.qualification_id,
+        request.intent.qualification_revision,
+        context,
+        NOW,
+    )
+    assert state == request.before
+    assert calls[0].url.path == "/v26.0/act_123"
+    children = next(call for call in calls if call.url.path == "/v26.0/5/adsets")
+    assert "DELETED" in json.loads(children.url.params["effective_status"])
+    assert server.posts == []
+    # The same now-permitted account endpoint cannot admit a mutation or override.
+    for method, params in [("POST", {}), ("GET", {"method": "DELETE"})]:
+        before = len(calls)
+        with pytest.raises(AdvertisingWritesDisabled):
+            adapter.send(method, "/v26.0/act_123", context, params=params)
+        assert len(calls) == before

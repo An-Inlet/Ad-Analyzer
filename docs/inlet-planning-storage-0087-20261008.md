@@ -54,3 +54,11 @@ Concrete request/response DTOs and public route/service shape are documented in
 working customer service. Root can implement dependent UI against this interface.
 Whole Ruff/mypy **1031 files** passed; diffcheck passed. Service lock-wait/race/IO
 integration tests remain the next implementation slice, not implied by pure helpers.
+
+Authority review repair: detached request principal can no longer conceal current DB
+issuer/subject/authenticated_at changes. `authority.lock` re-fetches locked rows in its
+own transaction, compares the exact externally checked scalar tuple, and returns the
+fresh principal for final acceptance. Separate-session SQLite/PostgreSQL tests cover
+all three changed fields plus the positive canonical transaction identity. Full authority
+cohort **13 passed in8.22s**; mypy1031 passed. Repository service WIP remains untracked
+and outside this frozen repair.

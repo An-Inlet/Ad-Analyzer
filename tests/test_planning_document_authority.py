@@ -5,8 +5,11 @@ from app.customers.access import CustomerPrincipal
 from app.customers.models import CustomerSession, CustomerUser
 from app.planning_documents import authority
 from fastapi import HTTPException
+from sqlalchemy import Engine, update
+from sqlalchemy.orm import Session
 
 from tests.test_customer_identity import FakeProvider
+from tests.test_customer_identity import customer_engine as customer_engine
 
 
 def principal() -> CustomerPrincipal:
@@ -78,3 +81,50 @@ def test_identity_fact_captures_scalars_before_provider_and_rechecks_revocation(
     with pytest.raises(HTTPException) as error:
         authority.final(customer, replace(fact, completed_monotonic=100))
     assert error.value.status_code == 409
+
+
+@pytest.mark.parametrize("changed", ["issuer", "subject", "authenticated_at"])
+def test_detached_principal_cannot_hide_current_identity_change(
+    customer_engine: Engine, changed: str
+) -> None:
+    from tests.test_customer_lifecycle import seed
+
+    with Session(customer_engine) as db:
+        detached, wid = seed(db)
+        fact = authority.refresh(detached, FakeProvider())
+        # Load the fields used by guard and final before detaching.
+        assert detached.user.status == "active" and detached.session.user_id == detached.user.id
+        assert detached.session.expires_at and detached.session.revoked_at is None
+    with Session(customer_engine) as other:
+        if changed == "authenticated_at":
+            other.execute(
+                update(CustomerSession)
+                .where(CustomerSession.digest == fact.session_digest)
+                .values(authenticated_at=fact.authenticated_at + 1)
+            )
+        else:
+            other.execute(
+                update(CustomerUser)
+                .where(CustomerUser.id == fact.user_id)
+                .values(**{changed: "changed"})
+            )
+        other.commit()
+    with Session(customer_engine) as current, pytest.raises(HTTPException) as error:
+        authority.lock(current, detached, wid, fact)
+    assert error.value.status_code == 401
+
+
+def test_lock_returns_current_transaction_identity_for_final_check(customer_engine: Engine) -> None:
+    from tests.test_customer_lifecycle import seed
+
+    with Session(customer_engine) as db:
+        detached, wid = seed(db)
+        fact = authority.refresh(detached, FakeProvider())
+        assert detached.user.status == "active" and detached.session.user_id == detached.user.id
+        assert detached.session.expires_at and detached.session.revoked_at is None
+    with Session(customer_engine) as db:
+        current = authority.lock(db, detached, wid, fact)
+        assert current.user is db.get(CustomerUser, fact.user_id)
+        assert current.session is db.get(CustomerSession, fact.session_digest)
+        assert current.user is not detached.user and current.session is not detached.session
+        authority.final(current, fact)

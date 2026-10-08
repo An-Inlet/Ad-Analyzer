@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal, guard_customer_mutation
 from app.customers.identity import IdentityProvider
+from app.customers.models import CustomerSession, CustomerUser
 
 AUTHORITY_MAX_AGE_SECONDS = 5.0
 OWNER_ROLES = frozenset({"owner"})
@@ -56,11 +57,19 @@ def lock(
     fact: IdentityFact,
     *,
     roles: frozenset[str] = OWNER_ROLES,
-) -> None:
+) -> CustomerPrincipal:
     if not _same(principal, fact):
         raise HTTPException(401, "customer identity changed")
     guard_customer_mutation(db, principal, workspace_id, allowed_roles=roles)
-    final(principal, fact)
+    # The request principal may be detached. Validate rows refreshed in THIS locked
+    # transaction, never the stale objects that were used for external identity IO.
+    user = db.get(CustomerUser, fact.user_id, populate_existing=True)
+    session = db.get(CustomerSession, fact.session_digest, populate_existing=True)
+    if user is None or session is None:
+        raise HTTPException(401, "customer authentication required")
+    current = CustomerPrincipal(user, session)
+    final(current, fact)
+    return current
 
 
 def final(principal: CustomerPrincipal, fact: IdentityFact) -> None:

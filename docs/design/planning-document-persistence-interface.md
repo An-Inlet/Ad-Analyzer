@@ -1,7 +1,7 @@
 # Planning Document Persistence And Service Interface — Review Candidate
 
 Based on independently closed pure contracts `31a55de` and reviewed catalog V2 in
-root `382895e`. Documentation only. **0087 is proposed, not reserved or implemented.**
+root `382895e`. Documentation only. **0087 is allocated to this lane only after independent review closes; not implemented.**
 No execution mandate, admission, ledger, executor or provider write is a dependency.
 
 ## Storage (Proposed 0087)
@@ -104,12 +104,18 @@ actor/time/sequence and verifies referenced prior event belongs to this plan/act
    before the commit transaction, with expiry checked after waiting for locks. Capture
    a one-shot private identity-check fact (issuer/subject/user ID/session digest,
    authenticated_at, monotonic completion instant); never persist it or pass it to a
-   client/composer. Require an explicit bounded `authority_max_age` in the reviewed
-   service operational policy, capped by remaining session validity and any identity
-   verifier validity bound. No default or extension is selected here. If its age exceeds
-   that bound after lock acquisition, rollback and require a fresh check outside locks;
-   never hold locks while refreshing. This is a remaining policy field to freeze before
-   service implementation, not a cached cross-request provider decision.
+   client/composer. The internal authority ceiling is **five seconds**, measured with
+   the monotonic clock from successful `check_active` completion through the final
+   locked acceptance check immediately before the atomic product write/commit boundary.
+   It is additionally capped by remaining session lifetime and any shorter identity
+   verifier validity bound. Recheck fresh wallclock session expiry and local revocation
+   at that boundary. The ceiling is a fixed internal latency safety bound, not customer
+   policy: no environment knob, extension, provider-decision cache or cross-request reuse.
+   Over five seconds (or any earlier validity expiry) rolls back with409
+   `planning_authority_expired`; a new explicit user retry may refresh outside locks.
+   Never automatically refresh identity IO while locks are held. Test exact boundary,
+   overage after waiting for locks, revoked-during-IO and changed principal tuples.
+
 3. Prepare locks canonical workspace→user/session/membership→plan→goal→owned source
    order, verifies active workspace, entitlement, expected heads and exact current goal:
    `goals.owned/current/expect`, `goal.confirmed_preview_id`, preview goal/revision,
@@ -167,3 +173,40 @@ source/privacy revision during IO, expiry while waiting for locks, exact typed e
 binding, repeated read/exports after correction/erasure, immutable history and event
 chain scopes. Browser/generation quality follows root's fixed synthetic cases; structural
 schema/DB success is not quality, expert, pilot or production qualification.
+
+
+## Bounded Implementation Sequence (After Independent Closure)
+
+1. **0087 storage and lifecycle package.** Own new `app/planning_documents/models.py`,
+   migration0087, model registry, lifecycle table inventory/JSON serializers, scoped
+   invalidation and migration tests. Prove SQLite/PostgreSQL DDL, ownership FKs,
+   immutable UPDATE refusal, permitted scoped deletion, populated downgrade refusal,
+   artifact digest/scalar validation and export privacy fences. Freeze model/interface
+   before service consumers. No API/composer work in this slice.
+2. **Authority and owned inputs package.** New local authority module implements exact
+   one-shot five-second checks without changing global authentication. Implement owned
+   create/edit/read/list plus confirmed-goal resolver and successful request receipts.
+   Exercise owner/read role matrix, entitlement placement, idempotency races, stale CAS,
+   cross-workspace/source/session denial, same/current-login semantics and rollback.
+3. **Generation orchestration and evidence adapter package.** Freeze executable Protocols
+   for private ticket, EvidenceBundle, evidence reader and pure composer before handing
+   dependent implementation to another lane. Production composition remains unavailable
+   until the bounded composer is reviewed; injected deterministic fixtures may exercise
+   service orchestration without claiming useful recommendations. Integrate actual V2
+   catalog and existing measurement readers, with no Session retained during IO; require
+   final source/goal/privacy/deadline rechecks and no partial durable results on failure.
+4. **Events, history and export package.** Exact version/action decisions and corrected/
+   retracted manual reports, separate read-observation refresh, event CAS and request
+   receipts. Check stale input/goal denial for new decisions while preserving historical
+   reads. Ensure erasure removes sensitive payloads and stale exports; never infer applied
+   causality or provider mutation authority.
+5. **API and browser consumers, after service freeze.** Minimal request models cannot
+   submit complete trusted documents/evidence. Apply existing HTTPS/CSRF dependencies,
+   owner-only mutations/refresh and current member reads, explicit unknown-response
+   request lookup, version history and manual guidance. Run actual configured both-DB
+   API/browser planning journeys with read-only MockHTTP and zero ad writes.
+
+Each package must record exact head/check commands/results and independent review;
+root integration follows reviewed frozen commits. Composer quality uses the fixed
+synthetic case set independently from DB/API structural acceptance. No Full/live/hosted
+qualification is implied by this plan. Keep existing reviewed branches intact.

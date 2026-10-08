@@ -16,7 +16,8 @@
 <label>Customer Assumptions — One Per Line<textarea id="planning-assumptions"></textarea></label>
 <label>Reporting Starts (UTC)<input id="planning-start" type="datetime-local" step="60" required></label><label>Reporting Ends (UTC, Exclusive)<input id="planning-end" type="datetime-local" step="60" required></label>
 <label>Maximum Creative Concepts (Optional)<input id="planning-creative" type="number" min="0" max="30" step="1" value="1"></label>
-<p>Leave creative capacity blank if unspecified. Unchanged reporting times retain their saved precision.</p><p>This form currently prepares account-level plans. Target-specific allocations and exclusions require retained catalog selections.</p>
+<p>Leave creative capacity blank if unspecified. Unchanged reporting times retain their saved precision.</p><p>You can optionally read native targets for these accounts and this reporting period to choose exclusions or fixed planning allocations.</p>
+<button id="planning-targets-read" type="button">Read Targets For These Inputs</button><p id="planning-target-status" role="status"></p><div id="planning-targets"></div><label><input id="planning-replace-targets" type="checkbox">I explicitly selected the target choices for this revision, including any removed choices.</label>
 <button id="planning-save" type="submit">Save Plan Inputs</button><button id="planning-cancel" type="button">Cancel</button></form></section>
 <section id="planning-current" hidden><h2 id="planning-plan-title">Selected Plan</h2><p id="planning-head"></p><button id="planning-read">Read Current Plan</button><button id="planning-edit" hidden>Edit Plan Inputs</button><button id="planning-generate" hidden>Generate A New Version</button><button id="planning-export" hidden>Download Version Artifact</button>
 <p>A version artifact contains the selected document. Customer decisions and reports appear separately below and in the workspace archive.</p>

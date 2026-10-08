@@ -33,7 +33,14 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
+@pytest.mark.parametrize(
+    ("journey", "platform"),
+    [("documents", "google_ads"), ("targets", "google_ads"),
+     ("targets", "meta_ads"), ("targets", "tiktok_ads")],
+)
 def test_actual_planning_browser_lost_response_recovery_and_versions(
+    journey: str,
+    platform: str,
     customer_engine: Engine,
     configuration: Settings,
     replicas: Any,
@@ -49,7 +56,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
     for client in replicas[:2]:
         client.base_url = origin
     _, ticket, _, calls = setup_evidence(
-        customer_engine, configuration, replicas, monkeypatch, "google_ads"
+        customer_engine, configuration, replicas, monkeypatch, platform
     )
     provider = replicas[2]
 
@@ -79,7 +86,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             await Response(html, media_type="text/html")(scope, receive, send)
             return
         if path == "/__fixture__/driver.mjs":
-            script = Path("tests/javascript/planning_documents_browser.mjs").read_text()
+            script = Path(f"tests/javascript/planning_{journey}_browser.mjs").read_text()
             script = script.replace("__INPUTS__", ticket.inputs.model_dump_json())
             await Response(script, media_type="text/javascript")(scope, receive, send)
             return
@@ -136,7 +143,9 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(PlanRow)) == 1
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == 2
-            assert db.scalar(select(func.count()).select_from(PlanEventRow)) == 3
+            assert db.scalar(select(func.count()).select_from(PlanEventRow)) == (
+                3 if journey == "documents" else 0
+            )
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
     finally:
         browser.terminate()

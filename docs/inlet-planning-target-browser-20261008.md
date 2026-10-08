@@ -41,3 +41,11 @@ Final focused qualification: **9 passed,0 skips in53.489s**.
 Whole Ruff/mypy1065, Node syntax and diff checks passed. Evidence:
 `/workspace/inlet-evidence/20261008/planning-target-browser-final.{log,xml}`.
 Independent review remains pending; no Full-suite or live result inferred.
+
+Independent review CLOSED at1f2a19e with no P1/P2. Root integrated at **d2d08bd**;
+source/tests match qualified authorhead exactly. Quality ledger reconciliation is
+dcdce0d. Reviewed runtime adverse tests1ff98e9 integrated at1d3179a:16actualAPI
+cases, finalcleanup subset4passes; no production change. Those deterministic
+clock/transaction proofs remain distinct from the browser9 and earlier206compat.
+The single aggregate remains deferred until remaining acceptance packages and
+historical partition are ready. No full-suite result inferred from focused totals.

@@ -632,7 +632,9 @@ def test_new_catalog_observation_changes_snapshot_selection(
     assert first.targets[0].selection_key != second.targets[0].selection_key
 
 
+@pytest.mark.parametrize("legacy", [False, True])
 def test_generation_revoked_during_actual_reads_rolls_back(
+    legacy: bool,
     customer_engine: Engine,
     configuration: Settings,
     replicas: Any,
@@ -644,7 +646,9 @@ def test_generation_revoked_during_actual_reads_rolls_back(
     from app.planning_documents.models import PlanDependencyRow, PlanVersionRow
     from app.planning_documents.requests import CreatePlan, CustomerInputs, GeneratePlan
     from app.planning_documents.service import PlanningDocumentService
+    from app.planning_documents.window_adapter import OwnedWindowEvidenceReader
 
+    from tests.planning_legacy_policy_fixture import legacy_v2_policy
     from tests.test_planning_evidence_adapter import setup_evidence
 
     _, ticket, principal, calls = setup_evidence(
@@ -652,6 +656,9 @@ def test_generation_revoked_during_actual_reads_rolls_back(
     )
     inputs = ticket.inputs
     service = PlanningDocumentService(customer_engine, replicas[2])
+    if legacy:
+        service.policy = legacy_v2_policy()
+    reader_type = OwnedPlanningEvidenceReader if legacy else OwnedWindowEvidenceReader
     created = service.create(
         principal,
         inputs.workspace_id,
@@ -673,9 +680,9 @@ def test_generation_revoked_during_actual_reads_rolls_back(
             ),
         ),
     )
-    original = OwnedPlanningEvidenceReader.collect
+    original = reader_type.collect
 
-    def revoke(reader: OwnedPlanningEvidenceReader, ticket: Any) -> Any:
+    def revoke(reader: Any, ticket: Any) -> Any:
         result = original(reader, ticket)
         with Session(customer_engine) as db, db.begin():
             session = db.get(CustomerSession, principal.session.digest)
@@ -683,7 +690,7 @@ def test_generation_revoked_during_actual_reads_rolls_back(
             session.revoked_at = int(time.time())
         return result
 
-    monkeypatch.setattr(OwnedPlanningEvidenceReader, "collect", revoke)
+    monkeypatch.setattr(reader_type, "collect", revoke)
     with pytest.raises(HTTPException) as denied:
         service.generate(
             principal,

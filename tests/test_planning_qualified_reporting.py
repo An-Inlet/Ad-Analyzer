@@ -29,6 +29,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
+from tests.planning_legacy_policy_fixture import configure_legacy_v2_api
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
@@ -158,6 +159,7 @@ def test_actual_owned_sql_to_customer_plan_and_retained_presence(
     monkeypatch: pytest.MonkeyPatch,
     state: str,
 ) -> None:
+    configure_legacy_v2_api(monkeypatch)
     _, ticket, principal, _ = setup_evidence(
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )
@@ -320,6 +322,7 @@ def test_collection_to_final_recheck_never_saves_changed_presence(
     monkeypatch: pytest.MonkeyPatch,
     change: str,
 ) -> None:
+    configure_legacy_v2_api(monkeypatch)
     from app.customers.models import CustomerSession
     from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
     from app.planning_documents.models import PlanRequestRow, PlanVersionRow

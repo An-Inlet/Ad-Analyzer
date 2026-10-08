@@ -693,7 +693,7 @@ def test_gap_slots_compare_actual_instants_not_same_zone_fold_equality() -> None
         ).assert_ticket(ticket)
 
 
-def test_production_service_default_stays_v2_with_separate_window_composer() -> None:
+def test_production_service_default_uses_reviewed_requested_window_policy() -> None:
     from app.planning_documents.service import PlanningDocumentService
     from app.planning_documents.window_composer import WindowPlanComposer
     from sqlalchemy import create_engine
@@ -703,7 +703,7 @@ def test_production_service_default_stays_v2_with_separate_window_composer() -> 
     engine = create_engine("sqlite://")
     try:
         service = PlanningDocumentService(engine, FakeProvider())
-        assert service.policy == policy(2)
+        assert service.policy == policy(3)
         assert isinstance(service.window_composer, WindowPlanComposer)
     finally:
         engine.dispose()

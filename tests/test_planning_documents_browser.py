@@ -59,14 +59,14 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         client.base_url = origin
     window_source = None
     if journey == "windows":
-        from tests.test_window_service_api import configure_v3
+        from tests.test_window_service_api import require_default_v3
         from tests.window_service_fixture import import_meta_window_source
 
         window_source = import_meta_window_source(
             customer_engine, configuration, replicas, monkeypatch
         )
         ticket, calls = window_source.ticket, window_source.native_calls
-        configure_v3(monkeypatch)
+        require_default_v3(monkeypatch)
     else:
         _, ticket, _, calls = setup_evidence(
             customer_engine, configuration, replicas, monkeypatch, platform

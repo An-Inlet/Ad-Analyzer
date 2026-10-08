@@ -20,6 +20,7 @@ from app.settings import Settings, settings
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.planning_legacy_policy_fixture import configure_legacy_v2_api
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
@@ -39,6 +40,7 @@ def test_actual_import_to_owned_plan_preserves_conversion_presence(
     monkeypatch: pytest.MonkeyPatch,
     state: str,
 ) -> None:
+    configure_legacy_v2_api(monkeypatch)
     _, ticket, _, native_calls = setup_evidence(
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )

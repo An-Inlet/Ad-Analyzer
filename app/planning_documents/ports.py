@@ -24,7 +24,13 @@ from app.planning_documents.common import (
     fingerprint,
     unique,
 )
-from app.planning_documents.context import AccountRef, EvidenceRef, PlanInputRevision, TargetRef
+from app.planning_documents.context import (
+    AccountRef,
+    EvidenceRef,
+    PlanInputRevision,
+    ReportingWindow,
+    TargetRef,
+)
 from app.planning_documents.documents import PlanVersion
 from app.publication.contracts import fingerprint as source_fingerprint
 
@@ -296,11 +302,31 @@ class CommerceEvidence(Frozen):
         return self
 
 
+class ReportingGapPin(Frozen):
+    """Exact read-only witness for an unavailable requested reporting window."""
+
+    completion_id: Id
+    campaign_id: int = Field(strict=True, gt=0)
+    native_campaign_id: str = Field(strict=True, pattern=r"^[0-9]{1,32}$")
+    document_digest: Digest
+    reporting_window: ReportingWindow
+
+
 class EvidenceGap(Frozen):
     account: AccountRef | None
     section: Literal["catalog", "reported_metrics", "commerce", "creative_context"]
     reason: Key
     explanation: Text
+    reporting_pin: ReportingGapPin | None = None
+
+    @model_validator(mode="after")
+    def pinned_mismatch(self) -> EvidenceGap:
+        mismatch = self.reason == "reporting_window_mismatch"
+        if mismatch != (self.reporting_pin is not None) or (
+            mismatch and (self.account is None or self.section != "reported_metrics")
+        ):
+            raise ValueError("reporting window gap requires exact owned reporting pin")
+        return self
 
 
 class ContextEvidence(Frozen):
@@ -475,6 +501,13 @@ class EvidenceBundle(NoAuthority):
             for ref in references
         ):
             raise ValueError("evidence ownership/freshness changed")
+        if any(
+            gap.reporting_pin is not None
+            and gap.reporting_pin.reporting_window
+            in (ticket.inputs.reporting_window, ticket.inputs.comparison_window)
+            for gap in self.gaps
+        ):
+            raise ValueError("reporting mismatch pin actually matches requested window")
         if any(gap.account is not None and gap.account not in accounts for gap in self.gaps):
             raise ValueError("foreign evidence gap")
 

@@ -37,6 +37,7 @@ from app.planning_documents.ports import (
     GenerationTicket,
     PerformanceEvidence,
     PlanningCompositionPolicy,
+    ReportingGapPin,
 )
 from app.publication import customer_intents
 from app.publication.customer_authority import bind_authority
@@ -184,7 +185,7 @@ class OwnedPlanningEvidenceReader:
                     raise changed()
                 if account.platform == "meta_ads":
                     ordinary_meta(db, wid, account.account_id, completion)
-                performance.read_current(
+                witness_document = performance.read_current(
                     db,
                     wid,
                     actor,
@@ -205,6 +206,15 @@ class OwnedPlanningEvidenceReader:
                             account=account,
                             section="reported_metrics",
                             reason="reporting_window_mismatch",
+                            reporting_pin=ReportingGapPin(
+                                completion_id=witness_document.completion_id,
+                                campaign_id=witness.id,
+                                native_campaign_id=witness.external_campaign_id,
+                                document_digest=fingerprint(
+                                    "campaign-performance", witness_document.model_dump(mode="json")
+                                ),
+                                reporting_window=actual_window,
+                            ),
                             explanation="Current reporting does not cover a requested window.",
                         )
                     )

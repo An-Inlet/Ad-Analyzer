@@ -604,3 +604,76 @@ def test_owned_missing_commerce_history_is_unavailable_not_zero(
         recheck_local_sources(
             db, principal=principal, ticket=ticket, bundle=bundle, now=datetime.now(UTC)
         )
+
+
+@pytest.mark.parametrize("change", [None, "metric", "replacement", "matching_window"])
+def test_mismatched_reporting_pin_final_races(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str | None,
+) -> None:
+    reader, ticket, principal, _ = setup_evidence(
+        customer_engine, configuration, replicas, monkeypatch, "meta_ads"
+    )
+    old = ticket.inputs.reporting_window
+    window = old.model_copy(
+        update={
+            "starts_at": old.starts_at - timedelta(days=1),
+            "ends_at_exclusive": old.ends_at_exclusive - timedelta(days=1),
+        }
+    )
+    ticket = ticket.model_copy(
+        update={"inputs": ticket.inputs.model_copy(update={"reporting_window": window})}
+    )
+    bundle = reader.collect(ticket)
+    assert not bundle.performance
+    gap = next(g for g in bundle.gaps if g.reason == "reporting_window_mismatch")
+    assert gap.reporting_pin is not None
+    with Session(customer_engine) as db:
+        pin = gap.reporting_pin
+        current = db.get(CurrentPerformance, ticket.inputs.accounts[0].account_id)
+        assert current
+        completion = db.get(PerformanceCompletion, pin.completion_id)
+        assert completion
+        if change == "metric":
+            metric = db.scalar(
+                select(DailyMetric).where(DailyMetric.campaign_id == pin.campaign_id)
+            )
+            assert metric
+            metric.clicks += 1
+        elif change == "replacement":
+            values = {
+                c.name: getattr(completion, c.name) for c in PerformanceCompletion.__table__.columns
+            }
+            values["id"] = uuid4().hex
+            replacement = PerformanceCompletion(**values)
+            db.add(replacement)
+            db.flush()
+            current.completion_id = replacement.id
+        elif change == "matching_window":
+            completion.starts_on = window.starts_at.date()
+            completion.ends_on = window.starts_at.date()
+            source = db.scalar(
+                select(MetaConnection).where(MetaConnection.account_id == current.account_id)
+            )
+            assert source
+            source.covered_from = source.covered_through = completion.starts_on
+            account = db.get(AdvertisingAccount, current.account_id)
+            assert account
+            completion.manifest_digest, rows = manifest(
+                db, account, completion.starts_on, completion.ends_on
+            )
+            completion.row_count = len(rows)
+        db.commit()
+    with Session(customer_engine) as db:
+        if change is None:
+            recheck_local_sources(
+                db, principal=principal, ticket=ticket, bundle=bundle, now=datetime.now(UTC)
+            )
+        else:
+            with pytest.raises(HTTPException):
+                recheck_local_sources(
+                    db, principal=principal, ticket=ticket, bundle=bundle, now=datetime.now(UTC)
+                )

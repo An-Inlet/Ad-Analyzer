@@ -150,7 +150,7 @@ def build(
                                         raise ValueError("export row limit exceeded")
                                     if row["_export_oversized"]:
                                         raise ValueError("export stored row exceeds bound")
-                                    projected, missing = serialize(name, dict(row))
+                                    projected, missing = serialize(name, dict(row), db=snapshot)
                                     unsupported.update(missing)
                                     data = encoded(projected) + b"\n"
                                     total_data += len(data)

@@ -161,16 +161,28 @@ def export_section(
     try:
         for row in result:
             from app.planning_documents.storage import (
+                CATALOG_RECEIPT_TABLES,
                 MAX_PLANNING_ROW_BYTES,
                 PLANNING_TABLES,
                 export_row,
             )
 
-            projected = (
-                export_row(name, dict(row))
-                if name in PLANNING_TABLES
-                else {key: scalar(value) for key, value in row.items()}
-            )
+            if name in CATALOG_RECEIPT_TABLES:
+                from app.planning_documents.catalog_receipt_export import export_receipt_row
+
+                projected = export_receipt_row(db, name, dict(row))
+            else:
+                if name == "planning_input_revisions":
+                    from app.planning_documents.catalog_receipt_export import (
+                        validate_input_receipt_export,
+                    )
+
+                    validate_input_receipt_export(db, dict(row))
+                projected = (
+                    export_row(name, dict(row))
+                    if name in PLANNING_TABLES
+                    else {key: scalar(value) for key, value in row.items()}
+                )
             row_limit = MAX_PLANNING_ROW_BYTES if name in PLANNING_TABLES else MAX_ROW_BYTES
             size = len(json.dumps(projected, allow_nan=False).encode())
             if size > row_limit:

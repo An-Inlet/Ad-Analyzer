@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from sqlalchemy.orm import Session
 
 from app.billing.offers import (
     BoundOfferV1,
@@ -615,10 +616,22 @@ def bind_document(
             raise ValueError("settlement row ownership mismatch")
 
 
-def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    from app.planning_documents.storage import PLANNING_TABLES, export_row
+def serialize(
+    table: str, row: Mapping[str, Any], *, db: Session | None = None
+) -> tuple[dict[str, Any], list[str]]:
+    from app.planning_documents.storage import CATALOG_RECEIPT_TABLES, PLANNING_TABLES, export_row
 
+    if table in CATALOG_RECEIPT_TABLES:
+        from app.planning_documents.catalog_receipt_export import export_receipt_row
+
+        if db is None:
+            raise ValueError("receipt export requires scoped database validation")
+        return export_receipt_row(db, table, row), []
     if table in PLANNING_TABLES:
+        if table == "planning_input_revisions" and db is not None:
+            from app.planning_documents.catalog_receipt_export import validate_input_receipt_export
+
+            validate_input_receipt_export(db, row)
         return export_row(table, row), []
     if table == "initial_preview_execution_proofs":
         try:

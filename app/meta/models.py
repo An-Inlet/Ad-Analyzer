@@ -97,6 +97,23 @@ class MetaStagedMetric(Base):
     """Only completed windows replace shared metrics; partial pages remain here."""
 
     __tablename__ = "meta_staged_metrics"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["connection_id", "presence_context_token"],
+            [
+                "meta_presence_stage_contexts.connection_id",
+                "meta_presence_stage_contexts.window_token",
+            ],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(presence_context_token IS NULL AND presence_json IS NULL) OR "
+            "(presence_context_token IS NOT NULL AND presence_json IS NOT NULL)",
+            name="ck_meta_presence_pair",
+        ),
+    )
+    presence_context_token: Mapped[str | None] = mapped_column(String(32))
+    presence_json: Mapped[str | None] = mapped_column(Text)
     connection_id: Mapped[int] = mapped_column(
         ForeignKey("meta_connections.id", ondelete="CASCADE"), primary_key=True
     )

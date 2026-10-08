@@ -76,7 +76,7 @@ def manifest(
 
 def publish_meta(
     db: Session, source: MetaConnection, start: date, end: date, now: datetime
-) -> None:
+) -> PerformanceCompletion:
     """Called only by terminal Meta import under its existing workspace/source locks."""
     account = db.get(AdvertisingAccount, source.account_id)
     if account is None or account.workspace_id != source.workspace_id or not account.time_zone:
@@ -118,6 +118,8 @@ def publish_meta(
     else:
         current.completion_id = item.id
     db.flush()
+
+    return item
 
 
 def require_active_integration(db: Session, account: AdvertisingAccount) -> None:

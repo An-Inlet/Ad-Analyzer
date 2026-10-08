@@ -1634,6 +1634,7 @@ TABLES: dict[str, TablePolicy] = {
     "meta_pending_grants": TablePolicy(
         "workspace", ("id", "workspace_id", "expires_at"), None, False
     ),
+    "meta_presence_stage_contexts": TablePolicy("workspace", (), None, False),
     "meta_staged_metrics": TablePolicy(
         "parent",
         (
@@ -1966,5 +1967,9 @@ TABLES: dict[str, TablePolicy] = {
 
 
 PRIVATE_STAGING_TABLES = frozenset(
-    {"commerce_acquisition_checkpoints", "commerce_acquisition_seen"}
+    {
+        "commerce_acquisition_checkpoints",
+        "commerce_acquisition_seen",
+        "meta_presence_stage_contexts",
+    }
 )

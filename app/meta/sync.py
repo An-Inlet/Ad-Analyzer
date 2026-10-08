@@ -13,7 +13,7 @@ from app.ads.schemas import CampaignCreate
 from app.automation import AutomationControlKey, AutomationControlService
 from app.imports.native import bind_meta
 from app.imports.scope import ImportScopeError
-from app.meta import staging
+from app.meta import presence_staging, staging
 from app.meta.client import MetaClient, unpack_page
 from app.meta.locking import lock_workspace
 from app.meta.models import (
@@ -154,6 +154,7 @@ class MetaSyncService:
                 else:
                     for name, value in values.items():
                         setattr(staged, name, value)
+                presence_staging.stage_presence(self.session, row, account, staged, item)
         self.session.flush()
         if (
             row.phase.removeprefix("rf_") == "insights"
@@ -172,6 +173,10 @@ class MetaSyncService:
 
     def _publish(self, row: MetaConnection, now: datetime) -> int:
         assert row.window_start is not None and row.window_end is not None
+        account = self.session.get(AdvertisingAccount, row.account_id)
+        if account is None:
+            raise MetaError("meta_account_mismatch")
+        prepared = presence_staging.capture_presence(self.session, row, account)
         campaign_ids = select(Campaign.id).where(
             Campaign.account_id == row.account_id, Campaign.platform == PLATFORM
         )
@@ -226,20 +231,14 @@ class MetaSyncService:
         from app.campaign_performance.service import publish_meta
 
         if self._fixed_lease is not None:
-            from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
             from app.initial_planning.clock import effective_now
             from app.reported_feedback.acquisition import capture_terminal_window
 
             if self.reported_feedback is None:
                 raise MetaError("meta_reported_feedback_unavailable")
             now = max(now, effective_now(self.session, self.reported_feedback.initial))
-            publish_meta(self.session, row, row.window_start, row.window_end, now)
-            current = self.session.get(CurrentPerformance, row.account_id, populate_existing=True)
-            completion = (
-                self.session.get(PerformanceCompletion, current.completion_id) if current else None
-            )
-            if completion is None:
-                raise MetaError("meta_reported_feedback_completion_changed")
+            completion = publish_meta(self.session, row, row.window_start, row.window_end, now)
+            presence_staging.publish_presence(self.session, prepared, completion)
             capture_terminal_window(
                 self.session, row, completion, self._fixed_lease, now, self.reported_feedback
             )
@@ -247,10 +246,12 @@ class MetaSyncService:
             row.covered_through = self._fixed_lease.rolling_covered_through
             row.last_sync_at = self._fixed_lease.rolling_last_sync_at
         else:
-            publish_meta(self.session, row, row.window_start, row.window_end, now)
+            completion = publish_meta(self.session, row, row.window_start, row.window_end, now)
+            presence_staging.publish_presence(self.session, prepared, completion)
             row.covered_from = row.window_start
             row.covered_through = row.window_end
             row.last_sync_at = now
+        presence_staging.clear_presence_context(self.session, row.id)
         row.window_start, row.window_end, row.cursor = None, None, None
         row.phase = "campaigns"
         self.session.add(
@@ -395,9 +396,7 @@ class MetaSyncService:
                         ).date() - timedelta(days=1)
                         row.window_start, row.window_end = end - timedelta(days=55), end
                         row.phase, row.cursor = "campaigns", None
-                    self.session.execute(
-                        delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == row.id)
-                    )
+                    presence_staging.begin_presence(self.session, row, account, now)
                 token = ConnectionService(self.session, self.settings, self.client).access_token(
                     row, now
                 )
@@ -487,9 +486,7 @@ class MetaSyncService:
             }:
                 staging.clear(self.session, row.id)
                 row.phase, row.cursor = "campaigns", None
-                self.session.execute(
-                    delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == row.id)
-                )
+                presence_staging.clear_campaign_presence(self.session, row.id)
             # A failed import never replaces an earlier complete metric snapshot.
             self.session.add(
                 JobRun(

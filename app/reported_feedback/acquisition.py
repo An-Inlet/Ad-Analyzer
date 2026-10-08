@@ -107,10 +107,9 @@ def abort_fixed_window(
     db: Session, source: MetaConnection, lease: FixedWindowLeaseV1 | None, reason: str
 ) -> None:
     """A lost/disabled fixed run can never resume as an ordinary rolling checkpoint."""
-    from sqlalchemy import delete
 
     from app.meta import staging
-    from app.meta.models import MetaStagedMetric
+    from app.meta.presence_staging import clear_campaign_presence
     from app.reported_feedback.invalidation import retract_account_comparisons
 
     if lease is not None:
@@ -126,7 +125,7 @@ def abort_fixed_window(
         # The removed job also removed the only retained rolling checkpoint copy.
         source.covered_from = source.covered_through = source.last_sync_at = None
     staging.clear(db, source.id)
-    db.execute(delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == source.id))
+    clear_campaign_presence(db, source.id)
     source.window_start = source.window_end = source.cursor = None
     source.phase = "campaigns"
     retract_account_comparisons(db, source.workspace_id, source.account_id)

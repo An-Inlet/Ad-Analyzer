@@ -41,6 +41,7 @@ MODEL_MODULES = (
     "app.mandates.models",
     "app.measurement.models",
     "app.meta.models",
+    "app.meta.presence_models",
     "app.outcomes.models",
     "app.operations.models",
     "app.outcome_feedback.models",

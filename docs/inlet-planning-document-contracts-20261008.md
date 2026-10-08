@@ -30,3 +30,27 @@ schema plus source resolver/current session/ownership/CAS/erasure interfaces. Ro
 fixed synthetic quality cases at 25eb733 are composer acceptance inputs, not passed by
 these structural tests. Catalog V2 5535021 was announced during final checks and remains
 unimported pending its independent final review; references are conceptual bindings.
+
+## Concrete Review Repairs
+
+Successor: `codex/inlet-plan-contract-repair` at
+`/workspace/inlet-plan-contract-repair`, from reviewed root `382895e`, with only
+contract commit `e049a37` cherry-picked as `35aff00`. Predecessor remains unchanged.
+
+Root target-location/contradiction findings and independent event-validation/native
+fact-provenance P2s repaired: actual ProviderReferenceV1 reused; platform/parent/identity
+congruence; same-setting/shared-owner contradictory proposals rejected; mandatory
+concrete-event revalidation; exact available catalog binding for typed native facts;
+read observation source/account/target/time structure and binding checks.
+
+Final successor checks:
+- `/workspace/inlet-venv/bin/pytest tests/test_planning_document_contracts.py`:
+  **47 passed in 0.21s** (provider/export, contradictory fields/shared owners, aliases,
+  event/nested-copy bypass, both typed fact families × three invalid evidence kinds,
+  observation target/expiry, plus original contracts).
+- `/workspace/inlet-venv/bin/ruff check .`: passed.
+- `/workspace/inlet-venv/bin/mypy`: passed, **1019 source files**.
+- `git diff --check`: passed.
+
+Still pure schema work. No API/persistence, DB/browser/live test or quality claim.
+Independent repair closure remains required before implementation dependencies.

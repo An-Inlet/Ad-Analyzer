@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from app.goals.schemas import GoalDefinition
+from app.planning_catalog.metadata_contracts import ProviderReferenceV1
 from app.planning_documents.common import (
     MAX_ACCOUNTS,
     Amount,
@@ -200,6 +201,7 @@ class TargetRef(Frozen):
     """Catalog V2 semantic references; not a resolver, proof or authorization token."""
 
     account: AccountRef
+    provider_reference: ProviderReferenceV1
     canonical_entity_key: Digest
     selection_key: Digest
     catalog_evidence_key: Key
@@ -209,6 +211,10 @@ class TargetRef(Frozen):
 
     @model_validator(mode="after")
     def platform_kind(self) -> "TargetRef":
+        if self.provider_reference.platform != self.account.platform:
+            raise ValueError("provider reference platform mismatch")
+        if (self.kind == "campaign") != (self.provider_reference.parent_campaign_id is None):
+            raise ValueError("provider reference parent mismatch")
         if (self.kind == "adset" and self.account.platform != "meta_ads") or (
             self.kind == "adgroup" and self.account.platform == "meta_ads"
         ):

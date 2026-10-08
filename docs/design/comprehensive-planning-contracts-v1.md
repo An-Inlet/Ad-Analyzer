@@ -74,3 +74,29 @@ Readiness is separate from `quality_status=not_expert_qualified`. A schema-valid
 can still be a poor recommendation. Fixed root quality cases at 25eb733 must evaluate the
 future composer unchanged; expert/pilot quality and customer usability remain unqualified.
 No persistence/API work should begin before this concrete contract review closes.
+
+## Reviewed Catalog Binding And Contradiction Repair
+
+Successor ancestry is root `382895e` plus the contract-only `e049a37` cherry-pick.
+`TargetRef.provider_reference` now directly uses reviewed catalog
+`ProviderReferenceV1`, preserving advertiser/entity/parent IDs for durable readable
+exports. Platform, kind and parent must agree. The aggregate forbids canonical-key
+aliases for one provider identity and inconsistent references for one canonical key.
+A future resolver must still compare the exact current owned source/catalog entry;
+opaque hashes and structurally valid IDs are not proof of access or existence.
+
+V1 rejects conflicting proposed values for the same account/entity/typed setting,
+even when reciprocal conflict edges are supplied. Shared native budget owners use
+one setting identity across campaign targets; incompatible unit, currency, cadence,
+current or proposed amounts are rejected. This deliberately avoids introducing
+mutually exclusive action-selection authority or permitting contradictory accepted
+instructions. Customer budget scenarios remain independent non-native alternatives.
+
+Mandatory event binding now reparses the concrete event type as well as the document,
+including nested comparisons; unchecked model copies cannot bypass status or authority
+validators. Typed current/native facts require the exact available target catalog
+reference, while contextual rationale may cite other owned evidence. Observation
+comparisons now carry structured owned source evidence and an exact provider target,
+not bare key/digest pairs. Binding checks current/proposed correspondence and the
+observation chronology/expiry. Resolving persisted source contents and current access
+remains a mandatory future service responsibility, not inferred from these documents.

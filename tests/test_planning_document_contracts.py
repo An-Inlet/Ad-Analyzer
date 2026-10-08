@@ -38,6 +38,9 @@ def packet(platform: str = "google_ads", ceiling: int = 100) -> dict[str, Any]:
     )
     target = dict(
         account=account,
+        provider_reference=dict(
+            platform=platform, advertiser_id="1234567890", entity_id="123", parent_campaign_id=None
+        ),
         canonical_entity_key="a" * 64,
         selection_key="b" * 64,
         catalog_evidence_key="catalog",
@@ -216,7 +219,14 @@ def test_shared_owner_cannot_be_allocated_twice() -> None:
         evidence_keys=["catalog"],
     )
     second = deepcopy(allocation)
-    second.update(key="two", target={**target, "canonical_entity_key": "e" * 64})
+    second.update(
+        key="two",
+        target={
+            **target,
+            "canonical_entity_key": "e" * 64,
+            "provider_reference": {**target["provider_reference"], "entity_id": "456"},
+        },
+    )
     data["scenarios"][0].update(allocations=[allocation, second], unallocated_micros=0)
     with pytest.raises(ValidationError, match="shared budget"):
         PlanVersion.model_validate(data)
@@ -360,7 +370,7 @@ def test_typed_proposals_and_observed_status_bind_expected_value() -> None:
                 proposal_key="delivery",
                 expected=dict(field="delivery_status", value="paused"),
                 observed=dict(field="delivery_status", value="paused"),
-                evidence=dict(key="later_status", document_digest="f" * 64),
+                evidence=later_evidence(doc),
                 unavailable_reason=None,
             )
         ],
@@ -416,4 +426,226 @@ def test_operational_count_limit() -> None:
         {**data["actions"][0], "key": f"action_{i}", "priority": i + 1} for i in range(101)
     ]
     with pytest.raises(ValidationError):
+        PlanVersion.model_validate(data)
+
+
+@pytest.mark.parametrize("change", [dict(platform="meta_ads"), dict(parent_campaign_id="456")])
+def test_provider_reference_congruence(change: dict[str, str]) -> None:
+    data = packet()
+    data["actions"][0]["target"]["provider_reference"].update(change)
+    with pytest.raises(ValidationError, match="provider reference"):
+        PlanVersion.model_validate(data)
+
+
+def test_durable_provider_reference_roundtrip() -> None:
+    doc = PlanVersion.model_validate(packet("tiktok_ads"))
+    loaded = PlanVersion.model_validate_json(doc.model_dump_json())
+    target = loaded.actions[0].target
+    assert hasattr(target, "provider_reference")
+    assert target.model_dump()["provider_reference"] == dict(
+        platform="tiktok_ads", advertiser_id="1234567890", entity_id="123", parent_campaign_id=None
+    )
+
+
+@pytest.mark.parametrize("declared_conflict", [False, True])
+def test_contradictory_same_setting_rejected_even_with_declared_conflict(
+    declared_conflict: bool,
+) -> None:
+    data = packet()
+    action = data["actions"][0]
+    action.update(
+        kind="status_review",
+        proposed_fields=[
+            dict(
+                key="delivery",
+                availability="supported",
+                current=dict(field="delivery_status", value="enabled"),
+                proposed=dict(field="delivery_status", value="paused"),
+                evidence_key="catalog",
+                verification_criterion="Compare native setting",
+            )
+        ],
+    )
+    other = deepcopy(action)
+    other.update(key="other", priority=2)
+    other["proposed_fields"][0]["proposed"]["value"] = "enabled"
+    if declared_conflict:
+        action["conflicts"] = ["other"]
+        other["conflicts"] = ["inspect"]
+    data["actions"].append(other)
+    with pytest.raises(ValidationError, match="contradictory proposals"):
+        PlanVersion.model_validate(data)
+
+
+def test_shared_owner_contradictory_native_budgets_rejected() -> None:
+    data = packet()
+    action = data["actions"][0]
+    action["target"]["budget_owner_key"] = "f" * 64
+    action.update(
+        kind="budget_review",
+        native_budget=dict(
+            owner_key="f" * 64,
+            evidence_key="catalog",
+            unit="micros",
+            currency="USD",
+            cadence="daily",
+            current_amount=10,
+            proposed_amount=20,
+            delta=10,
+        ),
+    )
+    other = deepcopy(action)
+    other.update(key="other", priority=2)
+    other["target"]["canonical_entity_key"] = "e" * 64
+    other["target"]["provider_reference"]["entity_id"] = "456"
+    other["native_budget"].update(proposed_amount=30, delta=20)
+    data["actions"].append(other)
+    with pytest.raises(ValidationError, match="contradictory proposals"):
+        PlanVersion.model_validate(data)
+
+
+def test_same_provider_entity_cannot_evade_conflict_with_alias_key() -> None:
+    data = packet()
+    other = deepcopy(data["actions"][0])
+    other.update(key="other", priority=2)
+    other["target"]["canonical_entity_key"] = "e" * 64
+    data["actions"].append(other)
+    with pytest.raises(ValidationError, match="alias"):
+        PlanVersion.model_validate(data)
+
+
+def test_mandatory_event_boundary_revalidates_unsafe_event_and_nested_copies() -> None:
+    data = packet()
+    data["actions"][0].update(
+        kind="status_review",
+        proposed_fields=[
+            dict(
+                key="delivery",
+                availability="supported",
+                current=dict(field="delivery_status", value="enabled"),
+                proposed=dict(field="delivery_status", value="paused"),
+                evidence_key="catalog",
+                verification_criterion="Compare native setting",
+            )
+        ],
+    )
+    doc = PlanVersion.model_validate(data)
+    event = ReadObservedStatus.model_validate(
+        dict(
+            workspace_id=1,
+            plan_id=doc.inputs.plan_id,
+            version=1,
+            document_digest=doc.digest(),
+            action_key="inspect",
+            action_digest=doc.actions[0].digest(),
+            event_id="a" * 32,
+            observed_at="2026-10-01T01:20:00Z",
+            status="conflicting",
+            comparisons=[
+                dict(
+                    proposal_key="delivery",
+                    expected=dict(field="delivery_status", value="paused"),
+                    observed=dict(field="delivery_status", value="enabled"),
+                    evidence=later_evidence(doc),
+                    unavailable_reason=None,
+                )
+            ],
+            limitations=["No causality"],
+        )
+    )
+    event.assert_document(doc)
+    comparison = event.comparisons[0]
+    assert comparison.evidence is not None
+    changed_source = comparison.evidence.source.model_copy(
+        update={"observed_at": event.observed_at}
+    )
+    changed_target = comparison.evidence.target.model_copy(
+        update={"canonical_entity_key": "e" * 64}
+    )
+    for invalid_evidence in (
+        comparison.evidence.model_copy(update={"target": changed_target}),
+        comparison.evidence.model_copy(
+            update={"source": changed_source.model_copy(update={"expires_at": event.observed_at})}
+        ),
+    ):
+        bad = event.model_copy(
+            update={"comparisons": (comparison.model_copy(update={"evidence": invalid_evidence}),)}
+        )
+        with pytest.raises(ValueError):
+            bad.assert_document(doc)
+    bad_events = [
+        event.model_copy(update={"status": "matching"}),
+        event.model_copy(update={"advertising_writes_enabled": True}),
+        event.model_copy(
+            update={
+                "comparisons": (
+                    event.comparisons[0].model_copy(
+                        update={
+                            "observed": event.comparisons[0].expected.model_copy(
+                                update={"value": "invented"}
+                            )
+                        }
+                    ),
+                )
+            }
+        ),
+    ]
+    for bad in bad_events:
+        with pytest.raises(ValidationError):
+            bad.assert_document(doc)
+
+
+def later_evidence(doc: PlanVersion) -> dict[str, Any]:
+    source = doc.evidence[0].model_dump(mode="json")
+    source.update(observation_started_at="2026-10-01T01:15:00Z", observed_at="2026-10-01T01:16:00Z")
+    return dict(source=source, target=doc.actions[0].target.model_dump(mode="json"))
+
+
+@pytest.mark.parametrize("fact", ["status", "budget"])
+@pytest.mark.parametrize("bad_source", ["foreign_account", "unavailable", "commerce"])
+def test_typed_native_facts_cannot_borrow_unrelated_evidence(fact: str, bad_source: str) -> None:
+    data = packet()
+    other = deepcopy(data["evidence"][0])
+    other["key"] = "other"
+    if bad_source == "foreign_account":
+        second = {**data["inputs"]["accounts"][0], "account_id": 2, "connection_id": 2}
+        data["inputs"]["accounts"].append(second)
+        other["account"] = second
+    elif bad_source == "unavailable":
+        other.update(coverage="unavailable", reasons=["missing_native_source"])
+    else:
+        other.update(kind="shopify_measurement", account=None)
+    data["evidence"].append(other)
+    action = data["actions"][0]
+    action["evidence_keys"].append("other")
+    if fact == "status":
+        action.update(
+            kind="status_review",
+            proposed_fields=[
+                dict(
+                    key="delivery",
+                    availability="supported",
+                    current=dict(field="delivery_status", value="enabled"),
+                    proposed=dict(field="delivery_status", value="paused"),
+                    evidence_key="other",
+                    verification_criterion="Compare native setting",
+                )
+            ],
+        )
+    else:
+        action["target"]["budget_owner_key"] = "f" * 64
+        action.update(
+            kind="budget_review",
+            native_budget=dict(
+                owner_key="f" * 64,
+                evidence_key="other",
+                unit="micros",
+                currency="USD",
+                cadence="daily",
+                current_amount=10,
+                proposed_amount=20,
+                delta=10,
+            ),
+        )
+    with pytest.raises(ValidationError, match="typed native fact"):
         PlanVersion.model_validate(data)

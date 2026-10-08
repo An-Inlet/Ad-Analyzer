@@ -19,6 +19,7 @@ from app.planning_documents.common import (
     unique,
 )
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
+from app.planning_documents.fields import ProposedField
 
 
 class PlanVersion(NoAuthority):
@@ -68,11 +69,24 @@ class PlanVersion(NoAuthority):
             ):
                 raise ValueError("evidence ownership/freshness mismatch")
 
+        native_identities: dict[tuple[int, str, str, str], str] = {}
+        canonical_references: dict[str, tuple[str, str, str, str | None]] = {}
+
         def target(value: TargetRef | AccountTarget) -> None:
             if isinstance(value, AccountTarget):
                 if accounts.get(value.account.account_id) != value.account:
                     raise ValueError("foreign account target")
                 return
+            ref = value.provider_reference
+            identity = (value.account.account_id, ref.advertiser_id, value.kind, ref.entity_id)
+            reference = (ref.platform, ref.advertiser_id, ref.entity_id, ref.parent_campaign_id)
+            if (
+                native_identities.setdefault(identity, value.canonical_entity_key)
+                != value.canonical_entity_key
+            ):
+                raise ValueError("provider identity cannot alias multiple canonical keys")
+            if canonical_references.setdefault(value.canonical_entity_key, reference) != reference:
+                raise ValueError("canonical target has inconsistent provider reference")
             catalog = evidence.get(value.catalog_evidence_key)
             if (
                 accounts.get(value.account.account_id) != value.account
@@ -88,8 +102,56 @@ class PlanVersion(NoAuthority):
             if not set(keys) <= evidence.keys() or not set(assumption_keys) <= assumptions:
                 raise ValueError("unknown evidence or assumption reference")
 
+        def native_fact(evidence_key: str, value: TargetRef) -> None:
+            item = evidence[evidence_key]
+            if (
+                evidence_key != value.catalog_evidence_key
+                or item.kind != "native_catalog"
+                or item.account != value.account
+                or item.coverage == "unavailable"
+            ):
+                raise ValueError(
+                    "typed native fact requires exact available target catalog evidence"
+                )
+
+        proposed_settings: dict[tuple[int, str, str], str] = {}
+
+        def setting(key: tuple[int, str, str], value: str) -> None:
+            if proposed_settings.setdefault(key, value) != value:
+                raise ValueError("contradictory proposals for the same native setting")
+
         for action in self.actions:
             target(action.target)
+            refs(action.evidence_keys, action.assumption_keys)
+            if isinstance(action.target, TargetRef):
+                for proposal in action.proposed_fields:
+                    if isinstance(proposal, ProposedField):
+                        native_fact(proposal.evidence_key, action.target)
+                        setting(
+                            (
+                                action.target.account.account_id,
+                                action.target.canonical_entity_key,
+                                proposal.proposed.field,
+                            ),
+                            proposal.proposed.digest(),
+                        )
+                if isinstance(action.native_budget, NativeBudget):
+                    native = action.native_budget
+                    native_fact(native.evidence_key, action.target)
+                    # Unit/cadence and current value are part of the comparison;
+                    # incompatible baselines cannot masquerade as equal proposals.
+                    setting(
+                        (action.target.account.account_id, native.owner_key, "native_budget"),
+                        repr(
+                            (
+                                native.unit,
+                                native.currency,
+                                native.cadence,
+                                native.current_amount,
+                                native.proposed_amount,
+                            )
+                        ),
+                    )
             refs(action.evidence_keys, action.assumption_keys)
             if (
                 isinstance(action.native_budget, NativeBudget)

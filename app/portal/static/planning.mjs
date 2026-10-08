@@ -1,6 +1,7 @@
 import {clearPlanDocument,renderPlanDocument} from './plan-document.mjs';
 import {renderPlanComparison} from './plan-comparison.mjs';
 const clearPlanComparison=host=>{host.replaceChildren();host.hidden=true;};
+import {clearPlanScenarios,renderPlanScenarios} from './plan-scenarios.mjs';
 import {clearPlanTargetPicker,renderPlanTargetPicker} from './plan-target-picker.mjs';
 import {clearPlanEvents,renderPlanEvents} from './plan-events.mjs';
 const $=id=>document.getElementById('planning-'+id),base='/api/customer/v1';
@@ -13,9 +14,9 @@ const say=value=>$('message').textContent=value;
 let epoch=0,busy=false,operation=null,user=null,workspaces=[],wid='',role='',planId='',read=null;
 let listCursor=null,versionCursor=null,eventCursor=null,eventSequence=0,displayCookies=null,expiryTimer=null;
 let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[],editWindow=null,editExpected=null;
-let targetPickers=[],targetTimer=null,targetScope=null,requiresReselection=false,targetReadRequired=false;
+let scenarioHandle=null,targetPickers=[],targetTimer=null,targetScope=null,requiresReselection=false,targetReadRequired=false;
 class Stale extends Error{}
-function clearTargets(){if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;for(const item of targetPickers)clearPlanTargetPicker(item.host);targetPickers=[];targetScope=null;$('targets').replaceChildren();}
+function clearTargets(){clearPlanScenarios($('scenarios'));scenarioHandle=null;if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;for(const item of targetPickers)clearPlanTargetPicker(item.host);targetPickers=[];targetScope=null;$('targets').replaceChildren();}
 function changedTargetScope(){clearTargets();$('target-status').textContent='Goal, account or reporting choices changed. Read targets again before selecting exclusions or allocations.';}
 
 const root=()=>`/workspaces/${encodeURIComponent(wid)}/planning/plans`;
@@ -115,8 +116,8 @@ async function editor(turn,isEdit=false){
   $('accounts').replaceChildren(...accounts.map(a=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=String(a.id);input.onchange=changedTargetScope;label.append(input,document.createTextNode(`${a.name} · ${platforms[a.platform]??'Unsupported'}`));return label;}));
   if(isEdit){
     const input=read.inputs;editExpected={expected_input_revision:read.input_revision,expected_version:read.version};
-    if(input.scenario_intents.length||input.comparison_window!==null)throw Error('This plan contains scenario or comparison inputs this form cannot replace.');
-    requiresReselection=Boolean(input.excluded_entity_keys.length||input.fixed_allocations.length);
+    if(input.comparison_window!==null)throw Error('This plan contains comparison inputs this form cannot replace.');
+    requiresReselection=Boolean(input.excluded_entity_keys.length||input.fixed_allocations.length||input.scenario_intents.length);
     if(requiresReselection)$('target-status').textContent='This revision contains saved target choices. Read targets and explicitly select the choices for the new revision, then confirm replacement below. Old choices are not copied to new observations.';
     $('goal').value=input.goal.goal_id;for(const node of $('accounts').querySelectorAll('input'))node.checked=input.accounts.some(a=>String(a.account_id)===node.value);
     $('milestone').value=input.milestone;$('product').value=input.product_offer??'';$('constraints').value=input.constraints.join('\n');$('assumptions').value=input.assumptions.map(a=>a.statement).join('\n');
@@ -132,12 +133,13 @@ function inputs(){
   const starts_at=editWindow&&$('start').value===editWindow.startValue?editWindow.original.starts_at:iso($('start').value),ends_at_exclusive=editWindow&&$('end').value===editWindow.endValue?editWindow.original.ends_at_exclusive:iso($('end').value);if(Date.parse(starts_at)>=Date.parse(ends_at_exclusive)||Date.parse(ends_at_exclusive)>Date.now())throw Error('Choose a completed past reporting period.');
   const maximum_creative_assets=$('creative').value===''?null:Number($('creative').value);if(maximum_creative_assets!==null&&(!Number.isSafeInteger(maximum_creative_assets)||maximum_creative_assets<0||maximum_creative_assets>30))throw Error('Choose zero to thirty creative concepts.');
   if(targetReadRequired&&!targetPickers.length)throw Error('Read targets again before saving. Earlier target choices were invalidated.');
-  let exclusions=[],fixed_allocations=[];
+  let exclusions=[],fixed_allocations=[];const scenario_intents=scenarioHandle?.readIntent()??[];
   if(targetScope!==null&&targetScope!==JSON.stringify({goal:goal.id,revision:goal.revision,account_ids,starts_at,ends_at_exclusive}))throw Error('Your target scope changed. Read targets again.');
   for(const item of targetPickers){const value=item.handle.readIntent();exclusions.push(...value.exclusions);fixed_allocations.push(...value.fixed_allocations);}
   if(requiresReselection&&(!targetPickers.length||!$('replace-targets').checked))throw Error('Read targets and explicitly confirm your replacement target choices for this revision.');
   if(exclusions.length>100||fixed_allocations.length>100||fixed_allocations.reduce((sum,a)=>sum+BigInt(a.amount_micros),0n)>BigInt(goal.definition.budget_micros))throw Error('Keep at most 100 exclusions and allocations, within the confirmed total budget ceiling.');
-  return{goal_id:goal.id,goal_revision:goal.revision,account_ids,reporting_window:{starts_at,ends_at_exclusive},comparison_window:null,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents:[],maximum_creative_assets};
+  for(const scenario of scenario_intents){if(scenario.allocations.some(a=>exclusions.some(e=>e.canonical_entity_key===a.target.canonical_entity_key))||fixed_allocations.some(f=>!scenario.allocations.some(a=>a.target.canonical_entity_key===f.target.canonical_entity_key&&a.amount_micros===f.amount_micros)))throw Error('Each alternative must preserve every fixed allocation and omit excluded targets.');}
+  return{goal_id:goal.id,goal_revision:goal.revision,account_ids,reporting_window:{starts_at,ends_at_exclusive},comparison_window:null,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents,maximum_creative_assets};
 }
 async function mutate(turn,operationName,path,body){
   if(pending)throw Error('Check the previous request result before another save.');
@@ -179,12 +181,13 @@ $('targets-read').onclick=()=>guarded(async turn=>{
     const account=accounts.find(a=>a.id===accountId),catalog=await api(`/workspaces/${wid}/planning/target-catalog-v2`,turn,'POST',{account_id:accountId,...period});
     await session(turn);check(turn);const host=document.createElement('section');$('targets').append(host);
     const handle=renderPlanTargetPicker(host,catalog,{workspaceId:Number(wid),account,period,currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros},()=>{$('replace-targets').checked=false;});
-    targetPickers.push({host,handle});
+    targetPickers.push({host,handle,catalog,account});
   }
   for(const item of targetPickers)item.handle.readIntent();
   targetScope=JSON.stringify({goal:goal.id,revision:goal.revision,account_ids:intent.account_ids,starts_at:period.starts_at,ends_at_exclusive:period.ends_at});
   $('replace-targets').checked=false;$('target-status').textContent='Choose exclusions or fixed planning allocations below. These are customer budget hypotheses and never change advertising.';
   const expires=Math.min(...targetPickers.map(item=>Date.parse(item.handle.expiresAt)));
+  scenarioHandle=renderPlanScenarios($('scenarios'),{currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros,expiresAt:new Date(expires).toISOString(),targets:targetPickers.flatMap(item=>item.catalog.targets.map(target=>({selector:{account_id:item.account.id,canonical_entity_key:target.canonical_entity_key,selection_key:target.selection_key},label:`${item.account.name} · ${target.entity.name??'Name Unavailable'} · ${target.entity.kind} ${target.entity.reference.entity_id}`})))},()=>{$('replace-targets').checked=false;});
   targetTimer=setTimeout(()=>{clearTargets();$('target-status').textContent='The target observations expired. Read again and explicitly reselect your choices.';},Math.min(2147483647,Math.max(0,expires-Date.now())));
   }catch(error){clearTargets();throw error;}
 });

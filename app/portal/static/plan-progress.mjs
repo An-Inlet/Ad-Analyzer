@@ -11,6 +11,7 @@ const stamp=value=>typeof value==='string'&&/T.*(?:Z|[+-]\d\d:\d\d)$/.test(value
 // 64-character Unicode entry keys multiplied by the signed-bigint row magnitude.
 const exact=value=>typeof value==='string'&&value.length<=513&&/^(?:0|-?[1-9][0-9]*)$/.test(value)&&value.replace(/^-/,'').length<=512;
 const amount=(value,currency)=>{const n=BigInt(value),absolute=n<0n?-n:n;return `${currency} ${n<0n?'-':''}${absolute/1000000n}.${String(absolute%1000000n).padStart(6,'0')}`;};
+const label=value=>value.split('_').map(word=>word[0].toUpperCase()+word.slice(1)).join(' ');
 const reasons=new Set(['goal_not_confirmed','goal_definition_unavailable','source_unavailable','measurement_basis_changed','ambiguous_local_boundary','no_closed_days','outside_retention','missing_history','incomplete_window','stale_source','import_in_progress','source_error','unreconciled_source','privacy_suppressed_source']);
 export function clearPlanSalesProgress(host){host.replaceChildren();host.hidden=true;}
 export function renderPlanSalesProgress(host,response,expected){
@@ -34,14 +35,14 @@ export function renderPlanSalesProgress(host,response,expected){
   line('p',`Saved Plan Version ${expected.version} · Goal Revision ${goal.revision}`);
   line('p',`Original Target: ${amount(String(definition.target_micros),window.currency)} merchandise net sales · ${window.start} to ${window.end} (exclusive) · ${window.time_zone}`);
   line('p',`Read As Of: ${response.as_of}`);
-  if(response.binding_status==='unavailable')line('p',`Unavailable: ${response.binding_reason}. The original confirmed goal is preserved; no replacement sales amount is shown.`);
+  if(response.binding_status==='unavailable')line('p',`Unavailable: ${label(response.binding_reason)}. The original confirmed goal is preserved; no replacement sales amount is shown.`);
   else{
-    line('p',`Sales Status: ${sales.status}`);
+    line('p',`Sales Status: ${label(sales.status)}`);
     if(sales.status==='available_as_of'){
       line('p',`Observed Shopify Merchandise Net Sales: ${amount(response.net_sales_micros_exact,sales.currency)}`);
-      line('p',`Measured Closed-Day Prefix: ${sales.coverage.starts_on} to ${sales.coverage.ends_on_exclusive} (exclusive) · ${sales.coverage.closed_day_count} days · ${sales.coverage.extent} · ${sales.time_zone}`);
+      line('p',`Measured Closed-Day Prefix: ${sales.coverage.starts_on} to ${sales.coverage.ends_on_exclusive} (exclusive) · ${sales.coverage.closed_day_count} days · ${label(sales.coverage.extent)} · ${sales.time_zone}`);
       line('p',`Source Watermark: ${sales.source_watermark}`);
-    }else line('p',`Unavailable Reasons: ${sales.reasons.join(', ')}`);
+    }else line('p',`Unavailable Reasons: ${sales.reasons.map(label).join(', ')}`);
   }
   line('p','This is a current sales observation for the saved goal, not evidence of this plan’s impact or goal achievement. Manual application is not assessed; attribution is unavailable. Refunds and corrections can change later readings. No advertising writes or spending authority.');
   host.replaceChildren(fragment);host.hidden=false;

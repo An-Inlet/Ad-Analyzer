@@ -4,6 +4,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.api.customer_session_automation import router
 from app.customers.models import CustomerUser
 from app.publication.execution_models import ProviderExecutionApproval
@@ -23,6 +24,7 @@ from tests.test_session_automation import automatic_fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.planning_boundary
 def test_real_owned_start_worker_history_and_new_session_stop(
     customer_engine: Engine,
     configuration: Settings,
@@ -31,49 +33,79 @@ def test_real_owned_start_worker_history_and_new_session_stop(
     replicas: tuple[TestClient, TestClient, FakeProvider],
 ) -> None:
     alice, bob, identity = replicas
-    with Session(customer_engine) as db:
-        principal, wid, intent, runtime, server = automatic_fixture(
-            db, configuration, tmp_path, "google_ads", monkeypatch
+    # Genuine pre-planning history: real Start, consent, worker and MockHTTP.
+    # End both temporary overrides before current history/access/Stop behavior.
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        historical.setattr(advertising_capabilities, "advertising_writes_enabled", lambda: True)
+        with Session(customer_engine) as db:
+            principal, wid, intent, runtime, server = automatic_fixture(
+                db, configuration, tmp_path, "google_ads", monkeypatch
+            )
+            actor = principal.user.id
+            user = db.get(CustomerUser, actor)
+            assert user
+            user.issuer, user.subject = ISSUER, "automation-owner"
+            db.commit()
+        candidate = replace(runtime.review.candidate, identity=identity)
+        runtime = replace(
+            runtime,
+            review=replace(runtime.review, candidate=candidate),
+            selection=replace(runtime.selection, candidate=candidate),
         )
-        actor = principal.user.id
-        user = db.get(CustomerUser, actor)
-        assert user
-        user.issuer, user.subject = ISSUER, "automation-owner"
-        db.commit()
-    candidate = replace(runtime.review.candidate, identity=identity)
-    runtime = replace(
-        runtime,
-        review=replace(runtime.review, candidate=candidate),
-        selection=replace(runtime.selection, candidate=candidate),
-    )
-    for client in (alice, bob):
-        client.app.include_router(router)  # type: ignore[attr-defined]
-        client.app.dependency_overrides[get_session_automation_runtime] = lambda: runtime  # type: ignore[attr-defined]
-    assert login(alice, "automation-owner:1") == actor
-    login(bob, "other-owner:1")
-    base = f"/api/customer/v1/workspaces/{wid}/execution/automation"
-    payload = intent.model_dump(mode="json")
-    assert alice.post(base + "/start", json=payload).status_code == 403
-    assert bob.post(base + "/start", json=payload, headers=headers(bob)).status_code in {403, 404}
-    catalog = alice.get(base + "/capabilities")
-    assert catalog.status_code == 200, catalog.text
-    assert catalog.json()["available"]
-    assert catalog.json()["mandates"][0]["mandate"] == payload["mandate"]
-    started = alice.post(base + "/start", json=payload, headers=headers(alice))
-    assert started.status_code == 200, started.text
-    identifier = started.json()["run_id"]
-    assert started.json()["session_bound"] is True
+        for client in (alice, bob):
+            client.app.include_router(router)  # type: ignore[attr-defined]
+            client.app.dependency_overrides[get_session_automation_runtime] = lambda: runtime  # type: ignore[attr-defined]
+        assert login(alice, "automation-owner:1") == actor
+        login(bob, "other-owner:1")
+        base = f"/api/customer/v1/workspaces/{wid}/execution/automation"
+        payload = intent.model_dump(mode="json")
+        assert alice.post(base + "/start", json=payload).status_code == 403
+        assert bob.post(base + "/start", json=payload, headers=headers(bob)).status_code in {
+            403,
+            404,
+        }
+        catalog = alice.get(base + "/capabilities")
+        assert catalog.status_code == 200, catalog.text
+        assert catalog.json()["available"]
+        assert catalog.json()["mandates"][0]["mandate"] == payload["mandate"]
+        started = alice.post(base + "/start", json=payload, headers=headers(alice))
+        assert started.status_code == 200, started.text
+        identifier = started.json()["run_id"]
+        assert started.json()["session_bound"] is True
+        assert worker.advance(customer_engine, wid, identifier, runtime) == "completed"
+        assert len(server.writes) == 1
+    assert advertising_capabilities.advertising_writes_enabled() is False
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
     history = alice.get(base + "/runs")
     assert history.status_code == 200
     assert history.json()["runs"][0]["run_id"] == identifier
     assert "original_session_digest" not in history.text
-    assert worker.advance(customer_engine, wid, identifier, runtime) == "completed"
+    assert history.headers["Cache-Control"] == "no-store"
+    unavailable = alice.get(base + "/capabilities")
+    assert unavailable.status_code == 200
+    assert unavailable.json()["available"] is False
+    assert unavailable.json()["policies"] == unavailable.json()["mandates"] == []
+    with Session(customer_engine) as db:
+        before = db.scalar(select(func.count()).select_from(SessionAutomationRun))
+    denied = alice.post(base + "/start", json=payload, headers=headers(alice))
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        worker.advance(customer_engine, wid, identifier, runtime)
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(SessionAutomationRun)) == before
     assert len(server.writes) == 1
+    assert alice.post(base + f"/{identifier}/stop").status_code == 403
+    assert bob.post(base + f"/{identifier}/stop", headers=headers(bob)).status_code == 403
     assert bob.get(base + f"/{identifier}").status_code in {403, 404}
     # Revoke the original session, then log in freshly. Stop is revocation only
     # and must remain accessible to an authorized current owner.
     logout = alice.delete("/api/customer/v1/session", headers=headers(alice))
     assert logout.status_code == 204
+    assert alice.get(base + f"/{identifier}").status_code == 401
+    assert alice.post(base + f"/{identifier}/stop", headers=headers(alice)).status_code == 401
     assert login(alice, "automation-owner:2") == actor
     assert alice.get(base + f"/{identifier}").json()["status"] == "blocked"
     stopped = alice.post(base + f"/{identifier}/stop", headers=headers(alice))
@@ -83,8 +115,10 @@ def test_real_owned_start_worker_history_and_new_session_stop(
         row = db.get(SessionAutomationRun, identifier)
         assert row and row.stopped_by == actor
         assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
+    assert len(server.writes) == 1
 
 
+@pytest.mark.planning_boundary
 def test_default_capabilities_are_honestly_unavailable(
     customer_engine: Engine,
     configuration: Settings,
@@ -93,12 +127,17 @@ def test_default_capabilities_are_honestly_unavailable(
     replicas: tuple[TestClient, TestClient, FakeProvider],
 ) -> None:
     alice, _, _ = replicas
-    with Session(customer_engine) as db:
-        principal, wid, _, _, _ = automatic_fixture(
-            db, configuration, tmp_path, "google_ads", monkeypatch
-        )
-        principal.user.issuer, principal.user.subject = ISSUER, "default-owner"
-        db.commit()
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        with Session(customer_engine) as db:
+            principal, wid, _, _, _ = automatic_fixture(
+                db, configuration, tmp_path, "google_ads", monkeypatch
+            )
+            principal.user.issuer, principal.user.subject = ISSUER, "default-owner"
+            db.commit()
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
+    assert advertising_capabilities.advertising_writes_enabled() is False
     alice.app.include_router(router)  # type: ignore[attr-defined]
     login(alice, "default-owner:1")
     response = alice.get(f"/api/customer/v1/workspaces/{wid}/execution/automation/capabilities")

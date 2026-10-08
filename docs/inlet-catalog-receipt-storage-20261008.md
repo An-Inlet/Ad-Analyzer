@@ -80,3 +80,11 @@ requires `CatalogReceiptUnavailable("capacity_exceeded")`, not an arbitrary exce
 The helper repair was applied during the tail of the history compatibility run; it
 changes only write-time oversize normalization, and the dedicated size rerun ran
 against the repaired source. Final Ruff, configured mypy, and diff checks passed.
+
+Root integrated reviewed helpera1cfd96 and final archive/storage9dc52c7 at8e4ec90.
+Independent reviews closed the DB, helper and final archive boundaries with no remaining
+P1/P2. Root ran actual0088 storage/erasure/downgrade, receipt archive/history and real
+HTTPS account-level planning browser together: **10 passed,1 existing Alembic warning
+in30.03s**. Whole Ruff/mypy1062 passed. Evidence:
+`/workspace/inlet-evidence/20261008/catalog-receipt-storage-integrated.{log,xml}`.
+Runtime target-selection wiring remains separately qualified and reviewed before merge.

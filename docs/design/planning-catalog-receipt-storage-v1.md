@@ -140,17 +140,31 @@ is deleted just because its session is revoked or TTL has elapsed if history lin
 Proposed fixed engineering bounds (not a subscription promise): 1 MiB canonical payload,
 400 target links per receipt, 20 receipt links per input, 1,000 receipt headers and
 64 MiB summed payload bytes per workspace, including linked history. At most 40 unlinked
-unexpired receipts per actor/account. Before insertion, under workspace lock, delete
-up to 100 expired unlinked receipts ordered by expiry/id; remaining capacity exhaustion
-returns actionable 409 without returning unretained V2 selections. No silent truncation,
+unexpired receipts per actor/account. Each explicit V2 request may invoke exactly one
+maintenance batch BEFORE native IO: delete up to 100 expired unlinked receipts ordered
+by expiry/id in a separately committed, caller-owned transaction. No retry loop or
+additional automatic batches in that request. Remaining capacity exhaustion returns
+actionable 409 without returning unretained V2 selections. No silent truncation,
 LRU eviction of unexpired receipts, or automatic deletion of linked history. These caps
 are reviewable capacity choices; a workspace that fills retained history needs an
 explicit later capacity change, not hidden destructive cleanup.
 
 Count/sum checks and insert/link/delete serialize on the existing workspace authority
-lock. Cleanup recomputes current time after lock waits. PostgreSQL concurrent link versus
-cleanup and SQLite transaction behavior require tests. Quotas do not change native TTLs.
-A rejected quota operation must not save partial rows or expose a catalog as selectable.
+lock. Maintenance refreshes the original identity outside SQL, then validates current
+owner/session, workspace privacy revision and paid-work access under that lock. Its
+caller performs the same final authority and privacy checks after deletion/flush, then
+commits; the cleanup helper itself never commits or rolls back. Cleanup recomputes
+current time after lock waits and performs no provider IO. Failed maintenance authority
+or privacy checks roll back the batch and abort the request.
+
+The subsequent native read and receipt insertion use fresh, independent authority and
+source/privacy checks; no maintenance fact survives across IO. A capacity 409 rolls back
+all NEW receipt/selection rows, but retains successfully committed authorized cleanup.
+This avoids rollback starvation when reclaiming one bounded batch does not immediately
+make enough space. Parent-operation atomicity excludes this independent maintenance
+transaction. Cleanup never removes linked history, unexpired receipts, inputs or plans.
+PostgreSQL concurrent link versus cleanup and SQLite transaction behavior require tests.
+Quotas do not change native TTLs; failure never exposes a catalog as selectable.
 
 Register all tables in lifecycle ownership/export/closure inventories. Canonical payload
 export revalidates schemas, canonical byte length, digest, scalar fields and complete
@@ -208,7 +222,9 @@ Resolve_input_catalogs initially returns bindings with input_digest of the final
 `input_resolution.resolve(prepared, intent, catalogs)` result, computed inside this
 helper using that existing resolver. ResolvedInputs is then a packaging operation; it
 must not permit a caller to substitute different resolved inputs with old bindings.
-Cleanup limit is strict 1..100, caller holds workspace lock. All other helpers require
+Cleanup limit is strict 1..100; its caller owns the separately committed maintenance
+transaction, fresh owner/session/privacy checks, workspace lock and final check. The
+workspace-only helper is private and is not an independently authorized/public route. All other helpers require
 current caller-owned owner authority, canonical source/account locks and paid-work
 checks. They enforce DB-only guard/current principal/source/privacy checks themselves
 without identity callbacks; caller refreshes IdentityFact before opening transaction,
@@ -223,13 +239,15 @@ convert arbitrary HTTP409/metadata errors into absent evidence or new native rer
 
 ## Atomic Operation Boundaries
 
-1. **V2 read:** use reviewed planning authority/read contexts; identity refresh before
-   DB, native IO outside SQL transactions. In a final new transaction refresh outside,
+1. **V2 read:** run at most the one separately committed maintenance batch described
+   above, before native IO. Use reviewed planning authority/read contexts; identity
+   refresh before DB, native IO outside SQL transactions. In a final new transaction refresh outside,
    lock original owner/session/workspace then account/source, compare source/privacy
    from BEFORE IO, validate advertiser/request/payload, enforce bounds and write receipt
    plus complete selection rows atomically. Final original expiry and authority check
    after flush, commit, then return unchanged V2. Response loss leaves an unused receipt,
-   never an authority grant. V1 route stays unchanged. No global auth change.
+   never an authority grant. Receipt insertion failure does not undo earlier authorized
+   maintenance. V1 route stays unchanged. No global auth change.
 2. **Create/edit:** preserve current idempotent replay check before resolving selectors.
    Resolve exact submitted keys in one owner transaction; all selectors for an account
    must use one receipt with exact requested primary past window and original session.
@@ -272,6 +290,11 @@ convert arbitrary HTTP409/metadata errors into absent evidence or new native rer
   never become gaps. Assert identity IO precedes SQL; no provider IO under locks.
 * Capacity: byte and count bounds exact at/above limits, expired-unused batch limit,
   linked history protected, unused closure/export coverage, no unretained success response.
+  Seed more than one cleanup batch plus insufficient reclaimed bytes: successive explicit
+  V2 requests each commit at most 100 eligible deletions despite capacity 409, eventually
+  reclaiming space without an unbounded loop. Failed maintenance authorization/privacy
+  rolls back deletion; subsequent insertion failure preserves only committed maintenance.
+  Assert no provider IO during maintenance and no change to linked receipts/plan history.
 * History: expired original receipt/session permits currently authorized historical read
   and completed idempotent replay, denies NEW generation; fresh selection creates new
   revision with no automatic decision carryover. Viewer read stays DB-only/read-scoped.

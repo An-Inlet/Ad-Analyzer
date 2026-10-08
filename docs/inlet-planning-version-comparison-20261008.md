@@ -20,3 +20,7 @@ prescribed mypy (1,031 source files) and diff check passed. Includes foreign/sta
 predecessors, unsafe model copies, exact source/rationale changes, HTML-like literal
 text, unchanged/reordered collections and explicit 600-change truncation.
 No service/API/UI integration or live behavior qualification yet.
+
+Integrated at `58cd0d4`: 82 comparison/contracts/composer checks passed in 0.97s,
+whole Ruff/mypy (1,031 files) passed. Subsequent renderer integration adds real DOM
+coverage separately; no API diff response or authenticated successor journey yet.

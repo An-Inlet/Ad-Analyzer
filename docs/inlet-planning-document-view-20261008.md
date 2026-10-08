@@ -27,3 +27,8 @@ target and verifies it cannot be hidden behind unchanged milestone text. Final b
 check passed (1 case, 2.52s), Ruff/mypy/node/diff passed. An intervening environment
 reconnection lost the prior tool process handle; that attempt has no terminal claim.
 Final log/JUnit are `/workspace/inlet-evidence/20261008/planning-document-view.*`.
+
+Integrated at `2506f9f` on `codex/inlet-planning-mvp`: 11 document-view/comparison
+checks passed in 2.72s, whole Ruff/mypy (1,040 files) passed. Integrated log/JUnit:
+`/workspace/inlet-evidence/20261008/planning-view-integrated.*`. Display-only limitation
+and remaining controller requirements above still apply.

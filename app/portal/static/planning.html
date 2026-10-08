@@ -15,6 +15,9 @@
 <label>Constraints — One Per Line<textarea id="planning-constraints"></textarea></label>
 <label>Customer Assumptions — One Per Line<textarea id="planning-assumptions"></textarea></label>
 <label>Reporting Starts (UTC)<input id="planning-start" type="datetime-local" step="60" required></label><label>Reporting Ends (UTC, Exclusive)<input id="planning-end" type="datetime-local" step="60" required></label>
+<label><input id="planning-comparison-enabled" type="checkbox">Include An Earlier Comparison Period</label>
+<div id="planning-comparison-fields" hidden><label>Comparison Starts (UTC)<input id="planning-comparison-start" type="datetime-local" step="60" disabled></label><label>Comparison Ends (UTC, Exclusive)<input id="planning-comparison-end" type="datetime-local" step="60" disabled></label></div>
+<p>Use closed calendar days in each advertising account’s time zone, entered here as UTC. Unsupported periods remain explicit gaps. Comparing periods does not establish why results changed.</p>
 <label>Maximum Creative Concepts (Optional)<input id="planning-creative" type="number" min="0" max="30" step="1" value="1"></label>
 <p>Leave creative capacity blank if unspecified. Unchanged reporting times retain their saved precision.</p><p>You can optionally read native targets for these accounts and this reporting period to choose exclusions or fixed planning allocations.</p>
 <button id="planning-targets-read" type="button">Read Targets For These Inputs</button><p id="planning-target-status" role="status"></p><div id="planning-targets"></div><div id="planning-scenarios"></div><label><input id="planning-replace-targets" type="checkbox">I explicitly selected the target choices for this revision, including any removed choices.</label>

@@ -76,7 +76,7 @@ from tests.test_shopify_sales import configuration as configuration
         ("tiktok_ads", "clarity"),
     ],
 )
-def test_social_execution_real_browser(
+def historical_contract_social_execution_real_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

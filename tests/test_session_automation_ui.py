@@ -36,7 +36,7 @@ from tests.test_session_automation import automatic_fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
-def test_actual_automation_browser(
+def historical_contract_actual_automation_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

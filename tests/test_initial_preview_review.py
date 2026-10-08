@@ -109,7 +109,7 @@ def ready(engine: Engine, config: Settings, monkeypatch: pytest.MonkeyPatch, rep
     return wid, document, principal, provider, runtime, server, calls
 
 
-def test_qualified_handoff_replay_and_missing_link_do_not_duplicate(
+def historical_contract_qualified_handoff_replay_and_missing_link_do_not_duplicate(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, replicas: Any
 ) -> None:
     wid, preview, principal, provider, runtime, server, calls = ready(
@@ -142,7 +142,7 @@ def test_qualified_handoff_replay_and_missing_link_do_not_duplicate(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 1
 
 
-def test_erased_preview_blocks_generic_approval_without_deleting_review(
+def historical_contract_erased_preview_blocks_generic_approval_without_deleting_review(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, replicas: Any
 ) -> None:
     wid, preview, principal, provider, runtime, server, _ = ready(
@@ -171,7 +171,7 @@ def test_erased_preview_blocks_generic_approval_without_deleting_review(
 
 
 @pytest.mark.parametrize("stage", ["approval", "admission", "claim", "emission"])
-def test_every_forward_gate_rechecks_retracted_provenance(
+def historical_contract_every_forward_gate_rechecks_retracted_provenance(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -235,7 +235,7 @@ def test_every_forward_gate_rechecks_retracted_provenance(
     "change",
     ["qualification_missing", "erase_during_qualification", "expired_during_qualification"],
 )
-def test_actual_financial_io_never_bypasses_preview_recheck(
+def historical_contract_actual_financial_io_never_bypasses_preview_recheck(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -274,7 +274,7 @@ def test_actual_financial_io_never_bypasses_preview_recheck(
     assert not server.posts
 
 
-def test_attempt_receipt_hold_and_reconcile_survive_preview_erasure(
+def historical_contract_attempt_receipt_hold_and_reconcile_survive_preview_erasure(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -319,7 +319,7 @@ def test_attempt_receipt_hold_and_reconcile_survive_preview_erasure(
         )
 
 
-def test_concurrent_handoffs_share_protected_origin(
+def historical_contract_concurrent_handoffs_share_protected_origin(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -361,7 +361,7 @@ def test_concurrent_handoffs_share_protected_origin(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 1
 
 
-def test_retraction_during_final_provider_io_blocks_emission(
+def historical_contract_retraction_during_final_provider_io_blocks_emission(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -406,7 +406,7 @@ def test_retraction_during_final_provider_io_blocks_emission(
         assert deleted and not server.posts
 
 
-def test_missing_registered_guard_is_not_manual_authority(
+def historical_contract_missing_registered_guard_is_not_manual_authority(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,
@@ -437,7 +437,7 @@ def test_missing_registered_guard_is_not_manual_authority(
 
 
 @pytest.mark.parametrize("change", ["missing", "policy"])
-def test_forward_runtime_context_required_before_financial_io(
+def historical_contract_forward_runtime_context_required_before_financial_io(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,

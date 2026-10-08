@@ -34,7 +34,7 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.tiktok_discovery_fixture import configured_discovery_customer
 
 
-def test_owned_tiktok_discovery_https(
+def historical_contract_owned_tiktok_discovery_https(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

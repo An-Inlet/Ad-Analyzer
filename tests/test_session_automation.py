@@ -99,6 +99,8 @@ def automatic_fixture(
 
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_start_to_actual_provider_effect_with_zero_human_approvals(
     customer_engine: Engine,
     configuration: Settings,
@@ -125,6 +127,8 @@ def test_start_to_actual_provider_effect_with_zero_human_approvals(
 
 
 @pytest.mark.parametrize("boundary", ["stop", "logout", "retract", "missing_guard"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revocation_after_claim_prevents_effect_and_keeps_financial_claim(
     customer_engine: Engine,
     configuration: Settings,
@@ -199,6 +203,7 @@ def test_revocation_after_claim_prevents_effect_and_keeps_financial_claim(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_default_scheduler_does_not_construct_runtime_under_master_disable(
     customer_engine: Engine,
 ) -> None:
@@ -222,6 +227,8 @@ def test_default_scheduler_does_not_construct_runtime_under_master_disable(
     ]
     + [("new_semantic_signal", p) for p in ("google_ads", "meta_ads", "tiktok_ads")],
 )
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_one_semantic_epoch_survives_restarts_and_revisions(
     customer_engine: Engine,
     configuration: Settings,
@@ -345,6 +352,8 @@ def test_one_semantic_epoch_survives_restarts_and_revisions(
     assert len(server.writes if provider == "google_ads" else server.posts) == expected
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_final_context_stop_blocks_emission_and_manual_fallback(
     customer_engine: Engine,
     configuration: Settings,
@@ -430,6 +439,8 @@ def test_final_context_stop_blocks_emission_and_manual_fallback(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_registry_export_keeps_authority_lineage_without_session_secret(
     customer_engine: Engine,
     configuration: Settings,
@@ -456,6 +467,8 @@ def test_registry_export_keeps_authority_lineage_without_session_secret(
             assert "decision" not in exported and "evidence" not in exported
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revoked_earliest_run_does_not_shadow_new_session_in_same_workspace(
     customer_engine: Engine,
     configuration: Settings,
@@ -493,6 +506,8 @@ def test_revoked_earliest_run_does_not_shadow_new_session_in_same_workspace(
 
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unknown_original_keeps_hold_and_reconciles_after_session_stop_without_replay(
     customer_engine: Engine,
     configuration: Settings,
@@ -553,6 +568,8 @@ def test_unknown_original_keeps_hold_and_reconciles_after_session_stop_without_r
     assert len(server.writes if provider == "google_ads" else server.posts) == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_concurrent_session_ticks_create_one_original_attempt(
     customer_engine: Engine,
     configuration: Settings,
@@ -586,6 +603,8 @@ def test_concurrent_session_ticks_create_one_original_attempt(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionApproval)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_shipped_scheduler_opt_in_reaches_actual_session_worker(
     customer_engine: Engine,
     configuration: Settings,
@@ -611,6 +630,8 @@ def test_shipped_scheduler_opt_in_reaches_actual_session_worker(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_same_reference_cannot_silently_change_numeric_policy(
     customer_engine: Engine,
     configuration: Settings,
@@ -647,6 +668,8 @@ def test_same_reference_cannot_silently_change_numeric_policy(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_final_admission_failure_rolls_back_marker_epoch_and_run_together(
     customer_engine: Engine,
     configuration: Settings,

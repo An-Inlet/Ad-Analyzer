@@ -18,7 +18,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("change", ["none", "session", "observation"])
-def test_actual_initial_source_candidate_worker_and_exact_review(
+def historical_contract_actual_initial_source_candidate_worker_and_exact_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

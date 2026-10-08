@@ -24,8 +24,10 @@ from tests.test_shopify_sales import configuration as configuration  # noqa: F40
 
 
 @pytest.mark.planning_boundary
+@pytest.mark.parametrize("configured", [False, True])
 def test_owned_status_default_off_and_session_binding(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, replicas: Any
+    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch,
+    replicas: Any, configured: bool,
 ) -> None:
     alice, bob, provider = replicas
     actor = login(alice, "alice:1")
@@ -74,12 +76,18 @@ def test_owned_status_default_off_and_session_binding(
         "financial_qualification": "not_checked",
         "spending_authority": "none",
     }
+    if configured:
+        def forbidden_runtime() -> None:
+            raise AssertionError("Current review must deny before legacy runtime construction")
+
+        alice.app.dependency_overrides[get_customer_optimization_runtime] = forbidden_runtime
     body = {"expected_preview_digest": value["preview_digest"]}
     assert alice.post(path + "/review", json=body).status_code == 403
     for intent in (body, {**body, "amount_micros": 1}):
         denied = alice.post(path + "/review", headers=headers(alice), json=intent)
         assert denied.status_code == 409
         assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+    alice.app.dependency_overrides.pop(get_customer_optimization_runtime, None)
     login(bob, "alice:second")
     assert bob.get(path + "/review-status").status_code == 409
     assert bob.post(path + "/review", headers=headers(bob), json=body).status_code == 409
@@ -91,7 +99,7 @@ def test_owned_status_default_off_and_session_binding(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
 
 
-def test_configured_review_uses_owned_digest_and_never_approves(
+def historical_contract_configured_review_uses_owned_digest_and_never_approves(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, replicas: Any
 ) -> None:
     from dataclasses import replace

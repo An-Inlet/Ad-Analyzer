@@ -22,7 +22,7 @@ from tests.test_shopify_sales import configuration as configuration
 @pytest.mark.parametrize(
     "change", ["historical_erased", "session", "expired", "source", "goal_revision"]
 )
-def test_preview_rechecks_after_mandate_boundary(
+def historical_contract_preview_rechecks_after_mandate_boundary(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -86,7 +86,7 @@ def test_preview_rechecks_after_mandate_boundary(
         assert triggered
 
 
-def test_standalone_objective_reader_does_not_reuse_previous_validation(
+def historical_contract_standalone_objective_reader_does_not_reuse_previous_validation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -119,7 +119,7 @@ def test_standalone_objective_reader_does_not_reuse_previous_validation(
 
 
 @pytest.mark.parametrize("change", ["selected_completion", "late_baseline_staleness"])
-def test_preview_input_reuse_keeps_completion_and_late_assessment_guards(
+def historical_contract_preview_input_reuse_keeps_completion_and_late_assessment_guards(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

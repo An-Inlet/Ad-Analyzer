@@ -33,7 +33,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("change", ["none", "lost_start", "erasure", "revoked"])
-def test_configured_reported_rule_browser(
+def historical_contract_configured_reported_rule_browser(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

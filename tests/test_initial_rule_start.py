@@ -43,7 +43,7 @@ from tests.test_shopify_sales import configuration as configuration
         "unknown",
     ],
 )
-def test_exact_start_and_worker(
+def historical_contract_exact_start_and_worker(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

@@ -49,6 +49,7 @@ packages = ["app"]
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 markers = [
+  "historical_execution_snapshot: pinned separate historical source and assertions; not deployed policy",
   "planning_boundary: unpatched deployed planning MVP behavior",
   "retained_execution: explicit historical execution-engine regression, not MVP behavior",
 ]

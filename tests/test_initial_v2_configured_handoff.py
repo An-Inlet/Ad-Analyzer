@@ -51,7 +51,7 @@ from tests.v2_execution_fixture import ready
         "other_original_session",
     ],
 )
-def test_actual_v2_separate_consent_and_review(
+def historical_contract_actual_v2_separate_consent_and_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

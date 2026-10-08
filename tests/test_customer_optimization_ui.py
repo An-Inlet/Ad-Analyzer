@@ -34,7 +34,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["manual", "automation_contract"])
-def test_optimization_real_browser(
+def historical_contract_optimization_real_browser(
     scenario: str,
     customer_engine: Engine,
     tmp_path: Path,

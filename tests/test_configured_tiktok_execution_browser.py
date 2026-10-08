@@ -45,7 +45,7 @@ from tests.tiktok_linked_runtime_fixture import configured_linked_customer
         "profile",
     ],
 )
-def test_configured_tiktok_execution_browser(
+def historical_contract_configured_tiktok_execution_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

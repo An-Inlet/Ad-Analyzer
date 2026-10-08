@@ -1,0 +1,677 @@
+[
+  {
+    "original_function": "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser",
+    "preserved_local_callable": "tests/test_configured_google_execution_browser.py::historical_contract_configured_google_execution_browser",
+    "historical_nodes": [
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[sqlite-complete]",
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[sqlite-unknown]",
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[sqlite-revoked]",
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[postgres-complete]",
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[postgres-unknown]",
+      "tests/test_configured_google_execution_browser.py::test_configured_google_execution_browser[postgres-revoked]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser",
+    "preserved_local_callable": "tests/test_configured_meta_execution_browser.py::historical_contract_configured_meta_execution_browser",
+    "historical_nodes": [
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-complete]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-unknown]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-unknown_activation]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-revoked]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-source]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-media]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[sqlite-declaration]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-complete]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-unknown]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-unknown_activation]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-revoked]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-source]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-media]",
+      "tests/test_configured_meta_execution_browser.py::test_configured_meta_execution_browser[postgres-declaration]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_configured_optimization_browser.py::test_configured_optimization_browser",
+    "preserved_local_callable": "tests/test_configured_optimization_browser.py::historical_contract_configured_optimization_browser",
+    "historical_nodes": [
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-complete-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-complete-meta_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-unknown-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-unknown-meta_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-revoked-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[sqlite-revoked-meta_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-complete-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-complete-meta_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-unknown-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-unknown-meta_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-revoked-google_ads]",
+      "tests/test_configured_optimization_browser.py::test_configured_optimization_browser[postgres-revoked-meta_ads]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser",
+    "preserved_local_callable": "tests/test_configured_tiktok_execution_browser.py::historical_contract_configured_tiktok_execution_browser",
+    "historical_nodes": [
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-complete]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-unknown]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-unknown_activation]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-revoked]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-source]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-media]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-declaration]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[sqlite-profile]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-complete]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-unknown]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-unknown_activation]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-revoked]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-source]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-media]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-declaration]",
+      "tests/test_configured_tiktok_execution_browser.py::test_configured_tiktok_execution_browser[postgres-profile]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_customer_execution_ui.py::test_execution_real_browser",
+    "preserved_local_callable": "tests/test_customer_execution_ui.py::historical_contract_execution_real_browser",
+    "historical_nodes": [
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[sqlite-journey]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[sqlite-context_race]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[sqlite-lost_response]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[sqlite-total_budget]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[postgres-journey]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[postgres-context_race]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[postgres-lost_response]",
+      "tests/test_customer_execution_ui.py::test_execution_real_browser[postgres-total_budget]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_customer_optimization_ui.py::test_optimization_real_browser",
+    "preserved_local_callable": "tests/test_customer_optimization_ui.py::historical_contract_optimization_real_browser",
+    "historical_nodes": [
+      "tests/test_customer_optimization_ui.py::test_optimization_real_browser[sqlite-manual]",
+      "tests/test_customer_optimization_ui.py::test_optimization_real_browser[sqlite-automation_contract]",
+      "tests/test_customer_optimization_ui.py::test_optimization_real_browser[postgres-manual]",
+      "tests/test_customer_optimization_ui.py::test_optimization_real_browser[postgres-automation_contract]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser",
+    "preserved_local_callable": "tests/test_customer_social_execution_ui.py::historical_contract_social_execution_real_browser",
+    "historical_nodes": [
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-journey]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-media_session]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-media_integrity]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-tiktok_ads-journey]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_race]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_aba]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_body]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_draft]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_workspace]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_logout]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_session]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_policy]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_run]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_failure]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-context_lost]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-meta_ads-clarity]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[sqlite-tiktok_ads-clarity]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-journey]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-media_session]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-media_integrity]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-tiktok_ads-journey]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_race]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_aba]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_body]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_draft]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_workspace]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_logout]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_session]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_policy]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_run]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_failure]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-context_lost]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-meta_ads-clarity]",
+      "tests/test_customer_social_execution_ui.py::test_social_execution_real_browser[postgres-tiktok_ads-clarity]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_automatic_browser.py::test_initial_automatic_browser",
+    "preserved_local_callable": "tests/test_initial_automatic_browser.py::historical_contract_initial_automatic_browser",
+    "historical_nodes": [
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[sqlite-complete]",
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[sqlite-lost_start_response]",
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[sqlite-unknown_provider_response]",
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[postgres-complete]",
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[postgres-lost_start_response]",
+      "tests/test_initial_automatic_browser.py::test_initial_automatic_browser[postgres-unknown_provider_response]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_planning_browser.py::test_actual_initial_planning_browser",
+    "preserved_local_callable": "tests/test_initial_planning_browser.py::historical_contract_actual_initial_planning_browser",
+    "historical_nodes": [
+      "tests/test_initial_planning_browser.py::test_actual_initial_planning_browser[sqlite-unavailable]",
+      "tests/test_initial_planning_browser.py::test_actual_initial_planning_browser[sqlite-review]",
+      "tests/test_initial_planning_browser.py::test_actual_initial_planning_browser[postgres-unavailable]",
+      "tests/test_initial_planning_browser.py::test_actual_initial_planning_browser[postgres-review]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_actual_financial_io_never_bypasses_preview_recheck",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[sqlite-qualification_missing]",
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[sqlite-erase_during_qualification]",
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[sqlite-expired_during_qualification]",
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[postgres-qualification_missing]",
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[postgres-erase_during_qualification]",
+      "tests/test_initial_preview_review.py::test_actual_financial_io_never_bypasses_preview_recheck[postgres-expired_during_qualification]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_attempt_receipt_hold_and_reconcile_survive_preview_erasure",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_attempt_receipt_hold_and_reconcile_survive_preview_erasure",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_attempt_receipt_hold_and_reconcile_survive_preview_erasure[sqlite]",
+      "tests/test_initial_preview_review.py::test_attempt_receipt_hold_and_reconcile_survive_preview_erasure[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_concurrent_handoffs_share_protected_origin",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_concurrent_handoffs_share_protected_origin",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_concurrent_handoffs_share_protected_origin[sqlite]",
+      "tests/test_initial_preview_review.py::test_concurrent_handoffs_share_protected_origin[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_erased_preview_blocks_generic_approval_without_deleting_review",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_erased_preview_blocks_generic_approval_without_deleting_review",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_erased_preview_blocks_generic_approval_without_deleting_review[sqlite]",
+      "tests/test_initial_preview_review.py::test_erased_preview_blocks_generic_approval_without_deleting_review[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_every_forward_gate_rechecks_retracted_provenance",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[sqlite-approval]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[sqlite-admission]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[sqlite-claim]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[sqlite-emission]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[postgres-approval]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[postgres-admission]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[postgres-claim]",
+      "tests/test_initial_preview_review.py::test_every_forward_gate_rechecks_retracted_provenance[postgres-emission]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_forward_runtime_context_required_before_financial_io",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_forward_runtime_context_required_before_financial_io",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_forward_runtime_context_required_before_financial_io[sqlite-missing]",
+      "tests/test_initial_preview_review.py::test_forward_runtime_context_required_before_financial_io[sqlite-policy]",
+      "tests/test_initial_preview_review.py::test_forward_runtime_context_required_before_financial_io[postgres-missing]",
+      "tests/test_initial_preview_review.py::test_forward_runtime_context_required_before_financial_io[postgres-policy]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_missing_registered_guard_is_not_manual_authority",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_missing_registered_guard_is_not_manual_authority",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_missing_registered_guard_is_not_manual_authority[sqlite]",
+      "tests/test_initial_preview_review.py::test_missing_registered_guard_is_not_manual_authority[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_qualified_handoff_replay_and_missing_link_do_not_duplicate",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_qualified_handoff_replay_and_missing_link_do_not_duplicate",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_qualified_handoff_replay_and_missing_link_do_not_duplicate[sqlite]",
+      "tests/test_initial_preview_review.py::test_qualified_handoff_replay_and_missing_link_do_not_duplicate[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review.py::test_retraction_during_final_provider_io_blocks_emission",
+    "preserved_local_callable": "tests/test_initial_preview_review.py::historical_contract_retraction_during_final_provider_io_blocks_emission",
+    "historical_nodes": [
+      "tests/test_initial_preview_review.py::test_retraction_during_final_provider_io_blocks_emission[sqlite]",
+      "tests/test_initial_preview_review.py::test_retraction_during_final_provider_io_blocks_emission[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_initial_preview_review_api.py::test_configured_review_uses_owned_digest_and_never_approves",
+    "preserved_local_callable": "tests/test_initial_preview_review_api.py::historical_contract_configured_review_uses_owned_digest_and_never_approves",
+    "historical_nodes": [
+      "tests/test_initial_preview_review_api.py::test_configured_review_uses_owned_digest_and_never_approves[sqlite]",
+      "tests/test_initial_preview_review_api.py::test_configured_review_uses_owned_digest_and_never_approves[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_session_automation_ui.py::test_actual_automation_browser",
+    "preserved_local_callable": "tests/test_session_automation_ui.py::historical_contract_actual_automation_browser",
+    "historical_nodes": [
+      "tests/test_session_automation_ui.py::test_actual_automation_browser[sqlite]",
+      "tests/test_session_automation_ui.py::test_actual_automation_browser[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_v2_execution_browser.py::test_v2_execution_review_browser",
+    "preserved_local_callable": "tests/test_v2_execution_browser.py::historical_contract_v2_execution_review_browser",
+    "historical_nodes": [
+      "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[sqlite-False]",
+      "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[sqlite-True]",
+      "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[postgres-False]",
+      "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[postgres-True]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_initial_preview_review_api.py::test_owned_status_default_off_and_session_binding",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Retired publication/optimization/Start/review controls and the pre-0086 consent bridge run unchanged at the pinned historical runtime; current pages and routes are planning-only."
+  },
+  {
+    "original_function": "tests/test_candidate_read_browser.py::test_candidate_reads_https",
+    "preserved_local_callable": "tests/test_candidate_read_browser.py::historical_contract_candidate_reads_https",
+    "historical_nodes": [
+      "tests/test_candidate_read_browser.py::test_candidate_reads_https[sqlite-scenario]",
+      "tests/test_candidate_read_browser.py::test_candidate_reads_https[sqlite-unqualified]",
+      "tests/test_candidate_read_browser.py::test_candidate_reads_https[postgres-scenario]",
+      "tests/test_candidate_read_browser.py::test_candidate_reads_https[postgres-unqualified]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_envelope_browser.py::test_actual_envelope_browser",
+    "preserved_local_callable": "tests/test_envelope_browser.py::historical_contract_actual_envelope_browser",
+    "historical_nodes": [
+      "tests/test_envelope_browser.py::test_actual_envelope_browser[sqlite]",
+      "tests/test_envelope_browser.py::test_actual_envelope_browser[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_optimization_budget_ui.py::test_optimization_page_has_customer_inputs_without_technical_authority",
+    "preserved_local_callable": "tests/test_optimization_budget_ui.py::historical_contract_optimization_page_has_customer_inputs_without_technical_authority",
+    "historical_nodes": [
+      "tests/test_optimization_budget_ui.py::test_optimization_page_has_customer_inputs_without_technical_authority"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser",
+    "preserved_local_callable": "tests/test_reported_rule_configured_browser.py::historical_contract_configured_reported_rule_browser",
+    "historical_nodes": [
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-none]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-lost_start]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-erasure]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-revoked]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-none]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-lost_start]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-erasure]",
+      "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-revoked]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_tiktok_discovery_browser.py::test_owned_tiktok_discovery_https",
+    "preserved_local_callable": "tests/test_tiktok_discovery_browser.py::historical_contract_owned_tiktok_discovery_https",
+    "historical_nodes": [
+      "tests/test_tiktok_discovery_browser.py::test_owned_tiktok_discovery_https[sqlite]",
+      "tests/test_tiktok_discovery_browser.py::test_owned_tiktok_discovery_https[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_tiktok_linked_browser.py::test_actual_linked_tiktok_customer_browser",
+    "preserved_local_callable": "tests/test_tiktok_linked_browser.py::historical_contract_actual_linked_tiktok_customer_browser",
+    "historical_nodes": [
+      "tests/test_tiktok_linked_browser.py::test_actual_linked_tiktok_customer_browser[sqlite]",
+      "tests/test_tiktok_linked_browser.py::test_actual_linked_tiktok_customer_browser[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls",
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects"
+    ],
+    "reason": "Removed execution-page controls run at unchanged pinned runtime. Current history-only pages and zero-write route policy remain tested; separate current read API and pure contracts remain collected."
+  },
+  {
+    "original_function": "tests/test_initial_rule_start.py::test_exact_start_and_worker",
+    "preserved_local_callable": "tests/test_initial_rule_start.py::historical_contract_exact_start_and_worker",
+    "historical_nodes": [
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-internal]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-configured]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-erased]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-session]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-expired]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-expired30]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-source]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-rollback]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[sqlite-unknown]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-internal]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-configured]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-erased]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-session]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-expired]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-expired30]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-source]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-rollback]",
+      "tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-unknown]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries",
+    "preserved_local_callable": "tests/test_initial_rule_acceptance.py::historical_contract_initial_start_admission_boundaries",
+    "historical_nodes": [
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[sqlite-stale_consent]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[sqlite-spent_budget]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[sqlite-competing]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[sqlite-downgrade]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[sqlite-maintenance]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[postgres-stale_consent]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[postgres-spent_budget]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[postgres-competing]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[postgres-downgrade]",
+      "tests/test_initial_rule_acceptance.py::test_initial_start_admission_boundaries[postgres-maintenance]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_concurrent_start.py::test_concurrent_exact_initial_start",
+    "preserved_local_callable": "tests/test_initial_concurrent_start.py::historical_contract_concurrent_exact_initial_start",
+    "historical_nodes": [
+      "tests/test_initial_concurrent_start.py::test_concurrent_exact_initial_start[sqlite]",
+      "tests/test_initial_concurrent_start.py::test_concurrent_exact_initial_start[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule",
+    "preserved_local_callable": "tests/test_initial_rule_source.py::historical_contract_actual_retained_preview_to_initial_operational_rule",
+    "historical_nodes": [
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[sqlite-current]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[sqlite-revoked]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[sqlite-expired]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[sqlite-historical_erased]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[sqlite-native_drift]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[postgres-current]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[postgres-revoked]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[postgres-expired]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[postgres-historical_erased]",
+      "tests/test_initial_rule_source.py::test_actual_retained_preview_to_initial_operational_rule[postgres-native_drift]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review",
+    "preserved_local_callable": "tests/test_initial_rule_worker.py::historical_contract_actual_initial_source_candidate_worker_and_exact_review",
+    "historical_nodes": [
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[sqlite-none]",
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[sqlite-session]",
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[sqlite-observation]",
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[postgres-none]",
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[postgres-session]",
+      "tests/test_initial_rule_worker.py::test_actual_initial_source_candidate_worker_and_exact_review[postgres-observation]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary",
+    "preserved_local_callable": "tests/test_initial_source_fresh_boundaries.py::historical_contract_preview_rechecks_after_mandate_boundary",
+    "historical_nodes": [
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[sqlite-historical_erased]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[sqlite-session]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[sqlite-expired]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[sqlite-source]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[sqlite-goal_revision]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[postgres-historical_erased]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[postgres-session]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[postgres-expired]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[postgres-source]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_rechecks_after_mandate_boundary[postgres-goal_revision]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop",
+      "tests/test_planning_evidence_adapter.py::test_final_source_changes_abort",
+      "tests/test_planning_reader_authority.py::test_final_five_second_age_after_source_work_is_not_refreshed",
+      "tests/test_owned_window_reader.py::test_actual_source_changes_before_new_context_reject_old_pin"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_source_fresh_boundaries.py::test_standalone_objective_reader_does_not_reuse_previous_validation",
+    "preserved_local_callable": "tests/test_initial_source_fresh_boundaries.py::historical_contract_standalone_objective_reader_does_not_reuse_previous_validation",
+    "historical_nodes": [
+      "tests/test_initial_source_fresh_boundaries.py::test_standalone_objective_reader_does_not_reuse_previous_validation[sqlite]",
+      "tests/test_initial_source_fresh_boundaries.py::test_standalone_objective_reader_does_not_reuse_previous_validation[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop",
+      "tests/test_planning_evidence_adapter.py::test_final_source_changes_abort",
+      "tests/test_planning_reader_authority.py::test_final_five_second_age_after_source_work_is_not_refreshed",
+      "tests/test_owned_window_reader.py::test_actual_source_changes_before_new_context_reject_old_pin"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_source_fresh_boundaries.py::test_preview_input_reuse_keeps_completion_and_late_assessment_guards",
+    "preserved_local_callable": "tests/test_initial_source_fresh_boundaries.py::historical_contract_preview_input_reuse_keeps_completion_and_late_assessment_guards",
+    "historical_nodes": [
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_input_reuse_keeps_completion_and_late_assessment_guards[sqlite-selected_completion]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_input_reuse_keeps_completion_and_late_assessment_guards[sqlite-late_baseline_staleness]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_input_reuse_keeps_completion_and_late_assessment_guards[postgres-selected_completion]",
+      "tests/test_initial_source_fresh_boundaries.py::test_preview_input_reuse_keeps_completion_and_late_assessment_guards[postgres-late_baseline_staleness]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop",
+      "tests/test_planning_evidence_adapter.py::test_final_source_changes_abort",
+      "tests/test_planning_reader_authority.py::test_final_five_second_age_after_source_work_is_not_refreshed",
+      "tests/test_owned_window_reader.py::test_actual_source_changes_before_new_context_reject_old_pin"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review",
+    "preserved_local_callable": "tests/test_initial_v2_configured_handoff.py::historical_contract_actual_v2_separate_consent_and_review",
+    "historical_nodes": [
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-verified]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-unknown]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-proof_erased]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-preview_erased]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-after_claim]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-different_cap]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-native_drift]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-session_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-goal_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-source_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-tampered_digest]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-atomic_rollback]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[sqlite-other_original_session]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-verified]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-unknown]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-proof_erased]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-preview_erased]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-after_claim]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-different_cap]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-native_drift]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-session_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-goal_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-source_during_prepare]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-tampered_digest]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-atomic_rollback]",
+      "tests/test_initial_v2_configured_handoff.py::test_actual_v2_separate_consent_and_review[postgres-other_original_session]"
+    ],
+    "current_coverage": [
+      "tests/test_planning_customer_boundary.py::test_direct_route_intents_stop_before_runtime_or_financial_effects",
+      "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
+    ],
+    "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  }
+]

@@ -10,6 +10,8 @@ import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from app.planning_documents.common import fingerprint
+
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_composer import compose, fixture
 
@@ -23,6 +25,17 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     )
     plan = compose(inputs, bundle, policy)
     (tmp_path / "plan.json").write_text(plan.model_dump_json())
+    changed_goal = inputs.goal.model_dump(mode="python")
+    changed_definition = inputs.goal.definition.model_copy(update=dict(target_micros=12000000000))
+    changed_goal.update(
+        definition=changed_definition,
+        definition_digest=fingerprint(
+            "goal-definition", changed_definition.model_dump(mode="json")
+        ),
+    )
+    revised_inputs, revised_bundle, revised_policy = fixture(goal=changed_goal)
+    revised_plan = compose(revised_inputs, revised_bundle, revised_policy)
+    (tmp_path / "changed-plan.json").write_text(revised_plan.model_dump_json())
     shutil.copy("app/portal/static/plan-document.mjs", tmp_path / "plan-document.mjs")
     (tmp_path / "index.html").write_text(
         '<!doctype html><main id="host"></main><output id="result">RUNNING</output>'
@@ -44,6 +57,14 @@ try {
  assert(!host.querySelector('img,script,a,button,input')&&!window.injected,'unsafe DOM/control');
  assert(host.textContent.includes('not been expert-qualified'),'quality limitation');
  assert(host.textContent.includes('UTC'),'timezone');
+ assert(host.textContent.includes('Confirmed Goal Revision 1'),'confirmed goal revision');
+ assert(host.textContent.includes('USD 0.001000 Shopify Merchandise Net Sales'),'confirmed target');
+ assert(host.textContent.includes('Deadline 2026-10-31'),'deadline');
+ assert(host.textContent.includes('Baseline window:'),'baseline window');
+ const changed=await (await fetch('/changed-plan.json')).json();
+ renderPlanDocument(host,changed,options,Date.parse(changed.generated_at));
+ assert(host.textContent.includes('USD 12000.000000 Shopify Merchandise Net Sales'),
+        'edited confirmed target distinct from freeform milestone');
  const stale=renderPlanDocument(host,plan,options,Date.parse(plan.valid_until));
  assert(stale.freshness==='expired'&&host.textContent.includes('Expired Evidence'),'expiry');
  renderPlanDocument(host,plan,{...options,freshness:'source_changed'},Date.parse(plan.generated_at));

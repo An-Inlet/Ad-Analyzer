@@ -40,6 +40,10 @@ export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, 
   list(doc, fragment, 'Unresolved Sections', plan.section_limitations);
   list(doc, fragment, 'Plan Limitations', plan.limitations);
   fragment.append(text(doc, 'h3', 'Customer Goal And Constraints'), text(doc, 'p', inputs.milestone));
+  const goal = inputs.goal, definition = goal.definition, window = definition.target_window;
+  fragment.append(text(doc, 'p', `Confirmed Goal Revision ${goal.revision}: ${money(definition.target_micros, window.currency)} Shopify Merchandise Net Sales. Target window ${window.start} to ${window.end} (end exclusive), ${window.time_zone}. Deadline ${definition.deadline}.`));
+  const baseline = definition.baseline_window;
+  fragment.append(text(doc, 'p', `Baseline window: ${baseline.start} to ${baseline.end} (end exclusive), ${baseline.time_zone}, ${baseline.currency}. This window does not by itself establish a measured baseline amount.`));
   const period = inputs.budget_period;
   fragment.append(text(doc, 'p', `Planning ceiling: ${money(inputs.total_ceiling_micros, period.currency)} · ${period.starts_on} to ${period.ends_on_exclusive} (end exclusive), ${period.time_zone}. Aggressiveness: ${title(inputs.aggressiveness)}. This ceiling is not verified remaining spend or authority to spend.`));
   if (inputs.product_offer) fragment.append(text(doc, 'p', `Customer Product Facts: ${inputs.product_offer}`));

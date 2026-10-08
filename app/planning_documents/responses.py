@@ -43,6 +43,24 @@ class PlanReadResult(PlanSummary, DocumentProjection):
     ]
     reasons: tuple[Text, ...] = Field(max_length=20)
 
+    @model_validator(mode="after")
+    def exact_read(self) -> "PlanReadResult":
+        if self.inputs.plan_id != self.plan_id or self.inputs.revision != self.input_revision:
+            raise ValueError("read input binding changed")
+        if self.document is None:
+            if self.version != 0 or self.freshness != "not_generated":
+                raise ValueError("missing document must be not generated")
+        elif (
+            self.document.inputs.plan_id != self.plan_id
+            or self.document.version != self.version
+            or self.document.inputs.workspace_id != self.inputs.workspace_id
+            or self.document.inputs.revision > self.input_revision
+            or self.freshness == "not_generated"
+            or (self.freshness == "current" and self.document.inputs != self.inputs)
+        ):
+            raise ValueError("read document binding changed")
+        return self
+
 
 class EventResult(NoAuthority):
     event_sequence: Positive

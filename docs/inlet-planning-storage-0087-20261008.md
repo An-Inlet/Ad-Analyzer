@@ -77,3 +77,11 @@ Pydantic computed-property decorator compatibility annotation; `git diff --check
 passed. Concurrent core WIP repository test run: 3 passed, 1 expected SQLite race
 skip with disposable PostgreSQL enabled. Those repository files remain uncommitted
 and are not part of the frozen public-interface result.
+
+Read-projection follow-up: validate exact response plan/input head/selected document
+version and workspace. Historical document inputs may precede current input head;
+`current` requires exact input equality, and missing document is only version0 /
+not_generated. Per-version export is explicitly artifact-only; event history remains
+separate or in the full workspace archive. Response cohort: 8 passed; whole Ruff,
+mypy (1038 source files), and diff checks passed. Core repository/resolver are still
+uncommitted implementation work, not covered by this projection closure.

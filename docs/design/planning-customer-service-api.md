@@ -27,7 +27,7 @@ viewer, mutations owner-only + CSRF. All no-store. Disabled writes remain unchan
 summary + `inputs`, optional `document` (null before first generation), independent
 freshness (`current`, `expired`, `source_changed`, `goal_changed`, `input_changed`) and
 reasons, no folded applied/accepted flag. Never present historical stale evidence as current.
-JSON exports include exact version/digest/freshness and independent event history.
+Per-version JSON artifact exports include exact version/digest/freshness. They are explicitly artifact-only; independent event history is separately paginated and included in the workspace archive, not silently advertised as part of this artifact export.
 
 `CustomerInputs` carries exact goal ID/revision and selected account IDs, requested windows,
 milestone/product/constraints/customer assumptions, optional creative capacity and typed
@@ -101,3 +101,5 @@ actual document/action contracts. These hashes are never accepted as projection
 constructor overrides or trusted stored copies. A missing document yields null
 and an empty mapping. Decision requests still bind their supplied hashes against
 the current server-owned document inside the locked acceptance transaction.
+
+Historical reads return current retained inputs and input_revision, but selected historical document/version. Thus old document inputs may have a lower revision; current freshness requires exact input equality. Null document requires version0/not_generated. Export filenames and UI labels must say version artifact, not complete plan history.

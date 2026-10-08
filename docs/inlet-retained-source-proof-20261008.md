@@ -14,3 +14,10 @@ Qualification actually run:
 - Whole Ruff passed; whole mypy passed **1045 files**; diff check passed.
 
 Evidence `/workspace/inlet-evidence/20261008/retained-source-proof/`. No live provider calls or production latency claim. The helper verifies current local source integrity under caller locks, not live provider state; source capacity overflow fails closed. Independent review and service integration remain separate gates.
+
+Root integration c8b8d77: independent helper review CLOSED with no P1/P2; caller
+obligations remain separately reviewed. Integrated source proofs + response contracts:
+**52 passed in61.356s**, no skips/errors, actual SQLite/PostgreSQL. Whole Ruff/mypy1045
+passed. Evidence retained-source-integrated-corrected.{log,xml}. The initial command
+used a nonexistent response-test filename and exited4 with zero tests; corrected run
+is the only qualification claim. No Full/hosted/live calls.

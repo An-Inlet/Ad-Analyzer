@@ -37,7 +37,7 @@ Initial manifest (all original assertions retained):
 - `tests/test_v2_execution_browser.py`.
 - `tests/test_session_automation_ui.py`.
 
-The exploratory 144-node collection included the full preview-review API module, so the final exact manifest must recollect the narrower configured function and record its actual node count. Do not present 144 as that final manifest's count.
+The exploratory 144-node collection included the full preview-review API module. The exact manifest above was subsequently collected with only its configured function: **142 nodes**, all imported successfully; raw `/tmp/inlet-retired-2155-exact-collection.txt`. Neither collection ran the tests.
 
 Current discovery must explicitly replace the retired runtime invocations with the named historical runner and substantive current assertions, not silently ignore/deselect them. A provenance manifest explains where every original function/parameter runs. Keep shared helper imports available for still-current tests. Merely adding retained-execution opt-in to the old browser tests cannot repair removed DOM controls.
 

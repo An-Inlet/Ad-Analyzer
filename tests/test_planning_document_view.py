@@ -12,6 +12,8 @@ from pathlib import Path
 
 from app.planning_documents.common import fingerprint
 from app.planning_documents.comparison import compare_versions
+from app.planning_documents.events import CustomerDecision, ManualAssertion
+from app.planning_documents.responses import EventPage, EventResult
 
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_composer import compose, fixture
@@ -26,6 +28,48 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     )
     plan = compose(inputs, bundle, policy)
     (tmp_path / "plan.json").write_text(plan.model_dump_json())
+    binding = dict(
+        workspace_id=plan.inputs.workspace_id,
+        plan_id=plan.inputs.plan_id,
+        version=plan.version,
+        document_digest=plan.digest(),
+        action_key=plan.actions[0].key,
+        action_digest=plan.actions[0].digest(),
+        actor_id=plan.inputs.created_by,
+        recorded_at=plan.generated_at,
+    )
+    decision = CustomerDecision(
+        **binding,
+        event_id="a" * 32,
+        supersedes_event_id=None,
+        decision="accepted_for_manual_application",
+        reason="Reviewed <img src=x>",
+    )
+    assertion = ManualAssertion(
+        **binding,
+        event_id="b" * 32,
+        supersedes_event_id=None,
+        assertion="customer_reports_applied",
+        reported_applied_at=plan.generated_at,
+        statement="Customer account <script>window.injected=true</script>",
+    )
+    retraction = ManualAssertion(
+        **binding,
+        event_id="c" * 32,
+        supersedes_event_id=assertion.event_id,
+        assertion="retracted",
+        reported_applied_at=None,
+        statement="Corrected customer report",
+    )
+    page = EventPage(
+        items=tuple(
+            EventResult(event_sequence=i, event=e)
+            for i, e in enumerate((decision, assertion, retraction), start=1)
+        ),
+        next_cursor="more-history",
+    )
+    (tmp_path / "events.json").write_text(page.model_dump_json())
+    shutil.copy("app/portal/static/plan-events.mjs", tmp_path / "plan-events.mjs")
     changed_goal = inputs.goal.model_dump(mode="python")
     changed_definition = inputs.goal.definition.model_copy(update=dict(target_micros=12000000000))
     changed_goal.update(
@@ -54,6 +98,7 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
         """
 import {renderPlanDocument,clearPlanDocument} from '/plan-document.mjs';
 import {renderPlanComparison} from '/plan-comparison.mjs';
+import {renderPlanEvents,clearPlanEvents} from '/plan-events.mjs';
 const assert=(ok,message)=>{if(!ok)throw new Error(message);};
 try {
  const plan=await (await fetch('/plan.json')).json(),host=document.querySelector('#host');
@@ -99,6 +144,35 @@ try {
       throw new Error('accepted wrong version');}
  catch(error){assert(error.message!=='accepted wrong version','version mismatch rejected');}
  assert(host.hidden&&!host.childNodes.length,'comparison rejection clears');
+ const events=await (await fetch('/events.json')).json();
+ const eventOptions={workspaceId:plan.inputs.workspace_id,planId:plan.inputs.plan_id};
+ const eventResult=renderPlanEvents(host,events,eventOptions);
+ assert(eventResult.lastSequence===3&&eventResult.nextCursor==='more-history','history paging');
+ assert(host.textContent.includes('Customer Report Retracted'),'retraction separate');
+ assert(host.textContent.includes('Customer Reports Applied'),'immutable original preserved');
+ assert(host.textContent.includes('Not Independently Verified'),'report provenance');
+ assert(host.textContent.includes('This page is incomplete'),'pagination disclosure');
+ assert(host.textContent.includes('<img src=x>')&&!host.querySelector('img,script,a,button,input'),
+        'history literal text only');
+ assert(host.textContent.includes(events.items[1].event.event_id),'superseded event reference');
+ for(const alter of [
+   value=>{value.items[0].event.workspace_id=999999;},
+   value=>{value.items[0].event.advertising_writes_enabled=true;},
+   value=>{value.items[1].event.verification='provider_verified';},
+   value=>{value.items[1].event_sequence=1;},
+   value=>{value.items[2].event.supersedes_event_id=null;},
+   value=>{value.items[1].event.reported_applied_at='2099-01-01T00:00:00Z';},
+ ]){
+   const invalid=structuredClone(events);alter(invalid);
+   try{renderPlanEvents(host,invalid,eventOptions);throw Error('accepted malformed history');}
+   catch(error){assert(error.message!=='accepted malformed history','history rejection');}
+   assert(host.hidden&&!host.childNodes.length,'history failure clears');
+ }
+ renderPlanEvents(host,{...events,items:[events.items[2]],next_cursor:null},
+                  {...eventOptions,afterSequence:2});
+ assert(host.textContent.includes('Continuation after event 2'),'continuation context');
+ assert(host.textContent.includes('End of the returned history'),'page ending');
+ clearPlanEvents(host);assert(host.hidden&&!host.childNodes.length,'history clear');
  document.querySelector('#result').textContent='PASS';
 } catch(error) {document.querySelector('#result').textContent='FAIL '+error.stack;}
 await fetch('/result',{method:'POST',body:document.querySelector('#result').textContent});

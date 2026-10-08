@@ -87,3 +87,21 @@ journeys through saved versions, decisions, reports, export and corrected progre
 Any unmet quality case remains an explicit product gap, not a silent pass or reason
 to weaken the case. Source refresh/CAS/authorization/privacy and persistence remain
 service responsibilities and are tested at the assembled boundary.
+
+## First Descriptive Implementation Boundary
+
+`inlet.descriptive-planning.v1` implements campaign measurement review, exact native
+locations, a fixed/unallocated baseline, unchanged customer alternatives and one
+platform-specific concept per selected account within stated production capacity.
+It preserves raw positive conversion facts. The current performance port cannot
+qualify event presence for zero; both zero and missing produce an investigation,
+never a factual no-conversions assertion. This does not change B01's qualified legacy
+zero behavior. Native budget proposals and performance forecasts remain unavailable.
+
+This is a foundation, not the completed comprehensive recommendation package. The
+first composer does not interpret freeform operational constraints, compare historical
+windows, compose catalog-field-specific bidding/targeting changes, optimize allocation,
+or generate substantive product-specific copy/storyboards. Customer constraints remain
+visible in immutable inputs. Those capabilities and expert usefulness review against
+the frozen quality cases are still open; schema and synthetic regression passes are
+not expert-quality acceptance. Do not expose this composer as a completed planning MVP.

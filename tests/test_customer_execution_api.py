@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 import pytest
+from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
 from app.api.customer_execution import get_execution_media_factory, router
 from app.campaign_review.storage import get_media_store
@@ -144,31 +145,37 @@ def install(client: TestClient, runtime: CustomerExecutionRuntime | None, media:
     client.app.dependency_overrides[get_execution_media_factory] = lambda: lambda: media  # type: ignore[attr-defined]
 
 
+@pytest.mark.planning_boundary
 def test_default_runtime_and_forged_authority_are_denied(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     replicas: tuple[TestClient, TestClient, FakeProvider],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     alice, _, _ = replicas
-    with Session(customer_engine) as db:
-        wid, _, p, _, media, _, server = setup_api(db, configuration, tmp_path)
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        with Session(customer_engine) as db:
+            wid, _, p, _, media, _, server = setup_api(db, configuration, tmp_path)
+    assert advertising_capabilities.advertising_writes_enabled() is False
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
     install(alice, None, media)
     login(alice, "execution-owner:1")
     base = f"/api/customer/v1/workspaces/{wid}/execution"
     headers = {"Origin": ORIGIN, "X-CSRF-Token": alice.cookies.get("__Host-inlet_csrf") or ""}
     status = alice.get(base + "/capabilities")
     assert status.status_code == 200 and not any(v["available"] for v in status.json()["providers"])
-    assert alice.post(base + "/mandates", json=p, headers=headers).status_code == 409
-    assert (
-        alice.post(
-            base + "/mandates", json={**p, "environment": "live"}, headers=headers
-        ).status_code
-        == 422
-    )
+    for body in (p, {**p, "environment": "live"}):
+        denied = alice.post(base + "/mandates", json=body, headers=headers)
+        assert denied.status_code == 409
+        assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
     assert server.posts == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_actual_customer_consent_review_creation_and_receipts(
     customer_engine: Engine,
     configuration: Settings,
@@ -192,6 +199,12 @@ def test_actual_customer_consent_review_creation_and_receipts(
 
     assert alice.post(base + "/mandates", json=p, headers={"Origin": ORIGIN}).status_code == 403
     assert bob.get(base + "/mandates").status_code == 403
+    assert (
+        alice.post(
+            base + "/mandates", json={**p, "environment": "live"}, headers=headers
+        ).status_code
+        == 422
+    )
     policy = post("/mandates", p, 201)
     assert server.posts == 0
     draft = document["plan"]["review"]["source"]
@@ -280,6 +293,8 @@ def test_actual_customer_consent_review_creation_and_receipts(
 
 
 @pytest.mark.parametrize("stage", ["catalog", "qualification"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_original_session_revoked_during_read_io_cannot_persist_review(
     customer_engine: Engine,
     configuration: Settings,
@@ -352,6 +367,8 @@ def test_original_session_revoked_during_read_io_cannot_persist_review(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == before
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unknown_execution_is_not_replayed_and_forged_proofs_rejected(
     customer_engine: Engine,
     configuration: Settings,
@@ -392,6 +409,8 @@ def test_unknown_execution_is_not_replayed_and_forged_proofs_rejected(
     )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_logout_during_admitted_dispatch_preserves_receipt_but_denies_response(
     customer_engine: Engine,
     configuration: Settings,
@@ -440,4 +459,88 @@ def test_logout_during_admitted_dispatch_preserves_receipt_but_denies_response(
             is not None
         )
     assert alice.post(base + f"/runs/{identifier}/advance", headers=headers).status_code == 401
+    assert server.posts == 1
+
+
+@pytest.mark.planning_boundary
+def test_planning_runtime_reads_owned_history_but_cannot_resume_writes(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    replicas: tuple[TestClient, TestClient, FakeProvider],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.publication import coordinator
+    from app.publication.execution_models import ProviderExecutionReceipt
+    from sqlalchemy import func
+
+    alice, bob, _ = replicas
+    # Seed real historical approvals and one MockHTTP dispatch only. Restore the
+    # deployment boundary before exercising any customer route below.
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        with Session(customer_engine) as db:
+            wid, actor, policy, _, media, runtime, server = setup_api(db, configuration, tmp_path)
+            run = db.scalar(
+                select(ProviderExecutionRun).where(ProviderExecutionRun.workspace_id == wid)
+            )
+            assert run is not None
+            run_id, review_id = run.id, run.review_id
+            claim = coordinator.claim_creation_step(
+                db, wid, run_id, actor, media, runtime.creation, runtime.clock
+            )
+            assert claim is not None
+            coordinator.execute_claim(db, claim, actor, media, runtime.creation, runtime.clock)
+            attempt_id = claim.attempt_id
+    assert advertising_capabilities.advertising_writes_enabled() is False
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
+    assert server.posts == 1
+    tables = (
+        ProviderExecutionMandate,
+        ProviderExecutionReview,
+        ProviderExecutionRun,
+        ProviderExecutionAttempt,
+        ProviderExecutionReceipt,
+        ProviderExposureReservation,
+    )
+    with Session(customer_engine) as db:
+        before = tuple(db.scalar(select(func.count()).select_from(table)) for table in tables)
+    install(alice, runtime, media)
+    install(bob, runtime, media)
+    login(alice, "execution-owner:history")
+    login(bob, "other-owner:history")
+    base = f"/api/customer/v1/workspaces/{wid}/execution"
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": alice.cookies.get("__Host-inlet_csrf") or ""}
+    paths = (f"/runs/{run_id}", f"/reviews/{review_id}", f"/attempts/{attempt_id}/receipt")
+    for path in paths:
+        owned = alice.get(base + path)
+        assert owned.status_code == 200, owned.text
+        assert owned.headers["Cache-Control"] == "no-store"
+        expected_denial = 404 if path.endswith("/receipt") else 403
+        assert bob.get(base + path).status_code == expected_denial
+    receipt = alice.get(base + paths[-1]).json()
+    assert receipt["receipt"]["outcome"] == "verified_effect"
+    assert "mock-only" not in str(receipt)
+    capabilities = alice.get(base + "/capabilities")
+    assert capabilities.status_code == 200
+    assert not any(item["available"] for item in capabilities.json()["providers"])
+    for path, body in (
+        ("/mandates", policy),
+        ("/creation-reviews", {}),
+        (f"/reviews/{review_id}/approval", {}),
+        (f"/reviews/{review_id}/runs", None),
+        (f"/runs/{run_id}/advance", None),
+    ):
+        denied = alice.post(base + path, json=body, headers=headers)
+        assert denied.status_code == 409, denied.text
+        assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+    assert server.posts == 1
+    with Session(customer_engine) as db:
+        assert (
+            tuple(db.scalar(select(func.count()).select_from(table)) for table in tables) == before
+        )
+    assert alice.delete("/api/customer/v1/session", headers=headers).status_code == 204
+    for path in paths:
+        assert alice.get(base + path).status_code == 401
     assert server.posts == 1

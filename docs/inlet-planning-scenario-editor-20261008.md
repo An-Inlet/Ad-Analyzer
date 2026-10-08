@@ -33,3 +33,9 @@ window analysis or optimized allocations. Evidence under
 Final results: component2passed4.718s; integrated12passed90.305s; added excluded-target
 negative scenario-only2passed14.599s,0skips. WholeRuff/mypy1066, Node syntax
 and diffchecks pass. Frozenhead awaiting independent review.
+
+Independent review CLOSED at e28f345, no P1/P2. Root merged at **9ae91bf**;
+app/tests matched qualifiedauthorhead. Separately reviewed three-platform API tests
+2dd75dc integrated atf4089e7 (2passes16.726s). Combined wholeRuff/mypy1067 pass.
+No redundant focused rerun or aggregate/full run. Nextpackage: additive typed metric
+presence; preserve legacy reporting/manifests and distinguish missing from true0.

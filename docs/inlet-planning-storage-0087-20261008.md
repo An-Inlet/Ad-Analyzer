@@ -42,3 +42,15 @@ Independent review repair: stored version `privacy_revision` now must equal ever
 canonical evidence reference privacy revision during load/export. Both a tampered scalar
 and mixed canonical evidence with recomputed digest are rejected. Focused two-case repair
 cohort passed; whole Ruff/mypy1027 passed before starting the separate authority/DTO WIP.
+
+## Authority/DTO Interface Slice
+
+Added planning-local immutable scalar identity fact and fixed5second monotonic final
+acceptance helper; no global auth changes/provider IO under local lock helper. Pure
+boundary tests: **5 passed in1.41s** (exact/overage/backward interval, provider-side
+identity mutation, revocation, session expiry). Later rerun final timing in handoff.
+Concrete request/response DTOs and public route/service shape are documented in
+`docs/design/planning-customer-service-api.md`. These do not install routes or claim
+working customer service. Root can implement dependent UI against this interface.
+Whole Ruff/mypy **1031 files** passed; diffcheck passed. Service lock-wait/race/IO
+integration tests remain the next implementation slice, not implied by pure helpers.

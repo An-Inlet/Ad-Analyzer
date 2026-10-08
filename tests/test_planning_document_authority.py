@@ -1,0 +1,80 @@
+from dataclasses import replace
+
+import pytest
+from app.customers.access import CustomerPrincipal
+from app.customers.models import CustomerSession, CustomerUser
+from app.planning_documents import authority
+from fastapi import HTTPException
+
+from tests.test_customer_identity import FakeProvider
+
+
+def principal() -> CustomerPrincipal:
+    return CustomerPrincipal(
+        CustomerUser(
+            id="a" * 32,
+            issuer=FakeProvider().issuer,
+            subject="customer",
+            email="customer@example.test",
+            status="active",
+        ),
+        CustomerSession(
+            digest="b" * 64,
+            user_id="a" * 32,
+            csrf_digest="c" * 64,
+            created_at=10,
+            expires_at=1000,
+            authenticated_at=10,
+            revoked_at=None,
+        ),
+    )
+
+
+@pytest.mark.parametrize("age,allowed", [(0, True), (5, True), (5.00001, False), (-1, False)])
+def test_final_authority_five_seconds_never_extends(
+    age: float, allowed: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    customer = principal()
+    fact = authority.IdentityFact(
+        customer.user.id,
+        customer.user.issuer,
+        customer.user.subject,
+        customer.session.digest,
+        customer.session.authenticated_at,
+        100,
+    )
+    monkeypatch.setattr("app.planning_documents.authority.time.monotonic", lambda: 100 + age)
+    monkeypatch.setattr("app.planning_documents.authority.time.time", lambda: 500)
+    if allowed:
+        authority.final(customer, fact)
+    else:
+        with pytest.raises(HTTPException) as error:
+            authority.final(customer, fact)
+        assert error.value.status_code == 409
+
+
+def test_identity_fact_captures_scalars_before_provider_and_rechecks_revocation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    customer = principal()
+    provider = FakeProvider()
+
+    def change(subject: str, authenticated_at: int) -> None:
+        customer.user.subject = "changed"
+
+    monkeypatch.setattr(provider, "check_active", change)
+    monkeypatch.setattr("app.planning_documents.authority.time.monotonic", lambda: 100)
+    monkeypatch.setattr("app.planning_documents.authority.time.time", lambda: 500)
+    fact = authority.refresh(customer, provider)
+    assert fact.subject == "customer"
+    with pytest.raises(HTTPException):
+        authority.final(customer, fact)
+    customer.user.subject = "customer"
+    customer.session.revoked_at = 501
+    with pytest.raises(HTTPException):
+        authority.final(customer, fact)
+    customer.session.revoked_at = None
+    customer.session.expires_at = 500
+    with pytest.raises(HTTPException) as error:
+        authority.final(customer, replace(fact, completed_monotonic=100))
+    assert error.value.status_code == 409

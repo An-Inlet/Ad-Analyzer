@@ -1,8 +1,9 @@
 # Planning Quality Evidence — Reconciled 2026-10-08
 
-Evidence cutoff: reviewed root `bbabcd6`, including actual Meta import-to-plan,
-exact target-reselection API acceptance, and plan-bound sales progress backend/browser.
-Requested-window projection/comparison work after its design freeze is not credited.
+Evidence cutoff: frozen W1 root `6a3b0f1`, including reviewed requested-window
+service, comparison form, actual correction browser, default V3 activation and
+current lifecycle adaptations. The separate W1 aggregate is running; its result is
+pending and is not credited here. Known historical forward failure remains open.
 This supersedes the earlier pending-service/reader entries, not the unchanged frozen
 [Q01–Q16 inputs and six evaluation criteria](design/comprehensive-planning-quality-cases.md).
 All provider evidence below uses synthetic data and offline MockHTTP. Browser evidence
@@ -36,26 +37,32 @@ their reviewed integrated heads. No frozen input or expert gate has changed.
 | E18 Disappeared/replaced target API | Reviewed `126a30e`, integrated `471bb83`: **6 passed, 0 skips, 31.48s**, Google/Meta/TikTok × SQLite/PostgreSQL. Fresh disappearance does not falsify an original unexpired as-of receipt; same-name/new-native-ID replacement has distinct selectors, mixed handles reject without graph changes, explicit reselection preserves old document/export. [Ledger](inlet-target-disappearance-acceptance-20261008.md). API-only, not disappearance browser or unknown-parent qualification. |
 | E19 Plan-bound sales progress | Reviewed backend `70c0ede`, integrated `01e79f0`: **68 passed, 1 expected SQLite PostgreSQL-lock skip, 1 intentional unsafe-copy warning, 124.46s**. Exact saved version/goal, current Shopify merchandise sales, real corrections/later closed day, privacy/current authority and actual PostgreSQL lock timeout. Reviewed display `e8a1e1c`+`07fe34b`, integrated `38ed75d`; reviewed browser `2e64377`, integrated `bbabcd6`: **3 passed, 0 skips, 12.546s**, actual HTTPS SQLite/PostgreSQL plus Chromium DOM. Real CommerceSync correction −10→−20, immutable original document/digest, historical goal binding, separate unverified manual report, same-owner session replacement, changed-goal unavailable and logout clearing. Exact signed BigInt display; no causal/achievement claim. [Backend](inlet-plan-sales-progress-backend-20261008.md), [UI/browser](inlet-planning-sales-progress-ui-20261008.md). Later closed-day expansion is backend-qualified, not browser-qualified. |
 
+| E20 Requested-window service | Reviewed source `f681f1a` and test/evidence successor `bc76205`, integrated `c6d2a3c`; `test_window_service_api.py` actual 0090 Meta56-day→7-day primary+preceding7-day comparison, full zero/missing/sparse distinctions, out-of-subset correction, gap→available transition, all-three catalogs, receipt reuse/expiry and final authority/CAS rollback. Genuine ticket/closed dispatch, full-source pins and unchanged legacy witnesses. Initial **40 passed, 3 harness failures, 1 expected skip**; affected repair **5 passed, 1 expected skip**; separate identity/native SQL-order checks **2 passed**. Do not describe these overlapping repaired runs as one clean module run. [Service ledger](inlet-window-service-integration-20261008.md). Later E23 reruns the real default cleanly. |
+| E21 Comparison form | Reviewed `c00c96c`, integrated `0cef55c`; `test_planning_periods.py` plus actual HTTPS browser cohort **15 passed, 0 skips, 109.13s**. Create/edit/remove comparison, exact saved microsecond/offset spelling, primary-only target invalidation, comparison preservation, late-response session fence and export. Initial assertion compared raw request spelling to canonical saved response; repaired test is documented. [Form ledger](inlet-comparison-period-form-20261008.md). Form evidence alone does not qualify source comparability. |
+| E22 Requested-window browser | Reviewed `44307cb` plus evidence clarification `2a8244f`, integrated `a035d2f`; `test_planning_documents_browser.py -k windows`: **2 passed, 0 skips, 43.176s**. Actual HTTPS paid-owner Meta import→requested primary10/comparison0→correction→successor withdrawing missing counts; original version/export preserved, no execution attempts. Acquires a catalog receipt but leaves target choices at default; saved-target reuse is E9/E10/E20, not this case. [Browser ledger](inlet-window-browser-20261008.md). |
+| E23 Default activation | Reviewed `8533b45`, integrated `1e1553f`; default service uses exact canonical V3 policy/generator, preserves explicit genuine V2 paths and old artifacts. `test_window_service_api.py` + private evidence: **85 passed, 1 expected SQLite skip, 232.18s**; all authenticated planning browser journeys + period parser: **17 passed, 0 skips, 189.44s**; repository/API/error/legacy reporting/import/retained-source compatibility: **115 passed, 3 expected SQLite skips, 16 deliberate invalid-copy warnings, 365.27s**. Complete logs/XML, no failures/errors. Cohorts overlap E20–E22 and are not summed. [Default ledger](inlet-window-default-20261008.md). This is the local application default, not deployed/live qualification. |
+| E24 Current lifecycle/historical partition | Reviewed `62d0033`, integrated `1c64fdb`: current protected lineage, immutable proof/export/erasure, genuine Start dependency graph/current0085 refusal and actual native PostgreSQL restore. Combined **42 passed, 2 expected skips, 1 setup error**; final affected SQLite/PostgreSQL migration pair **2 passed, 25.98s** after scoped fixture ordering repair. [Lifecycle ledger](inlet-current-lifecycle-adaptation-20261008.md). Pinned historical harness is now implemented/integrated `753238a`, not merely proposed; its retained forward failure is explicit in the [historical ledger](inlet-retired-execution-compatibility-20261008.md). Neither result is comprehensive quality or an aggregate pass. |
+
 ## Case Status: Partial Evidence, Not Full Acceptance
 
 | Case | What is now implemented and demonstrated | Still required for the frozen case |
 |---|---|---|
 | Q01 Positive conversions | B01 behavior is preserved. E17 demonstrates actual Meta import→customer plan for 100 clicks/10 selected/USD 100 without a no-conversions claim; E5/E9/E10 provide Google owned target/API/browser infrastructure. | Run the exact frozen selected-event/basis fixture through customer API generation. Current legacy Google aggregate defaults do not establish that qualification merely because the count is positive. Assess useful advice, not only absence of the defect. |
-| Q02 Zero versus unavailable | E13–E17 implement and demonstrate trusted Meta raw presence through API generation: full explicit zero permits investigation; omitted selected cells and missing calendar days do not qualify full-window zero. Counts and values remain independent. | Frozen Q02 reuses the Google Q01 selected-event/common-basis fixture; that producer and exact two-variant API case remain open. Meta 56-day UTC acceptance is real but does not replace the frozen September/New_York/comparison basis or expert usefulness evaluation. |
+| Q02 Zero versus unavailable | E13–E17 implement and demonstrate trusted Meta raw presence through API generation: full explicit zero permits investigation; omitted selected cells and missing calendar days do not qualify full-window zero. Counts and values remain independent. | Frozen Q02 reuses the Google Q01 selected-event/common-basis fixture; that producer and exact two-variant API case remain open. E20–E23 now use actual requested seven-day primary/comparison windows under the default; this does not replace the frozen September/New_York/comparison basis or expert usefulness evaluation. |
 | Q03 Meta-only | E1 single-platform concepts/unit-owner gaps; E5/E9/E10 actual Meta-only owned generation, receipt selection/exclusion and browser paths; E17 adds raw selected-metric provenance. No Google/TikTok/CRM prerequisite. | Exact image/product/partial-scope fixture, useful nonbudget campaign changes and feasible substantive image brief through API and expert evaluation. |
 | Q04 TikTok-only | E1 locatable regular-family plan/concept and missing-video limitations; E5/E9/E10 actual TikTok-only service/HTTP/target browser. Selected-event reporting remains unqualified. | Exact no-video fixture with actionable production/storyboard detail and placement prerequisites; useful campaign changes without invented assets/authorization/native amounts. |
 | Q05 Alternatives | E12 demonstrates the exact A/B allocation amounts and independent USD 1,000 reconciliation through actual three-provider receipts, customer goal confirmation, API/composer/SQL; Google scenario browser saves/rebuilds alternatives and preserves history. | Full frozen common-basis performance/product/window fixture, all-three-platform scenario browser/readable export labels and meaningful alternative rationale/expert evaluation. E12 social reporting is absent; arithmetic acceptance alone is not full Q05. |
 | Q06 Shared budget | Owned native references and conflicting-proposal contract checks exist; unsupported native amounts stay unavailable. | Qualified affected-owner coverage and useful single-owner proposal/manual verification, incomplete-coverage recovery and exact frozen shared-owner case. Receipt identity does not qualify budget ownership or units. |
 | Q07 Ceiling/arithmetic | E12 proves actual three-provider over-ceiling, negative and fixed-mismatch requests return 422 with no new plan graph; exact micro arithmetic, independent sums and excluded-target browser rejection also pass. E9 binds fixed targets to retained proof. | Remaining frozen mixed-currency/aggressiveness and higher-ceiling/newly-confirmed-goal variants through API; full common-basis and expert coherence. Existing exact negative/over-ceiling cases are credited, not rerun as a substitute for missing variants. |
 | Q08 Zero/sparse | E1 zero-ceiling behavior, account-level fallback and explicit missing evidence; E4–E6 usable no-target generation foundation. | Exact empty-history/$0/product-image API case and useful preparation/measurement/learning plan rather than generic diagnostic text. |
-| Q09 Comparability | E13–E17 preserve raw selected-event/presence, requested/actual window, currency and coverage through Meta imports and policy v2; attribution stays explicitly unknown. No causal or unique-customer aggregation. | Comparable-window analysis and concrete alignment steps for the exact purchase/lead/different-attribution fixture. No unsupported numeric ranking or transfer policy. |
+| Q09 Comparability | E13–E17 preserve raw selected-event/presence, requested/actual window, currency and coverage through Meta imports and policy v2; attribution stays explicitly unknown. No causal or unique-customer aggregation. | E20–E23 now preserve and describe distinct exact requested periods using their own summaries; the full original import is not substituted. Concrete comparability/alignment for the exact purchase/lead/different-attribution fixture remains open. No unsupported numeric ranking or transfer policy. |
 | Q10 Constraints/facts | E1 exclusions, exact fixed allocation and creative capacity; unresolved prose remains visible and defers creative. E9 actual exclusion/fixed target input and generation. | Exact combined excluded A/fixed B/no-discount/one-image/no-video/one-asset case; useful proposals satisfying constraints rather than blanket deferral. Substantive fact-supported creative remains open. |
-| Q11 Correction/reconnect | E3 detects local corrections, source generation/mapping changes and stale proofs. E4–E6 implement immutable successors, source checks, comparisons, retained decisions and history. E10 adds explicit replacement/reselection. E17 demonstrates actual conversion-presence correction→stale V1→V2, preserving V1 document/export. | Full frozen corrected-conversion/refund/reconnect journey with field-level explanation and original decision history; actual disappeared-target/same-name reconciliation. Meta presence correction alone does not prove refund/reconnect variants. |
+| Q11 Correction/reconnect | E3 detects local corrections, source generation/mapping changes and stale proofs. E4–E6 implement immutable successors, source checks, comparisons, retained decisions and history. E10 adds explicit replacement/reselection. E17 demonstrates actual conversion-presence correction→stale V1→V2, preserving V1 document/export. E20–E23 add requested-window correction and out-of-subset whole-source invalidation under the default, with actual browser successor/history/export. | Full frozen corrected-conversion/refund/reconnect journey with field-level explanation and original decision history; actual disappeared-target/same-name reconciliation. Meta presence correction alone does not prove refund/reconnect variants. |
 | Q12 CAS/replay | E4 actual PostgreSQL concurrent head/request races, final cross-plan replay guard, stale action binding and rollback; E5 HTTP replay; E6 actual lost-response recovery; E9 targeted same-key create race. | The complete frozen concurrent-version/decision fixture at customer HTTP boundary, including obsolete action acceptance attempts and explicit no execution/financial obligations. Existing service race coverage is real, not merely DTO/schema coverage. |
 | Q13 Reported/observed | E4–E6 append-only decisions, reports and exact-chain withdrawal with current event CAS; historical withdrawal survives expiry/new version under current ownership. Browser labels customer reports unverified. | A trusted read-observed comparator/service/UI for exact/partial/conflict/unavailable proposed-field matches. Typed observation contracts alone do not implement provider verification, attribution or change-time proof. |
 | Q14 Missing/ambiguous targets | E7 exact native IDs/hierarchy and duplicate/cross-binding rejection; E9 saved original selections survive rereads, session replacement blocks new use, expiry never silently remaps. E10 adds actual explicit fresh reselection and expiry/session invalidation; E18 covers fresh disappearance and same-name/new-ID exact reselection through actual APIs on all three platforms. | Corresponding disappearance/replacement browser journey, unknown-parent and simultaneous duplicate-name cases through saved plan and customer reselection UI; unsupported manual verification stays unavailable. |
 | Q15 Access/text | E2–E8 scope/session/export foundations remain. E10/E12 add literal target/scenario labels, scope/expiry/session clearing; E11 tests actual server final-expiry/identity/persistence/cleanup failure boundaries on both DBs. | Assemble exact malicious native-name/note/foreign-selection/expiry cases through target UI and readable export. Existing literal render/API evidence is partial; CSV is not implemented and no formula-safe CSV claim is made. |
-| Q16 Privacy/progress | E3 fresh owned Shopify ledger/watermark/correction checks; E4 immutable history; E8 actual0087/0088 erasure, archive and delivery privacy fences. E6 exposes version/event history; E14/E15 add presence erasure/archive; E19 implements saved-version-bound current sales and actual correction/browser presentation, with later closed-day/API and privacy-erasure404 coverage. | Exact full frozen Q16 common-basis journey, browser later-closed-day expansion and assembled post-erasure history/export/refresh non-resurrection. Read-observed advertising verification remains separate and unimplemented. |
+| Q16 Privacy/progress | E3 fresh owned Shopify ledger/watermark/correction checks; E4 immutable history; E8 actual0087/0088 erasure, archive and delivery privacy fences. E6 exposes version/event history; E14/E15 add presence erasure/archive; E19 implements saved-version-bound current sales and actual correction/browser presentation, with later closed-day/API and privacy-erasure404 coverage. E20 adds generation rollback when actual privacy cleanup occurs after composition; E24 keeps current graph erasure and restore assertions qualified. | Exact full frozen Q16 common-basis journey, browser later-closed-day expansion and assembled post-erasure history/export/refresh non-resurrection. Read-observed advertising verification remains separate and unimplemented. |
 
 ## Six Quality Gates Remain Separate
 
@@ -64,56 +71,46 @@ Automated/agent evidence must remain separate from that assessment.
 
 | Frozen criterion | Present evidence | Open quality requirement |
 |---|---|---|
-| 1 Correct scope, facts, metric semantics | Owned catalog/receipt/source guards plus actual Meta selected-presence producer/consumer (E1–E17). | Google/TikTok selected-event producers, comparable attribution/window qualification and exact frozen case evaluation; no inference from legacy defaults. |
+| 1 Correct scope, facts, metric semantics | Owned catalog/receipt/source guards plus actual Meta selected-presence producer/consumer (E1–E17). | Google/TikTok selected-event producers, exact frozen-window/attribution comparability qualification and exact frozen case evaluation; no inference from legacy defaults. |
 | 2 Campaign-specific usefulness | Exact locatable targets and manual diagnostic steps. | Useful typed current/proposed campaign changes and concrete prerequisites, evaluated per case. |
 | 3 Coherent budgets/alternatives | Exact ceiling arithmetic and actual E12 three-platform A/B customer hypotheses; Google alternatives browser. | Useful supported alternatives/maintain rationale; qualified shared-owner/unit handling, no invented forecast. |
 | 4 Traceable rationale/uncertainty | Versioned inputs/policy/evidence, limitations, stale history. | Case-specific reasoning and defensible alternatives beyond descriptive generic text. |
 | 5 Feasible creative | Customer context provenance, bounded concepts, capacity and constraint deferral. | Product-specific copy/storyboards/assets/placement steps satisfying exact facts and capacity. |
 | 6 Honest decisions/application/outcomes | Separate reviewed decision/report/retraction history and labels; E19 integrated corrected-sales progress without causal claims. | Trusted read-observed field comparisons and full frozen-case/expert evaluation. |
 
-## Remaining Implementation Packages In Dependency Order
+## Remaining Packages In Dependency Order
 
-1. **Finish remaining target/alternative edge acceptance.** Reviewed E10–E12 now
-   cover actual target UI, explicit reselection, Google scenario UI and three-platform
-   API alternatives. Remaining work is disappeared/ambiguous/same-name targets,
-   exact frozen export/browser labeling and comparison-window editing, not rebuilding
-   the receipt/picker architecture or redoing already credited exact sums.
-2. **Qualify the missing evidence semantics needed by recommendations.** Build on reviewed
-   Meta E13–E17. Implement selected Google/TikTok event producers and qualify
-   comparable windows/attribution/scope; add supported native units/shared-owner affected-set proofs where available.
-   Unsupported facts must remain explicit gaps. Define these evidence interfaces before
-   dependent composer or observation work; no guessed thresholds/elasticities.
-3. **Develop substantive deterministic planning and exact-case API evaluation.** Use
-   the unchanged Q01–Q10 inputs to implement useful campaign-specific changes,
-   coherent customer alternatives, constraint-respecting product creative and sparse/
-   zero-budget tasks. Preserve exact ceiling/authority semantics. Input/browser/export
-   support for alternatives and comparison windows must match the supported API.
-   Existing service/version/CAS foundations are reused, not reimplemented.
-4. **Implement read-observed manual-application verification.** Use reviewed exact
-   action/proposed-field contracts plus owned fresh reads from package2; retain the
-   independent customer report/correction chain. Cover exact/partial/conflict/unknown,
-   disappearance and ambiguity with no write or name-based fallback.
-5. **Finish assembled progress and correction/reselection acceptance.** E18/E19
-   now implement exact target-reselection APIs and saved-version current sales with
-   real correction/browser evidence. Preserve those working paths; finish the exact
-   Q11–Q16 assembled inputs, remaining browser edges and post-erasure refresh case.
-   Keep task reports, observed sales and future read-observed ad settings distinct.
-6. **Resolve historical compatibility and evaluate the assembled product.** The
-   execution/optimization/session API partitions are reviewed; 0074 fixture repair
-   is separately qualified. The retained pre-0086 initial-review bridge is still
-   incompatible: current preview reads require a draft planning mandate while its
-   old execution bridge requires the same mandate active. The case remains intact,
-   with no skip/xfail or guard bypass. A separately reviewed archived historical
-   harness is a proposal, not implemented evidence
-   ([blocker ledger](inlet-initial-review-default-20261008.md)).
-   Other retired execution UI/initial fixtures still need classification. Exactly
-   one aggregate remains pending; no Full result is claimed from these packages.
-   **Evaluate the assembled planning product:** Record exact frozen-case
-   API/browser results and six pass/fail criteria for each provider alone and Q05;
-   obtain separate human expert review. Resolve remaining test-partition/full-suite
-   qualification and authorized release/operational gates before launch claims.
-   An authorized live pilot is a later explicit gate, never implied by local tests.
+The concrete next package is the [Q16 acceptance proposal](design/planning-next-quality-acceptance-v1.md),
+which is **proposed, not implemented or passed**. Frozen cases and human gates are unchanged.
 
+1. **Assemble exact Q16 privacy/progress acceptance using existing interfaces.**
+   Reuse current service/API/lifecycle and sales projection; cover frozen common
+   basis, later closed local day and real correction in the browser, plus erased
+   plan history/export/receipt/generation/progress non-resurrection. Keep privacy
+   and progress branches separate as Q16 states. This requires no selected-event
+   producer, new recommendation algorithm, schema or public DTO.
+2. **Freeze then implement missing Google/TikTok selected-event provenance.**
+   Existing requested-window consumer already exposes honest gaps. Actual collector
+   field presence, selected-event identity, attribution, pagination/completion and
+   source publication require provider-specific reviewed producer contracts before
+   implementation. No legacy count/default can substitute. Google exact Q01/Q02
+   follows its producer; TikTok follows its own qualification. Shared native-budget
+   ownership/unit coverage is another separate evidence seam, not implied by these.
+3. **Complete exact remaining Q01–Q15 acceptance and substantive planning.**
+   Reuse implemented targets, comparison form, alternatives and immutable versions.
+   Remaining work includes frozen comparability/constraints/sparse-brand cases,
+   useful campaign-specific proposed changes and fact-supported creative, plus
+   exact disappearance/ambiguity browser edges and HTTP concurrency cases.
+   No new numerical optimization defaults or unsupported forecasts are authorized.
+4. **Implement read-observed manual-application verification after its source
+   semantics are qualified.** Exact/partial/conflict/unavailable setting comparisons
+   remain separate from customer reports and observed Shopify sales. No writes,
+   name-only matching, causal lift or claimed change-time inference.
+5. **Evaluate and release only against actual evidence.** Record each frozen-case
+   result and six separate criteria, then obtain independent human expert review.
+   W1 aggregate remains pending at immutable `6a3b0f1`; the known historical failure
+   must remain visible regardless of focused successes. Commercial configuration,
+   authorized deployment and a live pilot remain later explicit gates.
 
 ## Regression Preparation Is Not Aggregate Qualification
 
@@ -126,10 +123,15 @@ Session API partition: **4 passed, 16.982s** plus separate default boundaries
 Initial-review default repair: **2 passed, 7.181s** plus boundaries **39 passed,
 1.131s**; explicitly not a whole-module pass. These overlapping cohorts preserve
 historical/current-policy boundaries; they are not quality-case completion counts.
-The historical bridge blocker above and remaining UI/fixture classification remain
-open. No new tests were run for this reconciliation; only document/link and diff
-checks. E18/E19 were appended after their separate independent closures; no new
-tests were run for that documentation update. Requested-window work remains excluded.
+The contradictory current/historical producer setup now has the reviewed bounded
+pinned seam and current-policy lifecycle adaptation (E24). This removes the stale
+claim that no compatible harness exists; it does not turn its known historical
+forward failure into a pass. See the exact [terminal historical results](inlet-retired-execution-compatibility-20261008.md)
+and [frozen W1 boundaries](inlet-window-integration-aggregate-milestone-20261008.md).
+The single W1 aggregate is pending in a separately isolated validation checkout and
+database. No new tests ran for this reconciliation; only local source/document and
+diff inspection. Requested-window evidence is now included at the exact reviewed
+heads above. No overlapping cohort counts are summed.
 
 The owner-approved product scope remains comprehensive planning with zero advertising
 writes. Descriptive functionality and a working local customer journey are substantial

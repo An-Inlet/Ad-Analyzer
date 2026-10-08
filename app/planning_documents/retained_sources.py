@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount, Campaign
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
-from app.campaign_performance.presence_report import QUALIFIED_POLICY
+from app.campaign_performance.presence_report import QUALIFIED_POLICY, PresenceReadContext
 from app.campaign_performance.presence_storage import ReportingPresenceUnavailable, read_presence
 from app.campaign_performance.service import manifest, read_current
 from app.commerce.ledger import lock_store
@@ -132,7 +132,17 @@ def _reporting(
     privacy: int,
     *,
     qualified: bool = False,
+    presence_context: PresenceReadContext | None = None,
 ) -> tuple[str, str]:
+    if presence_context is not None:
+        transaction = db.get_transaction()
+        if (
+            presence_context.db is not db
+            or transaction is None
+            or presence_context.transaction is not transaction
+            or not transaction.is_active
+        ):
+            raise RetainedSourcesChanged("source_integrity_unavailable")
     scope = customer_intents.account(db, ref.workspace_id, ref.account_id)
     if (scope.account.connection_id, scope.account.platform, scope.connection_version) != (
         ref.connection_id,
@@ -208,7 +218,11 @@ def _reporting(
             raise RetainedSourcesChanged("source_integrity_unavailable")
         if qualified:
             try:
-                graph = read_presence(db, completion)
+                graph = (
+                    read_presence(db, completion)
+                    if presence_context is None
+                    else presence_context.read(completion)
+                )
             except ReportingPresenceUnavailable:
                 raise RetainedSourcesChanged("source_integrity_unavailable") from None
             presence_state = (
@@ -269,11 +283,18 @@ def _reporting(
 
 
 def capture_reporting_presence_pin(
-    db: Session, principal: CustomerPrincipal, ref: AccountRef, privacy: int
+    db: Session,
+    principal: CustomerPrincipal,
+    ref: AccountRef,
+    privacy: int,
+    *,
+    presence_context: PresenceReadContext | None = None,
 ) -> str:
     """New-policy collection/final pin, including exact sidecar absence."""
     try:
-        return _reporting(db, principal, ref, privacy, qualified=True)[1]
+        return _reporting(
+            db, principal, ref, privacy, qualified=True, presence_context=presence_context
+        )[1]
     except RetainedSourcesChanged:
         raise HTTPException(409, "Qualified reporting evidence changed") from None
 

@@ -63,3 +63,9 @@ versions remain. It also tests real same-owner session replacement both during a
 between operations and an actual persisted null-capacity/precise-timestamp edit.
 Evidence `planning-browser-repairs.{log,xml}`. Whole Ruff/mypy1054/node/diff passed.
 Independent repair closure is pending; no live qualification is implied.
+
+Independent repair review closed44163af with no remaining P1/P2 in the account-level
+flow. Root merged the unchanged tested app/tests tree; `git diff --quiet 44163af HEAD
+-- app tests` confirmed no source/test differences immediately after integration. No
+redundant rerun was made. Target receipt UI and broader product qualification remain
+separate. Session/recovery behavior is verified with local real HTTPS, not live customers.

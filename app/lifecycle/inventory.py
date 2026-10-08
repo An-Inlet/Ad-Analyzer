@@ -158,6 +158,10 @@ def export_section(
         .limit(limit + 1)
         .execution_options(yield_per=1)
     ).mappings()
+    from app.campaign_performance.presence_export import PresenceExportContext
+    from app.campaign_performance.presence_storage import TABLES as PRESENCE_TABLES
+
+    presence_context = PresenceExportContext(db)
     try:
         for row in result:
             from app.planning_documents.storage import (
@@ -167,7 +171,9 @@ def export_section(
                 export_row,
             )
 
-            if name in CATALOG_RECEIPT_TABLES:
+            if name in PRESENCE_TABLES:
+                projected = presence_context.export(name, dict(row))
+            elif name in CATALOG_RECEIPT_TABLES:
                 from app.planning_documents.catalog_receipt_export import export_receipt_row
 
                 projected = export_receipt_row(db, name, dict(row))

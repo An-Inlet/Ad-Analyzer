@@ -14,6 +14,7 @@ from typing import Any, BinaryIO
 from sqlalchemy import Engine, Text, case, cast, func, literal, select
 from sqlalchemy.orm import Session
 
+from app.campaign_performance.presence_export import PresenceExportContext
 from app.campaign_review.contracts import MAX_LIBRARY_BYTES, MAX_MEDIA_BYTES, MediaStore
 from app.database.session import Base
 from app.lifecycle.contracts import LifecycleScopeV1
@@ -91,6 +92,7 @@ def build(
                 ):
                     privacy = capture_privacy(snapshot)
                     scope = LifecycleScopeV1(workspace_id=wid)
+                    presence_context = PresenceExportContext(snapshot)
                     for name, policy in TABLES.items():
                         checkpoint()
                         if policy.scope in {"identity_global", "platform_global", "unclassified"}:
@@ -150,7 +152,12 @@ def build(
                                         raise ValueError("export row limit exceeded")
                                     if row["_export_oversized"]:
                                         raise ValueError("export stored row exceeds bound")
-                                    projected, missing = serialize(name, dict(row), db=snapshot)
+                                    projected, missing = serialize(
+                                        name,
+                                        dict(row),
+                                        db=snapshot,
+                                        presence_context=presence_context,
+                                    )
                                     unsupported.update(missing)
                                     data = encoded(projected) + b"\n"
                                     total_data += len(data)

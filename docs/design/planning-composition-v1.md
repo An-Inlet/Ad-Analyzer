@@ -105,3 +105,11 @@ or generate substantive product-specific copy/storyboards. Customer constraints 
 visible in immutable inputs. Those capabilities and expert usefulness review against
 the frozen quality cases are still open; schema and synthetic regression passes are
 not expert-quality acceptance. Do not expose this composer as a completed planning MVP.
+
+Independent review repair: nonempty freeform constraints now defer all creative
+proposals, preserve the exact constraints in section limitations and force measurement
+clarification actions. No text parser claims to understand them. Manual steps always
+ask the customer to compare settings against their ceiling and constraints, never
+instruct unconditional continuation of existing spend. Zero ceilings force investigation
+even with positive reported conversions. Added concrete no-creative/no-video and zero-
+ceiling/positive-results regressions. 89 focused cases, Ruff and mypy (1,023 files) passed.

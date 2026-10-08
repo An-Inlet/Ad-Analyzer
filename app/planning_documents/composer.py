@@ -150,6 +150,11 @@ class DescriptivePlanComposer:
             "Planning allocations are alternatives, not provider caps or verified remaining spend.",
         ]
         section_limits = [gap.explanation for gap in evidence.gaps]
+        section_limits.extend(inputs.constraints)
+        if inputs.constraints:
+            section_limits.append(
+                "Freeform constraints need customer clarification before substantive proposals."
+            )
         if inputs.maximum_creative_assets is None:
             section_limits.append(
                 "Production capacity is unconfirmed; creative tasks are proposals."
@@ -195,6 +200,9 @@ class DescriptivePlanComposer:
                     None,
                 )
                 kind, rationale = reported_summary(performance)
+                if inputs.constraints or inputs.total_ceiling_micros == 0:
+                    kind = "investigate"
+                    rationale += " Confirm the customer constraints and spending ceiling first."
                 if isinstance(target, AccountTarget):
                     kind, rationale = (
                         "investigate",
@@ -217,7 +225,7 @@ class DescriptivePlanComposer:
                         ),
                         title="Review Measurement"
                         if kind == "investigate"
-                        else "Maintain And Review",
+                        else "Review Reported Results",
                         rationale=rationale,
                         evidence_keys=tuple(evidence_keys),
                         assumption_keys=(),
@@ -227,7 +235,9 @@ class DescriptivePlanComposer:
                             "Check the selected event and attribution/reporting settings.",
                             "Compare the requested closed dates with the imported report; "
                             "do not replace absent events with zero.",
-                            "Keep current settings while resolving these evidence gaps; "
+                            "Compare current settings with the confirmed planning ceiling and "
+                            "customer constraints; continued delivery is not assumed affordable.",
+                            "Clarify the constraints shown in this plan before making changes; "
                             "record any change you choose to make outside Inlet.",
                         ),
                         expected_effect="Improve decision evidence; sales effect is unknown.",
@@ -237,6 +247,8 @@ class DescriptivePlanComposer:
                 )
             if catalog.reference.coverage != "complete_in_declared_scope":
                 section_limits.append(f"Account {account.account_id}: catalog coverage is partial.")
+            if inputs.constraints:
+                continue
             if not inputs.product_offer or len(briefs) >= capacity:
                 section_limits.append(
                     f"Account {account.account_id}: creative production deferred pending product "

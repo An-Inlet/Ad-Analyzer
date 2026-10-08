@@ -261,3 +261,35 @@ def test_zero_budget_never_creates_positive_allocation() -> None:
     plan = compose(inputs, bundle, policy)
     assert all(not s.allocations and s.unallocated_micros == 0 for s in plan.scenarios)
     assert all(a.native_budget is None for a in plan.actions)
+
+
+@pytest.mark.parametrize(
+    "constraint", ["Do not create new creative this month", "No video production"]
+)
+def test_freeform_constraints_defer_creative_and_surface_exact_text(constraint: str) -> None:
+    inputs, bundle, policy = fixture(
+        platform="tiktok", product_offer="Bottle", constraints=(constraint,)
+    )
+    plan = compose(inputs, bundle, policy)
+    assert not plan.briefs
+    assert all(a.kind == "investigate" for a in plan.actions)
+    assert any(constraint in line for line in plan.section_limitations)
+    assert "Create the asset" not in plan.model_dump_json()
+
+
+def test_zero_ceiling_does_not_instruct_maintaining_positive_native_spend() -> None:
+    inputs, _, _ = fixture()
+    goal = inputs.goal.model_dump(mode="python")
+    goal["definition"]["budget_micros"] = 0
+    goal["definition_digest"] = fingerprint(
+        "goal-definition",
+        inputs.goal.definition.model_copy(update=dict(budget_micros=0)).model_dump(mode="json"),
+    )
+    inputs, bundle, policy = fixture(total_ceiling_micros=0, goal=goal)
+    bundle = bundle.model_copy(
+        update=dict(performance=(PerformanceEvidence.model_validate(performance_data(bundle)),))
+    )
+    plan = compose(inputs, bundle, policy)
+    assert plan.actions[0].kind == "investigate"
+    assert "Keep current settings" not in plan.model_dump_json()
+    assert any("not assumed affordable" in step for step in plan.actions[0].manual_steps)

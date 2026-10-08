@@ -86,8 +86,38 @@ Raw initial/final/supplementary (`foreign`) log and JUnit files live in
 Independent review and parent integration are required. This package does not
 activate v3 or provide customer requested-window/comparison support. Adapter/final
 recheck/composer integration, actual import→requested-window API acceptance,
-public comparison output and UI remain separate. The current reader tests use a
-single-day positive persisted graph and an outside-window known gap; multi-day
-projection/DST semantics belong to the already separate pure projector qualification,
-not an implied new 56-day import acceptance here. No latency benchmark, Full suite,
+public comparison output and UI remain separate. The original single-day reader coverage is supplemented below by two campaigns
+and two distinct windows; broader DST semantics remain separately qualified by the
+pure projector. Neither is an implied new 56-day raw import acceptance. No latency benchmark, Full suite,
 remote/hosted run, live provider request, ad mutation or deployment ran.
+
+
+## Multi-Campaign And Multi-Window Acceptance Supplement
+
+Source review of `c9565fb` found no concrete P1/P2 but identified missing frozen
+acceptance coverage for multiple campaigns/windows. This test-only successor closes
+that specific gap before integration; it changes no production code.
+
+The new actual SQLite/PostgreSQL case starts from owned sources and persisted
+presence, publishes a valid new immutable completion/header containing two native
+campaigns over two closed days, and exposes both through real MockHTTP native and
+metadata collectors. It uses the existing SQL storage/manifest validators, not a
+manufactured ready report or evidence bundle. This remains SQL reader qualification,
+not raw Meta import qualification. Each campaign's earlier-day values differ, so
+wrong-campaign/window cache reuse cannot pass the exact count/click/native/date
+assertions. Both originals retain the identical whole completion header bytes.
+
+The expected collection pin comes from a separately closed transaction. In each of
+two subsequent fresh transactions the context recomputes that pin and reads both
+campaigns for distinct primary/comparison windows. The actual `read_presence`
+function used by the guarded context is instrumented: one parse total per context
+including pin validation, then count increases to two for the second transaction.
+All four result documents equal their counterparts across fresh contexts, with two
+distinct original campaign-document digests and exact original header preservation.
+
+Final focused command: `pytest -o addopts='' -q tests/test_owned_window_reader.py -k multiple_campaigns --junitxml=.../multiple-final.xml`.
+Result: **2 passed, 56 deselected, 6.88 seconds**. Whole Ruff, bare mypy (1,097 files),
+and diff checks passed afterward. Earlier version passed two cases in 7.04 seconds;
+that overlapping run is retained as `multiple.{log,xml}` and is not added to coverage.
+Final raw evidence: `multiple-final.{log,xml}` in the same evidence directory.
+The unchanged 118-case compatibility cohort was not redundantly rerun.

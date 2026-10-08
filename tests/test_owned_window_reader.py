@@ -449,3 +449,189 @@ def test_actual_foreign_workspace_and_source_binding_rejected(
         # Failed prepares left neither listeners nor pending writes behind.
         with prepare_owned_window_context(db, **kwargs) as context:
             assert not context._closed
+
+
+def test_multiple_campaigns_and_distinct_windows_share_only_one_transaction_graph(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Actual SQL presence + server catalog; no raw provider-import qualification."""
+    from decimal import Decimal
+    from uuid import uuid4
+
+    import httpx
+    from app.ads.models import AdvertisingAccount, DailyMetric
+    from app.campaign_performance import presence_report
+    from app.campaign_performance.models import CurrentPerformance
+    from app.campaign_performance.presence_contracts import (
+        ReportedMetricPresenceV1,
+        ReportingSemanticsV1,
+        presence_digest,
+    )
+    from app.campaign_performance.presence_storage import read_presence, store_presence
+    from app.campaign_performance.service import manifest
+    from app.collectors import account_diagnostics
+    from app.meta.models import MetaConnection
+    from app.planning_documents.context import ReportingWindow
+
+    reader, ticket, principal, _ = setup_evidence(
+        customer_engine,
+        configuration,
+        replicas,
+        monkeypatch,
+        "meta_ads",
+    )
+    aid = ticket.inputs.accounts[0].account_id
+    old_header, old_facts = install_presence(customer_engine, aid, extra_campaign=True)
+    # Expose the second genuinely owned SQL campaign through actual native+metadata HTTP reads.
+    transport_factory = account_diagnostics.diagnostic_transport
+
+    def wire(request: httpx.Request) -> httpx.Response:
+        transport = transport_factory()
+        assert transport is not None
+        with transport:
+            response = transport.handle_request(request)
+            response.read()
+        data = response.json()
+        if request.url.path.endswith("/campaigns"):
+            assert len(data["data"]) == 1
+            data["data"].append({**data["data"][0], "id": "6"})
+        return httpx.Response(response.status_code, json=data)
+
+    monkeypatch.setattr(
+        account_diagnostics, "diagnostic_transport", lambda: httpx.MockTransport(wire)
+    )
+    with Session(customer_engine) as db:
+        account = db.get(AdvertisingAccount, aid)
+        current = db.get(CurrentPerformance, aid)
+        assert account is not None and current is not None
+        old = db.get(PerformanceCompletion, current.completion_id)
+        source = db.scalar(select(MetaConnection).where(MetaConnection.account_id == aid))
+        assert old is not None and source is not None
+        completion_id = uuid4().hex
+        start = old.starts_on - timedelta(days=1)
+        facts = []
+        for index, old_fact in enumerate(old_facts, 1):
+            facts.append(
+                ReportedMetricPresenceV1.model_validate(
+                    old_fact.model_copy(
+                        update={
+                            "completion_id": completion_id,
+                        }
+                    )
+                )
+            )
+            db.add(
+                DailyMetric(
+                    platform="meta_ads",
+                    entity_type="campaign",
+                    entity_id=old_fact.campaign_id,
+                    campaign_id=old_fact.campaign_id,
+                    metric_date=start,
+                    impressions=100 * index,
+                    clicks=10 * index,
+                    cost_micros=1_000_000 * index,
+                    conversions=Decimal(index),
+                    conversion_value_micros=0,
+                )
+            )
+            facts.append(
+                ReportedMetricPresenceV1.model_validate(
+                    old_fact.model_copy(
+                        update={
+                            "completion_id": completion_id,
+                            "metric_date": start,
+                            "impressions": {"presence": "present", "value": 100 * index},
+                            "clicks": {"presence": "present", "value": 10 * index},
+                            "spend_micros": {"presence": "present", "value": 1_000_000 * index},
+                            "selected_conversions": {"presence": "present", "value": str(index)},
+                        }
+                    )
+                )
+            )
+        db.flush()
+        digest, rows = manifest(db, account, start, old.ends_on)
+        values = {
+            column.name: getattr(old, column.name)
+            for column in PerformanceCompletion.__table__.columns
+        }
+        values.update(
+            id=completion_id, starts_on=start, row_count=len(rows), manifest_digest=digest
+        )
+        db.add(PerformanceCompletion(**values))
+        db.flush()
+        current.completion_id = completion_id
+        source.covered_from = start
+        db.flush()
+        ordered_facts = tuple(sorted(facts, key=lambda fact: (fact.campaign_id, fact.metric_date)))
+        header = ReportingSemanticsV1.model_validate(
+            old_header.model_copy(
+                update={
+                    "completion_id": completion_id,
+                    "legacy_manifest_digest": digest,
+                    "requested_starts_on": start,
+                    "actual_starts_on": start,
+                    "fact_count": len(ordered_facts),
+                    "fact_digest": presence_digest(ordered_facts),
+                }
+            )
+        )
+        store_presence(db, header, ordered_facts)
+        db.commit()
+    catalog = reader.collect(ticket).catalogs[0]
+    campaign_targets = sorted(
+        (t for t in targets(catalog) if t.kind == "campaign"),
+        key=lambda t: t.provider_reference.entity_id,
+    )
+    assert [t.provider_reference.entity_id for t in campaign_targets] == ["5", "6"]
+    primary = ticket.inputs.reporting_window
+    comparison = ReportingWindow(
+        starts_at=primary.starts_at - timedelta(days=1), ends_at_exclusive=primary.starts_at
+    )
+    # Expected collection pin belongs to an earlier, separately closed transaction.
+    with Session(customer_engine) as db:
+        kwargs = arguments(db, ticket, principal, catalog)
+    count = 0
+
+    def counted(*args: Any, **kwargs: Any) -> Any:
+        nonlocal count
+        count += 1
+        return read_presence(*args, **kwargs)
+
+    monkeypatch.setattr(presence_report, "read_presence", counted)
+    retained_results = {}
+    for transaction_number in (1, 2):
+        with Session(customer_engine) as db:
+            db.begin()
+            with prepare_owned_window_context(db, **kwargs) as context:
+                for index, target in enumerate(campaign_targets, 1):
+                    for label, window in (("primary", primary), ("comparison", comparison)):
+                        result = context.read(target, window)
+                        assert not isinstance(result, KnownWindowGap)
+                        assert result.original.presence == header
+                        assert (
+                            result.original.presence.model_dump_json() == header.model_dump_json()
+                        )
+                        assert (
+                            result.original.native_campaign_id
+                            == target.provider_reference.entity_id
+                        )
+                        assert result.requested_window == window
+                        assert result.summary.requested_days == result.summary.returned_days == 1
+                        assert result.summary.missing_calendar_days == 0
+                        assert result.summary.selected_conversions.value == (
+                            "10" if label == "primary" else str(index)
+                        )
+                        assert result.summary.clicks.value == (
+                            100 if label == "primary" else 10 * index
+                        )
+                        key = (target.provider_reference.entity_id, label)
+                        if transaction_number == 1:
+                            retained_results[key] = result
+                        else:
+                            assert result == retained_results[key]
+                        assert count == transaction_number
+                assert len({r.original_document_digest for r in retained_results.values()}) == 2
+        assert count == transaction_number, "new transaction must parse freshly exactly once"

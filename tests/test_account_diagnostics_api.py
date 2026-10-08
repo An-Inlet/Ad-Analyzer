@@ -13,14 +13,16 @@ from app.automation.models import PlatformAutomationControl
 from app.collectors import account_diagnostics
 from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
 from app.google_connections.models import GoogleCustomerConnection
+from app.mandates.models import Mandate
 from app.meta.models import MetaConnection
 from app.publication import execution_mandates
+from app.publication.execution_models import ProviderExecutionAttempt, ProviderExecutionMandate
 from app.settings import Settings, settings
 from app.sources.models import SourceConnection
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from tests.test_commerce_measurement import NOW
@@ -31,9 +33,11 @@ from tests.test_customer_optimization_api import headers
 from tests.test_google_native_inventory import key, payloads
 from tests.test_meta_native_inventory import PRIVATE
 from tests.test_meta_native_inventory import Server as MetaServer
-from tests.test_native_diagnostic_assembly import seed
+from tests.test_planning_target_catalog_api import seed
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_tiktok_native_inventory import Server as TikTokServer
+
+pytestmark = pytest.mark.planning_boundary
 
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
@@ -74,6 +78,8 @@ def test_real_account_diagnostic_api(
     monkeypatch.setattr(settings, "customer_native_diagnostics_enabled", change != "disabled")
     request = seed(customer_engine, configuration, tmp_path, provider)
     with Session(customer_engine) as db:
+        for model in (Mandate, ProviderExecutionMandate, ProviderExecutionAttempt):
+            assert db.scalar(select(func.count()).select_from(model)) == 0
         user = db.get(CustomerUser, request.actor)
         assert user
         user.issuer, user.subject = ISSUER, "diagnostic-owner"
@@ -248,3 +254,6 @@ def test_real_account_diagnostic_api(
                 == 422
             )
         assert len(calls) == before
+    with Session(customer_engine) as db:
+        for model in (Mandate, ProviderExecutionMandate, ProviderExecutionAttempt):
+            assert db.scalar(select(func.count()).select_from(model)) == 0

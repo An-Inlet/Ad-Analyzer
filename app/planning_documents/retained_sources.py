@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount, Campaign
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
-from app.campaign_performance.presence_report import QUALIFIED_POLICY, PresenceReadContext
+from app.campaign_performance.presence_report import PresenceReadContext
 from app.campaign_performance.presence_storage import ReportingPresenceUnavailable, read_presence
 from app.campaign_performance.service import manifest, read_current
 from app.commerce.ledger import lock_store
@@ -37,6 +37,7 @@ from app.planning_documents.context import AccountRef
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.evidence_local import ordinary_meta
 from app.planning_documents.models import PlanDependencyRow
+from app.planning_documents.policy_capabilities import reporting_capability
 from app.publication import customer_intents
 from app.publication.contracts import fingerprint as source_fingerprint
 from app.shopify.security import ShopifyError, utc
@@ -303,6 +304,10 @@ def capture_retained_sources(
     db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
 ) -> tuple[RetainedSourceWitness, ...]:
     document = PlanVersion.model_validate(document)
+    try:
+        capability = reporting_capability(document.policy_version, document.generator_version)
+    except ValueError as error:
+        raise RetainedSourcesChanged("proof_unavailable") from error
     wid = document.inputs.workspace_id
     _guard(db, principal, wid, principal.user.id)
     _goal(db, document)
@@ -325,15 +330,17 @@ def capture_retained_sources(
     )
     for ref in sorted(document.inputs.accounts, key=lambda item: item.account_id):
         source_digest, digest = _reporting(
-            db, principal, ref, privacy, qualified=document.policy_version == QUALIFIED_POLICY
+            db,
+            principal,
+            ref,
+            privacy,
+            qualified=capability.local_witness_kind == "local_reporting_v2",
         )
         values.append(
             RetainedSourceWitness(
                 **common,
                 evidence_key=f"local:reporting:{ref.account_id}",
-                kind="local_reporting_v2"
-                if document.policy_version == QUALIFIED_POLICY
-                else "local_reporting_v1",
+                kind=capability.local_witness_kind,
                 account_id=ref.account_id,
                 connection_id=ref.connection_id,
                 store_id=None,

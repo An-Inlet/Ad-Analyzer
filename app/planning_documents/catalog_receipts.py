@@ -383,7 +383,17 @@ def write_catalog_receipt(
     current = _now(db, now)
     if current >= catalog.expires_at:
         raise CatalogReceiptUnavailable("expired")
-    raw = canonical(payload)
+    try:
+        raw = canonical(payload)
+    except ValueError as exc:
+        # canonical() owns the unchanged shared byte bound. Do not mislabel other
+        # serialization/validation failures as ordinary capacity exhaustion.
+        reason: Reason = (
+            "capacity_exceeded"
+            if str(exc) == "planning document exceeds bound"
+            else "integrity_unavailable"
+        )
+        raise CatalogReceiptUnavailable(reason) from exc
     existing = db.scalar(
         select(CatalogReceiptRow).where(
             CatalogReceiptRow.workspace_id == source.account.workspace_id,

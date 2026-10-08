@@ -1,3 +1,4 @@
+import {clearPlanSalesProgress,renderPlanSalesProgress} from './plan-progress.mjs';
 import {clearPlanDocument,renderPlanDocument} from './plan-document.mjs';
 import {renderPlanComparison} from './plan-comparison.mjs';
 const clearPlanComparison=host=>{host.replaceChildren();host.hidden=true;};
@@ -22,7 +23,7 @@ function changedTargetScope(){clearTargets();$('target-status').textContent='Goa
 const root=()=>`/workspaces/${encodeURIComponent(wid)}/planning/plans`;
 const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
-function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));}
+function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
 function clearEditor(){clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editExpected=null;options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
@@ -34,6 +35,7 @@ function enable(){
   $('generate').disabled=busy||pending!==null||!$('editor').hidden;
   $('generate').hidden=role!=='owner'||!read||!currentView;
   $('edit').hidden=role!=='owner'||!read;
+  $('progress-read').hidden=!read?.document||$('document').hidden;
   $('export').hidden=!read?.document;$('compare').hidden=!read?.document||read.version<2;
   $('list-next').hidden=listCursor===null;$('versions-next').hidden=versionCursor===null;
   $('events-next').hidden=eventCursor===null;
@@ -216,3 +218,16 @@ $('logout').onclick=()=>{invalidate();guarded(async turn=>{await api('/session',
 function changedSession(){if(displayCookies!==null&&document.cookie!==displayCookies){invalidate();clearSessionChoices();$('selection').hidden=true;say('Your session changed. Refresh your session before continuing.');}}
 window.addEventListener('focus',changedSession);document.addEventListener('visibilitychange',changedSession);
 guarded(loadSession,false);
+
+$('progress-read').onclick=()=>{
+  clearPlanSalesProgress($('progress'));
+  const displayed=read,documentVersion=displayed?.document,workspace=wid,plan=planId;
+  const expected={workspaceId:Number(workspace),planId:plan,version:displayed?.version,documentDigest:displayed?.document_digest,goal:documentVersion?.inputs.goal};
+  guarded(async turn=>{
+    const current=()=>read===displayed&&read?.document===documentVersion&&wid===workspace&&planId===plan&&!$('document').hidden&&read.version===expected.version&&read.document_digest===expected.documentDigest;
+    if(!documentVersion||!current())throw new Stale();
+    const response=await api(selected()+`/progress?version=${expected.version}`,turn);
+    await session(turn);check(turn);if(!current())throw new Stale();
+    renderPlanSalesProgress($('progress'),response,expected);
+  });
+};

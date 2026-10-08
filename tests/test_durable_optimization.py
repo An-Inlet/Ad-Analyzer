@@ -55,6 +55,8 @@ from tests.test_provider_execution_mandates import setup
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_optimization_http import Server
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def ready(  # type: ignore[no-untyped-def]
     db: Session,

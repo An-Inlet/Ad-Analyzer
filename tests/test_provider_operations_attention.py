@@ -4,6 +4,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.operations.attention import OVERDUE_SECONDS, ROW_LIMIT, attention
 from app.publication import coordinator as c
 from app.publication.execution_models import (
@@ -23,23 +24,35 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_provider_coordinator import GoogleServer, ready
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def test_latest_real_receipt_controls_attention_even_after_cancel_and_close(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     server = GoogleServer()
     server.timeout = True
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
-        claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
-        assert claim
+        # Seed authentic pre-MVP history; attention runs with the default policy.
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+            claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+            assert claim
+        assert advertising_capabilities.advertising_writes_enabled() is False
         held = attention(db, NOW)
         assert not [s for s in held.signals if s.code.startswith("provider_")]
         assert held.provider_held_exposure[0].observed_held_count == 1
         assert held.provider_held_exposure[1].observed_held_count == 0
-        assert c.execute_claim(db, claim, actor, store, runtime, lambda: NOW).outcome == "unknown"
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            historical_receipt = c.execute_claim(db, claim, actor, store, runtime, lambda: NOW)
+            assert historical_receipt.outcome == "unknown"
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         observed = [s for s in attention(db, NOW).signals if s.code.startswith("provider_")]
         assert len(observed) == 1 and observed[0].code == "provider_creation_unknown"
         assert observed[0].environment == "contract_test"
@@ -89,11 +102,16 @@ def test_current_production_state_and_dispatch_age_do_not_release_exposure(
     configuration: Settings,
     tmp_path: Path,
     state: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, GoogleServer())
-        claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
-        assert claim
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, GoogleServer())
+            claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: NOW)
+            assert claim
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         step = db.get(ProviderExecutionStep, (run_id, claim.request.step.step_id))
         assert step
         step.state = state

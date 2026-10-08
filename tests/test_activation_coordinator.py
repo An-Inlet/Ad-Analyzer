@@ -21,6 +21,8 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_google_activation import Server
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def runtime_for(review: r.ActivationReviewRuntime, server: Server) -> a.ActivationRuntime:
     adapter = GoogleActivationHTTP(transport=httpx.MockTransport(server))

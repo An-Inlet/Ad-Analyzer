@@ -22,6 +22,8 @@ from tests.test_google_activation import Server
 from tests.test_provider_coordinator import ready
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def activation_ready(  # type: ignore[no-untyped-def]
     db: Session, config: Settings, path: Path, server: Server, *, total_budget: bool = False

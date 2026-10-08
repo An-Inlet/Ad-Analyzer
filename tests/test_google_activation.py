@@ -26,6 +26,8 @@ from tests.test_google_publication_http import context
 from tests.test_provider_coordinator import GoogleServer
 from tests.test_provider_publication_contracts import NOW, review
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 class Server(GoogleServer):
     def __init__(self) -> None:

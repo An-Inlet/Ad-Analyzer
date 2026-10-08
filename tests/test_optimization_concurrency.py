@@ -14,6 +14,8 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_durable_optimization import ready
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def test_concurrent_workers_claim_one_native_owner_and_original_attempt(
     customer_engine: Engine,

@@ -29,6 +29,8 @@ from tests.test_durable_optimization import ready
 from tests.test_provider_settlement import qualified
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def reader(runtime: Any) -> Any:
     def qualify(db, binding, intent, before, qualification, snapshot, now):  # type: ignore[no-untyped-def]

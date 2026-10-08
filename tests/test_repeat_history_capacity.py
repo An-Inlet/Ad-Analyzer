@@ -24,6 +24,8 @@ from tests.test_provider_settlement import qualified
 from tests.test_repeat_optimization import admit, reader
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def test_exact_history_limit_rejects_successor_and_preserves_terminal_settlement(
     customer_engine: Engine,

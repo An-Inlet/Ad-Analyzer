@@ -22,6 +22,10 @@ class PlanSalesProgressV1(NoAuthority):
     as_of: AwareDatetime
     manual_application: Literal["not_assessed"] = "not_assessed"
     attribution: Literal["unavailable"] = "unavailable"
+
+    @computed_field
+    @property
+    def net_sales_micros_exact(self) -> str | None: ...
 ```
 
 Reuse the exact `document.inputs.goal`, including confirmation reference, confirmed
@@ -52,6 +56,14 @@ Required invariants:
   server/database clock. Preserve signed sales values, closed-day coverage, partial
   versus full-window extent, source revision/watermark, and all existing unavailable
   rules. Zero is not missing; corrections/refunds may reduce amounts below zero.
+- `net_sales_micros_exact` is an output-only computed field, never accepted as client
+  input or stored as a second amount. Derive it exclusively from the revalidated
+  matched `sales.net_sales_micros`: `str(value)` for an actual integer, otherwise
+  null (including unavailable binding or unavailable sales). Its canonical grammar
+  is `^(?:0|-?[1-9][0-9]*)$`: no plus sign, whitespace, exponent, leading zero or
+  negative zero. Do not derive it from a floating-point conversion, request field,
+  cached scalar or separate calculation. Preserve the nested GoalSalesProgressV1
+  contract unchanged; its existing integer can exceed JavaScript's safe range.
 - No new snapshot digest, progress-history row, imported metric default, percentage,
   forecast, achievement threshold or completed-action percentage is introduced.
   Authority fields remain exactly false/none; old goal contract remains unchanged.
@@ -124,8 +136,16 @@ UI requests the exact displayed plan/version and accepts a response only when cu
 session/workspace/plan/version/document digest still match its request epoch. Clear
 old values on navigation/logout/version switch; ignore late callbacks. Display the
 original target, closed-day prefix, as-of, currency/time zone, source watermark and
-unavailability reasons literally. Use exact monetary formatting, including zero and
-negative values. Label it current observed Shopify merchandise net sales, not plan
+unavailability reasons literally. Read sales amounts only from the canonical
+`net_sales_micros_exact` string, validate its grammar, and format signed `BigInt`
+micros using integer quotient/remainder with the actual currency display rules.
+Never convert that amount through `Number`, floating-point division, percentages or
+locale formatting that first coerces to Number. `response.json()` may round the old
+nested integer, so it must never be used for monetary display or to regenerate the
+exact string. Preserve null versus zero, negative values and fractional micros;
+reject noncanonical strings rather than guessing an amount. The original goal target
+is bounded at1e15 micros and remains safely representable; this does not impose a
+new bound on the existing signed sales metric. Use exact monetary formatting. Label it current observed Shopify merchandise net sales, not plan
 performance, action impact or achieved milestone. An expired plan may show both its
 separate stale-plan notice and current matched-goal sales without implying validity.
 
@@ -142,6 +162,11 @@ an acquisition job, publishes a campaign, or records an application assertion.
 1. Pure contract tests: copied nested unsafe values, wrong plan/document/goal/revision,
    mismatched fingerprint domains/store/window/target, status-null consistency, false
    authority flags, zero/negative amounts and partial/full closed-day coverage.
+   Computed output tests cover both signs beyond2^53, exact zero, null/unavailable,
+   canonical strings without negative zero, and rejection of a supplied computed
+   field as input. UI tests use actual JSON with an unsafe nested integer plus the
+   correct exact string; verify display follows the string without rounding. Reject
+   malformed exact strings and never fall back to the unsafe nested numeric value.
 2. Both-DB real service/API: create confirmed goal and generated plan through actual
    current paths; later closed-day ledger additions and same-period corrections
    appear without rewriting the saved PlanVersion. Existing ads report acquisition

@@ -231,47 +231,60 @@ def test_correction_reference_and_sparse_campaign_are_not_historical_or_zero(
             )
 
 
-def test_actual_0074_immutable_metadata_and_owned_reference(
-    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.fixture
+def actual_0074_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Install actual0074 DDL before any newer dependent table exists.
+
+    The customer_engine fixture remains responsible for isolated SQLite/PG engines.
+    Only this test's create_all call is staged; current importer hooks subsequently
+    see the complete current schema, without invoking unrelated old downgrades.
+    """
     import importlib
 
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
+    from sqlalchemy import inspect
+
+    migration = importlib.import_module("migrations.versions.20261006_0074_campaign_performance")
+    tables = Base.metadata.tables
+    target_names = {"campaign_performance_completions", "campaign_performance_current"}
+    ancestors: set[str] = set()
+    pending = list(target_names)
+    while pending:
+        for foreign_key in tables[pending.pop()].foreign_keys:
+            name = foreign_key.column.table.name
+            if name not in target_names and name not in ancestors:
+                ancestors.add(name)
+                pending.append(name)
+    create_all = Base.metadata.create_all
+
+    def staged_create_all(engine: Engine) -> None:
+        create_all(engine, tables=[tables[name] for name in sorted(ancestors)])
+        with engine.begin() as connection:
+            if engine.dialect.name == "sqlite":
+                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+                assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
+            assert not target_names.intersection(inspect(connection).get_table_names())
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
+                assert target_names.issubset(inspect(connection).get_table_names())
+                migration.downgrade()
+                assert not target_names.intersection(inspect(connection).get_table_names())
+                migration.upgrade()
+        # Existing target tables keep migration-created FKs/triggers; the model
+        # creates only missing tables for current import/invalidation hooks.
+        create_all(engine)
+
+    monkeypatch.setattr(Base.metadata, "create_all", staged_create_all)
+
+
+@pytest.mark.usefixtures("actual_0074_schema")
+def test_actual_0074_immutable_metadata_and_owned_reference(
+    customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from sqlalchemy import update
     from sqlalchemy.exc import DBAPIError
 
-    migration = importlib.import_module("migrations.versions.20261006_0074_campaign_performance")
-    observations = importlib.import_module("migrations.versions.20261006_0075_initial_planning")
-    reviews = importlib.import_module("migrations.versions.20261006_0076_initial_preview_review")
-    feedback = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
-    revisions = importlib.import_module(
-        "migrations.versions.20261007_0078_reported_preview_revisions"
-    )
-    proofs = importlib.import_module("migrations.versions.20261007_0081_initial_execution_proof")
-    rules = importlib.import_module("migrations.versions.20261007_0083_reported_rule_dependencies")
-    with customer_engine.begin() as connection:
-        if customer_engine.dialect.name == "sqlite":
-            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
-        # Exercise historical DDL only after removing its newer dependent schema.
-        # Restore the current schema before invoking current importer hooks.
-        with Operations.context(MigrationContext.configure(connection)):
-            rules.downgrade()
-            proofs.downgrade()
-            revisions.downgrade()
-            feedback.downgrade()
-            reviews.downgrade()
-            observations.downgrade()
-        Base.metadata.tables["campaign_performance_current"].drop(connection)
-        Base.metadata.tables["campaign_performance_completions"].drop(connection)
-        with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
-            observations.upgrade()
-            reviews.upgrade()
-            feedback.upgrade()
-            revisions.upgrade()
-            proofs.upgrade()
-            rules.upgrade()
     with Session(customer_engine) as db:
         source, actor, auth, _, _, _, runner = setup(db, configuration, monkeypatch)
         cid = finish(db, source, runner)
@@ -290,21 +303,3 @@ def test_actual_0074_immutable_metadata_and_owned_reference(
         assert db.get(CurrentPerformance, source.account_id, populate_existing=True) is None
         with pytest.raises(HTTPException):
             service.read_current(db, source.workspace_id, actor, source.account_id, cid, None, auth)
-    with (
-        customer_engine.begin() as connection,
-        Operations.context(MigrationContext.configure(connection)),
-    ):
-        rules.downgrade()
-        proofs.downgrade()
-        revisions.downgrade()
-        feedback.downgrade()
-        reviews.downgrade()
-        observations.downgrade()
-        migration.downgrade()
-        migration.upgrade()
-        observations.upgrade()
-        reviews.upgrade()
-        feedback.upgrade()
-        revisions.upgrade()
-        proofs.upgrade()
-        rules.upgrade()

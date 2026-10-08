@@ -112,6 +112,8 @@ class PlanInputRevision(NoAuthority):
     assumptions: tuple[CustomerAssumption, ...] = Field(max_length=30)
     excluded_entity_keys: tuple[Digest, ...] = Field(max_length=100)
     fixed_allocations: tuple["FixedAllocation", ...] = Field(max_length=100)
+    scenario_intents: tuple["CustomerScenarioIntent", ...] = Field(max_length=8)
+    maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
     created_by: Id
     created_at: AwareDatetime
 
@@ -141,6 +143,22 @@ class PlanInputRevision(NoAuthority):
             for a in self.fixed_allocations
         ):
             raise ValueError("fixed allocation must use included owned target")
+        unique(tuple(s.key for s in self.scenario_intents), "scenario intent")
+        for scenario in self.scenario_intents:
+            if (
+                sum(a.amount_micros for a in scenario.allocations) + scenario.unallocated_micros
+                != self.total_ceiling_micros
+            ):
+                raise ValueError("customer scenario must reconcile to confirmed ceiling")
+            if any(
+                a.target.account not in self.accounts
+                or a.target.canonical_entity_key in self.excluded_entity_keys
+                for a in scenario.allocations
+            ):
+                raise ValueError("customer scenario target not selected")
+            for fixed in self.fixed_allocations:
+                if fixed not in scenario.allocations:
+                    raise ValueError("customer scenario must preserve fixed allocation")
         if self.reporting_window.ends_at_exclusive > self.created_at:
             raise ValueError("reporting window cannot include future time")
         if (
@@ -232,6 +250,28 @@ class AccountTarget(Frozen):
 class FixedAllocation(Frozen):
     target: TargetRef
     amount_micros: Amount
+
+
+class CustomerScenarioIntent(Frozen):
+    key: Key
+    title: Title
+    allocations: tuple[FixedAllocation, ...] = Field(max_length=100)
+    unallocated_micros: Amount
+    provenance: Literal["customer_supplied_hypothesis"] = "customer_supplied_hypothesis"
+    semantics: Literal["independent_alternative"] = "independent_alternative"
+
+    @model_validator(mode="after")
+    def unique_targets(self) -> "CustomerScenarioIntent":
+        unique(tuple(a.target.canonical_entity_key for a in self.allocations), "scenario target")
+        unique(
+            tuple(
+                (a.target.account.account_id, a.target.budget_owner_key)
+                for a in self.allocations
+                if a.target.budget_owner_key is not None
+            ),
+            "scenario shared owner",
+        )
+        return self
 
 
 PlanInputRevision.model_rebuild()

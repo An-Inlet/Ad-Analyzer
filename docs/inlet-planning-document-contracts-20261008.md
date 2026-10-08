@@ -54,3 +54,33 @@ Final successor checks:
 
 Still pure schema work. No API/persistence, DB/browser/live test or quality claim.
 Independent repair closure remains required before implementation dependencies.
+
+## Composition Ports And Customer Alternatives
+
+Added concrete server-only ticket/bundle/reader/composer policy contracts; reviewed actual
+catalog and existing performance/progress documents reused without execution anchors.
+Customer alternative allocation inputs/output provenance are typed and independently
+reconciled, including Q05 preservation. Native/source summaries and performance targets
+are checked; no missing-conversion zero qualification, no invented measurement TTL.
+
+Final checks for this ports candidate:
+- focused contracts + ports pytest: **59 passed in 0.43s** (no DB/browser/provider calls).
+- whole Ruff and mypy: passed, **1021 source files**.
+- `git diff --check`: passed.
+
+Intermediate forward-reference import and mypy union/local-variable errors corrected;
+no failed result hidden. Interface candidate awaits root/independent review before0087
+implementation. Full trusted adapter/composer/resolver acceptance still outstanding.
+
+## Evidence Port Review Repair Successor
+
+Fixed requested primary/comparison performance window binding; derived commerce summary
+and exact confirmed definition/domain digest; no coverage upgrade; finite nonnegative
+TikTok generic decimals; normalized invalid timezone rejection; exact policy artifact
+pin. Native and reported source digest domains remain separate and final DB-only adapter
+recheck is explicit. Source content/current generation proof remains service work.
+
+Final focused contracts/ports: **69 passed**; whole Ruff/mypy **1021 files** passed.
+Ten additional parameterized cases cover repaired boundaries. Intermediate new commerce
+fixture incorrectly preceded its reporting end; fixture chronology corrected without
+changing production constraints. `git diff --check` passed. No DB/live qualification.

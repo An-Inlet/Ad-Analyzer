@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+from app import advertising_capabilities
 from app.api.customer_activity import REVISION_LIMIT, activity, router
 from app.campaign_review.models import CampaignDraft, CampaignRevision
 from app.customers.access import CustomerPrincipal
@@ -29,6 +31,8 @@ from tests.test_customer_identity import (
 )
 from tests.test_provider_coordinator import GoogleServer, ready
 from tests.test_shopify_sales import configuration as configuration
+
+pytestmark = pytest.mark.planning_boundary
 
 NOW = datetime(2026, 10, 6, tzinfo=UTC)
 PRIVATE = "private-payload-token@example.invalid"
@@ -117,15 +121,24 @@ def test_owned_bounded_persisted_history_and_revocation(
 
 
 def test_latest_validated_provider_receipt_and_corruption(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     server = GoogleServer()
     server.timeout = True
     with Session(customer_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
-        claim = c.claim_creation_step(db, wid, run_id, actor, store, runtime, lambda: PROVIDER_NOW)
-        assert claim
-        c.execute_claim(db, claim, actor, store, runtime, lambda: PROVIDER_NOW)
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, server)
+            claim = c.claim_creation_step(
+                db, wid, run_id, actor, store, runtime, lambda: PROVIDER_NOW
+            )
+            assert claim
+            c.execute_claim(db, claim, actor, store, runtime, lambda: PROVIDER_NOW)
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         user = db.get(CustomerUser, actor)
         assert user
         principal = CustomerPrincipal(user, CustomerSession())

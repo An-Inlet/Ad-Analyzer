@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.customers.models import CustomerMembership
 from app.lifecycle.contracts import LifecycleInputV1, LifecycleScopeV1
 from app.lifecycle.export_serializers import serialize
@@ -24,18 +25,26 @@ from tests.test_customer_lifecycle import NOW, seed
 from tests.test_provider_coordinator import GoogleServer, ready
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def test_owned_execution_json_export_is_complete_and_strict(
-    export_engine: Engine, configuration: Settings, tmp_path: Path
+    export_engine: Engine, configuration: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     with Session(export_engine) as db:
-        wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, GoogleServer())
-        claim = coordinator.claim_creation_step(
-            db, wid, run_id, actor, store, runtime, lambda: PROVIDER_NOW
-        )
-        assert claim is not None
-        receipt = coordinator.execute_claim(db, claim, actor, store, runtime, lambda: PROVIDER_NOW)
-        assert receipt.outcome == "verified_effect"
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, run_id, actor, store, runtime = ready(db, configuration, tmp_path, GoogleServer())
+            claim = coordinator.claim_creation_step(
+                db, wid, run_id, actor, store, runtime, lambda: PROVIDER_NOW
+            )
+            assert claim is not None
+            receipt = coordinator.execute_claim(
+                db, claim, actor, store, runtime, lambda: PROVIDER_NOW
+            )
+            assert receipt.outcome == "verified_effect"
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         captured = dict(db.execute(select(GoogleOriginalCompletion.__table__)).mappings().one())
         for field in ("fence", "request_digest"):
             _, missing = serialize(

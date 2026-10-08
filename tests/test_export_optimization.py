@@ -5,6 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import pytest
+from app import advertising_capabilities
 from app.campaign_review.storage import LocalMediaStore
 from app.lifecycle.export_serializers import serialize
 from app.publication import optimization as o
@@ -20,26 +21,36 @@ from tests.test_durable_optimization import ready
 from tests.test_export_owned_domains import authorize_export
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
 def test_actual_optimization_then_archive(
-    export_engine: Engine, configuration: Settings, tmp_path: Path, provider: str
+    export_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    provider: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(export_engine) as db:
-        wid, actor, binding, scope, target, action, runtime, server = ready(
-            db, configuration, tmp_path, provider
-        )
-        review = o.prepare_optimization(
-            db, wid, binding, scope, target, action, "a" * 64, actor, runtime, lambda: NOW
-        )
-        o.approve_optimization(
-            db, wid, review.id, review.digest, review.plan_digest, actor, runtime, lambda: NOW
-        )
-        run = o.create_run(db, wid, review.id, actor, runtime, lambda: NOW)
-        claim = o.claim_step(db, wid, run.id, actor, runtime, lambda: NOW)
-        assert claim is not None
-        receipt = o.execute_claim(db, claim, actor, runtime, lambda: NOW)
-        assert receipt.outcome == "verified_target_state"
+        with monkeypatch.context() as historical:
+            historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+            wid, actor, binding, scope, target, action, runtime, server = ready(
+                db, configuration, tmp_path, provider
+            )
+            review = o.prepare_optimization(
+                db, wid, binding, scope, target, action, "a" * 64, actor, runtime, lambda: NOW
+            )
+            o.approve_optimization(
+                db, wid, review.id, review.digest, review.plan_digest, actor, runtime, lambda: NOW
+            )
+            run = o.create_run(db, wid, review.id, actor, runtime, lambda: NOW)
+            claim = o.claim_step(db, wid, run.id, actor, runtime, lambda: NOW)
+            assert claim is not None
+            receipt = o.execute_claim(db, claim, actor, runtime, lambda: NOW)
+            assert receipt.outcome == "verified_target_state"
+        with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+            advertising_capabilities.require_advertising_write()
         assert len(server.writes if provider == "google_ads" else server.posts) == 1
         authority = authorize_export(db, export_engine, wid)
     authority.claim()

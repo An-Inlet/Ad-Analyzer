@@ -101,7 +101,15 @@ actor/time/sequence and verifies referenced prior event belongs to this plan/act
    **Review point:** existing `lock_customer_mutation` performs identity-provider IO after
    acquiring locks; this proposal splits that sequence locally, not globally. A stale
    external result is never reused across evidence IO. Final provider check occurs again
-   before the commit transaction, with expiry checked after waiting for locks.
+   before the commit transaction, with expiry checked after waiting for locks. Capture
+   a one-shot private identity-check fact (issuer/subject/user ID/session digest,
+   authenticated_at, monotonic completion instant); never persist it or pass it to a
+   client/composer. Require an explicit bounded `authority_max_age` in the reviewed
+   service operational policy, capped by remaining session validity and any identity
+   verifier validity bound. No default or extension is selected here. If its age exceeds
+   that bound after lock acquisition, rollback and require a fresh check outside locks;
+   never hold locks while refreshing. This is a remaining policy field to freeze before
+   service implementation, not a cached cross-request provider decision.
 3. Prepare locks canonical workspace→user/session/membership→plan→goal→owned source
    order, verifies active workspace, entitlement, expected heads and exact current goal:
    `goals.owned/current/expect`, `goal.confirmed_preview_id`, preview goal/revision,

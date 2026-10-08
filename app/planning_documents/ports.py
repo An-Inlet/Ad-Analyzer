@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, Protocol
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
@@ -26,6 +26,7 @@ from app.planning_documents.common import (
 )
 from app.planning_documents.context import AccountRef, EvidenceRef, PlanInputRevision, TargetRef
 from app.planning_documents.documents import PlanVersion
+from app.publication.contracts import fingerprint as source_fingerprint
 
 
 class SourceFence(Frozen):
@@ -49,6 +50,7 @@ class GenerationTicket(NoAuthority):
     privacy_revision: int = Field(strict=True, ge=0)
     sources: tuple[SourceFence, ...] = Field(min_length=1, max_length=MAX_ACCOUNTS)
     policy_version: Text
+    policy_digest: Digest
     prepared_at: AwareDatetime
 
     @model_validator(mode="after")
@@ -173,6 +175,9 @@ class PerformanceEvidence(Frozen):
             self.document.conversions,
             self.document.cpa_micros,
             self.document.reported_roas,
+            self.document.reported_generic_conversions
+            if isinstance(self.document, CampaignPerformanceV2)
+            else None,
         ):
             if raw is not None:
                 try:
@@ -182,7 +187,10 @@ class PerformanceEvidence(Frozen):
                 if not value_decimal.is_finite() or value_decimal < 0:
                     raise ValueError("invalid reported decimal")
         window = self.reference.reporting_window
-        zone = ZoneInfo(self.document.time_zone)
+        try:
+            zone = ZoneInfo(self.document.time_zone)
+        except (ValueError, ZoneInfoNotFoundError):
+            raise ValueError("invalid reported time zone") from None
         expected_start = datetime.combine(self.document.starts_on, time.min, zone)
         expected_end = datetime.combine(self.document.ends_on + timedelta(days=1), time.min, zone)
         if (
@@ -208,6 +216,11 @@ class PerformanceEvidence(Frozen):
             raise ValueError(
                 "reported conversion qualification requires positive explicit-event evidence"
             )
+        expected_coverage = (
+            "partial" if self.completeness == "reported_rows_only" else "unavailable"
+        )
+        if self.reference.coverage != expected_coverage:
+            raise ValueError("reported row coverage cannot be upgraded")
         if self.completeness == "reported_rows_only" and not self.document.campaign_rows_available:
             raise ValueError("missing campaign rows")
         if (
@@ -242,6 +255,44 @@ class CommerceEvidence(Frozen):
             "goal-progress", self.document.model_dump(mode="json")
         ):
             raise ValueError("exact commerce document digest required")
+        document, reference = self.document, self.reference
+        coverage = document.coverage
+        expected_coverage = (
+            "unavailable"
+            if document.status != "available_as_of"
+            else "complete_in_declared_scope"
+            if coverage is not None and coverage.extent == "full_window_as_of"
+            else "partial"
+        )
+        expected_reasons = (
+            document.reasons
+            if document.status != "available_as_of"
+            else ("partial_goal_window",)
+            if expected_coverage == "partial"
+            else ()
+        )
+        if (
+            reference.reasons != expected_reasons
+            or reference.document_schema != document.schema_version
+            or reference.observation_started_at != document.as_of
+            or reference.observed_at != document.as_of
+            or reference.coverage != expected_coverage
+            or reference.source_revision
+            != (
+                str(document.source_revision)
+                if document.source_revision is not None
+                else "unavailable"
+            )
+            or (coverage is None) != (reference.reporting_window is None)
+        ):
+            raise ValueError("commerce summary differs from actual progress")
+        if (
+            coverage is not None
+            and reference.reporting_window is not None
+            and (reference.reporting_window.starts_at, reference.reporting_window.ends_at_exclusive)
+            != (coverage.starts_at, coverage.ends_at_exclusive)
+        ):
+            raise ValueError("commerce coverage window changed")
         return self
 
 
@@ -331,6 +382,11 @@ class EvidenceBundle(NoAuthority):
             "performance campaign/window",
         )
         for performance in self.performance:
+            if performance.reference.reporting_window not in (
+                ticket.inputs.reporting_window,
+                ticket.inputs.comparison_window,
+            ):
+                raise ValueError("performance window was not requested")
             actual_catalog = catalog_by_account.get(performance.target.account.account_id)
             if actual_catalog is None:
                 raise ValueError("performance requires corresponding catalog")
@@ -368,7 +424,10 @@ class EvidenceBundle(NoAuthority):
             if isinstance(context.document, PlanInputRevision):
                 if context.document.digest() != ticket.inputs.digest():
                     raise ValueError("customer context differs from exact inputs")
-            elif context.document.version != ticket.policy_version:
+            elif (
+                context.document.version != ticket.policy_version
+                or context.document.digest() != ticket.policy_digest
+            ):
                 raise ValueError("planning policy version changed")
         unique(tuple(c.reference.kind for c in self.context), "context kind")
         if self.context:
@@ -390,6 +449,19 @@ class EvidenceBundle(NoAuthority):
                 ticket.inputs.goal.revision,
             ):
                 raise ValueError("commerce evidence goal changed")
+            definition = ticket.inputs.goal.definition
+            if (
+                goal.definition_digest
+                != source_fingerprint(
+                    "inlet.goal-progress-definition.v1", definition.model_dump(mode="json")
+                )
+                or goal.store_id != definition.store_id
+                or goal.target_micros != definition.target_micros
+                or goal.target_window != definition.target_window
+                or goal.currency != definition.target_window.currency
+                or goal.time_zone != definition.target_window.time_zone
+            ):
+                raise ValueError("commerce confirmed definition changed")
         unique(tuple(ref.key for ref in references), "bundle evidence")
         unique(
             tuple(c.catalog.metadata_observation.account_id for c in self.catalogs),

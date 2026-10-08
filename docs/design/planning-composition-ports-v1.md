@@ -61,3 +61,25 @@ Customer `maximum_creative_assets` is an optional strict integer0..30 (operation
 brief bound); absent means unknown capacity, not unlimited asserted ability. Total
 required asset items across briefs may not exceed an explicit capacity. No generated
 media references or production capacity is inferred from freeform constraints.
+
+## Port Review Repairs
+
+GenerationTicket now pins the exact configured `policy_digest`, not only its version.
+Performance windows must be exactly the requested primary or comparison window; a
+valid unrelated historical report is insufficient. Reported-row coverage is partial,
+never complete. TikTok generic conversion strings must be finite and nonnegative;
+invalid timezone names become validation errors. Commerce reference schema/as-of/
+coverage/status/reasons/revision/reporting window derive from actual progress, and
+bundle binding compares exact confirmed store/target/window/currency/timezone and the
+existing `inlet.goal-progress-definition.v1` fingerprint domain.
+
+Native source fences and reported performance source manifests are distinct domains;
+no equality between them is invented. Adapter and final DB-only resolver must pin actual
+owned CurrentPerformance completion ID, generation, manifest, window and native campaign
+mapping, independently of the native catalog fence. Commerce requires exact owned goal/
+store/source revision/watermark/privacy plus fresh time-dependent coverage/staleness
+checks. Private service signature agreed with adapter lane:
+`recheck_local_sources(db, *, principal, ticket, bundle, now) -> None`. It performs no
+provider IO, commit or rollback; every mismatch aborts the transaction. Caller invokes
+it under current authority/source locks, then checks final five-second authority age
+before atomic writes. Bare payload hashes never replace this resolver.

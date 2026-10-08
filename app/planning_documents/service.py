@@ -22,8 +22,6 @@ from app.planning_documents.catalog_receipts import (
     resolve_input_catalogs,
 )
 from app.planning_documents.composer import (
-    GENERATOR_VERSION,
-    POLICY_VERSION,
     DescriptivePlanComposer,
     PlanCompositionUnavailable,
 )
@@ -104,7 +102,7 @@ class PlanningDocumentService:
         self.provider = provider
         self.clock = clock
         self.policy = PlanningCompositionPolicy(
-            version=POLICY_VERSION, generator_version=GENERATOR_VERSION
+            version="inlet.descriptive-review.v3", generator_version="inlet.descriptive-planning.v3"
         )
         self.composer = DescriptivePlanComposer()
         self.window_composer = WindowPlanComposer()

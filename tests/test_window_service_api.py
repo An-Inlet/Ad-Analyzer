@@ -1,4 +1,4 @@
-"""Explicit canonical V3 through genuine API inputs, import, composition and persistence."""
+"""Default canonical V3 through genuine API inputs, import, composition and persistence."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,13 +29,12 @@ from tests.window_service_fixture import configure_paid_workspace, import_meta_w
 pytestmark = pytest.mark.planning_boundary
 
 
-def configure_v3(monkeypatch: pytest.MonkeyPatch) -> None:
+def require_default_v3(monkeypatch: pytest.MonkeyPatch) -> None:
     original = api.service
 
     def configured(*args: Any, **kwargs: Any) -> PlanningDocumentService:
         service = original(*args, **kwargs)
-        assert service.policy.version == "inlet.descriptive-review.v2"
-        service.policy = PlanningCompositionPolicy(
+        assert service.policy == PlanningCompositionPolicy(
             version="inlet.descriptive-review.v3", generator_version="inlet.descriptive-planning.v3"
         )
         return service
@@ -60,7 +59,7 @@ def test_actual_56day_import_to_owned_primary_comparison_plan(
     )
     runtime, header, end = source.runtime, source.header, source.ends_at
     wid = ticket.inputs.workspace_id
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
 
     alice, _, _ = replicas
     alice.app.include_router(api.router)
@@ -187,7 +186,7 @@ def test_owned_api_all_three_catalogs_and_explicit_per_window_gaps(
         customer_engine, configuration, replicas, monkeypatch, platform
     )
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     root = f"/api/customer/v1/workspaces/{ticket.inputs.workspace_id}/planning/plans"
@@ -294,7 +293,7 @@ def test_actual_api_change_after_real_composition_rolls_back_entire_generation(
     aid, wid = ticket.inputs.accounts[0].account_id, ticket.inputs.workspace_id
     install_presence(customer_engine, aid)
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     root = f"/api/customer/v1/workspaces/{wid}/planning/plans"
@@ -416,7 +415,7 @@ def test_real_postgres_final_goal_lock_wait_expires_authority(
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     root = f"/api/customer/v1/workspaces/{ticket.inputs.workspace_id}/planning/plans"
@@ -513,7 +512,7 @@ def test_actual_api_saved_receipt_reuse_and_final_original_expiry(
     )
     install_presence(customer_engine, ticket.inputs.accounts[0].account_id)
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     alice.app.include_router(customer_planning_target_catalog.router)
@@ -624,7 +623,7 @@ def test_actual_api_gap_to_available_invalidates_retained_proof_and_new_generati
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     root = f"/api/customer/v1/workspaces/{ticket.inputs.workspace_id}/planning/plans"
@@ -689,7 +688,7 @@ def test_closed_policy_dispatch_never_falls_back_or_accepts_sibling_evidence(
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     root = f"/api/customer/v1/workspaces/{ticket.inputs.workspace_id}/planning/plans"
@@ -765,7 +764,7 @@ def test_actual_service_identity_and_native_io_are_outside_sql_transactions(
         customer_engine, configuration, replicas, monkeypatch, "meta_ads"
     )
     configure_paid_workspace(customer_engine, ticket.inputs.workspace_id, monkeypatch)
-    configure_v3(monkeypatch)
+    require_default_v3(monkeypatch)
     alice = replicas[0]
     alice.app.include_router(api.router)
     active: set[int] = set()

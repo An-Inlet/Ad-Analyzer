@@ -142,9 +142,10 @@ do not reuse an earlier provider decision or original collection objects as auth
 For each selected account, create a **fresh** owned context under retained locks and
 recompute the original full account pin before any cache hit. Reconstruct every exact
 success and every reader gap; compare full projection fingerprints or exact reason,
-account, target and UTC-normalized window. For absent/empty catalogs, verify the
-actual validated catalog/gap predicate through the unchanged owned catalog/source
-and receipt checks, not a caller explanation string. Require the complete exact slot
+account, target and UTC-normalized window. For an empty retained catalog, verify its exact validated zero-campaign scope and
+owned source/receipt bindings. An external collection-time `catalog_unavailable`
+result is different: apply the collection-gap rules below; do not claim to re-prove
+current provider absence in a DB-only transaction. Require the complete exact slot
 set again. A former gap becoming available is a change, not permission to accept a
 subset. Changes outside both requested slices still alter the full source pin.
 
@@ -269,3 +270,81 @@ ceilings, creative facts/hypotheses and zero-ad-write policy remain unchanged.
 These are proposed implementation seams and acceptance requirements, not completed
 behavior. Source-window availability and descriptive comparison do not establish
 optimized allocations, expert recommendation quality or causal sales performance.
+
+
+## Addendum: Collection-Time Catalog Failure Is Not Current Provider Absence
+
+A `catalog_unavailable` window gap means only that this operation's authorized
+collector returned an explicitly allowed unavailable outcome. It does not assert
+that the provider currently has no campaigns or is still unavailable. Generic HTTP,
+authorization, corruption, capacity or source errors still abort; do not convert
+those exceptions into the allowed outcome. `no_catalog_campaigns` instead derives
+from an actual validated catalog's declared native scope, not global absence.
+
+The adapter constructs the catalog EvidenceGap and corresponding window gaps
+server-side in the same collect call. The transient WindowEvidenceBundleV1 binds
+operation_id, exact input_digest, privacy revision and exact selected accounts;
+assert_ticket binds these to the genuine GenerationTicket, whose actor/session and
+source fences came from the authenticated service. Keep the exact collected bundle
+inside the service call, never deserialize it from a client or reconstruct it from
+an explanation string. Final account reporting-pin equality additionally protects
+local reporting/source state, not native provider availability. These are trusted
+in-process provenance boundaries, not a cryptographic attestation that arbitrary
+DTO construction can establish.
+
+A collection-time catalog gap creates no fabricated catalog observation, expiry or
+source digest. At least one real successful catalog is still required by this first
+adapter/composer path. All-catalogs-unavailable aborts because there is no actual
+native deadline; do not invent a TTL or persist an otherwise unbounded gap-only plan.
+The whole bundle/candidate uses the actual minimum successful catalog/evidence
+deadline and final current time checks. An unavailable account's gap remains tied to
+its original selected source fence and full reporting pin, plus this operation's
+other real evidence deadline. It does not borrow another account's ownership proof.
+
+The DB-only final recheck can repeat original actor/session, input/head CAS, current
+membership/paid-work, goal, privacy, exact selected account/integration/source fence,
+full reporting pin and saved receipt checks. It can compare the unchanged trusted
+collection gap's account/window/reason slots and its operation/input binding. It
+**cannot** repeat the external collector outcome or prove continued native
+unavailability; no hidden provider call or blanket currentness claim is permitted.
+Retained history preserves grouped text explicitly labeled `catalog collection
+unavailable when this plan was prepared`, not `provider currently unavailable`.
+Retained local witnesses detect local changes only. This package adds no separate
+durable native-failure receipt: immutable plan inputs, evidence references, grouped
+gap text and existing source witnesses are the retained artifact, while the exact
+operation-bound bundle is transient. A future need for independent durable provider
+failure attestation requires a separately reviewed contract, not an inferred proof.
+
+## Addendum: Real-Ticket Seam For Pure V3 Composition
+
+Recommend the narrow explicit real-ticket parameter rather than splitting validation
+and risking drift in the new bundle's exact-slot invariants:
+
+```python
+class WindowPlanComposer:
+    def compose(self, *, ticket: GenerationTicket,
+                evidence: WindowEvidenceBundleV1,
+                policy: PlanningCompositionPolicy,
+                generated_at: datetime) -> PlanVersion: ...
+```
+
+The service passes its actual prepared ticket unchanged. The pure composer revalidates
+ticket, evidence and policy; requires exact configured policy version/digest and
+canonical v3 capability; calls evidence.assert_ticket(ticket); and derives inputs,
+version=expected_version+1, parent_digest=expected_parent_digest and generated_by=
+actor_id directly from the ticket. It receives no independently conflicting copies
+of those fields and fabricates neither ticket nor legacy bundle. It still performs
+current generated_at versus evidence expiry checks; pure validation does not check
+live session/ownership and does not replace the final DB authority boundary.
+
+For v1/v2, keep the existing DescriptivePlanComposer signature and behavior unchanged.
+Service dispatch calls either that legacy composer or this ticket-aware v3 composer;
+there is no requirement that these two signatures share one structural Protocol.
+Revise the earlier proposed GenerationComposer protocol accordingly: use separate
+LegacyGenerationComposer (existing signature) and WindowGenerationComposer (above),
+or explicit concrete factories at the service dispatch site. The shared evidence
+union remains useful for repository/recheck annotations, but does not justify a
+fake uniform composer call. Any future uniform orchestrator must itself accept the
+real ticket and explicitly adapt its scalar fields to the legacy call, without
+constructing a new ticket. This is the recommended minimal interface to freeze
+before implementation.

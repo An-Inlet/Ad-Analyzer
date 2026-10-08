@@ -74,6 +74,8 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             created_at=document.created_at,
         )
     elif isinstance(document, PlanVersion):
+        if any(ref.privacy_revision != row["privacy_revision"] for ref in document.evidence):
+            raise ValueError("planning version privacy binding mismatch")
         expected = dict(
             workspace_id=document.inputs.workspace_id,
             plan_id=document.inputs.plan_id,

@@ -367,3 +367,33 @@ def test_actual_archive_includes_planning_graph_and_privacy_fences_delivery(
             authority.check()
     finally:
         file.close()
+
+
+def test_stored_version_privacy_scalar_and_mixed_evidence_are_rejected() -> None:
+    from app.planning_documents.storage import document_for_row
+
+    document = PlanVersion.model_validate(packet())
+    row = dict(
+        workspace_id=document.inputs.workspace_id,
+        plan_id=document.inputs.plan_id,
+        version=1,
+        input_revision=1,
+        parent_digest=None,
+        digest=document.digest(),
+        canonical_json=canonical(document),
+        generator_version=document.generator_version,
+        policy_version=document.policy_version,
+        actor_id=document.generated_by,
+        generated_at=document.generated_at,
+        valid_until=document.valid_until,
+        privacy_revision=1,
+    )
+    with pytest.raises(ValueError, match="privacy binding"):
+        document_for_row("planning_document_versions", row)
+    other = document.evidence[0].model_copy(update={"key": "other", "privacy_revision": 1})
+    mixed = PlanVersion.model_validate(
+        document.model_copy(update={"evidence": (*document.evidence, other)})
+    )
+    row.update(privacy_revision=0, canonical_json=canonical(mixed), digest=mixed.digest())
+    with pytest.raises(ValueError, match="privacy binding"):
+        document_for_row("planning_document_versions", row)

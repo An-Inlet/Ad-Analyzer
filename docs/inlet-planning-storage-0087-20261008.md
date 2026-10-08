@@ -37,3 +37,8 @@ not a customer-generated plan or authorization. Next: reviewed one-shot five-sec
 local authority + create/revise/current-head service, trusted generation orchestration,
 exact event chains and read/export access with both-DB races. Adapter recheck remains
 mandatory before final commit; provider/source callbacks must run outside row locks.
+
+Independent review repair: stored version `privacy_revision` now must equal every
+canonical evidence reference privacy revision during load/export. Both a tampered scalar
+and mixed canonical evidence with recomputed digest are rejected. Focused two-case repair
+cohort passed; whole Ruff/mypy1027 passed before starting the separate authority/DTO WIP.

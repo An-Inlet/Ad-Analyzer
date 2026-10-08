@@ -23,6 +23,7 @@ MODEL_MODULES = (
     "app.customer_context.models",
     "app.customers.models",
     "app.goals.models",
+    "app.planning_documents.models",
     "app.google_connections.models",
     "app.imports.models",
     "app.intelligence.models",

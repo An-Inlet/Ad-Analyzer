@@ -160,9 +160,20 @@ def export_section(
     ).mappings()
     try:
         for row in result:
-            projected = {key: scalar(value) for key, value in row.items()}
+            from app.planning_documents.storage import (
+                MAX_PLANNING_ROW_BYTES,
+                PLANNING_TABLES,
+                export_row,
+            )
+
+            projected = (
+                export_row(name, dict(row))
+                if name in PLANNING_TABLES
+                else {key: scalar(value) for key, value in row.items()}
+            )
+            row_limit = MAX_PLANNING_ROW_BYTES if name in PLANNING_TABLES else MAX_ROW_BYTES
             size = len(json.dumps(projected, allow_nan=False).encode())
-            if size > MAX_ROW_BYTES:
+            if size > row_limit:
                 raise ValueError("export row exceeds bound")
             if len(rows) == limit or measured + size > MAX_SECTION_BYTES:
                 truncated = True

@@ -35,7 +35,7 @@ from tests.test_shopify_sales import configuration as configuration
     "scenario",
     ["complete", "unknown", "unknown_activation", "revoked", "source", "media", "declaration"],
 )
-def test_configured_meta_execution_browser(
+def historical_contract_configured_meta_execution_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

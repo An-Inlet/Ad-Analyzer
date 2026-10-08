@@ -35,7 +35,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["journey", "context_race", "lost_response", "total_budget"])
-def test_execution_real_browser(
+def historical_contract_execution_real_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

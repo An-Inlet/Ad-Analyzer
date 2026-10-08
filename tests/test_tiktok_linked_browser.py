@@ -32,7 +32,7 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.tiktok_linked_runtime_fixture import configured_linked_customer
 
 
-def test_actual_linked_tiktok_customer_browser(
+def historical_contract_actual_linked_tiktok_customer_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

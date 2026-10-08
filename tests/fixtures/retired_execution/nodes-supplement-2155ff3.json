@@ -1,0 +1,21 @@
+[
+  "tests/test_envelope_browser.py::test_actual_envelope_browser[sqlite]",
+  "tests/test_envelope_browser.py::test_actual_envelope_browser[postgres]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-none]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-lost_start]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-erasure]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[sqlite-revoked]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-none]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-lost_start]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-erasure]",
+  "tests/test_reported_rule_configured_browser.py::test_configured_reported_rule_browser[postgres-revoked]",
+  "tests/test_tiktok_discovery_browser.py::test_owned_tiktok_discovery_https[sqlite]",
+  "tests/test_tiktok_discovery_browser.py::test_owned_tiktok_discovery_https[postgres]",
+  "tests/test_tiktok_linked_browser.py::test_actual_linked_tiktok_customer_browser[sqlite]",
+  "tests/test_tiktok_linked_browser.py::test_actual_linked_tiktok_customer_browser[postgres]",
+  "tests/test_optimization_budget_ui.py::test_optimization_page_has_customer_inputs_without_technical_authority",
+  "tests/test_candidate_read_browser.py::test_candidate_reads_https[sqlite-scenario]",
+  "tests/test_candidate_read_browser.py::test_candidate_reads_https[sqlite-unqualified]",
+  "tests/test_candidate_read_browser.py::test_candidate_reads_https[postgres-scenario]",
+  "tests/test_candidate_read_browser.py::test_candidate_reads_https[postgres-unqualified]"
+]

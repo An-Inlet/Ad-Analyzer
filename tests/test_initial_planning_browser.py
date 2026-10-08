@@ -39,7 +39,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["unavailable", "review"])
-def test_actual_initial_planning_browser(
+def historical_contract_actual_initial_planning_browser(
     scenario: str,
     customer_engine: Engine,
     configuration: Settings,

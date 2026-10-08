@@ -20,7 +20,7 @@ from tests.test_shopify_sales import configuration as configuration
 @pytest.mark.parametrize(
     "mode", ["current", "revoked", "expired", "historical_erased", "native_drift"]
 )
-def test_actual_retained_preview_to_initial_operational_rule(
+def historical_contract_actual_retained_preview_to_initial_operational_rule(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

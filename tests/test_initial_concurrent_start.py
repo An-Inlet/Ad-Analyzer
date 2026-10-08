@@ -24,7 +24,7 @@ from tests.test_initial_rule_acceptance import initial_start_case
 from tests.test_shopify_sales import configuration as configuration
 
 
-def test_concurrent_exact_initial_start(
+def historical_contract_concurrent_exact_initial_start(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

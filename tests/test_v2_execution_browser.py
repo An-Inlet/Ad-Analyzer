@@ -26,7 +26,7 @@ from tests.v2_execution_fixture import ready
 
 
 @pytest.mark.parametrize("unavailable", [False, True])
-def test_v2_execution_review_browser(
+def historical_contract_v2_execution_review_browser(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

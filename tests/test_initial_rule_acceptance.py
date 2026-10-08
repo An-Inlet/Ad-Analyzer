@@ -121,7 +121,7 @@ def initial_start_case(
 @pytest.mark.parametrize(
     "mode", ["stale_consent", "spent_budget", "competing", "downgrade", "maintenance"]
 )
-def test_initial_start_admission_boundaries(
+def historical_contract_initial_start_admission_boundaries(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

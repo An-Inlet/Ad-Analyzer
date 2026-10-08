@@ -28,7 +28,7 @@ from tests.test_google_total_envelope_api import created
 from tests.test_shopify_sales import configuration as configuration
 
 
-def test_actual_envelope_browser(
+def historical_contract_actual_envelope_browser(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

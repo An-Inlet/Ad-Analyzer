@@ -44,7 +44,7 @@ from tests.v2_execution_fixture import ready
 @pytest.mark.parametrize(
     "scenario", ["complete", "lost_start_response", "unknown_provider_response"]
 )
-def test_initial_automatic_browser(
+def historical_contract_initial_automatic_browser(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

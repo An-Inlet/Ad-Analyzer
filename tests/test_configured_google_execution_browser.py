@@ -31,7 +31,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["complete", "unknown", "revoked"])
-def test_configured_google_execution_browser(
+def historical_contract_configured_google_execution_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

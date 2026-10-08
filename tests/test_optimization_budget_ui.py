@@ -18,7 +18,7 @@ def test_exact_optimization_budget_browser_contract() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_optimization_page_has_customer_inputs_without_technical_authority() -> None:
+def historical_contract_optimization_page_has_customer_inputs_without_technical_authority() -> None:
     html = Path("app/portal/static/optimization.html").read_text()
     for removed in (
         "opt-starts",

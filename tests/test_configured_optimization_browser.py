@@ -32,7 +32,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 @pytest.mark.parametrize("platform", ["google_ads", "meta_ads"])
 @pytest.mark.parametrize("scenario", ["complete", "unknown", "revoked"])
-def test_configured_optimization_browser(
+def historical_contract_configured_optimization_browser(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

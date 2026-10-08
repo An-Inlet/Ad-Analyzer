@@ -37,7 +37,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("mode", ["scenario", "unqualified"])
-def test_candidate_reads_https(
+def historical_contract_candidate_reads_https(
     customer_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

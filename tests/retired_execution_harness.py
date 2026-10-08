@@ -1,5 +1,6 @@
 """Pinned historical regressions in a separate interpreter; never current capabilities."""
 
+import hashlib
 import json
 import os
 import sys
@@ -30,9 +31,12 @@ def qualify(root: Path, artifacts: Path, batch: str) -> None:
     if (not isinstance(nodes, list) or len(nodes) != expected_count
             or len(set(nodes)) != expected_count):
         raise AssertionError("Exact historical case manifest required")
-    env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+    plugin = MANIFEST.parent / "inlet_retired_browser_assets_plugin.py"
+    env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN,
+               PYTHONPATH=os.pathsep.join((str(snapshot), str(plugin.parent))))
     env.pop("PYTEST_ADDOPTS", None)
-    command = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q"]
+    command = [sys.executable, "-m", "pytest", "-p", "inlet_retired_browser_assets_plugin",
+               "-o", "addopts=", "-q"]
     collection_log = artifacts / "collection.log"
     code = run_bounded(command + ["--collect-only", *nodes], snapshot, env, collection_log, 90)
     collected = [line for line in collection_log.read_text().splitlines()
@@ -41,6 +45,16 @@ def qualify(root: Path, artifacts: Path, batch: str) -> None:
         raise AssertionError(f"Historical collection differs; see {collection_log}")
     (artifacts / "provenance.json").write_text(json.dumps(
         {"commit": PIN, "trees": TREES, "batch": batch, "nodes": nodes,
+         "fixture_asset_plugin": {
+             "path": str(plugin.relative_to(root)),
+             "sha256": hashlib.sha256(plugin.read_bytes()).hexdigest(),
+             "nodes": [node for node in nodes if node in {
+                 "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[sqlite-False]",
+                 "tests/test_v2_execution_browser.py::test_v2_execution_review_browser[postgres-False]",
+             }],
+             "asset": "app/portal/static/reported-rule-view.mjs",
+             "asset_sha256": "5c9b6722b2717c9f38afc347ff9cd1b0b03fa50397ddd89e9588e3262f4e72a2",
+         },
          "python": sys.executable, "scope": "historical runtime only; not deployed policy"},
         indent=2,
     ) + "\n")

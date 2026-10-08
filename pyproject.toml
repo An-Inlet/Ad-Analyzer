@@ -47,7 +47,11 @@ dev = [
 packages = ["app"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --strict-markers"
+markers = [
+  "planning_boundary: unpatched deployed planning MVP behavior",
+  "retained_execution: explicit historical execution-engine regression, not MVP behavior",
+]
 pythonpath = ["."]
 testpaths = ["tests"]
 

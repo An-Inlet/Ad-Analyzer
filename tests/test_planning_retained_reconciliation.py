@@ -17,6 +17,8 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_provider_coordinator import GoogleServer, ready
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def test_retained_unknown_reconciles_without_new_write_or_releasing_hold(
     customer_engine: Engine,

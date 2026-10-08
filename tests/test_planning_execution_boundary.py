@@ -12,6 +12,8 @@ from app.session_automation import worker
 from app.settings import Settings
 from sqlalchemy import Engine, create_engine, event
 
+pytestmark = pytest.mark.planning_boundary
+
 ENTRYPOINTS = {
     "app.publication.coordinator": (
         "prepare_creation",

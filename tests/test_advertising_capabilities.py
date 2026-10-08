@@ -7,6 +7,8 @@ from app.advertising_capabilities import (
     require_advertising_write,
 )
 
+pytestmark = pytest.mark.planning_boundary
+
 
 @pytest.mark.parametrize("value", ["true", "1", "live", "execution"])
 def test_environment_cannot_enable_advertising_writes(

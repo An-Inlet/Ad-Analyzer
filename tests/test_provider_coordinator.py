@@ -44,6 +44,9 @@ from tests.test_provider_qualification import prepare
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_publication_http import Media
 
+# Historical engine behavior, explicitly separated from the deployed MVP policy.
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 class GoogleServer:
     def __init__(self) -> None:

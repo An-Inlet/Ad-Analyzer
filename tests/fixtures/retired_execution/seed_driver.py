@@ -20,7 +20,8 @@ from tests.test_shopify_sales import configuration
 
 
 def main() -> None:
-    target, result_path = sys.argv[1:]
+    target, result_path, mode = sys.argv[1:]
+    assert mode in {"review", "initial_rule"}
     assert Path(app.__file__).resolve().is_relative_to(Path(os.environ["PYTHONPATH"]).resolve())
     if os.environ.get("INLET_RETIRED_EXECUTION_CHILD") != (
         "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
@@ -30,18 +31,43 @@ def main() -> None:
         engine = create_engine(target, connect_args={"check_same_thread": False})
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
     else:
-        if not re.fullmatch(r"inlet_test_[a-f0-9]{32}", target):
+        if not re.fullmatch(r"(?:inlet_test_|inlet_migration_fixture_)[a-f0-9]{32}", target):
             raise AssertionError("Only one owned fixture schema")
         if os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true":
             raise AssertionError("Disposable database authorization required")
-        engine = create_engine(os.environ["AD_ANALYZER_TEST_POSTGRES_URL"],
-                               connect_args={"options": f"-csearch_path={target}"})
+        engine = create_engine(
+            os.environ["AD_ANALYZER_TEST_POSTGRES_URL"],
+            connect_args={"options": f"-csearch_path={target}"},
+        )
         with engine.connect() as connection:
             assert connection.scalar(text("select current_schema()")) == target
     try:
         with pytest.MonkeyPatch.context() as patch:
             config = cast(Any, configuration).__wrapped__()
             clients = cast(Any, replicas).__wrapped__(engine, patch)
+            if mode == "initial_rule":
+                from app.initial_planning.start_models import InitialRuleSessionStart
+                from app.session_automation import service
+                from tests.test_initial_rule_acceptance import initial_start_case
+
+                with initial_start_case(
+                    engine, config, Path(result_path).parent, patch, clients
+                ) as (case, runtime, intent, wid):
+                    started = service.start(case.db, case.principal, wid, intent, runtime)
+                    case.db.commit()
+                    row = case.db.get(InitialRuleSessionStart, started.id)
+                    assert row and row.candidate_job_id
+                    assert not case.server.posts
+                    output = dict(
+                        workspace_id=wid,
+                        preview_id=intent.preview_id,
+                        mandate_id=intent.mandate.mandate_id,
+                        session_run_id=started.id,
+                        candidate_job_id=row.candidate_job_id,
+                        provider_posts=0,
+                    )
+                    Path(result_path).write_text(json.dumps(output))
+                return
             wid, preview, principal, provider, runtime, server, _ = ready(
                 engine, config, patch, clients
             )
@@ -52,8 +78,14 @@ def main() -> None:
             clock = runtime.planning.clock
             with Session(engine) as db:
                 optimization.approve_optimization(
-                    db, wid, result.review_id, result.review_digest, result.plan_digest,
-                    principal.user.id, bound.execution, clock,
+                    db,
+                    wid,
+                    result.review_id,
+                    result.review_digest,
+                    result.plan_digest,
+                    principal.user.id,
+                    bound.execution,
+                    clock,
                 )
                 run = optimization.create_run(
                     db, wid, result.review_id, principal.user.id, bound.execution, clock
@@ -68,10 +100,16 @@ def main() -> None:
                 assert receipt.outcome == "verified_target_state" and len(server.posts) == 1
                 reservation = db.get(ProviderExposureReservation, run.reservation_id)
                 assert reservation is not None and reservation.state == "held"
-                output = dict(workspace_id=wid, preview_id=preview.id, review_id=result.review_id,
-                              actor_id=principal.user.id, run_id=run.id,
-                              attempt_id=claim.attempt_id, reservation_id=reservation.id,
-                              provider_posts=len(server.posts))
+                output = dict(
+                    workspace_id=wid,
+                    preview_id=preview.id,
+                    review_id=result.review_id,
+                    actor_id=principal.user.id,
+                    run_id=run.id,
+                    attempt_id=claim.attempt_id,
+                    reservation_id=reservation.id,
+                    provider_posts=len(server.posts),
+                )
             Path(result_path).write_text(json.dumps(output))
     finally:
         engine.dispose()

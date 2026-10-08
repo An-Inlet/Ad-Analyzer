@@ -12,6 +12,13 @@ from app.ads.models import Campaign
 from app.campaign_performance import service as performance
 from app.campaign_performance.contracts import CampaignPerformanceV1
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+from app.campaign_performance.presence_report import (
+    MAX_COLLECTION_BYTES,
+    QUALIFIED_POLICY,
+    CampaignPerformanceV3,
+    PresenceReadContext,
+    read_current_with_presence,
+)
 from app.collectors import account_diagnostics
 from app.collectors.native_diagnostics import AccountDiagnosticRequest
 from app.customers.access import CustomerPrincipal
@@ -40,6 +47,7 @@ from app.planning_documents.ports import (
     PerformanceEvidence,
     PlanningCompositionPolicy,
     ReportingGapPin,
+    ReportingPresencePin,
 )
 from app.planning_documents.read_context import PlanningReadContexts, snapshot
 from app.publication import customer_intents
@@ -72,6 +80,8 @@ class OwnedPlanningEvidenceReader:
             self.policy.digest(),
         ):
             raise changed()
+        qualified = self.policy.version == QUALIFIED_POLICY
+        reporting_pins: tuple[ReportingPresencePin, ...] = ()
         with reads.open() as db:
             reads.authorize(db, wid, actor)
             check_goal(db, ticket)
@@ -82,6 +92,18 @@ class OwnedPlanningEvidenceReader:
                 f.account.account_id: f for f in ticket.sources
             }:
                 raise changed()
+            if qualified:
+                from app.planning_documents.retained_sources import capture_reporting_presence_pin
+
+                reporting_pins = tuple(
+                    ReportingPresencePin(
+                        account=account,
+                        document_digest=capture_reporting_presence_pin(
+                            db, self.principal, account, ticket.privacy_revision
+                        ),
+                    )
+                    for account in ticket.inputs.accounts
+                )
             retained_catalogs: tuple[CatalogEvidence, ...] = ()
             if (
                 ticket.inputs.excluded_entity_keys
@@ -100,6 +122,7 @@ class OwnedPlanningEvidenceReader:
         }
         catalogs: list[CatalogEvidence] = []
         metrics: list[PerformanceEvidence] = []
+        reporting_bytes = 0
         gaps: list[EvidenceGap] = []
         window = ticket.inputs.reporting_window
         for fence in fences:
@@ -206,7 +229,10 @@ class OwnedPlanningEvidenceReader:
                     raise changed()
                 if account.platform == "meta_ads":
                     ordinary_meta(db, wid, account.account_id, completion)
-                witness_document = performance.read_current(
+                presence_context = PresenceReadContext(db)
+                witness_document = (
+                    read_current_with_presence if qualified else performance.read_current
+                )(
                     db,
                     wid,
                     actor,
@@ -214,6 +240,7 @@ class OwnedPlanningEvidenceReader:
                     witness.id,
                     current.completion_id,
                     reads.authorize,
+                    **({"context": presence_context} if qualified else {}),
                 )
                 actual_window = ReportingWindow(
                     starts_at=boundary(completion.starts_on, ZoneInfo(completion.time_zone)),
@@ -262,7 +289,7 @@ class OwnedPlanningEvidenceReader:
                             )
                         )
                         continue
-                    doc = performance.read_current(
+                    doc = (read_current_with_presence if qualified else performance.read_current)(
                         db,
                         wid,
                         actor,
@@ -270,7 +297,12 @@ class OwnedPlanningEvidenceReader:
                         campaign.id,
                         current.completion_id,
                         reads.authorize,
+                        **({"context": presence_context} if qualified else {}),
                     )
+                    if qualified:
+                        reporting_bytes += len(doc.model_dump_json().encode())
+                        if reporting_bytes > MAX_COLLECTION_BYTES:
+                            raise changed()
                     target_ref = TargetRef(
                         account=account,
                         provider_reference=target.entity.reference,
@@ -287,6 +319,8 @@ class OwnedPlanningEvidenceReader:
                         and doc.conversions is not None
                         and Decimal(doc.conversions) > 0
                     )
+                    if isinstance(doc, CampaignPerformanceV3):
+                        positive = doc.summary.selected_conversions.value is not None
                     reasons: tuple[str, ...] = (
                         ("reported_rows_only", "attribution_unavailable")
                         if positive
@@ -455,6 +489,7 @@ class OwnedPlanningEvidenceReader:
             commerce=commerce,
             context=context,
             gaps=tuple(gaps),
+            reporting_pins=reporting_pins,
         )
         with reads.open() as db:
             reads.authorize(db, wid, actor)

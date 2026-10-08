@@ -4,6 +4,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
+from app.campaign_performance.presence_report import (
+    QUALIFIED_GENERATOR,
+    QUALIFIED_POLICY,
+    CampaignPerformanceV3,
+)
 from app.planning_documents.actions import Allocation, BudgetScenario, CreativeBrief, ManualAction
 from app.planning_documents.common import MAX_ACTIONS, MAX_BRIEFS, MAX_SCENARIOS
 from app.planning_documents.context import AccountTarget, PlanInputRevision, TargetRef
@@ -15,8 +20,10 @@ from app.planning_documents.ports import (
     PlanningCompositionPolicy,
 )
 
-GENERATOR_VERSION = "inlet.descriptive-planning.v1"
-POLICY_VERSION = "inlet.descriptive-review.v1"
+LEGACY_GENERATOR_VERSION = "inlet.descriptive-planning.v1"
+LEGACY_POLICY_VERSION = "inlet.descriptive-review.v1"
+GENERATOR_VERSION = QUALIFIED_GENERATOR
+POLICY_VERSION = QUALIFIED_POLICY
 PLATFORMS = {"google_ads": "Google Ads", "meta_ads": "Meta Ads", "tiktok_ads": "TikTok Ads"}
 
 
@@ -61,6 +68,55 @@ def reported_summary(
     if performance is None:
         return "investigate", "No matching campaign performance document is available."
     doc = performance.document
+    if isinstance(doc, CampaignPerformanceV3):
+        period = f"{doc.starts_on.isoformat()} through {doc.ends_on.isoformat()}"
+        selected = doc.summary.selected_conversions
+        event = doc.presence.selected_event.native_event_id or "unavailable"
+        traffic = []
+        if doc.clicks is not None:
+            traffic.append(f"{doc.clicks} observed reported clicks ({doc.summary.clicks.coverage})")
+        if doc.spend_micros is not None:
+            amount = Decimal(doc.spend_micros) / Decimal(1_000_000)
+            traffic.append(
+                f"{amount:f} {doc.currency} observed reported spend "
+                f"({doc.summary.spend_micros.coverage})"
+            )
+        prefix = f"For {period}, selected event {event}: "
+        if traffic:
+            prefix += "; ".join(traffic) + ". "
+        scope = (
+            f"{selected.present_days}/{doc.summary.requested_days} requested days "
+            "have present selected counts; attribution remains unknown."
+        )
+        if doc.summary.selected_zero_for_requested_window:
+            return (
+                "investigate",
+                prefix
+                + "observed zero selected conversions across the requested window. "
+                + scope
+                + (
+                    " Investigate event tracking and the campaign landing page; "
+                    "no pause or budget transfer is prescribed."
+                ),
+            )
+        if selected.value is not None and Decimal(selected.value) > 0:
+            return (
+                "retain",
+                prefix
+                + f"{selected.value} observed provider-reported selected conversions. "
+                + scope
+                + " This observed sum does not establish causal sales or an improved allocation.",
+            )
+        return (
+            "investigate",
+            prefix
+            + (
+                "selected conversion evidence is unavailable or partial; "
+                "missing is not zero for the requested window. "
+            )
+            + scope
+            + " Verify reporting coverage and selected-event tracking.",
+        )
     facts = []
     if doc.clicks is not None:
         facts.append(f"{doc.clicks} reported clicks")
@@ -95,8 +151,21 @@ class DescriptivePlanComposer:
         inputs = PlanInputRevision.model_validate(inputs)
         evidence = EvidenceBundle.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
-        if (policy.version, policy.generator_version) != (POLICY_VERSION, GENERATOR_VERSION):
+        if (policy.version, policy.generator_version) not in {
+            (POLICY_VERSION, GENERATOR_VERSION),
+            (LEGACY_POLICY_VERSION, LEGACY_GENERATOR_VERSION),
+        }:
             raise PlanCompositionUnavailable("unsupported explicit composition policy")
+        if policy.version == LEGACY_POLICY_VERSION and (
+            evidence.reporting_pins
+            or any(isinstance(p.document, CampaignPerformanceV3) for p in evidence.performance)
+        ):
+            raise PlanCompositionUnavailable("legacy policy cannot consume qualified reporting")
+        if policy.version == POLICY_VERSION and (
+            len(evidence.reporting_pins) != len(inputs.accounts)
+            or {p.account for p in evidence.reporting_pins} != set(inputs.accounts)
+        ):
+            raise PlanCompositionUnavailable("qualified policy requires complete collection pins")
         if evidence.input_digest != inputs.digest() or evidence.collected_at > generated_at:
             raise PlanCompositionUnavailable("composition input/time mismatch")
         contexts = {entry.reference.kind: entry for entry in evidence.context}

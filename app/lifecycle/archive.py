@@ -20,9 +20,11 @@ from app.lifecycle.contracts import LifecycleScopeV1
 from app.lifecycle.export_serializers import exclusion, fields, serialize, validation_fields
 from app.lifecycle.inventory import predicate, verify_registry
 from app.lifecycle.registry import PRIVATE_STAGING_TABLES, TABLES
+from app.planning_documents.storage import MAX_PLANNING_ROW_BYTES, PLANNING_TABLES
 
 MAX_ARCHIVE_BYTES = 192 * 1024 * 1024
 MAX_DATA_BYTES = 32 * 1024 * 1024
+
 MAX_ROW_BYTES = 1024 * 1024
 MAX_ROWS = 100_000
 MAX_SECONDS = 120
@@ -115,6 +117,9 @@ def build(
                         count, size, digest = 0, 0, hashlib.sha256()
                         with tempfile.TemporaryFile(mode="w+b") as section:
                             # Conservative UTF-8 bound before driver materialization.
+                            row_limit = (
+                                MAX_PLANNING_ROW_BYTES if name in PLANNING_TABLES else MAX_ROW_BYTES
+                            )
                             oversized = (
                                 sum(
                                     [
@@ -123,7 +128,7 @@ def build(
                                     ],
                                     start=literal(0),
                                 )
-                                > MAX_ROW_BYTES
+                                > row_limit
                             )
                             rows = snapshot.execute(
                                 select(
@@ -149,7 +154,7 @@ def build(
                                     unsupported.update(missing)
                                     data = encoded(projected) + b"\n"
                                     total_data += len(data)
-                                    if len(data) > MAX_ROW_BYTES or total_data > MAX_DATA_BYTES:
+                                    if len(data) > row_limit or total_data > MAX_DATA_BYTES:
                                         raise ValueError("export data bound exceeded")
                                     section.write(data)
                                     digest.update(data)

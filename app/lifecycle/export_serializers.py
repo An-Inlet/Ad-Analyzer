@@ -615,6 +615,10 @@ def bind_document(
 
 
 def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    from app.planning_documents.storage import PLANNING_TABLES, export_row
+
+    if table in PLANNING_TABLES:
+        return export_row(table, row), []
     if table == "initial_preview_execution_proofs":
         try:
             return export_execution_proof(row), []
@@ -666,7 +670,8 @@ def serialize(table: str, row: Mapping[str, Any]) -> tuple[dict[str, Any], list[
                         raise ValueError("unsupported response digest")
                 if adapter is not None:
                     if table in {
-                        "optimization_candidate_jobs", "optimization_candidate_results"
+                        "optimization_candidate_jobs",
+                        "optimization_candidate_results",
                     } or (
                         table == "customer_social_configuration_reviews"
                         and isinstance(value, dict)

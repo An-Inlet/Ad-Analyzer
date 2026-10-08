@@ -5,7 +5,8 @@ import fixture `ee889ec`. The application default remains V2 in this package;
 the actual customer service is explicitly configured with canonical V3.
 
 The authenticated HTTPS/Chromium journey uses actual customer routes, native Meta
-mock reads, the 0090 56-day import, enabled offline billing, original target receipts,
+mock reads, the 0090 56-day import, enabled offline billing, native target catalog
+and receipt acquisition,
 owned window collection, genuine composition, final checks and persisted versions.
 The form submits seven-day primary and preceding comparison periods. Visible output
 shows primary 100 clicks, 10 selected conversions and USD100 separately from the
@@ -30,3 +31,8 @@ there was no failed browser attempt or product change in this package.
 This is offline browser qualification, not default activation, a full-suite result,
 live provider verification or a commercial release. Default activation is the next
 bounded W1 step under `design/planning-window-default-activation-v1.md`.
+
+Independent review closed `44307cb` without P1/P2 findings. The reviewer clarified
+that this journey acquires a catalog receipt but leaves the target choices at their
+default, so it does not prove saved-target receipt reuse. That separate acceptance
+is covered by the existing target journeys and requested-window API tests.

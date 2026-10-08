@@ -17,6 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
+from app.planning_documents.catalog_receipt_triggers import register as _register
 
 
 class CatalogReceiptRow(Base):
@@ -156,3 +157,7 @@ class InputCatalogReceiptRow(Base):
     selected_keys_digest: Mapped[str] = mapped_column(String(64))
     selected_count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+for _model in (CatalogReceiptRow, CatalogReceiptSelectionRow, InputCatalogReceiptRow):
+    _register(Base.metadata.tables[_model.__tablename__])

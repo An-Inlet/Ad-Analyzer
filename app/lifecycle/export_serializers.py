@@ -294,6 +294,7 @@ INTERNAL = {
     "principal",
 }
 INTERNAL_TABLE_FIELDS = {
+    ("planning_catalog_receipts", "authenticated_at"),
     *(
         ("commerce_acquisition_jobs", field)
         for field in (

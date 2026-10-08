@@ -3,6 +3,11 @@
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.planning_documents.catalog_receipt_models import (
+    CatalogReceiptRow,
+    CatalogReceiptSelectionRow,
+    InputCatalogReceiptRow,
+)
 from app.planning_documents.models import (
     PlanDependencyRow,
     PlanEventRow,
@@ -29,5 +34,13 @@ def erase_workspace_plans(db: Session, workspace_id: int) -> None:
                 PlanEventRow.sequence == sequence,
             )
         )
-    for model in (PlanDependencyRow, PlanVersionRow, PlanInputRow, PlanRow):
+    for model in (
+        InputCatalogReceiptRow,
+        PlanDependencyRow,
+        PlanVersionRow,
+        PlanInputRow,
+        PlanRow,
+        CatalogReceiptSelectionRow,
+        CatalogReceiptRow,
+    ):
         db.execute(delete(model).where(model.workspace_id == workspace_id))

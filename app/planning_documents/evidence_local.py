@@ -12,6 +12,12 @@ from app.billing.entitlements import paid_work
 from app.campaign_performance import service as performance
 from app.campaign_performance.contracts import CampaignPerformanceV1, CampaignPerformanceV2
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+from app.campaign_performance.presence_report import (
+    QUALIFIED_POLICY,
+    CampaignPerformanceV3,
+    PresenceReadContext,
+    read_current_with_presence,
+)
 from app.commerce.ledger import lock_store, retention_floor
 from app.commerce.reporting import MeasurementWindow, measurement
 from app.customers.access import CustomerPrincipal, guard_customer_mutation
@@ -89,7 +95,10 @@ def ordinary_meta(
     db: Session,
     wid: int,
     account_id: int,
-    document: PerformanceCompletion | CampaignPerformanceV1 | CampaignPerformanceV2,
+    document: PerformanceCompletion
+    | CampaignPerformanceV1
+    | CampaignPerformanceV2
+    | CampaignPerformanceV3,
 ) -> None:
     """Do not enter alternate reporting acquisition/anchor provenance from planning."""
     source = db.scalar(
@@ -154,6 +163,20 @@ def recheck_local_sources(
     def authorize(session: Session, workspace: int, actor: str) -> None:
         local_authority(session, principal, workspace, actor)
 
+    qualified = ticket.policy_version == QUALIFIED_POLICY
+    presence_context = PresenceReadContext(db)
+    if qualified:
+        from app.planning_documents.retained_sources import capture_reporting_presence_pin
+
+        for presence_pin in bundle.reporting_pins:
+            if (
+                capture_reporting_presence_pin(
+                    db, principal, presence_pin.account, ticket.privacy_revision
+                )
+                != presence_pin.document_digest
+            ):
+                raise changed()
+
     for catalog in bundle.catalogs:
         observed = catalog.catalog.native_observation
         account = db.get(AdvertisingAccount, observed.account_id, populate_existing=True)
@@ -183,7 +206,7 @@ def recheck_local_sources(
                 raise changed()
             if gap.account.platform == "meta_ads":
                 ordinary_meta(db, wid, gap.account.account_id, completion)
-            document = performance.read_current(
+            document = (read_current_with_presence if qualified else performance.read_current)(
                 db,
                 wid,
                 ticket.actor_id,
@@ -191,6 +214,7 @@ def recheck_local_sources(
                 campaign.id,
                 pin.completion_id,
                 authorize,
+                **({"context": presence_context} if qualified else {}),
             )
             actual_start = boundary(document.starts_on, ZoneInfo(document.time_zone))
             actual_end = boundary(
@@ -252,7 +276,7 @@ def recheck_local_sources(
             raise changed()
         if target.account.platform == "meta_ads":
             ordinary_meta(db, wid, target.account.account_id, old)
-        current = performance.read_current(
+        current = (read_current_with_presence if qualified else performance.read_current)(
             db,
             wid,
             ticket.actor_id,
@@ -260,6 +284,7 @@ def recheck_local_sources(
             campaign.id,
             old.completion_id,
             authorize,
+            **({"context": presence_context} if qualified else {}),
         )
         if current != old:
             raise changed()

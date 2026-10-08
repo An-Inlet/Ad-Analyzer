@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount, Campaign
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
+from app.campaign_performance.presence_report import QUALIFIED_POLICY
+from app.campaign_performance.presence_storage import ReportingPresenceUnavailable, read_presence
 from app.campaign_performance.service import manifest, read_current
 from app.commerce.ledger import lock_store
 from app.customers.access import CustomerPrincipal, guard_customer_mutation
@@ -59,7 +61,7 @@ class RetainedSourceWitness(Frozen):
     account_id: Positive | None
     connection_id: Positive | None
     store_id: Id | None
-    kind: Literal["local_reporting_v1", "local_commerce_v1"]
+    kind: Literal["local_reporting_v1", "local_reporting_v2", "local_commerce_v1"]
     source_binding_digest: Digest
     document_digest: Digest
     source_revision: Title
@@ -71,7 +73,7 @@ class RetainedSourceWitness(Frozen):
     def scoped(self) -> "RetainedSourceWitness":
         if self.observed_at >= self.expires_at:
             raise ValueError("ordered local proof time required")
-        if self.kind == "local_reporting_v1":
+        if self.kind in {"local_reporting_v1", "local_reporting_v2"}:
             if (
                 self.account_id is None
                 or self.connection_id is None
@@ -124,7 +126,12 @@ def _goal(db: Session, document: PlanVersion) -> None:
 
 
 def _reporting(
-    db: Session, principal: CustomerPrincipal, ref: AccountRef, privacy: int
+    db: Session,
+    principal: CustomerPrincipal,
+    ref: AccountRef,
+    privacy: int,
+    *,
+    qualified: bool = False,
 ) -> tuple[str, str]:
     scope = customer_intents.account(db, ref.workspace_id, ref.account_id)
     if (scope.account.connection_id, scope.account.platform, scope.connection_version) != (
@@ -176,6 +183,7 @@ def _reporting(
                 raise RetainedSourcesChanged("source_integrity_unavailable")
     current = db.get(CurrentPerformance, ref.account_id, populate_existing=True)
     completion_state = None
+    presence_state = None
     if current is not None:
         completion = db.get(PerformanceCompletion, current.completion_id, populate_existing=True)
         if current.workspace_id != ref.workspace_id or completion is None or not campaigns:
@@ -198,6 +206,19 @@ def _reporting(
         digest, rows = manifest(db, account, completion.starts_on, completion.ends_on)
         if digest != completion.manifest_digest or len(rows) != completion.row_count:
             raise RetainedSourcesChanged("source_integrity_unavailable")
+        if qualified:
+            try:
+                graph = read_presence(db, completion)
+            except ReportingPresenceUnavailable:
+                raise RetainedSourcesChanged("source_integrity_unavailable") from None
+            presence_state = (
+                None
+                if graph is None
+                else {
+                    "header": graph[0].model_dump(mode="json"),
+                    "facts": [fact.model_dump(mode="json") for fact in graph[1]],
+                }
+            )
         completion_state = {
             column.name: getattr(completion, column.name)
             for column in PerformanceCompletion.__table__.columns
@@ -236,7 +257,25 @@ def _reporting(
             for c in campaigns
         ],
     }
+    if qualified:
+        return scope_digest, fingerprint(
+            "inlet.local-reporting-state.v2",
+            {
+                "legacy": _normalize(state),
+                "presence": presence_state,
+            },
+        )
     return scope_digest, fingerprint("inlet.local-reporting-state.v1", _normalize(state))
+
+
+def capture_reporting_presence_pin(
+    db: Session, principal: CustomerPrincipal, ref: AccountRef, privacy: int
+) -> str:
+    """New-policy collection/final pin, including exact sidecar absence."""
+    try:
+        return _reporting(db, principal, ref, privacy, qualified=True)[1]
+    except RetainedSourcesChanged:
+        raise HTTPException(409, "Qualified reporting evidence changed") from None
 
 
 def capture_retained_sources(
@@ -264,12 +303,16 @@ def capture_retained_sources(
         privacy_revision=privacy,
     )
     for ref in sorted(document.inputs.accounts, key=lambda item: item.account_id):
-        source_digest, digest = _reporting(db, principal, ref, privacy)
+        source_digest, digest = _reporting(
+            db, principal, ref, privacy, qualified=document.policy_version == QUALIFIED_POLICY
+        )
         values.append(
             RetainedSourceWitness(
                 **common,
                 evidence_key=f"local:reporting:{ref.account_id}",
-                kind="local_reporting_v1",
+                kind="local_reporting_v2"
+                if document.policy_version == QUALIFIED_POLICY
+                else "local_reporting_v1",
                 account_id=ref.account_id,
                 connection_id=ref.connection_id,
                 store_id=None,

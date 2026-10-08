@@ -4,8 +4,12 @@ from typing import Any
 import pytest
 from app.planning_documents.common import fingerprint
 from app.planning_documents.composer import (
-    GENERATOR_VERSION,
-    POLICY_VERSION,
+    LEGACY_GENERATOR_VERSION as GENERATOR_VERSION,
+)
+from app.planning_documents.composer import (
+    LEGACY_POLICY_VERSION as POLICY_VERSION,
+)
+from app.planning_documents.composer import (
     DescriptivePlanComposer,
     PlanCompositionUnavailable,
     targets,

@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from app.campaign_performance.contracts import CampaignPerformanceV1, CampaignPerformanceV2
+from app.campaign_performance.presence_report import QUALIFIED_POLICY, CampaignPerformanceV3
 from app.goals.progress_contracts import GoalSalesProgressV1
 from app.planning_catalog.metadata_contracts import TargetCatalogV2
 from app.planning_documents.common import (
@@ -123,7 +124,7 @@ class CatalogEvidence(Frozen):
 class PerformanceEvidence(Frozen):
     reference: EvidenceRef
     target: TargetRef
-    document: CampaignPerformanceV1 | CampaignPerformanceV2
+    document: CampaignPerformanceV1 | CampaignPerformanceV2 | CampaignPerformanceV3
     native_campaign_id: str = Field(strict=True, pattern=r"^[0-9]{1,32}$")
     measurement_scope: Literal["provider_reported_not_cross_platform_comparable"] = (
         "provider_reported_not_cross_platform_comparable"
@@ -136,6 +137,8 @@ class PerformanceEvidence(Frozen):
     @field_validator("document", mode="before")
     @classmethod
     def reparse(cls, value: Any) -> Any:
+        if isinstance(value, CampaignPerformanceV3):
+            return CampaignPerformanceV3.model_validate(value)
         if isinstance(value, (CampaignPerformanceV1, CampaignPerformanceV2)):
             value = value.model_dump(mode="python")
         if isinstance(value, dict):
@@ -207,21 +210,42 @@ class PerformanceEvidence(Frozen):
             or self.reference.observed_at != self.document.completed_at
         ):
             raise ValueError("reported window/schema/time mismatch")
-        if isinstance(self.document, CampaignPerformanceV2):
+        if isinstance(self.document, CampaignPerformanceV3):
+            if (
+                self.document.presence.platform != self.target.account.platform
+                or self.document.presence.workspace_id != self.reference.workspace_id
+                or self.document.presence.connection_id != self.target.account.connection_id
+                or self.document.native_campaign_id != self.native_campaign_id
+            ):
+                raise ValueError("qualified reporting provider/native mismatch")
+        elif isinstance(self.document, CampaignPerformanceV2):
             if self.document.platform != self.target.account.platform:
                 raise ValueError("reported provider mismatch")
         elif self.target.account.platform != "meta_ads":
             raise ValueError("V1 selected-event reporting requires Meta source")
-        if self.conversion_qualification == "reported_only" and (
-            not isinstance(self.document, CampaignPerformanceV1)
-            or self.document.semantics != "explicit_platform_event"
-            or not self.document.selected_event
-            or self.document.conversions is None
-            or Decimal(self.document.conversions) <= 0
+        if (
+            self.conversion_qualification == "reported_only"
+            and not isinstance(self.document, CampaignPerformanceV3)
+            and (
+                not isinstance(self.document, CampaignPerformanceV1)
+                or self.document.semantics != "explicit_platform_event"
+                or not self.document.selected_event
+                or self.document.conversions is None
+                or Decimal(self.document.conversions) <= 0
+            )
         ):
             raise ValueError(
                 "reported conversion qualification requires positive explicit-event evidence"
             )
+        if (
+            isinstance(self.document, CampaignPerformanceV3)
+            and self.conversion_qualification == "reported_only"
+            and (
+                self.document.presence.selected_event.provenance != "explicit_selected"
+                or self.document.summary.selected_conversions.value is None
+            )
+        ):
+            raise ValueError("qualified selected reporting needs observed cells")
         expected_coverage = (
             "partial" if self.completeness == "reported_rows_only" else "unavailable"
         )
@@ -349,6 +373,11 @@ class ContextEvidence(Frozen):
         return self
 
 
+class ReportingPresencePin(Frozen):
+    account: AccountRef
+    document_digest: Digest
+
+
 class EvidenceBundle(NoAuthority):
     operation_id: Id
     input_digest: Digest
@@ -359,6 +388,7 @@ class EvidenceBundle(NoAuthority):
     commerce: CommerceEvidence | None
     context: tuple[ContextEvidence, ...] = Field(max_length=2)
     gaps: tuple[EvidenceGap, ...] = Field(max_length=MAX_EVIDENCE)
+    reporting_pins: tuple[ReportingPresencePin, ...] = Field(default=(), max_length=MAX_ACCOUNTS)
 
     def assert_ticket(self, ticket: GenerationTicket) -> None:
         self = type(self).model_validate(self)
@@ -371,6 +401,16 @@ class EvidenceBundle(NoAuthority):
         ):
             raise ValueError("evidence belongs to another generation")
         accounts = set(ticket.inputs.accounts)
+        if ticket.policy_version == QUALIFIED_POLICY:
+            if (
+                len(self.reporting_pins) != len(accounts)
+                or {pin.account for pin in self.reporting_pins} != accounts
+            ):
+                raise ValueError("qualified reporting requires exact collection pins")
+        elif self.reporting_pins or any(
+            isinstance(p.document, CampaignPerformanceV3) for p in self.performance
+        ):
+            raise ValueError("legacy policy cannot consume qualified reporting")
         fences = {source.account.account_id: source for source in ticket.sources}
         for catalog in self.catalogs:
             account = catalog.reference.account

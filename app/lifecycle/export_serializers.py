@@ -16,6 +16,7 @@ from app.billing.offers import (
 from app.billing.offers import (
     digest as offer_digest,
 )
+from app.campaign_performance.presence_export import PresenceExportContext
 from app.campaign_review.contracts import ReviewArtifact
 from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
@@ -617,9 +618,22 @@ def bind_document(
 
 
 def serialize(
-    table: str, row: Mapping[str, Any], *, db: Session | None = None
+    table: str,
+    row: Mapping[str, Any],
+    *,
+    db: Session | None = None,
+    presence_context: PresenceExportContext | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
+    from app.campaign_performance.presence_storage import TABLES as PRESENCE_TABLES
     from app.planning_documents.storage import CATALOG_RECEIPT_TABLES, PLANNING_TABLES, export_row
+
+    if table in PRESENCE_TABLES:
+        if db is None:
+            raise ValueError("presence export requires scoped snapshot validation")
+        context = presence_context or PresenceExportContext(db)
+        if context.db is not db:
+            raise ValueError("presence export session mismatch")
+        return context.export(table, row), []
 
     if table in CATALOG_RECEIPT_TABLES:
         from app.planning_documents.catalog_receipt_export import export_receipt_row

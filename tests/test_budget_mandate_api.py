@@ -24,6 +24,8 @@ from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 def test_first_customer_mandate_and_preview(
     customer_engine: Engine,

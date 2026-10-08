@@ -23,6 +23,8 @@ from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_portal import portal_executable
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 @pytest.mark.parametrize("unavailable", [False, True])
 def test_first_customer_budget_browser(

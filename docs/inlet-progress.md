@@ -7099,3 +7099,16 @@ jobs, CLI and concrete transports first. Planning account selection currently de
 on an execution catalog route and needs an owned read-only replacement. Execution
 work remains post-launch. Recovery evidence: /workspace/inlet-evidence/20261008/recovery.json.
 Documentation diff check passed; no new product behavior or tests in this checkpoint.
+
+## 2026-10-08 — Planning MVP P01 Assembled Acceptance
+
+Shared immutable no-ad-write boundary, direct route/background/admission/transport
+guards and independent planning confirmation0086 integrated. Known Google POST search
+and actual owned planning API/HTTPS browser reads preserved. Independent reviews closed.
+207passed/1expectedSQLite concurrency skip/1existing Alembic warning217.16s; Ruff,
+mypy994files, JSsyntax anddiffpass. Exact ledger:inlet-planning-p01-status-20261008.md.
+Historical engines use explicit isolated fixtures; full legacy-suite adaptation and
+Fullqualification not claimed. All work local oncodex/inlet-planning-mvp, no push/hosted/
+live/deploy/mainmerge. NextP02 native targetcatalog + manual-use metadata and complete
+planning recommendation/lifecycle journey; initialcatalog ownershipprojectionrepair
+pending review, not silently accepted.

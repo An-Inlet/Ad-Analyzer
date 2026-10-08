@@ -1,5 +1,37 @@
 # Planning MVP P01 Integration Status
 
+## Assembled Acceptance — Current
+
+P01's implemented boundary and planning-read acceptance passed after customer/0086
+integration at53d444a (plus explicit planning test markers committed with this ledger).
+Independent reviews closed for worker/admissiond3233e2, transportb814f08 and customer/
+planning-confirmation5281aff. Earlier remaining-integration sections below are history,
+not current blockers.
+
+Exact assembled cohort:207passed,1expectedSQLite row-lock concurrency skip,1existing
+Alembic path_separator deprecation warning,217.16seconds. It includes actual SQLite/
+PostgreSQL API and HTTPS Chromium planning flows, early authenticated route denial
+before runtime/media construction, zero provider mutations, separate planning-only
+confirmation with execution mandate still draft, ownership/revocation/expiry and
+migration/export/scoped-deletion cases, plus explicitly labeled retained-engine tests.
+Files are the160-case cohort below plus test_planning_consents,
+test_planning_consent_migration, test_budget_mandate_api,
+test_initial_budget_mandate_browser, test_planning_customer_boundary and the schema
+field-disposition export check. Raw log and JUnit:
+/workspace/inlet-evidence/20261008/planning-p01-integrated.{log,xml}.
+Whole Ruff, prescribed mypy994files, four changed JS/browser syntax checks and diff
+checks passed. Schema0086 descends from0085. No Full/hosted or live-provider pass is
+claimed; broader historical execution/UI suite classification still remains. No
+production migration, deployment, remote push or main merge occurred.
+
+P02 continues with all-three-provider target catalog: isolated06b2ac5 has79both-DB
+passes, but independent review found inferred Meta/TikTok budget-owner relationships
+unsupported by native amounts alone. Repair is pending; do not integrate that head
+as qualified. Native names/references, Google adgroups and comprehensive plan quality/
+lifecycle remain substantive next work, not completed by safe-read acceptance.
+
+## Earlier Package Evidence
+
 Owner-authorized resume verified all316preserved worktrees/eight archived test files.
 Shared immutable capability1c7e30d, worker/admissiond3233e2 and reviewed transportb814f08
 are assembled locally on codex/inlet-planning-mvp (transport mergecc2a17d). Both worker

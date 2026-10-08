@@ -25,6 +25,8 @@ from tests.test_customer_identity import replicas as replicas
 from tests.test_planning_consents import confirm
 from tests.test_shopify_sales import configuration as configuration
 
+pytestmark = pytest.mark.planning_boundary
+
 
 @pytest.fixture
 def customer_engine(migration_customer_engine: Engine) -> Engine:

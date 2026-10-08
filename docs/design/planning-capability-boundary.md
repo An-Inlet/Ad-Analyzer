@@ -1,10 +1,12 @@
 # Planning MVP Capability Boundary
 
 Shared interface frozen before dependent implementation: app.advertising_capabilities
-exports advertising_writes_enabled() -> Literal[False] and
-require_advertising_write() -> NoReturn, raising AdvertisingWritesDisabled with HTTP409
+exports advertising_writes_enabled() -> bool (always False) and
+require_advertising_write() -> None (always raises), raising AdvertisingWritesDisabled with HTTP409
 and fixed detail advertising_writes_disabled_in_planning_mvp. No environment flag,
 customer approval, manifest, injected runtime or stored mandate enables mutation.
+Annotations deliberately avoid static NoReturn/Literal[False] dead-code elimination,
+so the retained engine bodies remain type-checked; runtime behavior is unchanged.
 This artifact is planning-only; retained execution code is post-launch, not a second
 production mode. No live operation or deployment is authorized by this change.
 

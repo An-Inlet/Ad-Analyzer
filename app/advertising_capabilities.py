@@ -6,8 +6,6 @@ Retained execution engines may be exercised by explicit offline test patches onl
 no runtime flag, manifest, approval or injected provider grants this capability.
 """
 
-from typing import Literal, NoReturn
-
 from fastapi import HTTPException
 
 
@@ -18,10 +16,10 @@ class AdvertisingWritesDisabled(HTTPException):
         super().__init__(status_code=409, detail="advertising_writes_disabled_in_planning_mvp")
 
 
-def advertising_writes_enabled() -> Literal[False]:
+def advertising_writes_enabled() -> bool:
     return False
 
 
-def require_advertising_write() -> NoReturn:
-    """Deny before claims, reservations, credential resolution and provider I/O."""
+def require_advertising_write() -> None:
+    """Always deny. Annotate None so retained engine bodies remain type-checked."""
     raise AdvertisingWritesDisabled()

@@ -27,6 +27,7 @@ from app.production_runtime.candidate_sources import (
     RegisteredReportedRuleSource,
 )
 from app.production_runtime.optimization_assembly import pinned
+from app.publication.customer_optimization_contracts import TargetCatalog
 from app.reported_feedback.candidate_configuration import ReportedRulePolicyBundleV1
 from app.session_automation import service, worker
 from app.session_automation.models import SessionAutomationRun
@@ -59,7 +60,7 @@ def configured_session_automation(
             yield None
             return
 
-        def unbound_catalog(*_args: object) -> None:
+        def unbound_catalog(*_args: object) -> TargetCatalog:
             raise HTTPException(409, "exact_automation_mandate_required")
 
         yield SessionAutomationRuntime(

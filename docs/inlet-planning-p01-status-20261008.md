@@ -51,3 +51,9 @@ version/applied/progress lifecycle. No financial execution qualification is an M
 
 No hosted retry, push, live provider action, credentials, merge to main or deployment.
 Owner-pending hosted diagnostic and $10Actions/quota-stop instructions remain.
+
+Annotation review: the capability functions now declare bool/None while still returning
+False/unconditionally raising. This deliberately keeps guarded retained code reachable
+to mypy, without an execution switch. It exposed one previously unreachable callback
+annotation; corrected to TargetCatalog. Prescribed mypy986files now checks that path
+and passes. Default capability/worker/transport cohort90passed1.17s; Ruff/diff pass.

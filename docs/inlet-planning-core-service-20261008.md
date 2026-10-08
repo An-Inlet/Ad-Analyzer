@@ -97,3 +97,8 @@ Focused command (same disposable PostgreSQL environment as above):
 `pytest -q -o addopts='' tests/test_planning_service_error_boundaries.py -x`:
 **12 passed in14.80s**, both SQLite and PostgreSQL. Whole Ruff and mypy1045 passed;
 diff checks passed. No broad/full-suite rerun or live qualification is claimed.
+
+Independent review closed768634b plus repair9682753 with no remaining P1/P2. Root
+integrated the core at5ffd552, preserving newer reader/proof qualification ledger lines
+when duplicate ancestry caused documentation-only add/add conflicts. API integration
+subsequently passed35cases48.742s; see customer API ledger for exact cohort and limits.

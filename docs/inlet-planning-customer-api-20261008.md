@@ -32,3 +32,10 @@ Evidence `/workspace/inlet-evidence/20261008/planning-documents-api-initial.{log
 and `planning-documents-api-errors.{log,xml}`. Core9682753 independent review is closed;
 router review and root integration are separate gates. No live provider or customer
 browser/controller journey is claimed. No Full suite, hosted run, remote push or deploy.
+
+Independent API review closed bfd95ba. Root merged reviewed core9682753 and APIbfd95ba,
+then ran actual API + repaired service error boundaries + assertion/response contracts
++ real Chromium document/comparison/event display: **35 passed in48.742s**, no skips,
+errors or warnings. Whole Ruff/mypy1053 and event-module syntax passed. Evidence:
+`/workspace/inlet-evidence/20261008/planning-customer-integrated.{log,xml}`.
+This is a bounded integrated cohort, not a Full-suite or live qualification.

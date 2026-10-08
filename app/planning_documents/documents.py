@@ -173,7 +173,23 @@ class PlanVersion(NoAuthority):
             if not ready:
                 raise ValueError("cyclic action prerequisites")
             pending = {key: deps - ready for key, deps in pending.items() if key not in ready}
+        intents = {i.key: i for i in self.inputs.scenario_intents}
+        supplied_keys = tuple(
+            s.customer_intent_key for s in self.scenarios if s.customer_intent_key is not None
+        )
+        unique(supplied_keys, "customer scenario output")
+        if set(supplied_keys) != set(intents):
+            raise ValueError("every customer alternative must be represented exactly once")
         for scenario in self.scenarios:
+            if scenario.customer_intent_key is not None:
+                intent = intents[scenario.customer_intent_key]
+                proposed = {(a.target.digest(), a.amount_micros) for a in scenario.allocations}
+                requested = {(a.target.digest(), a.amount_micros) for a in intent.allocations}
+                if (
+                    proposed != requested
+                    or scenario.unallocated_micros != intent.unallocated_micros
+                ):
+                    raise ValueError("customer hypothetical allocations changed")
             if (
                 scenario.period != self.inputs.budget_period
                 or scenario.ceiling_micros != self.inputs.total_ceiling_micros
@@ -186,6 +202,9 @@ class PlanVersion(NoAuthority):
             for allocation in scenario.allocations:
                 target(allocation.target)
                 refs(allocation.evidence_keys)
+        capacity = self.inputs.maximum_creative_assets
+        if capacity is not None and sum(len(b.required_assets) for b in self.briefs) > capacity:
+            raise ValueError("creative asset requests exceed customer capacity")
         for brief in self.briefs:
             target(brief.target)
             refs(brief.claim_evidence_keys, brief.assumption_keys)

@@ -72,6 +72,7 @@ def packet(platform: str = "google_ads", ceiling: int = 100) -> dict[str, Any]:
         product_offer=None,
         constraints=[],
         fixed_allocations=[],
+        scenario_intents=[],
         assumptions=[],
         excluded_entity_keys=[],
         created_by="a" * 32,
@@ -648,4 +649,54 @@ def test_typed_native_facts_cannot_borrow_unrelated_evidence(fact: str, bad_sour
             ),
         )
     with pytest.raises(ValidationError, match="typed native fact"):
+        PlanVersion.model_validate(data)
+
+
+def test_customer_alternatives_are_typed_independent_and_preserved() -> None:
+    data = packet()
+    target = data["actions"][0]["target"]
+    data["inputs"]["scenario_intents"] = [
+        dict(
+            key=key,
+            title=key,
+            allocations=[dict(target=target, amount_micros=amount)],
+            unallocated_micros=100 - amount,
+        )
+        for key, amount in (("alternative_a", 40), ("alternative_b", 70))
+    ]
+    data["scenarios"] = [
+        dict(
+            key=i["key"],
+            title=i["title"],
+            period=data["inputs"]["budget_period"],
+            ceiling_micros=100,
+            allocations=[
+                dict(
+                    key="allocation",
+                    target=target,
+                    amount_micros=i["allocations"][0]["amount_micros"],
+                    rationale="Customer hypothesis",
+                    evidence_keys=["catalog"],
+                )
+            ],
+            unallocated_micros=i["unallocated_micros"],
+            assumptions=[],
+            provenance="customer_supplied_hypothesis",
+            customer_intent_key=i["key"],
+        )
+        for i in data["inputs"]["scenario_intents"]
+    ]
+    value = PlanVersion.model_validate(data)
+    assert len(value.scenarios) == 2
+    data["scenarios"][0]["allocations"][0]["amount_micros"] = 50
+    data["scenarios"][0]["unallocated_micros"] = 50
+    with pytest.raises(ValidationError, match="hypothetical allocations changed"):
+        PlanVersion.model_validate(data)
+
+
+@pytest.mark.parametrize("capacity", [True, -1, 31, "2"])
+def test_creative_capacity_is_explicit_bounded_integer(capacity: object) -> None:
+    data = packet()
+    data["inputs"]["maximum_creative_assets"] = capacity
+    with pytest.raises(ValidationError):
         PlanVersion.model_validate(data)

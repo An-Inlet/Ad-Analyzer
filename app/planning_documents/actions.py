@@ -137,6 +137,8 @@ class Allocation(Frozen):
 
 
 class BudgetScenario(NoAuthority):
+    provenance: Literal["generated", "customer_supplied_hypothesis"] = "generated"
+    customer_intent_key: Key | None = None
     key: Key
     title: Title
     period: BudgetPeriod
@@ -150,6 +152,10 @@ class BudgetScenario(NoAuthority):
 
     @model_validator(mode="after")
     def reconciled(self) -> "BudgetScenario":
+        if (self.provenance == "customer_supplied_hypothesis") != (
+            self.customer_intent_key is not None
+        ):
+            raise ValueError("exact customer scenario provenance required")
         if (
             sum(a.amount_micros for a in self.allocations) + self.unallocated_micros
             != self.ceiling_micros

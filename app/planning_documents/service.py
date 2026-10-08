@@ -6,6 +6,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
@@ -114,15 +115,22 @@ class PlanningDocumentService:
                     raise repository.changed("plan input or version changed")
                 if expected_version:
                     parent_digest = repository.version(db, plan)[1].digest()
-            prepared = input_resolution.prepare(
-                db,
-                workspace_id=wid,
-                plan_id=plan_id,
-                revision=expected_input + 1,
-                actor_id=current.user.id,
-                intent=request.inputs,
-                now=self.clock(),
-            )
+            try:
+                prepared = input_resolution.prepare(
+                    db,
+                    workspace_id=wid,
+                    plan_id=plan_id,
+                    revision=expected_input + 1,
+                    actor_id=current.user.id,
+                    intent=request.inputs,
+                    now=self.clock(),
+                )
+            except ValidationError as error:
+                raise HTTPException(
+                    422,
+                    "Planning inputs require past, non-overlapping reporting windows "
+                    "and valid confirmed-goal limits.",
+                ) from error
             sources = resolve_source_fences(
                 db, principal=current, accounts=prepared.accounts, now=self.clock()
             )
@@ -140,7 +148,13 @@ class PlanningDocumentService:
                 prepared_at=self.clock(),
             )
             authority.final(current, fact)
-        resolved = input_resolution.resolve(prepared, request.inputs, ())
+        try:
+            resolved = input_resolution.resolve(prepared, request.inputs, ())
+        except ValidationError as error:
+            raise HTTPException(
+                422,
+                "Each planning scenario must reconcile to the confirmed budget and constraints.",
+            ) from error
         # Refresh only after all catalog/identity IO; no provider call follows under locks.
         fact = authority.refresh(principal, self.provider)
         with Session(self.engine) as db, db.begin():

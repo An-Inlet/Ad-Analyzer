@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from app import advertising_capabilities
 from app.api.customer_execution import router as execution_router
 from app.api.customer_optimization import router
 from app.customers.models import CustomerUser
@@ -78,6 +79,8 @@ def headers(client: TestClient) -> dict[str, str]:
 
 @pytest.mark.parametrize("platform", ["google_ads", "meta_ads", "tiktok_ads"])
 @pytest.mark.parametrize("action_kind", ["budget", "pause"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_owned_catalog_mandate_initial_repeat_actual_adapter_journey(
     customer_engine: Engine,
     configuration: Settings,
@@ -231,6 +234,8 @@ def bootstrap(
 
 @pytest.mark.parametrize("phase", ["catalog", "qualification"])
 @pytest.mark.parametrize("revocation", ["session", "role"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_original_session_revocation_during_read_blocks_review(
     customer_engine: Engine,
     configuration: Settings,
@@ -286,6 +291,8 @@ def test_original_session_revocation_during_read_blocks_review(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unknown_stale_forged_choices_and_missing_repeat_source_fail_closed(
     customer_engine: Engine,
     configuration: Settings,
@@ -335,6 +342,8 @@ def test_unknown_stale_forged_choices_and_missing_repeat_source_fail_closed(
     )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_shared_consent_rechecks_server_topology_and_unknown_dispatch_rejects(
     customer_engine: Engine,
     configuration: Settings,
@@ -397,17 +406,24 @@ def test_shared_consent_rechecks_server_topology_and_unknown_dispatch_rejects(
     assert client.get(base + f"/reviews/{review['id']}").status_code == 409
 
 
+@pytest.mark.planning_boundary
 def test_owned_account_choices_hide_native_ids_and_disconnected_sources(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     replicas: tuple[TestClient, TestClient, FakeProvider],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app.google_connections.models import GoogleCustomerConnection
     from sqlalchemy import select
 
     client, other, _ = replicas
-    wid, _, runtime, base, _, _ = bootstrap(customer_engine, configuration, tmp_path, client)
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        wid, _, runtime, base, _, _ = bootstrap(customer_engine, configuration, tmp_path, client)
+    assert advertising_capabilities.advertising_writes_enabled() is False
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
     result = client.get(base + "/optimization/accounts")
     assert result.status_code == 200, result.text
     assert result.headers["Cache-Control"] == "no-store"
@@ -426,3 +442,94 @@ def test_owned_account_choices_hide_native_ids_and_disconnected_sources(
         connection.status = "disconnected"
         db.commit()
     assert client.get(base + "/optimization/accounts").json()["accounts"] == []
+
+
+@pytest.mark.planning_boundary
+@pytest.mark.parametrize("platform", ["google_ads", "meta_ads", "tiktok_ads"])
+def test_configured_optimization_stays_read_only_in_planning(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    replicas: tuple[TestClient, TestClient, FakeProvider],
+    monkeypatch: pytest.MonkeyPatch,
+    platform: str,
+) -> None:
+    from app.publication.execution_models import (
+        ProviderExecutionAttempt,
+        ProviderExecutionMandate,
+        ProviderExecutionReview,
+        ProviderExposureReservation,
+    )
+    from sqlalchemy import func, select
+
+    client, other, _ = replicas
+    with monkeypatch.context() as historical:
+        historical.setattr(advertising_capabilities, "require_advertising_write", lambda: None)
+        with Session(customer_engine) as db:
+            wid, _, policy, runtime, server = setup(db, configuration, tmp_path, platform)
+            mandate = db.scalar(
+                select(ProviderExecutionMandate).where(ProviderExecutionMandate.workspace_id == wid)
+            )
+            assert mandate is not None
+            mandate_id = mandate.id
+    with pytest.raises(advertising_capabilities.AdvertisingWritesDisabled):
+        advertising_capabilities.require_advertising_write()
+    assert advertising_capabilities.advertising_writes_enabled() is False
+    tables = (
+        ProviderExecutionMandate,
+        ProviderExecutionReview,
+        ProviderExecutionRun,
+        ProviderExecutionAttempt,
+        ProviderExposureReservation,
+    )
+    with Session(customer_engine) as db:
+        before = tuple(db.scalar(select(func.count()).select_from(table)) for table in tables)
+    install(client, runtime)
+    install(other, runtime)
+    login(client, "optimization-owner:planning")
+    login(other, "other-owner:planning")
+    base = f"/api/customer/v1/workspaces/{wid}/execution"
+    opt = base + "/optimization"
+    query = {
+        "goal_id": policy.goal_id,
+        "goal_revision": policy.goal_revision,
+        "account_id": policy.accounts[0].account.account_id,
+    }
+    options = client.post(opt + "/target-options", json=query, headers=headers(client))
+    assert options.status_code == 200, options.text
+    assert options.json()["dispatch_qualified"] is False
+    assert options.json()["options"][0]["label"] == "Brand Search"
+    assert (
+        other.post(opt + "/target-options", json=query, headers=headers(other)).status_code == 404
+    )
+    assert client.get(base + "/mandates").status_code == 200
+    assert other.get(base + "/mandates").status_code == 403
+    status = client.get(opt + "/capabilities")
+    assert status.status_code == 200
+    assert status.json()["advertising_writes_enabled"] is False
+    assert status.json()["catalog_available"] is False
+    assert status.json()["repeat_available"] is False
+    assert all(
+        not item["initial_available"] and not item["repeat_available"]
+        for item in status.json()["providers"]
+    )
+    for method, path in (
+        ("POST", "/mandates"),
+        ("PUT", f"/mandates/{mandate_id}"),
+        ("POST", f"/mandates/{mandate_id}/consent"),
+        ("POST", "/initial-reviews"),
+        ("POST", "/repeat-reviews"),
+    ):
+        denied = client.request(method, opt + path, json={}, headers=headers(client))
+        assert denied.status_code == 409, denied.text
+        assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+    assert len(server.writes if platform == "google_ads" else server.posts) == 0
+    with Session(customer_engine) as db:
+        after = tuple(db.scalar(select(func.count()).select_from(table)) for table in tables)
+        assert after == before
+    assert client.delete("/api/customer/v1/session", headers=headers(client)).status_code == 204
+    assert client.get(base + "/mandates").status_code == 401
+    assert client.get(opt + "/accounts").status_code == 401
+    assert (
+        client.post(opt + "/target-options", json=query, headers=headers(client)).status_code == 401
+    )

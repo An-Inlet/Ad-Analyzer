@@ -110,6 +110,18 @@ class PlanningMetadataV1(Frozen):
         kinds = {"campaign", "adset" if self.platform == "meta_ads" else "adgroup"}
         if {c.kind for c in self.coverage} != kinds:
             raise ValueError("metadata coverage invalid")
+        for coverage in self.coverage:
+            expected_scope = (
+                ("provider_campaigns" if coverage.kind == "campaign" else "provider_adgroups")
+                if self.platform == "google_ads"
+                else "sdk_known_effective_statuses"
+                if self.platform == "meta_ads"
+                else "regular_campaign_families"
+            )
+            if coverage.scope != expected_scope or (
+                self.platform != "google_ads" and coverage.status != "partial"
+            ):
+                raise ValueError("metadata platform scope invalid")
         keys = {(e.kind, e.reference.entity_id) for e in self.entities}
         parents = {e.reference.entity_id for e in self.entities if e.kind == "campaign"}
         if len(keys) != len(self.entities) or any(
@@ -183,10 +195,81 @@ class TargetCatalogV2(Frozen):
             {t.selection_key for t in self.targets}
         ) != len(self.targets):
             raise ValueError("composite keys duplicate")
-        settings = {t.selection_key for t in native.targets}
-        if any(
-            t.native_settings_key is not None and t.native_settings_key not in settings
-            for t in self.targets
-        ):
-            raise ValueError("composite settings reference invalid")
+        settings = {t.selection_key: t for t in native.targets}
+        represented: set[str] = set()
+        for target in self.targets:
+            canonical = canonical_key(metadata, target.entity)
+            expected = settings.get(settings_key(native.source_binding_digest, target.entity))
+            if expected is None and not (
+                metadata.platform == "google_ads" and target.entity.kind == "adgroup"
+            ):
+                raise ValueError("composite native entity missing")
+            if expected is not None:
+                represented.add(expected.selection_key)
+            if target.canonical_entity_key != canonical or target.selection_key != selection_key(
+                canonical, native.source_binding_digest, self.composite_digest
+            ):
+                raise ValueError("composite entity keys invalid")
+            if expected is not None and target.entity.reference.parent_campaign_id is not None:
+                parent_native_id = target.entity.reference.parent_campaign_id
+                if metadata.platform == "google_ads":
+                    parent_native_id = (
+                        "customers/"
+                        + target.entity.reference.advertiser_id
+                        + "/campaigns/"
+                        + parent_native_id
+                    )
+                parent_key = fingerprint(
+                    "inlet.planning-target.v1",
+                    dict(
+                        source=native.source_binding_digest,
+                        kind="campaign",
+                        native_id=parent_native_id,
+                    ),
+                )
+                if expected.parent_selection_key != parent_key:
+                    raise ValueError("composite settings parent mismatch")
+            if target.native_settings_key != (
+                expected.selection_key if expected else None
+            ) or target.budget_owner_key != (expected.budget_owner_key if expected else None):
+                raise ValueError("composite settings reference invalid")
+        if represented != set(settings):
+            raise ValueError("composite native inventory omitted")
         return self
+
+
+def canonical_key(metadata: PlanningMetadataV1, entity: MetadataEntityV1) -> str:
+    return fingerprint(
+        "inlet.planning-canonical-entity.v1",
+        dict(
+            workspace_id=metadata.workspace_id,
+            account_id=metadata.account_id,
+            platform=metadata.platform,
+            advertiser_id=entity.reference.advertiser_id,
+            kind=entity.kind,
+            entity_id=entity.reference.entity_id,
+        ),
+    )
+
+
+def settings_key(source_digest: str, entity: MetadataEntityV1) -> str:
+    native_id = entity.reference.entity_id
+    if entity.reference.platform == "google_ads":
+        native_id = (
+            "customers/"
+            + entity.reference.advertiser_id
+            + "/"
+            + ("campaigns" if entity.kind == "campaign" else "adGroups")
+            + "/"
+            + native_id
+        )
+    return fingerprint(
+        "inlet.planning-target.v1",
+        dict(source=source_digest, kind=entity.kind, native_id=native_id),
+    )
+
+
+def selection_key(canonical: str, source: str, composite: str) -> str:
+    return fingerprint(
+        "inlet.planning-selection.v2", dict(canonical=canonical, source=source, composite=composite)
+    )

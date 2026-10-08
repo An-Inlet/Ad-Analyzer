@@ -24,6 +24,7 @@ from app.google_connections.models import GoogleCustomerConnection
 from app.google_connections.security import Vault as GoogleVault
 from app.meta.models import MetaConnection
 from app.meta.security import Vault as MetaVault
+from app.planning_catalog.metadata_contracts import PlanningMetadataV1
 from app.publication import customer_intents
 from app.publication import execution_mandates as mandates
 from app.publication.execution_authorization import ExecutionAuthorizer
@@ -203,6 +204,37 @@ class NativeDiagnosticService:
             return native_request, bundle
 
     def read(self, request: DiagnosticRequest, now: datetime) -> Inventory:
+        return self._read_operation(request, now, None)[0]
+
+    def read_catalog(
+        self, request: AccountDiagnosticRequest, now: datetime
+    ) -> tuple[Inventory, PlanningMetadataV1]:
+        from app.planning_catalog.metadata_http import read_metadata
+
+        result, metadata = self._read_operation(
+            request,
+            now,
+            lambda inventory, transport, values: read_metadata(
+                inventory, transport, values, self.clock
+            ),
+        )
+        assert metadata is not None
+        return result, metadata
+
+    def _read_operation(
+        self,
+        request: DiagnosticRequest,
+        now: datetime,
+        metadata_reader: Callable[
+            [
+                Inventory,
+                httpx.BaseTransport,
+                Callable[[InventoryRequest, datetime], dict[str, Any]],
+            ],
+            PlanningMetadataV1,
+        ]
+        | None,
+    ) -> tuple[Inventory, PlanningMetadataV1 | None]:
         request = TypeAdapter(DiagnosticRequest).validate_python(request.model_dump())
         original, _ = self._snapshot(request)
         provider = original.account.account.platform
@@ -286,11 +318,31 @@ class NativeDiagnosticService:
                 transport=transport,
                 clock=self.clock,
             )(original, now)
+        metadata = None
+        if metadata_reader is not None:
+            if not isinstance(request, AccountDiagnosticRequest):
+                raise HTTPException(409, "planning read requires owned account observation")
+            metadata = metadata_reader(result, transport, values)
+            from app.planning_catalog.metadata_binding import validate_bound_metadata
+
+            metadata = validate_bound_metadata(result, metadata, self.clock())
+            if (
+                metadata.request_digest != original.digest()
+                or metadata.native_inventory_digest != result.digest()
+                or metadata.expires_at > result.expires_at
+                or not result.observed_at
+                <= metadata.observation_started_at
+                <= metadata.observed_at
+                <= self.clock()
+                < metadata.expires_at
+            ):
+                raise HTTPException(409, "planning metadata expired or changed")
         final, _ = self._snapshot(request)
         if (
             final != original
+            or (metadata is not None and self.clock() >= metadata.expires_at)
             or result.request != original
             or not (now <= result.observed_at <= self.clock() < result.expires_at)
         ):
             raise HTTPException(409, "diagnostic result expired or changed")
-        return result
+        return result, metadata

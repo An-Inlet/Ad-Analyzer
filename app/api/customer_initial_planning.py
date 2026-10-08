@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, Campaign
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
@@ -57,6 +58,7 @@ from app.publication.customer_optimization_contracts import (
     get_customer_optimization_runtime,
 )
 from app.publication.execution_models import ProviderExecutionMandate
+from app.publication.service import owner
 from app.settings import settings
 
 router = APIRouter(
@@ -72,7 +74,6 @@ def get_initial_planning_runtime(db: Database) -> InitialPlanningRuntime:
     return InitialPlanningRuntime(
         session_factory=lambda: Session(engine),
         configuration=get_initial_planning_configuration(),
-        native=get_customer_optimization_runtime(),
     )
 
 
@@ -86,7 +87,8 @@ def review_configured(
     planning: InitialPlanningRuntime, optimization: CustomerOptimizationRuntime | None
 ) -> bool:
     return bool(
-        planning.configuration
+        advertising_capabilities.advertising_writes_enabled()
+        and planning.configuration
         and optimization
         and optimization.catalog
         and optimization.initial_planning
@@ -447,6 +449,8 @@ def prepare_review(
     response: Response,
 ) -> InitialPreviewReviewPrepared:
     # Reject unavailable/stale customer context before opening the bridge transaction.
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     preview.read_preview(db, principal, provider, workspace_id, preview_id, runtime)
     if optimization_runtime is None or not review_configured(runtime, optimization_runtime):
         raise HTTPException(503, "Exact review preparation is unavailable.")

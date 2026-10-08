@@ -44,18 +44,18 @@ def customer_measurement_history() -> FileResponse:
 @router.get("/app/execution", include_in_schema=False)
 @router.get("/app/execution/{workspace_id}/{run_id}", include_in_schema=False)
 def customer_execution() -> FileResponse:
-    return FileResponse(STATIC / "execution.html", media_type="text/html")
+    return FileResponse(STATIC / "advertising-history.html", media_type="text/html")
 
 
 @router.get("/app/social-configuration", include_in_schema=False)
 def customer_social_configuration() -> FileResponse:
-    return FileResponse(STATIC / "social-configuration.html", media_type="text/html")
+    return FileResponse(STATIC / "advertising-history.html", media_type="text/html")
 
 
 @router.get("/app/optimization", include_in_schema=False)
 @router.get("/app/optimization/{workspace_id}/{run_id}", include_in_schema=False)
 def customer_optimization() -> FileResponse:
-    return FileResponse(STATIC / "optimization.html", media_type="text/html")
+    return FileResponse(STATIC / "advertising-history.html", media_type="text/html")
 
 
 @router.get("/app/account-diagnostics", include_in_schema=False)
@@ -80,4 +80,4 @@ def customer_reported_comparison() -> FileResponse:
 
 @router.get("/app/tiktok-linked", include_in_schema=False)
 def customer_tiktok_linked() -> FileResponse:
-    return FileResponse(STATIC / "tiktok-linked.html", media_type="text/html")
+    return FileResponse(STATIC / "advertising-history.html", media_type="text/html")

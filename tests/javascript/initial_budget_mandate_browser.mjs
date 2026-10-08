@@ -3,6 +3,8 @@ const $=id=>document.getElementById('ip-'+id),assert=(ok,msg)=>{if(!ok)throw Err
 const until=async(fn,message)=>{const end=Date.now()+25000;while(!await fn()){if(Date.now()>end)throw Error(message+' · '+$('status').textContent);await new Promise(r=>setTimeout(r,20));}};
 const change=(id,value,type='change')=>{$(id).value=value;$(id).dispatchEvent(new Event(type));};
 const settled=()=>!$('refresh').disabled;
+const realFetch=globalThis.fetch.bind(globalThis),requests=[];
+globalThis.fetch=(url,init)=>{requests.push({url:String(url),method:init?.method||'GET'});return realFetch(url,init);};
 try{
 await import('/app/assets/initial-planning.mjs');
 await until(()=>settled()&&$('workspace').options.length===2,'workspace');
@@ -30,7 +32,7 @@ await until(()=>settled()&&!!$('mandate').value,'exact consent');assert(consente
 assert($('mandate').value===prepared.mandate_id,'server returned identity, no pasted ID');
 $('preview').click();await until(()=>settled()&&!$('result').hidden,'actual native v2 preview');
 assert(!$('preview-summary').textContent.includes('Unavailable'),'native amount present');
-assert($('review').disabled,'unqualified native read cannot hand off');
+assert(!$('review')&&!$('automatic-start')&&!$('execution-refresh'),'planning page has no execution controls');
 // Editing the amount clears active selection as well as the draft and result.
 change('budget-total',$('budget-total').value,'input');assert(!$('mandate').value&&$('budget-review').hidden&&$('result').hidden,'changed intent clears active selection');
 // No old response may restore authority after a workspace change.
@@ -39,5 +41,6 @@ $('budget-prepare').click();await until(()=>entered,'hold actual prepare respons
 assert($('budget').hidden&&$('budget-review').hidden&&!$('mandate').value,'late prepare discarded');globalThis.fetch=original;
 $('logout').click();await until(()=>settled()&&$('status').textContent==='Signed out.','logout');
 }
+assert(!requests.some(r=>r.url.includes('/execution/')||r.url.endsWith('/review')),'no execution or advertising approval requests');
 await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
 }catch(error){await fetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}

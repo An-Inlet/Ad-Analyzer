@@ -2,11 +2,11 @@
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Response
 
-from app.ads.models import AdvertisingAccount
+from app import advertising_capabilities
 from app.api.customer_optimization_runtime import get_configured_customer_optimization_runtime
+from app.api.customer_planning_catalog import accounts as planning_accounts
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.production_runtime import optimization_mandates
 from app.production_runtime.optimization_policy_contracts import (
@@ -17,7 +17,6 @@ from app.production_runtime.optimization_policy_contracts import (
 from app.publication import customer_intents as intents
 from app.publication import customer_optimization as service
 from app.publication import execution_mandates as mandates
-from app.publication.customer_authority import bind_authority
 from app.publication.customer_optimization_contracts import (
     CustomerOptimizationRuntime,
     InitialOptimizationIntent,
@@ -41,30 +40,7 @@ Runtime = Annotated[
 def accounts(
     workspace_id: int, principal: Principal, provider: Provider, db: Database, response: Response
 ) -> dict[str, Any]:
-    authorize = bind_authority(principal, provider)
-    authorize(db, workspace_id, principal.user.id)
-    rows = list(
-        db.scalars(
-            select(AdvertisingAccount)
-            .where(AdvertisingAccount.workspace_id == workspace_id)
-            .order_by(AdvertisingAccount.id)
-            .limit(51)
-        )
-    )
-    if len(rows) > 50:
-        raise intents.unavailable("owned_account_catalog_limit")
-    choices = []
-    for row in rows:
-        try:
-            scope = intents.account(db, workspace_id, row.id)
-        except HTTPException as exc:
-            if exc.status_code not in {404, 409}:
-                raise
-            continue
-        choices.append({"id": row.id, "name": row.name, "platform": scope.account.platform})
-    authorize(db, workspace_id, principal.user.id)
-    response.headers["Cache-Control"] = "no-store"
-    return {"accounts": choices, "complete": True}
+    return planning_accounts(workspace_id, principal, provider, db, response)
 
 
 @router.get("/capabilities")
@@ -72,9 +48,7 @@ def capabilities(
     workspace_id: int, principal: Principal, db: Database, runtime: Runtime, response: Response
 ) -> dict[str, Any]:
     owner(db, workspace_id, principal.user.id)
-    enabled = runtime is not None and (
-        runtime.execution.environment != "live" or runtime.execution.live_enabled
-    )
+    enabled = False  # Execution capabilities cannot be enabled in this artifact.
     transports = {
         "google_ads": runtime.execution.google if runtime else None,
         "meta_ads": runtime.execution.meta if runtime else None,
@@ -106,9 +80,10 @@ def capabilities(
             and runtime.execution.replacement_reader
         ),
         "live_qualification_implied": False,
+        "advertising_writes_enabled": False,
         "reason": None
         if enabled and runtime and runtime.catalog
-        else "optimization_not_configured",
+        else "advertising_writes_disabled_in_planning_mvp",
     }
 
 
@@ -148,6 +123,8 @@ def create_mandate(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     if server.configured is not None:
         raise intents.unavailable("optimization_customer_budget_review_required")
@@ -168,6 +145,8 @@ def edit_mandate(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     if server.configured is not None:
         raise intents.unavailable("optimization_customer_budget_review_required")
@@ -196,6 +175,8 @@ def consent(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     if server.configured is not None:
         raise intents.unavailable("optimization_customer_exact_consent_required")
@@ -223,6 +204,8 @@ def initial_review(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     row = service.prepare(db, workspace_id, body, principal.user.id, server)
     response.headers["Cache-Control"] = "no-store"
@@ -239,6 +222,8 @@ def repeat_review(
     runtime: Runtime,
     response: Response,
 ) -> dict[str, Any]:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     row = service.prepare(db, workspace_id, body, principal.user.id, server)
     response.headers["Cache-Control"] = "no-store"
@@ -255,6 +240,8 @@ def prepare_customer_budget(
     runtime: Runtime,
     response: Response,
 ) -> PreparedOptimizationMandateV1:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     response.headers["Cache-Control"] = "no-store"
     return optimization_mandates.prepare(db, workspace_id, body, principal.user.id, server)
@@ -271,6 +258,8 @@ def consent_customer_budget(
     runtime: Runtime,
     response: Response,
 ) -> PreparedOptimizationMandateV1:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     server = service.bind(runtime, principal, provider)
     response.headers["Cache-Control"] = "no-store"
     return optimization_mandates.consent(

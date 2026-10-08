@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
+from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
 from app.customers.access import Database, MutationPrincipal, Principal, Provider
 from app.goals import service as goals
@@ -230,6 +231,8 @@ def review(
     runtime: Runtime,
     response: Response,
 ) -> CandidateReviewPrepared:
+    owner(db, workspace_id, principal.user.id)
+    advertising_capabilities.require_advertising_write()
     response.headers["Cache-Control"] = "no-store"
     if body.result_id != result_id:
         raise HTTPException(409, "candidate_result_mismatch")

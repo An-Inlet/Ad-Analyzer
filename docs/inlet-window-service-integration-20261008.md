@@ -82,8 +82,10 @@ Coverage includes:
 ## Qualification
 
 Evidence directory: `/workspace/inlet-evidence/20261008/window-service/`.
-Source/API checkpoint; compatibility is still running and this package is not
-independently closed. Artifact files are actual pytest logs/JUnit, not reconstructed
+Source/API checkpoint `f681f1a` was independently reviewed by the root reviewer,
+with no P1/P2 findings. The final successor contains only the obsolete-message test
+repair and this terminal evidence update; independent closure of that successor is
+recorded by the parent after review. Artifact files are actual pytest logs/JUnit, not reconstructed
 terminal excerpts.
 
 - `api-qualified.log/xml`: **40 passed, 3 failed, 1 expected SQLite skip, 251.88s**.
@@ -103,18 +105,23 @@ terminal excerpts.
   generation and retained read. This is separate from the API authentication layer.
 - `policy-final.log/xml`: **2 passed, 38 deselected, 2.52s**. Canonical legacy digests,
   legacy composer rejection of V3, and the V2 production default remain explicit.
-- `compatibility.log/xml`: terminal pending at this checkpoint. A bounded isolated
-  replay confirmed the two observed failures expect obsolete error wording in
+- `compatibility.log/xml`: **114 passed, 2 failed, 3 expected SQLite skips,
+  16 serializer warnings, 433.23s**. Both failures are the obsolete error wording in
   `test_resolve_owned_customer_intent_and_reject_unread_selection`. The underlying
-  409/actionable message already exists at base `d3092a5`; a test-only successor
+  409/actionable message already exists at base `d3092a5`. The test-only successor
   updates that assertion and adds zero-plan-row proof. Its actual both-DB rerun
-  `compatibility-repair.log/xml` passed **2 cases, 20 deselected, 8.42s**; the
-  test-only change is reserved for the qualification successor.
+  `compatibility-repair.log/xml` passed **2 cases, 20 deselected, 8.42s**.
+  The three skips are PostgreSQL-only independent transaction races. The serializer
+  warnings originate in existing unsafe-copy presence contract tests. No other
+  compatibility failure occurred. This is scoped repaired qualification, not a
+  clean 119-case aggregate; the overlapping results are not summed.
 
 The reusable fixture was frozen separately as helper-only commit `ee889ec` for
 parallel browser preparation. No consuming production source changed during the
-ongoing compatibility run. Final Ruff/mypy results and compatibility disposition
-will be appended in the qualification successor before package closure.
+compatibility run. Final checks after the test-only repair: whole `ruff check .`
+passed; bare `mypy` passed **1105 source files**; `git diff --check` passed.
+Artifacts: `qualification-ruff.log`, `qualification-mypy.log` and
+`qualification-diff.log`.
 
 Development iterations are not full qualification: initial assertions used the
 wrong evidence-kind label, an incomplete composite PlanRow key, and incorrect
@@ -129,8 +136,8 @@ remain in the evidence directory; failed/interrupted/overlapping runs are not su
 ## Remaining Gates
 
 This is offline integration, not production activation, provider certification,
-expert planning qualification, deployment or a purchasable release. Independent
-exact-head review is required before integration. Actual authenticated V3 browser
+expert planning qualification, deployment or a purchasable release. Source review closed at `f681f1a`; the parent reviews the test-only qualification
+successor before package integration. Actual authenticated V3 browser
 acceptance and the separate reviewed default-activation package follow. The one
 frozen aggregate remains pending; no Full/hosted/live checks were started here.
 
@@ -170,3 +177,24 @@ handle these explicit legacy/default distinctions rather than adding aliases:
   during this integration package.
 
 Source checkpoint static checks: whole Ruff passed; bare mypy passed **1105 source files**; `git diff --check` passed.
+
+
+Exact compatibility command (with disposable PostgreSQL fixture schemas and the
+same environment variables as the API runs):
+
+```sh
+pytest -o addopts='' -q tests/test_planning_documents_api.py \
+  tests/test_planning_document_repository.py tests/test_planning_retained_sources.py \
+  tests/test_planning_service_error_boundaries.py tests/test_planning_qualified_reporting.py \
+  tests/test_meta_import_planning_presence.py tests/test_planning_contract_imports.py \
+  --junitxml=/workspace/inlet-evidence/20261008/window-service/compatibility.xml
+```
+
+API cohort: `pytest -o addopts='' -q tests/test_window_service_api.py` (44 cases at
+that checkpoint). Subsequent focused selections on the final file were
+`-k 'real_postgres or final_original_expiry'` (six cases) and
+`-k 'identity_and_native'` (two cases). Compatibility repair selection:
+`tests/test_planning_document_repository.py -k resolve_owned_customer`. Policy
+selection: `tests/test_window_evidence_contract.py -k 'legacy_policy_digests or production_service_default'`.
+All final commands retained separate log/XML paths listed above. This does not
+claim performance qualification under controlled load or a full suite run.

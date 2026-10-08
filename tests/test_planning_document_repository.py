@@ -301,7 +301,12 @@ def test_resolve_owned_customer_intent_and_reject_unread_selection(
             CreatePlan(inputs=selected, request_key="unresolved-target-01"),
         )
     assert pending_receipt.value.status_code == 409
-    assert "retained catalog receipt" in pending_receipt.value.detail
+    assert (
+        "The exact catalog selection is unavailable. Read fresh targets"
+        in pending_receipt.value.detail
+    )
+    with Session(customer_engine) as db:
+        assert db.scalar(select(func.count()).select_from(PlanRow)) == 0
     request = CreatePlan(inputs=intent, request_key="service-create-01")
     created = service.create(principal, original.workspace_id, request)
     replay = service.create(principal, original.workspace_id, request)

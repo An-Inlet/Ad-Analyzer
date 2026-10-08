@@ -17,7 +17,7 @@ No dependent lane starts until root reviews the exact committed models.
 value exact nullable Decimal count / integer micros. Present requires a nonnegative
 bounded value including0; every other state requires null. Boolean/float/nonfinite/
 excess precision are rejected. Counts support at most6fractional places and values
-within existing SQL Numeric(20,6); money uses existing nonnegative bigint-compatible
+within existing SQL Numeric(18,6); money uses existing nonnegative bigint-compatible
 limit. Presence of selected value is independent of selected count.
 
 `SelectedEventV1`: identity provenance `explicit_selected|generic|unavailable`,

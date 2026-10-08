@@ -7085,3 +7085,17 @@ advertising writes and customer manual implementation. Preserved2155ff3 and all 
 execution successors. Next P01 maps mutation entrypoints and freezes a deployment
 write-prohibition interface; coherent planning journey and recommendation quality follow.
 This checkpoint is documentation only; diff checks passed, no new tests or live actions.
+
+## 2026-10-08 — Owner Authorized Resume: Recovery Verified
+
+Resumed from clean090a140 after environment startup. All316worktrees exist; all eight
+archived historical test files are byte-identical to their preserved originals.
+Inventory head differences are exactly the two documented terminal/checkpoint commits
+(d7736ba and090a140). Read-only git ls-remote verified main remains ea3591c.
+No tests/profilers survived the pause. No hosted run, push or provider call started.
+Interrupted Full remains incomplete; previous raw logs and archives are preserved.
+Next P01 is deployment prohibition of every advertising mutation; map routes, stale
+jobs, CLI and concrete transports first. Planning account selection currently depends
+on an execution catalog route and needs an owned read-only replacement. Execution
+work remains post-launch. Recovery evidence: /workspace/inlet-evidence/20261008/recovery.json.
+Documentation diff check passed; no new product behavior or tests in this checkpoint.

@@ -38,7 +38,7 @@ pytestmark = pytest.mark.planning_boundary
     ("journey", "platform"),
     [("documents", "google_ads"), ("targets", "google_ads"),
      ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
-     ("progress", "google_ads"), ("periods", "google_ads")],
+     ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads")],
 )
 def test_actual_planning_browser_lost_response_recovery_and_versions(
     journey: str,
@@ -57,9 +57,30 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
-    _, ticket, _, calls = setup_evidence(
-        customer_engine, configuration, replicas, monkeypatch, platform
-    )
+    window_source = None
+    if journey == "windows":
+        from tests.test_window_service_api import configure_v3
+        from tests.window_service_fixture import import_meta_window_source
+
+        window_source = import_meta_window_source(
+            customer_engine, configuration, replicas, monkeypatch
+        )
+        ticket, calls = window_source.ticket, window_source.native_calls
+        configure_v3(monkeypatch)
+    else:
+        _, ticket, _, calls = setup_evidence(
+            customer_engine, configuration, replicas, monkeypatch, platform
+        )
+    browser_inputs = ticket.inputs.model_dump(mode="json")
+    if window_source is not None:
+        end = window_source.ends_at
+        browser_inputs["reporting_window"] = dict(
+            starts_at=(end - timedelta(days=7)).isoformat(), ends_at_exclusive=end.isoformat()
+        )
+        browser_inputs["comparison_window"] = dict(
+            starts_at=(end - timedelta(days=14)).isoformat(),
+            ends_at_exclusive=(end - timedelta(days=7)).isoformat(),
+        )
     provider = replicas[2]
 
     def database() -> Generator[Session, None, None]:
@@ -89,8 +110,30 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             return
         if path == "/__fixture__/driver.mjs":
             script = Path(f"tests/javascript/planning_{journey}_browser.mjs").read_text()
-            script = script.replace("__INPUTS__", ticket.inputs.model_dump_json())
+            script = script.replace("__INPUTS__", json.dumps(browser_inputs))
             await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if window_source is not None and path == "/__fixture__/correct-window-source":
+            from app.meta.client import MetaClient
+            from app.meta.sync import MetaSyncService
+
+            from tests.test_meta_connection import campaign, page
+
+            for row in window_source.imported:
+                row.pop("actions", None)
+            window_source.payloads.extend(
+                [page(campaign("5", "123")), page(), page(*window_source.imported)]
+            )
+            with Session(customer_engine) as db:
+                runner = MetaSyncService(
+                    db, window_source.runtime, MetaClient(window_source.runtime)
+                )
+                now = datetime.now(UTC)
+                for expected in ("syncing", "syncing", "complete"):
+                    result = runner.page(ticket.inputs.workspace_id, now=now, manual=True)
+                    assert result["status"] == expected, result
+            assert not window_source.payloads and len(window_source.imported_requests) == 6
+            await JSONResponse({"ok": True})(scope, receive, send)
             return
         if journey == "progress" and path == "/__fixture__/correct-sales":
             from app.commerce.models import CommerceStore

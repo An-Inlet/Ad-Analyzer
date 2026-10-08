@@ -18,3 +18,11 @@ Qualification terminal:
 - Existing native metadata API selected positive, metadata-session and metadata-expiry cases: **18 passed,108 deselected in18.51s** across all three platforms/both databases.
 - Final test-only annotation/import repair: targeted final-age cases **2 passed,20 deselected in4.64s**. Whole Ruff passed; whole mypy passed **1042 source files**; diff check passed. Earlier whole-mypy errors were confined to callback-list annotations and test module re-export references, not application behavior.
 - Evidence `/workspace/inlet-evidence/20261008/planning-reader-authority/`. Independent review requested; integration remains the root lane's responsibility.
+
+Independent review closed `e389d49`; integrated at `b557ab0` on the planning branch.
+Assembled reader-authority/evidence-adapter/response/Chromium-view cohort: 101 passed
+in 104.57s, no skips/warnings. Whole Ruff/mypy (1,043 files) passed. Evidence:
+`/workspace/inlet-evidence/20261008/planning-reader-integrated.log` and `.xml`.
+The earlier under-lock identity-I/O issue is resolved for this planning reader path.
+Retained-version source freshness and the complete service/API journey remain separate
+work; this result does not qualify those unfinished paths.

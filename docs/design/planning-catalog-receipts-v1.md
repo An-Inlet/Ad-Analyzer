@@ -33,23 +33,28 @@ from expired selections requires a new confirmed input revision. No decisions ca
 
 ## Storage And Lifecycle
 
-Reserve migration 0088 for two private owned tables: catalog receipt headers/canonical
-bounded native+metadata payloads, and selection-key links to receipts. Composite keys/FKs
+Reserve migration 0088 for three private owned tables: catalog receipt headers/canonical
+bounded native+metadata payloads, selection-key links to receipts, and immutable input-
+revision/account links to the exact receipt. Exclusions currently retain only canonical
+keys in PlanInputRevision, so the input links prevent losing their selected observation. Composite keys/FKs
 must bind workspace, advertising account and connection; actor/session belongs to the
 workspace-owned read. Immutable payload/selection rows, explicit maximum catalog size,
 receipt/count bounds and cleanup of expired unused reads are required. Exact field/DDL
 review precedes implementation. No schema reset or rewrite of migration 0087.
 
 Receipts follow workspace/source privacy erasure and closure/export policy. Never leave
-catalog names or settings outside the lifecycle registry. Semantic erasure removes both
-receipt tables together with the existing plan graph. Ordinary reporting corrections may
+catalog names or settings outside the lifecycle registry. Semantic erasure removes all
+three receipt tables together with the existing plan graph, with input links removed
+before referenced input rows. Ordinary reporting corrections may
 invalidate use without deleting immutable plan history. No credential/token payloads.
 
 ## Shared Interface To Freeze Next
 
 The catalog receipt writer accepts actual server-read Inventory+PlanningMetadataV1 under
 fresh original authority and exact final source checks. The resolver accepts selected
-keys/owned account and returns the verified exact catalog, never a synthesized reference.
+keys/owned account and returns the verified exact catalog and server-only input receipt
+bindings, never a synthesized reference. Input saving atomically commits those links
+alongside the immutable input revision.
 The trusted evidence reader consumes a server-only resolver for target-bearing accounts.
 Service input resolution and generation retain the same immutable receipt-derived target.
 No generic client proof injection, invented lifetime or provider write is introduced.

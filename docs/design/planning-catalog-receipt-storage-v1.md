@@ -304,3 +304,17 @@ convert arbitrary HTTP409/metadata errors into absent evidence or new native rer
 Implementation is pending shared review. Original short native validity may constrain
 interactive editing; this design does not assert a usable production timing envelope or
 extend any deadline to conceal that limitation.
+
+## Implementation Ownership Freeze
+
+Independent design review closed `f6c06f1`. Model module is
+`app.planning_documents.catalog_receipt_models` with SQLAlchemy classes
+`CatalogReceiptRow`, `CatalogReceiptSelectionRow`, `InputCatalogReceiptRow` and exact
+column names above. Storage/migration/lifecycle lane owns that module, revision0088,
+model registration, archive/erasure integration and corresponding database tests.
+The receipt-helper lane owns `app.planning_documents.catalog_receipts`, the frozen
+private types/functions above and source-proof/payload/helper tests. It imports the
+frozen model names; no model/schema changes without coordinated contract update.
+Root owns customer V2 route, core service/evidence-reader wiring and customer browser
+integration after reviewed prerequisites. Both lanes begin from this root freeze;
+helper DB qualification awaits the actual frozen model implementation, not mock tables.

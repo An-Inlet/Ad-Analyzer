@@ -1,7 +1,7 @@
 """Strict planning inventory projection, independent of financial qualification."""
 
 from typing import Annotated, Literal
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -9,14 +9,14 @@ from app.collectors.account_diagnostic_contracts import validate_observation_per
 
 Platform = Literal["google_ads", "meta_ads", "tiktok_ads"]
 Kind = Literal["campaign", "adgroup", "adset"]
-Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
-Code = Annotated[str, Field(pattern=r"^[a-z_]{1,100}$")]
-NativeText = Annotated[str, Field(min_length=1, max_length=100)]
+Digest = Annotated[str, Field(strict=True, pattern=r"^[a-f0-9]{64}$")]
+Code = Annotated[str, Field(strict=True, pattern=r"^[a-z_]{1,100}$")]
+NativeText = Annotated[str, Field(strict=True, min_length=1, max_length=100)]
 Amount = Annotated[int, Field(strict=True, ge=0, le=10**15)]
 
 
 class Frozen(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, revalidate_instances="always")
 
 
 class TargetCatalogIntentV1(Frozen):
@@ -65,7 +65,7 @@ class TikTokSettingsV1(Frozen):
     platform: Literal["tiktok_ads"] = "tiktok_ads"
     operation_status: NativeText
     secondary_status: NativeText | None
-    budget_native: str | None = Field(pattern=r"^[0-9]{1,16}(?:\.[0-9]{1,6})?$")
+    budget_native: str | None = Field(strict=True, pattern=r"^[0-9]{1,16}(?:\.[0-9]{1,6})?$")
     unit_semantics: Literal["native_decimal_unqualified"] = "native_decimal_unqualified"
     budget_mode: NativeText | None
     budget_optimize_on: bool | None = Field(strict=True)
@@ -87,7 +87,7 @@ class TargetV1(Frozen):
     kind: Kind
     parent_selection_key: Digest | None
     budget_owner_key: Digest | None
-    name: str | None = Field(min_length=1, max_length=160)
+    name: str | None = Field(strict=True, min_length=1, max_length=160)
     name_source: Literal["native_observation", "unavailable"]
     settings: Settings
     unavailable_fields: tuple[Code, ...] = Field(max_length=30)
@@ -120,6 +120,8 @@ class CoverageV1(Frozen):
 
     @model_validator(mode="after")
     def consistent(self) -> "CoverageV1":
+        if self.status == "complete" and self.scope != "provider_campaigns":
+            raise ValueError("limited or missing inventory cannot be complete")
         if self.status != "complete" and not self.reasons:
             raise ValueError("incomplete coverage needs reasons")
         if self.status == "unavailable" and (self.observed_count or self.scope != "not_collected"):
@@ -133,11 +135,11 @@ class TargetCatalogV1(Frozen):
     account_id: int = Field(strict=True, gt=0)
     connection_id: int = Field(strict=True, gt=0)
     platform: Platform
-    connection_version: str = Field(min_length=1, max_length=100)
+    connection_version: str = Field(strict=True, min_length=1, max_length=100)
     source_binding_digest: Digest
     inventory_digest: Digest
-    currency: str = Field(pattern=r"^[A-Z]{3}$")
-    time_zone: str = Field(min_length=1, max_length=64)
+    currency: str = Field(strict=True, pattern=r"^[A-Z]{3}$")
+    time_zone: str = Field(strict=True, min_length=1, max_length=64)
     reporting_starts_at: AwareDatetime
     reporting_ends_at: AwareDatetime
     observation_started_at: AwareDatetime
@@ -151,7 +153,10 @@ class TargetCatalogV1(Frozen):
 
     @model_validator(mode="after")
     def consistent(self) -> "TargetCatalogV1":
-        ZoneInfo(self.time_zone)
+        try:
+            ZoneInfo(self.time_zone)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("catalog timezone invalid") from exc
         validate_observation_period(self.reporting_starts_at, self.reporting_ends_at)
         if (
             not self.reporting_ends_at

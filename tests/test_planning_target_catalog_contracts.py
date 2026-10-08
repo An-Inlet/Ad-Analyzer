@@ -47,6 +47,14 @@ def test_empty_unavailable_catalog_is_explicit(platform: str, child: str) -> Non
         {"mandate_id": "a" * 32},
         {"coverage": []},
         {"expires_at": now},
+        {"time_zone": "Invalid/Zone"},
+        {"connection_version": b"generation:1"},
+        {
+            "coverage": [
+                result.coverage[0].model_copy(update={"status": "complete"}),
+                result.coverage[1],
+            ]
+        },
     ]
     for changed in changes:
         with pytest.raises(ValidationError):
@@ -65,3 +73,13 @@ def test_missing_coverage_reason_and_unbounded_window_deny() -> None:
     now = datetime(2026, 10, 8, tzinfo=UTC)
     with pytest.raises(ValidationError):
         TargetCatalogIntentV1(account_id=1, starts_at=now - timedelta(days=367), ends_at=now)
+
+
+@pytest.mark.parametrize(
+    "scope", ["sdk_known_effective_statuses", "regular_campaign_families", "not_collected"]
+)
+def test_limited_coverage_cannot_be_complete(scope: str) -> None:
+    with pytest.raises(ValidationError):
+        CoverageV1.model_validate(
+            dict(kind="campaign", status="complete", observed_count=0, scope=scope, reasons=[])
+        )

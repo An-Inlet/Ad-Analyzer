@@ -340,6 +340,9 @@ def validation_fields(table: str) -> tuple[str, ...]:
 def exclusion(table: str, column: str) -> str:
     if (
         table in PRIVATE_STAGING_TABLES
+        or (
+            table == "meta_staged_metrics" and column in {"presence_context_token", "presence_json"}
+        )
         or column in INTERNAL
         or (table, column) in INTERNAL_TABLE_FIELDS
     ):

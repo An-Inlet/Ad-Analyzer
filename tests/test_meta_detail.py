@@ -165,7 +165,15 @@ def test_populated_migration_preserves_campaign_rows_and_parent_constraints(
 
     with Session(migration_customer_engine) as db:
         connection = connected(db, configuration, event="purchase")
+        # This tests the historical0029 numeric schema. Model a pre0090 in-progress
+        # window explicitly; new-window imports now create retained0089 evidence,
+        # whose populated downgrade correctly refuses destruction.
+        connection.window_start = connection.window_end = DAY
+        db.commit()
         complete(db, configuration, connection, metric=insight(spend="100"))
+        from app.campaign_performance.presence_models import ReportingSemanticsRow
+
+        assert db.scalar(select(func.count()).select_from(ReportingSemanticsRow)) == 0
         wid, iid, aid = (
             connection.workspace_id,
             connection.workspace_integration_id,

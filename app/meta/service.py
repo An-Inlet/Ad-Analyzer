@@ -20,7 +20,6 @@ from app.meta.models import (
     MetaConnection,
     MetaOAuthState,
     MetaPendingGrant,
-    MetaStagedMetric,
 )
 from app.meta.normalize import account_metadata
 from app.meta.security import (
@@ -293,9 +292,9 @@ class ConnectionService:
                 from app.meta.staging import clear
 
                 clear(self.session, existing.id)
-                self.session.execute(
-                    delete(MetaStagedMetric).where(MetaStagedMetric.connection_id == existing.id)
-                )
+                from app.meta.presence_staging import clear_campaign_presence
+
+                clear_campaign_presence(self.session, existing.id)
             self.session.execute(
                 update(DailyMetric)
                 .where(

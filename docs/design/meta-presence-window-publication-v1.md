@@ -80,3 +80,15 @@ reconnect/config/privacy/window drift, legacyinprogress noadoption, retainedwind
 noadoption, exactretry/conflictingduplicate, emptyreturnedrowsunknown, ordinaryhistory
 vssemanticerase, actual0090DDL/FKs/bounds/downgrade. Fixedterminal compatibility too.
 CustomerplanningAPI qualification is downstream and must not be claimed from imports.
+
+## Reviewed Terminal Privacy Fence
+
+Capture validates the immutable original context against current privacy under the
+caller's unchanged workspace/source locks. `publish_meta` then invalidates existing
+calibrations; their deletion triggers may advance the ordinary export revision.
+The final reporting header therefore uses the actual returned completion's privacy
+revision, while the ephemeral context retains its original captured revision.
+This exception applies only after successful capture, inside the same terminal
+transaction. It does not relax context validation on resumed pages or before capture.
+The original context must still exist and exactly match at attachment; semantic
+privacy erasure removes it and prevents publication of an already prepared graph.

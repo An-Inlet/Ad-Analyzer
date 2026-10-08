@@ -2,7 +2,7 @@
 
 import io
 import json
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request
@@ -88,11 +88,21 @@ class OfflineHTTP:
 
 
 def setup_import(
-    engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
+    engine: Engine,
+    configuration: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    legacy_windows: bool = False,
 ) -> tuple[int, OfflineHTTP]:
     with Session(engine) as db:
         row = connected(db, configuration, event="purchase")
+        if legacy_windows:
+            # Historical0040 migration fixture, not a new provenance-producing window.
+            row.window_start = row.window_end = date(2026, 9, 5)
+            db.commit()
         complete(db, configuration, row, metric=insight(spend="7"))
+        if legacy_windows:
+            row.window_start = row.window_end = date(2026, 9, 5)
         row.last_sync_at = None
         db.commit()
         wid = row.workspace_id
@@ -281,12 +291,19 @@ def test_populated_checkpoint_migration_and_database_scope_constraints(
     from sqlalchemy import inspect, text
     from sqlalchemy.exc import IntegrityError
 
-    _, _http = setup_import(migration_customer_engine, configuration, monkeypatch)
+    _, _http = setup_import(
+        migration_customer_engine, configuration, monkeypatch, legacy_windows=True
+    )
     for _ in range(4):
         sync.run_meta_tick(migration_customer_engine)
     with Session(migration_customer_engine) as db:
         checkpoint = db.scalar(select(MetaDetailCheckpoint))
         assert checkpoint is not None
+        from app.campaign_performance.presence_models import ReportingSemanticsRow
+        from app.meta.presence_models import MetaPresenceStageContext
+
+        assert db.scalar(select(func.count()).select_from(MetaPresenceStageContext)) == 0
+        assert db.scalar(select(func.count()).select_from(ReportingSemanticsRow)) == 0
         other = connected(db, configuration, slug="other", number="102")
         for field, value in [
             ("workspace_id", other.workspace_id),

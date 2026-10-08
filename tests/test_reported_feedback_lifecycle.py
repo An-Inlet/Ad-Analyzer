@@ -1,6 +1,8 @@
 """Owned erasure graphs, strict serializers and preserved original financial evidence."""
 
 import json
+from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -19,9 +21,8 @@ from sqlalchemy import Engine, delete, select, text
 from sqlalchemy.orm import Session
 
 from tests.reported_feedback_lifecycle_fixture import graph
+from tests.retired_producer_fixture import retained_review_fixture
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_customer_identity import replicas as replicas
-from tests.test_shopify_sales import configuration as configuration
 
 MODELS = (
     ReportedFeedbackJob,
@@ -32,25 +33,60 @@ MODELS = (
 )
 
 
-@pytest.fixture(autouse=True)
-def foreign_keys(customer_engine: Engine) -> None:
-    if customer_engine.dialect.name == "sqlite":
-        with customer_engine.connect() as connection:
-            connection.execute(text("PRAGMA foreign_keys=ON"))
-            connection.commit()
+@pytest.fixture
+def current_graph(
+    customer_engine: Engine, tmp_path: Path, request: pytest.FixtureRequest
+) -> Iterator[tuple[Engine, dict[str, Any]]]:
+    if "raw_erasure" in request.node.name and customer_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL workspace row lock")
+
+    def prepare_schema(engine: Engine) -> None:
+        if "actual_0077" not in request.node.name:
+            return
+        import importlib
+
+        from alembic.migration import MigrationContext
+        from alembic.operations import Operations
+
+        migration = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
+        revisions = importlib.import_module(
+            "migrations.versions.20261007_0078_reported_preview_revisions"
+        )
+        rules = importlib.import_module(
+            "migrations.versions.20261007_0083_reported_rule_dependencies"
+        )
+        presence = importlib.import_module("migrations.versions.20261008_0090_meta_presence")
+        with (
+            engine.begin() as connection,
+            Operations.context(MigrationContext.configure(connection)),
+        ):
+            # SQLite batch rebuilds meta_connections; remove its newer empty
+            # presence child before exercising the historical parent migration.
+            if engine.dialect.name == "sqlite":
+                presence.downgrade()
+            rules.downgrade()
+            revisions.downgrade()
+            migration.downgrade()
+            migration.upgrade()
+            revisions.upgrade()
+            rules.upgrade()
+            if engine.dialect.name == "sqlite":
+                presence.upgrade()
+
+    with retained_review_fixture(
+        customer_engine, tmp_path / "seed", prepare_schema=prepare_schema
+    ) as (engine, ids):
+        yield engine, graph(engine, ids)
 
 
 @pytest.mark.parametrize(
     "erase", ["other_comparison", "dependency", "capsule", "privacy", "correction"]
 )
 def test_cross_contributor_erasure_retracts_numeric_slot_and_preserves_finance(
-    customer_engine: Engine,
-    configuration: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    current_graph: tuple[Engine, dict[str, Any]],
     erase: str,
 ) -> None:
-    data = graph(customer_engine, configuration, monkeypatch, replicas)
+    customer_engine, data = current_graph
     with Session(customer_engine) as db:
         db.execute(text("SELECT id FROM workspaces WHERE id=:wid"), {"wid": data["wid"]})
         before = workspace_export_revision(db, data["wid"])
@@ -96,12 +132,9 @@ def test_cross_contributor_erasure_retracts_numeric_slot_and_preserves_finance(
 
 
 def test_owned_strict_exports_hide_session_and_reject_scope_forgery(
-    customer_engine: Engine,
-    configuration: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    current_graph: tuple[Engine, dict[str, Any]],
 ) -> None:
-    data = graph(customer_engine, configuration, monkeypatch, replicas)
+    customer_engine, data = current_graph
     with Session(customer_engine) as db:
         for model in MODELS:
             for row in db.scalars(select(model).where(model.workspace_id == data["wid"])):
@@ -121,10 +154,7 @@ def test_owned_strict_exports_hide_session_and_reject_scope_forgery(
 
 
 def test_persisted_expiry_prunes_request_with_capture_off_and_workspace_closing(
-    customer_engine: Engine,
-    configuration: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    current_graph: tuple[Engine, dict[str, Any]],
 ) -> None:
     from datetime import timedelta
 
@@ -132,7 +162,7 @@ def test_persisted_expiry_prunes_request_with_capture_off_and_workspace_closing(
     from app.reported_feedback.retention import purge_expired_feedback
     from app.reported_feedback.runtime import get_reported_feedback_runtime
 
-    data = graph(customer_engine, configuration, monkeypatch, replicas)
+    customer_engine, data = current_graph
     assert get_reported_feedback_runtime() is None
     # Ahead application time alone must not qualify for DB-expired deletion.
     assert (
@@ -185,36 +215,15 @@ def test_persisted_expiry_prunes_request_with_capture_off_and_workspace_closing(
 
 
 def test_actual_0077_graph_triggers_and_foreign_parent_constraints(
-    customer_engine: Engine,
-    configuration: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    current_graph: tuple[Engine, dict[str, Any]],
 ) -> None:
-    import importlib
     from uuid import uuid4
 
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
     from app.workspaces.models import Workspace
     from sqlalchemy import insert
     from sqlalchemy.exc import DBAPIError, IntegrityError
 
-    migration = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
-    revisions = importlib.import_module(
-        "migrations.versions.20261007_0078_reported_preview_revisions"
-    )
-    rules = importlib.import_module("migrations.versions.20261007_0083_reported_rule_dependencies")
-    with (
-        customer_engine.begin() as connection,
-        Operations.context(MigrationContext.configure(connection)),
-    ):
-        rules.downgrade()
-        revisions.downgrade()
-        migration.downgrade()
-        migration.upgrade()
-        revisions.upgrade()
-        rules.upgrade()
-    data = graph(customer_engine, configuration, monkeypatch, replicas)
+    customer_engine, data = current_graph
     with Session(customer_engine) as db:
         for model in MODELS:
             with pytest.raises(DBAPIError, match="immutable reported feedback"):
@@ -252,16 +261,11 @@ def test_actual_0077_graph_triggers_and_foreign_parent_constraints(
 
 
 def test_raw_erasure_fails_fast_behind_workspace_fence(
-    customer_engine: Engine,
-    configuration: Any,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    current_graph: tuple[Engine, dict[str, Any]],
 ) -> None:
     from sqlalchemy.exc import DBAPIError
 
-    if customer_engine.dialect.name != "postgresql":
-        pytest.skip("PostgreSQL workspace row lock")
-    data = graph(customer_engine, configuration, monkeypatch, replicas)
+    customer_engine, data = current_graph
     with customer_engine.connect() as owner, customer_engine.connect() as eraser:
         owner.execute(
             text("SELECT id FROM workspaces WHERE id=:wid FOR UPDATE"), {"wid": data["wid"]}

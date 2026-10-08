@@ -57,41 +57,37 @@ def roundtrip(engine: Engine) -> None:
 
 
 def test_native_restore_real_protected_meta_review(
-    customer_engine: Engine, configuration: Any, monkeypatch: pytest.MonkeyPatch, replicas: Any
+    customer_engine: Engine,
+    tmp_path: Path,
 ) -> None:
-    from app.initial_planning.review_bridge import prepare_preview_review
     from app.initial_planning.review_models import InitialPreviewReviewLink
-    from app.publication.execution_models import ProviderExecutionReview
+    from app.publication.execution_models import ProviderExecutionAttempt, ProviderExecutionReview
 
-    from tests.test_initial_preview_review import ready
+    from tests.retired_producer_fixture import retained_review_fixture
     from tests.test_initial_review_lifecycle import exported
 
-    wid, preview, principal, provider, runtime, server, _ = ready(
-        customer_engine, configuration, monkeypatch, replicas
-    )
-    prepared = prepare_preview_review(
-        runtime, principal, provider, wid, preview.id, preview.digest()
-    )
-    with Session(customer_engine) as db:
-        original = exported(db, prepared.review_id)
-    roundtrip(customer_engine)
-    with Session(customer_engine) as db:
-        assert exported(db, prepared.review_id) == original
-        assert not export_section(
-            db, LifecycleScopeV1(workspace_id=wid + 1), "initial_preview_reviews"
-        )["rows"]
-        with pytest.raises(DBAPIError), db.begin_nested():
-            db.execute(update(InitialPreviewReviewLink).values(evidence_digest="e" * 64))
-        bump_workspace_export_revision(db, wid)
-        db.commit()
-        saved = exported(db, prepared.review_id)
-        assert saved["preview_id"] is None
-        assert saved["review_digest"] == original["review_digest"]
-        review = db.get(ProviderExecutionReview, prepared.review_id)
-        assert review and review.initial_preview_origin_id == preview.id
-    with pytest.raises(HTTPException):
-        prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
-    assert not server.posts
+    with retained_review_fixture(customer_engine, tmp_path / "seed") as (engine, result):
+        with Session(engine) as db:
+            original = exported(db, result.review_id)
+        roundtrip(engine)
+        with Session(engine) as db:
+            assert exported(db, result.review_id) == original
+            assert not export_section(
+                db,
+                LifecycleScopeV1(workspace_id=result.workspace_id + 1),
+                "initial_preview_reviews",
+            )["rows"]
+            with pytest.raises(DBAPIError), db.begin_nested():
+                db.execute(update(InitialPreviewReviewLink).values(evidence_digest="e" * 64))
+            bump_workspace_export_revision(db, result.workspace_id)
+            db.commit()
+            saved = exported(db, result.review_id)
+            assert saved["preview_id"] is None
+            assert saved["review_digest"] == original["review_digest"]
+            review = db.get(ProviderExecutionReview, result.review_id)
+            assert review and review.initial_preview_origin_id == result.preview_id
+            assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 1
+        assert result.provider_posts == 1
 
 
 def test_native_restore_real_reported_graph(

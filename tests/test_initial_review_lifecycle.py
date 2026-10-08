@@ -2,32 +2,34 @@
 
 import importlib
 from dataclasses import replace
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from app.initial_planning.contracts import PreviewIntentV1
-from app.initial_planning.models import PreviewRow
-from app.initial_planning.review_bridge import prepare_preview_review
+from app.customers.access import CustomerPrincipal
+from app.customers.models import CustomerSession, CustomerUser
+from app.initial_planning.review_bridge import guard_for
 from app.initial_planning.review_models import InitialPreviewReviewLink
+from app.initial_planning.runtime import InitialPlanningRuntime
 from app.lifecycle.contracts import LifecycleScopeV1
 from app.lifecycle.export_serializers import fields, serialize
 from app.lifecycle.inventory import export_section, inventory
 from app.lifecycle.privacy import bump_workspace_export_revision
-from app.publication import customer_optimization, forward_provenance
-from app.publication.customer_optimization_contracts import BudgetIntent, InitialOptimizationIntent
+from app.publication import forward_provenance
 from app.publication.execution_models import ProviderExecutionReview
-from app.settings import Settings
+from app.publication.optimization_execution_contracts import OptimizationRuntime
 from fastapi import HTTPException
 from sqlalchemy import Engine, delete, func, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 
+from tests.retired_producer_fixture import RetainedReviewIds, retained_review_fixture
+from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_customer_identity import replicas as replicas
-from tests.test_initial_preview_review import ready
-from tests.test_shopify_sales import configuration as configuration
 
 
 def exported(db: Session, review_id: str) -> dict[str, Any]:
@@ -50,31 +52,43 @@ def exported(db: Session, review_id: str) -> dict[str, Any]:
 @pytest.mark.parametrize("actual_migration", [False, True])
 def test_actual_review_provenance_erasure_export_and_db_constraints(
     customer_engine: Engine,
-    configuration: Settings,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    tmp_path: Path,
     actual_migration: bool,
 ) -> None:
     migration = importlib.import_module("migrations.versions.20261006_0076_initial_preview_review")
-    if actual_migration:
-        proof_migration = importlib.import_module(
-            "migrations.versions.20261007_0081_initial_execution_proof"
-        )
-        with customer_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
-            # Remove the actual newer child before exercising its historical parent.
-            proof_migration.downgrade()
-            migration.downgrade()
-            migration.upgrade()
-            proof_migration.upgrade()
-    wid, preview, principal, provider, runtime, server, _ = ready(
-        customer_engine, configuration, monkeypatch, replicas
-    )
-    prepared = prepare_preview_review(
-        runtime, principal, provider, wid, preview.id, preview.digest()
-    )
+
+    def prepare_schema(engine: Engine) -> None:
+        if actual_migration:
+            proof_migration = importlib.import_module(
+                "migrations.versions.20261007_0081_initial_execution_proof"
+            )
+            with engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
+                proof_migration.downgrade()
+                migration.downgrade()
+                migration.upgrade()
+                proof_migration.upgrade()
+
+    with retained_review_fixture(
+        customer_engine, tmp_path / "seed", prepare_schema=prepare_schema
+    ) as (engine, prepared):
+        _review_lifecycle(engine, prepared, actual_migration)
+
+
+def deny_runtime() -> OptimizationRuntime:
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("No provider/runtime lookup is permitted by this lifecycle test")
+
+    return OptimizationRuntime("contract_test", forbidden, forbidden, forbidden)
+
+
+def _review_lifecycle(
+    customer_engine: Engine, prepared: RetainedReviewIds, actual_migration: bool
+) -> None:
+    migration = importlib.import_module("migrations.versions.20261006_0076_initial_preview_review")
+    wid = prepared.workspace_id
     with Session(customer_engine) as db:
         value = exported(db, prepared.review_id)
-        assert value["preview_id"] == preview.id
+        assert value["preview_id"] == prepared.preview_id
         section = export_section(db, LifecycleScopeV1(workspace_id=wid), "initial_preview_reviews")
         assert len(section["rows"]) == 1
         assert (
@@ -94,9 +108,9 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
             forward_provenance.check(
                 db,
                 row,
-                principal.user.id,
-                replace(runtime.optimization.execution, initial_preview_review_guard=None),
-                runtime.planning.clock,
+                prepared.actor_id,
+                deny_runtime(),
+                lambda: datetime.now(UTC),
             )
         db.rollback()
         for statement in (
@@ -124,12 +138,21 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
         )
         assert retracted["review_digest"] == value["review_digest"]
         row = db.get(ProviderExecutionReview, prepared.review_id, populate_existing=True)
-        assert row and row.initial_preview_origin_id == preview.id
-        bound = customer_optimization.bind(runtime.optimization, principal, provider)
+        assert row and row.initial_preview_origin_id == prepared.preview_id
+        link = db.get(InitialPreviewReviewLink, prepared.review_id)
+        assert link
+        user = db.get(CustomerUser, prepared.actor_id)
+        session = db.get(CustomerSession, link.original_session_digest)
+        assert user and session
+        principal = CustomerPrincipal(user, session)
+        guarded = replace(
+            deny_runtime(),
+            initial_preview_review_guard=guard_for(
+                InitialPlanningRuntime(lambda: Session(customer_engine)), principal, FakeProvider()
+            ),
+        )
         with pytest.raises(HTTPException, match="retracted"):
-            forward_provenance.check(
-                db, row, principal.user.id, bound.execution, runtime.planning.clock
-            )
+            forward_provenance.check(db, row, prepared.actor_id, guarded, lambda: datetime.now(UTC))
         db.rollback()
         # A retracted pointer cannot reattach, even to the previous origin.
         with pytest.raises(DBAPIError), db.begin_nested():
@@ -137,7 +160,7 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
                 update(InitialPreviewReviewLink)
                 .where(InitialPreviewReviewLink.review_id == prepared.review_id)
                 .values(
-                    preview_id=preview.id,
+                    preview_id=prepared.preview_id,
                     preview_workspace_id=wid,
                     preview_account_id=1,
                     preview_campaign_id=1,
@@ -150,8 +173,6 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
         )
         db.commit()
         assert db.scalar(select(func.count()).select_from(ProviderExecutionReview)) == 1
-    with pytest.raises(HTTPException):
-        prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
     if actual_migration:
         with (
             customer_engine.begin() as conn,
@@ -159,63 +180,27 @@ def test_actual_review_provenance_erasure_export_and_db_constraints(
             pytest.raises(RuntimeError, match="provenance"),
         ):
             migration.downgrade()
-    assert not server.posts
+    assert prepared.provider_posts == 1
 
 
 def test_cached_ordinary_marker_cannot_bypass_new_protected_origin(
     customer_engine: Engine,
-    configuration: Settings,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    tmp_path: Path,
 ) -> None:
-    wid, preview, principal, provider, runtime, _, _ = ready(
-        customer_engine, configuration, monkeypatch, replicas
-    )
-    with Session(customer_engine) as db:
-        saved = db.get(PreviewRow, preview.id)
-        assert saved
-        intent = PreviewIntentV1.model_validate(saved.intent)
-        assert (
-            intent.choice
-            and intent.mandate_id
-            and intent.mandate_revision
-            and preview.after_budget_micros
-        )
-        bound = customer_optimization.bind(runtime.optimization, principal, provider)
-        ordinary = customer_optimization.prepare(
-            db,
-            wid,
-            InitialOptimizationIntent(
-                choice=intent.choice,
-                mandate_id=intent.mandate_id,
-                mandate_revision=intent.mandate_revision,
-                action=BudgetIntent(kind="set_budget", amount_micros=preview.after_budget_micros),
-            ),
-            principal.user.id,
-            bound,
-        )
-        review_id = ordinary.id
-        db.commit()
-    with Session(customer_engine, expire_on_commit=False) as cached:
-        row = cached.get(ProviderExecutionReview, review_id)
-        assert row and row.initial_preview_provenance_required is False
-        assert row.initial_preview_origin_id is None
+    with (
+        retained_review_fixture(customer_engine, tmp_path / "seed") as (engine, result),
+        Session(engine, expire_on_commit=False) as cached,
+    ):
+        row = cached.get(ProviderExecutionReview, result.review_id)
+        assert row and row.initial_preview_provenance_required
         cached.commit()
-        with Session(customer_engine) as writer:
-            writer.execute(
-                update(ProviderExecutionReview)
-                .where(ProviderExecutionReview.id == review_id)
-                .values(
-                    initial_preview_provenance_required=True, initial_preview_origin_id=preview.id
-                )
-            )
-            writer.commit()
-        assert row.initial_preview_provenance_required is False
+        # Adversarial stale identity-map state; the genuine protected origin was
+        # produced in the pinned child, never downgraded in current storage.
+        set_committed_value(row, "initial_preview_provenance_required", False)
+        set_committed_value(row, "initial_preview_origin_id", None)
         with pytest.raises(HTTPException, match="authority unavailable"):
             forward_provenance.check(
-                cached,
-                row,
-                principal.user.id,
-                replace(bound.execution, initial_preview_review_guard=None),
-                runtime.planning.clock,
+                cached, row, result.actor_id, deny_runtime(), lambda: datetime.now(UTC)
             )
+        assert row.initial_preview_provenance_required
+        assert row.initial_preview_origin_id == result.preview_id

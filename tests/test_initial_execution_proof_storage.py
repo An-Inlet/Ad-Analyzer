@@ -3,6 +3,7 @@
 import importlib
 from copy import deepcopy
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,7 +11,6 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from app.initial_planning.models import PreviewRow
 from app.initial_planning.preview_v2 import InitialPreviewV2
-from app.initial_planning.review_bridge import prepare_preview_review
 from app.initial_planning.review_models import InitialPreviewReviewLink
 from app.initial_planning.review_v2_contracts import InitialPreviewExecutionProofV1
 from app.initial_planning.review_v2_models import InitialPreviewExecutionProofRow
@@ -18,18 +18,15 @@ from app.lifecycle.export_serializers import fields, serialize
 from app.lifecycle.inventory import verify_registry
 from app.lifecycle.registry import TABLES
 from app.publication.execution_models import ProviderExecutionReview
-from app.settings import Settings
 from app.shopify.security import utc
 from sqlalchemy import Engine, delete, insert, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from tests.retired_producer_fixture import retained_review_fixture
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_customer_identity import replicas as replicas
-from tests.test_initial_preview_review import ready
 from tests.test_initial_preview_v2 import document
 from tests.test_initial_review_v2_contracts import proof
-from tests.test_shopify_sales import configuration as configuration
 
 
 def stored_proof(engine: Engine, prepared: Any) -> tuple[str, dict[str, Any]]:
@@ -194,18 +191,16 @@ def stored_proof(engine: Engine, prepared: Any) -> tuple[str, dict[str, Any]]:
 @pytest.mark.parametrize("migration", [False, True])
 def test_storage_owned_binding_erasure_and_populated_migration(
     customer_engine: Engine,
-    configuration: Settings,
-    monkeypatch: pytest.MonkeyPatch,
-    replicas: Any,
+    tmp_path: Path,
     migration: bool,
 ) -> None:
+    with retained_review_fixture(customer_engine, tmp_path / "seed") as (engine, prepared):
+        _storage_owned_binding(engine, prepared, migration)
+
+
+def _storage_owned_binding(customer_engine: Engine, prepared: Any, migration: bool) -> None:
     mod = importlib.import_module("migrations.versions.20261007_0081_initial_execution_proof")
-    wid, preview, principal, provider, runtime, server, _ = ready(
-        customer_engine, configuration, monkeypatch, replicas
-    )
-    prepared = prepare_preview_review(
-        runtime, principal, provider, wid, preview.id, preview.digest()
-    )
+    wid = prepared.workspace_id
     if migration:
         with customer_engine.begin() as conn, Operations.context(MigrationContext.configure(conn)):
             mod.downgrade()
@@ -308,7 +303,7 @@ def test_storage_owned_binding_erasure_and_populated_migration(
         db.commit()
         assert db.scalar(select(InitialPreviewExecutionProofRow)) is None
         assert db.get(ProviderExecutionReview, prepared.review_id)
-    assert not server.posts
+    assert prepared.provider_posts == 1  # Genuine historical effect; current tests add no attempts.
 
 
 @pytest.mark.parametrize("change", ["digest", "workspace", "review", "extra", "missing", "large"])

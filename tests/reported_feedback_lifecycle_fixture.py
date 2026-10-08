@@ -11,8 +11,7 @@ from uuid import uuid4
 
 from app.initial_planning.contracts import InitialPreviewV1
 from app.initial_planning.models import ObservationRow, PreviewRow
-from app.initial_planning.review_bridge import prepare_preview_review
-from app.publication import customer_optimization, optimization
+from app.initial_planning.review_models import InitialPreviewReviewLink
 from app.publication.contracts import fingerprint
 from app.publication.execution_models import ProviderExecutionReceipt
 from app.reported_feedback.anchor import resolve_anchor
@@ -37,39 +36,17 @@ from app.reported_feedback.models import (
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.test_initial_preview_review import ready
+from tests.retired_producer_fixture import RetainedReviewIds
 
 
-def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -> dict[str, Any]:
-    wid, preview, principal, provider, runtime, server, _ = ready(
-        engine, configuration, monkeypatch, replicas
-    )
-    result = prepare_preview_review(runtime, principal, provider, wid, preview.id, preview.digest())
-    bound = customer_optimization.bind(runtime.optimization, principal, provider)
+def graph(engine: Engine, ids: RetainedReviewIds) -> dict[str, Any]:
+    wid = ids.workspace_id
     with Session(engine) as db:
-        optimization.approve_optimization(
-            db,
-            wid,
-            result.review_id,
-            result.review_digest,
-            result.plan_digest,
-            principal.user.id,
-            bound.execution,
-            runtime.planning.clock,
-        )
-        run = optimization.create_run(
-            db, wid, result.review_id, principal.user.id, bound.execution, runtime.planning.clock
-        )
-        claim = optimization.claim_step(
-            db, wid, run.id, principal.user.id, bound.execution, runtime.planning.clock
-        )
-        assert claim
-        optimization.execute_claim(
-            db, claim, principal.user.id, bound.execution, runtime.planning.clock
-        )
+        link = db.get(InitialPreviewReviewLink, ids.review_id)
+        assert link
         now = datetime.now(UTC)
-        anchor = resolve_anchor(db, wid, claim.attempt_id, principal.user.id, now)
-        baseline = db.get(PreviewRow, preview.id)
+        anchor = resolve_anchor(db, wid, ids.attempt_id, ids.actor_id, now)
+        baseline = db.get(PreviewRow, ids.preview_id)
         assert baseline
         initial = InitialPreviewV1.model_validate(baseline.document)
         observation = db.get(ObservationRow, baseline.observation_id)
@@ -125,9 +102,9 @@ def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -
             document=request.model_dump(mode="json"),
             document_digest=request.digest(),
             expires_at=request.expires_at,
-            original_attempt_id=claim.attempt_id,
-            original_actor_id=principal.user.id,
-            original_session_digest=principal.session.digest,
+            original_attempt_id=ids.attempt_id,
+            original_actor_id=ids.actor_id,
+            original_session_digest=link.original_session_digest,
             source_connection_id=anchor.source_connection_id,
             source_generation=anchor.source_generation,
             policy_family=policy.family,
@@ -215,7 +192,7 @@ def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -
                 document_digest=document.digest(),
                 expires_at=document.expires_at,
                 job_id=job.id,
-                original_attempt_id=claim.attempt_id,
+                original_attempt_id=ids.attempt_id,
                 receipt_id=anchor.latest_receipt_id,
                 receipt_sequence=anchor.latest_receipt_sequence,
                 policy_family=policy.family,
@@ -281,9 +258,9 @@ def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -
             expires_at=doc.expires_at,
             comparison_id=comparisons[0].id,
             baseline_preview_id=baseline.id,
-            original_attempt_id=claim.attempt_id,
-            original_actor_id=principal.user.id,
-            original_session_digest=principal.session.digest,
+            original_attempt_id=ids.attempt_id,
+            original_actor_id=ids.actor_id,
+            original_session_digest=link.original_session_digest,
             policy_family=policy.family,
             cohort_digest=anchor.cohort.digest(),
             opportunity_digest=job.opportunity_digest,
@@ -301,7 +278,7 @@ def graph(engine: Engine, configuration: Any, monkeypatch: Any, replicas: Any) -
             capsule=capsule.id,
             comparisons=[r.id for r in comparisons],
             slot=slot.id,
-            session=principal.session.digest,
+            session=link.original_session_digest,
             receipt=anchor.latest_receipt_id,
             account=anchor.cohort.account_id,
             now=now,

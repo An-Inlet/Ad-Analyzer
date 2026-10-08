@@ -16,7 +16,9 @@ def test_account_diagnostics_shell_and_asset_are_separate_from_execution() -> No
         assert "does not require a spending mandate" in response.text
         assert "Optimization Is Unavailable" in response.text
         assert "Read Account Diagnostics" in response.text
+        assert "Read Native Targets" in response.text
+        assert client.get("/app/assets/native-targets.mjs").status_code == 200
         assert client.get("/app/assets/account-diagnostics.mjs").status_code == 200
-        assert "/app/account-diagnostics" in client.get("/app/optimization").text
+        assert "/app/account-diagnostics" in client.get("/app/settings").text
     script = Path("app/portal/static/account-diagnostics.mjs").read_text()
     assert "innerHTML" not in script and "localStorage" not in script

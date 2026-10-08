@@ -1,13 +1,15 @@
+import {clearNativeTargets,renderNativeTargets} from './native-targets.mjs';
 const $=id=>document.getElementById('diagnostic-'+id), root='/api/customer/v1';
 const platforms={google_ads:'Google Ads',meta_ads:'Meta Ads',tiktok_ads:'TikTok Ads'};
 const kinds={campaign:'Campaigns',campaign_budget:'Campaign Budgets',account_budget:'Account Budget Records',billing_setup:'Billing Setups',adset:'Ad Sets',adgroup:'Ad Groups'};
-let epoch=0,busy=false,user=null,wid='',accounts=[];
+let epoch=0,busy=false,user=null,wid='',accounts=[],targetTimer=null,targetCookies=null;
 class Stale extends Error {}
 const text=(tag,value)=>{const node=document.createElement(tag);node.textContent=String(value);return node;};
 const say=value=>$('message').textContent=value;
 function options(id,values,label){const empty=text('option','Choose…');empty.value='';$(id).replaceChildren(empty,...values.map(value=>{const node=text('option',label(value));node.value=String(value.id);return node;}));}
-function clearReport(){$('report').hidden=true;for(const id of ['summary','counts','coverage','reasons'])$(id).replaceChildren();}
-function enable(){for(const node of document.querySelectorAll('button,input,select'))node.disabled=busy;$('workspace').disabled=false;$('refresh').disabled=false;$('read').disabled=busy||!wid||!$('account').value||!$('start').value||!$('end').value;}
+function clearTargets(){if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;targetCookies=null;clearNativeTargets($('targets'));}
+function clearReport(){clearTargets();$('report').hidden=true;for(const id of ['summary','counts','coverage','reasons'])$(id).replaceChildren();}
+function enable(){for(const node of document.querySelectorAll('button,input,select'))node.disabled=busy;$('workspace').disabled=false;$('refresh').disabled=false;$('read').disabled=busy||!wid||!$('account').value||!$('start').value||!$('end').value;$('target-read').disabled=$('read').disabled;}
 function changed(){epoch++;busy=false;clearReport();enable();}
 function reset(){changed();user=null;wid='';accounts=[];$('selection').hidden=true;$('logout').hidden=true;options('workspace',[],v=>v.name);options('account',[],v=>v.name);$('form').reset();enable();}
 function iso(value){if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))throw new Error('Enter both period times in UTC.');const date=new Date(value+':00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,16)!==value)throw new Error('Enter valid period times in UTC.');return date.toISOString();}
@@ -22,5 +24,8 @@ $('refresh').onclick=()=>{changed();guarded(loadSession,false);};
 $('workspace').onchange=()=>{changed();wid=$('workspace').value;guarded(loadAccounts);};
 for(const id of ['account','start','end'])$(id).addEventListener(id==='account'?'change':'input',()=>{changed();say('Read diagnostics for the current account and period when ready.');});
 $('form').onsubmit=event=>{event.preventDefault();guarded(async turn=>{clearReport();const account=accounts.find(v=>String(v.id)===$('account').value);if(!account)throw new Error('Choose a connected advertising account.');const period=windowIntent($('start').value,$('end').value);say('Reading Account Diagnostics…');const result=await api(`/workspaces/${encodeURIComponent(wid)}/execution/diagnostics`,turn,'POST',{account_id:account.id,...period});await sessionCurrent(turn);render(result,account,period);});};
+$('target-read').onclick=()=>guarded(async turn=>{clearReport();const account=accounts.find(v=>String(v.id)===$('account').value);if(!account)throw new Error('Choose a connected advertising account.');const period=windowIntent($('start').value,$('end').value);say('Reading Native Targets…');const result=await api(`/workspaces/${encodeURIComponent(wid)}/planning/target-catalog-v2`,turn,'POST',{account_id:account.id,...period});await sessionCurrent(turn);const expires=renderNativeTargets($('targets'),result,{workspaceId:wid,account,period});targetCookies=document.cookie;targetTimer=setTimeout(()=>{if(turn===epoch){clearTargets();say('Native targets expired. Read again when you are ready.');}},Math.min(2147483647,Math.max(0,expires-Date.now())));say('Native targets loaded. No ads or budgets were changed.');});
+function clearChangedSession(){if(targetCookies!==null&&targetCookies!==document.cookie){changed();say('Your session changed. Refresh your session before continuing.');}}
+window.addEventListener('focus',clearChangedSession);document.addEventListener('visibilitychange',clearChangedSession);
 $('logout').onclick=()=>{changed();clearReport();$('selection').hidden=true;$('logout').hidden=true;options('workspace',[],v=>v.name);options('account',[],v=>v.name);guarded(async turn=>{await api('/session',turn,'DELETE');reset();say('Signed out.');},false);};
 guarded(loadSession,false);

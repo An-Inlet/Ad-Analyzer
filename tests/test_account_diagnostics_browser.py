@@ -37,7 +37,7 @@ from tests.test_customer_portal import portal_executable
 from tests.test_google_native_inventory import key, payloads
 from tests.test_meta_native_inventory import PRIVATE
 from tests.test_meta_native_inventory import Server as MetaServer
-from tests.test_native_diagnostic_assembly import seed
+from tests.test_planning_target_catalog_api import seed
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_tiktok_native_inventory import Server as TikTokServer
 

@@ -68,6 +68,13 @@ The existing test setup policy strings `"1"` are not production versions. Only w
 these consuming sites adopt closed dispatch, update that fixture to canonical v1
 policy/generator and its actual digest, plus dependent expectations. Do not change
 existing golden artifacts to conceal runtime drift or add `"1"` compatibility.
+Keep deliberately injected fake test policies outside real production closed dispatch
+when exercising isolated repository/protocol mechanics, or migrate the affected fixture
+and expectations explicitly if it traverses the production dispatcher. Do not broaden
+legacy contract acceptance or require unrelated repository test doubles to masquerade
+as configured production policy. The new direct repository generator-binding check
+must use its reviewed configured-policy seam, not silently impose a new universal
+closed-policy constraint on historical/injected protocol tests.
 
 ## Collection, Full Slot Coverage And Deadlines
 
@@ -173,16 +180,42 @@ available in the source explanation, distinct from requested analysis dates; it 
 not relabeled as a provider query for those dates. Cite both successful references
 in the action's evidence_keys; a gap has no fabricated report reference.
 
-Persist **every** window gap as a deterministic section limitation containing account,
-exact native campaign ID (or catalog-level scope), requested window and reason. Use
-compact bounded text, never silently group away target/window identity or omit a gap.
-This deliberately may refuse a larger plan: total section limitations, including
-existing constraints/catalog/creative limitations, must fit30; every text<=2000;
-actions<=100; each action's evidence keys<=20; whole canonical document<=1MiB.
-If either labeled rationale does not fit its field, fail with actionable bounded
-composition conflict rather than shorten facts invisibly. Customers can reduce
-selected account scope or omit the comparison window; excluding a campaign does
-not remove it from the required source slot matrix.
+Persist **every** window gap through deterministic compact section limitations.
+Group by the exact tuple `(account identity, UTC-normalized requested window, reason)`;
+within each group list every exact provider-native campaign ID in numeric-string
+lexicographic order (never names or omitted counts). Include account/platform, window
+boundaries/timezone and reason in each group's readable prefix. Catalog-only gaps
+have an explicit catalog-level scope, not an invented campaign ID. Keep the full
+validated gap set in memory for final recheck; grouping only changes presentation.
+
+Sort groups deterministically by account, UTC window endpoints and reason. Append
+whole IDs separated by a fixed delimiter until the next complete ID would exceed
+2000 characters; then start the next limitation with the same full group prefix.
+Split only at ID boundaries, repeat enough group context that each fragment is
+unambiguous, and verify the inverse grouping expands to the exact original slot set.
+Do not truncate IDs, substitute display names, collapse differing windows/reasons,
+drop campaigns/counts, or emit only a representative sample. This permits common
+Google/TikTok absent-presence cases with dozens of campaigns and comparison windows
+to remain useful descriptive plans with their native catalogs intact, rather than
+charging one of30 limitation slots for each gap.
+
+Preflight the grouped strings **together** with existing constraint/catalog/creative
+limitations against30 entries and each Text<=2000; also retain actions<=100,
+evidence_keys<=20 per action and whole canonical document<=1MiB. Worst cases include
+many distinct reasons/accounts/windows, long native IDs and prefixes, and customer
+constraints already occupying slots. If a full grouping or either labeled rationale
+still cannot fit, fail with a bounded capacity conflict and no new version/head/receipt;
+never silently shorten facts. Tests must cover ID-boundary splitting, all identities
+roundtripping, repeated prefixes, stable ordering and genuine aggregate capacity
+failure. Campaign exclusions do not remove campaigns from source slot coverage.
+
+Default-v3 activation additionally requires representative existing v2 workflows to
+remain meaningfully usable, especially Google/TikTok accounts with at least dozens
+of campaigns and an optional comparison. Scope-reduction advice is not a substitute
+for that compatibility gate. If the unchanged public document cannot represent their
+complete coverage meaningfully, keep production default v2 and freeze a separately
+reviewed public coverage contract before activation; do not claim the limitation is
+solved by telling customers to remove accounts or comparison windows.
 
 Preflight all persisted references **together**: successes + native catalogs +
 customer/policy contexts + optional commerce must fit400, independently of the
@@ -197,15 +230,17 @@ ceilings, creative facts/hypotheses and zero-ad-write policy remain unchanged.
    new adapter/rechecker signatures. Update closed dispatch fixture only in this
    integration package. Keep production default v2.
 2. Qualify actual collection/final recheck under explicitly injected canonical v3,
-   then pure v3 composition with exact full reference/gap retention and capacity
-   rejection. Preserve fixed v1/v2 report, policy and canonical plan golden bytes.
+   then pure v3 composition with exact full reference/gap retention, compact
+   lossless grouping and genuine capacity rejection. Preserve fixed v1/v2 report, policy and canonical plan golden bytes.
 3. Actual Meta MockHTTP **56-day new-window import through the0090 producer**, then
    owned API create/generate with seven-day primary and preceding seven-day comparison
    on SQLite/PostgreSQL. Assert original header remains56days; distinct requested refs,
    positive100/10/USD100 and true-zero/missing distinction; literal comparison/gaps;
    current/history/artifact export retains both windows. No installed sidecar shortcut.
 4. Actual Google/TikTok catalogs and legacy imports without sidecars: explicit per-slot
-   presence gaps, retained native scope, no fabricated selected facts. Include primary
+   presence gaps, retained native scope, no fabricated selected facts. Include dozens
+   of native campaigns with comparison and assert meaningful grouped coverage within
+   the existing document bounds, not a15campaign regression. Include primary
    success/comparison gap, absent current report, no local campaign, empty catalog,
    out-of-range/unaligned/open period and corrupted sidecar aborts.
 5. Races/adverse cases on bothDB where meaningful: source generation/current pointer,

@@ -24,6 +24,7 @@ MODEL_MODULES = (
     "app.customers.models",
     "app.goals.models",
     "app.planning_documents.models",
+    "app.planning_documents.catalog_receipt_models",
     "app.google_connections.models",
     "app.imports.models",
     "app.intelligence.models",

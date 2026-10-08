@@ -12,6 +12,58 @@ class TablePolicy:
 
 
 TABLES: dict[str, TablePolicy] = {
+    "planning_catalog_receipts": TablePolicy(
+        "workspace",
+        (
+            "workspace_id",
+            "id",
+            "account_id",
+            "connection_id",
+            "actor_id",
+            "privacy_revision",
+            "source_revision",
+            "source_binding_digest",
+            "payload_schema",
+            "canonical_json",
+            "payload_digest",
+            "payload_bytes",
+            "composite_digest",
+            "target_count",
+            "reporting_starts_at",
+            "reporting_ends_at",
+            "observation_started_at",
+            "observed_at",
+            "expires_at",
+            "created_at",
+        ),
+    ),
+    "planning_catalog_receipt_selections": TablePolicy(
+        "workspace",
+        (
+            "workspace_id",
+            "account_id",
+            "selection_key",
+            "receipt_id",
+            "connection_id",
+            "canonical_entity_key",
+        ),
+    ),
+    "planning_input_catalog_receipts": TablePolicy(
+        "workspace",
+        (
+            "workspace_id",
+            "plan_id",
+            "input_revision",
+            "account_id",
+            "receipt_id",
+            "connection_id",
+            "composite_digest",
+            "input_digest",
+            "selected_keys_digest",
+            "selected_count",
+            "created_at",
+        ),
+    ),
     "planning_documents": TablePolicy(
         "workspace",
         (

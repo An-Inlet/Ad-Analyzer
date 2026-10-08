@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app import advertising_capabilities
 from app.executors.social_http import (
     SocialHTTP,
     SocialPublicationUnavailable,
@@ -136,6 +137,7 @@ class TikTokPublicationTransport(SocialHTTP):
     def apply_once(
         self, request: SocialBoundRequest, context: SocialProviderContext, now: datetime
     ) -> SocialProviderResponse:
+        advertising_capabilities.require_advertising_write()
         request = self.check(request, context, now)
         endpoint, body = self.prepare(request)
         path = f"/open_api/{request.api_version}/{endpoint}"

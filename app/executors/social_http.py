@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 
+from app.executors import planning_reads
 from app.publication.contracts import fingerprint
 from app.publication.social_contracts import (
     OUTPUT_KINDS,
@@ -133,6 +134,16 @@ class SocialHTTP(ABC):
         files: dict[str, tuple[str, bytes, str]] | None = None,
     ) -> dict[str, Any]:
         # Called only with compiler-selected fixed paths. Never accept an absolute URL.
+        planning_reads.social_read(
+            self.provider,
+            method,
+            path,
+            headers=headers,
+            params=params,
+            body=body,
+            form=form,
+            files=files,
+        )
         if not path.startswith("/") or ".." in path or ":" in path or "?" in path:
             raise SocialPublicationUnavailable("social_path_invalid")
         log_token = _private_http.set(True)

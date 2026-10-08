@@ -16,6 +16,7 @@ from app.collectors.account_diagnostics import _BorrowedTransport
 from app.collectors.meta_catalog import MetaCatalogHTTP
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
+from app.executors import planning_reads
 from app.executors.google_activation import GoogleActivationHTTP
 from app.executors.google_publication import GooglePublicationHTTP
 from app.executors.meta_activation import MetaActivationHTTP
@@ -163,6 +164,7 @@ class LazyGoogleHTTP(GooglePublicationHTTP):
         suffix: str,
         body: dict[str, Any],
     ) -> dict[str, Any]:
+        planning_reads.google_read(suffix, body)
         if request.scope.account.platform != "google_ads":
             raise HTTPException(409, "provider_execution_not_configured")
         return self.resolve().google_qualification._post(request, context, suffix, body)

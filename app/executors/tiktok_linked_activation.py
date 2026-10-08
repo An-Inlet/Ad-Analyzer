@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import httpx
 
+from app import advertising_capabilities
 from app.executors.social_http import SocialPublicationUnavailable, matches, missing
 from app.executors.tiktok_linked_publication import LinkedPushTikTokTransport
 from app.publication.activation_contracts import (
@@ -140,6 +141,7 @@ class LinkedPushTikTokActivationHTTP:
     def apply_once(
         self, request: ActivationRequest, context: ActivationContext, now: datetime
     ) -> ActivationResponse:
+        advertising_capabilities.require_advertising_write()
         original, converted = self.check(request, context, now)
         observed = self.read_exact(request, context, "paused", now)
         if (

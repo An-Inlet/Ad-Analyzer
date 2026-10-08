@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from app import advertising_capabilities
 from app.executors.social_http import SocialHTTP, SocialPublicationUnavailable, resolved
 from app.publication.social_contracts import (
     OUTPUT_KINDS,
@@ -120,6 +121,7 @@ class MetaPublicationTransport(SocialHTTP):
     def apply_once(
         self, request: SocialBoundRequest, context: SocialProviderContext, now: datetime
     ) -> SocialProviderResponse:
+        advertising_capabilities.require_advertising_write()
         request = self.check(request, context, now)
         collection, body = self.prepare(request)
         headers, proof = self.auth(context)

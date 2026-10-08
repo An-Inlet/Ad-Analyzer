@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app import advertising_capabilities
 from app.executors.optimization_http import (
     OptimizationHTTP,
     OptimizationUnavailable,
@@ -273,6 +274,7 @@ class TikTokOptimizationTransport(OptimizationHTTP):
     def apply_once(
         self, request: OptimizationRequest, context: OptimizationContext, now: datetime
     ) -> OptimizationResponse:
+        advertising_capabilities.require_advertising_write()
         if not self.validate_only(request, context, now).valid:
             raise OptimizationUnavailable("optimization_not_qualified")
         current = self.read_current(

@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import httpx
 
+from app import advertising_capabilities
 from app.executors.meta_activation import MetaActivationHTTP
 from app.executors.social_http import SocialPublicationUnavailable
 from app.executors.tiktok_publication import TikTokPublicationTransport
@@ -85,6 +86,7 @@ class TikTokActivationHTTP(MetaActivationHTTP):
     def apply_once(
         self, request: ActivationRequest, context: ActivationContext, now: datetime
     ) -> ActivationResponse:
+        advertising_capabilities.require_advertising_write()
         original, converted = self.check(request, context, now)
         observed = self.read_exact(request, context, "paused", now)
         if (

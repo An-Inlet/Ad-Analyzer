@@ -24,6 +24,32 @@ checks still independently apply. The new version is not enabled by this proposa
 At retained-read sites the actual PlanVersion policy/generator fields select the
 same table; do not infer a generator from an arbitrary policy string.
 
+`GenerationTicket` actually has `policy_version` and `policy_digest`, **not**
+`generator_version`. Keep its serialized shape unchanged. Provide:
+
+```python
+def ticket_reporting_capability(
+    policy_version: str, policy_digest: str,
+) -> ReportingCapability: ...
+```
+
+This looks up the version in a closed registry of canonical
+`PlanningCompositionPolicy(version=..., generator_version=...)` documents with the
+existing literal defaults, recomputes their existing `.digest()`, and requires
+exact equality. Only that validated canonical document supplies the generator
+pair for dispatch. Unknown versions, altered policy fields/digests, and mismatched
+pairs fail. The adapter still checks its configured policy's exact digest against
+the ticket; this registry does not authorize operations or activate v3. Do not add
+fields/defaults to tickets or change the PlanningCompositionPolicy digest formula.
+
+`tests/test_planning_evidence_adapter.py:setup_evidence` currently defaults to test
+policy/generator strings `"1"`. Before integration of closed dispatch, change that
+fixture to the real legacy constants (`inlet.descriptive-review.v1` and
+`inlet.descriptive-planning.v1`) and update dependent expectations under focused
+qualification. It is a fixture correction, not a production compatibility alias.
+Never add unknown-pair or `"1"` fallback to production. This correction belongs to
+the later integration package, not the next contracts-only package.
+
 Replace exact `== QUALIFIED_POLICY` branches in adapter, final rechecker, ports,
 composer, and retained-source capture with reviewed explicit dispatch. Preserve
 all v1/v2 branches and their serialized bytes, fingerprint domains, fields, and
@@ -32,7 +58,11 @@ additional defaults are added to old serialized bundles or report DTOs.
 
 ## Owned Reader Boundary
 
-Proposed `app/campaign_performance/window_reader.py`:
+Proposed `app/planning_documents/window_reader.py`: this context depends on
+planning SourceFence/ReportingPresencePin and therefore belongs to planning.
+Generic `campaign_performance` modules must not import planning receipts, service,
+or reader contexts. Continue to call the real generic `read_current_with_presence`;
+do not introduce an alternate presumed-trusted report constructor.
 
 ```python
 class OwnedWindowReadContext:
@@ -73,11 +103,73 @@ Existing legacy-reader authorization/manifest checks must remain; reducing their
 SQL scans is not authorized by this proposal. The requirement here avoids repeated
 whole **presence** graph parsing, not a claim of one total SQL query or benchmark.
 
+The reporting-pin helper already parses presence, so context sharing must start
+**before** pin computation, not merely before the first campaign read. Proposed
+private additive signatures in `retained_sources.py` (implementation deferred):
+
+```python
+def _reporting(
+    db, principal, ref, privacy, *, qualified=False,
+    presence_context: PresenceReadContext | None = None,
+) -> tuple[str, str]: ...
+
+def capture_reporting_presence_pin(
+    db, principal, ref, privacy, *,
+    presence_context: PresenceReadContext | None = None,
+) -> str: ...
+```
+
+Default `None` preserves today's exact code path, source fields, absence treatment,
+and fingerprint bytes. The new owned context constructs one PresenceReadContext
+for its live transaction and passes it first to pin computation, then to each real
+`read_current_with_presence`. `_reporting` uses `presence_context.read(completion)`
+instead of a second independent `read_presence` when supplied; it must reject a
+foreign Session/transaction before reading, preserve current pointer/manifest/source
+validation, and include the identical full header/facts or None in the existing
+digest. Callers cannot supply a cached digest instead of this context. The same
+context may not be reused for another account or after I/O/transaction changes.
+An initial pre-provider collection context and the final locked context are
+necessarily separate, each with fresh source validation. Instrument the later
+integration to prove one full presence parse/index per context, including pin
+computation, and exact old/new-context digest equality. No global cache or guard
+callback removal is proposed.
+
 Each read checks exact target account/connection/native identity against the owned
 catalog target and local index; no name matching. Current DB-only authority remains
 fresh before and after reads. A different transaction/completion/account rejects
 context reuse. The final generation transaction builds a **new** context; no earlier
 successful authorization or cached graph is carried into it.
+
+## Import Ownership And Next Bounded Package
+
+`window_evidence.py` owns the new DTOs and `assert_ticket`; `policy_capabilities.py`
+owns closed policy dispatch. Both may import existing `ports.py` types. Existing
+`ports.py` must **not** import either new module at runtime: that would cycle back
+through its PlanningCompositionPolicy/CatalogEvidence definitions. The policy module
+may import PlanningCompositionPolicy from ports to construct canonical policies;
+ports never calls it in this contracts-only phase. Old bundle validation stays
+untouched. The window bundle calls the new policy helper itself.
+
+Later protocol annotations may reference `WindowEvidenceBundleV1` under
+`TYPE_CHECKING` with postponed annotations; these are typing-only protocols, not
+Pydantic fields that require unresolved runtime forward references. Concrete
+adapter/composer dispatch imports new types directly. No runtime `get_type_hints`
+assumption is introduced. If runtime protocol reflection becomes necessary, move
+the additive union protocol to a separate consuming module rather than introducing
+a cycle. `window_reader.py` may import ports, window_evidence and retained_sources;
+retained_sources must not import the planning window_reader. Its shared context
+type comes from generic `campaign_performance.presence_report` only.
+
+**Next authorized-package proposal:** only new private window evidence DTOs,
+closed policy contracts/registry, pure contract tests, and ledger. No changes to
+reader, adapter, composer, source-pin helper, retained-source dispatch, routes,
+fixtures, migration, settings, or default policy. KnownWindowGap is a private value
+contract in window_evidence; no DB helper is implemented in this step. Registering
+the proposed pair as a recognized contract is not enabling it: existing runtime
+continues its current explicit policy rejection. The v3 runtime remains disabled
+until reader/adapter/composer integration and actual API acceptance are separately
+reviewed. All signatures below describe later seams, not authorization to implement
+them in the next bounded package. Public comparison fields/UI remain deferred.
 
 ## Private Window Evidence Shapes
 

@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.customers.access import CustomerPrincipal
 from app.initial_planning.automatic_contracts import InitialReportedRuleCandidateV1
 from app.initial_planning.automatic_source import INITIAL_RULE_PRODUCER_FAMILY
@@ -206,6 +207,7 @@ def execution_runtime(
 def admit(
     db: Session, wid: int, identifier: str, review_id: str, runtime: SessionAutomationRuntime
 ) -> ProviderExecutionRun:
+    advertising_capabilities.require_advertising_write()
     try:
         session_run, principal, policy, mandate = service.current(db, wid, identifier, runtime)
         execution = execution_runtime(db, wid, identifier, runtime)

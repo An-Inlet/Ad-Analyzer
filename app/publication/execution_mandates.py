@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.enums import AdvertisingPlatform
 from app.billing.entitlements import live_paid_work, paid_work
 from app.goals import service as goals
@@ -358,6 +359,7 @@ def consent(
     origin_guard: optimization_origin.OriginGuard | None = None,
     commit: bool = True,
 ) -> ProviderMandateBinding:
+    advertising_capabilities.require_advertising_write()
     ledger, row = owned(db, wid, mandate_id)
     p = policy(db, row)
     if row.revision != revision or p.digest() != digest or row.state == "revoked":

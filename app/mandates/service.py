@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.enums import AdvertisingPlatform
 from app.goals import service as goals
 from app.imports.scope import AdvertisingImportScope, ImportScopeError, validate_advertising_scope
@@ -176,6 +177,7 @@ def edit(
 
 
 def approve(db: Session, m: Mandate, expected: int, actor: str, now: datetime) -> None:
+    advertising_capabilities.require_advertising_write()
     if m.revision != expected:
         raise HTTPException(409, "mandate revision changed")
     if m.state == "revoked":
@@ -256,6 +258,7 @@ def draft(db: Session, m: Mandate, d: ActionDraft, actor: str, now: datetime) ->
 def review(
     db: Session, m: Mandate, a: MandateAction, digest: str, actor: str, now: datetime
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     if a.digest != digest or a.state not in {"awaiting_review", "eligible"} or a.fence:
         raise HTTPException(409, "draft review changed or action claimed")
     d = ActionDraft.model_validate(a.draft)
@@ -317,6 +320,7 @@ def preconditions(
 def claim(
     db: Session, m: Mandate, a: MandateAction, body: ClaimInput, actor: str, now: datetime
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     from app.billing.entitlements import paid_work
 
     m = owned(db, m.workspace_id, m.id)
@@ -375,6 +379,7 @@ def dispatch(
     actor: str,
     now: datetime,
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     from app.billing.entitlements import paid_work
 
     paid_work(db, m.workspace_id, now)

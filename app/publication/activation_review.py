@@ -14,6 +14,7 @@ from pydantic import Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.automation.catalog import AutomationControlKey
 from app.automation.models import PlatformAutomationControl
 from app.campaign_review.contracts import MediaStore
@@ -306,6 +307,7 @@ def prepare_activation(
     clock: creation.Clock,
 ) -> ProviderExecutionReview:
     # Discover only within workspace; current locks are acquired before graph records.
+    advertising_capabilities.require_advertising_write()
     parent = db.scalar(
         select(ProviderExecutionRun).where(
             ProviderExecutionRun.id == parent_id, ProviderExecutionRun.workspace_id == wid
@@ -410,6 +412,7 @@ def approve_activation(
     runtime: ActivationReviewRuntime,
     clock: creation.Clock,
 ) -> ProviderExecutionApproval:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
     if (digest, plan_digest) != (row.digest, row.plan_digest):
         raise HTTPException(409, "separate exact activation approval required")
@@ -438,6 +441,7 @@ def create_run(
     runtime: ActivationReviewRuntime,
     clock: creation.Clock,
 ) -> ProviderExecutionRun:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
     approval = db.get(ProviderExecutionApproval, row.id)
     if approval is None or (approval.review_digest, approval.plan_digest) != (

@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.automation.catalog import AutomationControlKey
 from app.automation.models import PlatformAutomationControl
 from app.publication import coordinator as creation
@@ -156,6 +157,7 @@ def prepare_optimization(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> ProviderExecutionReview:
+    advertising_capabilities.require_advertising_write()
     current(db, wid, binding, scope, actor, runtime, clock)
     db.commit()
     qualification = runtime.qualification_reader(db, binding, scope, target, clock())
@@ -342,6 +344,7 @@ def approve_optimization(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> ProviderExecutionApproval:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, runtime, clock)
     if (digest, plan_digest) != (row.digest, row.plan_digest):
         raise HTTPException(409, "exact optimization approval required")
@@ -381,6 +384,7 @@ def create_run(
     authority: CustomerExactApprovalAuthority | SessionMandateDecisionAuthority = MANUAL_AUTHORITY,
     commit: bool = True,
 ) -> ProviderExecutionRun:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, runtime, clock)
     automatic_authority.resolve(db, row, authority, actor, runtime, clock)
     existing = db.scalar(
@@ -476,6 +480,7 @@ def claim_step(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> OptimizationClaim | None:
+    advertising_capabilities.require_advertising_write()
     run, document = locked_run(db, wid, run_id, actor, runtime, clock)
     plan = document.plan
     ledger, policy = current(db, wid, plan.intent.mandate, plan.intent.scope, actor, runtime, clock)
@@ -978,6 +983,7 @@ def execute_claim(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> OptimizationReceipt:
+    advertising_capabilities.require_advertising_write()
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, runtime, clock)
     checked_claim(db, claim, run, document, actor)
     request = claim.request
@@ -1015,6 +1021,8 @@ def execute_claim(
     db.commit()
     try:
         response = adapter.apply_once(request, emission_context, clock())
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         response = OptimizationResponse(request_digest=request.digest(), outcome="unknown")
     record_response(db, claim.workspace_id, claim.attempt_id, response, clock)
@@ -1022,6 +1030,8 @@ def execute_claim(
         receipt = adapter.read_back(
             request, response, runtime.context(request.intent.scope), clock()
         )
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock)
     record_receipt(db, claim.workspace_id, claim.attempt_id, receipt, clock)
@@ -1052,6 +1062,8 @@ def reconcile_attempt(
         receipt = runtime.transport(request.intent.scope).reconcile(
             request, history, runtime.context(request.intent.scope), clock()
         )
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock)
     record_receipt(db, wid, attempt_id, receipt, clock)

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount, JobRun
 from app.analysis.cadence import run_post_sync_analysis
@@ -184,7 +185,11 @@ def run_customer_tick(
         from app.production_runtime.candidate_assembly import run_configured_candidate_reads
 
         stage("candidate_reads", lambda: run_configured_candidate_reads(engine, configuration))
-    if configuration.customer_session_automation_enabled:
+    if configuration.customer_session_automation_enabled and not (
+        advertising_capabilities.advertising_writes_enabled()
+    ):
+        outcomes["session_automation"] = "disabled_planning_mvp"
+    elif configuration.customer_session_automation_enabled:
         if automation_factory is get_session_automation_runtime:
             from app.production_runtime.reported_automation import run_configured_session_automation
 

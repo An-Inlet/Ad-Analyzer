@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.automation.catalog import AutomationControlKey
 from app.automation.models import PlatformAutomationControl
 from app.campaign_review import service as sources
@@ -168,6 +169,7 @@ def prepare_creation(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> ProviderExecutionReview:
+    advertising_capabilities.require_advertising_write()
     new_creation_allowed(plan)
     gate(runtime, binding.environment, plan)
     runtime.authorize(db, wid, actor)
@@ -283,6 +285,7 @@ def approve_creation(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> ProviderExecutionApproval:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
     new_creation_allowed(document.plan)
     if (digest, plan_digest) != (row.digest, row.plan_digest):
@@ -314,6 +317,7 @@ def create_run(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> ProviderExecutionRun:
+    advertising_capabilities.require_advertising_write()
     row, document = checked_review(db, wid, review_id, actor, store, runtime, clock)
     new_creation_allowed(document.plan)
     approval = db.get(ProviderExecutionApproval, row.id)
@@ -407,6 +411,7 @@ def claim_creation_step(
     runtime: CreationRuntime,
     clock: Clock,
 ) -> DispatchClaim | None:
+    advertising_capabilities.require_advertising_write()
     run, document = locked_run(db, wid, run_id, actor, store, runtime, clock)
     new_creation_allowed(document.plan)
     ledger, policy = mandates.checked(db, wid, document.mandate, actor, clock)
@@ -938,6 +943,7 @@ def execute_claim(
     clock: Clock,
 ) -> CreationReceipt:
     # Resolve credentials outside product locks, then reacquire current authority.
+    advertising_capabilities.require_advertising_write()
     checked_dispatch_step(db, claim, actor, store, runtime, clock)
     db.commit()
     request = claim.request
@@ -971,6 +977,8 @@ def execute_claim(
             )
             assert social_context is not None
             response = adapter.apply_once(request, social_context, clock())
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         response = (
             ProviderResponse(request_digest=request.digest(), outcome="unknown")
@@ -999,6 +1007,8 @@ def execute_claim(
             receipt = adapter.read_back(request, response, runtime.social_context(request), clock())
         else:
             raise ValueError("provider response type mismatch")
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock())
     record_receipt(db, claim.workspace_id, claim.attempt_id, receipt, clock)
@@ -1049,6 +1059,8 @@ def reconcile_attempt(
                 runtime.social_context(request),
                 clock(),
             )
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock())
     record_receipt(db, wid, attempt_id, receipt, clock)

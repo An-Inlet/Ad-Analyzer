@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.publication import coordinator as creation
 from app.publication import execution_mandates as mandates
 from app.publication import optimization as o
@@ -163,6 +164,7 @@ def prepare_repeat_optimization(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> ProviderExecutionReview:
+    advertising_capabilities.require_advertising_write()
     if runtime.replacement_reader is None:
         raise HTTPException(409, "authoritative original closure and transition source unavailable")
     ledger, policy = o.current(db, wid, binding, scope, actor, runtime, clock)
@@ -247,6 +249,7 @@ def transfer(
     runtime: OptimizationRuntime,
     clock: creation.Clock,
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     if runtime.replacement_reader is None:
         raise HTTPException(409, "authoritative replacement source unavailable")
     plan = document.plan

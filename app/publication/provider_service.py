@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
 from app.billing.entitlements import paid_work
 from app.campaign_review import service as source_reviews
@@ -116,6 +117,7 @@ def prepare_google(
     persisting. A reconnect, changed source or revoked entitlement during IO aborts.
     Each refresh creates new immutable evidence and review; existing approvals stay bound.
     """
+    advertising_capabilities.require_advertising_write()
     authorize(db, wid, actor)
     now = clock()
     review = current_review(db, wid, draft_id, fields, actor, store, now)
@@ -260,6 +262,7 @@ def approve(
     store: MediaStore,
     clock: Callable[[], datetime],
 ) -> ProviderReviewApproval:
+    advertising_capabilities.require_advertising_write()
     row, plan = checked_review(db, wid, review_id, actor, store, clock)
     if row.review_digest != review_digest or row.plan_digest != plan_digest:
         raise HTTPException(409, "exact provider review and plan required")

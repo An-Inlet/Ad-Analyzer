@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.initial_planning.automatic_contracts import InitialReportedRulePolicyV1
@@ -153,6 +154,7 @@ def start(
     | StartInitialReportedRuleAutomationV1,
     runtime: SessionAutomationRuntime,
 ) -> SessionAutomationRun:
+    advertising_capabilities.require_advertising_write()
     if isinstance(intent, StartInitialReportedRuleAutomationV1):
         from app.initial_planning.start_service import start_initial
 

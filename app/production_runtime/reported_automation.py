@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.automation import AutomationControlKey, AutomationControlService
 from app.commerce.evidence import lock_workspace
 from app.customers.access import CustomerPrincipal, lock_customer_mutation
@@ -41,7 +42,10 @@ def configured_session_automation(
     identity: IdentityProvider,
     configuration: Settings,
 ) -> Iterator[SessionAutomationRuntime | None]:
-    if not configuration.customer_session_automation_enabled:
+    if (
+        not advertising_capabilities.advertising_writes_enabled()
+        or not configuration.customer_session_automation_enabled
+    ):
         yield None
         return
     with configured_candidates(db, principal, identity, configuration) as bundle:
@@ -55,7 +59,7 @@ def configured_session_automation(
             yield None
             return
 
-        def unbound_catalog(*_args):  # type: ignore[no-untyped-def]
+        def unbound_catalog(*_args: object) -> None:
             raise HTTPException(409, "exact_automation_mandate_required")
 
         yield SessionAutomationRuntime(
@@ -73,7 +77,10 @@ def configured_session_automation(
 def run_configured_session_automation(
     engine: Engine, configuration: Settings, *, limit: int = 10
 ) -> dict[str, int]:
-    if not configuration.customer_session_automation_enabled:
+    if (
+        not advertising_capabilities.advertising_writes_enabled()
+        or not configuration.customer_session_automation_enabled
+    ):
         return {}
     with Session(engine) as db:
         if not AutomationControlService(db).master_enabled(AutomationControlKey.ALL_DATA_SYNCS):

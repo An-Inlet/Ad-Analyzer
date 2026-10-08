@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.campaign_review.contracts import MediaStore
 from app.goals.schemas import StrictModel
 from app.publication import activation_review as reviews
@@ -125,6 +126,7 @@ def claim_step(
     runtime: ActivationRuntime,
     clock: creation.Clock,
 ) -> ActivationClaim | None:
+    advertising_capabilities.require_advertising_write()
     run, document = locked_run(db, wid, run_id, actor, store, runtime, clock)
     ledger, policy = mandates.checked(db, wid, document.mandate, actor, clock)
     # The original reservation remains held; never reserve this budget owner a second time.
@@ -597,6 +599,7 @@ def execute_claim(
     runtime: ActivationRuntime,
     clock: creation.Clock,
 ) -> ActivationReceipt:
+    advertising_capabilities.require_advertising_write()
     run, document = locked_run(db, claim.workspace_id, claim.run_id, actor, store, runtime, clock)
     original = db.get(ProviderExecutionAttempt, claim.attempt_id)
     initial_step = db.get(ProviderExecutionStep, (run.id, claim.request.target.step_id))
@@ -632,11 +635,15 @@ def execute_claim(
     adapter = runtime.transport(request)
     try:
         response = adapter.apply_once(request, emission_context, clock())
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         response = ActivationResponse(request_digest=request.digest(), outcome="unknown")
     record_response(db, claim.workspace_id, claim.attempt_id, response, clock)
     try:
         receipt = adapter.read_back(request, response, runtime.context(request), clock())
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock)
     record_receipt(db, claim.workspace_id, claim.attempt_id, receipt, clock)
@@ -667,6 +674,8 @@ def reconcile_attempt(
         receipt = runtime.transport(request).reconcile(
             request, history, runtime.context(request), clock()
         )
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = unknown(request, clock)
     record_receipt(db, wid, attempt_id, receipt, clock)

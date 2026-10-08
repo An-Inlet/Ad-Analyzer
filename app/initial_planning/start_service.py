@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.customers.access import CustomerPrincipal
 from app.goals import service as goals
 from app.initial_planning.automatic_contracts import (
@@ -123,6 +124,7 @@ def start_initial(
     intent: StartInitialReportedRuleAutomationV1,
     runtime: SessionAutomationRuntime,
 ) -> SessionAutomationRun:
+    advertising_capabilities.require_advertising_write()
     candidates.authorize(db, principal, wid, runtime.review.candidate)
     policy = service.policy_for(db, runtime, wid, intent.policy)
     if (

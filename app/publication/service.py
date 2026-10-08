@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.ads.models import AdvertisingAccount
 from app.billing.entitlements import paid_work
 from app.campaign_review import service as reviews
@@ -160,6 +161,7 @@ def prepare(
     authority: DatabaseFixtureAuthority,
     now: datetime,
 ) -> PublicationPlanRecord:
+    advertising_capabilities.require_advertising_write()
     mandates.workspace_lock(db, wid)
     owner(db, wid, actor)
     # Peek the immutable definition to acquire mandate before the draft/native connection locks.
@@ -332,6 +334,7 @@ def approve(
     authority: DatabaseFixtureAuthority,
     now: datetime,
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     record, plan, mandate, action = locked(db, wid, plan_id)
     authority.validate(db, plan, actor, now)
     if review_digest != plan.review_digest or plan_digest != record.digest:
@@ -352,6 +355,7 @@ def claim_next(
     authority: DatabaseFixtureAuthority,
     now: datetime,
 ) -> BoundRequest | None:
+    advertising_capabilities.require_advertising_write()
     record, plan, mandate, action = locked(db, wid, plan_id)
     authority.validate(db, plan, actor, now)
     if not record.approved_by or record.state in {"cancelled", "cancel_requested"}:
@@ -561,12 +565,15 @@ def dispatch_next(
     adapter: object,
     now: datetime,
 ) -> BoundRequest | None:
+    advertising_capabilities.require_advertising_write()
     transport = require_fixture(adapter)
     request = claim_next(db, wid, plan_id, request_key, actor, authority, now)
     if request is None:
         return None
     try:
         receipt = transport.apply_once(request, now)
+    except advertising_capabilities.AdvertisingWritesDisabled:
+        raise
     except Exception:
         receipt = PublishReceipt(
             scope=request.scope,
@@ -633,6 +640,7 @@ def approve_activation(
     authority: DatabaseFixtureAuthority,
     now: datetime,
 ) -> None:
+    advertising_capabilities.require_advertising_write()
     record, plan, _, _ = locked(db, wid, plan_id)
     authority.validate(db, plan, actor, now)
     if activation_preview(db, wid, plan_id) != digest:

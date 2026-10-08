@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from app import advertising_capabilities
 from app.automation import AutomationControlKey, AutomationControlService
 from app.optimization_candidates import review_bridge, selection
 from app.optimization_candidates import service as candidates
@@ -22,6 +23,7 @@ from app.shopify.security import utc
 
 def advance(engine: Engine, wid: int, identifier: str, runtime: SessionAutomationRuntime) -> str:
     """One bounded selection pass. Provider claims are never reclaimed or replayed."""
+    advertising_capabilities.require_advertising_write()
     with Session(engine) as db:
         row, principal, policy, _ = service.current(db, wid, identifier, runtime)
         if not AutomationControlService(db).master_enabled(AutomationControlKey.ALL_DATA_SYNCS):
@@ -113,6 +115,8 @@ def run_due(
     *,
     limit: int = 10,
 ) -> dict[str, int]:
+    if not advertising_capabilities.advertising_writes_enabled():
+        return {}
     with Session(engine) as controls:
         if not AutomationControlService(controls).master_enabled(
             AutomationControlKey.ALL_DATA_SYNCS

@@ -11,6 +11,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from app.planning_documents.common import fingerprint
+from app.planning_documents.comparison import compare_versions
 
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_composer import compose, fixture
@@ -36,6 +37,14 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     revised_inputs, revised_bundle, revised_policy = fixture(goal=changed_goal)
     revised_plan = compose(revised_inputs, revised_bundle, revised_policy)
     (tmp_path / "changed-plan.json").write_text(revised_plan.model_dump_json())
+    successor = plan.model_copy(
+        update=dict(
+            version=2, parent_digest=plan.digest(), summary="<script>window.injected=true</script>"
+        )
+    )
+    comparison = compare_versions(plan, successor)
+    (tmp_path / "comparison.json").write_text(comparison.model_dump_json())
+    shutil.copy("app/portal/static/plan-comparison.mjs", tmp_path / "plan-comparison.mjs")
     shutil.copy("app/portal/static/plan-document.mjs", tmp_path / "plan-document.mjs")
     (tmp_path / "index.html").write_text(
         '<!doctype html><main id="host"></main><output id="result">RUNNING</output>'
@@ -44,6 +53,7 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     (tmp_path / "test.mjs").write_text(
         """
 import {renderPlanDocument,clearPlanDocument} from '/plan-document.mjs';
+import {renderPlanComparison} from '/plan-comparison.mjs';
 const assert=(ok,message)=>{if(!ok)throw new Error(message);};
 try {
  const plan=await (await fetch('/plan.json')).json(),host=document.querySelector('#host');
@@ -75,6 +85,20 @@ try {
  assert(host.hidden&&!host.childNodes.length,'foreign response cleared');
  renderPlanDocument(host,plan,options,Date.parse(plan.generated_at));clearPlanDocument(host);
  assert(host.hidden&&!host.childNodes.length,'session clear');
+ const comparison=await (await fetch('/comparison.json')).json();
+ const expected={previous_version:comparison.previous_version,
+                 current_version:comparison.current_version,
+                 previous_digest:comparison.previous_digest,current_digest:comparison.current_digest};
+ renderPlanComparison(host,comparison,expected);
+ assert(host.textContent.includes('<script>window.injected=true</script>'),'literal diff text');
+ assert(!host.querySelector('script')&&!window.injected,'comparison injection');
+ assert(host.textContent.includes('not carried forward'),'decision independence');
+ renderPlanComparison(host,{...comparison,omitted_changes:17},expected);
+ assert(host.textContent.includes('17 additional changes'),'omitted count visible');
+ try {renderPlanComparison(host,comparison,{...expected,current_version:3});
+      throw new Error('accepted wrong version');}
+ catch(error){assert(error.message!=='accepted wrong version','version mismatch rejected');}
+ assert(host.hidden&&!host.childNodes.length,'comparison rejection clears');
  document.querySelector('#result').textContent='PASS';
 } catch(error) {document.querySelector('#result').textContent='FAIL '+error.stack;}
 await fetch('/result',{method:'POST',body:document.querySelector('#result').textContent});

@@ -22,6 +22,7 @@ from app.planning_documents.composer import targets
 from app.planning_documents.context import AccountRef, PlanInputRevision, TargetRef
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion
+from app.planning_documents.generation_ports import GenerationEvidence
 from app.planning_documents.models import (
     PlanDependencyRow,
     PlanEventRow,
@@ -30,6 +31,10 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
+from app.planning_documents.policy_capabilities import (
+    reporting_capability,
+    ticket_reporting_capability,
+)
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
@@ -37,6 +42,7 @@ from app.planning_documents.retained_sources import (
     recheck_retained_sources,
 )
 from app.planning_documents.storage import canonical, document_for_row
+from app.planning_documents.window_evidence import WindowEvidenceBundleV1
 from app.publication import customer_intents
 from app.shopify.security import ShopifyError
 
@@ -385,18 +391,33 @@ def save_generation(
     principal: CustomerPrincipal,
     fact: IdentityFact,
     ticket: GenerationTicket,
-    bundle: EvidenceBundle,
+    bundle: GenerationEvidence,
     candidate: PlanVersion,
     request_key: str,
     request_digest: str,
     now: datetime,
     recheck: Callable[
-        [Session, CustomerPrincipal, GenerationTicket, EvidenceBundle, datetime], None
+        [Session, CustomerPrincipal, GenerationTicket, GenerationEvidence, datetime], None
     ],
 ) -> PlanVersion:
     ticket = GenerationTicket.model_validate(ticket)
-    bundle.assert_ticket(ticket)
     candidate = PlanVersion.model_validate(candidate)
+    try:
+        capability = ticket_reporting_capability(ticket.policy_version, ticket.policy_digest)
+        candidate_capability = reporting_capability(
+            candidate.policy_version, candidate.generator_version
+        )
+    except ValueError as error:
+        raise changed("unknown planning policy or generator") from error
+    expected_bundle = (
+        WindowEvidenceBundleV1 if capability.mode == "presence_requested_window" else EvidenceBundle
+    )
+    if capability != candidate_capability or not isinstance(bundle, expected_bundle):
+        raise changed("planning evidence policy differs")
+    try:
+        bundle.assert_ticket(ticket)
+    except ValueError as error:
+        raise changed("planning evidence does not match generation") from error
     wid, plan_id = ticket.inputs.workspace_id, ticket.inputs.plan_id
     current = authority.lock(db, principal, wid, fact)
     if ticket.actor_id != current.user.id or ticket.session_digest != current.session.digest:

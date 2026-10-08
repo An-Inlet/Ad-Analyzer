@@ -23,6 +23,7 @@ from tests.test_initial_planning_api import ready_history
 from tests.test_shopify_sales import configuration as configuration  # noqa: F401
 
 
+@pytest.mark.planning_boundary
 def test_owned_status_default_off_and_session_binding(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch, replicas: Any
 ) -> None:
@@ -75,18 +76,10 @@ def test_owned_status_default_off_and_session_binding(
     }
     body = {"expected_preview_digest": value["preview_digest"]}
     assert alice.post(path + "/review", json=body).status_code == 403
-    assert alice.post(path + "/review", headers=headers(alice), json=body).status_code == 503
-    assert (
-        alice.post(
-            path + "/review",
-            headers=headers(alice),
-            json={
-                **body,
-                "amount_micros": 1,
-            },
-        ).status_code
-        == 422
-    )
+    for intent in (body, {**body, "amount_micros": 1}):
+        denied = alice.post(path + "/review", headers=headers(alice), json=intent)
+        assert denied.status_code == 409
+        assert denied.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
     login(bob, "alice:second")
     assert bob.get(path + "/review-status").status_code == 409
     assert bob.post(path + "/review", headers=headers(bob), json=body).status_code == 409

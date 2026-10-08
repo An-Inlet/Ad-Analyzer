@@ -71,3 +71,16 @@ Final checks for this ports candidate:
 Intermediate forward-reference import and mypy union/local-variable errors corrected;
 no failed result hidden. Interface candidate awaits root/independent review before0087
 implementation. Full trusted adapter/composer/resolver acceptance still outstanding.
+
+## Evidence Port Review Repair Successor
+
+Fixed requested primary/comparison performance window binding; derived commerce summary
+and exact confirmed definition/domain digest; no coverage upgrade; finite nonnegative
+TikTok generic decimals; normalized invalid timezone rejection; exact policy artifact
+pin. Native and reported source digest domains remain separate and final DB-only adapter
+recheck is explicit. Source content/current generation proof remains service work.
+
+Final focused contracts/ports: **69 passed**; whole Ruff/mypy **1021 files** passed.
+Ten additional parameterized cases cover repaired boundaries. Intermediate new commerce
+fixture incorrectly preceded its reporting end; fixture chronology corrected without
+changing production constraints. `git diff --check` passed. No DB/live qualification.

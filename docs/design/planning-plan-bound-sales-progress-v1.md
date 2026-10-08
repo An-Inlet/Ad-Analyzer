@@ -1,6 +1,8 @@
-# Plan-Bound Sales Progress V1 — Proposed Interface
+# Plan-Bound Sales Progress V1 — Frozen Interface
 
-Investigation only, base `f0ac35d`. No schema, runtime, API or UI change. This makes
+Root reviewed and froze this interface after proposal `32b5d10` and exact-money
+amendment `57f1c00`, integrated through `0ce4950`. Implementation starts from that
+reviewed baseline; this document itself changes no runtime or schema. This makes
 current Shopify sales readable against one exact retained planning version; it does
 not change the saved plan, measure causal lift, assess achievement, or authorize spend.
 
@@ -185,4 +187,9 @@ an acquisition job, publishes a campaign, or records an application assertion.
 
 Backend lane owns new DTO/service method and focused tests; API/UI lane consumes this
 frozen method/response after review. No migrations, persisted progress or new numeric
-recommendation policy. This document proposes the seam; no acceptance has been run.
+recommendation policy. This seam is frozen for implementation; no progress acceptance has been run.
+
+Backend ownership: `initial_start` owns new progress DTO, service method, customer
+route and both-database tests. UI ownership will be assigned separately after a
+controller/rendering seam review; no backend worker edits portal files. Preserve
+the reviewed reporting producer/consumer and immutable plan contracts unchanged.

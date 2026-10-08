@@ -295,8 +295,8 @@ def test_actual_native_targets_browser(
     try:
         assert completed.wait(60), "Actual diagnostics browser did not report completion"
         assert result and result[0]["status"] == "passed", result
-        assert len(made) == 7 and len(closed) == len(made), (
-            "seven explicit native target reads; all transports closed"
+        assert len(made) == 8 and len(closed) == len(made), (
+            "eight explicit native target reads; all transports closed"
         )
     finally:
         release.set()

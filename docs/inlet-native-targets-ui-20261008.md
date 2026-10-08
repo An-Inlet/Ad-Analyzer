@@ -19,3 +19,11 @@ Browser tests use actual owner APIs, sessions, vault rows and concrete provider 
 Exploratory fixture failure: lost-response flag could be consumed by the preceding held response while its cloned JSON was still pending. Moved the fixture's delivered signal after clone parsing; final all-provider/bothDB browser cohort passes. This changed test ordering only, not application behavior.
 
 Evidence `/workspace/inlet-evidence/20261008/native-targets-ui/`. Independent review/root integration pending. No hosted/deployment/production verification. This is an account inventory display, not a comprehensive planning product or execution capability. Remaining work belongs to reviewed comprehensive plan consumers/evidence/scenarios/briefs.
+
+## Independent Review Repair
+
+The review identified a same-owner session continuity gap between a completed native POST and the subsequent session check. The controller now captures readable cookies once per guarded operation, checks that same snapshot at every request entry and response boundary, and checks it again immediately before rendering. Existing epoch cancellation and server authorization remain unchanged.
+
+The browser regression deterministically rotates the readable CSRF continuity token using two queued microtasks after POST parsing and before the trailing session request; this is an injected timing test, not a claim that a complete login occurs in that microtask. A separate real HTTPS held-response test now rotates to a new session for the same owner. Each case makes eight explicit native read operations, with no automatic retry.
+
+Final repair checks: all three provider paths on SQLite/PostgreSQL plus retained diagnostics/browser/shell checks: **13 passed in 54.72s**. Whole Ruff passed; whole mypy passed **1012 files**; controller and browser-driver JavaScript syntax checks passed; diff check passed. Logs are retained in the same evidence directory with operation-continuity names. No live provider calls.

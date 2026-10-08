@@ -318,3 +318,36 @@ frozen model names; no model/schema changes without coordinated contract update.
 Root owns customer V2 route, core service/evidence-reader wiring and customer browser
 integration after reviewed prerequisites. Both lanes begin from this root freeze;
 helper DB qualification awaits the actual frozen model implementation, not mock tables.
+
+## Historical Export Validator Addendum
+
+Approved private DB-only interfaces in `app.planning_documents.catalog_receipts`:
+
+```python
+validate_retained_receipt(
+    db: Session, row: CatalogReceiptRow,
+) -> tuple[ReceiptPayloadV1, TargetCatalogV2]
+validate_retained_input_receipts(db: Session, inputs: PlanInputRevision) -> None
+```
+
+These reconstruct canonical payload/scalars and the COMPLETE selection row set, and
+validate complete input links/input digests/selected sets respectively. Historical
+validation does not require an active original session, unexpired receipt, or current
+native source. Caller retains current read-role authorization and privacy/export locks.
+They do not authorize new use; new-use resolvers layer fresh original session, source,
+ownership, entitlement and expiry checks over the same structural validation. No IO,
+commit, rollback or lifecycle callback is performed by these helpers; lifecycle callers
+must not enter the current-use resolver to export history. Failures use the existing
+typed CatalogReceiptUnavailable and fail export integrity, never expose partial proof.
+
+### No-Target Saved Inputs
+
+`resolve_saved_input_catalogs` also accepts an exact saved input with no target uses
+and a complete empty link set. For that case, a different currently authorized owner
+may generate: validate that current ticket/session and current owned source fences,
+without requiring `inputs.created_by` to equal the generator. This preserves existing
+core behavior. Submitted input creation/binding still requires the current creator;
+target-bearing saved links still require the original receipt actor/session/authentication
+epoch and TTL. Missing links on target-bearing inputs never become an empty result.
+The final receipt recheck has the same distinction. Historical validation remains
+independent of active original session for both cases.

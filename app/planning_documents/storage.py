@@ -10,7 +10,15 @@ from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 
-PLANNING_TABLES = frozenset(
+CATALOG_RECEIPT_TABLES = frozenset(
+    {
+        "planning_catalog_receipts",
+        "planning_catalog_receipt_selections",
+        "planning_input_catalog_receipts",
+    }
+)
+
+PLANNING_TABLES = CATALOG_RECEIPT_TABLES | frozenset(
     {
         "planning_documents",
         "planning_input_revisions",
@@ -118,6 +126,8 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
 
 
 def export_row(table: str, row: Mapping[str, Any]) -> dict[str, Any]:
+    if table in CATALOG_RECEIPT_TABLES:
+        raise ValueError("catalog receipt export requires complete retained validation")
     from app.lifecycle.export_serializers import fields
     from app.lifecycle.inventory import scalar
 

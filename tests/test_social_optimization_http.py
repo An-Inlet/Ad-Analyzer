@@ -24,6 +24,9 @@ from pydantic import SecretStr
 from tests.test_execution_contracts import binding, exposure, policy
 from tests.test_provider_publication_contracts import NOW
 
+# Retained post-launch provider engines, never deployment write authority.
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 class Server:
     def __init__(self, provider: str) -> None:

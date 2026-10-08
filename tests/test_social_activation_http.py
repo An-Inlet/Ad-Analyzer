@@ -24,6 +24,9 @@ from tests.test_execution_contracts import binding, policy
 from tests.test_provider_publication_contracts import NOW
 from tests.test_social_publication_http import Media, MetaServer, TikTokServer, graph, tiktok_graph
 
+# Retained post-launch provider engines, never deployment write authority.
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 class MetaActivationServer(MetaServer):
     def __init__(self) -> None:

@@ -21,6 +21,9 @@ from pydantic import SecretStr
 
 from tests.test_provider_publication_contracts import NOW, review
 
+# Retained post-launch provider engines, never deployment write authority.
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 
 def context(request: BoundProviderRequest) -> ProviderContext:
     return ProviderContext(

@@ -26,6 +26,9 @@ from pydantic import SecretStr
 from tests.test_provider_publication_contracts import NOW
 from tests.test_social_publication_contracts import meta_review
 
+# Retained post-launch provider engines, never deployment write authority.
+pytestmark = [pytest.mark.retained_execution, pytest.mark.usefixtures("retained_execution_engine")]
+
 RAW = b"offline image fixture: private reader validation is separately required"
 
 

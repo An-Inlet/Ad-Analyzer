@@ -20,6 +20,8 @@ from app.executors.tiktok_publication import TikTokPublicationTransport
 from app.production_runtime.provider_composition import LazyGoogleHTTP
 from pydantic import SecretStr
 
+pytestmark = pytest.mark.planning_boundary
+
 
 @pytest.mark.parametrize(
     "adapter",

@@ -38,6 +38,7 @@ from app.planning_documents.models import (
     PlanVersionRow,
 )
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket, PlanningCompositionPolicy
+from app.planning_documents.progress_contracts import PlanSalesProgressV1, project_sales_progress
 from app.planning_documents.requests import (
     AssertionIntent,
     CreatePlan,
@@ -603,6 +604,69 @@ class PlanningDocumentService:
                     reasons=reasons,
                 )
             )
+
+    def sales_progress(
+        self, principal: CustomerPrincipal, wid: int, plan_id: str, version: int
+    ) -> PlanSalesProgressV1:
+        """Read current closed-day sales for this exact retained goal, with no import IO."""
+        from app.goals import service as goals
+        from app.goals.models import GoalPreview, GoalRevision
+        from app.goals.progress import _read_goal_progress_locked
+        from app.goals.schemas import GoalDefinition
+
+        if type(version) is not int or version < 1:
+            raise HTTPException(422, "positive version required")
+        with self._read_session(principal, wid) as (db, current):
+            plan = repository.owned(db, wid, plan_id)
+            try:
+                _, document = repository.version(db, plan, version)
+            except (ValueError, AssertionError) as error:
+                raise HTTPException(409, "plan_progress_integrity_unavailable") from error
+            ref = document.inputs.goal
+            try:
+                goal = goals.owned(db, wid, ref.goal_id)
+            except HTTPException as error:
+                if error.status_code != 404:
+                    raise
+                return project_sales_progress(
+                    document,
+                    sales=None,
+                    reason="goal_unavailable",
+                    as_of=max(self.clock(), database_utc_now(db)),
+                )
+            db.refresh(goal)
+            revision = db.get(GoalRevision, (goal.id, goal.revision), populate_existing=True)
+            if revision is None or revision.workspace_id != wid:
+                raise HTTPException(409, "plan_progress_integrity_unavailable")
+            preview = db.get(GoalPreview, ref.confirmation_reference, populate_existing=True)
+            changed = (
+                goal.revision != ref.revision
+                or goal.confirmed_preview_id != ref.confirmation_reference
+                or revision.confirmed_at is None
+                or revision.definition is None
+                or preview is None
+                or (preview.goal_id, preview.revision) != (ref.goal_id, ref.revision)
+            )
+            if not changed:
+                try:
+                    definition = GoalDefinition.model_validate(revision.definition)
+                except ValueError as error:
+                    raise HTTPException(409, "plan_progress_integrity_unavailable") from error
+                changed = definition != ref.definition
+            if changed:
+                return project_sales_progress(
+                    document,
+                    sales=None,
+                    reason="goal_changed",
+                    as_of=max(self.clock(), database_utc_now(db)),
+                )
+            try:
+                sales = _read_goal_progress_locked(
+                    db, current, wid, ref.goal_id, ref.revision, clock=self.clock
+                )
+                return project_sales_progress(document, sales=sales, reason=None, as_of=sales.as_of)
+            except ValueError as error:
+                raise HTTPException(409, "plan_progress_integrity_unavailable") from error
 
     def export(
         self, principal: CustomerPrincipal, wid: int, plan_id: str, version: int

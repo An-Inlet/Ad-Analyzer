@@ -11,6 +11,7 @@ from app.customers.access import CustomerPrincipal, Database, MutationPrincipal,
 from app.customers.identity import IdentityProvider
 from app.planning_documents.common import Id
 from app.planning_documents.comparison import VersionComparison, compare_versions
+from app.planning_documents.progress_contracts import PlanSalesProgressV1
 from app.planning_documents.requests import (
     AssertionIntent,
     CreatePlan,
@@ -267,3 +268,19 @@ def compare_plan_versions(
         return compare_versions(previous.document, current.document)
     except ValueError:
         raise HTTPException(409, "The selected versions cannot be compared.") from None
+
+
+@router.get("/{plan_id}/progress", response_model=PlanSalesProgressV1)
+def sales_progress(
+    workspace_id: int,
+    plan_id: Id,
+    version: Annotated[int, Query(ge=1)],
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    response: Response,
+) -> PlanSalesProgressV1:
+    no_store(response)
+    return service(db, provider, principal).sales_progress(
+        principal, workspace_id, plan_id, version
+    )

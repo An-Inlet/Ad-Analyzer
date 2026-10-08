@@ -28,3 +28,9 @@ PG configuration was supplied,4.57seconds. Initial development runs caught setti
 alias mistakes in test setup and an indentation error during exception-handler edits;
 both were corrected before this final passing cohort. No Full/hosted/live actions.
 This package is a tested part of P01, not complete planning product acceptance.
+
+Follow-up independent review closed at d3233e2 with no remaining P1/P2 findings.
+After the preserved disposable PostgreSQL service became ready, the previously
+skipped retained-reconciliation and customer-scheduler PostgreSQL cases ran:
+17passed,17SQLite variants deselected,30.70seconds. Database
+inlet_oct07_next_integration_ci used fixture-owned schemas; no reset or live data.

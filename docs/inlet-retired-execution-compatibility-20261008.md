@@ -70,13 +70,15 @@ the separately required CURRENT populated-0085 refusal test.
 - Original historical142: 139 passed, 1 original SQLite row-lock skip, 2 failed,
   1,570.06 s. Outer harness correctly failed, 1,603.51 s.
 - Exact historical UI supplement: 19 passed, 410.44 s.
+- Historical forward88: 85 passed, 2 original SQLite row-lock skips, 1 failed,
+  1,080.84 s. `forward.log/xml`; original pinned source remains unchanged.
 - Strengthened coverage-map/unchanged-AST validator: 1 passed, 0.92 s.
 - Whole Ruff, bare mypy (1,107 source files), current browser-driver Node syntax,
   and `git diff --check` passed before final ledger freeze.
 
 Raw durable artifacts are under
 `/workspace/inlet-evidence/20261008/retired-compatibility/`.
-The forward88 terminal outcome is recorded after its active qualification completes. No aggregate/full-suite pass is claimed here.
+All three qualification batches are terminal. No aggregate/full-suite pass is claimed here.
 
 Final reproducible entry points use the disposable PostgreSQL URL and explicit disposable acknowledgement
 from the repository test environment, plus `/workspace/inlet-venv/bin` tools:
@@ -141,3 +143,34 @@ Asset SHA256: `5c9b6722b2717c9f38afc347ff9cd1b0b03fa50397ddd89e9588e3262f4e72a2`
 The exact two repaired browser cases passed on SQLite/PostgreSQL in36.81s;
 `asset-repair.log/xml` retains the terminal result. Whole Ruff and bare mypy
 (1,108 files) passed after the plugin addition. The original142 was not rerun.
+
+## Final Forward Qualification And W1 Limitation
+
+The final forward88 run completed with **85 passed, 2 original SQLite row-lock
+skips, 1 failed in1,080.84s**. The failure is exactly
+`tests/test_initial_rule_start.py::test_exact_start_and_worker[postgres-unknown]`,
+at pinned line273: actual `worker.advance` returned `blocked`, while the unchanged
+assertion expects `completed`. This stops before that test's later unknown-response
+receipt, Stop, erasure, original-fence reconciliation and held-reservation assertions.
+The SQLite unknown-response case passed.
+
+There is no captured underlying denial reason or exception in the terminal trace.
+Expiry, host contention, provider timeout and application defects are therefore
+unproven causes. This is not evidence of a harness defect or current planning MVP
+regression. No retry, skip, altered assertion, timing extension or engine patch was
+used to turn it green. The final W1 aggregate must retain and report the original
+failure unless its actual observation differs. The harness propagates nonzero
+child results rather than hiding known failures.
+
+`forward.log/xml` and `forward-collection.log` retain the exact evidence. The source
+worktree at the pinned commit remained clean after all qualifications. Source
+review closed `5aa97d1`; the narrowly approved missing-asset plugin separately
+closed `0a35566` after its two affected cases passed. These distinct observations
+do not imply one fresh all-green249-case run.
+
+The independent current lifecycle successor `62d0033` was reviewed CLOSED without
+P1/P2 findings: current schema/privacy/export/restore assertions and genuine Start
+graph/0085 refusal remain current, with42 combined passes,2 existing SQLite skips,
+and a targeted2-pass migration fixture repair after one recorded setup error.
+Its evidence and limits live in its own ledger; this does not convert the historical
+forward failure into a pass. No additional test was rerun merely for review.

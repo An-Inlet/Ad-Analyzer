@@ -1,8 +1,8 @@
 # Planning Quality Evidence — Reconciled 2026-10-08
 
-Evidence cutoff: reviewed root `8125953`, including actual Meta import-to-plan
-acceptance. This docs-only reconciliation branches from `133993d`; its newly frozen
-progress interface and subsequent progress implementation are deliberately not credited.
+Evidence cutoff: reviewed root `bbabcd6`, including actual Meta import-to-plan,
+exact target-reselection API acceptance, and plan-bound sales progress backend/browser.
+Requested-window projection/comparison work after its design freeze is not credited.
 This supersedes the earlier pending-service/reader entries, not the unchanged frozen
 [Q01–Q16 inputs and six evaluation criteria](design/comprehensive-planning-quality-cases.md).
 All provider evidence below uses synthetic data and offline MockHTTP. Browser evidence
@@ -33,6 +33,8 @@ their reviewed integrated heads. No frozen input or expert gate has changed.
 | E15 Original Meta producer | Reviewed `34dd4fb`, integrated `d4f7c90`: actual 0090/new-window raw presence, no legacy adoption, partial retry/conflict, exact fixed/rolling atomic publication, original-source/terminal privacy and erasure. Affected cohort **105 passed, 1 expected SQLite skip, 7 existing warnings, 113.99s**; PostgreSQL-specific skipped counterpart passed. Results are terminal evidence recorded in the [ledger](inlet-meta-presence-publication-20261008.md), not a saved raw log/JUnit. No provider-live or planner qualification from this package alone. |
 | E16 V3 consumer/policy | Reviewed `03ad1e4`, integrated `a21f034`: actual SQL sidecar readers and customer API/composer, policy v2, presence/absence source pins and retained `local_reporting_v2` witnesses, legacy v1 preserved. Affected cohort **179 passed, 0 skips, 290.84s** before final cache assertions; final changed module **20 passed, 0 skips, 46.16s**, 16 deliberate unsafe-copy serialization warnings. Those consumer fixtures create sidecars directly, not imports. [Consumer ledger](inlet-qualified-reporting-consumer-20261008.md). |
 | E17 Actual Meta import-to-plan | Reviewed `f4ea768`, integrated `8125953`: actual read-only Meta rolling import over 56 closed UTC days, owned customer create/generate/current/history/export and real policy v2 composer. Positive 100/10/USD 100, full explicit zero, missing selected day, sparse calendar; actual zero→missing correction stales V1, preserves original artifact/export and generates V2 withdrawing zero. Combined cohort **30 passed, 0 skips, 40.19s** (8 new both-database cases +22 existing performance cases). [Ledger and raw log/JUnit links](inlet-meta-import-plan-presence-20261008.md). This is Meta-only, not frozen Google Q01/Q02 or all frozen common-basis data. |
+| E18 Disappeared/replaced target API | Reviewed `126a30e`, integrated `471bb83`: **6 passed, 0 skips, 31.48s**, Google/Meta/TikTok × SQLite/PostgreSQL. Fresh disappearance does not falsify an original unexpired as-of receipt; same-name/new-native-ID replacement has distinct selectors, mixed handles reject without graph changes, explicit reselection preserves old document/export. [Ledger](inlet-target-disappearance-acceptance-20261008.md). API-only, not disappearance browser or unknown-parent qualification. |
+| E19 Plan-bound sales progress | Reviewed backend `70c0ede`, integrated `01e79f0`: **68 passed, 1 expected SQLite PostgreSQL-lock skip, 1 intentional unsafe-copy warning, 124.46s**. Exact saved version/goal, current Shopify merchandise sales, real corrections/later closed day, privacy/current authority and actual PostgreSQL lock timeout. Reviewed display `e8a1e1c`+`07fe34b`, integrated `38ed75d`; reviewed browser `2e64377`, integrated `bbabcd6`: **3 passed, 0 skips, 12.546s**, actual HTTPS SQLite/PostgreSQL plus Chromium DOM. Real CommerceSync correction −10→−20, immutable original document/digest, historical goal binding, separate unverified manual report, same-owner session replacement, changed-goal unavailable and logout clearing. Exact signed BigInt display; no causal/achievement claim. [Backend](inlet-plan-sales-progress-backend-20261008.md), [UI/browser](inlet-planning-sales-progress-ui-20261008.md). Later closed-day expansion is backend-qualified, not browser-qualified. |
 
 ## Case Status: Partial Evidence, Not Full Acceptance
 
@@ -51,9 +53,9 @@ their reviewed integrated heads. No frozen input or expert gate has changed.
 | Q11 Correction/reconnect | E3 detects local corrections, source generation/mapping changes and stale proofs. E4–E6 implement immutable successors, source checks, comparisons, retained decisions and history. E10 adds explicit replacement/reselection. E17 demonstrates actual conversion-presence correction→stale V1→V2, preserving V1 document/export. | Full frozen corrected-conversion/refund/reconnect journey with field-level explanation and original decision history; actual disappeared-target/same-name reconciliation. Meta presence correction alone does not prove refund/reconnect variants. |
 | Q12 CAS/replay | E4 actual PostgreSQL concurrent head/request races, final cross-plan replay guard, stale action binding and rollback; E5 HTTP replay; E6 actual lost-response recovery; E9 targeted same-key create race. | The complete frozen concurrent-version/decision fixture at customer HTTP boundary, including obsolete action acceptance attempts and explicit no execution/financial obligations. Existing service race coverage is real, not merely DTO/schema coverage. |
 | Q13 Reported/observed | E4–E6 append-only decisions, reports and exact-chain withdrawal with current event CAS; historical withdrawal survives expiry/new version under current ownership. Browser labels customer reports unverified. | A trusted read-observed comparator/service/UI for exact/partial/conflict/unavailable proposed-field matches. Typed observation contracts alone do not implement provider verification, attribution or change-time proof. |
-| Q14 Missing/ambiguous targets | E7 exact native IDs/hierarchy and duplicate/cross-binding rejection; E9 saved original selections survive rereads, session replacement blocks new use, expiry never silently remaps. E10 adds actual explicit fresh reselection and expiry/session invalidation. | Exact disappeared/unknown-parent/duplicate-name/new-same-name cases through saved plan and customer reselection UI; unsupported manual verification stays unavailable. |
+| Q14 Missing/ambiguous targets | E7 exact native IDs/hierarchy and duplicate/cross-binding rejection; E9 saved original selections survive rereads, session replacement blocks new use, expiry never silently remaps. E10 adds actual explicit fresh reselection and expiry/session invalidation; E18 covers fresh disappearance and same-name/new-ID exact reselection through actual APIs on all three platforms. | Corresponding disappearance/replacement browser journey, unknown-parent and simultaneous duplicate-name cases through saved plan and customer reselection UI; unsupported manual verification stays unavailable. |
 | Q15 Access/text | E2–E8 scope/session/export foundations remain. E10/E12 add literal target/scenario labels, scope/expiry/session clearing; E11 tests actual server final-expiry/identity/persistence/cleanup failure boundaries on both DBs. | Assemble exact malicious native-name/note/foreign-selection/expiry cases through target UI and readable export. Existing literal render/API evidence is partial; CSV is not implemented and no formula-safe CSV claim is made. |
-| Q16 Privacy/progress | E3 fresh owned Shopify ledger/watermark/correction checks; E4 immutable history; E8 actual0087/0088 erasure, archive and delivery privacy fences. E6 exposes version/event history; E14/E15 add finalized-presence erasure/archive and terminal semantic-erasure non-resurrection. | Saved-plan customer progress presentation and exact later closed-day sales/correction journey distinct from task reports; assembled post-erasure history/export/refresh non-resurrection case. Source freshness is not a completed progress experience. |
+| Q16 Privacy/progress | E3 fresh owned Shopify ledger/watermark/correction checks; E4 immutable history; E8 actual0087/0088 erasure, archive and delivery privacy fences. E6 exposes version/event history; E14/E15 add presence erasure/archive; E19 implements saved-version-bound current sales and actual correction/browser presentation, with later closed-day/API and privacy-erasure404 coverage. | Exact full frozen Q16 common-basis journey, browser later-closed-day expansion and assembled post-erasure history/export/refresh non-resurrection. Read-observed advertising verification remains separate and unimplemented. |
 
 ## Six Quality Gates Remain Separate
 
@@ -67,7 +69,7 @@ Automated/agent evidence must remain separate from that assessment.
 | 3 Coherent budgets/alternatives | Exact ceiling arithmetic and actual E12 three-platform A/B customer hypotheses; Google alternatives browser. | Useful supported alternatives/maintain rationale; qualified shared-owner/unit handling, no invented forecast. |
 | 4 Traceable rationale/uncertainty | Versioned inputs/policy/evidence, limitations, stale history. | Case-specific reasoning and defensible alternatives beyond descriptive generic text. |
 | 5 Feasible creative | Customer context provenance, bounded concepts, capacity and constraint deferral. | Product-specific copy/storyboards/assets/placement steps satisfying exact facts and capacity. |
-| 6 Honest decisions/application/outcomes | Separate reviewed decision/report/retraction history and labels. | Trusted read-observed field comparisons and integrated corrected-sales progress without causal claims. |
+| 6 Honest decisions/application/outcomes | Separate reviewed decision/report/retraction history and labels; E19 integrated corrected-sales progress without causal claims. | Trusted read-observed field comparisons and full frozen-case/expert evaluation. |
 
 ## Remaining Implementation Packages In Dependency Order
 
@@ -91,12 +93,11 @@ Automated/agent evidence must remain separate from that assessment.
    action/proposed-field contracts plus owned fresh reads from package2; retain the
    independent customer report/correction chain. Cover exact/partial/conflict/unknown,
    disappearance and ambiguity with no write or name-based fallback.
-5. **Complete plan progress and correction/reselection journeys.** No progress
-   implementation after cutoff `8125953` is credited here; a frozen later interface
-   alone is not working progress. Connect retained source staleness and existing Shopify progress to versioned planning UI, distinguish
-   task reports from observed net sales, and qualify assembled Q11–Q16 including
-   privacy erasure and no resurrection. This can proceed alongside package3 once
-   shared evidence/response interfaces are frozen; it need not wait for creative prose.
+5. **Finish assembled progress and correction/reselection acceptance.** E18/E19
+   now implement exact target-reselection APIs and saved-version current sales with
+   real correction/browser evidence. Preserve those working paths; finish the exact
+   Q11–Q16 assembled inputs, remaining browser edges and post-erasure refresh case.
+   Keep task reports, observed sales and future read-observed ad settings distinct.
 6. **Resolve historical compatibility and evaluate the assembled product.** The
    execution/optimization/session API partitions are reviewed; 0074 fixture repair
    is separately qualified. The retained pre-0086 initial-review bridge is still
@@ -127,7 +128,8 @@ Initial-review default repair: **2 passed, 7.181s** plus boundaries **39 passed,
 historical/current-policy boundaries; they are not quality-case completion counts.
 The historical bridge blocker above and remaining UI/fixture classification remain
 open. No new tests were run for this reconciliation; only document/link and diff
-checks. New progress work after the stated cutoff is excluded.
+checks. E18/E19 were appended after their separate independent closures; no new
+tests were run for that documentation update. Requested-window work remains excluded.
 
 The owner-approved product scope remains comprehensive planning with zero advertising
 writes. Descriptive functionality and a working local customer journey are substantial

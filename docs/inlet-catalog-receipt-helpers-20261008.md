@@ -59,3 +59,25 @@ and parent service idempotency/fresh-authority/cleanup races remain integration 
 this helper package does not claim those routes are working or deployed. Original native
 TTL may constrain interactive use; no deadline or production lifetime was changed.
 Independent review required before integration.
+
+## Independent Review Repair — Typed Payload Capacity
+
+Review found that the shared canonical serializer's 1 MiB failure escaped the writer
+as a plain ValueError. The writer now maps that explicit bounded-size failure to
+`CatalogReceiptUnavailable("capacity_exceeded")`; other serialization ValueErrors
+become `integrity_unavailable`. The shared bound/encoding and historical corrupt-row
+validation are unchanged. Exact 1 MiB receipts store and validate, while +1 byte rejects
+with the promised reason and no additional receipt or selection rows. Fixtures start
+with actual Google MockHTTP reads and explicitly synthetic ASCII/multibyte UTF-8 padding.
+
+Qualification: **6 passed, 56 deselected in 14.86s** on SQLite and PostgreSQL (boundary
+and existing nested/scalar corruption cases); whole Ruff, full mypy **1059** files,
+and diff checks passed. Evidence: `repair-capacity.log`, `repair-ruff.log`,
+`repair-mypy.log` in the same evidence directory. Independent repair closure pending.
+
+Integration advice sent to root: the general evidence reader already accepts legitimate
+server-prepared, pre-persistence no-target tickets. Require saved receipt resolution for
+all target-bearing tickets (missing persistence fails); for no-target tickets validate
+exact saved empty links when a real input row exists, otherwise preserve the existing
+fresh native-source path. Core generation persistence still proves the actual saved
+input at commit. No fabricated proof rows or fixture-specific authorization bypass.

@@ -579,3 +579,68 @@ def test_current_owner_can_generate_other_owner_no_target_input_only(
             )
             assert result.catalogs == ()
             assert result.bindings == ()
+
+
+@pytest.mark.parametrize("padding_character", ["x", "é"])
+def test_writer_exact_utf8_byte_capacity_is_typed(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    padding_character: str,
+) -> None:
+    reader, ticket, principal, _ = setup_evidence(
+        customer_engine, configuration, replicas, monkeypatch, "google_ads"
+    )
+    inventory, metadata, _ = observe(customer_engine, reader, ticket, principal)
+
+    def payload(padding_bytes: int) -> Any:
+        # Explicit synthetic size fixture derived from actual MockHTTP inventory;
+        # this padding is not represented as provider-returned evidence.
+        width = len(padding_character.encode())
+        native = inventory.model_copy(
+            update={
+                "reasons": [
+                    padding_character * (padding_bytes // width) + "x" * (padding_bytes % width)
+                ]
+            }
+        )
+        bound = metadata.model_copy(update={"native_inventory_digest": native.digest()})
+        return receipts.ReceiptPayloadV1(inventory=native, metadata=bound)
+
+    limit = 1024 * 1024
+    base = len(canonical(payload(0)).encode())
+    maximum = payload(limit - base)
+    assert len(canonical(maximum).encode()) == limit
+    with Session(customer_engine) as db:
+        receipts.write_catalog_receipt(
+            db,
+            principal=principal,
+            source=ticket.sources[0],
+            inventory=maximum.inventory,
+            metadata=maximum.metadata,
+            now=reader.clock(),
+        )
+        db.commit()
+        row = db.scalar(select(CatalogReceiptRow).where(CatalogReceiptRow.payload_bytes == limit))
+        assert row
+        receipts.validate_retained_receipt(db, row)
+        count = db.scalar(select(func.count()).select_from(CatalogReceiptRow))
+        selection_count = db.scalar(select(func.count()).select_from(CatalogReceiptSelectionRow))
+        over = payload(limit - base + 1)
+        with pytest.raises(receipts.CatalogReceiptUnavailable) as failure:
+            receipts.write_catalog_receipt(
+                db,
+                principal=principal,
+                source=ticket.sources[0],
+                inventory=over.inventory,
+                metadata=over.metadata,
+                now=reader.clock(),
+            )
+        assert failure.value.reason == "capacity_exceeded"
+        db.rollback()
+        assert db.scalar(select(func.count()).select_from(CatalogReceiptRow)) == count
+        assert (
+            db.scalar(select(func.count()).select_from(CatalogReceiptSelectionRow))
+            == selection_count
+        )

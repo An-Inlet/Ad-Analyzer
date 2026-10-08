@@ -14,6 +14,13 @@ from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.planning_documents import authority, input_resolution, repository
+from app.planning_documents.catalog_receipts import (
+    CatalogReceiptUnavailable,
+    ResolvedInputs,
+    bind_input_receipts,
+    recheck_saved_input_receipts,
+    resolve_input_catalogs,
+)
 from app.planning_documents.composer import (
     GENERATOR_VERSION,
     POLICY_VERSION,
@@ -30,7 +37,7 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
-from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
+from app.planning_documents.ports import EvidenceBundle, GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.requests import (
     AssertionIntent,
     CreatePlan,
@@ -54,6 +61,31 @@ from app.publication.clock import utc_now
 from app.shopify.security import utc
 
 
+@contextmanager
+def receipt_errors() -> Iterator[None]:
+    try:
+        yield
+    except CatalogReceiptUnavailable as error:
+        raise HTTPException(
+            409,
+            "The exact catalog selection is unavailable. Read fresh targets and explicitly "
+            "save a new input revision before generating a plan.",
+        ) from error
+
+
+def recheck_generation_sources(
+    db: Session,
+    principal: CustomerPrincipal,
+    ticket: GenerationTicket,
+    bundle: EvidenceBundle,
+    now: datetime,
+) -> None:
+    recheck_local_sources(db, principal=principal, ticket=ticket, bundle=bundle, now=now)
+    recheck_saved_input_receipts(
+        db, principal=principal, ticket=ticket, catalogs=bundle.catalogs, now=now
+    )
+
+
 class PlanningDocumentService:
     def __init__(
         self,
@@ -71,13 +103,15 @@ class PlanningDocumentService:
 
     def create(self, principal: CustomerPrincipal, wid: int, request: CreatePlan) -> InputResult:
         request = CreatePlan.model_validate(request)
-        return self._save_inputs(principal, wid, uuid4().hex, request)
+        with receipt_errors():
+            return self._save_inputs(principal, wid, uuid4().hex, request)
 
     def revise(
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: EditPlan
     ) -> InputResult:
         request = EditPlan.model_validate(request)
-        return self._save_inputs(principal, wid, plan_id, request)
+        with receipt_errors():
+            return self._save_inputs(principal, wid, plan_id, request)
 
     def _save_inputs(
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: CreatePlan | EditPlan
@@ -99,15 +133,6 @@ class PlanningDocumentService:
                 stored = repository.inputs(db, plan, prior.input_revision)
                 authority.final(current, fact)
                 return InputResult(plan_id=plan.id, input_revision=stored.revision, inputs=stored)
-            if (
-                request.inputs.exclusions
-                or request.inputs.fixed_allocations
-                or any(scenario.allocations for scenario in request.inputs.scenario_intents)
-            ):
-                raise repository.changed(
-                    "Target-based planning needs a retained catalog receipt. "
-                    "No plan changes were saved."
-                )
             parent_digest = None
             if isinstance(request, EditPlan):
                 plan = repository.owned(db, wid, plan_id)
@@ -134,6 +159,21 @@ class PlanningDocumentService:
             sources = resolve_source_fences(
                 db, principal=current, accounts=prepared.accounts, now=self.clock()
             )
+            try:
+                selected_catalogs = resolve_input_catalogs(
+                    db,
+                    principal=current,
+                    prepared=prepared,
+                    intent=request.inputs,
+                    sources=sources,
+                    now=self.clock(),
+                )
+            except ValidationError as error:
+                raise HTTPException(
+                    422,
+                    "Planning selections and scenarios must match the "
+                    "confirmed budget and constraints.",
+                ) from error
             ticket = GenerationTicket(
                 operation_id=uuid4().hex,
                 actor_id=current.user.id,
@@ -149,7 +189,9 @@ class PlanningDocumentService:
             )
             authority.final(current, fact)
         try:
-            resolved = input_resolution.resolve(prepared, request.inputs, ())
+            resolved = input_resolution.resolve(
+                prepared, request.inputs, selected_catalogs.catalogs
+            )
         except ValidationError as error:
             raise HTTPException(
                 422,
@@ -159,6 +201,18 @@ class PlanningDocumentService:
         fact = authority.refresh(principal, self.provider)
         with Session(self.engine) as db, db.begin():
             current = authority.lock(db, principal, wid, fact)
+            # A concurrent identical request may have committed after preparation.
+            # Replay its existing graph before trying to insert immutable input links.
+            prior = repository.receipt(
+                db, wid, current.user.id, operation, request.request_key, request.digest()
+            )
+            if prior is not None:
+                if isinstance(request, EditPlan) and prior.plan_id != plan_id:
+                    raise repository.changed("request key belongs to another plan")
+                plan = repository.owned(db, wid, prior.plan_id)
+                saved = repository.inputs(db, plan, prior.input_revision)
+                authority.final(current, fact)
+                return InputResult(plan_id=plan.id, input_revision=saved.revision, inputs=saved)
             actual = resolve_source_fences(
                 db, principal=current, accounts=prepared.accounts, now=self.clock()
             )
@@ -178,12 +232,25 @@ class PlanningDocumentService:
                 request_digest=request.digest(),
                 now=self.clock(),
             )
+            bind_input_receipts(
+                db,
+                principal=current,
+                resolved=ResolvedInputs(inputs=stored, receipt_bindings=selected_catalogs.bindings),
+                sources=actual,
+                now=self.clock(),
+            )
             authority.final(current, fact)
             return InputResult(
                 plan_id=stored.plan_id, input_revision=stored.revision, inputs=stored
             )
 
     def generate(
+        self, principal: CustomerPrincipal, wid: int, plan_id: str, request: GeneratePlan
+    ) -> VersionResult:
+        with receipt_errors():
+            return self._generate(principal, wid, plan_id, request)
+
+    def _generate(
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: GeneratePlan
     ) -> VersionResult:
         request = GeneratePlan.model_validate(request)
@@ -261,9 +328,7 @@ class PlanningDocumentService:
                 request_key=request.request_key,
                 request_digest=request.digest(),
                 now=self.clock(),
-                recheck=lambda db, current, ticket, bundle, now: recheck_local_sources(
-                    db, principal=current, ticket=ticket, bundle=bundle, now=now
-                ),
+                recheck=recheck_generation_sources,
             )
             return VersionResult(plan_id=plan_id, version=document.version, document=document)
 

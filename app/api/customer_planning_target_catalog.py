@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import ValidationError
+from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.billing.entitlements import paid_work
@@ -14,9 +15,9 @@ from app.customers.access import Database, MutationPrincipal, Provider
 from app.google_connections.http import GoogleReadError
 from app.planning_catalog.contracts import TargetCatalogIntentV1, TargetCatalogV1
 from app.planning_catalog.metadata_contracts import TargetCatalogV2
-from app.planning_catalog.metadata_http import PlanningMetadataUnavailable
 from app.planning_catalog.projection import project
-from app.planning_catalog.projection_v2 import project_v2
+from app.planning_documents.catalog_runtime import read_catalog_receipt
+from app.planning_documents.read_context import snapshot
 from app.publication import customer_intents
 from app.publication.customer_authority import bind_authority
 from app.publication.customer_runtime import utc_now
@@ -84,47 +85,9 @@ def read_target_catalog_v2(
     db: Database,
     response: Response,
 ) -> TargetCatalogV2:
-    authorize = bind_authority(principal, provider)
-    authorize(db, workspace_id, principal.user.id)
     response.headers["Cache-Control"] = "no-store"
-    if not settings.customer_native_diagnostics_enabled:
-        raise HTTPException(503, "Account diagnostics are not available yet.")
-    scope = customer_intents.account(db, workspace_id, body.account_id)
-    if body.ends_at > utc_now():
-        raise HTTPException(422, "Choose an observation period that ends in the past.")
-    request = AccountDiagnosticRequest(
-        workspace_id=workspace_id,
-        actor=principal.user.id,
-        expected_account=scope,
-        **body.model_dump(),
-    )
-    engine = db.get_bind()
-    db.rollback()  # no API transaction/locks across token exchange or provider reads
-    try:
-        with account_diagnostics.get_native_account_diagnostic_service(
-            lambda: Session(engine), authorize, scope.account.platform, utc_now
-        ) as service:
-            result, metadata = service.read_catalog(request, utc_now())
-        authorize(db, workspace_id, principal.user.id)
-        current = customer_intents.account(db, workspace_id, body.account_id)
-        paid_work(db, workspace_id, utc_now())
-        authorize(db, workspace_id, principal.user.id)
-        if (
-            current != scope
-            or result.request.account != current
-            or utc_now() >= min(result.expires_at, metadata.expires_at)
-        ):
-            raise HTTPException(409, "The account changed during this read. Please try again.")
-        return project_v2(result, metadata)
-    except (
-        PlanningMetadataUnavailable,
-        GoogleNativeInventoryUnavailable,
-        MetaNativeInventoryUnavailable,
-        TikTokNativeInventoryUnavailable,
-        GoogleReadError,
-        ValidationError,
-        ValueError,
-    ):
-        raise HTTPException(
-            409, "Account diagnostics could not be completed. Check your connection and try again."
-        ) from None
+    original = snapshot(principal)
+    bind = db.get_bind()
+    engine = bind if isinstance(bind, Engine) else bind.engine
+    db.rollback()
+    return read_catalog_receipt(engine, provider, original, workspace_id, body, utc_now)

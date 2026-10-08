@@ -18,6 +18,7 @@ from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.goals.progress import _read_goal_progress_locked, boundary
 from app.planning_catalog.projection_v2 import project_v2
+from app.planning_documents.catalog_receipts import resolve_saved_input_catalogs
 from app.planning_documents.common import MAX_EVIDENCE, fingerprint
 from app.planning_documents.context import EvidenceRef, ReportingWindow, TargetRef
 from app.planning_documents.evidence_local import (
@@ -28,6 +29,7 @@ from app.planning_documents.evidence_local import (
     recheck_local_sources,
     resolve_source_fences,
 )
+from app.planning_documents.models import PlanInputRow
 from app.planning_documents.ports import (
     CatalogEvidence,
     CommerceEvidence,
@@ -80,12 +82,31 @@ class OwnedPlanningEvidenceReader:
                 f.account.account_id: f for f in ticket.sources
             }:
                 raise changed()
+            retained_catalogs: tuple[CatalogEvidence, ...] = ()
+            if (
+                ticket.inputs.excluded_entity_keys
+                or ticket.inputs.fixed_allocations
+                or any(s.allocations for s in ticket.inputs.scenario_intents)
+                or db.get(PlanInputRow, (wid, ticket.inputs.plan_id, ticket.inputs.revision))
+                is not None
+            ):
+                retained_catalogs = resolve_saved_input_catalogs(
+                    db, principal=self.principal, ticket=ticket, now=self.clock()
+                ).catalogs
+        retained_by_account = {
+            c.reference.account.account_id: c
+            for c in retained_catalogs
+            if c.reference.account is not None
+        }
         catalogs: list[CatalogEvidence] = []
         metrics: list[PerformanceEvidence] = []
         gaps: list[EvidenceGap] = []
         window = ticket.inputs.reporting_window
         for fence in fences:
             account = fence.account
+            if account.account_id in retained_by_account:
+                catalogs.append(retained_by_account[account.account_id])
+                continue
             if window.ends_at_exclusive - window.starts_at > timedelta(days=366):
                 gaps.append(
                     EvidenceGap(

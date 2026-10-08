@@ -2,7 +2,7 @@
 
 import json
 import time
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +23,7 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from tests.test_commerce_measurement import NOW
+from tests import test_planning_target_catalog_api
 from tests.test_customer_identity import ISSUER, FakeProvider, login
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -82,6 +82,10 @@ def test_real_planning_metadata_api(
     monkeypatch.setattr(settings, "google_customer_client_secret", SecretStr("synthetic-secret"))
     monkeypatch.setattr(settings, "meta_client_secret", SecretStr("synthetic-app-secret"))
     monkeypatch.setattr(settings, "customer_native_diagnostics_enabled", change != "disabled")
+    # Receipt expiry is bounded by the actual database clock, not a historical
+    # fixture date. Keep synthetic credentials and reads in the same current window.
+    observed_now = datetime.now(UTC)
+    monkeypatch.setattr(test_planning_target_catalog_api, "NOW", observed_now)
     request = seed(customer_engine, configuration, tmp_path, provider)
     with Session(customer_engine) as db:
         user = db.get(CustomerUser, request.actor)
@@ -93,7 +97,7 @@ def test_real_planning_metadata_api(
         client.app.include_router(api.router)  # type: ignore[attr-defined]
     assert login(alice, "diagnostic-owner:1") == request.actor
     login(bob, "other:1")
-    clock = [NOW]
+    clock = [observed_now]
     monkeypatch.setattr(api, "utc_now", lambda: clock[0])
 
     # Account observations must not consult or create a spending consent.
@@ -109,7 +113,7 @@ def test_real_planning_metadata_api(
     def revoke() -> None:
         with Session(customer_engine) as db:
             if change in {"observation_expiry", "metadata_expiry"}:
-                clock[0] = NOW + timedelta(minutes=6)
+                clock[0] = observed_now + timedelta(minutes=6)
             elif change in {"session", "oauth_session", "metadata_session"}:
                 for session in db.scalars(
                     select(CustomerSession).where(CustomerSession.user_id == request.actor)
@@ -303,8 +307,8 @@ def test_real_planning_metadata_api(
     path = f"/api/customer/v1/workspaces/{request.workspace_id}/planning/target-catalog-v2"
     payload = dict(
         account_id=request.account_id,
-        starts_at=(NOW - timedelta(days=1)).isoformat(),
-        ends_at=NOW.isoformat(),
+        starts_at=(observed_now - timedelta(days=1)).isoformat(),
+        ends_at=observed_now.isoformat(),
     )
     assert alice.post(path, json=payload).status_code == 403
     assert bob.post(path, json=payload, headers=headers(bob)).status_code in {403, 404}
@@ -389,8 +393,8 @@ def test_real_planning_metadata_api(
         before = len(calls)
         for extra in (
             {"actor": request.actor},
-            {"ends_at": (NOW + timedelta(days=1)).isoformat()},
-            {"starts_at": (NOW - timedelta(days=367)).isoformat()},
+            {"ends_at": (observed_now + timedelta(days=1)).isoformat()},
+            {"starts_at": (observed_now - timedelta(days=367)).isoformat()},
         ):
             assert (
                 alice.post(path, json={**payload, **extra}, headers=headers(alice)).status_code

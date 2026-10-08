@@ -6,6 +6,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +37,8 @@ pytestmark = pytest.mark.planning_boundary
 @pytest.mark.parametrize(
     ("journey", "platform"),
     [("documents", "google_ads"), ("targets", "google_ads"),
-     ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads")],
+     ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
+     ("progress", "google_ads")],
 )
 def test_actual_planning_browser_lost_response_recovery_and_versions(
     journey: str,
@@ -89,6 +91,45 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             script = Path(f"tests/javascript/planning_{journey}_browser.mjs").read_text()
             script = script.replace("__INPUTS__", ticket.inputs.model_dump_json())
             await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if journey == "progress" and path == "/__fixture__/correct-sales":
+            from app.commerce.models import CommerceStore
+            from app.commerce.sync import CommerceSyncService
+
+            from tests.test_commerce_measurement import FakeMeasurement, agreement, source
+
+            now = datetime.now(UTC)
+            with Session(customer_engine) as db:
+                store = db.get(CommerceStore, ticket.inputs.goal.definition.store_id)
+                assert store
+                store.last_sync_at = now - timedelta(
+                    minutes=configuration.shopify_sync_interval_minutes + 1
+                )
+                db.commit()
+                reader = FakeMeasurement(
+                    configuration, [([source(updated=now - timedelta(seconds=1))], None)]
+                )
+                reader.facts = [
+                    agreement(),
+                    agreement(2, "-22", "-2", "RETURN", datetime(2026, 10, 2, 12, tzinfo=UTC)),
+                ]
+                result = CommerceSyncService(db, configuration, reader).page(
+                    ticket.inputs.workspace_id, now=now
+                )
+                assert result["status"] == "complete", result
+                db.commit()
+            await JSONResponse({"ok": True})(scope, receive, send)
+            return
+        if journey == "progress" and path == "/__fixture__/change-goal":
+            from app.goals import service as goals
+            from app.goals.models import Goal
+
+            with Session(customer_engine) as db:
+                goal = db.get(Goal, ticket.inputs.goal.goal_id)
+                assert goal
+                goals.revise(db, goal, None, "fixture", datetime.now(UTC))
+                db.commit()
+            await JSONResponse({"ok": True})(scope, receive, send)
             return
         if path == "/__fixture__/result":
             data = bytearray()
@@ -144,7 +185,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             assert db.scalar(select(func.count()).select_from(PlanRow)) == 1
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == 2
             assert db.scalar(select(func.count()).select_from(PlanEventRow)) == (
-                3 if journey == "documents" else 0
+                3 if journey == "documents" else 1 if journey == "progress" else 0
             )
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
     finally:

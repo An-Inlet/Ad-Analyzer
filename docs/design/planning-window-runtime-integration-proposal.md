@@ -76,6 +76,16 @@ as configured production policy. The new direct repository generator-binding che
 must use its reviewed configured-policy seam, not silently impose a new universal
 closed-policy constraint on historical/injected protocol tests.
 
+The pure-contract test
+`test_legacy_policy_digests_unchanged_and_runtime_v3_disabled` intentionally asserts
+composer refusal before integration. When the separately reviewed composer accepts
+explicitly injected v3, retain its exact v1/v2 policy hash assertions, replace the
+now-superseded refusal assertion with positive injected-v3 composition coverage and
+an explicit production-service-default-v2 guard. Keep that default guard until the
+separate activation commit and replace it there with reviewed activation acceptance.
+This is a planned phase transition, not a removed regression or ignored red test;
+unknown/mixed policy and wrong bundle-type refusal tests remain throughout.
+
 ## Collection, Full Slot Coverage And Deadlines
 
 The new adapter uses the same configured owned native catalog and retained receipt

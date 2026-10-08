@@ -42,6 +42,21 @@ def read_goal_progress(
     clock: Callable[[], datetime],
 ) -> GoalSalesProgressV1:
     lock_customer_mutation(db, principal, workspace_id, provider, allowed_roles=READ_ROLES)
+    return _read_goal_progress_locked(
+        db, principal, workspace_id, goal_id, expected_revision, clock=clock
+    )
+
+
+def _read_goal_progress_locked(
+    db: Session,
+    principal: CustomerPrincipal,
+    workspace_id: int,
+    goal_id: str,
+    expected_revision: int,
+    *,
+    clock: Callable[[], datetime],
+) -> GoalSalesProgressV1:
+    """DB-only body; caller holds current customer authority and validates after waits."""
     goal = service.owned(db, workspace_id, goal_id)
     db.refresh(goal)
     service.expect(goal, expected_revision)

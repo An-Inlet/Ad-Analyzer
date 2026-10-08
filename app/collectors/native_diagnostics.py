@@ -1,6 +1,7 @@
 """Explicit server assembly of unqualified diagnostics; no factory or financial proof."""
 
 from collections.abc import Callable, Mapping
+from contextlib import AbstractContextManager
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -74,7 +75,7 @@ class NativeDiagnosticService:
 
     def __init__(
         self,
-        session_factory: Callable[[], Session],
+        session_factory: Callable[[], AbstractContextManager[Session]],
         authorize: ExecutionAuthorizer,
         *,
         transports: Mapping[str, httpx.BaseTransport],

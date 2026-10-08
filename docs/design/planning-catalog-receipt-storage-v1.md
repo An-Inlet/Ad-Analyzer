@@ -339,3 +339,15 @@ ownership, entitlement and expiry checks over the same structural validation. No
 commit, rollback or lifecycle callback is performed by these helpers; lifecycle callers
 must not enter the current-use resolver to export history. Failures use the existing
 typed CatalogReceiptUnavailable and fail export integrity, never expose partial proof.
+
+### No-Target Saved Inputs
+
+`resolve_saved_input_catalogs` also accepts an exact saved input with no target uses
+and a complete empty link set. For that case, a different currently authorized owner
+may generate: validate that current ticket/session and current owned source fences,
+without requiring `inputs.created_by` to equal the generator. This preserves existing
+core behavior. Submitted input creation/binding still requires the current creator;
+target-bearing saved links still require the original receipt actor/session/authentication
+epoch and TTL. Missing links on target-bearing inputs never become an empty result.
+The final receipt recheck has the same distinction. Historical validation remains
+independent of active original session for both cases.

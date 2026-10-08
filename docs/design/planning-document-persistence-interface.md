@@ -85,7 +85,13 @@ allocations/exclusions only. Server assigns IDs, actor/time, exact goal snapshot
 all evidence. Generation HTTP input is expected input/version plus request key; it
 **never accepts a complete client PlanVersion as owned proof**. Decision/assertion input
 contains exact displayed document/action digest plus bounded intent/text; server stamps
-actor/time/sequence and verifies referenced prior event belongs to this plan/action.
+actor/time/sequence. Event chains are keyed by workspace/plan/version/action/event-family
+(decision or manual assertion), and referenced prior ID must be the current chain head,
+not merely a historical event. First decision/report requires null prior; replacement
+decision/corrected report requires exact prior head; retraction requires an existing
+unretracted report head. No cross-version/action/family link or sequential branching.
+Read-observation events append independently without superseding customer reports;
+their version/action and plan-wide expected event sequence must still match.
 
 ## Authority And Transaction Boundaries
 
@@ -102,11 +108,14 @@ actor/time/sequence and verifies referenced prior event belongs to this plan/act
    acquiring locks; this proposal splits that sequence locally, not globally. A stale
    external result is never reused across evidence IO. Final provider check occurs again
    before the commit transaction, with expiry checked after waiting for locks. Capture
-   a one-shot private identity-check fact (issuer/subject/user ID/session digest,
-   authenticated_at, monotonic completion instant); never persist it or pass it to a
+   immutable principal scalars BEFORE provider IO (issuer/subject/user ID/session digest,
+   authenticated_at), then a one-shot private identity-check fact with monotonic completion
+   instant after successful IO; never retain ORM references, persist it or pass it to a
    client/composer. The internal authority ceiling is **five seconds**, measured with
    the monotonic clock from successful `check_active` completion through the final
-   locked acceptance check immediately before the atomic product write/commit boundary.
+   locked acceptance check after ALL plan/goal/source lock waits, immediately before
+   the atomic product write/commit boundary. Compare every captured scalar with freshly
+   loaded rows under the current local guard; any changed tuple denies acceptance.
    It is additionally capped by remaining session lifetime and any shorter identity
    verifier validity bound. Recheck fresh wallclock session expiry and local revocation
    at that boundary. The ceiling is a fixed internal latency safety bound, not customer
@@ -153,8 +162,9 @@ not overwriting customer reports.
 Register all six tables in `lifecycle.registry.TABLES` as workspace-owned, **unprotected**,
 with explicit safe fields; canonical JSON is explicit in `export_serializers.JSON_FIELDS`
 and bounded serializer validation. Dependency rows are not jobs: no WORK_FAMILIES entry.
-Add scoped predicates and deletion ordering to inventory/archive paths. Add planning
-payload invalidation to `bump_workspace_export_revision`'s semantic erasure path;
+Add scoped predicates and deletion ordering to inventory/archive paths. Add workspace-scoped deletion of the COMPLETE six-table planning graph to
+`bump_workspace_export_revision`'s semantic erasure path (including inputs, receipts
+and document heads), not payload-only deletion with dangling references;
 ordinary source corrections use a revision fence and stale read projection, preserving
 honest historical-as-observed data. All export/download checks recheck privacy before
 return; no old cached artifact survives erasure. Proposed downgrade refuses populated

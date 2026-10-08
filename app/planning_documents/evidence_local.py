@@ -163,6 +163,48 @@ def recheck_local_sources(
         ):
             raise changed()
     for gap in bundle.gaps:
+        if gap.reporting_pin is not None:
+            pin = gap.reporting_pin
+            if gap.account is None:
+                raise changed()
+            campaign = db.scalar(
+                select(Campaign)
+                .where(
+                    Campaign.account_id == gap.account.account_id,
+                    Campaign.platform == gap.account.platform,
+                    Campaign.external_campaign_id == pin.native_campaign_id,
+                )
+                .execution_options(populate_existing=True)
+            )
+            if campaign is None or campaign.id != pin.campaign_id:
+                raise changed()
+            completion = db.get(PerformanceCompletion, pin.completion_id, populate_existing=True)
+            if completion is None:
+                raise changed()
+            if gap.account.platform == "meta_ads":
+                ordinary_meta(db, wid, gap.account.account_id, completion)
+            document = performance.read_current(
+                db,
+                wid,
+                ticket.actor_id,
+                gap.account.account_id,
+                campaign.id,
+                pin.completion_id,
+                authorize,
+            )
+            actual_start = boundary(document.starts_on, ZoneInfo(document.time_zone))
+            actual_end = boundary(
+                document.ends_on + timedelta(days=1), ZoneInfo(document.time_zone)
+            )
+            if (
+                fingerprint("campaign-performance", document.model_dump(mode="json"))
+                != pin.document_digest
+                or (pin.reporting_window.starts_at, pin.reporting_window.ends_at_exclusive)
+                != (actual_start, actual_end)
+                or pin.reporting_window
+                in (ticket.inputs.reporting_window, ticket.inputs.comparison_window)
+            ):
+                raise changed()
         if (
             gap.reason == "current_reporting_unavailable"
             and gap.account is not None

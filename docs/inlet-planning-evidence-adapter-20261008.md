@@ -20,3 +20,11 @@ Qualification evidence and independent review status are recorded below when ter
 - Evidence: `/workspace/inlet-evidence/20261008/planning-evidence-adapter/`. Independent review requested; root integration and0087 persistence wiring remain separate.
 
 Zero-presence limitation: historical normalized advertising rows do not preserve missing-field presence. This package preserves their documents but never upgrades Google aggregate/defaultzero, Meta selected-event zero or TikTok generic counts to qualified goal-conversion evidence. The tests use persisted source rows and real parsers for native inventory, not a claim of live imported advertising measurement qualification.
+
+## Independent P2 Reporting Gap Repair
+
+Review found that a reporting_window_mismatch gap had no PerformanceEvidence and therefore skipped final reporting reconstruction. Root approved an additive server-only ReportingGapPin on EvidenceGap: exact completion ID, local/native campaign IDs, typed-document digest and actual reporting window. It is required for mismatch gaps and forbidden for other gap reasons; selected owned account binding remains mandatory. Pure contracts reject unsafe copied nested values, missing pins and a purported mismatch window that actually matches requested primary/comparison scope.
+
+Collection captures this pin from its actual current reporting witness. Final local recheck re-resolves the owned campaign, validates the original current completion through read_current (including generation/source/manifest), and compares the exact reconstructed document digest/window. No customer proof, cache or explanation-string encoding is trusted. Replaced completions, altered metrics and newly matching windows abort; unchanged mismatched reporting remains a valid explicit gap. The collection/recheck/source-resolver signatures and SQL schema did not change; persistence lane was notified before consuming the additive port.
+
+Repair qualification: **76 passed in76.97s**, including all prior adapter cases, six pure pin invariants and four actual database race paths on both SQLite/PostgreSQL. Existing document/port contracts: **69 passed in0.57s**. Whole Ruff passed; whole mypy passed **1026 files**; diff check passed. Evidence gap-pin logs retained with the original package evidence. Independent repair closure pending.

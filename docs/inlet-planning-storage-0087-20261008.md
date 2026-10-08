@@ -62,3 +62,26 @@ fresh principal for final acceptance. Separate-session SQLite/PostgreSQL tests c
 all three changed fields plus the positive canonical transaction identity. Full authority
 cohort **13 passed in8.22s**; mypy1031 passed. Repository service WIP remains untracked
 and outside this frozen repair.
+
+### Public Service Seam And Stable Mutation Responses
+
+Frozen class/signatures are in `docs/design/planning-customer-service-api.md`.
+Create/revise return exact immutable InputResult; generate returns VersionResult.
+Current freshness/head/event state requires a separate read. Server-derived review
+hashes reparse the document and actions; no browser canonical hashing is required.
+Runtime service implementation remains in progress, not qualified by this interface.
+
+Checks: `pytest -q tests/test_planning_document_responses.py`: 2 passed.
+Whole `ruff check .` passed; `mypy app tests`: 1032 files passed after the precise
+Pydantic computed-property decorator compatibility annotation; `git diff --check`
+passed. Concurrent core WIP repository test run: 3 passed, 1 expected SQLite race
+skip with disposable PostgreSQL enabled. Those repository files remain uncommitted
+and are not part of the frozen public-interface result.
+
+Read-projection follow-up: validate exact response plan/input head/selected document
+version and workspace. Historical document inputs may precede current input head;
+`current` requires exact input equality, and missing document is only version0 /
+not_generated. Per-version export is explicitly artifact-only; event history remains
+separate or in the full workspace archive. Response cohort: 8 passed; whole Ruff,
+mypy (1038 source files), and diff checks passed. Core repository/resolver are still
+uncommitted implementation work, not covered by this projection closure.

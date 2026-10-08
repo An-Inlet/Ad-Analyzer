@@ -42,8 +42,8 @@ validation checkout of that exact hash. Further implementation uses other branch
 Do not update the checkout, kill/restart a healthy run, or reinterpret earlier
 package test sums as aggregate evidence.
 
-Run the complete `python -m pytest -ra` collection once, with SQLite and the approved
-PostgreSQL16 disposable fixture target available, durable stdout/stderr and JUnit,
+Run the complete `python -m pytest -ra` collection once, with SQLite and the separately allocated
+PostgreSQL16 disposable validation database available, durable stdout/stderr and JUnit,
 no marker exclusion or deselection. Record exact command/environment names, terminal
 exit, collected/pass/fail/skip counts, durations and every skipped prerequisite.
 Preserve actual browser/media/restore requirements and nested validation evidence.
@@ -77,3 +77,20 @@ are being prepared for review; no historical behavior is yet qualified by that p
 No owner decision blocks the current offline implementation. Live credentials,
 commercial/operational configuration, expert evaluation, release and pilot approvals
 remain later gates; zero advertising writes and unchanged customer ceilings apply.
+
+## Preflight Isolation Finding
+
+Inspection after package integration found that
+`tests/test_phase7_postgres_transactions.py` drops and recreates its configured
+`public` schema during teardown. Therefore the entire W1 aggregate and its nested
+cohorts must use a newly allocated, empty, task-owned disposable database, separate
+from the existing development fixture database. Merely avoiding the reset script
+is insufficient. Record that database's creation and identity in the evidence;
+never point the aggregate at the shared fixture target. Native restore proof must
+verify the same new server/database through its existing tool checks. The temporary
+database can remain for diagnosis after the run; cleanup is a separate recorded step.
+
+Run Alembic head→base→head qualification on another newly allocated migration
+database or owned isolated schema, so migration reset cannot disturb the aggregate.
+The exact frozen checkout, all test markers included and single-invocation rule
+remain unchanged. This is a validation isolation correction, not feature expansion.

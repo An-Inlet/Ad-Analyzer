@@ -78,3 +78,22 @@ storage and exact original-catalog reuse. No-target plans include bounded indepe
 all-unallocated scenario intents. Expert recommendation quality, live provider
 behavior and the complete customer API/browser journey are not qualified by this
 core package. Root API/controller integration and receipt package remain next.
+
+## Review Follow-Up: Controlled Customer/Commerce Errors
+
+Expected Shopify ownership/source unavailability from the confirmed-goal check now
+becomes a bounded409; authentication exceptions are unchanged. Actual disconnected
+store and inactive commerce integration cases keep retained read/export available
+as `goal_changed`, deny new generation/decisions without native IO, and permit only
+approved history-only report withdrawal.
+
+Owned input resolution Pydantic failures become bounded422 responses rather than
+uncaught server errors. Tests cover future and overlapping reporting windows,
+non-reconciling all-unallocated scenarios, and duplicate scenario keys; all leave
+zero plan/input/request rows. The trusted persisted goal/source bindings and
+existing target-receipt409 remain unchanged.
+
+Focused command (same disposable PostgreSQL environment as above):
+`pytest -q -o addopts='' tests/test_planning_service_error_boundaries.py -x`:
+**12 passed in14.80s**, both SQLite and PostgreSQL. Whole Ruff and mypy1045 passed;
+diff checks passed. No broad/full-suite rerun or live qualification is claimed.

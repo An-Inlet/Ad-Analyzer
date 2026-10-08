@@ -38,6 +38,7 @@ from app.planning_documents.retained_sources import (
 )
 from app.planning_documents.storage import canonical, document_for_row
 from app.publication import customer_intents
+from app.shopify.security import ShopifyError
 
 
 def changed(reason: str) -> HTTPException:
@@ -105,9 +106,12 @@ def check_goal(db: Session, document: PlanInputRevision, now: datetime) -> None:
         != ref.definition_digest
     ):
         raise changed("confirmed goal changed")
-    lock_store(db, definition.store_id, document.workspace_id)
-    if goals.assessment(db, goal, now) != "confirmed":
-        raise changed("confirmed goal source unavailable")
+    try:
+        lock_store(db, definition.store_id, document.workspace_id)
+        if goals.assessment(db, goal, now) != "confirmed":
+            raise changed("confirmed goal source unavailable")
+    except ShopifyError as error:
+        raise changed("confirmed goal commerce source unavailable") from error
 
 
 def check_accounts(db: Session, document: PlanInputRevision) -> None:

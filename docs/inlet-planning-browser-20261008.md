@@ -40,3 +40,26 @@ logs/XML. This is the account-level Google native MockHTTP browser journey; thre
 API coverage is documented separately. No live customer/provider qualification, expert
 recommendation quality, target-selection browser acceptance, or Full-suite pass claimed.
 Independent review and root integration remain separate gates.
+
+## Independent Review Repairs
+
+The initial6c812e8 review found three P2 issues; the follow-up fixes:
+
+- Ordinary operations compare the prior displayed-session cookie fence before starting,
+  including same-owner replacement between actions with no focus/visibility event.
+  Refresh/Sign Out remain explicit intended session-management paths.
+- A receipt404 is not treated as definitive failure. Pending state retains the exact
+  original path/body/key and offers an explicit same-key retry only after lookup.
+  Other mutations remain blocked; no automatic POST occurs. A late original commit
+  and explicit retry return one stored plan. Unknown/5xx outcomes retain recovery.
+- Editing preserves blank/null creative capacity and untouched exact reporting times,
+  including sub-minute precision. Changed times are validated from form values.
+
+Final actual HTTPS regression: **2 passed in13.93s**, both databases. The journey
+holds the original create before server delivery, observes authorized receipt404,
+then explicitly retries with the same body/key after delivering the late original;
+it discards the committed retry response and recovers through lookup. One plan/two
+versions remain. It also tests real same-owner session replacement both during and
+between operations and an actual persisted null-capacity/precise-timestamp edit.
+Evidence `planning-browser-repairs.{log,xml}`. Whole Ruff/mypy1054/node/diff passed.
+Independent repair closure is pending; no live qualification is implied.

@@ -3,7 +3,7 @@
 <h1>Your Advertising Plans</h1><p><a href="/app/settings">Your Workspace And Goals</a> · <a href="/app/account-diagnostics">Account Diagnostics</a></p>
 <p>Review a plan and apply any changes yourself. Inlet does not publish, pause or change advertising. Current plans provide descriptive review guidance; recommendation quality has not been expert-qualified.</p>
 <p id="planning-message" role="status" aria-live="polite">Checking Your Session…</p><button id="planning-refresh">Refresh Session</button>
-<section id="planning-pending" hidden><h2>Check The Previous Request</h2><p>The previous save may have completed. Check its recorded result before making another change. Nothing is retried automatically.</p><p id="planning-pending-reference"></p><button id="planning-recover">Check Recorded Result</button></section>
+<section id="planning-pending" hidden><h2>Check The Previous Request</h2><p>The previous save may have completed. Check its recorded result before making another change. Nothing is retried automatically.</p><p id="planning-pending-reference"></p><button id="planning-recover">Check Recorded Result</button><button id="planning-retry" hidden>Retry This Exact Request</button></section>
 <section id="planning-selection" hidden><label>Workspace<select id="planning-workspace"></select></label>
 <h2>Saved Plans</h2><button id="planning-list-refresh">Refresh Plans</button><ul id="planning-plans"></ul><button id="planning-list-next" hidden>Next Plans</button>
 <button id="planning-new" hidden>Prepare A New Plan</button></section>
@@ -15,8 +15,8 @@
 <label>Constraints — One Per Line<textarea id="planning-constraints"></textarea></label>
 <label>Customer Assumptions — One Per Line<textarea id="planning-assumptions"></textarea></label>
 <label>Reporting Starts (UTC)<input id="planning-start" type="datetime-local" step="60" required></label><label>Reporting Ends (UTC, Exclusive)<input id="planning-end" type="datetime-local" step="60" required></label>
-<label>Maximum Creative Concepts<input id="planning-creative" type="number" min="0" max="30" step="1" value="1" required></label>
-<p>This form currently prepares account-level plans. Target-specific allocations and exclusions require retained catalog selections.</p>
+<label>Maximum Creative Concepts (Optional)<input id="planning-creative" type="number" min="0" max="30" step="1" value="1"></label>
+<p>Leave creative capacity blank if unspecified. Unchanged reporting times retain their saved precision.</p><p>This form currently prepares account-level plans. Target-specific allocations and exclusions require retained catalog selections.</p>
 <button id="planning-save" type="submit">Save Plan Inputs</button><button id="planning-cancel" type="button">Cancel</button></form></section>
 <section id="planning-current" hidden><h2 id="planning-plan-title">Selected Plan</h2><p id="planning-head"></p><button id="planning-read">Read Current Plan</button><button id="planning-edit" hidden>Edit Plan Inputs</button><button id="planning-generate" hidden>Generate A New Version</button><button id="planning-export" hidden>Download Version Artifact</button>
 <p>A version artifact contains the selected document. Customer decisions and reports appear separately below and in the workspace archive.</p>

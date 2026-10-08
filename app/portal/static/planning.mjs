@@ -11,16 +11,16 @@ const text=(tag,value)=>{const node=document.createElement(tag);node.textContent
 const say=value=>$('message').textContent=value;
 let epoch=0,busy=false,operation=null,user=null,workspaces=[],wid='',role='',planId='',read=null;
 let listCursor=null,versionCursor=null,eventCursor=null,eventSequence=0,displayCookies=null,expiryTimer=null;
-let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[];
+let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[],editWindow=null;
 class Stale extends Error{}
 const root=()=>`/workspaces/${encodeURIComponent(wid)}/planning/plans`;
 const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
 function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
-function clearEditor(){$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
+function clearEditor(){$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
-function invalidate(){epoch++;busy=false;clearPlan();clearEditor();displayCookies=null;enable();}
+function invalidate(){epoch++;busy=false;clearPlan();clearEditor();enable();}
 function enable(){
   for(const node of document.querySelectorAll('button,input,select,textarea'))node.disabled=busy;
   $('refresh').disabled=false;$('workspace').disabled=false;
@@ -33,6 +33,7 @@ function enable(){
   $('pending').hidden=pending===null||pending.user!==user;
   $('pending-reference').textContent=pending&&pending.user===user?`Request reference: ${pending.key}`:'';
   $('recover').disabled=busy||!pending||pending.user!==user||pending.workspace!==wid;
+  $('retry').hidden=!pending?.absent||pending.user!==user||pending.workspace!==wid;$('retry').disabled=busy;
   const withdrawing=$('record-type').value==='retracted';
   $('record').disabled=busy||pending!==null||!read?.document||!$('confirm-review').checked||(withdrawing?!$('prior').value:(!currentView||read.freshness!=='current'||Date.now()>=Date.parse(read.document.valid_until)));
   $('review').hidden=role!=='owner'||!read?.document;
@@ -57,7 +58,7 @@ async function api(path,turn,method='GET',body){
 }
 async function session(turn){const result=await api('/session',turn);if(user!==null&&result.user_id!==user)throw Object.assign(Error('Your signed-in customer changed. Refresh your session.'),{status:401});return result;}
 async function guarded(action,authenticate=true){
-  if(busy)return;const turn=++epoch;operation={turn,cookies:document.cookie};busy=true;enable();
+  if(busy)return;if(authenticate&&displayCookies!==null&&document.cookie!==displayCookies){invalidate();clearSessionChoices();$('selection').hidden=true;say('Your session changed. Refresh your session before continuing.');return;}const turn=++epoch;operation={turn,cookies:document.cookie};busy=true;enable();
   try{if(authenticate)await session(turn);await action(turn);check(turn);displayCookies=operation.cookies;}
   catch(error){if(!(error instanceof Stale)){clearDocument();clearPlanEvents($('events'));if([401,403,404].includes(error.status)){invalidate();if(error.status===401){clearSessionChoices();$('selection').hidden=true;}}say(error.message||'Planning is unavailable.');}}
   finally{if(turn===epoch){busy=false;enable();}}
@@ -111,7 +112,7 @@ async function editor(turn,isEdit=false){
     if(input.excluded_entity_keys.length||input.fixed_allocations.length||input.scenario_intents.length||input.comparison_window!==null)throw Error('This plan contains advanced selections. Its inputs cannot be replaced with this account-level form.');
     $('goal').value=input.goal.goal_id;for(const node of $('accounts').querySelectorAll('input'))node.checked=input.accounts.some(a=>String(a.account_id)===node.value);
     $('milestone').value=input.milestone;$('product').value=input.product_offer??'';$('constraints').value=input.constraints.join('\n');$('assumptions').value=input.assumptions.map(a=>a.statement).join('\n');
-    $('start').value=new Date(input.reporting_window.starts_at).toISOString().slice(0,16);$('end').value=new Date(input.reporting_window.ends_at_exclusive).toISOString().slice(0,16);$('creative').value=String(input.maximum_creative_assets??1);
+    $('start').value=new Date(input.reporting_window.starts_at).toISOString().slice(0,16);$('end').value=new Date(input.reporting_window.ends_at_exclusive).toISOString().slice(0,16);$('creative').value=input.maximum_creative_assets===null?'':String(input.maximum_creative_assets);editWindow={startValue:$('start').value,endValue:$('end').value,original:input.reporting_window};
   }
   $('editor-title').textContent=isEdit?'Edit Plan Inputs':'Prepare A New Plan';goalSummary();$('editor').hidden=false;say('Review the goal, accounts, milestone and reporting period before saving.');
 }
@@ -120,13 +121,13 @@ function iso(value){if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))throw Erro
 function inputs(){
   const goal=goals.find(g=>g.id===$('goal').value);if(!goal)throw Error('Choose a confirmed goal.');
   const account_ids=[...$('accounts').querySelectorAll('input:checked')].map(n=>Number(n.value));if(!account_ids.length||account_ids.length>20)throw Error('Choose between one and twenty accounts.');
-  const starts_at=iso($('start').value),ends_at_exclusive=iso($('end').value);if(Date.parse(starts_at)>=Date.parse(ends_at_exclusive)||Date.parse(ends_at_exclusive)>Date.now())throw Error('Choose a completed past reporting period.');
-  const maximum_creative_assets=Number($('creative').value);if(!Number.isSafeInteger(maximum_creative_assets)||maximum_creative_assets<0||maximum_creative_assets>30)throw Error('Choose zero to thirty creative concepts.');
+  const starts_at=editWindow&&$('start').value===editWindow.startValue?editWindow.original.starts_at:iso($('start').value),ends_at_exclusive=editWindow&&$('end').value===editWindow.endValue?editWindow.original.ends_at_exclusive:iso($('end').value);if(Date.parse(starts_at)>=Date.parse(ends_at_exclusive)||Date.parse(ends_at_exclusive)>Date.now())throw Error('Choose a completed past reporting period.');
+  const maximum_creative_assets=$('creative').value===''?null:Number($('creative').value);if(maximum_creative_assets!==null&&(!Number.isSafeInteger(maximum_creative_assets)||maximum_creative_assets<0||maximum_creative_assets>30))throw Error('Choose zero to thirty creative concepts.');
   return{goal_id:goal.id,goal_revision:goal.revision,account_ids,reporting_window:{starts_at,ends_at_exclusive},comparison_window:null,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions:[],fixed_allocations:[],scenario_intents:[],maximum_creative_assets};
 }
 async function mutate(turn,operationName,path,body){
   if(pending)throw Error('Check the previous request result before another save.');
-  const key=crypto.randomUUID().replaceAll('-','');pending={user,workspace:wid,operation:operationName,key};enable();
+  const key=crypto.randomUUID().replaceAll('-','');pending={user,workspace:wid,operation:operationName,key,path,body:{...body,request_key:key},absent:false};enable();
   try{const result=await api(path,turn,'POST',{...body,request_key:key});const resultPlan=result.plan_id??result.event?.plan_id;if(!noAuthority(result)||!id(resultPlan)||(operationName!=='create'&&resultPlan!==planId))throw Error('The saved response could not be verified. Check the recorded result.');pending=null;return result;}
   catch(error){if(error.status&&error.status<500&&error.status!==401)pending=null;throw error;}
 }
@@ -163,7 +164,18 @@ $('versions-next').onclick=()=>guarded(t=>versions(t,versionCursor));
 $('events-refresh').onclick=()=>guarded(t=>events(t));$('events-next').onclick=()=>guarded(t=>events(t,eventCursor));
 $('compare').onclick=()=>guarded(async turn=>{const version=read.version,old=await api(selected()+`/versions/${version-1}`,turn),value=await api(selected()+`/comparisons/${version-1}/${version}`,turn);await session(turn);check(turn);renderPlanComparison($('comparison'),value,{previous_version:version-1,current_version:version,previous_digest:old.document_digest,current_digest:read.document_digest});});
 $('export').onclick=()=>guarded(async turn=>{const version=read.version,value=await api(selected()+`/export?version=${version}`,turn);await session(turn);check(turn);validateRead(value,version);const blob=new Blob([JSON.stringify(value,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`inlet-plan-${planId}-version-${version}-artifact.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);say('Downloaded the selected version artifact. Customer event history is separate.');});
-$('recover').onclick=()=>guarded(async turn=>{if(!pending||pending.user!==user||pending.workspace!==wid)throw Error('Choose the original customer and workspace to check this request.');const saved=pending,value=await api(root()+`/requests/${saved.operation}/${saved.key}`,turn);const resultPlan=value.plan_id??value.event?.plan_id;if(!noAuthority(value)||!id(resultPlan))throw Error('The recorded result could not be verified.');pending=null;planId=resultPlan;clearEditor();await readPlan(turn);await versions(turn);say('The earlier request completed. Its saved plan is displayed.');});
+async function recovered(turn,value){const resultPlan=value.plan_id??value.event?.plan_id;if(!noAuthority(value)||!id(resultPlan))throw Error('The recorded result could not be verified.');pending=null;planId=resultPlan;clearEditor();await readPlan(turn);await versions(turn);say('The earlier request completed. Its saved plan is displayed.');}
+$('recover').onclick=()=>guarded(async turn=>{
+  if(!pending||pending.user!==user||pending.workspace!==wid)throw Error('Choose the original customer and workspace to check this request.');
+  const saved=pending;let value;
+  try{value=await api(root()+`/requests/${saved.operation}/${saved.key}`,turn);}
+  catch(error){if(error.status===404){saved.absent=true;say('No recorded result was found. The earlier request may still finish. You may explicitly retry this exact request with the same reference.');return;}throw error;}
+  await recovered(turn,value);
+});
+$('retry').onclick=()=>guarded(async turn=>{
+  if(!pending?.absent||pending.user!==user||pending.workspace!==wid)throw Error('Check the original request result before retrying.');
+  const saved=pending;saved.absent=false;const value=await api(saved.path,turn,'POST',saved.body);await recovered(turn,value);
+});
 $('logout').onclick=()=>{invalidate();guarded(async turn=>{await api('/session',turn,'DELETE');invalidate();user=null;wid='';role='';clearSessionChoices();$('selection').hidden=$('logout').hidden=true;say('Signed out.');},false);};
 function changedSession(){if(displayCookies!==null&&document.cookie!==displayCookies){invalidate();clearSessionChoices();$('selection').hidden=true;say('Your session changed. Refresh your session before continuing.');}}
 window.addEventListener('focus',changedSession);document.addEventListener('visibilitychange',changedSession);

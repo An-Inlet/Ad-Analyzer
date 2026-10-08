@@ -16,7 +16,7 @@ from app.collectors import account_diagnostics
 from app.collectors.native_diagnostics import AccountDiagnosticRequest
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
-from app.goals.progress import boundary, read_goal_progress
+from app.goals.progress import _read_goal_progress_locked, boundary
 from app.planning_catalog.projection_v2 import project_v2
 from app.planning_documents.common import MAX_EVIDENCE, fingerprint
 from app.planning_documents.context import EvidenceRef, ReportingWindow, TargetRef
@@ -39,8 +39,8 @@ from app.planning_documents.ports import (
     PlanningCompositionPolicy,
     ReportingGapPin,
 )
+from app.planning_documents.read_context import PlanningReadContexts, snapshot
 from app.publication import customer_intents
-from app.publication.customer_authority import bind_authority
 
 
 class OwnedPlanningEvidenceReader:
@@ -53,13 +53,13 @@ class OwnedPlanningEvidenceReader:
         policy: PlanningCompositionPolicy,
         clock: Callable[[], datetime],
     ) -> None:
-        self.sessions, self.principal, self.provider = sessions, principal, provider
+        self.sessions, self.principal, self.provider = sessions, snapshot(principal), provider
         self.policy, self.clock = policy, clock
-        self.authorize = bind_authority(principal, provider)
 
     def collect(self, ticket: GenerationTicket) -> EvidenceBundle:
         ticket = GenerationTicket.model_validate(ticket)
         wid, actor = ticket.inputs.workspace_id, ticket.actor_id
+        reads = PlanningReadContexts(self.sessions, self.principal, self.provider, wid, actor)
         if (actor, ticket.session_digest) != (
             self.principal.user.id,
             self.principal.session.digest,
@@ -70,8 +70,8 @@ class OwnedPlanningEvidenceReader:
             self.policy.digest(),
         ):
             raise changed()
-        with self.sessions() as db:
-            self.authorize(db, wid, actor)
+        with reads.open() as db:
+            reads.authorize(db, wid, actor)
             check_goal(db, ticket)
             fences = resolve_source_fences(
                 db, principal=self.principal, accounts=ticket.inputs.accounts, now=self.clock()
@@ -96,8 +96,8 @@ class OwnedPlanningEvidenceReader:
                     )
                 )
                 continue
-            with self.sessions() as db:
-                self.authorize(db, wid, actor)
+            with reads.open() as db:
+                reads.authorize(db, wid, actor)
                 scope = customer_intents.account(db, wid, account.account_id)
             request = AccountDiagnosticRequest(
                 expected_account=scope,
@@ -109,7 +109,7 @@ class OwnedPlanningEvidenceReader:
             )
             # No caller transaction survives into any native provider IO.
             with account_diagnostics.get_native_account_diagnostic_service(
-                self.sessions, self.authorize, account.platform, self.clock
+                reads.open, reads.authorize, account.platform, self.clock
             ) as service:
                 native, metadata = service.read_catalog(request, self.clock())
             catalog = project_v2(native, metadata)
@@ -145,8 +145,8 @@ class OwnedPlanningEvidenceReader:
         for catalog_evidence in catalogs:
             assert catalog_evidence.reference.account is not None
             account = catalog_evidence.reference.account
-            with self.sessions() as db:
-                self.authorize(db, wid, actor)
+            with reads.open() as db:
+                reads.authorize(db, wid, actor)
                 # Source/ownership is positively checked before any explicit no-data gap.
                 resolve_source_fences(
                     db, principal=self.principal, accounts=(account,), now=self.clock()
@@ -192,7 +192,7 @@ class OwnedPlanningEvidenceReader:
                     account.account_id,
                     witness.id,
                     current.completion_id,
-                    self.authorize,
+                    reads.authorize,
                 )
                 actual_window = ReportingWindow(
                     starts_at=boundary(completion.starts_on, ZoneInfo(completion.time_zone)),
@@ -248,7 +248,7 @@ class OwnedPlanningEvidenceReader:
                         account.account_id,
                         campaign.id,
                         current.completion_id,
-                        self.authorize,
+                        reads.authorize,
                     )
                     target_ref = TargetRef(
                         account=account,
@@ -322,12 +322,11 @@ class OwnedPlanningEvidenceReader:
                             explanation="Only one current imported window is available.",
                         )
                     )
-        with self.sessions() as db:
-            self.authorize(db, wid, actor)
-            doc_goal = read_goal_progress(
+        with reads.open() as db:
+            reads.authorize(db, wid, actor)
+            doc_goal = _read_goal_progress_locked(
                 db,
                 self.principal,
-                self.provider,
                 wid,
                 ticket.inputs.goal.goal_id,
                 ticket.inputs.goal.revision,
@@ -436,8 +435,8 @@ class OwnedPlanningEvidenceReader:
             context=context,
             gaps=tuple(gaps),
         )
-        with self.sessions() as db:
-            self.authorize(db, wid, actor)
+        with reads.open() as db:
+            reads.authorize(db, wid, actor)
             recheck_local_sources(
                 db, principal=self.principal, ticket=ticket, bundle=bundle, now=self.clock()
             )

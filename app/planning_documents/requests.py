@@ -103,3 +103,14 @@ class AssertionIntent(Frozen):
     statement: Text
     supersedes_event_id: Id | None
     request_key: str = Field(strict=True, min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+    @model_validator(mode="after")
+    def coherent_assertion(self) -> "AssertionIntent":
+        from datetime import UTC, datetime
+
+        if self.assertion == "customer_reports_applied":
+            if self.reported_applied_at is None or self.reported_applied_at > datetime.now(UTC):
+                raise ValueError("nonfuture reported application time required")
+        elif self.reported_applied_at is not None or self.supersedes_event_id is None:
+            raise ValueError("retraction requires the prior assertion and no applied timestamp")
+        return self

@@ -1,0 +1,20 @@
+# Planning Reader Identity Ordering Repair
+
+Isolated branch `codex/inlet-planning-reader-authority`, worktree `/workspace/inlet-planning-reader-authority`, base944c667. This repair addresses a new integration finding after the earlier evidence adapter review; that earlier closure did not cover identity-provider I/O ordering.
+
+Concrete prior path: OwnedPlanningEvidenceReader.collect opened a Session and invoked bind_authority; bind_authority invoked lock_customer_mutation, which ran guard_customer_mutation's workspace/user/session/membership SQL locks before provider.check_active. The same callback entered NativeDiagnosticService._snapshot, and the public goal-progress reader performed its own locked provider callback. This violated the planning-local rule even though native advertising HTTP already ran outside transactions.
+
+The reader now uses a private PlanningReadContexts instance per collection. It copies only loaded original principal scalars, rejects unloaded attributes without lazy SQL, refreshes identity before opening each Session, and installs a database-only callback bound to that exact session, workspace, actor and IdentityFact. The callback uses the existing reviewed planning authority.lock helper, which returns the fresh locked principal, and validates the same fact. Context exit repeats that current-row/final validation after all body waits. Nested contexts and callbacks outside their original context are rejected; no identity fact crosses a transaction/request or acquires extra lifetime. The unchanged five-second authority maximum applies through final acceptance.
+
+NativeDiagnosticService and its factory receive an additive AbstractContextManager[Session] annotation, permitting the planning wrapper while preserving ordinary Session callers and runtime behavior. The goal-progress body was moved verbatim into private _read_goal_progress_locked; the existing public read_goal_progress retains its original authorization wrapper and calls that body. Planning calls the DB-only body under its planning authority context. Global customer authentication and other callers' provider-check behavior were not changed.
+
+New tests observe actual SQL begin/commit/rollback and row-lock statements while the real three-provider MockHTTP + reporting + Shopify reader completes. They assert zero active transactions at every identity and native-provider callback. Additional tests change persisted issuer/subject/authenticated_at/revocation/expiry during the external refresh, reject detached stale identity, reject unloaded attributes without any SQL, reject nested/out-of-context callbacks, and inject a monotonic5.001-second delay after final source work to prove context exit rejects without refreshing authority. The monotonic delay is explicit test injection; no production lifetime changes.
+
+Initial ordering/adverse cohort:22 passed in22.42s on SQLite and isolated disposable PostgreSQL. Required combined reader, retained goal-progress, native-reader and authority regressions and static checks are recorded below after completion. No live provider calls, hosted checks, production claims, merge or deployment.
+
+Qualification terminal:
+
+- Combined evidence adapter, new ordering/adverse, retained goal-progress/contracts and planning authority: **137 passed,1 skipped in116.79s**. The sole skip is the existing SQLite case requiring independent PostgreSQL row-lock waiting; its PostgreSQL counterpart ran.
+- Existing native metadata API selected positive, metadata-session and metadata-expiry cases: **18 passed,108 deselected in18.51s** across all three platforms/both databases.
+- Final test-only annotation/import repair: targeted final-age cases **2 passed,20 deselected in4.64s**. Whole Ruff passed; whole mypy passed **1042 source files**; diff check passed. Earlier whole-mypy errors were confined to callback-list annotations and test module re-export references, not application behavior.
+- Evidence `/workspace/inlet-evidence/20261008/planning-reader-authority/`. Independent review requested; integration remains the root lane's responsibility.

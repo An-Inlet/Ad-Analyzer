@@ -1,7 +1,7 @@
 """Concrete per-request read-only assembly, with no execution runtime dependency."""
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from datetime import datetime
 
 import httpx
@@ -40,7 +40,7 @@ class _BorrowedTransport(httpx.BaseTransport):
 
 @contextmanager
 def get_native_account_diagnostic_service(
-    sessions: Callable[[], Session],
+    sessions: Callable[[], AbstractContextManager[Session]],
     authorize: ExecutionAuthorizer,
     platform: str,
     clock: Callable[[], datetime],

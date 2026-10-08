@@ -81,3 +81,8 @@ def customer_reported_comparison() -> FileResponse:
 @router.get("/app/tiktok-linked", include_in_schema=False)
 def customer_tiktok_linked() -> FileResponse:
     return FileResponse(STATIC / "advertising-history.html", media_type="text/html")
+
+
+@router.get("/app/planning", include_in_schema=False)
+def customer_planning_documents() -> FileResponse:
+    return FileResponse(STATIC / "planning.html", media_type="text/html")

@@ -30,6 +30,7 @@ from app.planning_documents.composer import (
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
+from app.planning_documents.generation_ports import GenerationEvidence, GenerationEvidenceReader
 from app.planning_documents.models import (
     PlanDependencyRow,
     PlanEventRow,
@@ -37,6 +38,7 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
+from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.progress_contracts import PlanSalesProgressV1, project_sales_progress
 from app.planning_documents.requests import (
@@ -58,6 +60,10 @@ from app.planning_documents.responses import (
 )
 from app.planning_documents.retained_sources import RetainedSourcesChanged, recheck_retained_sources
 from app.planning_documents.storage import document_for_row
+from app.planning_documents.window_adapter import OwnedWindowEvidenceReader
+from app.planning_documents.window_composer import WindowPlanComposer
+from app.planning_documents.window_evidence import WindowEvidenceBundleV1
+from app.planning_documents.window_local import recheck_window_sources
 from app.publication.clock import utc_now
 from app.shopify.security import utc
 
@@ -101,6 +107,7 @@ class PlanningDocumentService:
             version=POLICY_VERSION, generator_version=GENERATOR_VERSION
         )
         self.composer = DescriptivePlanComposer()
+        self.window_composer = WindowPlanComposer()
 
     def create(self, principal: CustomerPrincipal, wid: int, request: CreatePlan) -> InputResult:
         request = CreatePlan.model_validate(request)
@@ -294,7 +301,16 @@ class PlanningDocumentService:
                 prepared_at=self.clock(),
             )
             authority.final(current, fact)
-        reader = OwnedPlanningEvidenceReader(
+        try:
+            capability = ticket_reporting_capability(ticket.policy_version, ticket.policy_digest)
+        except ValueError as error:
+            raise repository.changed("unknown configured planning policy") from error
+        reader_type = (
+            OwnedWindowEvidenceReader
+            if capability.mode == "presence_requested_window"
+            else OwnedPlanningEvidenceReader
+        )
+        reader: GenerationEvidenceReader = reader_type(
             lambda: Session(self.engine),
             principal=principal,
             provider=self.provider,
@@ -302,22 +318,77 @@ class PlanningDocumentService:
             clock=self.clock,
         )
         bundle = reader.collect(ticket)
-        bundle.assert_ticket(ticket)
+        expected_bundle = (
+            WindowEvidenceBundleV1
+            if capability.mode == "presence_requested_window"
+            else EvidenceBundle
+        )
+        if not isinstance(bundle, expected_bundle):
+            raise repository.changed("planning evidence policy differs")
         try:
-            candidate = self.composer.compose(
-                inputs=inputs,
-                evidence=bundle,
-                policy=self.policy,
-                version=ticket.expected_version + 1,
-                parent_digest=ticket.expected_parent_digest,
-                generated_by=ticket.actor_id,
-                generated_at=self.clock(),
-            )
+            bundle.assert_ticket(ticket)
+        except ValueError as error:
+            raise repository.changed("planning evidence does not match generation") from error
+        try:
+            if capability.mode == "presence_requested_window":
+                if not isinstance(bundle, WindowEvidenceBundleV1):
+                    raise repository.changed("requested-window evidence required")
+                candidate = self.window_composer.compose(
+                    ticket=ticket, evidence=bundle, policy=self.policy, generated_at=self.clock()
+                )
+            else:
+                if not isinstance(bundle, EvidenceBundle):
+                    raise repository.changed("legacy reporting evidence required")
+                candidate = self.composer.compose(
+                    inputs=inputs,
+                    evidence=bundle,
+                    policy=self.policy,
+                    version=ticket.expected_version + 1,
+                    parent_digest=ticket.expected_parent_digest,
+                    generated_by=ticket.actor_id,
+                    generated_at=self.clock(),
+                )
         except PlanCompositionUnavailable as error:
             raise repository.changed(str(error)) from error
-        if candidate.generator_version != self.policy.generator_version:
+        if (candidate.policy_version, candidate.generator_version) != (
+            self.policy.version,
+            self.policy.generator_version,
+        ):
             raise repository.changed("configured planning generator changed")
         fact = authority.refresh(principal, self.provider)
+
+        def final_sources(
+            db: Session,
+            current: CustomerPrincipal,
+            actual_ticket: GenerationTicket,
+            actual_bundle: GenerationEvidence,
+            now: datetime,
+        ) -> None:
+            if isinstance(actual_bundle, WindowEvidenceBundleV1):
+
+                def authorize(db: Session, workspace_id: int, actor: str) -> None:
+                    if actor != current.user.id:
+                        raise repository.changed("original generation actor changed")
+                    authority.lock(db, current, workspace_id, fact)
+
+                recheck_window_sources(
+                    db,
+                    principal=current,
+                    ticket=actual_ticket,
+                    bundle=actual_bundle,
+                    authorize=authorize,
+                    clock=self.clock,
+                )
+                recheck_saved_input_receipts(
+                    db,
+                    principal=current,
+                    ticket=actual_ticket,
+                    catalogs=actual_bundle.catalogs,
+                    now=self.clock(),
+                )
+            else:
+                recheck_generation_sources(db, current, actual_ticket, actual_bundle, now)
+
         with Session(self.engine) as db, db.begin():
             document = repository.save_generation(
                 db,
@@ -329,7 +400,7 @@ class PlanningDocumentService:
                 request_key=request.request_key,
                 request_digest=request.digest(),
                 now=self.clock(),
-                recheck=recheck_generation_sources,
+                recheck=final_sources,
             )
             return VersionResult(plan_id=plan_id, version=document.version, document=document)
 

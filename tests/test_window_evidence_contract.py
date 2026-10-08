@@ -369,7 +369,7 @@ def test_combined_slot_and_serialized_byte_cap(monkeypatch: pytest.MonkeyPatch) 
         WindowEvidenceBundleV1.model_validate(bundle)
 
 
-def test_legacy_policy_digests_unchanged_and_runtime_v3_disabled() -> None:
+def test_legacy_policy_digests_unchanged_and_legacy_composer_rejects_v3() -> None:
     from app.planning_documents.composer import DescriptivePlanComposer, PlanCompositionUnavailable
 
     from tests.test_planning_composer import fixture
@@ -691,3 +691,19 @@ def test_gap_slots_compare_actual_instants_not_same_zone_fold_equality() -> None
         absent.model_copy(
             update=dict(window_gaps=(gap.model_copy(update=dict(requested_window=other)),))
         ).assert_ticket(ticket)
+
+
+def test_production_service_default_stays_v2_with_separate_window_composer() -> None:
+    from app.planning_documents.service import PlanningDocumentService
+    from app.planning_documents.window_composer import WindowPlanComposer
+    from sqlalchemy import create_engine
+
+    from tests.test_customer_identity import FakeProvider
+
+    engine = create_engine("sqlite://")
+    try:
+        service = PlanningDocumentService(engine, FakeProvider())
+        assert service.policy == policy(2)
+        assert isinstance(service.window_composer, WindowPlanComposer)
+    finally:
+        engine.dispose()

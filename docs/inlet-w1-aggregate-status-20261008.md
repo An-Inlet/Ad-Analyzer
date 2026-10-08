@@ -40,3 +40,10 @@ for the final traceback/JUnit evidence.
 Independent quality-evidence reconciliation is docs-only on another branch. All
 Q01–Q16 and six human expert gates remain partial/unfulfilled. Hosted checks, live
 provider calls, advertising writes, deployment and commercial release remain held.
+
+The first bounded successor repair is independently reviewed and integrated from
+`0ecd0d7`. All 66 SQLite/PostgreSQL account-diagnostic API cases passed with no
+skips in77.80s; whole Ruff, bare mypy (1,117 files) and diff checks passed. Production
+code and every original API assertion are unchanged. The frozen W1 aggregate still
+contains its original fixture and its recorded failures; no rerun or retrospective
+pass claim is made. See `inlet-account-diagnostics-fixture-20261008.md`.

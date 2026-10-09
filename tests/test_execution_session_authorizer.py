@@ -62,6 +62,8 @@ def revoke(engine: Engine, digest: str) -> None:
         other.commit()
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_session_revoked_during_creation_qualification_cannot_persist_review(
     customer_engine: Engine,
     configuration: Settings,
@@ -90,6 +92,8 @@ def test_session_revoked_during_creation_qualification_cannot_persist_review(
         assert denied.value.status_code == 401
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_session_revoked_during_optimization_preflight_cannot_emit(
     customer_engine: Engine,
     configuration: Settings,
@@ -127,6 +131,8 @@ def test_session_revoked_during_optimization_preflight_cannot_emit(
 
 @pytest.mark.parametrize("interruption", ["revoke", "expire"])
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revocation_in_final_optimization_context_blocks_emission(
     customer_engine: Engine,
     configuration: Settings,
@@ -171,6 +177,8 @@ def test_revocation_in_final_optimization_context_blocks_emission(
         assert (server.writes if provider == "google_ads" else server.posts) == []
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revocation_in_creation_context_blocks_emission(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -206,6 +214,8 @@ def test_revocation_in_creation_context_blocks_emission(
         assert denied.value.status_code == 401 and server.posts == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revocation_in_final_activation_context_blocks_emission(
     customer_engine: Engine,
     configuration: Settings,

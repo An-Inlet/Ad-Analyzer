@@ -74,5 +74,17 @@ TikTok direct dispatch, false capabilities and guarded mandate writes.
 After that terminal run, additive fixture assertions require active actor/membership
 and exact source account/platform. Added counters assert forbidden real HTTPTransport
 constructors are never entered, and missing Meta registration never builds evidence.
-The exact12 affected bothDB positive/real-transport/missing cases are being rerun
-in `supplement.xml`; do not claim this follow-up passed before terminal evidence.
+The exact12 affected bothDB positive/real-transport/missing cases passed in
+`supplement.xml`/`.log`/`.exit`: **12pass0skip72.289s**, exit0. They overlap the128
+cohort, not additional original failures. `ruff-final.log` and `mypy-final.log`
+record whole Ruff and bare mypy1142 pass; final diff check passed. No changes to
+qualified source after this supplement. `final-map.xml` separately records the
+updated current coverage-map/AST check. `coverage.json` matches exactly34 historical
+passing child identities to frozen failed identities.
+
+Remaining integration consideration: the standalone offline partition tool currently
+tracks the four historical manifests. Before any future current collection/candidate,
+add explicit fifth configured-api manifest/wrapper provenance through its reviewed
+interface, preserving earlier3/249 and4/259 evidence; do not loosen validation.
+C34 does not run collection, shards, previous child batches, Full or hosted CI.
+Independent source review remains required before root integration/coverage credit.

@@ -34,6 +34,7 @@ HISTORICAL_PATHS = (
     "tests/fixtures/retired_execution/nodes-supplement-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-forward-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-initial-native-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-configured-api-2155ff3.json",
 )
 SNAPSHOT_PATH = "tests/retired_snapshot.py"
 

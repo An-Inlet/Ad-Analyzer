@@ -108,3 +108,19 @@ separate test count. Original media/SQLite/source artifacts were not deleted.
 Only accurate helper docstrings and this evidence ledger changed after the
 terminal cohort; final static checks cover that successor. Independent source
 review remains required before integration/closure credit.
+
+## Independent Review Repair: Owned SQLite Target
+
+Root review of `c917a8d` found that the child accepted an arbitrary SQLite path
+or URL query before opening its engine. The successor parses the URL before
+`create_engine`, requires the plain SQLite driver with no query, and requires an
+existing regular nonsymlink file whose resolved path is exactly
+`output.parent/current.sqlite`. The parent still creates that owned file; no
+schema or source semantics change.
+
+`sqlite-guard.log/xml`: **7 passed, 0 skipped, 13.653s** — five no-engine-call
+negatives (foreign path, query, missing file, directory, symlink) plus the affected
+actual SQLite/PostgreSQL dependency probes. This is successor qualification,
+not a rerun or relabeling of the earlier 118-case cohort. Whole Ruff, bare mypy
+(**1179 files**) and diff checks passed (`guard-ruff.log`, `guard-mypy.log`,
+`guard-diff.log`). All prior results and attempts remain intact.

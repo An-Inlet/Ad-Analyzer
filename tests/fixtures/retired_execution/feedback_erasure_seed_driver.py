@@ -24,7 +24,14 @@ def main() -> None:
     assert os.environ["INLET_RETIRED_EXECUTION_CHILD"] == "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
     assert Path(app.__file__).resolve().is_relative_to(Path(os.environ["PYTHONPATH"]).resolve())
     if target.startswith("sqlite:"):
-        engine = create_engine(target)
+        url = make_url(target)
+        assert url.drivername == "sqlite" and not url.query and url.database
+        database = Path(url.database)
+        expected = output.parent / "current.sqlite"
+        assert database.resolve() == expected.resolve()
+        assert database.is_file() and not database.is_symlink()
+        assert expected.is_file() and not expected.is_symlink()
+        engine = create_engine(url)
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
     else:
         assert re.fullmatch(r"inlet_test_[a-f0-9]{32}", target)

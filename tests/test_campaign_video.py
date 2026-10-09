@@ -12,24 +12,19 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from app.ads.enums import AdvertisingPlatform
-from app.ads.models import AdvertisingAccount
 from app.campaign_review import service, video
 from app.campaign_review.contracts import MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, RevisionInput
 from app.campaign_review.storage import LocalMediaStore
 from app.mandates import service as mandates
-from app.mandates.schemas import AccountScope
 from app.settings import Settings
-from app.sources.models import SourceConnection
-from app.workspaces.models import WorkspaceIntegration
 from fastapi import HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.campaign_review_retained_fixture import current_binding, retained_campaign_review_fixture
 from tests.test_campaign_review import png
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_google_action_plans import setup
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -154,6 +149,7 @@ def test_decoder_limits_kill_and_reap_process(
     assert children and all(child.poll() is not None for child in children)
 
 
+@pytest.mark.planning_boundary
 def test_tiktok_video_review_is_real_and_publication_stays_disabled(
     customer_engine: Engine,
     configuration: Settings,
@@ -162,51 +158,13 @@ def test_tiktok_video_review_is_real_and_publication_stays_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     store = LocalMediaStore(tmp_path / "private")
-    with Session(customer_engine) as db:
-        mandate, _, _ = setup(db, configuration)
-        integration = WorkspaceIntegration(
-            workspace_id=mandate.workspace_id,
-            integration_key="video-review",
-            provider="tiktok_ads",
-            display_name="Fixture TikTok",
-            status="active",
-            configuration={},
-        )
-        db.add(integration)
-        db.flush()
-        account = AdvertisingAccount(
-            workspace_id=mandate.workspace_id,
-            connection_id=integration.id,
-            platform=AdvertisingPlatform.TIKTOK_ADS,
-            external_account_id="123",
-            name="Fixture TikTok",
-            currency_code="USD",
-            time_zone="UTC",
-        )
-        db.add(account)
-        db.flush()
-        db.add(
-            SourceConnection(
-                id=uuid4().hex,
-                workspace_id=mandate.workspace_id,
-                integration_id=integration.id,
-                account_id=account.id,
-                provider="tiktok_ads",
-                external_id="123",
-                status="connected",
-                generation=1,
-                window_start=NOW.date(),
-                window_end=NOW.date(),
-                staged={},
-            )
-        )
+    with (
+        retained_campaign_review_fixture(customer_engine, tmp_path / "tiktok-source", "tiktok_ads")
+        as (engine, ids),
+        Session(engine) as db,
+    ):
+        mandate, _ = current_binding(db, ids)
         policy = mandates.policy(db, mandate)
-        policy.accounts = [
-            AccountScope(platform="tiktok_ads", connection_id=integration.id, account_id=account.id)
-        ]
-        mandates.edit(db, mandate, mandate.revision, policy, "owner", NOW)
-        mandates.approve(db, mandate, mandate.revision, "owner", NOW)
-        db.commit()
         data = encoded()
         uploaded = service.upload(db, mandate.workspace_id, "owner", data, store, NOW)
         assert uploaded.mime == "video/mp4" and uploaded.sha256 == hashlib.sha256(data).hexdigest()

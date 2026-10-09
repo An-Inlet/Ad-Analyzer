@@ -15,6 +15,7 @@ from _pytest.junitxml import bin_xml_escape, mangle_test_address
 from tests.partition_evidence import (
     WRAPPER,
     Collection,
+    CompactText,
     HistoricalProvenance,
     Timing,
     build_candidate,
@@ -41,21 +42,21 @@ def evidence() -> tuple[dict[str, Any], ET.Element]:
     for node in nodes:
         names = mangle_test_address(node)
         item = dict(
-            node_id=node,
+            node=CompactText.capture(node).model_dump(),
             file=node.split("::", 1)[0],
             junit_classname=".".join(names[:-1]),
-            junit_name=bin_xml_escape(names[-1]),
+            junit_name=CompactText.capture(bin_xml_escape(names[-1])).model_dump(),
         )
         items.append(item)
         ET.SubElement(
             suite,
             "testcase",
-            classname=item["junit_classname"],
-            name=item["junit_name"],
+            classname=".".join(names[:-1]),
+            name=bin_xml_escape(names[-1]),
             time="1.250",
         )
     return dict(
-        schema_version="inlet.partition-collection.v1",
+        schema_version="inlet.partition-collection.v2",
         commit="a" * 40,
         pytest_version=pytest.__version__,
         config_path="pyproject.toml",
@@ -81,7 +82,7 @@ def candidate(raw: dict[str, Any], root: ET.Element, **changes: Any) -> dict[str
     collection = Collection.model_validate(raw)
     report = ET.tostring(root)
     timing = dict(
-        schema_version="inlet.partition-timing.v1",
+        schema_version="inlet.partition-timing.v2",
         commit=collection.commit,
         collection_sha256=digest(canonical(collection)),
         junit_sha256=digest(report),
@@ -98,12 +99,12 @@ def test_exact_class_parameter_mapping_disjoint_file_balance() -> None:
         assert candidate(raw, root) == result
     assert result["candidate_only"] and not result["capacity_qualified"]
     assert not result["pass_qualified"]
-    groups = [set(s["nodes"]) for s in result["current_shards"]]
-    groups.append({x["wrapper"] for x in result["historical"]})
-    assert set.union(*groups) == {i["node_id"] for i in raw["items"]}
+    groups = [set(s["node_refs"]) for s in result["current_shards"]]
+    groups.append({x["wrapper_ref"] for x in result["historical"]})
+    assert set.union(*groups) == {CompactText.model_validate(i["node"]).ref for i in raw["items"]}
     assert sum(map(len, groups)) == len(set.union(*groups))
     assert result["current_shards"][0]["files"] == ["tests/test_alpha.py"]
-    assert len(result["current_shards"][0]["nodes"]) == 2
+    assert len(result["current_shards"][0]["node_refs"]) == 2
     assert sum(x["child_count"] for x in result["historical"]) == 249
 
 
@@ -220,6 +221,7 @@ def test_child_manifest_contract(tmp_path: Path, bad: str) -> None:
         "strict_markers",
         "strict_override",
         "strict_long_override",
+        "oversized",
     ],
 )
 def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
@@ -234,6 +236,13 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         "class TestGroup:\n @pytest.mark.parametrize('x',[1,2],ids=['a::b.c','d'])\n"
         " def test_case(self,x):\n  assert x\n"
     )
+    if mode == "oversized":
+        (repo / "tests/test_small.py").write_text(
+            "import pytest\nfrom pathlib import Path\n"
+            "@pytest.fixture(autouse=True)\ndef no_run():\n Path('EXECUTED').touch()\n"
+            "@pytest.mark.parametrize('x',[1],ids=['x'*(8*1024*1024+1)])\n"
+            "def test_big(x):\n assert x\n"
+        )
     if mode.startswith("strict_"):
         (repo / "pytest.ini").unlink()
         (repo / "pyproject.toml").write_text(
@@ -313,7 +322,7 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         env["PYTEST_ADDOPTS"] = "-k case"
     run = subprocess.run(args, cwd=repo, env=env, capture_output=True, text=True, timeout=30)
     assert not (repo / "EXECUTED").exists()
-    if mode in {"valid", "historical", "strict_markers"}:
+    if mode in {"valid", "historical", "strict_markers", "oversized"}:
         assert run.returncode == 0, run.stdout + run.stderr
         manifest = Collection.model_validate_json(output.read_bytes())
         if mode == "historical":
@@ -323,7 +332,15 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
             )
         else:
             assert manifest.historical_provenance is None
-        assert [i.node_id for i in manifest.items] == [
+        if mode == "oversized":
+            expected_node = "tests/test_small.py::test_big[" + "x" * (8 * 1024 * 1024 + 1) + "]"
+            assert len(output.read_bytes()) < 4096
+            assert len(manifest.items) == 1
+            assert manifest.items[0].node == CompactText.capture(expected_node)
+            assert manifest.items[0].node.exact_text is None
+            assert manifest.items[0].file == "tests/test_small.py"
+            return
+        assert [i.node.exact_text for i in manifest.items] == [
             "tests/test_small.py::TestGroup::test_case[a::b.c]",
             "tests/test_small.py::TestGroup::test_case[d]",
         ]
@@ -349,7 +366,7 @@ def test_report_structure_rejected(change: str) -> None:
     elif change == "entity":
         report = b'<!DOCTYPE testsuites [<!ENTITY x "bad">]>' + report
     timing = Timing(
-        schema_version="inlet.partition-timing.v1",
+        schema_version="inlet.partition-timing.v2",
         commit=collection.commit,
         collection_sha256=digest(canonical(collection)),
         junit_sha256=digest(report),
@@ -373,7 +390,7 @@ def test_invalid_or_empty_partition_rejected(count: int) -> None:
     collection = Collection.model_validate(raw)
     report = ET.tostring(root)
     timing = Timing(
-        schema_version="inlet.partition-timing.v1",
+        schema_version="inlet.partition-timing.v2",
         commit=collection.commit,
         collection_sha256=digest(canonical(collection)),
         junit_sha256=digest(report),
@@ -389,7 +406,8 @@ def test_zero_and_unknown_duration_files_stay_disjoint() -> None:
         case.attrib.pop("time")
     result = candidate(raw, root)
     assert all(
-        s["nodes"] and s["unknown_count"] == len(s["nodes"]) for s in result["current_shards"]
+        s["node_refs"] and s["unknown_count"] == len(s["node_refs"])
+        for s in result["current_shards"]
     )
 
 
@@ -430,4 +448,87 @@ def test_historical_capture_binding_rejects_substitution(tmp_path: Path, change:
     else:
         raw["historical_provenance"]["manifests"]["unknown.json"] = "c" * 64
     with pytest.raises(ValueError, match="historical source"):
+        candidate(raw, root)
+
+
+def large_evidence() -> tuple[dict[str, Any], ET.Element]:
+    raw, root = evidence()
+    prefix = "tests/test_alpha.py::TestGroup::test_large[" + "x" * (8 * 1024 * 1024 + 1)
+    for index, suffix in ((-2, "a]"), (-1, "b]")):
+        node = prefix + suffix
+        names = mangle_test_address(node)
+        raw["items"][index] = dict(
+            node=CompactText.capture(node).model_dump(),
+            file="tests/test_alpha.py",
+            junit_classname=".".join(names[:-1]),
+            junit_name=CompactText.capture(bin_xml_escape(names[-1])).model_dump(),
+        )
+        root[0][index].set("classname", ".".join(names[:-1]))
+        root[0][index].set("name", bin_xml_escape(names[-1]))
+    # Preserve two distinct current files for the two-group candidate.
+    node = "tests/test_beta.py::test_unicode[é::a.b]"
+    names = mangle_test_address(node)
+    raw["items"][-3] = dict(
+        node=CompactText.capture(node).model_dump(),
+        file="tests/test_beta.py",
+        junit_classname=".".join(names[:-1]),
+        junit_name=CompactText.capture(bin_xml_escape(names[-1])).model_dump(),
+    )
+    root[0][-3].set("classname", ".".join(names[:-1]))
+    root[0][-3].set("name", bin_xml_escape(names[-1]))
+    return raw, root
+
+
+def test_oversized_same_display_distinct_suffix_maps_compactly() -> None:
+    raw, root = large_evidence()
+    assert raw["items"][-1]["node"]["display"] == raw["items"][-2]["node"]["display"]
+    assert raw["items"][-1]["node"]["utf8_bytes"] == raw["items"][-2]["node"]["utf8_bytes"]
+    result = candidate(raw, root)
+    assert len(result["observations"]) == 6
+    assert len(json.dumps(result).encode()) < 20_000
+    refs = [n for group in result["current_shards"] for n in group["node_refs"]]
+    assert len(refs) == len(set(refs)) == 3
+    assert len(result["identity_index"]) == 6
+
+
+@pytest.mark.parametrize("change", ["digest", "length", "same_digest", "duplicate", "class"])
+def test_large_mapping_corruption_rejected(change: str) -> None:
+    raw, root = large_evidence()
+    if change == "digest":
+        raw["items"][-1]["junit_name"]["sha256"] = "c" * 64
+    elif change == "length":
+        raw["items"][-1]["junit_name"]["utf8_bytes"] += 1
+    elif change == "same_digest":
+        raw["items"][-1]["node"]["sha256"] = raw["items"][-2]["junit_name"]["sha256"]
+    elif change == "duplicate":
+        raw["items"][-1]["node"] = raw["items"][-2]["node"]
+    else:
+        root[0][-1].set("classname", "foreign.Class")
+    with pytest.raises(ValueError):
+        candidate(raw, root)
+
+
+@pytest.mark.parametrize("size", [16 * 1024, 16 * 1024 + 1])
+def test_exact_text_threshold_and_unicode_display(size: int) -> None:
+    value = "é" * (size // 2) + "x" * (size % 2)
+    compact = CompactText.capture(value)
+    assert compact.utf8_bytes == size
+    assert len(compact.display.encode()) == 256
+    assert (compact.exact_text is not None) == (size <= 16 * 1024)
+    odd = CompactText.capture("a" + value)
+    assert len(odd.display.encode()) == 255
+
+
+@pytest.mark.parametrize("field", ["sha256", "utf8_bytes", "display", "exact_text"])
+def test_compact_short_integrity(field: str) -> None:
+    raw = CompactText.capture("abc").model_dump()
+    raw[field] = {"sha256": "c" * 64, "utf8_bytes": 4, "display": "ab", "exact_text": None}[field]
+    with pytest.raises(ValueError):
+        CompactText.model_validate(raw)
+
+
+def test_legacy_manifest_version_is_not_silently_converted() -> None:
+    raw, root = evidence()
+    raw["schema_version"] = "inlet.partition-collection.v1"
+    with pytest.raises(ValueError):
         candidate(raw, root)

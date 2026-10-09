@@ -15,6 +15,16 @@ MAX_BYTES = 32 * 1024 * 1024
 MAX_NODES = 20_000
 
 
+def compact(value: str) -> dict[str, object]:
+    raw = value.encode("utf-8")
+    return dict(
+        sha256=hashlib.sha256(raw).hexdigest(),
+        utf8_bytes=len(raw),
+        display=raw[:256].decode("utf-8", errors="ignore"),
+        exact_text=value if len(raw) <= 16 * 1024 else None,
+    )
+
+
 def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True, timeout=30).strip()
 
@@ -168,23 +178,29 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         names = mangle_test_address(node)
         identity = (".".join(names[:-1]), bin_xml_escape(names[-1]))
         file = node.split("::", 1)[0]
+        node_identity = compact(node)
+        name_identity = compact(identity[1])
+        compact_identity = (identity[0], str(name_identity["sha256"]))
         if (
-            len(node.encode()) > 16 * 1024
-            or node in nodes
-            or identity in identities
+            len(file.encode()) > 16 * 1024
+            or len(identity[0].encode()) > 16 * 1024
+            or str(node_identity["sha256"]) in nodes
+            or compact_identity in identities
             or Path(file).is_absolute()
             or ".." in Path(file).parts
             or not file.endswith(".py")
         ):
             raise pytest.UsageError("Invalid or ambiguous collected identity")
-        nodes.add(node)
-        identities.add(identity)
+        nodes.add(str(node_identity["sha256"]))
+        identities.add(compact_identity)
         items.append(
-            dict(node_id=node, file=file, junit_classname=identity[0], junit_name=identity[1])
+            dict(
+                node=node_identity, file=file, junit_classname=identity[0], junit_name=name_identity
+            )
         )
     assert config.inipath is not None
     payload = dict(
-        schema_version="inlet.partition-collection.v1",
+        schema_version="inlet.partition-collection.v2",
         commit=commit,
         pytest_version=pytest.__version__,
         config_path=str(config.inipath.resolve().relative_to(root)),

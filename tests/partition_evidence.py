@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 from xml.etree import ElementTree as ET
 
+from _pytest.junitxml import bin_xml_escape, mangle_test_address
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from tests.retired_execution_harness import BATCHES
@@ -22,24 +23,72 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
 
+class CompactText(Strict):
+    sha256: Hex64
+    utf8_bytes: Annotated[int, Field(gt=0)]
+    display: str
+    exact_text: str | None
+
+    @classmethod
+    def capture(cls, text: str) -> "CompactText":
+        raw = text.encode("utf-8")
+        return cls(
+            sha256=hashlib.sha256(raw).hexdigest(),
+            utf8_bytes=len(raw),
+            display=raw[:256].decode("utf-8", errors="ignore"),
+            exact_text=text if len(raw) <= 16 * 1024 else None,
+        )
+
+    @property
+    def ref(self) -> str:
+        return f"sha256:{self.sha256}:{self.utf8_bytes}"
+
+    @model_validator(mode="after")
+    def consistent(self) -> "CompactText":
+        if len(self.display.encode()) > min(256, self.utf8_bytes):
+            raise ValueError("invalid compact display")
+        if (self.exact_text is not None) != (self.utf8_bytes <= 16 * 1024):
+            raise ValueError("compact exact-text threshold mismatch")
+        if self.exact_text is not None:
+            raw = self.exact_text.encode()
+            if (
+                len(raw) != self.utf8_bytes
+                or hashlib.sha256(raw).hexdigest() != self.sha256
+                or raw[:256].decode("utf-8", errors="ignore") != self.display
+            ):
+                raise ValueError("compact exact-text integrity mismatch")
+        return self
+
+
 class Item(Strict):
-    node_id: Annotated[str, Field(min_length=1, max_length=16384)]
+    node: CompactText
     file: str
     junit_classname: str
-    junit_name: str
+    junit_name: CompactText
+
+    @property
+    def ref(self) -> str:
+        return self.node.ref
 
     @model_validator(mode="after")
     def valid_file(self) -> "Item":
         if (
-            len(self.node_id.encode()) > 16384
-            or self.file != self.node_id.split("::", 1)[0]
-            or not self.file.endswith(".py")
+            not self.file.endswith(".py")
             or Path(self.file).is_absolute()
             or ".." in Path(self.file).parts
             or not self.junit_classname
-            or not self.junit_name
+            or len(self.file.encode()) > 16 * 1024
+            or len(self.junit_classname.encode()) > 16 * 1024
         ):
             raise ValueError("invalid node/file/JUnit identity")
+        if self.node.exact_text is not None:
+            names = mangle_test_address(self.node.exact_text)
+            if (
+                self.file != self.node.exact_text.split("::", 1)[0]
+                or self.junit_classname != ".".join(names[:-1])
+                or self.junit_name != CompactText.capture(bin_xml_escape(names[-1]))
+            ):
+                raise ValueError("ambiguous or invalid exact node mapping")
         return self
 
 
@@ -50,7 +99,7 @@ class HistoricalProvenance(Strict):
 
 
 class Collection(Strict):
-    schema_version: Literal["inlet.partition-collection.v1"]
+    schema_version: Literal["inlet.partition-collection.v2"]
     commit: Hex40
     pytest_version: str
     config_path: str
@@ -61,17 +110,23 @@ class Collection(Strict):
 
     @model_validator(mode="after")
     def unique(self) -> "Collection":
-        if len({i.node_id for i in self.items}) != len(self.items):
+        if len({i.node.sha256 for i in self.items}) != len(self.items):
             raise ValueError("duplicate node")
-        if len({(i.junit_classname, i.junit_name) for i in self.items}) != len(self.items):
+        if len({(i.junit_classname, i.junit_name.sha256) for i in self.items}) != len(self.items):
             raise ValueError("ambiguous JUnit identity")
+        lengths: dict[str, int] = {}
+        for item in self.items:
+            for text in (item.node, item.junit_name):
+                if text.sha256 in lengths and lengths[text.sha256] != text.utf8_bytes:
+                    raise ValueError("inconsistent digest length")
+                lengths[text.sha256] = text.utf8_bytes
         if Path(self.config_path).is_absolute() or ".." in Path(self.config_path).parts:
             raise ValueError("invalid configuration path")
         return self
 
 
 class Timing(Strict):
-    schema_version: Literal["inlet.partition-timing.v1"]
+    schema_version: Literal["inlet.partition-timing.v2"]
     commit: Hex40
     collection_sha256: Hex64
     junit_sha256: Hex64
@@ -116,7 +171,10 @@ def parse_report(
     root = ET.fromstring(report)
     if root.tag != "testsuites" or not list(root) or any(x.tag != "testsuite" for x in root):
         raise ValueError("complete testsuites report required")
-    identities = {(i.junit_classname, i.junit_name): i.node_id for i in collection.items}
+    identities = {
+        (i.junit_classname, i.junit_name.sha256, i.junit_name.utf8_bytes): i.ref
+        for i in collection.items
+    }
     result: dict[str, dict[str, Any]] = {}
     failures = 0
     aggregate = dict(tests=0, failures=0, errors=0, skipped=0)
@@ -127,7 +185,8 @@ def parse_report(
                 continue
             if case.tag != "testcase":
                 raise ValueError("unsupported nested suite content")
-            identity = (case.get("classname", ""), case.get("name", ""))
+            name = case.get("name", "").encode("utf-8")
+            identity = (case.get("classname", ""), hashlib.sha256(name).hexdigest(), len(name))
             node = identities.get(identity)
             if node is None or node in result:
                 raise ValueError("unknown or duplicate JUnit case")
@@ -169,7 +228,7 @@ def parse_report(
     for key, count in aggregate.items():
         if key in root.attrib and root.get(key) != str(count):
             raise ValueError("JUnit root summary mismatch")
-    if set(result) != {i.node_id for i in collection.items}:
+    if set(result) != {i.ref for i in collection.items}:
         raise ValueError("missing JUnit case")
     if (timing.exit_code == 0) != (failures == 0):
         raise ValueError("terminal exit/outcome mismatch")
@@ -252,31 +311,39 @@ def _build(
 ) -> dict[str, Any]:
     observations = parse_report(collection, timing, report)
     old = historical(batches, collection.historical_provenance)
-    wrappers = {entry["wrapper"] for entry in old}
-    actual = {i.node_id for i in collection.items if i.node_id.startswith(WRAPPER)}
+    for entry in old:
+        entry["wrapper_ref"] = CompactText.capture(entry["wrapper"]).ref
+    wrappers = {entry["wrapper_ref"] for entry in old}
+    actual = {
+        i.ref
+        for i in collection.items
+        if i.node.exact_text is not None and i.node.exact_text.startswith(WRAPPER)
+    }
     if actual != wrappers:
         raise ValueError("historical wrapper mismatch")
     files: dict[str, list[str]] = {}
     for item in collection.items:
-        if item.node_id not in wrappers:
-            files.setdefault(item.file, []).append(item.node_id)
+        if item.ref not in wrappers:
+            files.setdefault(item.file, []).append(item.ref)
     if len(files) < shard_count:
         raise ValueError("empty shards forbidden")
     costs = {
         file: sum((Decimal(observations[n]["seconds"] or "0") for n in nodes), Decimal(0))
         for file, nodes in files.items()
     }
-    shards: list[dict[str, Any]] = [dict(index=i, files=[], nodes=[]) for i in range(shard_count)]
+    shards: list[dict[str, Any]] = [
+        dict(index=i, files=[], node_refs=[]) for i in range(shard_count)
+    ]
     totals = [Decimal(0)] * shard_count
     for file in sorted(files, key=lambda f: (-costs[f], f)):
         index = min(range(shard_count), key=lambda i: (totals[i], len(shards[i]["files"]), i))
         shards[index]["files"].append(file)
-        shards[index]["nodes"].extend(files[file])
+        shards[index]["node_refs"].extend(files[file])
         totals[index] += costs[file]
-    order = {item.node_id: i for i, item in enumerate(collection.items)}
+    order = {item.ref: i for i, item in enumerate(collection.items)}
     union = set(wrappers)
     for shard, total in zip(shards, totals, strict=True):
-        nodes = shard["nodes"]
+        nodes = shard["node_refs"]
         if not nodes or union.intersection(nodes):
             raise ValueError("nonexhaustive or overlapping partition")
         union.update(nodes)
@@ -292,7 +359,7 @@ def _build(
     if union != set(order):
         raise ValueError("partition union mismatch")
     return dict(
-        schema_version="inlet.partition-candidate.v1",
+        schema_version="inlet.partition-candidate.v2",
         candidate_only=True,
         capacity_qualified=False,
         pass_qualified=False,
@@ -302,6 +369,10 @@ def _build(
         historical=old,
         current_shards=shards,
         observations=observations,
+        identity_index={
+            i.ref: dict(order=n, file=i.file, display=i.node.display)
+            for n, i in enumerate(collection.items)
+        },
         warning="Measured failed/skipped/unknown paths are not passing runtime forecasts",
     )
 

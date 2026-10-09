@@ -94,6 +94,8 @@ def test_rejected_api_claim_preserves_highwater_without_reservation(
         ("resource_key", "google-campaign:999"),
     ],
 )
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_generic_persisted_draft_cannot_mislabel_google_operation(
     customer_engine: Engine,
     configuration: Settings,
@@ -123,6 +125,8 @@ def test_generic_persisted_draft_cannot_mislabel_google_operation(
         assert adapter.calls == 0 and mandate.reserved_micros == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_stale_executor_session_cannot_overwrite_existing_reservation(
     customer_engine: Engine,
     configuration: Settings,

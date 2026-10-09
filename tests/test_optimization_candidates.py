@@ -36,6 +36,7 @@ from sqlalchemy import Engine, func, select, text
 from sqlalchemy.orm import Session
 
 from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
+from tests.candidate_receipt_fixture import receipt_candidate_source as receipt_candidate_source
 from tests.test_commerce_measurement import NOW, FakeMeasurement, source
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -465,13 +466,20 @@ def test_claim_fence_not_clobbered_and_lease_reclaims_only_reads(
         assert s.load(db, wid, identifier).fence == second
 
 
+@pytest.mark.planning_boundary
 def test_receipt_append_erases_derived_only(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    receipt_candidate_source: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_receipt_fixture import load_receipt_candidate
+
+    customer_engine, ids = receipt_candidate_source
     from app.publication import optimization as o
 
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path, True)
+        principal, work, _, _, runtime, server = load_receipt_candidate(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
     assert s.process(customer_engine, wid, identifier, runtime) == "completed"
@@ -487,6 +495,7 @@ def test_receipt_append_erases_derived_only(
         assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 1
         reservation = db.scalar(select(ProviderExposureReservation))
         assert reservation and reservation.state == "held"
+    assert not server.writes
 
 
 @pytest.mark.planning_boundary

@@ -38,7 +38,12 @@ Each item: `node_id` (unique), `file` (relative `.py` path), `junit_classname`,
 `junit_name`. Store the actual pytest JUnit name mapping via the installed pytest
 `mangle_test_address` helper, including class names and intact parameter text
 containing dots, brackets or `::`; never reconstruct a node from dotted classname.
-Reject duplicate JUnit `(classname,name)` identities as ambiguous. Reject custom
+Reject duplicate JUnit `(classname,name)` identities as ambiguous. Add
+`historical_provenance`: exact three manifest paths/raw SHA256s, tracked
+`tests/retired_snapshot.py` SHA256, and its literal PIN parsed with AST. The hook
+verifies each file's bytes against HEAD. All absent permits null for tiny
+nonhistorical collection; partial files fail. Candidate generation requires full
+provenance and matches supplied files/source/PIN before historical count checks. Reject custom
 JUnit prefixes at collection. Bound manifest to32MiB/20,000 nodes and individual
 node IDs to16KiB; reject rather than truncate. Collection JSON serialization is
 canonical for digest calculation; output is data, not a shell command.
@@ -54,7 +59,8 @@ an old report without matching full collection cannot be upgraded into evidence.
 Do not fabricate an envelope for the currently running W1.
 
 Read JUnit at most64MiB, require complete parsed testsuites/testsuites children,
-consistent declared testcase/failure/error/skip totals and exact one-to-one match
+consistent declared testcase/failure/error/skip totals (including any optional
+root totals) and exact one-to-one match
 of every collected item using captured identities. Reject unknown/duplicate/
 missing case, ambiguous mapping, malformed XML, or incompatible prefixed names.
 Terminal failed/error/skipped cases remain explicitly labeled; never discard them.

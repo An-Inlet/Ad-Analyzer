@@ -17,6 +17,7 @@ from app.mandates import service as mandates
 from app.mandates.models import Mandate
 from app.mandates.schemas import AccountScope
 from app.settings import Settings
+from app.workspaces.models import Workspace
 from fastapi import HTTPException
 from PIL import Image
 from pydantic import ValidationError
@@ -27,6 +28,16 @@ from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_google_action_plans import setup
 from tests.test_shopify_sales import configuration as configuration
+
+
+@pytest.fixture
+def media_read_only_graph(customer_engine: Engine) -> Generator[None, None, None]:
+    # Defer the fixture import: its source setup helpers also import this media module.
+    from tests.tiktok_read_fixture import assert_no_advertising_authority
+
+    assert_no_advertising_authority(customer_engine)
+    yield
+    assert_no_advertising_authority(customer_engine)
 
 
 def definition(db: Session, mandate: Mandate, scope: AccountScope) -> RevisionInput:
@@ -148,37 +159,47 @@ def test_scope_and_mandate_limits(
             s.revise(db, mandate.workspace_id, oversized, "owner", store, NOW)
 
 
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("media_read_only_graph")
 def test_owned_media_and_integrity(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, _, _ = setup(db, configuration)
-        row = s.upload(db, mandate.workspace_id, "owner", png(), store, NOW)
+        workspace = Workspace(slug="media", name="Media", client_name="Media")
+        db.add(workspace)
+        db.commit()
+        wid = workspace.id
+        row = s.upload(db, wid, "owner", png(), store, NOW)
         assert row.mime == "image/png" and row.width == 4
-        assert s.upload(db, mandate.workspace_id, "owner", png(), store, NOW).id == row.id
-        assert s.download(db, mandate.workspace_id, row.id, store)[1] == png()
+        assert s.upload(db, wid, "owner", png(), store, NOW).id == row.id
+        assert s.download(db, wid, row.id, store)[1] == png()
         with pytest.raises(HTTPException) as caught:
-            s.download(db, mandate.workspace_id + 1, row.id, store)
+            s.download(db, wid + 1, row.id, store)
         assert caught.value.status_code == 404
-        path = tmp_path / str(mandate.workspace_id) / row.sha256
+        path = tmp_path / str(wid) / row.sha256
         path.chmod(0o600)
         path.write_bytes(b"corruption")
         with pytest.raises(HTTPException) as caught:
-            s.download(db, mandate.workspace_id, row.id, store)
+            s.download(db, wid, row.id, store)
         assert caught.value.status_code == 503
 
 
 @pytest.mark.parametrize(
     "data", [b"<svg></svg>", b"not an image", b"", b"x" * (8 * 1024 * 1024 + 1)]
 )
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("media_read_only_graph")
 def test_reject_unvalidated_media(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, data: bytes
 ) -> None:
     with Session(customer_engine) as db:
-        mandate, _, _ = setup(db, configuration)
+        workspace = Workspace(slug="media", name="Media", client_name="Media")
+        db.add(workspace)
+        db.commit()
+        wid = workspace.id
         with pytest.raises(HTTPException):
-            s.upload(db, mandate.workspace_id, "owner", data, LocalMediaStore(tmp_path), NOW)
+            s.upload(db, wid, "owner", data, LocalMediaStore(tmp_path), NOW)
 
 
 def test_private_immutable_store(tmp_path: Path) -> None:

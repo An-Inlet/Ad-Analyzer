@@ -68,3 +68,29 @@ explicit import typing and scalar dictionary inference) are retained in
 No pytest failure was observed in this package. Cohorts overlap and must not be
 summed. No Full, aggregate, hosted or live qualification was run. Independent
 review of this frozen successor remains required before integration.
+
+## Reviewed Storage Followup
+
+The review of `e650295` required stricter pre-I/O storage ownership and physical
+DDL preservation. Artifact paths now must be absolute, contain no `..`, and have
+no symlink in the path or ancestors before mkdir. The parent exclusively creates
+the SQLite file, then validates its exact unresolved owned path, regular-file
+status and plain SQLite URL before constructing an engine. The child independently
+checks the same exact path and all ancestors; resolved aliases are not accepted.
+
+The existing `schema_snapshot` physical columns/FKs/indexes/checks/triggers/revision
+fingerprint is captured before stage1 and compared after stage1, before and after
+stage2, and after the current consumer returns. It supplements the full row graph
+and replaces table-name-only preservation. Error-source retention is unchanged.
+
+`storage.log/xml`: **16 passed, 0 skipped, 62.21s**: both current database cases,
+five existing protocol cases and nine pure path/URL negatives. Parent path tests
+fail if mkdir occurs; child URL tests fail if the engine factory is reached.
+Initial followup mypy found three explicit-export typing errors in those new tests
+(`storage-mypy-initial.log`). They were corrected by importing the same stdlib
+modules/PIN directly, with no fixture behavior change. The affected pure tests
+then passed **9, with 5 intentionally deselected, 2.31s**
+(`storage-pure-final.log/xml`). Whole Ruff and mypy1210 passed
+(`storage-ruff.log`, `storage-mypy.log`); diff check passed. The earlier111 run is
+preserved as predecessor evidence, not asserted to be a rerun on this successor.
+No new aggregate or external calls occurred. Independent followup review required.

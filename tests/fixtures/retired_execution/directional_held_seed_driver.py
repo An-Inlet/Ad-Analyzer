@@ -5,6 +5,7 @@ import os
 import re
 import select as readiness
 import signal
+import stat
 import sys
 import time
 from dataclasses import replace
@@ -23,6 +24,9 @@ from tests.test_shopify_sales import configuration
 def main() -> None:
     target, output = sys.argv[1:]
     first_path = Path(output)
+    assert first_path.is_absolute() and ".." not in first_path.parts
+    assert not first_path.is_symlink()
+    assert all(not parent.is_symlink() for parent in first_path.parents)
     assert first_path.name == "first.json"
     assert first_path.parent.is_dir() and first_path.parent.resolve() == first_path.parent
     for name in ("first.json", "first.tmp", "second.json", "second.tmp"):
@@ -42,7 +46,10 @@ def main() -> None:
         )
         database = Path(url.database)
         expected = Path(output).parent / "current.sqlite"
-        assert database.resolve() == expected.resolve()
+        assert database.is_absolute() and ".." not in database.parts
+        assert database == expected and database.resolve() == database
+        assert all(not parent.is_symlink() for parent in database.parents)
+        assert stat.S_ISREG(database.lstat().st_mode)
         assert database.is_file() and not database.is_symlink()
         assert expected.is_file() and not expected.is_symlink()
         engine = create_engine(url)

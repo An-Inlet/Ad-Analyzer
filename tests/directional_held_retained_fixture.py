@@ -4,6 +4,7 @@ import json
 import os
 import re
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -26,8 +27,26 @@ from sqlalchemy import Engine, create_engine, event, inspect, make_url, select, 
 from sqlalchemy.orm import Session
 
 from tests.candidate_receipt_fixture import CandidateReceiptIds, load_receipt_candidate
+from tests.financial_origin_retained_fixture import schema_snapshot
 from tests.retired_snapshot import MAX_LOG_BYTES, PIN, extract
 from tests.test_commerce_measurement import NOW
+
+
+def validate_artifacts(path: Path) -> None:
+    assert path.is_absolute() and ".." not in path.parts and path.resolve() == path
+    assert not path.is_symlink() and all(not parent.is_symlink() for parent in path.parents)
+
+
+def owned_sqlite_target(target: str, expected: Path) -> str:
+    url = make_url(target)
+    assert url.drivername == "sqlite" and not url.query
+    assert url.username is None and url.password is None and url.host is None and url.port is None
+    assert url.database is not None
+    path = Path(url.database)
+    validate_artifacts(path)
+    validate_artifacts(expected)
+    assert path == expected and stat.S_ISREG(path.lstat().st_mode)
+    return str(url)
 
 
 def graph(engine: Engine) -> dict[str, list[dict[str, Any]]]:
@@ -82,6 +101,7 @@ class StagedHeldSource:
     artifacts: Path
     deadline: float
     before: dict[str, list[dict[str, Any]]]
+    schema: str
     used: bool = False
 
     def check_bound(self) -> None:
@@ -91,6 +111,7 @@ class StagedHeldSource:
     def claim_successor(self) -> RetainedHeldClaimIds:
         assert not self.used and self.process.poll() is None
         self.used = True
+        assert schema_snapshot(self.engine) == self.schema
         assert graph(self.engine) == self.before, "current first read changed source"
         self.check_bound()
         assert self.process.stdin
@@ -106,6 +127,7 @@ class StagedHeldSource:
                 self.artifacts / "second.json", set(RetainedHeldClaimIds.__dataclass_fields__)
             )
         )
+        assert schema_snapshot(self.engine) == self.schema
         validate_transition(self.engine, self.original, result, self.before)
         return result
 
@@ -221,11 +243,15 @@ def validate_transition(
 
 @contextmanager
 def staged_held_source(customer_engine: Engine, artifacts: Path) -> Iterator[StagedHeldSource]:
+    validate_artifacts(artifacts)
     artifacts.mkdir()
-    assert artifacts.resolve() == artifacts and not artifacts.is_symlink()
     engine = customer_engine
     if engine.dialect.name == "sqlite":
-        engine = create_engine(f"sqlite:///{artifacts / 'current.sqlite'}")
+        database = artifacts / "current.sqlite"
+        with database.open("xb"):
+            pass
+        target = owned_sqlite_target(f"sqlite:///{database}", database)
+        engine = create_engine(target)
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
         Base.metadata.create_all(engine)
         target = str(engine.url)
@@ -240,6 +266,7 @@ def staged_held_source(customer_engine: Engine, artifacts: Path) -> Iterator[Sta
     process = None
     successful = False
     try:
+        schema = schema_snapshot(engine)
         tables = set(inspect(engine).get_table_names())
         with engine.connect() as db:
             for name in tables - {"alembic_version"}:
@@ -278,16 +305,17 @@ def staged_held_source(customer_engine: Engine, artifacts: Path) -> Iterator[Sta
             )
             assert original.provider_posts == 1 and process.poll() is None
             assert not (artifacts / "second.json").exists()
-            assert set(inspect(engine).get_table_names()) == tables
+            assert schema_snapshot(engine) == schema
             with Session(engine) as session:
                 load_receipt_candidate(session, original)
             before = graph(engine)
             assert len(before["provider_execution_attempts"]) == 1
             assert len(before["provider_execution_receipts"]) == 1
             source = StagedHeldSource(
-                engine, original, process, log, artifacts, started + 180, before
+                engine, original, process, log, artifacts, started + 180, before, schema
             )
             yield source
+            assert schema_snapshot(engine) == schema
             assert source.used and process.poll() == 0
             successful = True
     finally:

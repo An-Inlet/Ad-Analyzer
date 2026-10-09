@@ -79,3 +79,26 @@ call after it completed. Whole Ruff passed (`ruff-qualified.log`); whole bare
 mypy passed, 1207 source files (`mypy-qualified.log`); `git diff --check` passed. The existing own
 mypy cache was moved intact to `/tmp/inlet-google-completion14-mypy-cache` to
 follow shared workspace capacity guidance; no original evidence/cache was deleted.
+
+## Independent-Review SQLite Guard Repair
+
+Review of `49527e6` found that SQLite aliases were resolved rather than rejected,
+and parent DDL preceded full owned-file validation. The successor fixes both
+parent and child before database factory/access: exactly plain `sqlite`, no query,
+username/password/host/port, exact absolute `current.sqlite`, regular nonsymlink
+file, every ancestor nonsymlink, and no normalized path alias. Parent rejects an
+artifact-directory alias before directory creation, creates a new file exclusively
+with `xb`, then validates it before engine creation and DDL. The fixed child
+validates the unresolved output-parent spelling rather than resolving symlinks.
+PostgreSQL and source/financial semantics are unchanged.
+
+- Pure parent/child guards: **34 passed**, 2.567 seconds (`guards-final.xml`).
+  Initial two failures (`guards.xml`) were negative-test construction errors:
+  SQLAlchemy omits a password-only URL when no username is supplied. The repaired
+  negative retains both fields. No guard was weakened.
+- Representative actual SQLite no-tamper reader plus PostgreSQL closure:
+  **2 passed**, no skips/failures/errors, 22.414 seconds (`guard-db.xml`).
+- Whole Ruff and bare mypy passed (1208 source files), separately recorded in
+  `ruff-guards-final.log` and `mypy-guards-final.log`; diff check passed.
+- The earlier 116-case `49527e6` evidence remains distinct and unchanged. No full
+  fourteen-case repeat was needed for this storage-guard-only successor.

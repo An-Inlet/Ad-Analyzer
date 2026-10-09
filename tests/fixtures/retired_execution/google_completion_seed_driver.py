@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -26,22 +27,29 @@ from tests.test_google_optimization_http import Server
 from tests.test_shopify_sales import configuration
 
 
+def owned_sqlite_target(target: str, expected: Path) -> str:
+    """Reject aliases and non-owned URL shapes before any database access."""
+    url = make_url(target)
+    assert url.drivername == "sqlite" and not url.query
+    assert url.username is None and url.password is None and url.host is None and url.port is None
+    assert url.database is not None and url.database != ":memory:"
+    path = Path(url.database)
+    assert path.is_absolute() and expected.is_absolute() and path == expected
+    assert not path.is_symlink() and all(not parent.is_symlink() for parent in path.parents)
+    assert path.resolve() == path and stat.S_ISREG(path.lstat().st_mode)
+    return str(url)
+
+
 def main() -> None:
     target, output = sys.argv[1:]
     assert os.environ.get("INLET_RETIRED_EXECUTION_CHILD") == (
         "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
     )
     assert Path(app.__file__).resolve().is_relative_to(Path(os.environ["PYTHONPATH"]).resolve())
-    path = Path(output).resolve().parent
+    path = Path(output).parent
     if target.startswith("sqlite:"):
-        url = make_url(target)
-        assert (
-            not url.query
-            and url.database
-            and Path(url.database).resolve() == path / "current.sqlite"
-        )
-        assert Path(url.database).is_file()
-        engine = create_engine(url)
+        target = owned_sqlite_target(target, path / "current.sqlite")
+        engine = create_engine(target)
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
     else:
         assert re.fullmatch(r"inlet_test_[a-f0-9]{32}", target)

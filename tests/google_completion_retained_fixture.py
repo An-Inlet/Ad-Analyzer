@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import stat
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -110,6 +111,19 @@ def assert_delta(
     assert after == expected
 
 
+def owned_sqlite_target(target: str, expected: Path) -> str:
+    """Reject aliases and non-owned URL shapes before any database access."""
+    url = make_url(target)
+    assert url.drivername == "sqlite" and not url.query
+    assert url.username is None and url.password is None and url.host is None and url.port is None
+    assert url.database is not None and url.database != ":memory:"
+    path = Path(url.database)
+    assert path.is_absolute() and expected.is_absolute() and path == expected
+    assert not path.is_symlink() and all(not parent.is_symlink() for parent in path.parents)
+    assert path.resolve() == path and stat.S_ISREG(path.lstat().st_mode)
+    return str(url)
+
+
 @contextmanager
 def retained_google_completion(
     original: Engine,
@@ -121,11 +135,18 @@ def retained_google_completion(
     assert purpose in {"reader", "closure"}
     assert tamper in {None, "document", "fence", "request", "digest", "scope"}
     assert purpose == "reader" or tamper is None
+    assert artifacts.is_absolute() and artifacts.resolve() == artifacts
+    assert not artifacts.is_symlink()
+    assert all(not parent.is_symlink() for parent in artifacts.parents)
     artifacts.mkdir(parents=True)
     root = Path(__file__).resolve().parents[1]
     engine = original
     if original.dialect.name == "sqlite":
-        engine = create_engine(f"sqlite:///{artifacts / 'current.sqlite'}")
+        database = artifacts / "current.sqlite"
+        with database.open("xb"):
+            pass
+        target = owned_sqlite_target(f"sqlite:///{database}", database)
+        engine = create_engine(target)
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
         register_models().create_all(engine)
         target = str(engine.url)

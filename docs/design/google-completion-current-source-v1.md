@@ -123,3 +123,10 @@ focused tests only if needed for new closed argument/URL parsing. Run whole Ruff
 bare mypy, diff check and SourceLifetime pure tests. Retain original W1 failures,
 all probe failures and exact commands/logs/XML. No aggregate run, native restore
 rerun, historical batch expansion or live qualification claim.
+
+Review refinement: both parent and child reject SQLite URL drivers/options and
+all user/password/host/port components, require exact absolute regular nonsymlink
+current.sqlite and all nonsymlink ancestors, and reject normalized aliases.
+Parent exclusively creates that file, validates before engine creation/DDL, and
+rejects artifact-directory aliases before directory creation. The child does not
+resolve away an unsafe output-parent spelling. No new target shape is permitted.

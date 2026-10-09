@@ -6,7 +6,11 @@ never execution/deselection authority or a CI-duration/pass guarantee.
 
 ## Files And Interfaces
 
-- `tests/partition_collection.py`: opt-in pytest plugin, no automatic registration.
+- `scripts/inlet_partition_collection.py`: uniquely named standalone opt-in pytest
+  plugin, no automatic registration or imports from successor app/tests. Load only
+  its scripts directory on PYTHONPATH, never the successor repository root, when
+  later collecting a frozen checkout. Frozen6a collection must wait until the
+  original aggregate is terminal.
   `--partition-manifest /absolute/outside-checkout/collection.json` is mandatory
   when loaded. `pytest_configure` rejects any invocation without `--collect-only`.
   Reject selection filters (`-k`, `-m`, `--deselect`, ignore paths/globs) and any

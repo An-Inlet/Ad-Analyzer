@@ -8,8 +8,15 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from tests.reported_feedback_journey_fixture import acquired, baseline
+from tests.reported_original_fixture import (
+    RetainedReportedOriginalIds,
+    prepare_reported_read,
+)
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_original_fixture import reported_original as reported_original
+from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
 from tests.test_customer_identity import FakeProvider
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -54,6 +61,7 @@ def test_actual_acquisitions_produce_real_calibrated_baseline_and_changed_previe
 )
 def test_fixed_current_report_requires_retained_owned_terminal_proof(
     change: str,
+    reported_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -70,7 +78,11 @@ def test_fixed_current_report_requires_retained_owned_terminal_proof(
     from sqlalchemy import select
 
     with Session(customer_engine) as db:
-        data, runtime, _ = acquired(db, configuration, tmp_path, monkeypatch)
+        prepared = prepare_reported_read(db, reported_original)
+        acquisition = prepare_reported_acquisition(db, configuration, prepared, monkeypatch)
+        data, runtime, _ = acquired(
+            db, configuration, tmp_path, monkeypatch, data=acquisition
+        )
         wid, principal, _, job, _, source, _, _, _, _, _ = data
         cid = job.campaign_id
         current = db.get(CurrentPerformance, job.account_id)

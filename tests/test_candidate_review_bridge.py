@@ -535,6 +535,7 @@ def test_fk_retraction_between_source_validation_and_link_lock_blocks(
             future.result(timeout=10)
 
 
+@pytest.mark.planning_boundary
 def test_provenance_export_contains_no_session_or_measurement_body(
     customer_engine: Engine,
     configuration: Settings,
@@ -543,11 +544,15 @@ def test_provenance_export_contains_no_session_or_measurement_body(
 ) -> None:
     from app.lifecycle.export_serializers import serialize
 
-    with Session(customer_engine) as db:
-        principal, wid, intent, runtime, _ = assembled(
-            db, configuration, tmp_path, "google_ads", monkeypatch
-        )
-        review = b.prepare_candidate_review(db, principal, wid, intent, runtime)
+    from tests.candidate_review_link_retained_fixture import retained_candidate_review_link
+
+    with (
+        retained_candidate_review_link(customer_engine, tmp_path / "review-source") as (
+            engine,
+            review,
+        ),
+        Session(engine) as db,
+    ):
         mapping = dict(db.execute(select(CandidateReviewLink.__table__)).mappings().one())
         exported, missing = serialize(CandidateReviewLink.__tablename__, mapping)
         assert not missing

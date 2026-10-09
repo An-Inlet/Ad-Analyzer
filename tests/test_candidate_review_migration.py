@@ -7,14 +7,13 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from app.optimization_candidates import review_bridge as bridge
 from app.optimization_candidates.review_models import CandidateReviewLink
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import create_engine, inspect, make_url, text
 from sqlalchemy.orm import Session
 
-from tests.test_candidate_review_bridge import assembled
+from tests.candidate_review_link_retained_fixture import retained_candidate_review_link
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -42,16 +41,13 @@ def test_candidate_review_migration_roundtrip(
         command.upgrade(config, "20261006_0068")
         # Populate the composed current application after the exact 0068 roundtrip.
         command.upgrade(config, "heads")
-        with Session(engine) as db:
-            principal, wid, intent, runtime, _ = assembled(
-                db, configuration, tmp_path, "google_ads", monkeypatch
-            )
-            value = bridge.prepare_candidate_review(db, principal, wid, intent, runtime)
-            assert db.get(CandidateReviewLink, value.review_id)
-        with pytest.raises(RuntimeError, match="cannot be discarded"):
-            command.downgrade(config, "20261006_0062")
-        with Session(engine) as db:
-            assert db.get(CandidateReviewLink, value.review_id)
+        with retained_candidate_review_link(engine, tmp_path / "review-source") as (_, value):
+            with Session(engine) as db:
+                assert db.get(CandidateReviewLink, value.review_id)
+            with pytest.raises(RuntimeError, match="cannot be discarded"):
+                command.downgrade(config, "20261006_0062")
+            with Session(engine) as db:
+                assert db.get(CandidateReviewLink, value.review_id)
     finally:
         engine.dispose()
         with admin.begin() as db:

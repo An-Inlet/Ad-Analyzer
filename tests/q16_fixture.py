@@ -157,6 +157,7 @@ def prepare_q16_case(
     *,
     branch: Literal["privacy", "progress"],
     native_calls: list[str],
+    generation_stage: Literal["nov3", "october"] = "nov3",
 ) -> Q16Ids:
     now = datetime.now(UTC)
     assert now < NOV3 and now.year == 2026 and now.month == 10
@@ -223,17 +224,26 @@ def prepare_q16_case(
         ),
     )
     assert confirmed.status_code == 200, confirmed.text
+    generation_at = NOV3 if generation_stage == "nov3" else datetime.now(UTC)
     aid = native_account(engine, wid, patch, native_calls)
-    paid(engine, wid, NOV3, patch)
+    paid(engine, wid, generation_at, patch)
     with Session(engine) as db:
-        client = NewYorkMeasurement(config, [([], None)])
-        result = CommerceSyncService(db, config, client).page(wid, now=NOV3)
-        assert result["status"] == "complete", result
-        asset = media.upload(db, wid, actor, IMAGE.read_bytes(), LocalMediaStore(artifacts), NOV3)
+        if generation_stage == "nov3":
+            client = NewYorkMeasurement(config, [([], None)])
+            result = CommerceSyncService(db, config, client).page(wid, now=NOV3)
+            assert result["status"] == "complete", result
+        asset = media.upload(
+            db, wid, actor, IMAGE.read_bytes(), LocalMediaStore(artifacts), generation_at
+        )
         db.commit()
         media_id, image_digest = asset.id, asset.sha256
-    issue_at(alice, provider, "q16-owner", NOV3)
-    patch.setattr(customer_planning_documents, "utc_now", lambda: NOV3)
+    if generation_stage == "nov3":
+        issue_at(alice, provider, "q16-owner", NOV3)
+    patch.setattr(
+        customer_planning_documents,
+        "utc_now",
+        (lambda: NOV3) if generation_stage == "nov3" else (lambda: datetime.now(UTC)),
+    )
     root = f"/api/customer/v1/workspaces/{wid}/planning/plans"
     create_key, generate_key = "q16-plan-create", "q16-plan-generate"
     body = dict(
@@ -293,8 +303,14 @@ def import_progress_stage(
     config: Settings,
     ids: Q16Ids,
     *,
-    stage: Literal["later_day", "refund_correction"],
+    stage: Literal["initial_day", "later_day", "refund_correction"],
 ) -> datetime:
+    if stage == "initial_day":
+        with Session(engine) as db:
+            client = NewYorkMeasurement(config, [([], None)])
+            result = CommerceSyncService(db, config, client).page(ids.workspace_id, now=NOV3)
+            assert result["status"] == "complete", result
+        return NOV3
     now = (
         NOV4
         if stage == "later_day"

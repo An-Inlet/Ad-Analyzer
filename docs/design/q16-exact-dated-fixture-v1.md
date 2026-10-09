@@ -30,3 +30,10 @@ A separate exact-basis workspace generates V1, successfully exports its artifact
 This proves scoped section serialization and old-ID endpoint behavior, **not** a streamed workspace archive, delivery-revocation race, browser late-response behavior or full Q16. A previously downloaded artifact cannot be remotely revoked. An intentional fresh create with complete client-retained inputs is a new submission, not old-ID resurrection; this fixture does not invent permanent request-key tombstones or prohibit that separate operation.
 
 Next dependency-ordered package: independent review of these exact IDs/operations; then dated actual browser progress/correction plus separate archive snapshot/delivery privacy proof using the same fixture. Preserve fixed Q01–Q16 and six expert gates. No optimization quality, live provider, production latency or full acceptance claim follows from these synthetic tests.
+
+
+## Approved October Generation Mode
+
+`prepare_q16_case(..., generation_stage="october")` is additive; omitted/default `"nov3"` retains the original path and `Q16Ids` fields. Actual October goal confirmation is followed by real-time paid/media/native preparation and API plan generation. Each October API clock callback uses fresh real UTC time, not a captured operation timestamp; the original ordinary October session stays in use. No November watermark is imported during preparation.
+
+`import_progress_stage(..., stage="initial_day")` additionally imports a real empty page at fixed November 3 05:05Z. Caller-owned paid reconciliation, fresh login and API clock switching remain explicit. The later/refund stages are unchanged. This lets a truthful October decision/manual report be recorded after actual generation, then retained through the exact November progress stages. The report is customer-only and supplies no provider verification or spending authority. See [approved chronology](q16-october-plan-chronology-proposal.md).

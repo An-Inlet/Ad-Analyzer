@@ -3,15 +3,17 @@
 import io
 import json
 from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, BinaryIO, cast
+from typing import Any, BinaryIO, Literal, cast
 
 import pytest
-from app.api import customer_exports
+from app.api import customer_exports, customer_planning_documents
 from app.billing.models import BillingEvent, WorkspaceBilling
 from app.campaign_review.storage import LocalMediaStore
 from app.customers.models import CustomerMembership
 from app.database.session import Base
+from app.goals.models import GoalConfirmation, GoalPreview
 from app.lifecycle import archive
 from app.lifecycle.privacy import bump_workspace_export_revision
 from app.settings import Settings, settings
@@ -20,7 +22,9 @@ from sqlalchemy import Engine, Table, create_engine, event, select
 from sqlalchemy.orm import Session
 
 from tests import test_customer_identity as identity
-from tests.q16_fixture import IMAGE, prepare_q16_case
+from tests.q16_clock_feasibility_probe import issue_at, paid
+from tests.q16_exact_acceptance import retained_counts
+from tests.q16_fixture import IMAGE, import_progress_stage, prepare_q16_case
 from tests.test_customer_exports import unpack
 from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
@@ -70,8 +74,10 @@ def finance(engine: Engine) -> str:
         )
 
 
+@pytest.mark.parametrize("generation_stage", ["nov3", "october"])
 def test_dated_q16_real_archive_privacy_delivery(
     customer_engine: Engine,
+    generation_stage: Literal["nov3", "october"],
     configuration: Settings,
     replicas: Any,
     monkeypatch: pytest.MonkeyPatch,
@@ -86,8 +92,9 @@ def test_dated_q16_real_archive_privacy_delivery(
         tmp_path / "media",
         branch="privacy",
         native_calls=calls,
+        generation_stage=generation_stage,
     )
-    alice, other, _ = replicas
+    alice, other, provider = replicas
     alice.app.include_router(customer_exports.router)
     other.app.include_router(customer_exports.router)
     monkeypatch.setattr(settings, "customer_export_enabled", True)
@@ -139,8 +146,7 @@ def test_dated_q16_real_archive_privacy_delivery(
     )
     assert decision.status_code == 200, decision.text
     assert decision.json()["event_sequence"] == 1
-    # The current DTO checks actual wall time independently of service utc_now.
-    # Do not replace this with an October pre-plan application or bypass validation.
+    # Keep the rejected November chronology alongside the natural October chronology.
     assertion = alice.post(
         plan_url + "/assertions",
         headers=headers(alice),
@@ -153,10 +159,64 @@ def test_dated_q16_real_archive_privacy_delivery(
             "request_key": "q16-archive-report",
         },
     )
-    assert assertion.status_code == 422, assertion.text
-    assert "nonfuture reported application time required" in assertion.text
+    if generation_stage == "nov3":
+        assert assertion.status_code == 422, assertion.text
+        assert "nonfuture reported application time required" in assertion.text
+        expected_events = 1
+    else:
+        assert assertion.status_code == 200, assertion.text
+        assert assertion.json()["event_sequence"] == 2
+        expected_events = 2
+        generated_at = datetime.fromisoformat(
+            value["document"]["generated_at"].replace("Z", "+00:00")
+        )
+        assert generated_at.month == 10 and generated_at <= datetime.now(UTC)
+        with Session(customer_engine) as db:
+            confirmation = db.scalar(
+                select(GoalConfirmation).where(GoalConfirmation.goal_id == ids.goal_id)
+            )
+            assert confirmation is not None
+            assert confirmation.preview_id == ids.confirmation_id
+            preview = db.get(GoalPreview, ids.confirmation_id)
+            assert preview and preview.created_at.replace(tzinfo=UTC) <= generated_at
     events = alice.get(plan_url + "/events")
-    assert events.status_code == 200 and len(events.json()["items"]) == 1
+    assert events.status_code == 200 and len(events.json()["items"]) == expected_events
+    original_events = events.json()["items"]
+    if generation_stage == "october":
+        native_before_progress = len(calls)
+        stages: tuple[
+            tuple[Literal["initial_day", "later_day", "refund_correction"], str, int], ...
+        ] = (
+            ("initial_day", "0", 2),
+            ("later_day", "25000000", 3),
+            ("refund_correction", "20000000", 3),
+        )
+        for stage, expected, days in stages:
+            now = import_progress_stage(customer_engine, configuration, ids, stage=stage)
+            paid(customer_engine, ids.workspace_id, now, monkeypatch, initial=False)
+            monkeypatch.setattr(customer_planning_documents, "utc_now", lambda now=now: now)
+            if stage != "refund_correction":
+                expired = alice.get(plan_url + "/progress", params={"version": 1})
+                assert expired.status_code == 401, expired.text
+            issue_at(alice, provider, "q16-owner", now)
+            counts = retained_counts(customer_engine)
+            progress = alice.get(plan_url + "/progress", params={"version": 1})
+            assert progress.status_code == 200, progress.text
+            projection = progress.json()
+            assert projection["net_sales_micros_exact"] == expected
+            assert projection["sales"]["coverage"]["closed_day_count"] == days
+            assert projection["manual_application"] == "not_assessed"
+            assert projection["attribution"] == "unavailable"
+            assert projection["goal"] == value["document"]["inputs"]["goal"]
+            assert projection["document_digest"] == ids.document_digest
+            unchanged = alice.get(plan_url, params={"version": 1})
+            assert unchanged.status_code == 200, unchanged.text
+            assert unchanged.json()["document"] == value["document"]
+            retained = alice.get(plan_url + "/events")
+            assert retained.status_code == 200 and retained.json()["items"] == original_events
+            assert retained_counts(customer_engine) == counts
+            (tmp_path / f"{stage}-progress.json").write_text(json.dumps(projection, indent=2))
+        assert len(calls) == native_before_progress
     baseline_finance = finance(customer_engine)
     native_count = len(calls)
     path = f"/api/customer/v1/workspaces/{ids.workspace_id}/exports"
@@ -186,7 +246,9 @@ def test_dated_q16_real_archive_privacy_delivery(
     event_rows = [
         json.loads(line) for line in entries["data/planning_document_events.jsonl"].splitlines()
     ]
-    assert len(event_rows) == 1 and event_rows[0]["plan_id"] == ids.plan_id
+    assert len(event_rows) == expected_events and all(
+        row["plan_id"] == ids.plan_id for row in event_rows
+    )
     (tmp_path / "before-plan-events.jsonl").write_bytes(
         entries["data/planning_document_events.jsonl"]
     )

@@ -65,3 +65,23 @@ pytest -q tests/test_optimization_origin_metadata.py tests/test_optimization_ori
 No Full/aggregate rerun, W1 source/database change, live provider operation or
 advertising write. This qualifies these current regressions, not live financial
 execution or overall product acceptance.
+
+## Independent Review Guard Repair
+
+Review of51be8c3 found that the parent discarded arbitrary PostgreSQL URL query
+parameters before equality comparison. The successor validates query shape before
+connecting: empty query or only the exact migration `options=-csearch_path=` UUID
+schema form; after connection it must match actual current_schema. Extra keys,
+multiple values, injected options, wrong schema or different base URL reject.
+The parent now independently validates every table against the same strict fresh
+schema/bootstrap contract before extraction, and preserves full original bootstrap
+rows after the child. Previously those data checks were child-only; schema checks
+already ran on both sides. The child, current DDL/financial assertions and immutable
+write boundary are unchanged.
+
+Guard followup: **11 passed, zero skips/failures/errors, 26.474 seconds**: nine
+focused URL/fresh-row cases plus actual populated0080 PostgreSQL and malformed-FK
+SQLite. Whole Ruff and bare mypy(1178 files) passed; diff check passed. Raw
+`guard.log/xml`, `ruff-guard.log`, `mypy-guard.log` remain beside original97-case
+artifacts. No repeat of the broader cohort and no new behavior/coverage claim for
+unrelated regressions.

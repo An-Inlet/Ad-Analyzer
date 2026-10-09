@@ -8,7 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from app.campaign_review.models import CampaignRevision
 from app.customers.models import CustomerMembership
@@ -19,9 +19,10 @@ from app.publication import execution_mandates
 from app.publication.execution_contracts import ExecutionAccount, ProviderMandatePolicy
 from app.publication.execution_models import ProviderExecutionConsent
 from scripts.inlet_producer_source_lifetime import SourceLifetime
+from scripts.inlet_restore_bootstrap import expected_bootstrap
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import Engine, create_engine, event, inspect, text
-from sqlalchemy.engine import make_url
+from sqlalchemy import Engine, MetaData, Table, create_engine, event, inspect, select, text
+from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
 
 from tests.retired_snapshot import PIN, extract, run_bounded
@@ -89,6 +90,62 @@ def schema_snapshot(engine: Engine) -> str:
     )
 
 
+def validate_pg_url(candidate: URL, base: URL, target: str | None = None) -> None:
+    assert base.drivername == "postgresql+psycopg"
+    assert base.host in {"127.0.0.1", "localhost", "::1"} and not base.query
+    assert candidate.set(query={}) == base
+    if candidate.query:
+        assert set(candidate.query) == {"options"}
+        option = candidate.query["options"]
+        assert type(option) is str
+        assert re.fullmatch(r"-csearch_path=inlet_migration_fixture_[a-f0-9]{32}", option)
+        if target is not None:
+            assert option == f"-csearch_path={target}"
+    if target is not None:
+        assert re.fullmatch(r"inlet_(test|migration_fixture)_[a-f0-9]{32}", target)
+
+
+def fresh_rows(engine: Engine) -> dict[str, list[dict[str, Any]]]:
+    tables = set(inspect(engine).get_table_names())
+    expected = (
+        expected_bootstrap()
+        if engine.dialect.name == "postgresql" and "alembic_version" in tables
+        else {}
+    )
+    assert set(expected) <= tables
+    snapshot = {}
+    with engine.connect() as connection:
+        for name in tables - {"alembic_version"}:
+            if name not in expected:
+                quoted = engine.dialect.identifier_preparer.quote(name)
+                assert connection.scalar(text(f"SELECT count(*) FROM {quoted}")) == 0
+                continue
+            table = Table(name, MetaData(), autoload_with=connection, resolve_fks=False)
+            rows = [dict(row) for row in connection.execute(select(table)).mappings()]
+            stripped = [
+                {k: v for k, v in row.items() if k not in {"created_at", "updated_at"}}
+                for row in rows
+            ]
+
+            def key(row: dict[str, Any]) -> str:
+                return json.dumps(row, sort_keys=True, default=str)
+
+            assert sorted(map(key, stripped)) == sorted(map(key, expected[name]))
+            snapshot[name] = rows
+    return snapshot
+
+
+def unchanged_rows(engine: Engine, snapshot: dict[str, list[dict[str, Any]]]) -> None:
+    with engine.connect() as connection:
+        for name, rows in snapshot.items():
+            table = Table(name, MetaData(), autoload_with=connection, resolve_fks=False)
+            for before in rows:
+                statement = select(table).where(
+                    *(c == before[c.name] for c in table.primary_key.columns)
+                )
+                assert dict(connection.execute(statement).mappings().one()) == before
+
+
 def retained_financial_source(engine: Engine, artifacts: Path, mode: Mode) -> SourceIds:
     assert mode in {"source_only", "consented_origin"}
     artifacts.mkdir(parents=True)
@@ -99,11 +156,11 @@ def retained_financial_source(engine: Engine, artifacts: Path, mode: Mode) -> So
         target = str(engine.url)
     else:
         url = make_url(validate_disposable_url())
-        assert url.host in {"127.0.0.1", "localhost", "::1"} and not url.query
-        assert engine.url.set(query={}) == url
+        validate_pg_url(engine.url, url)
         with engine.connect() as db:
             target = str(db.scalar(text("SELECT current_schema()")))
-        assert re.fullmatch(r"inlet_(test|migration_fixture)_[a-f0-9]{32}", target)
+        validate_pg_url(engine.url, url, target)
+    bootstrap = fresh_rows(engine)
     before = schema_snapshot(engine)
     root = Path(__file__).resolve().parents[1]
     with SourceLifetime.open("financial_origin", artifacts) as lifetime:
@@ -126,6 +183,7 @@ def retained_financial_source(engine: Engine, artifacts: Path, mode: Mode) -> So
         )
         lifetime.after_reaped(code)
     assert schema_snapshot(engine) == before
+    unchanged_rows(engine, bootstrap)
     assert code == 0, log.read_text()[-6000:]
     assert output.stat().st_size <= 4096
     raw = json.loads(output.read_text())

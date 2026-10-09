@@ -21,6 +21,8 @@ from tests.test_social_coordinator_journeys import SocialServer
 from tests.tiktok_linked_coordinator_fixture import ready_linked
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_linked_persisted_configuration_and_complete_disabled_graph(
     customer_engine: Engine,
     configuration: Settings,
@@ -61,6 +63,8 @@ def test_linked_persisted_configuration_and_complete_disabled_graph(
         assert held is not None and held.state == "held"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_linked_missing_current_validator_and_erased_approval_block_forward_only(
     customer_engine: Engine,
     configuration: Settings,

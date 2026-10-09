@@ -23,6 +23,8 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("change", ["none", "revoke", "expire", "no_reader"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_authorized_epoch_receives_original_session_and_revalidates_after_callback(
     customer_engine: Engine,
     configuration: Settings,

@@ -27,7 +27,10 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
-from tests import test_optimization_candidates as fixture_source
+from tests import test_feedback_snapshot as fixture_source
+from tests.feedback_snapshot_retained_fixture import (
+    snapshot_receipt_source as snapshot_receipt_source,
+)
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_directional_feedback import assembly
 from tests.test_shopify_sales import configuration as configuration
@@ -36,20 +39,57 @@ from tests.test_shopify_sales import configuration as configuration
 def prepared(
     db: Session, configuration: Settings, path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Any:
-    native = []
-    original = cast(Any, fixture_source).ready
+    from app.publication import optimization
+    from app.publication.optimization_contracts import GoogleBudgetSetV1, GoogleCurrentState
+
+    from tests.test_google_optimization_http import BUDGET, CAMPAIGN, Server
+
+    native: list[Server] = []
+    original = cast(Any, fixture_source).fixture
 
     def capture(*args: Any, **kwargs: Any) -> Any:
         result = original(*args, **kwargs)
-        native.append(result)
+        assert isinstance(result, tuple) and len(result) == 6
+        principal, work, observation, _, _, server = result
+        assert isinstance(server, Server) and not server.writes
+        assert isinstance(observation.state, GoogleCurrentState)
+        assert observation.state.budget_amount_micros == 50_000_000
+        assert server.budget["amountMicros"] == "50000000"
+        scope = work.scope
+        assert scope.source.attempt_id and scope.source.receipt_id
+        _, _, attempt, request = optimization.evidence_lock(
+            db, scope.account.workspace_id, scope.source.attempt_id
+        )
+        receipt = optimization.read_owned_outcome_receipt(
+            db, scope.account.workspace_id, attempt.id, principal.user.id
+        )
+        assert receipt and receipt.receipt_id == scope.source.receipt_id
+        assert receipt.sequence == 1 and receipt.outcome == "verified_target_state"
+        assert request.intent.scope == scope.account and receipt.account == scope.account
+        assert request.intent.target == scope.target
+        assert scope.target.kind == "campaign" and scope.target.external_id == "5"
+        assert isinstance(request.intent.action, GoogleBudgetSetV1)
+        assert request.intent.action.amount_micros == 45_000_000
+        assert isinstance(request.before, GoogleCurrentState)
+        assert request.before.budget_amount_micros == 50_000_000
+        assert request.before.native_budget_resource == observation.state.native_budget_resource
+        assert observation.state.native_budget_resource == server.budget["resourceName"] == BUDGET
+        assert server.campaign["resourceName"] == CAMPAIGN
+        server.budget["amountMicros"] = str(request.intent.action.amount_micros)
+        assert observation.state.budget_amount_micros == 50_000_000 and not server.writes
+        native.append(server)
         return result
 
-    monkeypatch.setattr(fixture_source, "ready", capture)
-    principal, work, _, policy, profile, runtime, now, slot, _ = assembly(
-        db, configuration, path, monkeypatch
-    )
+    with monkeypatch.context() as scoped:
+        scoped.setattr(fixture_source, "fixture", capture)
+        principal, work, _, policy, profile, runtime, now, slot, _ = assembly(
+            db, configuration, path, monkeypatch
+        )
+    assert len(native) == 1
     template = runtime.candidate.reader(db, work.scope, now)
-    server = native[0][7]
+    server = native[0]
+    assert template.state.budget_amount_micros == 50_000_000
+    assert server.budget["amountMicros"] == "45000000" and not server.writes
     transport = GoogleOptimizationTransport(transport=httpx.MockTransport(server))
     numeric = work.policy.model_copy(update={"minimum_observations": 2})
     work = work.model_copy(update={"policy": numeric})
@@ -112,12 +152,15 @@ def run(db: Session, principal: Any, work: Any, adapter: DirectionalCandidateAda
     return decision
 
 
+@pytest.mark.planning_boundary
 def test_real_queue_and_authorized_epoch_cannot_reset_on_policy_refresh(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         principal, work, policy, profile, adapter, clock, _, server = prepared(
             db, configuration, tmp_path, monkeypatch
@@ -163,12 +206,15 @@ def test_real_queue_and_authorized_epoch_cannot_reset_on_policy_refresh(
         assert len(server.writes) == writes_before
 
 
+@pytest.mark.planning_boundary
 def test_committed_retraction_after_native_io_cannot_publish_candidate(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         principal, work, _, _, adapter, _, slot, server = prepared(
             db, configuration, tmp_path, monkeypatch
@@ -198,12 +244,15 @@ def test_committed_retraction_after_native_io_cannot_publish_candidate(
         assert len(server.writes) == writes_before
 
 
+@pytest.mark.planning_boundary
 def test_epoch_requires_exact_original_session_and_installed_producers(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     from app.customers.access import CustomerPrincipal
     from app.customers.models import CustomerSession
 

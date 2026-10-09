@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 from app.optimization_candidates import service as s
@@ -11,15 +12,23 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_optimization_candidates import fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("mode", ["missing", "retracted", "current"])
+@pytest.mark.planning_boundary
 def test_required_feedback_reader_is_checked_before_result_insert(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, mode: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    mode: str,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     calls = []
 
     def check(db, work, observation):  # type: ignore[no-untyped-def]
@@ -30,7 +39,7 @@ def test_required_feedback_reader_is_checked_before_result_insert(
             raise HTTPException(409, "feedback dependency retracted")
 
     with Session(customer_engine) as db:
-        principal, work, observation, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, observation, _, runtime, _ = load_candidate_read_fixture(db, ids)
         runtime = replace(
             runtime,
             feedback_dependent_schemas=frozenset({observation.evidence.source_schema}),

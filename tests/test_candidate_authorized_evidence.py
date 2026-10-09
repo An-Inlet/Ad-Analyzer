@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from app.optimization_candidates import service as s
@@ -12,22 +13,30 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_optimization_candidates import fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize(
     "mode", ["current", "missing", "scope", "state", "profile", "session", "retracted", "lease"]
 )
+@pytest.mark.planning_boundary
 def test_original_principal_and_final_evidence_boundary(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, mode: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    mode: str,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     calls: list[str] = []
     clock = [NOW]
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         expected = (principal.user.id, principal.session.digest)
 
         def transform(db, principal, work, observation, now):  # type: ignore[no-untyped-def]

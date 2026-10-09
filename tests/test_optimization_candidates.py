@@ -35,6 +35,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select, text
 from sqlalchemy.orm import Session
 
+from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
 from tests.test_commerce_measurement import NOW, FakeMeasurement, source
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -191,11 +192,18 @@ def fixture(
     return principal, work, observation, mandate, runtime, server
 
 
+@pytest.mark.planning_boundary
 def test_durable_read_dedup_no_execution_and_privacy_erasure(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, server = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, server = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         identifier, wid = row.id, row.workspace_id
         assert s.enqueue(db, principal, work, runtime).id == identifier
@@ -219,11 +227,18 @@ def test_durable_read_dedup_no_execution_and_privacy_erasure(
         assert db.scalar(select(func.count()).select_from(CandidateResult)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_unqualified_default_and_cumulative_limit(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        _, work, observation, mandate, _, _ = fixture(db, configuration, tmp_path)
+        _, work, observation, mandate, _, _ = load_candidate_read_fixture(db, ids)
         unqualified = observation.model_copy(
             update={
                 "evidence": observation.evidence.model_copy(
@@ -255,11 +270,19 @@ def test_unqualified_default_and_cumulative_limit(
 
 
 @pytest.mark.parametrize("phase", ["before", "during"])
+@pytest.mark.planning_boundary
 def test_revocation_blocks_saved_suggestion(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, phase: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    phase: str,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        principal, work, observation, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, observation, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier, token = row.workspace_id, row.id, principal.session.digest
     if phase == "before":
@@ -276,12 +299,19 @@ def test_revocation_blocks_saved_suggestion(
         assert db.scalar(select(func.count()).select_from(CandidateResult)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_expiry_backoff_and_default_inert(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     assert s.run_candidate_reads(None) == {}  # type: ignore[arg-type]
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
 
@@ -317,15 +347,23 @@ def test_expiry_backoff_and_default_inert(
 @pytest.mark.parametrize(
     "change", ["correction", "privacy", "publication", "foreign", "generation"]
 )
+@pytest.mark.planning_boundary
 def test_source_change_during_read_cannot_publish(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, change: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    change: str,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     from app.commerce.evidence import publish
     from app.commerce.ledger import revise_days
     from app.commerce.models import CommerceEvidenceState
 
     with Session(customer_engine) as db:
-        principal, work, observation, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, observation, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
 
@@ -366,15 +404,22 @@ def test_source_change_during_read_cannot_publish(
             assert db.get(CandidateJob, identifier) is None
 
 
+@pytest.mark.planning_boundary
 def test_strict_export_and_foreign_read(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     from app.database.session import Base
     from app.lifecycle.export_serializers import serialize
     from app.lifecycle.local_work import verify_work_registry
 
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
     assert s.process(customer_engine, wid, identifier, runtime) == "completed"
@@ -393,11 +438,18 @@ def test_strict_export_and_foreign_read(
             s.read_result(db, wid + 10, result.id, principal, runtime)
 
 
+@pytest.mark.planning_boundary
 def test_claim_fence_not_clobbered_and_lease_reclaims_only_reads(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
         first = s.claim(db, wid, identifier, runtime)
@@ -437,15 +489,22 @@ def test_receipt_append_erases_derived_only(
         assert reservation and reservation.state == "held"
 
 
+@pytest.mark.planning_boundary
 def test_closure_erases_candidates_transactionally(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     from app.lifecycle.quiescing import quiesce
 
     from tests.test_customer_quiescing import confirmed
 
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
         principal.user.issuer = FakeProvider().issuer
@@ -461,13 +520,19 @@ def test_closure_erases_candidates_transactionally(
 
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+@pytest.mark.planning_boundary
 def test_all_provider_read_queue_is_non_emitting(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, provider: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    provider: str,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, server = fixture(
-            db, configuration, tmp_path, provider=provider
-        )
+        principal, work, _, _, runtime, server = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
     assert s.process(customer_engine, wid, identifier, runtime) == "completed"
@@ -478,11 +543,18 @@ def test_all_provider_read_queue_is_non_emitting(
         assert result.decision["spending_authority"] == "none"
 
 
+@pytest.mark.planning_boundary
 def test_actual_association_cannot_register_as_measured_learning(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
+
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        principal, work, observation, _, runtime, _ = fixture(db, configuration, tmp_path)
+        principal, work, observation, _, runtime, _ = load_candidate_read_fixture(db, ids)
         row = s.enqueue(db, principal, work, runtime)
         wid, identifier = row.workspace_id, row.id
     evidence = observation.evidence.model_copy(

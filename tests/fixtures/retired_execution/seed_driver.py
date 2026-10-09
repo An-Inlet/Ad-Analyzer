@@ -20,8 +20,12 @@ from tests.test_shopify_sales import configuration
 
 
 def main() -> None:
-    target, result_path, mode = sys.argv[1:]
-    assert mode in {"review", "initial_rule"}
+    target, result_path, mode, *extra = sys.argv[1:]
+    assert mode in {"review", "initial_rule", "native_diagnostic"}
+    if mode == "native_diagnostic":
+        assert len(extra) == 1 and extra[0] in {"google_ads", "meta_ads", "tiktok_ads"}
+    else:
+        assert not extra
     assert Path(app.__file__).resolve().is_relative_to(Path(os.environ["PYTHONPATH"]).resolve())
     if os.environ.get("INLET_RETIRED_EXECUTION_CHILD") != (
         "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
@@ -44,6 +48,36 @@ def main() -> None:
     try:
         with pytest.MonkeyPatch.context() as patch:
             config = cast(Any, configuration).__wrapped__()
+            if mode == "native_diagnostic":
+                from app.publication.execution_models import (
+                    ProviderExecutionAttempt,
+                    ProviderExecutionReceipt,
+                    ProviderExecutionResponse,
+                )
+                from sqlalchemy import func, select
+                from tests.test_durable_optimization import ready as ready_native
+
+                with Session(engine) as db:
+                    wid, actor, binding, scope, _, _, _, server = ready_native(
+                        db, config, Path(result_path).parent, extra[0]
+                    )
+                    db.commit()
+                    writes = server.writes if extra[0] == "google_ads" else server.posts
+                    assert not writes
+                    for model in (
+                        ProviderExecutionAttempt, ProviderExecutionResponse,
+                        ProviderExecutionReceipt, ProviderExposureReservation,
+                    ):
+                        assert db.scalar(select(func.count()).select_from(model)) == 0
+                    output = dict(
+                        workspace_id=wid, actor_id=actor, account_id=scope.account.account_id,
+                        mandate_id=binding.mandate_id, revision=binding.revision,
+                        consent_id=binding.consent_id, policy_digest=binding.policy_digest,
+                        ledger_id=binding.ledger_id, environment=binding.environment,
+                        provider_posts=0,
+                    )
+                    Path(result_path).write_text(json.dumps(output))
+                return
             clients = cast(Any, replicas).__wrapped__(engine, patch)
             if mode == "initial_rule":
                 from app.initial_planning.start_models import InitialRuleSessionStart

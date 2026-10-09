@@ -37,6 +37,39 @@ class RetainedInitialRuleIds:
     provider_posts: int
 
 
+NativeDiagnosticProvider = Literal["google_ads", "meta_ads", "tiktok_ads"]
+
+
+@dataclass(frozen=True)
+class RetainedNativeDiagnosticIds:
+    workspace_id: int
+    actor_id: str
+    account_id: int
+    mandate_id: str
+    revision: int
+    consent_id: str
+    policy_digest: str
+    ledger_id: str
+    environment: str
+    provider_posts: int
+
+
+@contextmanager
+def retained_native_diagnostic_fixture(
+    customer_engine: Engine,
+    artifacts: Path,
+    provider: NativeDiagnosticProvider,
+) -> Iterator[tuple[Engine, RetainedNativeDiagnosticIds]]:
+    if provider not in {"google_ads", "meta_ads", "tiktok_ads"}:
+        raise AssertionError("Only closed native diagnostic providers")
+    with _retained_fixture(
+        customer_engine, artifacts, "native_diagnostic", None, provider=provider
+    ) as (engine, raw):
+        result = RetainedNativeDiagnosticIds(**raw)
+        assert result.provider_posts == 0
+        yield engine, result
+
+
 @contextmanager
 def retained_review_fixture(
     customer_engine: Engine,
@@ -65,8 +98,10 @@ def retained_initial_rule_fixture(
 def _retained_fixture(
     customer_engine: Engine,
     artifacts: Path,
-    mode: Literal["review", "initial_rule"],
+    mode: Literal["review", "initial_rule", "native_diagnostic"],
     prepare_schema: Callable[[Engine], None] | None,
+    *,
+    provider: NativeDiagnosticProvider | None = None,
 ) -> Iterator[tuple[Engine, dict[str, Any]]]:
     artifacts.mkdir(parents=True, exist_ok=True)
     engine = customer_engine
@@ -87,8 +122,14 @@ def _retained_fixture(
         output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
         env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
         driver = root / "tests/fixtures/retired_execution/seed_driver.py"
+        arguments = [sys.executable, str(driver), target, str(output), mode]
+        if mode == "native_diagnostic":
+            assert provider in {"google_ads", "meta_ads", "tiktok_ads"}
+            arguments.append(provider)
+        else:
+            assert provider is None
         code = run_bounded(
-            [sys.executable, str(driver), target, str(output), mode], snapshot, env, log, 180
+            arguments, snapshot, env, log, 180
         )
         assert code == 0, log.read_text()[-6000:]
         yield engine, json.loads(output.read_text())

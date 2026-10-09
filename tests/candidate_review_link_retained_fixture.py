@@ -106,9 +106,9 @@ def retained_candidate_review_link(
             target = str(connection.scalar(text("SELECT current_schema()")))
             validate_url(engine.url, base, target)
             if target.startswith("inlet_candidates_"):
-                assert set(connection.scalars(text("SELECT version_num FROM alembic_version"))) == set(
-                    ScriptDirectory(str(root / "migrations")).get_heads()
-                )
+                assert set(
+                    connection.scalars(text("SELECT version_num FROM alembic_version"))
+                ) == set(ScriptDirectory(str(root / "migrations")).get_heads())
     try:
         before = schema_snapshot(engine)
         bootstrap = fresh_rows(engine)

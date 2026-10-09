@@ -496,3 +496,32 @@ This is a dated non-default October diagnostic, not permanent default-collected
 regression coverage or authenticated API proof. Actual current API session handoff
 and existing consumer repair remain in progress. Historical scalar identity/session
 records are not rewritten to create browser credentials. No aggregate or live claim.
+
+### Current Privacy And Migration Closure
+
+Candidate review-link `8118669`→`c0e8532` closes three exact current export and
+migration cases;89 passed (3+86 boundary overlap),30.909s. Actual0068 migration
+roundtrip/populated refusal and current serializer assertions remain unchanged.
+Current stored source ownership/eight commitments and measured zero POST/effect
+checks qualify the genuine original review link. No historical execution override.
+
+Feedback erasure `c917a8d`→`13cb28f`, guard `db410b1`→`bf0d240`, closes16:
+118 passed (16+86 boundaries+16 lifetime),119.366s; four unchanged compatibility
+cases passed12.30s. Child owned-SQLite restriction and five pre-IO negatives plus
+affected two DB probes passed7,13.653s. Current deletion assertions and23 protected
+history tables remain intact; first failed probes are preserved. Whole package
+Ruff/mypy1179/diff passed after guard followup.
+
+Session migration `64683a3`→`ee2b4bd` independently reviewed and closes one:
+actual current0072/0068 roundtrip and populated refusal,87 passed (1+86 boundary
+cases),12.605s. Fixed original Start-only producer has zero worker/admission/
+provider effects. Original assertions preserved, whole Ruff/mypy1187/diff passed.
+Registry cherry-pick conflict resolved additively, preserving every source profile.
+
+Immutable overlay `successor-coverage-1036.json`: **1036 covered (952 direct,
+84 historical/current),294 remaining**. Combined32 pure source-lifetime/guard
+checks passed; bare mypy1192 and collection-plugin mypy1 passed. Combined Ruff
+found one overlong line in the candidate-review helper despite its package report;
+original failure log retained, formatting-only correction passed whole Ruff and
+mypy1192/diff. No semantic change or unnecessary database rerun. Exact integrated
+logs: integration-ee2b4bd/. No aggregate, remote push or live qualification.

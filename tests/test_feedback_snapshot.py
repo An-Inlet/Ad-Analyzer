@@ -21,6 +21,9 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, delete, select
 from sqlalchemy.orm import Session
 
+from tests.feedback_snapshot_retained_fixture import (
+    snapshot_receipt_source as snapshot_receipt_source,
+)
 from tests.test_commerce_measurement import NOW, FakeMeasurement, source
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_feedback_policy import policy
@@ -137,12 +140,15 @@ def prepare(
     return wid, actor, row.id, value, authorize, later, mature, principal
 
 
+@pytest.mark.planning_boundary
 def test_owned_snapshot_default_empty_active_replay_retraction(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         wid, actor, saved, value, authorize, later, mature, _ = prepare(
             db, configuration, tmp_path, monkeypatch
@@ -183,12 +189,15 @@ def test_owned_snapshot_default_empty_active_replay_retraction(
             read()
 
 
+@pytest.mark.planning_boundary
 def test_current_session_and_original_plan_required(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     from app.publication.execution_models import ProviderExecutionReview, ProviderExecutionRun
 
     with Session(customer_engine) as db:
@@ -228,12 +237,15 @@ def test_current_session_and_original_plan_required(
             read()
 
 
+@pytest.mark.planning_boundary
 def test_zero_signal_is_not_empty_and_policy_race_rejects(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         wid, actor, saved, value, authorize, later, mature, _ = prepare(
             db, configuration, tmp_path, monkeypatch, after_value=10
@@ -273,9 +285,12 @@ def test_zero_signal_is_not_empty_and_policy_race_rejects(
             )
 
 
+@pytest.mark.planning_boundary
 def test_actual_unqualified_receipt_and_source_do_not_create_feedback(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
+    customer_engine = snapshot_receipt_source
     from app.optimization_candidates.service import authorize as owned_authorize
 
     with Session(customer_engine) as db:

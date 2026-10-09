@@ -5,6 +5,7 @@ import os
 import re
 import sys
 from collections.abc import Iterator
+from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
@@ -136,11 +137,10 @@ def reconciled(
     assert after == expected
 
 
-@pytest.fixture
-def receipt_candidate_source(
-    customer_engine: Engine, tmp_path: Path
-) -> Iterator[tuple[Engine, CandidateReceiptIds]]:
-    artifacts = tmp_path / "candidate-receipt-source"
+@contextmanager
+def retained_receipt_source(
+    customer_engine: Engine, artifacts: Path
+) -> Iterator[tuple[Engine, CandidateReceiptIds, dict[str, list[dict[str, Any]]]]]:
     artifacts.mkdir()
     engine = customer_engine
     if engine.dialect.name == "sqlite":
@@ -158,6 +158,10 @@ def receipt_candidate_source(
     try:
         assert all(not rows for rows in effects(engine).values())
         tables = set(inspect(engine).get_table_names())
+        with engine.connect() as connection:
+            for name in tables - {"alembic_version"}:
+                quoted = engine.dialect.identifier_preparer.quote(name)
+                assert connection.scalar(text(f"SELECT count(*) FROM {quoted}")) == 0
         root = Path(__file__).resolve().parents[1]
         with SourceLifetime.open("candidate_receipt", artifacts) as lifetime:
             snapshot = lifetime.source
@@ -212,10 +216,20 @@ def receipt_candidate_source(
         assert isinstance(request.intent.action, GoogleBudgetSetV1)
         assert request.intent.action.amount_micros == 45_000_000
         assert before["provider_exposure_reservations"][0]["state"] == "held"
+        yield engine, ids, before
+    finally:
+        if engine is not customer_engine:
+            engine.dispose()
+
+
+@pytest.fixture
+def receipt_candidate_source(
+    customer_engine: Engine, tmp_path: Path
+) -> Iterator[tuple[Engine, CandidateReceiptIds]]:
+    with retained_receipt_source(
+        customer_engine, tmp_path / "candidate-receipt-source"
+    ) as (engine, ids, before):
         try:
             yield engine, ids
         finally:
             reconciled(engine, ids, before)
-    finally:
-        if engine is not customer_engine:
-            engine.dispose()

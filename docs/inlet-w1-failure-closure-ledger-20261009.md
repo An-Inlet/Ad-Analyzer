@@ -441,3 +441,29 @@ completed root worktrees were removed after verifying no active process used tho
 worktrees. Inventory `root-completed-mypy-cache-cleanup.json` records252,061,822
 logical bytes; all source, commits, SQLite, log/XML and ledgers remain. No aggregate,
 hosted retry, external provider/model call, remote push, merge or deployment.
+
+### Runtime Split And Coherent Planning Source
+
+Independently reviewed B40 `b109fe5`→`26b8944`: exact historical40 passed
+(462.400s), with16 unique current planning-only counterparts qualified across
+preserved runs; no overlapping cohort counts are summed. The initial two expected-
+error-detail failures remain recorded. Current composition additionally verifies
+all providers unavailable, activation unavailable and scope planning_only. Tool,
+AST, fixture and boundary cohort167 passed; final targeted supplements passed.
+Whole Ruff/mypy1176/plugin1/diff passed on the package. Sixth closed historical
+batch makes333 children; previous293 were not rerun or rewritten.
+
+Immutable `successor-coverage-1006.json` now records **1006 covered:922 direct
+successor passes and84 explicit historical/current comparisons;324 remain**.
+This is targeted evidence, not a passing aggregate.
+
+Coherent original source `172e1d4`→`65cbcb8`, tightened by
+`e08348b`→`1726116`, creates the original goal/ledger in the same October period
+before the genuine historical receipt. Actual current preparation and planning
+confirmation reuse the original ledger unchanged. Parent and child require empty
+input tables; an unbound expected-delta guard rejects preparation/consent rows.
+Final affected SQLite/PG probes plus two pure negative checks:4 passed24.479s;
+whole Ruff/mypy1179/diff passed. SourceLifetime16 passed separately. The dated
+non-default diagnostic remains distinct from original frozen failure coverage.
+No feedback production fix or actual browser-session behavior is claimed here.
+All source XML/logs and earlier failed probes remain in reported-planning-original/.

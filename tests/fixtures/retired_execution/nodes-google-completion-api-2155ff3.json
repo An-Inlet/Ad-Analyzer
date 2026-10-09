@@ -1,0 +1,14 @@
+[
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-closing]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-revoked]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-expired]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-viewer]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-late_expired]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-unknown]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-closing]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-revoked]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-expired]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-viewer]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-late_expired]",
+  "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-unknown]"
+]

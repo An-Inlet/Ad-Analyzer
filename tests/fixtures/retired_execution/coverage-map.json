@@ -944,5 +944,27 @@
       "tests/test_configured_candidates_current.py::test_current_configured_candidate_api_and_actual_tick"
     ],
     "reason": "Original candidate scenario review/approval stays unchanged at exact PIN; current original-source reads, fresh-session worker and planning denials are exercised separately."
+  },
+  {
+    "original_function": "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold",
+    "preserved_local_callable": "tests/test_google_execution_completion.py::retained_test_real_api_completion_historical_authority_and_unknown_hold",
+    "historical_nodes": [
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-closing]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-revoked]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-expired]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-viewer]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-late_expired]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[sqlite-unknown]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-closing]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-revoked]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-expired]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-viewer]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-late_expired]",
+      "tests/test_google_execution_completion.py::test_real_api_completion_historical_authority_and_unknown_hold[postgres-unknown]"
+    ],
+    "current_coverage": [
+      "tests/test_google_completion_api_current.py::test_current_completion_privacy_and_unknown_hold"
+    ],
+    "reason": "Original unknown-advance idempotent success is retired; exact original privacy/assertions remain pinned, while current same-owner sessions and actual current receipt routes retain privacy and unknown advance explicitly denies409 with unchanged financial graph."
   }
 ]

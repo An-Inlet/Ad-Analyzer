@@ -83,7 +83,7 @@ def first_attempt(
 @pytest.mark.parametrize(
     "mode", ["closing", "revoked", "expired", "viewer", "late_expired", "unknown"]
 )
-def test_real_api_completion_historical_authority_and_unknown_hold(
+def retained_test_real_api_completion_historical_authority_and_unknown_hold(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

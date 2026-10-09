@@ -643,3 +643,18 @@ partial and all six human gates unfulfilled. No pushes, merges or deployments.
 Combined at eb96dcc: whole Ruff, bare mypy1213, standalone plugin mypy1 and diff
 passed. Full collection exited0:6823 cases across452 modules; collection only, not
 execution or aggregate qualification. Individual logs/results: integration-eb96dcc/.
+
+### Current Late Publication Receipt Closure
+
+Reviewed `45c8492`→`fc0b1fa`:150 passed32.656s, zero skips (whole current quiescing14,
+86 boundaries,16 lifetime,34 strict source-path checks). Initial exact2 passed21.598s;
+source guards34 passed3.312s. Current closure, grant removal, late receipt idempotency,
+conflicting receipt rejection and inventory blockers retain original assertions.
+Two preclosure non-None claims execute in the genuine fixed child and parent readback.
+Only paused/cancel_requested flags plus one typed validated late receipt append may
+change the original protected graph. Legacy reserved_micros remains unchanged.
+Final claim rejection explicitly proves the current planning artifact write prohibition,
+not deeper historical authority. Whole Ruff/mypy1216/diff passed; no pytest failure.
+Immutable overlay successor-coverage-1140.json: **1140 covered (1040 direct,
+100 historical/current),190 remaining**. Held2 and configured-runtime10 await final
+independent review; root social-producer18 is in focused qualification. No aggregate.

@@ -21,10 +21,10 @@ from app.initial_planning.contracts import (
     InitialPreviewV1,
 )
 from app.initial_planning.models import PreviewRow
+from app.initial_planning.planning_consents import checked_planning_limits
 from app.initial_planning.preview_binding import bind_preview_row, preview_mandate_reference
 from app.initial_planning.preview_v2 import InitialPreviewV2
 from app.meta.security import utc
-from app.publication import customer_intents, execution_mandates
 from app.publication.contracts import fingerprint
 from app.publication.customer_authority import bind_authority
 from app.reported_feedback.anchor import resolve_anchor
@@ -800,9 +800,8 @@ def apply_feedback_preview(
     )
     if reference is None:
         raise HTTPException(409, "reported_feedback_budget_baseline_required")
-    binding = customer_intents.binding(db, workspace_id, *reference)
-    _, mandate = execution_mandates.checked(
-        db, workspace_id, binding, principal.user.id, lambda: effective_now(db, runtime.initial)
+    mandate = checked_planning_limits(
+        db, principal, provider, workspace_id, *reference, runtime.initial
     )
     if proposed > min(mandate.per_plan_cap_micros, mandate.total_cap_micros) or (
         baseline.before_budget_micros is not None

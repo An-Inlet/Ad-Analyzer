@@ -9,7 +9,10 @@ import pytest
 from app.collectors import owned_meta_budget as owned
 from app.collectors.meta_budget import MetaBudgetHTTP, NativeBudgetContext, NativeBudgetUnavailable
 from app.commerce.sync import CommerceSyncService
+from app.customers.access import CustomerPrincipal
+from app.customers.models import CustomerSession, CustomerUser
 from app.goals import service as goals
+from app.initial_planning.models import ObservationRow
 from app.initial_planning.native_budget_contracts import NativeBudgetRequestV1
 from app.meta.models import MetaConnection
 from app.publication import customer_intents
@@ -20,15 +23,16 @@ from pydantic import SecretStr
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.meta_budget_read_fixture import prepare_meta_budget_read
 from tests.test_commerce_measurement import FakeMeasurement
-from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import replicas as replicas
 from tests.test_native_budget_contracts import request
 from tests.test_planning_reporting_configuration import profile
 from tests.test_provider_publication_contracts import NOW
-from tests.test_reported_feedback_acquisition import acquisition_fixture
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_optimization_http import Server, setup
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
 
 
 class TrackedTransport(httpx.MockTransport):
@@ -141,6 +145,8 @@ def test_currency_not_guessed_before_http() -> None:
         reader.read(request_value, NOW)
 
 
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("read_only_graph")
 @pytest.mark.parametrize("change", ["none", "revoked", "generation", "goal"])
 def test_actual_owned_vault_and_original_session_after_http(
     customer_engine: Engine,
@@ -148,41 +154,49 @@ def test_actual_owned_vault_and_original_session_after_http(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     change: str,
+    replicas: Any,
 ) -> None:
+    ids = prepare_meta_budget_read(customer_engine, configuration, tmp_path, monkeypatch, replicas)
+    wid, clock, server = ids.workspace_id, [ids.now], Server("meta_ads")
+    server.meta_campaign["daily_budget"] = "4500"
     with Session(customer_engine) as db:
-        wid, principal, _, _, acquisition, _, clock, runner, _, _, server = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        user, session = (
+            db.get(CustomerUser, ids.actor_id),
+            db.get(CustomerSession, ids.session_digest),
         )
-        assert isinstance(server, Server)
+        assert user and session
+        principal = CustomerPrincipal(user, session)
+        observed = db.get(ObservationRow, ids.observation_id)
+        assert observed
         configuration.shopify_measurement_enabled = True
         commerce = CommerceSyncService(
             db, configuration, FakeMeasurement(configuration, [([], None)])
         )
-        assert commerce.page(wid, now=clock[0])["status"] == "complete"
+        assert commerce.page(wid, now=clock[0])["status"] == "up_to_date"
         db.commit()
-        goal = goals.owned(db, wid, acquisition.anchor.goal_id)
+        goal = goals.owned(db, wid, ids.goal_id)
         definition = goals.current(db, goal).definition
         assert definition is not None
         goal_digest = fingerprint(
             "inlet.initial-preview-goal.v1",
             definition,
         )
-        scope = customer_intents.account(db, wid, acquisition.anchor.cohort.account_id)
+        scope = customer_intents.account(db, wid, ids.account_id)
         value = NativeBudgetRequestV1.model_validate(
             {
                 "profile_digest": profile().digest(),
                 "environment": "contract_test",
                 "scope": scope.model_dump(),
-                "cohort": acquisition.anchor.cohort.model_dump(),
-                "goal_id": acquisition.anchor.goal_id,
-                "goal_revision": acquisition.anchor.goal_revision,
+                "cohort": observed.document["cohort"],
+                "goal_id": ids.goal_id,
+                "goal_revision": ids.goal_revision,
                 "goal_digest": goal_digest,
-                "target": {"kind": "campaign", "external_id": "5", "campaign_id": "5"},
+                "target": {"kind": "campaign", "external_id": "201", "campaign_id": "201"},
             }
         )
         db.rollback()
         requests: list[httpx.Request] = []
-        provider = FakeProvider()
+        provider = replicas[2]
 
         def send(req: httpx.Request) -> httpx.Response:
             requests.append(req)
@@ -193,14 +207,17 @@ def test_actual_owned_vault_and_original_session_after_http(
             elif change in {"generation", "goal"}:
                 with Session(customer_engine) as other:
                     if change == "generation":
-                        source = other.get(MetaConnection, acquisition.anchor.source_connection_id)
+                        source = other.get(MetaConnection, ids.source_id)
                         assert source is not None
                         source.generation += 1
                     else:
                         current_goal = goals.owned(other, wid, value.goal_id)
                         current_goal.confirmed_preview_id = None
                     other.commit()
-            return server(req)
+            translated = str(req.url).replace("act_101", "act_123").replace("/201", "/5")
+            response = server(httpx.Request("GET", translated, headers=req.headers))
+            payload = response.text.replace('"123"', '"101"').replace('"5"', '"201"')
+            return httpx.Response(200, content=payload)
 
         transport = TrackedTransport(send)
         monkeypatch.setattr(owned, "native_budget_transport", lambda: transport)
@@ -209,7 +226,7 @@ def test_actual_owned_vault_and_original_session_after_http(
             principal,
             provider,
             profile(),
-            runner.settings,
+            configuration,
             clock=lambda: clock[0],
         ) as reader:
             if change != "none":

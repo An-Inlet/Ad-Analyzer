@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tarfile
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -18,6 +19,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, MetaData, Table, inspect, make_url, select, text
 
+from .inlet_producer_source_lifetime import SourceLifetime
 from .inlet_restore_bootstrap import expected_bootstrap
 from .reset_disposable_postgres import validate_disposable_url
 
@@ -236,27 +238,37 @@ def _seed(engine: Engine, artifacts: Path, mode: Mode) -> RetainedRestoreIds:
     before = guard(engine, mode)
     tables = set(inspect(engine).get_table_names())
     artifacts.mkdir(parents=True, exist_ok=True)
-    source = artifacts / "historical-source"
-    extract(source)
-    if engine.dialect.name == "postgresql":
-        with engine.connect() as db:
-            target = str(db.scalar(text("SELECT current_schema()")))
-    else:
-        target = str(engine.url.database)
-    output = artifacts / "seed-ids.json"
-    require(not output.exists())
-    _run(
-        [
-            sys.executable,
-            str(ROOT / "scripts/inlet_restore_seed_child.py"),
-            mode,
-            target,
-            str(output),
-        ],
-        source,
-        dict(os.environ, INLET_RESTORE_HISTORICAL_CHILD=PIN, PYTHONPATH=str(source)),
-        artifacts / "producer.log",
+    lifetime_context = (
+        SourceLifetime.open("restore_fixture", artifacts) if mode == "fixture" else nullcontext()
     )
+    with lifetime_context as lifetime:
+        source = lifetime.source if lifetime else artifacts / "historical-source"
+        extract(source)
+        if lifetime:
+            lifetime.extracted()
+        if engine.dialect.name == "postgresql":
+            with engine.connect() as db:
+                target = str(db.scalar(text("SELECT current_schema()")))
+        else:
+            target = str(engine.url.database)
+        output = artifacts / "seed-ids.json"
+        require(not output.exists())
+        if lifetime:
+            lifetime.child_started()
+        _run(
+            [
+                sys.executable,
+                str(ROOT / "scripts/inlet_restore_seed_child.py"),
+                mode,
+                target,
+                str(output),
+            ],
+            source,
+            dict(os.environ, INLET_RESTORE_HISTORICAL_CHILD=PIN, PYTHONPATH=str(source)),
+            artifacts / "producer.log",
+        )
+        if lifetime:
+            lifetime.after_reaped(0)
     require(output.stat().st_size <= 16384)
     raw = json.loads(output.read_text())
     require(type(raw) is dict and set(raw) == set(RetainedRestoreIds.__dataclass_fields__))

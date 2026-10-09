@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.database.session import Base
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from sqlalchemy import Engine, create_engine, event, inspect, text
 
 from tests.retired_snapshot import PIN, extract, run_bounded
@@ -118,20 +119,22 @@ def _retained_fixture(
         if prepare_schema is not None:
             prepare_schema(engine)
         root = Path(__file__).resolve().parents[1]
-        snapshot = artifacts / "historical-source"
-        extract(root, snapshot)
-        output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
-        env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
-        driver = root / "tests/fixtures/retired_execution/seed_driver.py"
-        arguments = [sys.executable, str(driver), target, str(output), mode]
-        if mode == "native_diagnostic":
-            assert provider in {"google_ads", "meta_ads", "tiktok_ads"}
-            arguments.append(provider)
-        else:
-            assert provider is None
-        code = run_bounded(
-            arguments, snapshot, env, log, 180
-        )
+        with SourceLifetime.open(mode, artifacts) as lifetime:
+            snapshot = lifetime.source
+            extract(root, snapshot)
+            lifetime.extracted()
+            output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
+            env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+            driver = root / "tests/fixtures/retired_execution/seed_driver.py"
+            arguments = [sys.executable, str(driver), target, str(output), mode]
+            if mode == "native_diagnostic":
+                assert provider in {"google_ads", "meta_ads", "tiktok_ads"}
+                arguments.append(provider)
+            else:
+                assert provider is None
+            lifetime.child_started()
+            code = run_bounded(arguments, snapshot, env, log, 180)
+            lifetime.after_reaped(code)
         assert code == 0, log.read_text()[-6000:]
         yield engine, json.loads(output.read_text())
     finally:
@@ -150,7 +153,8 @@ class RetainedCommercePublicationIds:
 
 
 def retained_commerce_publication_fixture(
-    engine: Engine, artifacts: Path,
+    engine: Engine,
+    artifacts: Path,
 ) -> RetainedCommercePublicationIds:
     """Single closed producer at actual 0053; caller owns all schema DDL."""
     assert engine.dialect.name == "postgresql"
@@ -160,25 +164,51 @@ def retained_commerce_publication_fixture(
         assert re.fullmatch(r"inlet_publication_[a-f0-9]{32}", target)
         revision = set(db.scalars(text("SELECT version_num FROM alembic_version")))
         assert revision == {"20261006_0051", "20261006_0053"}
-        for table in ("commerce_orders", "commerce_measurement_publications",
-                      "commerce_evidence_states"):
+        for table in (
+            "commerce_orders",
+            "commerce_measurement_publications",
+            "commerce_evidence_states",
+        ):
             assert db.scalar(text(f"SELECT count(*) FROM {table}")) == 0
     tables = set(inspect(engine).get_table_names())
-    assert {"workspaces", "commerce_orders", "commerce_measurement_publications",
-            "commerce_evidence_states"} <= tables
-    assert not {"meta_presence_stage_contexts", "planning_input_revisions",
-                "campaign_performance_completions"} & tables
+    assert {
+        "workspaces",
+        "commerce_orders",
+        "commerce_measurement_publications",
+        "commerce_evidence_states",
+    } <= tables
+    assert (
+        not {
+            "meta_presence_stage_contexts",
+            "planning_input_revisions",
+            "campaign_performance_completions",
+        }
+        & tables
+    )
     artifacts.mkdir(parents=True, exist_ok=True)
     root = Path(__file__).resolve().parents[1]
-    snapshot = artifacts / "historical-source"
-    extract(root, snapshot)
-    output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
-    assert not output.exists()
-    env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
-    code = run_bounded(
-        [sys.executable, str(root / "tests/fixtures/retired_execution/seed_driver.py"),
-         target, str(output), "commerce_publication_0053"], snapshot, env, log, 180,
-    )
+    with SourceLifetime.open("commerce_publication_0053", artifacts) as lifetime:
+        snapshot = lifetime.source
+        extract(root, snapshot)
+        lifetime.extracted()
+        output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
+        assert not output.exists()
+        env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+        lifetime.child_started()
+        code = run_bounded(
+            [
+                sys.executable,
+                str(root / "tests/fixtures/retired_execution/seed_driver.py"),
+                target,
+                str(output),
+                "commerce_publication_0053",
+            ],
+            snapshot,
+            env,
+            log,
+            180,
+        )
+        lifetime.after_reaped(code)
     assert code == 0, log.read_text()[-6000:]
     raw = json.loads(output.read_text())
     assert set(raw) == set(RetainedCommercePublicationIds.__dataclass_fields__)
@@ -191,11 +221,17 @@ def retained_commerce_publication_fixture(
     assert set(inspect(engine).get_table_names()) == tables
     with engine.connect() as db:
         assert set(db.scalars(text("SELECT version_num FROM alembic_version"))) == revision
-        assert db.execute(text(
-            "SELECT workspace_id,store_id FROM commerce_measurement_publications WHERE id=:id"
-        ), {"id": result.publication_id}).one() == (result.workspace_id, result.store_id)
+        assert db.execute(
+            text(
+                "SELECT workspace_id,store_id FROM commerce_measurement_publications WHERE id=:id"
+            ),
+            {"id": result.publication_id},
+        ).one() == (result.workspace_id, result.store_id)
         assert db.scalar(text("SELECT store_id FROM commerce_evidence_states")) == result.store_id
-        for table in ("commerce_orders", "commerce_measurement_publications",
-                      "commerce_evidence_states"):
+        for table in (
+            "commerce_orders",
+            "commerce_measurement_publications",
+            "commerce_evidence_states",
+        ):
             assert db.scalar(text(f"SELECT count(*) FROM {table}")) == 1
     return result

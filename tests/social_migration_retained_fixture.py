@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.inlet_restore_historical import PIN, extract
 from sqlalchemy import Engine, inspect, text
 
@@ -118,26 +119,33 @@ def retained_social_configuration_fixture(
     snapshot = fresh(engine)
     assert "customer_social_configuration_reviews" not in inspect(engine).get_table_names()
     artifacts.mkdir(parents=True)
-    source = artifacts / "source"
-    extract(source)
-    root = Path(__file__).resolve().parents[1]
-    with (artifacts / "producer.log").open("wb") as log:
-        process = subprocess.Popen(
-            [
-                sys.executable,
-                str(root / "tests/fixtures/retired_execution/social_migration_seed_driver.py"),
-                schema,
-                str(artifacts),
-            ],
-            cwd=source,
-            env=dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(source)),
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-        started = time.monotonic()
-        try:
-            wait_child(process, artifacts / "producer.log", started, artifacts / "prepared.json")
-            yield SocialPhases(engine, artifacts, process, started, snapshot)
-        finally:
-            stop_child(process)
+    with SourceLifetime.open("social_configuration", artifacts) as lifetime:
+        source = lifetime.source
+        extract(source)
+        lifetime.extracted()
+        root = Path(__file__).resolve().parents[1]
+        with (artifacts / "producer.log").open("wb") as log:
+            lifetime.child_started()
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(root / "tests/fixtures/retired_execution/social_migration_seed_driver.py"),
+                    schema,
+                    str(artifacts),
+                ],
+                cwd=source,
+                env=dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(source)),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            started = time.monotonic()
+            try:
+                wait_child(
+                    process, artifacts / "producer.log", started, artifacts / "prepared.json"
+                )
+                yield SocialPhases(engine, artifacts, process, started, snapshot)
+            finally:
+                stop_child(process)
+                assert process.returncode is not None
+                lifetime.after_reaped(process.returncode)

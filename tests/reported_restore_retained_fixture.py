@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.inlet_restore_historical import PIN, extract
 from sqlalchemy import Engine, inspect, text
 
@@ -35,22 +36,26 @@ def retained_reported_restore_fixture(
     snapshot = fresh(engine)
     tables = set(inspect(engine).get_table_names())
     artifacts.mkdir(parents=True)
-    source = artifacts / "source"
-    extract(source)
-    output, log = artifacts / "ids.json", artifacts / "producer.log"
-    root = Path(__file__).resolve().parents[1]
-    code = run_bounded(
-        [
-            sys.executable,
-            str(root / "tests/fixtures/retired_execution/reported_restore_seed_driver.py"),
-            schema,
-            str(artifacts),
-        ],
-        source,
-        dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(source)),
-        log,
-        180,
-    )
+    with SourceLifetime.open("reported_restore", artifacts) as lifetime:
+        source = lifetime.source
+        extract(source)
+        lifetime.extracted()
+        output, log = artifacts / "ids.json", artifacts / "producer.log"
+        root = Path(__file__).resolve().parents[1]
+        lifetime.child_started()
+        code = run_bounded(
+            [
+                sys.executable,
+                str(root / "tests/fixtures/retired_execution/reported_restore_seed_driver.py"),
+                schema,
+                str(artifacts),
+            ],
+            source,
+            dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(source)),
+            log,
+            180,
+        )
+        lifetime.after_reaped(code)
     assert code == 0, log.read_text()[-6000:]
     raw = read_output(output, set(RetainedReportedRestoreIds.__dataclass_fields__))
     assert type(raw["observed_at"]) is str

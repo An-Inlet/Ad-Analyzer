@@ -17,6 +17,7 @@ from app.campaign_review.storage import LocalMediaStore
 from app.customers.models import CustomerMembership, CustomerUser
 from app.database.session import Base
 from app.publication.customer_intents import account
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
@@ -89,14 +90,22 @@ def retained_configured_draft_fixture(
                 quoted = engine.dialect.identifier_preparer.quote(table)
                 assert connection.scalar(text(f"SELECT count(*) FROM {quoted}")) == 0
         root = Path(__file__).resolve().parents[1]
-        snapshot = artifacts / "source"
-        extract(root, snapshot)
-        output, log = artifacts / "ids.json", artifacts / "producer.log"
-        env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
-        driver = root / "tests/fixtures/retired_execution/configured_draft_seed_driver.py"
-        code = run_bounded(
-            [sys.executable, str(driver), target, str(output), provider], snapshot, env, log, 180
-        )
+        with SourceLifetime.open("configured_draft", artifacts) as lifetime:
+            snapshot = lifetime.source
+            extract(root, snapshot)
+            lifetime.extracted()
+            output, log = artifacts / "ids.json", artifacts / "producer.log"
+            env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+            driver = root / "tests/fixtures/retired_execution/configured_draft_seed_driver.py"
+            lifetime.child_started()
+            code = run_bounded(
+                [sys.executable, str(driver), target, str(output), provider],
+                snapshot,
+                env,
+                log,
+                180,
+            )
+            lifetime.after_reaped(code)
         assert code == 0, log.read_text()[-6000:]
         assert output.stat().st_size <= 4096
         raw = json.loads(output.read_text())

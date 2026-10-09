@@ -28,6 +28,7 @@ from app.publication.execution_models import (
     ProviderExecutionReview,
     ProviderExposureReservation,
 )
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from sqlalchemy import Engine, create_engine, event, func, inspect, select, text
 from sqlalchemy.orm import Session
 
@@ -114,23 +115,27 @@ def retained_campaign_review_fixture(
         no_effects(engine)
         tables = set(inspect(engine).get_table_names())
         root = Path(__file__).resolve().parents[1]
-        snapshot = artifacts / "source"
-        extract(root, snapshot)
-        output, log = artifacts / "ids.json", artifacts / "producer.log"
-        env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
-        code = run_bounded(
-            [
-                sys.executable,
-                str(root / "tests/fixtures/retired_execution/campaign_review_seed_driver.py"),
-                target,
-                str(output),
-                provider,
-            ],
-            snapshot,
-            env,
-            log,
-            180,
-        )
+        with SourceLifetime.open("campaign_review", artifacts) as lifetime:
+            snapshot = lifetime.source
+            extract(root, snapshot)
+            lifetime.extracted()
+            output, log = artifacts / "ids.json", artifacts / "producer.log"
+            env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+            lifetime.child_started()
+            code = run_bounded(
+                [
+                    sys.executable,
+                    str(root / "tests/fixtures/retired_execution/campaign_review_seed_driver.py"),
+                    target,
+                    str(output),
+                    provider,
+                ],
+                snapshot,
+                env,
+                log,
+                180,
+            )
+            lifetime.after_reaped(code)
         assert code == 0, log.read_text()[-6000:]
         raw = json.loads(output.read_text())
         assert set(raw) == set(RetainedCampaignReviewIds.__dataclass_fields__)

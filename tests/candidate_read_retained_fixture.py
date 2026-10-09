@@ -49,6 +49,7 @@ from app.publication.optimization_contracts import (
 )
 from app.workspaces.models import Workspace
 from pydantic import SecretStr
+from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import Engine, create_engine, event, func, inspect, make_url, select, text
 from sqlalchemy.orm import Session
@@ -117,22 +118,26 @@ def retained_candidate_read_fixture(
         no_effects(engine)
         tables = set(inspect(engine).get_table_names())
         root = Path(__file__).resolve().parents[1]
-        snapshot = artifacts / "source"
-        extract(root, snapshot)
-        output, log = artifacts / "ids.json", artifacts / "producer.log"
-        code = run_bounded(
-            [
-                sys.executable,
-                str(root / "tests/fixtures/retired_execution/candidate_read_seed_driver.py"),
-                target,
-                str(output),
-                provider,
-            ],
-            snapshot,
-            dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot)),
-            log,
-            180,
-        )
+        with SourceLifetime.open("candidate_read", artifacts) as lifetime:
+            snapshot = lifetime.source
+            extract(root, snapshot)
+            lifetime.extracted()
+            output, log = artifacts / "ids.json", artifacts / "producer.log"
+            lifetime.child_started()
+            code = run_bounded(
+                [
+                    sys.executable,
+                    str(root / "tests/fixtures/retired_execution/candidate_read_seed_driver.py"),
+                    target,
+                    str(output),
+                    provider,
+                ],
+                snapshot,
+                dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot)),
+                log,
+                180,
+            )
+            lifetime.after_reaped(code)
         assert code == 0, log.read_text()[-6000:]
         assert output.stat().st_size <= 4096
         raw = json.loads(output.read_text())

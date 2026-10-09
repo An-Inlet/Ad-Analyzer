@@ -18,7 +18,6 @@ from app.lifecycle.quiescing import preview_digest, quiesce
 from app.lifecycle.service import begin, claim_inventory, finish_inventory
 from app.mandates.service import workspace_lock
 from app.publication import service as publication
-from app.publication.fixture import FixturePublicationTransport
 from app.publication.models import PublicationReceiptRecord, PublicationStepRecord
 from app.settings import Settings
 from app.workspaces.models import Workspace
@@ -26,11 +25,11 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.late_publication_retained_fixture import load_source, retained_late_publication
 from tests.test_customer_billing import POLICY, FixtureBilling
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_lifecycle import KEY, NOW, seed
-from tests.test_publication_core import approved
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -140,15 +139,26 @@ def test_late_billing_notice_is_retained_without_provider_or_entitlement(
         assert db.get(Workspace, wid).status == "closing"  # type: ignore[union-attr]
 
 
+@pytest.mark.planning_boundary
 def test_late_publication_receipt_is_strict_evidence_only(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
 ) -> None:
+    from app.campaign_review.storage import LocalMediaStore
+
     from tests.test_commerce_measurement import NOW as publication_now
 
-    with Session(customer_engine) as db:
-        pid, wid, actor, authority = approved(db, configuration, tmp_path)
+    with (
+        retained_late_publication(customer_engine, tmp_path / "original") as (engine, ids),
+        Session(engine) as db,
+    ):
+        pid, wid, actor = ids.plan_id, ids.workspace_id, ids.actor_id
+        bound = load_source(db, ids)
+        receipt = ids.late_receipt
+        authority = publication.DatabaseFixtureAuthority(
+            LocalMediaStore(tmp_path / "original" / "media")
+        )
         user = db.get(CustomerUser, actor)
         assert user is not None
         user.issuer = FakeProvider.issuer
@@ -163,32 +173,6 @@ def test_late_publication_receipt_is_strict_evidence_only(
         db.add(session)
         db.commit()
         principal = CustomerPrincipal(user, session)
-        bound = publication.claim_next(
-            db, wid, pid, "publication-one", actor, authority, publication_now
-        )
-        assert bound is not None
-        from app.publication.contracts import PublishReceipt
-
-        publication.record_receipt(
-            db,
-            wid,
-            pid,
-            PublishReceipt(
-                scope=bound.scope,
-                plan_id=pid,
-                step_id=bound.step.step_id,
-                fence=bound.fence,
-                request_digest=bound.digest(),
-                outcome="verified_no_effect",
-                observed_at=publication_now,
-            ),
-            publication_now,
-        )
-        bound = publication.claim_next(
-            db, wid, pid, "publication-one", actor, authority, publication_now
-        )
-        assert bound is not None
-        receipt = FixturePublicationTransport().apply_once(bound, publication_now)
         request, evidence = confirmed(db, principal, wid, publication_now)
         quiesce(db, principal, FakeProvider(), wid, request, 1, evidence, publication_now)
         db.commit()
@@ -217,10 +201,15 @@ def test_late_publication_receipt_is_strict_evidence_only(
                 publication_now,
             )
         db.rollback()
-        with pytest.raises(HTTPException):
+        with pytest.raises(HTTPException) as denied:
             publication.claim_next(
                 db, wid, pid, "publication-one", actor, authority, publication_now
             )
+        from app.advertising_capabilities import AdvertisingWritesDisabled
+
+        assert isinstance(denied.value, AdvertisingWritesDisabled)
+        assert denied.value.status_code == 409
+        assert denied.value.detail == "advertising_writes_disabled_in_planning_mvp"
         closure = db.get(LifecycleRequest, request)
         assert closure is not None and closure.state == "blocked"
         assert any(b["code"] == "publication_unresolved" for b in closure.blockers)

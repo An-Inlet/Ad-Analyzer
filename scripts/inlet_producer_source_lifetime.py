@@ -51,6 +51,7 @@ def _test(
 
 
 PROFILES = {
+    "late_publication": _test("late_publication_retained_fixture", "late_publication_seed_driver"),
     "google_completion": _test(
         "google_completion_retained_fixture", "google_completion_seed_driver"
     ),

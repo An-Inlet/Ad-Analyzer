@@ -1,6 +1,7 @@
 const fixture=__CASE__,ids=fixture.ids,expected=fixture.expected;
 const $=id=>document.getElementById('planning-'+id),assert=(v,m)=>{if(!v)throw Error(m);};
 const realFetch=window.fetch.bind(window),base=`/api/customer/v1/workspaces/${ids.workspace_id}/planning/plans/${ids.plan_id}`;
+let originalEvents=null;
 let progressCalls=0,logins=0,observeNextProgress=false,heldRead=null;
 window.fetch=(input,options)=>{
  const progress=String(input).includes(base+'/progress');if(progress)progressCalls++;
@@ -30,12 +31,18 @@ const openPlan=async()=>{
  assert($('document').textContent.includes('Plan Version 1'),'same V1');
  assert($('document').textContent.includes('current_reporting_unavailable'),'missing reporting remains explicit');
  assert($('document').textContent.includes('12000'),'original $12000 goal visible');
+ if(originalEvents){$('events-refresh').click();await until(()=>settled()&&!$('events').hidden,'explicit customer history read');}
 };
 const readSales=async(amount,end,days)=>{
  const before=progressCalls;$('progress-read').click();
  await until(()=>settled()&&!$('progress').hidden,'explicit sales progress');
  assert(progressCalls===before+1,'exactly one explicit progress request');
  const visible=$('progress').textContent;
+ if(originalEvents){
+  const current=await json(await realFetch(base+'/events'));
+  assert(JSON.stringify(current.items)===JSON.stringify(originalEvents),'exact immutable customer event history');
+  assert($('events').textContent.includes('Accepted For Manual Application')&&$('events').textContent.includes('Not Independently Verified'),'visible independent unverified history');
+ }
  assert(visible.includes(`Observed Shopify Merchandise Net Sales: USD ${amount}.000000`),'exact visible observed amount');
  assert(visible.includes(`2026-11-01 to ${end} (exclusive) · ${days} days`),'visible source-local closed prefix');
  assert(visible.includes('America/New_York')&&visible.includes('Manual application is not assessed; attribution is unavailable'),'no causal/manual claim');
@@ -45,6 +52,30 @@ try{
  assert(progressCalls===0&&$('progress').hidden,'no automatic progress reads');
  const original=await json(await realFetch(base+'/export?version=1'));
  assert(original.document_digest===ids.document_digest&&JSON.stringify(original.document)===JSON.stringify(expected.document),'exact actual prepared artifact');
+ if(fixture.generation_stage==='october'){
+  const generated=Date.parse(original.document.generated_at),nextMinute=Math.ceil(generated/60000)*60000;
+  // Wait naturally for a representable, nonfuture UI minute after actual generation.
+  while(Date.now()<nextMinute)await new Promise(r=>setTimeout(r,Math.min(1000,nextMinute-Date.now())));
+  const beforeRecord=await json(await realFetch(base));
+  assert(beforeRecord.freshness==='current'&&beforeRecord.document_digest===ids.document_digest,'same V1 still current after natural minute wait');
+  const current=await json(await realFetch(base));
+  assert(current.freshness==='current'&&current.document_digest===ids.document_digest,'original server document remains current before UI records');
+  const change=(id,value)=>{$(id).value=value;$(id).dispatchEvent(new Event('change'));};
+  for(const type of ['accepted_for_manual_application','customer_reports_applied']){
+   change('action',$('action').options[1].value);change('record-type',type);
+   $('statement').value=type==='customer_reports_applied'?'I report completing this review outside Inlet; this is not provider verification.':'I reviewed this exact action for manual application.';
+   if(type==='customer_reports_applied')$('applied').value=new Date(nextMinute).toISOString().slice(0,16);
+   $('confirm-review').checked=true;$('confirm-review').dispatchEvent(new Event('change'));
+   assert(!$('record').disabled,'actual UI customer record eligible');$('record').click();
+   await until(()=>settled()&&$('message').textContent.includes('customer record was saved'),'actual UI record saved');
+  }
+  originalEvents=(await json(await realFetch(base+'/events'))).items;
+  assert(originalEvents.length===2,'two genuine UI events');
+  const report=originalEvents.find(row=>row.event.assertion==='customer_reports_applied').event;
+  assert(report.verification==='customer_report_only'&&Date.parse(report.reported_applied_at)>=generated&&Date.parse(report.reported_applied_at)<=Date.now(),'nonfuture post-generation unverified report');
+  await operation('initial_day');assert((await realFetch(base+'/progress?version=1')).status===401,'October ordinary session expired in November');
+  await login();$('refresh').click();await openPlan();
+ }
  await readSales('0','2026-11-03',2);
  if(fixture.branch==='progress'){
   await operation('later_day');assert((await realFetch(base+'/progress?version=1')).status===401,'ordinary previous session expired next day');
@@ -57,7 +88,7 @@ try{
   const corrected=await json(await realFetch(base+'/export?version=1'));
   assert(corrected.document_digest===original.document_digest&&JSON.stringify(corrected.document)===JSON.stringify(original.document),'real refund preserves original artifact');
   assert(JSON.stringify(corrected.document.inputs.goal)===JSON.stringify(original.document.inputs.goal),'original confirmed goal unchanged');
-  await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document_bytes:JSON.stringify(corrected.document)})});
+  await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document_bytes:JSON.stringify(corrected.document),original_events:originalEvents})});
  }else{
   await operation('hold');observeNextProgress=true;$('progress-read').click();
   await until(async()=>Boolean((await json(await realFetch('/__fixture__/held'))).held),'actual computed progress held');
@@ -67,11 +98,11 @@ try{
   await heldRead;
   // The controller's await-fetch continuation and rejection handlers run before this task.
   await new Promise(r=>setTimeout(r,0));
-  assert($('document').hidden&&$('progress').hidden&&!$('progress').textContent,'late real response cannot repopulate after epoch change');
+  assert($('document').hidden&&$('progress').hidden&&!$('progress').textContent&&!$('events').textContent,'late real response cannot repopulate after epoch change');
   $('workspace').value=String(ids.workspace_id);$('workspace').dispatchEvent(new Event('change'));
   await until(()=>settled(),'refresh erased workspace');assert(!$('plans').querySelector('button'),'erased plan absent from actual list');
   for(const path of [base,base+'/progress?version=1',base+'/export?version=1',base+'/versions/1'])assert((await realFetch(path)).status===404,'old erased ID unavailable');
   assert($('document').hidden&&$('progress').hidden,'old ID reads do not restore DOM');
-  await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed'})});
+  await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',original_events:originalEvents})});
  }
-}catch(error){await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack})});}
+}catch(error){await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message,stack:error.stack,original_events:originalEvents})});}

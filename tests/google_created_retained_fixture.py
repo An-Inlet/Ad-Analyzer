@@ -240,6 +240,7 @@ def retained_google_created(
         try:
             yield engine, ids
         finally:
+            assert schema_snapshot(engine) == schema
             assert graph(engine) == before
     finally:
         if engine is not original:

@@ -73,3 +73,13 @@ Both-DB commands used the existing loopback disposable PostgreSQL fixture URL an
 records from the bounded runs; the full pytest logs/XML remain authoritative for
 case counts. These are synthetic offline source records, not production evidence.
 No Full, hosted CI, real provider or purchasable-product qualification is claimed.
+
+## Independent Review Follow-up
+
+After `59fa7cf`, independent review required the physical-schema snapshot to be
+checked after the current consumer as well as after the original producer. Added
+that final exact invariant beside the immutable financial graph. Actual current
+unknown API cases on SQLite and PostgreSQL: **2 passed, 19.22s**, no skips
+(`final-schema.log/xml`). Whole Ruff and bare mypy **1221 files** separately passed
+(`schema-ruff.log`, `schema-mypy.log`); diff check passed. Earlier results remain
+unchanged evidence, not replaced by this bounded final check.

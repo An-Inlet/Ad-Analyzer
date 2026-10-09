@@ -77,3 +77,36 @@ node intersection and whole post-setup AST proof. Whole Ruff/bare mypy/diff sepa
 All runs use explicit unique/tmp basetemps with durable logs/XML. No aggregate, live
 Meta calls, artifact write override or original source mutation. Independent interface
 review and explicit lifecycle-delta freeze precede implementation.
+
+## Lifecycle Delta Freeze From Current Service Source
+
+Read app/meta/service.py select_account/disconnect, app/imports/native.py/scope.py,
+and app/lifecycle/privacy.py. Both operations increment the owned workspace's
+export_privacy_revision exactly1; its ORM updated_at may advance only within actual
+parent begin/end wall-clock bounds. Every other workspace/customer/goal/mandate field
+stays exact. Assert derived observation/plan/candidate/presence tables are empty at
+source entry so their normal privacy erasure cannot hide an unrelated mutation.
+
+Disconnect deletes the one owned MetaConnection, its one pending grant and any owned
+OAuth state (exact baseline set), changes only its original WorkspaceIntegration
+status active→revoked (plus bounded updated_at), appends exactly one MetaAudit with
+action disconnected/actor_role owner/record_count0 and bounded created_at. Account
+identity and fields remain exact. Original derived staging is empty and stays empty.
+
+Reauthorize consumes the one original pending grant and leaves OAuth-state set as
+implemented; it updates the same native row generation1→2 and reencrypts the exact
+original pending-grant bundle with the normal Vault. Validate decrypt equality locally
+without printing/serializing fake token material. No arbitrary credential allowance.
+All connection identity/ownership/external ID fields stay exact. Actual fixed NOW
+connected_at, connected/purchase, campaigns phase and original null cursor/windows/
+coverage/retry/error fields are required. Original integration stays active with
+all other fields exact. Upserted account retains actual FakeMeta metadata and all
+ownership fields; only its ORM updated_at, if changed, must be within observed bounds.
+Append exactly one owned connected audit with owner/0/bounded creation time.
+
+All audit/grant/native allowances are exact row dictionaries or explicit validated
+field transitions; all metadata tables otherwise compare exactly. Original metadata
+may have nondeterministic creation timestamps, retained byte-for-byte rather than
+recomputed. New audit integer ID must be positive, unique and additional to original
+IDs. If current framework onupdate semantics produce another actual field delta,
+retain failure and review the documented exception before continuing.

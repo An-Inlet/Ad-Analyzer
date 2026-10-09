@@ -14,26 +14,33 @@ from app.settings import Settings
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
+from tests.reported_original_fixture import RetainedReportedOriginalIds, prepare_reported_read
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_original_fixture import reported_original as reported_original
+from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
+from tests.test_reported_feedback_acquisition import complete
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("failure", ["timeout", "throttle"])
+@pytest.mark.planning_boundary
 def test_transient_fixed_page_resumes_only_after_deadline_same_run(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
     failure: str,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, _, _, job, _, source, clock, runner, requests, _, _ = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        wid, _, _, job, _, source, clock, runner, requests, _, _ = prepare_reported_acquisition(
+            db, configuration, prepare_reported_read(db, reported_original), monkeypatch
         )
         complete(runner, wid, clock[0])
         assert runner.page(wid, now=clock[0])["status"] == "syncing"
         assert source.phase == "rf_adsets"
+        assert job.acquisition_started_at is not None
         run_id, started = job.native_run_id, utc(job.acquisition_started_at)
         original = vars(wire)["build_opener"]
         failed = [False]
@@ -73,16 +80,20 @@ def test_transient_fixed_page_resumes_only_after_deadline_same_run(
 
 
 @pytest.mark.parametrize("change", ["session", "generation", "fatal", "missing_deadline"])
+@pytest.mark.planning_boundary
 def test_transport_retry_never_bypasses_current_authority_or_fatal_error(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
     change: str,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, principal, _, job, _, source, clock, runner, requests, _, _ = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        wid, principal, _, job, _, source, clock, runner, requests, _, _ = (
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, reported_original), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])
         assert runner.page(wid, now=clock[0])["status"] == "syncing"

@@ -23,7 +23,11 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from tests.reported_feedback_fixture import seeded
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.reported_original_fixture import RetainedReportedOriginalIds, prepare_reported_read
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_original_fixture import reported_original as reported_original
+from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_meta_connection import campaign, insight, page
 from tests.test_shopify_sales import configuration as configuration
 
@@ -128,17 +132,22 @@ def complete(runner: MetaSyncService, wid: int, now: Any) -> None:
         assert result["status"] == expected, result
 
 
+@pytest.mark.planning_boundary
 def test_fixed_windows_preserve_rolling_coverage_and_repeat_spacing(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, _, runtime, job, request, source, clock, runner, requests, _, server = (
-            acquisition_fixture(db, configuration, tmp_path, monkeypatch)
+        wid, _, runtime, job, request, source, clock, runner, requests, _, original_ids = (
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, reported_original), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])  # Ordinary due rolling acquisition has priority.
+        assert source.last_sync_at is not None
         saved = (source.covered_from, source.covered_through, utc(source.last_sync_at))
         assert job.completed_observations == 0
         complete(runner, wid, clock[0])
@@ -168,21 +177,25 @@ def test_fixed_windows_preserve_rolling_coverage_and_repeat_spacing(
         )
         assert len([path for path, _ in requests if path.endswith("/insights")]) == 5
         assert (
-            len(server.posts) == 1
+            original_ids.original_post_count == 1
         )  # Only the separately seeded original action, no report writes.
 
 
 @pytest.mark.parametrize("change", ["logout", "removed_job", "disabled", "generation"])
+@pytest.mark.planning_boundary
 def test_interrupted_fixed_run_never_becomes_rolling_or_publishes(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
     change: str,
 ) -> None:
     with Session(customer_engine) as db:
         wid, principal, runtime, job, _, source, clock, runner, requests, _, _ = (
-            acquisition_fixture(db, configuration, tmp_path, monkeypatch)
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, reported_original), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])
         assert runner.page(wid, now=clock[0])["status"] == "syncing"
@@ -212,15 +225,17 @@ def test_interrupted_fixed_run_never_becomes_rolling_or_publishes(
         assert not list(db.scalars(select(MetaStagedMetric)))
 
 
+@pytest.mark.planning_boundary
 def test_actual_zero_and_missing_day_remain_distinct(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, _, _, _, _, _, clock, runner, _, control, _ = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        wid, _, _, _, _, _, clock, runner, _, control, _ = prepare_reported_acquisition(
+            db, configuration, prepare_reported_read(db, reported_original), monkeypatch
         )
         complete(runner, wid, clock[0])
         control.update(zero=True, missing=True)
@@ -232,11 +247,13 @@ def test_actual_zero_and_missing_day_remain_distinct(
         assert all(d.spend_micros == 0 and d.conversions == 0 for d in value.days)
 
 
+@pytest.mark.planning_boundary
 def test_invalid_first_job_cannot_select_another_owner_after_native_lock(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     from app.customers.access import CustomerPrincipal
     from app.customers.models import CustomerMembership, CustomerSession, CustomerUser
@@ -247,7 +264,9 @@ def test_invalid_first_job_cannot_select_another_owner_after_native_lock(
 
     with Session(customer_engine) as db:
         wid, principal, runtime, first, request, _, clock, runner, requests, _, _ = (
-            acquisition_fixture(db, configuration, tmp_path, monkeypatch)
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, reported_original), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])
         user = CustomerUser(
@@ -307,17 +326,19 @@ def test_invalid_first_job_cannot_select_another_owner_after_native_lock(
         assert second_row.state == "acquiring" and len(requests) == before + 1
 
 
+@pytest.mark.planning_boundary
 def test_expiry_during_terminal_http_retains_previous_publication(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     from app.campaign_performance.models import CurrentPerformance
 
     with Session(customer_engine) as db:
-        wid, _, _, job, _, source, clock, runner, _, control, _ = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        wid, _, _, job, _, source, clock, runner, _, control, _ = prepare_reported_acquisition(
+            db, configuration, prepare_reported_read(db, reported_original), monkeypatch
         )
         complete(runner, wid, clock[0])
         previous = db.get(CurrentPerformance, source.account_id)

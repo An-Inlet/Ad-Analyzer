@@ -126,6 +126,8 @@ def test_approval_rechecks_after_real_postgres_workspace_wait(
         assert row and row.approved_at is None
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("operation", ["create", "edit", "approve"])
 @pytest.mark.parametrize("amount", ["above", "zero", "ceiling"])
 def test_simulation_goal_ceiling_at_each_boundary(

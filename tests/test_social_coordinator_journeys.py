@@ -406,6 +406,8 @@ def ready(
     return ready_legacy(db, config, path, provider, video, server)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_persisted_social_full_graph(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
@@ -442,6 +444,8 @@ def test_persisted_social_full_graph(
         )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_unknown_and_native_revocation_keep_attempt_and_reservation(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
@@ -481,6 +485,8 @@ def test_unknown_and_native_revocation_keep_attempt_and_reservation(
         assert server.posts == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 @pytest.mark.parametrize("change", ["cancel", "disconnect", "reconnect"])
 def test_authority_change_after_claim_prevents_provider_call(

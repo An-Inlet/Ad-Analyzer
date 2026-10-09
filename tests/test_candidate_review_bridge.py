@@ -74,6 +74,8 @@ def assembled(
     return (*values, runtime) if with_selection else values
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
 def test_runnable_all_provider_review_then_genuine_harness_approval(
     customer_engine: Engine,
@@ -144,6 +146,8 @@ def test_runnable_all_provider_review_then_genuine_harness_approval(
         assert settled.state == "settled"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("stage", ["review", "claimed", "missing_guard", "missing_link"])
 def test_retraction_never_falls_back_to_manual(
     customer_engine: Engine,
@@ -198,6 +202,8 @@ def test_retraction_never_falls_back_to_manual(
         assert not server.writes
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("change", ["logout", "privacy"])
 def test_logout_during_qualification_rolls_back_review_link(
     customer_engine: Engine,
@@ -234,6 +240,8 @@ def test_logout_during_qualification_rolls_back_review_link(
         assert db.scalar(select(func.count()).select_from(CandidateReviewLink)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_retraction_in_final_context_blocks_emission(
     customer_engine: Engine,
     configuration: Settings,
@@ -280,6 +288,8 @@ def test_retraction_in_final_context_blocks_emission(
         assert reservation and reservation.state == "held"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_failure_after_review_flush_cannot_commit_unlinked_review(
     customer_engine: Engine,
     configuration: Settings,
@@ -310,6 +320,8 @@ def test_failure_after_review_flush_cannot_commit_unlinked_review(
         assert db.scalar(select(func.count()).select_from(CandidateReviewLink)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
 def test_candidate_repeat_resolves_actual_retained_owner(
     customer_engine: Engine,
@@ -412,6 +424,8 @@ def test_candidate_repeat_resolves_actual_retained_owner(
         assert o.positive_changes_used(db, wid, work.scope.mandate.ledger_id) == 2_000_000
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
 def test_unknown_survives_erasure_and_late_same_fence_reconciles(
     customer_engine: Engine,
@@ -472,6 +486,8 @@ def test_unknown_survives_erasure_and_late_same_fence_reconciles(
         assert len(server.writes if provider == "google_ads" else server.posts) == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_fk_retraction_between_source_validation_and_link_lock_blocks(
     customer_engine: Engine,
     configuration: Settings,

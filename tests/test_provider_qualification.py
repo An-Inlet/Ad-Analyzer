@@ -204,6 +204,8 @@ def prepare(
     )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_persist_exact_review_approve_but_simulation_never_production_authority(
     customer_engine: Engine,
     configuration: Settings,
@@ -227,6 +229,8 @@ def test_persist_exact_review_approve_but_simulation_never_production_authority(
         assert db.scalar(select(func.count()).select_from(ProviderQualificationRecord)) == 2
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("change", ["expiry", "generation", "owner", "digest", "workspace"])
 def test_review_approval_rechecks_current_authority(
     customer_engine: Engine,
@@ -262,6 +266,8 @@ def test_review_approval_rechecks_current_authority(
             s.approve(db, wid, row.id, digest, row.plan_digest, actor, store, lambda: now)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_reconnect_during_read_cannot_persist_qualification(
     customer_engine: Engine,
     configuration: Settings,
@@ -421,6 +427,8 @@ def test_database_rejects_cross_workspace_qualification_reference(
             db.flush()
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("operation", ["prepare", "approve"])
 @pytest.mark.parametrize("lock_kind", ["workspace", "mandate", "native"])
 def test_expiry_while_waiting_for_lifecycle_lock(
@@ -548,6 +556,8 @@ def test_expiry_while_waiting_for_lifecycle_lock(
         )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_approval_records_fresh_decision_time(
     customer_engine: Engine, configuration: Settings, tmp_path: Any
 ) -> None:

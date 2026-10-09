@@ -17,13 +17,17 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from tests.reported_rule_fixture import ready_reported_rule
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.reported_original_fixture import RetainedReportedOriginalIds
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_rule_current_fixture import ready_current_reported_rule
+from tests.reported_rule_current_fixture import reported_rule_original as reported_rule_original
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("change", ["none", "session", "source", "capsule"])
 def test_owned_reported_queue_produces_separate_decision(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -31,8 +35,13 @@ def test_owned_reported_queue_produces_separate_decision(
     change: str,
 ) -> None:
     with Session(customer_engine) as db:
-        principal, identity, work, observation, clock, _, server = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        principal, identity, work, observation, clock, _, server = ready_current_reported_rule(
+            db,
+            configuration,
+            tmp_path,
+            monkeypatch,
+            original=reported_rule_original,
+            engine=customer_engine,
         )
         before = [
             db.scalar(select(func.count()).select_from(model))

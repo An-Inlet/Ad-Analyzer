@@ -14,14 +14,18 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from tests.reported_feedback_fixture import window_policy
-from tests.reported_rule_fixture import ready_reported_rule
+from tests.reported_original_fixture import RetainedReportedOriginalIds
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_rule_current_fixture import ready_current_reported_rule
+from tests.reported_rule_current_fixture import reported_rule_original as reported_rule_original
 from tests.test_customer_identity import FakeProvider
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("erasure", ["candidate", "comparison", "capsule", "supersede"])
 def test_dependency_erasure_preserves_original_obligations(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -29,8 +33,13 @@ def test_dependency_erasure_preserves_original_obligations(
     erasure: str,
 ) -> None:
     with Session(customer_engine) as db:
-        principal, _, work, _, clock, _, _ = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        principal, _, work, _, clock, _, _ = ready_current_reported_rule(
+            db,
+            configuration,
+            tmp_path,
+            monkeypatch,
+            original=reported_rule_original,
+            engine=customer_engine,
         )
         row = db.get(ReportedActionComparison, work.comparison_id)
         assert row
@@ -132,14 +141,20 @@ def test_dependency_erasure_preserves_original_obligations(
 
 
 def test_foreign_dependency_rejected(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        principal, _, work, _, clock, _, _ = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        principal, _, work, _, clock, _, _ = ready_current_reported_rule(
+            db,
+            configuration,
+            tmp_path,
+            monkeypatch,
+            original=reported_rule_original,
+            engine=customer_engine,
         )
         row = db.get(ReportedActionComparison, work.comparison_id)
         assert row

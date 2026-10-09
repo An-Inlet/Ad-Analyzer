@@ -71,6 +71,15 @@ def ready_reported_rule(
         wid, principal, runtime, job, _, _, clock, runner, requests, control, server = (
             acquisition_fixture(db, config, path, monkeypatch, period_end=NOW + timedelta(days=30))
         )
+    return _reported_rule_from_acquisition(
+        db, config, (wid, principal, runtime, job, _, _, clock, runner, requests, control, server)
+    )
+
+
+def _reported_rule_from_acquisition(
+    db: Session, config: Settings, data: tuple[Any, ...]
+) -> tuple[Any, ...]:
+    wid, principal, runtime, job, _, _, clock, runner, requests, control, server = data
     control.update(before_conversions="2", after_conversions="4")
     for _ in range(3):
         complete(runner, wid, clock[0])

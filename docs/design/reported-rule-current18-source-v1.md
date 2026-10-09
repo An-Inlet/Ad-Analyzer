@@ -158,3 +158,12 @@ A bounded actual delayed fixed-report probe should demonstrate that the observed
 completion can overtake supplied time and the next original read still uses the
 actual due frontier. Preserve the earlier6pass/2fail and diagnosticpass independently;
 rerun affected current dependencies/workers plus approved compatibility after repair.
+
+Approved timestamp refinement after the first adapter probe: completion and capture
+are distinct real timestamps. PerformanceCompletion.completed_at binds
+capsule.acquisition_completed_at; capture_terminal_window samples effective_now
+again for capsule.captured_at and job.next_due_at. Validate both typed/scalar pairs,
+completion <= capture and exact capture == job.next_due_at; follow only that
+actual committed capture timestamp. No arbitrary scheduling field becomes clock
+authority. The initial overly strict equality failure is preserved as fixture
+qualification evidence, not weakened source integrity.

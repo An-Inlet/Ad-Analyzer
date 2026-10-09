@@ -1,6 +1,7 @@
 """0051 populated roundtrip strictly inside an explicitly disposable PG schema."""
 
 import os
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -12,13 +13,13 @@ from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 
+from tests.retired_producer_fixture import retained_commerce_publication_fixture
 from tests.test_commerce_measurement import NOW
-from tests.test_commerce_publications import complete
 from tests.test_shopify_sales import configuration as configuration
 
 
 def test_publication_migration_roundtrip(
-    monkeypatch: pytest.MonkeyPatch, configuration: Settings
+    monkeypatch: pytest.MonkeyPatch, configuration: Settings, tmp_path: Path
 ) -> None:
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -50,13 +51,10 @@ def test_publication_migration_roundtrip(
             ).one()
         command.upgrade(config, "20261006_0051")
         command.upgrade(config, "20261006_0053")
-        from tests.candidate_historical_schema import without_candidates
-
-        without_candidates(monkeypatch, engine)
+        retained = retained_commerce_publication_fixture(engine, tmp_path / "commerce-producer")
         with Session(engine) as db:
-            complete(db, configuration)
-            assert db.scalar(select(CommerceMeasurementPublication.id)) is not None
-            assert db.scalar(select(CommerceEvidenceState.store_id)) is not None
+            assert db.scalar(select(CommerceMeasurementPublication.id)) == retained.publication_id
+            assert db.scalar(select(CommerceEvidenceState.store_id)) == retained.store_id
         command.downgrade(config, "20261006_0047")
         assert "commerce_measurement_publications" not in inspect(engine).get_table_names()
         assert "commerce_evidence_states" not in inspect(engine).get_table_names()

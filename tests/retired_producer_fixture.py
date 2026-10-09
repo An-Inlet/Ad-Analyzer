@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.database.session import Base
-from sqlalchemy import Engine, create_engine, event, text
+from sqlalchemy import Engine, create_engine, event, inspect, text
 
 from tests.retired_snapshot import PIN, extract, run_bounded
 
@@ -136,3 +137,65 @@ def _retained_fixture(
     finally:
         if engine is not customer_engine:
             engine.dispose()
+
+
+@dataclass(frozen=True)
+class RetainedCommercePublicationIds:
+    workspace_id: int
+    store_id: str
+    publication_id: str
+    order_count: int
+    publication_count: int
+    evidence_state_count: int
+
+
+def retained_commerce_publication_fixture(
+    engine: Engine, artifacts: Path,
+) -> RetainedCommercePublicationIds:
+    """Single closed producer at actual 0053; caller owns all schema DDL."""
+    assert engine.dialect.name == "postgresql"
+    assert os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") == "true"
+    with engine.connect() as db:
+        target = str(db.scalar(text("SELECT current_schema()")))
+        assert re.fullmatch(r"inlet_publication_[a-f0-9]{32}", target)
+        revision = set(db.scalars(text("SELECT version_num FROM alembic_version")))
+        assert revision == {"20261006_0051", "20261006_0053"}
+        for table in ("commerce_orders", "commerce_measurement_publications",
+                      "commerce_evidence_states"):
+            assert db.scalar(text(f"SELECT count(*) FROM {table}")) == 0
+    tables = set(inspect(engine).get_table_names())
+    assert {"workspaces", "commerce_orders", "commerce_measurement_publications",
+            "commerce_evidence_states"} <= tables
+    assert not {"meta_presence_stage_contexts", "planning_input_revisions",
+                "campaign_performance_completions"} & tables
+    artifacts.mkdir(parents=True, exist_ok=True)
+    root = Path(__file__).resolve().parents[1]
+    snapshot = artifacts / "historical-source"
+    extract(root, snapshot)
+    output, log = artifacts / "producer-ids.json", artifacts / "producer.log"
+    assert not output.exists()
+    env = dict(os.environ, INLET_RETIRED_EXECUTION_CHILD=PIN, PYTHONPATH=str(snapshot))
+    code = run_bounded(
+        [sys.executable, str(root / "tests/fixtures/retired_execution/seed_driver.py"),
+         target, str(output), "commerce_publication_0053"], snapshot, env, log, 180,
+    )
+    assert code == 0, log.read_text()[-6000:]
+    raw = json.loads(output.read_text())
+    assert set(raw) == set(RetainedCommercePublicationIds.__dataclass_fields__)
+    assert type(raw["workspace_id"]) is int and raw["workspace_id"] > 0
+    for key in ("store_id", "publication_id"):
+        assert type(raw[key]) is str and 0 < len(raw[key]) <= 128
+    for key in ("order_count", "publication_count", "evidence_state_count"):
+        assert type(raw[key]) is int and raw[key] == 1
+    result = RetainedCommercePublicationIds(**raw)
+    assert set(inspect(engine).get_table_names()) == tables
+    with engine.connect() as db:
+        assert set(db.scalars(text("SELECT version_num FROM alembic_version"))) == revision
+        assert db.execute(text(
+            "SELECT workspace_id,store_id FROM commerce_measurement_publications WHERE id=:id"
+        ), {"id": result.publication_id}).one() == (result.workspace_id, result.store_id)
+        assert db.scalar(text("SELECT store_id FROM commerce_evidence_states")) == result.store_id
+        for table in ("commerce_orders", "commerce_measurement_publications",
+                      "commerce_evidence_states"):
+            assert db.scalar(text(f"SELECT count(*) FROM {table}")) == 1
+    return result

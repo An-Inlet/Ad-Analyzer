@@ -27,7 +27,8 @@ as current schema. No SQLite branch, arbitrary revision/profile/callable or
 schema creation/reset is exposed. Parent creates the UUID schema and executes
 actual current 0047→0051→0053 Alembic upgrades. Parent closes its connections and
 Sessions before invoking the child. Child and parent verify exact physical
-`alembic_version=20261006_0053`, required commerce publication/evidence/order
+Alembic revision set `{20261006_0051, 20261006_0053}` (the two
+sibling heads both descend directly from0047), required commerce publication/evidence/order
 and workspace tables, absent newer presence/planning tables, and an empty
 commerce publication/evidence/order graph before seeding. The preexisting
 `preserved` workspace may remain.

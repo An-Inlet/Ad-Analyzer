@@ -12,7 +12,7 @@ import pytest
 from app.initial_planning.review_bridge import prepare_preview_review
 from app.publication import customer_optimization, optimization
 from app.publication.execution_models import ProviderExposureReservation
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import Session
 from tests.test_customer_identity import replicas
 from tests.test_initial_preview_review import ready
@@ -21,7 +21,7 @@ from tests.test_shopify_sales import configuration
 
 def main() -> None:
     target, result_path, mode, *extra = sys.argv[1:]
-    assert mode in {"review", "initial_rule", "native_diagnostic"}
+    assert mode in {"review", "initial_rule", "native_diagnostic", "commerce_publication_0053"}
     if mode == "native_diagnostic":
         assert len(extra) == 1 and extra[0] in {"google_ads", "meta_ads", "tiktok_ads"}
     else:
@@ -32,10 +32,13 @@ def main() -> None:
     ):
         raise AssertionError("Pinned subprocess only")
     if target.startswith("sqlite:"):
+        assert mode != "commerce_publication_0053"
         engine = create_engine(target, connect_args={"check_same_thread": False})
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
     else:
-        if not re.fullmatch(r"(?:inlet_test_|inlet_migration_fixture_)[a-f0-9]{32}", target):
+        pattern = (r"inlet_publication_[a-f0-9]{32}" if mode == "commerce_publication_0053"
+                   else r"(?:inlet_test_|inlet_migration_fixture_)[a-f0-9]{32}")
+        if not re.fullmatch(pattern, target):
             raise AssertionError("Only one owned fixture schema")
         if os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true":
             raise AssertionError("Disposable database authorization required")
@@ -48,6 +51,42 @@ def main() -> None:
     try:
         with pytest.MonkeyPatch.context() as patch:
             config = cast(Any, configuration).__wrapped__()
+            if mode == "commerce_publication_0053":
+                from tests.candidate_historical_schema import without_candidates
+                from tests.test_commerce_publications import complete
+
+                tables = set(inspect(engine).get_table_names())
+                assert {"workspaces", "commerce_orders", "commerce_measurement_publications",
+                        "commerce_evidence_states"} <= tables
+                assert not {"meta_presence_stage_contexts", "planning_input_revisions",
+                            "campaign_performance_completions"} & tables
+                with engine.connect() as connection:
+                    assert set(connection.scalars(
+                        text("SELECT version_num FROM alembic_version")
+                    )) == {
+                        "20261006_0051", "20261006_0053"
+                    }
+                    for table in ("commerce_orders", "commerce_measurement_publications",
+                                  "commerce_evidence_states"):
+                        assert connection.scalar(text(f"SELECT count(*) FROM {table}")) == 0
+                without_candidates(patch, engine)
+                with Session(engine) as db:
+                    wid, store_id, publication_id = complete(db, config)
+                    db.commit()
+                with engine.connect() as connection:
+                    output = dict(
+                        workspace_id=wid, store_id=store_id, publication_id=publication_id,
+                        order_count=connection.scalar(text("SELECT count(*) FROM commerce_orders")),
+                        publication_count=connection.scalar(text(
+                            "SELECT count(*) FROM commerce_measurement_publications"
+                        )),
+                        evidence_state_count=connection.scalar(text(
+                            "SELECT count(*) FROM commerce_evidence_states"
+                        )),
+                    )
+                assert set(inspect(engine).get_table_names()) == tables
+                Path(result_path).write_text(json.dumps(output))
+                return
             if mode == "native_diagnostic":
                 from app.publication.execution_models import (
                     ProviderExecutionAttempt,

@@ -1,8 +1,22 @@
 const fixture=__CASE__,ids=fixture.ids,expected=fixture.expected;
 const $=id=>document.getElementById('planning-'+id),assert=(v,m)=>{if(!v)throw Error(m);};
 const realFetch=window.fetch.bind(window),base=`/api/customer/v1/workspaces/${ids.workspace_id}/planning/plans/${ids.plan_id}`;
-let progressCalls=0,logins=0;
-window.fetch=(input,options)=>{if(String(input).includes(base+'/progress'))progressCalls++;return realFetch(input,options);};
+let progressCalls=0,logins=0,observeNextProgress=false,heldRead=null;
+window.fetch=(input,options)=>{
+ const progress=String(input).includes(base+'/progress');if(progress)progressCalls++;
+ const response=realFetch(input,options);
+ if(progress&&observeNextProgress){
+  observeNextProgress=false;
+  heldRead=response.then(async actual=>{
+   // Observe the complete real bytes on a clone; return the identical original Response.
+   const bytes=await actual.clone().arrayBuffer();
+   assert(actual.status===200&&bytes.byteLength>0,'held real successful body consumed');
+   return actual;
+  });
+  return heldRead;
+ }
+ return response;
+};
 const until=async(fn,message)=>{const end=Date.now()+15000;while(!await fn()){if(Date.now()>end)throw Error(message+' · '+$('message').textContent);await new Promise(r=>setTimeout(r,20));}};
 const settled=()=>!$('list-refresh').disabled;
 const json=async response=>{assert(response.ok,'real API success '+response.status);return response.json();};
@@ -45,11 +59,14 @@ try{
   assert(JSON.stringify(corrected.document.inputs.goal)===JSON.stringify(original.document.inputs.goal),'original confirmed goal unchanged');
   await realFetch('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document_bytes:JSON.stringify(corrected.document)})});
  }else{
-  await operation('hold');$('progress-read').click();
+  await operation('hold');observeNextProgress=true;$('progress-read').click();
   await until(async()=>Boolean((await json(await realFetch('/__fixture__/held'))).held),'actual computed progress held');
   await operation('erase');$('refresh').click();
   await until(()=>settled()&&$('document').hidden&&$('progress').hidden,'explicit refresh clears erased plan');
-  await operation('release');await new Promise(r=>setTimeout(r,200));
+  await operation('release');assert(heldRead!==null,'held browser request observed');
+  await heldRead;
+  // The controller's await-fetch continuation and rejection handlers run before this task.
+  await new Promise(r=>setTimeout(r,0));
   assert($('document').hidden&&$('progress').hidden&&!$('progress').textContent,'late real response cannot repopulate after epoch change');
   $('workspace').value=String(ids.workspace_id);$('workspace').dispatchEvent(new Event('change'));
   await until(()=>settled(),'refresh erased workspace');assert(!$('plans').querySelector('button'),'erased plan absent from actual list');

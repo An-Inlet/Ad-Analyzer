@@ -98,3 +98,24 @@ creates/reviews the plan in real October before November progress, rather than
 backdating a report or weakening date validation. Full Q16, substantive plan
 quality, expert scoring, live deployment and production integrations remain
 unqualified by this package.
+
+## Independent Review Repair: Deterministic Late-Response Observation
+
+Review of `08a1664` found that waiting a fixed 200 milliseconds after release did
+not prove Chromium had received the held response under load. That earlier
+four-case result remains a bounded observation, not the final synchronization
+proof. The privacy driver now arms observation of exactly that next progress
+fetch, awaits the complete real response body through `Response.clone()`, and
+returns the identical original Response to the controller without replacing
+bytes, status or headers. After that promise resolves, a following event-loop
+task lets the controller's fetch continuation and stale-epoch rejection settle
+before checking that the DOM remains empty. The current controller rejects a
+stale epoch before parsing its original JSON body; this test does not falsely
+claim that controller JSON parsing occurred.
+
+Final repair qualification: **4 passed, 0 skipped, 25.943 seconds** in
+`synchronized.log/xml`, with full actual artifacts beneath
+`synchronized-artifacts`. Same explicit pytest command as above with those new
+artifact paths; whole Ruff, bare mypy (1122 files), Node syntax and diff checks
+all passed. No production code, fixture clock, response contents or auth guard
+changed. No manual-report extension was added.

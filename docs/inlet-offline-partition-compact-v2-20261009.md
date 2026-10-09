@@ -45,7 +45,7 @@ No third genuine frozen collection has occurred, and no actual candidate or timi
 envelope is claimed. The two genuine V1 attempts and their exit4 evidence remain
 unchanged. Independent review is required before another actual collection.
 
-Final whole Ruff passed; bare mypy passed1125 source files; standalone plugin
+Final whole Ruff passed; bare mypy passed1127 source files; standalone plugin
 mypy passed; diff check passed. Outputs retained as `ruff-v2-final.log`,
 `mypy-v2-final.log/exit` and `plugin-mypy-v2-final.log`. The fixture-only typing
 repair preserves the tested XML string exactly; it does not change source behavior.

@@ -549,3 +549,50 @@ Immutable `successor-coverage-1044.json`: **1044 covered (960 direct successor,
 84 historical/current comparisons),286 remaining**. Directional families and C16
 are separate reviewed interfaces in progress; no full aggregate rerun or capacity
 claim. All partial Q01–Q16 and human review/live gates remain unresolved.
+
+### Directional, Capture, And Configured Candidate Closure
+
+Reviewed directional6 `6b8f3d8`→`460d70a`:100 passed,137.793s (6 original,
+86 boundary overlap,8 snapshot compatibility). Capture10 `1b2cc9d`→`05d48c7`:
+96 passed,31.074s (10 original,86 boundaries), exactly two direct retained-engine
+functions; all original assertion ASTs preserved. Whole Ruff/mypy1195/diff passed.
+
+Configured candidates `d726be6`→`a9a7681`:102 current cases passed,243.233s
+(16 current counterparts+86 boundaries);16 exact pinned historical children passed,
+63.946s; wrapper72.673s is the same children, not additional cases. Strengthened
+financial finalizer8 passed109.668s; partition75 and lifetime16 passed. Historical
+partition is now seven batches/349 children. Original failed probes and partition
+count corrections remain preserved. Earlier candidate3 Ruff claim was inaccurate:
+the original log had E501, root formatting repair e61d553 resolved it; no hidden
+rerun or overwritten evidence. Combined Ruff/mypy1200/plugin1/diff all passed at
+95d23a8 and a9a7681, with separately recorded command exits.
+
+### Durable Planning Feedback And Adapter Followup
+
+Relative source stage1 `95d23a8` uses one real captured as_of, actual original
+import/effect and goal period established before the effect. Both DB probes passed;
+12 exact owned-SQLite guard negatives passed. No current auth-clock/TTL bypass.
+Durable stage2 `b80a935`→`1c1762a`:16 new default service/actual HTTP cases passed,
+189.649s; ordinary current login and TTL, already-due real request, genuine current
+PlanningConsent, zero current advertising writes. Service positives46m→47m plus
+session/policy/cap/quantum rejection; HTTP valid/session/policy checks. Whole Ruff,
+mypy1188/diff passed. These new regressions add no original-failure count credit.
+
+Adapter6 `42b10fb`→`a46b6ed`:96 passed,81.957s (6 original adapter cases,
+86 boundaries,4 alias compatibility). The original50m immutable observation remains;
+current native mock read is45m, validated against actual original owned request and
+receipt. No current POST or runtime authority crosses from original source. Full
+original assertion AST and adapter tail preserved, strict24-table invariant remains.
+Whole Ruff/mypy1195/diff passed; exact package logs/XML remain in directional-adapter6/.
+
+Immutable overlay `successor-coverage-1082.json`: **1082 covered (982 direct,
+100 historical/current),248 remaining**. Source evidence is under
+/workspace/inlet-evidence/20261009/. Original aggregate remains failed and unchanged.
+No aggregate rerun, remote push, hosted CI or live operations. Q01–Q16 remain partial;
+all six human gates unresolved. Next: exact28 current reported-preview consumers,
+Google completion current14, reviewed direct reported-rule retained12; configured
+runtime10 explicitly deferred to its own interface, never credited by injected tests.
+
+Combined static checks at a46b6ed: whole Ruff, bare mypy1207, standalone collection
+plugin mypy1 and diff all passed; individual exits recorded in integration-a46b6ed/.
+No additional database rerun was needed for the reviewed disjoint integration.

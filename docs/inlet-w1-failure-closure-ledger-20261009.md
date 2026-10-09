@@ -695,3 +695,40 @@ Immutable overlay successor-coverage-1178.json: **1178 covered (1078 direct,
 whole-suite rerun or hosted/live verification. Current configured browser2, social
 configuration4, dependencies10/worker8 and Google completion12 are in isolated work.
 Q01–Q16 remain partial; all six human gates unfulfilled. No push, merge or deployment.
+
+### Browser Sessions, Completion Privacy, And Configuration Ownership
+
+Configured browser2 `91c5eee`→`47f930f`:bothDB2 passed35.145s; SQLite gate1
+passed16.665s and overlapping compatibility6 passed83.165s. Shared JavaScript unchanged;
+actual ordinary same-actor session rotation and logout verified. Exact-one driver
+identity literal replacement follows original actor. Original Python assertions
+preserved; initial optional-cookie typing failure retained and fixed. Whole
+Ruff/mypy1191/Node syntax/diff passed. Compatibility filter selected6 rather than
+planned4; no extra original credit.
+
+Google completion API `59fa7cf`→`0462725`, final schema guard
+`cc75f1b`→`f7d131c`: current12 plus43 current boundary cases passed55/127.13s;
+strict DTO17 +transport51 +currentunknown1 passed69/8.32s; partition/map/path/lifetime
+125 passed8.51s. New exact historical12 passed29.35s (wrapper37.46s). Only this new
+batch ran, not prior349. Exact current same-owner privacy/projection checks remain;
+unknown advance409 proves planning write prohibition with immutable financial graph.
+Original callable remains unchanged apart from non-collected name and is mapped to
+its current counterpart. Historical partition is now8 batches/361children. Final
+post-consumer schema invariant unknown2bothDB passed19.22s. WholeRuff/mypy1221/plugin1/
+diff passed. Initial session-field and strict boolean-DTO failures remain documented.
+Combined atf7d131c Ruff/mypy1228/plugin1/diff all individually0.
+
+Social configuration4 `8156811`→`4702e42`:146 passed160.112s, zero failures/skips
+(4 exact+1 pure+10 producer compatibility+capability4/customer8/execution35/transport51/
+lifetime16/path17). SQLite gate2 passed23.262s. WholeRuff/mypy1224/diff all0.
+Current runtime metadata only, every execution port fails closed. Final full graph
+allows only exact typed configuration reviews/approval and owned membership suspension;
+all original10 assertions and post-profile body preserved modulo runtime identifier.
+Independent review closed. No source/production/capability or legacy helper weakening.
+
+Immutable successor-coverage-1196.json: **1196 covered (1084 direct,
+112 historical/current),134 remaining**. Combined aggregate remains failed. Current
+read-only dependency10/worker8, full actual browser2 and total-envelope20 are underway;
+legacy TikTok4 classification awaits review. No Full, hosted CI, push or deployment.
+Disk pressure mitigated by moving three inactive ignored type-check caches intact
+into/tmp (manifest root-completed-cache-move-2.json); unique evidence unchanged.

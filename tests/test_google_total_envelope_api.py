@@ -1,5 +1,6 @@
 """Actual configured creation/capture and native diagnostic wire, never financial proof."""
 
+import base64
 import json
 import time
 from datetime import UTC, datetime, timedelta
@@ -11,15 +12,19 @@ import pytest
 from app.api import customer_account_diagnostics as api
 from app.collectors import account_diagnostics
 from app.customers.access import SESSION_COOKIE, digest
-from app.customers.models import CustomerSession
+from app.customers.models import CustomerSession, CustomerUser
+from app.database.session import get_db
 from app.google_connections.models import GoogleCustomerConnection
 from app.publication.execution_models import ProviderExecutionAttempt, ProviderExposureReservation
 from app.settings import Settings, settings
+from pydantic import SecretStr
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests.google_created_retained_fixture import GoogleCreatedIds, graph, retained_google_created
 from tests.google_runtime_fixture import configured_customer
 from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
@@ -71,6 +76,7 @@ def created(
     return alice, base, run, server
 
 
+@pytest.mark.planning_boundary
 @pytest.mark.parametrize(
     "change",
     [
@@ -94,9 +100,50 @@ def test_actual_created_total_envelope_read(
     replicas: Any,
     change: str | None,
 ) -> None:
-    alice, base, run, server = created(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas
-    )
+    with retained_google_created(
+        customer_engine,
+        tmp_path / "original",
+        "total_created",
+        expected_unknown=change == "unknown",
+    ) as (engine, ids):
+
+        def database() -> Any:
+            with Session(engine) as db:
+                yield db
+
+        for client in replicas[:2]:
+            client.app.dependency_overrides[get_db] = database
+        alice = replicas[0]
+        alice.app.include_router(api.router)
+        with Session(engine) as db:
+            actor = db.get(CustomerUser, ids.actor_id)
+            assert actor
+            identity = (actor.issuer, actor.subject)
+            sessions = set(db.scalars(select(CustomerSession.digest)))
+        assert login(alice, "configured-google:current-total") == ids.actor_id
+        assert digest(alice.cookies[SESSION_COOKIE]) not in sessions
+        with Session(engine) as db:
+            actor = db.get(CustomerUser, ids.actor_id)
+            assert actor and (actor.issuer, actor.subject) == identity
+        monkeypatch.setattr(settings, "google_customer_client_id", "offline-client")
+        monkeypatch.setattr(settings, "google_customer_client_secret", SecretStr("offline-secret"))
+        monkeypatch.setattr(
+            settings,
+            "google_customer_encryption_key",
+            SecretStr(base64.urlsafe_b64encode(b"g" * 32).decode()),
+        )
+        current_envelope_body(engine, monkeypatch, alice, ids, change)
+
+
+def current_envelope_body(
+    customer_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    alice: Any,
+    ids: GoogleCreatedIds,
+    change: str | None,
+) -> None:
+    base = f"/api/customer/v1/workspaces/{ids.workspace_id}/execution"
+    run = {"id": ids.run_id}
     monkeypatch.setattr(settings, "customer_native_diagnostics_enabled", change != "disabled")
     calls = []
     with Session(customer_engine) as db:
@@ -105,12 +152,13 @@ def test_actual_created_total_envelope_read(
         scope = campaign["scope"]
         operation = campaign["step"]["operation"]
         budget_resource = campaign["resources"]["budget"]
-        campaign_resource = next(k for k in server.rows if "/campaigns/" in k)
+        campaign_resource = ids.attempts[1].resource_name
+        assert campaign_resource and "/campaigns/" in campaign_resource
         before = [
             (r.id, r.state, r.amount_micros)
             for r in db.scalars(select(ProviderExposureReservation))
         ]
-    writes = server.posts
+    writes = ids.provider_posts
     if change == "unknown":
         from app.publication import coordinator
         from app.publication.provider_contracts import BoundProviderRequest
@@ -129,7 +177,15 @@ def test_actual_created_total_envelope_read(
             )
             db.commit()
 
+    # The intentional unknown receipt is complete; the HTTP read may change nothing further.
+    before_http = graph(customer_engine)
+
     def wire(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert (request.url.host, request.url.path) == ("oauth2.googleapis.com", "/token") or (
+            request.url.host == "googleads.googleapis.com"
+            and request.url.path.endswith("/googleAds:search")
+        )
         calls.append(request.url.path)
         if request.url.host == "oauth2.googleapis.com":
             return httpx.Response(
@@ -239,7 +295,10 @@ def test_actual_created_total_envelope_read(
             data["expires_at"]
         )
         assert calls
-    assert server.posts == writes
+    assert (
+        ids.provider_posts == writes == 2
+    )  # Measured historical source; no current mutation HTTP.
+    assert graph(customer_engine) == before_http
     with Session(customer_engine) as db:
         assert [
             (r.id, r.state, r.amount_micros)

@@ -6,6 +6,7 @@ import stat
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -28,6 +29,7 @@ from app.publication.google_execution_completion_contracts import (
 )
 from app.publication.provider_contracts import BoundProviderRequest
 from app.publication.service import owner
+from app.shopify.security import utc
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.reset_disposable_postgres import validate_disposable_url
@@ -192,6 +194,48 @@ def graph(engine: Engine) -> dict[str, list[dict[str, Any]]]:
         }
 
 
+def assert_total_unknown_delta(
+    engine: Engine, ids: GoogleCreatedIds, before: dict[str, list[dict[str, Any]]]
+) -> None:
+    """Only the original test's exact budget observation append may change financial rows."""
+    assert ids.mode == "total_created"
+    budget = ids.attempts[0]
+    after = graph(engine)
+    originals = {row["id"] for row in before["provider_execution_receipts"]}
+    appended = [row for row in after["provider_execution_receipts"] if row["id"] not in originals]
+    assert len(originals) == 2 and len(appended) == 1
+    new = appended[0]
+    assert re.fullmatch(r"[a-f0-9]{32}", new["id"])
+    assert new["workspace_id"] == ids.workspace_id and new["attempt_id"] == budget.attempt_id
+    assert new["sequence"] == budget.latest_receipt_sequence + 1
+    assert new["supersedes_id"] == budget.latest_receipt_id
+    with Session(engine) as db:
+        run, _, _, request = coordinator.evidence_lock(db, ids.workspace_id, budget.attempt_id)
+        assert isinstance(request, BoundProviderRequest) and run.id == ids.run_id
+        receipt = coordinator.unknown(request, request.dispatched_at)
+        assert new["receipt"] == receipt.model_dump(mode="json")
+        assert new["digest"] == fingerprint("inlet.provider-receipt.v1", new["receipt"])
+        assert utc(new["observed_at"]) == receipt.observed_at
+        latest = coordinator.read_owned_outcome_receipt(
+            db, ids.workspace_id, budget.attempt_id, ids.actor_id
+        )
+        assert latest and latest.receipt_id == new["id"] and latest.outcome == "unknown"
+        assert latest.model_dump(mode="json") == new["projection"]
+    expected = deepcopy(before)
+    expected["provider_execution_receipts"].append(new)
+    expected["provider_execution_receipts"].sort(key=lambda row: row["id"])
+    runs = [row for row in expected["provider_execution_runs"] if row["id"] == ids.run_id]
+    steps = [
+        row
+        for row in expected["provider_execution_steps"]
+        if row["run_id"] == ids.run_id and row["step_id"] == "budget"
+    ]
+    assert len(runs) == len(steps) == 1
+    assert runs[0]["state"] == "ready" and steps[0]["state"] == "verified_effect"
+    runs[0]["state"] = steps[0]["state"] = "unknown"
+    assert after == expected
+
+
 def owned_sqlite_target(target: str, expected: Path) -> str:
     """Reject aliases and non-owned URL shapes before any database access."""
     url = make_url(target)
@@ -207,9 +251,11 @@ def owned_sqlite_target(target: str, expected: Path) -> str:
 
 @contextmanager
 def retained_google_created(
-    original: Engine, artifacts: Path, mode: Mode
+    original: Engine, artifacts: Path, mode: Mode, *, expected_unknown: bool = False
 ) -> Iterator[tuple[Engine, GoogleCreatedIds]]:
     assert mode in {"daily_completed", "daily_unknown", "total_created"}
+    assert type(expected_unknown) is bool
+    assert not expected_unknown or mode == "total_created"
     assert artifacts.is_absolute() and artifacts.resolve() == artifacts
     assert not artifacts.is_symlink()
     assert all(not parent.is_symlink() for parent in artifacts.parents)
@@ -268,7 +314,10 @@ def retained_google_created(
             yield engine, ids
         finally:
             assert schema_snapshot(engine) == schema
-            assert graph(engine) == before
+            if expected_unknown:
+                assert_total_unknown_delta(engine, ids, before)
+            else:
+                assert graph(engine) == before
     finally:
         if engine is not original:
             engine.dispose()

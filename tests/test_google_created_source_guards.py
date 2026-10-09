@@ -118,3 +118,28 @@ def test_parent_uses_exclusive_file_creation_before_factory(
     ):
         pytest.fail("existing source accepted")
     assert database.read_bytes() == b"must survive"
+
+
+@pytest.mark.parametrize(
+    "mode,option",
+    [
+        ("daily_completed", True),
+        ("daily_unknown", True),
+        ("total_created", 1),
+        ("total_created", "true"),
+    ],
+)
+def test_unknown_allowance_is_exact_total_only_before_io(
+    mode: Any,
+    option: Any,
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "must-not-create"
+    with (
+        pytest.raises(AssertionError),
+        parent.retained_google_created(
+            cast(Engine, object()), directory, mode, expected_unknown=option
+        ),
+    ):
+        pytest.fail("invalid financial delta allowance accepted")
+    assert not directory.exists()

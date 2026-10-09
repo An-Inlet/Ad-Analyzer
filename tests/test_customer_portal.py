@@ -23,7 +23,8 @@ def test_customer_shell_has_strict_headers_and_no_inline_code(path: str) -> None
     assert "unsafe-inline" not in policy
     assert response.headers["referrer-policy"] == "no-referrer"
     assert "Sign In Required" in response.text
-    assert "Live advertising execution is disabled" in response.text
+    assert "Inlet cannot publish, activate, pause or change advertising." in response.text
+    assert "this is not a production purchase offer." in response.text
     assert "id_token" not in response.text
     assert '<script type="module" src=' in response.text
     assert "onclick=" not in response.text

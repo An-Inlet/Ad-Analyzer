@@ -525,3 +525,27 @@ found one overlong line in the candidate-review helper despite its package repor
 original failure log retained, formatting-only correction passed whole Ruff and
 mypy1192/diff. No semantic change or unnecessary database rerun. Exact integrated
 logs: integration-ee2b4bd/. No aggregate, remote push or live qualification.
+
+### Authenticated Feedback And Snapshot Followup
+
+Reviewed authenticated API `65f5deb`→`87d0dad` qualifies six actual route cases
+(62.200s) with explicitly simulated due-time issuance/access clocks; actual ordinary
+TTL expiry is first demonstrated. Original acquisition caller2 passed23.340s;
+affected valid2 passed25.183s after typing fixes. Shared helper binds the actual
+current requesting principal/session to the same original actor. No historical
+session cookie or job identity is rewritten. Whole Ruff/mypy1181/diff passed.
+This dated diagnostic adds no original failure credit; durable real-clock relative
+source design fe1e91d is approved for staged source qualification, not yet passed.
+
+Current snapshot `1441521`→`9569ae0` closes eight:117 passed,86.545s, comprising
+8 original cases,2 unchanged reconciliation compatibility,86 boundaries,16 lifetime
+and5 SQLite guard negatives. Whole Ruff/mypy1192/diff passed; inherited long-line
+failure retained and root formatting fix reproduced. Existing strict reconciliation
+finalizer remains exact; new snapshot wrapper requires immutable24-table history.
+Current snapshot preparation, explicit synthetic facts and original assertions are
+unchanged. No default execution permission or historical runtime crosses boundary.
+
+Immutable `successor-coverage-1044.json`: **1044 covered (960 direct successor,
+84 historical/current comparisons),286 remaining**. Directional families and C16
+are separate reviewed interfaces in progress; no full aggregate rerun or capacity
+claim. All partial Q01–Q16 and human review/live gates remain unresolved.

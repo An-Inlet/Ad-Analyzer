@@ -8,11 +8,17 @@ import pytest
 from app.api.customer_optimization import router as optimization_router
 from app.api.customer_tiktok_discovery import router
 from app.production_runtime import provider_composition
-from app.settings import Settings
+from app.production_runtime.tiktok_configuration import load_tiktok_execution_configuration
+from app.production_runtime.tiktok_contracts import (
+    RegisteredTikTokEvidenceSource,
+    TikTokEvidenceDescriptor,
+)
+from app.settings import Settings, settings
 from sqlalchemy import Engine
 
+from tests.test_social_activation_journeys import Server
 from tests.test_tiktok_owned_discovery import response
-from tests.tiktok_runtime_fixture import configured_tiktok_customer
+from tests.tiktok_read_fixture import prepare_tiktok_read_source
 
 
 def configured_discovery_customer(
@@ -21,15 +27,36 @@ def configured_discovery_customer(
     path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    video: bytes,
+    video: bytes | None = None,
 ) -> Any:
-    alice, base, policy, _, _, server, _, control = configured_tiktok_customer(
-        engine,
-        configuration,
-        path,
-        monkeypatch,
-        replicas,
-        video,
+    ids = prepare_tiktok_read_source(engine, configuration, path, monkeypatch, replicas)
+    alice = replicas[0]
+    base = f"/api/customer/v1/workspaces/{ids.workspace_id}/execution"
+    loaded = load_tiktok_execution_configuration(
+        settings.tiktok_execution_manifest_path,
+        settings.tiktok_execution_manifest_digest,
+        settings.tiktok_execution_bundle_path,
+    )
+    assert loaded is not None
+    selected = loaded[0]
+    descriptor = TikTokEvidenceDescriptor(
+        source_id=selected.evidence_source_id,
+        profile_digest=selected.evidence_profile_digest,
+        environment="contract_test",
+        kind="contract_scenario",
+    )
+    control: dict[str, Any] = {"builds": 0, "opened": 0, "closed": 0}
+    server = Server("tiktok_ads")
+
+    def forbidden_build(*args: Any, **kwargs: Any) -> Any:
+        control["builds"] += 1
+        raise AssertionError("Read-only discovery must not build financial execution evidence")
+
+    registered = RegisteredTikTokEvidenceSource(descriptor, forbidden_build)
+    monkeypatch.setattr(
+        provider_composition,
+        "registered_tiktok_evidence",
+        lambda name: registered if name == descriptor.source_id else None,
     )
     alice.app.include_router(router)
     alice.app.include_router(optimization_router)
@@ -98,7 +125,7 @@ def configured_discovery_customer(
     return (
         alice,
         base,
-        {"account_id": policy["account_ids"][0], "identity_type": "TT_USER"},
+        {"account_id": ids.account_id, "identity_type": "TT_USER"},
         (requests),
         control,
         server,

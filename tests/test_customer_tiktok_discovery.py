@@ -19,13 +19,15 @@ from app.sources.security import SourceVault
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from tests.test_campaign_video import encoded as encoded
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
 from tests.tiktok_discovery_fixture import configured_discovery_customer
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
+
+pytestmark = [pytest.mark.planning_boundary, pytest.mark.usefixtures("read_only_graph")]
 
 
 @pytest.mark.parametrize("scenario", ["observed", "missing_events", "bc", "unconfigured", "source"])
@@ -35,7 +37,6 @@ def test_configured_discovery_has_no_execution_or_native_identifier_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     scenario: str,
 ) -> None:
     alice, base, body, requests, control, server = configured_discovery_customer(
@@ -44,7 +45,6 @@ def test_configured_discovery_has_no_execution_or_native_identifier_output(
         tmp_path,
         monkeypatch,
         replicas,
-        encoded(),
     )
     if scenario == "bc":
         body["identity_type"] = "BC_AUTH_TT"
@@ -106,7 +106,6 @@ def test_original_authority_changes_deny_discovery_without_partial_delivery(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     scenario: str,
 ) -> None:
     alice, base, body, requests, control, server = configured_discovery_customer(
@@ -115,7 +114,6 @@ def test_original_authority_changes_deny_discovery_without_partial_delivery(
         tmp_path,
         monkeypatch,
         replicas,
-        encoded(),
     )
 
     def revoke() -> None:

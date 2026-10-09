@@ -22,12 +22,14 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
-from tests.tiktok_runtime_fixture import configured_tiktok_customer
+from tests.tiktok_read_fixture import prepare_tiktok_read_source
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
+
+pytestmark = [pytest.mark.planning_boundary, pytest.mark.usefixtures("read_only_graph")]
 
 
 def prepare(
@@ -36,16 +38,16 @@ def prepare(
     path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    video: bytes,
+    video: bytes | None = None,
 ) -> tuple[Any, OwnedTikTokContexts, Any]:
-    alice, _, _, _, _, _, _, _ = configured_tiktok_customer(
+    prepare_tiktok_read_source(
         engine,
         configuration,
         path,
         monkeypatch,
         replicas,
-        video,
     )
+    alice = replicas[0]
     with Session(engine) as db:
         source = db.scalar(
             select(SourceConnection).where(SourceConnection.provider == "tiktok_ads")
@@ -109,12 +111,9 @@ def test_owned_get_traversal(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     kind: str,
 ) -> None:
-    scope, contexts, _ = prepare(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
-    )
+    scope, contexts, _ = prepare(customer_engine, configuration, tmp_path, monkeypatch, replicas)
     requests: list[httpx.Request] = []
     closed: list[bool] = []
 
@@ -159,11 +158,10 @@ def test_owned_change_during_io_discards_every_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     change: str,
 ) -> None:
     scope, contexts, alice = prepare(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+        customer_engine, configuration, tmp_path, monkeypatch, replicas
     )
     calls: list[httpx.Request] = []
     closed: list[bool] = []
@@ -240,12 +238,9 @@ def test_bounded_inconsistent_wire_never_returns_complete(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     failure: str,
 ) -> None:
-    scope, contexts, _ = prepare(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
-    )
+    scope, contexts, _ = prepare(customer_engine, configuration, tmp_path, monkeypatch, replicas)
     calls: list[httpx.Request] = []
     closed: list[bool] = []
     mono = [0.0]
@@ -299,12 +294,9 @@ def test_elapsed_context_or_stream_delay_discards_and_closes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     delay: str,
 ) -> None:
-    scope, contexts, _ = prepare(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
-    )
+    scope, contexts, _ = prepare(customer_engine, configuration, tmp_path, monkeypatch, replicas)
     mono = [0.0]
     monkeypatch.setattr(discovery, "monotonic", lambda: mono[0])
     calls: list[httpx.Request] = []
@@ -363,12 +355,9 @@ def test_wrong_owned_scope_denied_before_first_http(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
-    encoded: Any,
     change: str,
 ) -> None:
-    scope, contexts, _ = prepare(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
-    )
+    scope, contexts, _ = prepare(customer_engine, configuration, tmp_path, monkeypatch, replicas)
     wrong = (
         scope.model_copy(update={"workspace_id": scope.workspace_id + 99999})
         if (change == "workspace")

@@ -363,3 +363,8 @@ No aggregate rerun, hosted retry, remote push, merge, deployment or provider wri
 Next: source lifetime qualification, current runtime API thirty-case package, and
 explicitly designed reported preview/revision regression split. All readiness and
 human review gates remain open.
+
+Combined integration verification at `ba68199`: whole Ruff passed, bare mypy
+passed across 1162 source files, standalone `scripts/inlet_partition_collection.py`
+mypy passed (one file), and diff check passed. Evidence is under
+`/workspace/inlet-evidence/20261009/integration-ba68199/`. No aggregate run.

@@ -918,5 +918,31 @@
       "tests/test_runtime_b40_current.py::test_current_tiktok_local_configuration"
     ],
     "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick",
+    "preserved_local_callable": "tests/test_configured_candidates_api.py::retained_test_configured_candidate_api_and_actual_tick",
+    "historical_nodes": [
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-unqualified-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-unqualified-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-scenario-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-scenario-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked_during_read-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked_during_read-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-unqualified-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-unqualified-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-scenario-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-scenario-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked-meta_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked_during_read-google_ads]",
+      "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked_during_read-meta_ads]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_candidates_current.py::test_current_configured_candidate_api_and_actual_tick"
+    ],
+    "reason": "Original candidate scenario review/approval stays unchanged at exact PIN; current original-source reads, fresh-session worker and planning denials are exercised separately."
   }
 ]

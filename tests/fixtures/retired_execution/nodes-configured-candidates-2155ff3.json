@@ -1,0 +1,18 @@
+[
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-unqualified-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-unqualified-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-scenario-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-scenario-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked_during_read-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[sqlite-revoked_during_read-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-unqualified-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-unqualified-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-scenario-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-scenario-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked-meta_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked_during_read-google_ads]",
+  "tests/test_configured_candidates_api.py::test_configured_candidate_api_and_actual_tick[postgres-revoked_during_read-meta_ads]"
+]

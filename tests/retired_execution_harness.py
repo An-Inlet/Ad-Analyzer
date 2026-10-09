@@ -16,7 +16,9 @@ BATCHES = {"original": (MANIFEST, 142), "ui_supplement": (SUPPLEMENT, 19),
            "initial_forward": (FORWARD, 88),
            "initial_native": (MANIFEST.parent / "nodes-initial-native-2155ff3.json", 10),
            "configured_api": (MANIFEST.parent / "nodes-configured-api-2155ff3.json", 34),
-           "runtime_api": (MANIFEST.parent / "nodes-runtime-api-2155ff3.json", 40)}
+           "runtime_api": (MANIFEST.parent / "nodes-runtime-api-2155ff3.json", 40),
+           "configured_candidates": (
+               MANIFEST.parent / "nodes-configured-candidates-2155ff3.json", 16)}
 
 
 def qualify(root: Path, artifacts: Path, batch: str) -> None:

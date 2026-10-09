@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "configured_candidate": _test(
+        "configured_candidate_retained_fixture", "configured_candidate_seed_driver"
+    ),
     "candidate_review_link": _test(
         "candidate_review_link_retained_fixture", "candidate_review_link_seed_driver"
     ),

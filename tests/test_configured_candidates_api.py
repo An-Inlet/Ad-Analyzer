@@ -20,7 +20,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 @pytest.mark.parametrize("platform", ["google_ads", "meta_ads"])
 @pytest.mark.parametrize("mode", ["unqualified", "scenario", "revoked", "revoked_during_read"])
-def test_configured_candidate_api_and_actual_tick(
+def retained_test_configured_candidate_api_and_actual_tick(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

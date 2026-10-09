@@ -23,6 +23,8 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests.social_producer_retained_fixture import SocialProducerSource, load_source
+from tests.social_producer_retained_fixture import social_producer_source as social_producer_source
 from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -44,6 +46,12 @@ def fixture(
         wid, runid, actor, store, _, native = ready(
             db, configuration, path, provider, video, SocialServer(provider)
         )
+    return _fixture_from_original(db, wid, runid, actor, store, native, provider)
+
+
+def _fixture_from_original(
+    db: Session, wid: int, runid: str, actor: str, store: Any, native: Any, provider: str
+) -> tuple[Any, ...]:
     run = db.get(ProviderExecutionRun, runid)
     assert run is not None
     row = db.get(ProviderExecutionReview, run.review_id)
@@ -144,11 +152,16 @@ def fixture(
 
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_produce_canonical_owned_plan_with_exact_cover_review(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    encoded: Any,
+    provider: str,
+    social_producer_source: SocialProducerSource,
 ) -> None:
-    with Session(customer_engine) as db:
-        original, account, catalog, producer, actor, store, cover, _ = fixture(
-            db, configuration, tmp_path, provider, encoded() if provider == "tiktok_ads" else None
+    with Session(social_producer_source.engine) as db:
+        original, account, catalog, producer, actor, store, cover, _ = load_source(
+            db, social_producer_source
         )
         plan = producer.produce(
             db,
@@ -178,11 +191,15 @@ def test_produce_canonical_owned_plan_with_exact_cover_review(
     "change", ["generation", "unapproved", "foreign_media", "expired", "option", "declaration"]
 )
 def test_producer_rejects_stale_or_unowned_inputs(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, change: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    change: str,
+    social_producer_source: SocialProducerSource,
 ) -> None:
-    with Session(customer_engine) as db:
-        original, account, catalog, producer, actor, store, cover, native = fixture(
-            db, configuration, tmp_path, "meta_ads", None
+    with Session(social_producer_source.engine) as db:
+        original, account, catalog, producer, actor, store, cover, native = load_source(
+            db, social_producer_source
         )
         option = catalog.options[0].identifier(catalog.request)
         now = NOW
@@ -226,11 +243,15 @@ def test_producer_rejects_stale_or_unowned_inputs(
 
 
 def test_tiktok_missing_or_foreign_cover_never_auto_selected(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    encoded: Any,
+    social_producer_source: SocialProducerSource,
 ) -> None:
-    with Session(customer_engine) as db:
-        original, account, catalog, producer, actor, store, _, _ = fixture(
-            db, configuration, tmp_path, "tiktok_ads", encoded()
+    with Session(social_producer_source.engine) as db:
+        original, account, catalog, producer, actor, store, _, _ = load_source(
+            db, social_producer_source
         )
         for cover in (None, "f" * 32):
             with pytest.raises(ValueError):

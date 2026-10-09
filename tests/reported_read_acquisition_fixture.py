@@ -45,6 +45,8 @@ def prepare_reported_acquisition(
     monkeypatch: pytest.MonkeyPatch,
 ) -> PreparedReportedAcquisition:
     wid, principal, _, runtime, _, progress, clock, original = prepared
+    assert principal.user.id == original.actor_id
+    assert principal.session.user_id == principal.user.id
     config = config.model_copy(
         update={
             "meta_enabled": True,
@@ -69,7 +71,7 @@ def prepare_reported_acquisition(
         original.campaign_id,
         original.attempt_id,
         original.actor_id,
-        original.session_digest,
+        principal.session.digest,
     )
     assert job.completed_observations == 0 and job.state == "pending"
     request = ReportedAcquisitionRequestV1.model_validate(job.document)

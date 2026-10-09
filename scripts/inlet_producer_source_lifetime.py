@@ -69,6 +69,10 @@ PROFILES = {
     "candidate_read": _test("candidate_read_retained_fixture", "candidate_read_seed_driver"),
     "campaign_review": _test("campaign_review_retained_fixture", "campaign_review_seed_driver"),
     "configured_draft": _test("configured_draft_retained_fixture", "configured_draft_seed_driver"),
+    "tiktok_draft": _test("tiktok_draft_retained_fixture", "tiktok_draft_seed_driver"),
+    "optimization_source": _test(
+        "optimization_source_retained_fixture", "optimization_source_seed_driver"
+    ),
     "reported_original": _test("reported_original_fixture", "reported_original_seed_driver"),
     "candidate_receipt": _test("candidate_receipt_fixture", "candidate_receipt_seed_driver"),
     "candidate_dual": _test("candidate_worker_fixture", "candidate_worker_seed_driver"),

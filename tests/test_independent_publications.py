@@ -30,6 +30,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
+from tests.candidate_read_retained_fixture import CandidateReadIds, load_candidate_read_fixture
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_exports import export_engine as export_engine
 from tests.test_customer_identity import FakeProvider, login
@@ -376,18 +378,20 @@ def test_final_atomic_persistence_rechecks_request_and_original_session(
 
 
 @pytest.mark.parametrize("change", ["source_revision", "privacy"])
+@pytest.mark.planning_boundary
 def test_v2_does_not_displace_candidate_v1_but_actual_changes_still_deny(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Any,
     change: str,
+    current_candidate_read: tuple[Engine, CandidateReadIds],
 ) -> None:
     from app.optimization_candidates.service import source_current
 
-    from tests.test_optimization_candidates import fixture as candidate_fixture
+    customer_engine, source_ids = current_candidate_read
 
     with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = candidate_fixture(db, configuration, tmp_path)
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, source_ids)
         source_current(db, work.scope, principal.user.id)
         actor = principal.user.id
         service = OwnedAcquisition(

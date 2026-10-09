@@ -18,6 +18,20 @@ from tests.reported_planning_original_fixture import ExpectedPlanningConfirmatio
 from tests.retired_snapshot import PIN, extract, run_bounded
 
 
+def owned_sqlite_target(target: str, expected: Path) -> str:
+    """Validate exact existing fixture file before any database access."""
+    url = make_url(target)
+    assert url.drivername == "sqlite" and not url.query
+    assert url.username is None and url.password is None and url.host is None and url.port is None
+    assert url.database is not None and url.database != ":memory:"
+    path = Path(url.database)
+    assert path.is_absolute() and path == expected.absolute()
+    assert path.is_file() and not path.is_symlink()
+    assert all(not parent.is_symlink() for parent in path.parents)
+    assert path.resolve() == path
+    return str(url)
+
+
 @contextmanager
 def retained_reported_planning_relative_fixture(
     engine: Engine,
@@ -25,10 +39,8 @@ def retained_reported_planning_relative_fixture(
     *,
     expectation: ExpectedPlanningConfirmation,
 ) -> Iterator[tuple[Engine, RetainedReportedOriginalIds]]:
-    artifacts.mkdir(parents=True)
     if engine.dialect.name == "sqlite":
-        assert engine.url.database and engine.url.database != ":memory:"
-        target = str(engine.url)
+        target = owned_sqlite_target(str(engine.url), artifacts.parent / "current.sqlite")
     else:
         safe_url = make_url(validate_disposable_url())
         assert safe_url.host in {"localhost", "127.0.0.1", "::1"} and not safe_url.query
@@ -36,6 +48,7 @@ def retained_reported_planning_relative_fixture(
         with engine.connect() as connection:
             target = str(connection.scalar(text("select current_schema()")))
         assert re.fullmatch(r"inlet_test_[a-f0-9]{32}", target)
+    artifacts.mkdir(parents=True)
     assert all(not rows for rows in effect_graph(engine).values())
     tables = set(inspect(engine).get_table_names())
     with engine.connect() as empty_check:

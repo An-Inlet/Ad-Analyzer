@@ -56,3 +56,27 @@ review gate for a reusable durable fixture, not28 original-failure closure, dura
 feedback service/HTTP regression or full product acceptance. Next stage: after
 review, default-collected service and ordinary-login HTTP feedback regression, then
 reviewed28 consumer adaptation. Original dated evidence remains unchanged.
+
+
+## Reviewed Owned-File Follow-Up
+
+Interface `f2b94e6`: new relative parent and child independently reject any SQLite
+URL except their exact absolute existing regular nonsymlink `current.sqlite` next
+to the artifact directory. Plain sqlite only, no query/host/user/port, no symlink
+ancestor or alias; validation precedes effect graph/database factory. PostgreSQL
+ownership unchanged. Existing fixed producers remain untouched.
+
+`pytest -q tests/test_reported_planning_relative.py tests/test_reported_planning_relative_file.py`
+with both DB settings: 14 passed, 37.324s, no skips
+(`owned-file.log/xml`, preserved owned-file-artifacts). Twelve guard cases cover
+both actual entry boundaries with forbidden database access/factory sentinels and
+foreign/query/missing/symlink/driver negatives plus exact-file positives.
+
+Final import/type repair of the negative test followed by
+`pytest -q tests/test_reported_planning_relative_file.py`: 12 passed,
+2.617s (`file-guard-final.log/xml`), overlapping guard evidence.
+Whole Ruff/bare mypy1,186 files/diff passed after final source edit. Initial mypy
+reported the test's indirect app re-export/optional file attribute; replaced with
+direct imported app and explicit non-null check, without changing guard semantics.
+Original stage1 failures/results above remain intact; no combined-pass claim for
+the earlier28/2 assertion cohort and no28consumer recovery credit.

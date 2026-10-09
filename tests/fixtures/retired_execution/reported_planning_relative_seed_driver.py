@@ -440,6 +440,20 @@ def produce(
     )
 
 
+def owned_sqlite_target(target: str, expected: Path) -> str:
+    """Validate exact existing fixture file before any database access."""
+    url = make_url(target)
+    assert url.drivername == "sqlite" and not url.query
+    assert url.username is None and url.password is None and url.host is None and url.port is None
+    assert url.database is not None and url.database != ":memory:"
+    path = Path(url.database)
+    assert path.is_absolute() and path == expected.absolute()
+    assert path.is_file() and not path.is_symlink()
+    assert all(not parent.is_symlink() for parent in path.parents)
+    assert path.resolve() == path
+    return str(url)
+
+
 def main() -> None:
     target, output = sys.argv[1:]
     assert (
@@ -448,6 +462,7 @@ def main() -> None:
     )
     assert Path(app.__file__).resolve().is_relative_to(Path(os.environ["PYTHONPATH"]).resolve())
     if target.startswith("sqlite:"):
+        target = owned_sqlite_target(target, Path(output).parent.parent / "current.sqlite")
         engine = create_engine(target)
         event.listen(engine, "connect", lambda db, _: db.execute("PRAGMA foreign_keys=ON"))
     else:

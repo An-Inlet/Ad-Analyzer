@@ -51,6 +51,7 @@ def _test(
 
 
 PROFILES = {
+    "meta_review_lock": _test("meta_review_lock_retained_fixture", "meta_review_lock_seed_driver"),
     "google_created": _test("google_created_retained_fixture", "google_created_seed_driver"),
     "late_publication": _test("late_publication_retained_fixture", "late_publication_seed_driver"),
     "google_completion": _test(

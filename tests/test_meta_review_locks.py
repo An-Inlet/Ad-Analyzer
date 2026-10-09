@@ -17,6 +17,8 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, event, select
 from sqlalchemy.orm import Session
 
+from tests.meta_review_lock_retained_fixture import MetaLockIds, load_source
+from tests.meta_review_lock_retained_fixture import meta_review_source as meta_review_source
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_google_action_plans import setup
@@ -87,11 +89,13 @@ def test_review_native_meta_lock_order(
     configuration: Settings,
     meta_configuration: Settings,
     operation: str,
+    meta_review_source: MetaLockIds | None,
 ) -> None:
     if customer_engine.dialect.name != "postgresql":
         pytest.skip("PostgreSQL row-lock ordering")
+    assert meta_review_source is not None
     with Session(customer_engine) as db:
-        wid, body = review_fixture(db, configuration, meta_configuration)
+        wid, body = load_source(db, meta_review_source)
     scope_locked, lifecycle_reached, release = Event(), Event(), Event()
 
     def before_sql(

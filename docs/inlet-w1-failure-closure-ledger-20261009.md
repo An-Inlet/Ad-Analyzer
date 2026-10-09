@@ -283,3 +283,20 @@ before checking anything; no standalone plugin pass is claimed from that command
 Current next packages: worker ownership12, exact receipt reconciliation2, reported
 acquisition/retry28, and configured API historical/current34 split with strict
 causal status/detail assertions. Full aggregate remains the frozen failed run.
+
+### Workspace Capacity Incident
+
+A disconnect notification was checked against live executor commands, clean source
+heads and the continuing pytest process; no execution interruption was found.
+Subsequent actual disk exhaustion caused worker12 fixture extraction OSError28.
+Its87pass/11setup-error observation is preserved;86 unchanged boundary passes are
+not rerun. Only12 affected workers rerun after capacity recovery.
+
+Root inventoried and removed98 completed reproducible PIN2155 extraction copies,
+1,681,020,400 logical bytes. A worker separately inventoried29 of its own completed
+copies (445,647,134 bytes). No active source, worktree, commit, raw log, XML, fixture
+ID, media or database artifact was removed. Free space recovered2.6GiB. Inventory
+and independent post-cleanup XML/PIN/IDs/SQLite integrity checks are retained as
+root-source-cleanup-20261009.json and root-source-cleanup-integrity-20261009.json.
+Original aggregate SHA remains unchanged. This is temporary-fixture reclamation,
+not an aggregate reset, broader cleanup or evidence replacement.

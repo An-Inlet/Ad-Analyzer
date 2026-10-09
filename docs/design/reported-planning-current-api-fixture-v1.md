@@ -12,7 +12,7 @@ a usable cookie for the historical dummy session.
 
 Build the server-owned ReportedFeedbackRuntime with the existing explicit window
 policy and current clock. POST the actual `/reported-feedback/comparisons` endpoint
-with original attempt/goal/revision and existing10m objective. Read its actual
+with original attempt/goal/revision and existing100m objective. Read its actual
 ComparisonProgress response and original current principal from persisted login
 rows. Construct PreparedReportedRead from those actual values, with unchanged
 original scalar DTO. No hidden preliminary service request/job is created.
@@ -43,3 +43,23 @@ service boundary unless additionally exercised over HTTP; report distinction.
 This seam is proposed for review before shared-helper/API implementation. The
 coherent source and direct-service reproduction remain independently qualified;
 no API claim follows from those prior tests alone.
+
+## Reviewed Due-Time HTTP Clock Input
+
+The first actual ordinary login/request on October9 returns the real acquisition
+due time October13. Its ordinary session expires before that due time; preserve
+this observed denial rather than extending expiry. For explicitly simulated due-time
+requests, use a scoped module-local `app.customers.access.time` namespace reading
+that same scenario clock. Assert the first session is rejected then issue a fresh
+ordinary-TTL session through the actual login route at the returned due time.
+Only during issuance replace `app.api.customer.time` with that timestamp and give
+FakeProvider coherent claims through actual `verified_identity`. This is the already
+reviewed Q16 clock-input technique, not a replacement guard/provider-active decision.
+
+Global `time.time` stays untouched. All namespaces/provider verify functions restore
+on context exit. Runtime source/acquisition clock and request authentication use the
+same simulated instant, then normal prescribed acquisition spacing; no future-issued
+session is accepted merely because real wallclock lags. POST a new actual comparison
+under the fresh session; old job remains legitimately superseded, not rewritten.
+Native clocks, DB freshness floor and ordinary TTL remain unchanged. Report this
+as simulated-time authenticated HTTP qualification, not real-time browser evidence.

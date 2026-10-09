@@ -17,7 +17,9 @@ import pytest
 import uvicorn
 from app.api import customer as customer_api
 from app.api import customer_planning_documents as api
+from app.customers.access import SESSION_COOKIE, digest
 from app.customers.identity import get_identity_provider, verified_identity
+from app.customers.models import CustomerSession
 from app.database.session import get_db
 from app.lifecycle.privacy import bump_workspace_export_revision
 from app.main import app
@@ -26,6 +28,7 @@ from app.publication.execution_models import ProviderExecutionAttempt
 from app.settings import Settings, settings
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
+from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.types import Message, Receive, Scope, Send
 
@@ -42,12 +45,16 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("generation_stage", ["nov3", "october"])
-@pytest.mark.parametrize("branch", ["progress", "privacy"])
+@pytest.mark.parametrize("branch,generation_stage", [
+    ("progress", "nov3"), ("privacy", "nov3"),
+    ("progress", "october"), ("privacy", "october"),
+    ("session_replacement", "october"), ("goal_changed", "october"),
+])
 def test_dated_q16_browser(
     customer_engine: Engine, configuration: Settings, replicas: Any,
     generation_stage: Literal["nov3", "october"],
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, branch: Literal["progress", "privacy"],
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    branch: Literal["progress", "privacy", "session_replacement", "goal_changed"],
 ) -> None:
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -59,7 +66,8 @@ def test_dated_q16_browser(
         client.base_url = origin
     calls: list[str] = []
     ids = prepare_q16_case(customer_engine, configuration, replicas, monkeypatch, tmp_path,
-                           branch=branch, native_calls=calls, generation_stage=generation_stage)
+                           branch="privacy" if branch == "privacy" else "progress",
+                           native_calls=calls, generation_stage=generation_stage)
     alice, _, provider = replicas
     base = f"/api/customer/v1/workspaces/{ids.workspace_id}/planning/plans/{ids.plan_id}"
     original = alice.get(base + "/export", params={"version": 1})
@@ -109,6 +117,13 @@ def test_dated_q16_browser(
             stamp = int((now if fixed_stage else datetime.now(UTC)).timestamp())
             project = provider.issuer.rsplit("/", 1)[1]
             real_time = time.time
+            old_key = None
+            if branch == "session_replacement" and state["held"]:
+                old_key = digest(Request(scope).cookies[SESSION_COOKIE])
+                with Session(customer_engine) as db:
+                    old = db.get(CustomerSession, old_key)
+                    assert old and old.revoked_at is None and old.expires_at > stamp
+                    old_expiry, old_user = old.expires_at, old.user_id
 
             def verify(token: str) -> Any:
                 assert token == f"q16-browser-{issued}"
@@ -123,6 +138,12 @@ def test_dated_q16_browser(
                 issue.setattr(provider, "verify", verify)
                 await app(scope, receive, send)
                 assert time.time is real_time
+            if old_key:
+                with Session(customer_engine) as db:
+                    old = db.get(CustomerSession, old_key)
+                    assert old and old.revoked_at == stamp < old_expiry
+                    assert old.user_id == old_user
+                    state["rotation"] = dict(revoked_at=old.revoked_at, expires_at=old_expiry)
             assert vars(customer_api)["time"] is time
             return
         if path in {"/__fixture__/initial_day", "/__fixture__/later_day",
@@ -214,8 +235,12 @@ def test_dated_q16_browser(
         successes = [r["body"] for r in state["reads"] if r["status"] == 200]
         assert successes and all(r["goal"] == successes[0]["goal"] for r in successes)
         assert all(r["document_digest"] == ids.document_digest for r in successes)
-        assert successes[0]["sales"]["coverage"]["starts_at"] == "2026-11-01T04:00:00Z"
-        assert successes[0]["sales"]["coverage"]["ends_at_exclusive"] == "2026-11-03T05:00:00Z"
+        if branch == "goal_changed":
+            assert len(successes) == 1 and successes[0]["binding_reason"] == "goal_changed"
+            assert successes[0]["sales"] is None
+        else:
+            assert successes[0]["sales"]["coverage"]["starts_at"] == "2026-11-01T04:00:00Z"
+            assert successes[0]["sales"]["coverage"]["ends_at_exclusive"] == "2026-11-03T05:00:00Z"
         if branch == "progress":
             assert [r["net_sales_micros_exact"] for r in successes] == ["0", "25000000", "20000000"]
             assert [r["sales"]["coverage"]["closed_day_count"] for r in successes] == [2, 3, 3]
@@ -227,12 +252,15 @@ def test_dated_q16_browser(
                 *initial_counts[4:7],
             )
             assert results[0]["document_bytes"] == original_document_bytes
+        if branch == "session_replacement":
+            assert state.get("rotation")
+            (tmp_path / "session-rotation.json").write_text(json.dumps(state["rotation"], indent=2))
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == (
-                1 if branch == "progress" else 0
+                0 if branch == "privacy" else 1
             )
             assert db.scalar(select(func.count()).select_from(PlanEventRow)) == (
-                2 if generation_stage == "october" and branch == "progress" else 0
+                2 if generation_stage == "october" and branch != "privacy" else 0
             )
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
     finally:

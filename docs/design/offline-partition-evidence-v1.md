@@ -13,7 +13,11 @@ never execution/deselection authority or a CI-duration/pass guarantee.
   original aggregate is terminal.
   `--partition-manifest /absolute/outside-checkout/collection.json` is mandatory
   when loaded. `pytest_configure` rejects any invocation without `--collect-only`.
-  Reject selection filters (`-k`, `-m`, `--deselect`, ignore paths/globs) and any
+  Allow only the documented `-p inlet_partition_collection --collect-only
+  --partition-manifest PATH` invocation (optional `-q`/`-qq`); reject nonempty
+  PYTEST_ADDOPTS, override_ini, alternate configfile, noconftest/confcutdir and
+  lastfailed. Require the active configuration inside the clean Git root and
+  record its relative path/hash. Reject selection filters (`-k`, `-m`, `--deselect`, ignore paths/globs) and any
   positional collection scope except the configured full `testpaths`. Observe
   `pytest_deselected` and fail on any deselection; never modify items. A successful
   collection/session finish writes the manifest only after verifying full unique
@@ -28,7 +32,7 @@ never execution/deselection authority or a CI-duration/pass guarantee.
 ## Collection Manifest `inlet.partition-collection.v1`
 
 Strict object: `schema_version`, full40hex `commit`, `pytest_version`,
-`collection_scope` (configured testpaths), `items` in genuine collected order.
+`config_path`, `config_sha256`, `collection_scope` (configured testpaths), `items` in genuine collected order.
 Each item: `node_id` (unique), `file` (relative `.py` path), `junit_classname`,
 `junit_name`. Store the actual pytest JUnit name mapping via the installed pytest
 `mangle_test_address` helper, including class names and intact parameter text
@@ -53,7 +57,8 @@ consistent declared testcase/failure/error/skip totals and exact one-to-one matc
 of every collected item using captured identities. Reject unknown/duplicate/
 missing case, ambiguous mapping, malformed XML, or incompatible prefixed names.
 Terminal failed/error/skipped cases remain explicitly labeled; never discard them.
-Finite nonnegative Decimal testcase seconds are optional: missing duration is
+Finite nonnegative Decimal testcase seconds (maximum1e9,32 significant digits,
+no finer than nanoseconds) are optional: missing duration is
 `unknown`, malformed/negative/nonfinite duration rejects. Exit0 cannot accompany
 failure/error; exit1 requires failure/error. A failed testcase's measured time is
 not an estimate for a successful path. No setup/call/teardown split is invented.
@@ -76,7 +81,7 @@ counts; explicit `candidate_only=true`, `capacity_qualified=false`,
 
 Deterministic greedy file-level balancing: sum known seconds per current file,
 sort descending subtotal then filename; assign each file to lowest known subtotal
-shard with index tie-break. Preserve original node order within each shard. Missing
+shard with file-count then index tie-break (so zero-cost files do not create empty shards). Preserve original node order within each shard. Missing
 or failed timings stay visible; subtotal is not total duration or successful-path
 prediction. Never split a file, class, parameters or backend matrix across shards.
 Finally assert pairwise disjoint candidate sets and their ordered-parent-set union

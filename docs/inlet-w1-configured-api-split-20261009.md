@@ -88,3 +88,18 @@ add explicit fifth configured-api manifest/wrapper provenance through its review
 interface, preserving earlier3/249 and4/259 evidence; do not loosen validation.
 C34 does not run collection, shards, previous child batches, Full or hosted CI.
 Independent source review remains required before root integration/coverage credit.
+
+Independent review requested exact causal details for every adverse response. The
+32-case `exact-details.xml` run completed30pass2fail0skip198.094s: only Google
+missing registration differed from the initially inferred named-catalog code.
+Actual absent runtime emits the exact structured `provider_execution_not_configured`
+detail. Both original auth statuses and every other exact provider/scenario detail
+passed. Corrected only this literal, then `exact-google-missing.xml`/`.log`/`.exit`
+completed **2pass0skip15.266s**, exit0. Do not describe the failed32 run as green.
+All32 adverse identities now have passing exact-detail evidence across these runs.
+Whole Ruff/bare mypy1142/diff pass again (`*-details-final.log`).
+
+The environment reached disk100% during the32 run; its full XML/log/exit remained
+intact and contained no disk error. Root reclaimed inventoried completed duplicate
+PIN source trees, preserving all raw evidence. No new runs started until resume;
+the two-case correction checked available disk exceeded500MiB before launch.

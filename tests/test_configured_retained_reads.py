@@ -184,6 +184,29 @@ def test_current_configured_adverse_read(
         if scenario == "during_revoke" and provider == "google_ads":
             expected = 401
         assert response.status_code == expected, response.text
+        common_details: dict[str, Any] = {
+            "revoked": "authentication failed",
+            "foreign": "campaign draft unavailable",
+            "nonowner": "insufficient role",
+            "nonmember": "workspace not found",
+        }
+        google_details: dict[str, Any] = {
+            "during_revoke": "customer authentication required",
+            "generation": "provider connection generation changed",
+            "real_transport": "google_execution_test_transport_required",
+            "missing": {
+                "code": "provider_execution_not_configured",
+                "message": "Provider execution is unavailable.",
+            },
+        }
+        detail = common_details.get(scenario)
+        if detail is None:
+            detail = (
+                google_details[scenario]
+                if provider == "google_ads"
+                else "social_configuration_discovery_unavailable"
+            )
+        assert response.json() == {"detail": detail}, response.text
         assert real_constructions == []
         if provider == "meta_ads" and scenario == "missing":
             assert control["builds"] == 0

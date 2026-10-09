@@ -400,3 +400,44 @@ still requests execution consent for that reference. A narrow reuse of the curre
 planning-limit checker is proposed, pending genuine baseline/period evidence;
 no fixture bypass or production completion is claimed yet. Original financial
 ledger/goal invariants must remain intact. No aggregate or remote operation ran.
+
+### Current Runtime And Commerce Read Closure
+
+Reviewed A30 `be70abe`→`41899ff` adds thirty current original failure identities.
+Exact adverse cohort30 passed (354.775s), six positive prerequisites passed, and
+90 boundary/fixture checks passed. Original three consumer functions retain their
+assertions; actual source records, current owned reads and explicitly decoded
+TikTok catalog evidence are distinguished. Whole Ruff/mypy1172/diff passed.
+Reviewed additive lifecycle `7387603`→`ce73dfc` extends only two closed producer
+profiles/wrappers: 22 passes (six real current reads plus sixteen lifetime checks),
+83.502s, whole Ruff/mypy1175/diff passed; six source copies removed with retained
+sibling hash/provenance evidence. No whole-suite capacity guarantee is claimed.
+
+Reported-proof `e09c096`→`eaa0f8b` adds fourteen current identities:14 passed both
+DBs (121.685s), seven compatibility passes, whole Ruff/mypy1162/diff. Initial seven
+SQLite setup errors and seven PostgreSQL passes remain recorded; the current
+file-engine wrapper import corrected setup. No shared producer or application edit.
+
+Current planning-context `c5d3f8b`→`d44d11c` adds eight identities:95 passed
+(104.536s), including original DST and 86 boundary overlap. Current independent
+commerce publication `26f79af`→`075f221` adds four:full module40 passed (130.974s).
+Retained direct executor counterexamples `a5de3cd`→`bc8f980` add ten:96 passed
+(17.260s), including 86 boundary overlap. All three preserve original assertions,
+were independently reviewed, and passed whole Ruff/mypy1175/diff before commit.
+
+At `2acb3b2`, exact immutable overlay `successor-coverage-966.json` records
+**966 covered (922 direct successor,44 explicit historical/current comparison),
+364 remaining**. Whole combined Ruff, bare mypy1176, standalone collection-plugin
+mypy1 and diff passed at this head; evidence `integration-2acb3b2/`.
+
+The dated non-default preparation probe `87341c1`→`2acb3b2` confirms actual current
+preparation works on the original source, then confirmation rejects its future
+November period during October. SQLite/PG each passed,25.054s/24.893s. A new closed
+coherent source is under review; no current feedback production repair is yet
+claimed. Its original goal/ledger dates must be coherent before the original effect.
+
+To preserve working capacity, only ignored, regenerable mypy caches from six
+completed root worktrees were removed after verifying no active process used those
+worktrees. Inventory `root-completed-mypy-cache-cleanup.json` records252,061,822
+logical bytes; all source, commits, SQLite, log/XML and ledgers remain. No aggregate,
+hosted retry, external provider/model call, remote push, merge or deployment.

@@ -41,12 +41,12 @@ from tests.retired_snapshot import PIN, extract, run_bounded
 ID = Annotated[str, Field(pattern=r"^[a-f0-9]{32}$")]
 Digest = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 Positive = Annotated[int, Field(gt=0)]
-Mode = Literal["daily_completed", "daily_unknown"]
+Mode = Literal["daily_completed", "daily_unknown", "total_created"]
 
 
 class AttemptPin(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
-    step_id: Literal["budget"]
+    step_id: Literal["budget", "campaign"]
     attempt_id: ID
     fence: ID
     request_digest: Digest
@@ -76,22 +76,38 @@ class GoogleCreatedIds(BaseModel):
     review_digest: Digest
     plan_digest: Digest
     reservation_amount_micros: Positive
-    provider_posts: Annotated[int, Field(strict=True, ge=1, le=1)]
-    attempts: Annotated[list[AttemptPin], Field(min_length=1, max_length=1)]
+    provider_posts: Annotated[int, Field(strict=True, ge=1, le=2)]
+    attempts: Annotated[list[AttemptPin], Field(min_length=1, max_length=2)]
 
     @model_validator(mode="after")
     def completion_shape(self) -> "GoogleCreatedIds":
-        pin = self.attempts[0]
-        assert type(self.provider_posts) is int
-        assert (pin.completion_digest is None) == (self.mode == "daily_unknown")
-        assert (pin.resource_name is None) == (self.mode == "daily_unknown")
+        expected = ["budget", "campaign"] if self.mode == "total_created" else ["budget"]
+        assert [pin.step_id for pin in self.attempts] == expected
+        assert self.provider_posts == len(expected)
+        for key in ("attempt_id", "fence", "latest_receipt_id"):
+            assert len({getattr(pin, key) for pin in self.attempts}) == len(expected)
+        for pin in self.attempts:
+            assert (pin.completion_digest is None) == (self.mode == "daily_unknown")
+            assert (pin.resource_name is None) == (self.mode == "daily_unknown")
         return self
 
 
 def load_source(db: Session, ids: GoogleCreatedIds) -> None:
     owner(db, ids.workspace_id, ids.actor_id)
-    pin = ids.attempts[0]
-    attempt = db.scalars(select(ProviderExecutionAttempt)).one()
+    pins = {pin.attempt_id for pin in ids.attempts}
+    assert set(db.scalars(select(ProviderExecutionAttempt.id))) == pins
+    assert set(db.scalars(select(ProviderExecutionResponse.attempt_id))) == pins
+    assert set(db.scalars(select(ProviderExecutionReceipt.attempt_id))) == pins
+    assert set(db.scalars(select(GoogleOriginalCompletion.attempt_id))) == (
+        set() if ids.mode == "daily_unknown" else pins
+    )
+    for pin in ids.attempts:
+        load_attempt(db, ids, pin)
+
+
+def load_attempt(db: Session, ids: GoogleCreatedIds, pin: AttemptPin) -> None:
+    attempt = db.get(ProviderExecutionAttempt, pin.attempt_id)
+    assert attempt
     assert attempt.id == pin.attempt_id and attempt.run_id == ids.run_id
     assert attempt.step_id == pin.step_id
     run, document, attempt, request = coordinator.evidence_lock(
@@ -109,12 +125,23 @@ def load_source(db: Session, ids: GoogleCreatedIds) -> None:
         native and native.workspace_id == ids.workspace_id and native.account_id == ids.account_id
     )
     assert request.scope.connection_version.split(":")[1] == native.id
+    if pin.step_id == "campaign":
+        assert isinstance(request, BoundProviderRequest)
+        assert request.resources["budget"] == ids.attempts[0].resource_name
     assert attempt.fence == pin.fence and request.digest() == pin.request_digest
-    response = db.scalars(select(ProviderExecutionResponse)).one()
+    response = db.scalars(
+        select(ProviderExecutionResponse).where(
+            ProviderExecutionResponse.attempt_id == pin.attempt_id
+        )
+    ).one()
     assert response.workspace_id == ids.workspace_id
     assert response.attempt_id == attempt.id and response.digest == pin.response_digest
     assert fingerprint("inlet.provider-response.v1", response.response) == pin.response_digest
-    receipt = db.scalars(select(ProviderExecutionReceipt)).one()
+    receipt = db.scalars(
+        select(ProviderExecutionReceipt).where(
+            ProviderExecutionReceipt.attempt_id == pin.attempt_id
+        )
+    ).one()
     assert receipt.workspace_id == ids.workspace_id
     assert receipt.attempt_id == attempt.id and receipt.id == pin.latest_receipt_id
     assert (
@@ -182,7 +209,7 @@ def owned_sqlite_target(target: str, expected: Path) -> str:
 def retained_google_created(
     original: Engine, artifacts: Path, mode: Mode
 ) -> Iterator[tuple[Engine, GoogleCreatedIds]]:
-    assert mode in {"daily_completed", "daily_unknown"}
+    assert mode in {"daily_completed", "daily_unknown", "total_created"}
     assert artifacts.is_absolute() and artifacts.resolve() == artifacts
     assert not artifacts.is_symlink()
     assert all(not parent.is_symlink() for parent in artifacts.parents)

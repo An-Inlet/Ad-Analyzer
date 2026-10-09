@@ -15,6 +15,7 @@ from app.customers.models import CustomerSession
 from app.publication import coordinator, customer_intents
 from app.publication.execution_models import (
     GoogleOriginalCompletion,
+    ProviderExecutionAttempt,
     ProviderExecutionReceipt,
     ProviderExecutionResponse,
     ProviderExecutionReview,
@@ -26,6 +27,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from tests.test_customer_identity import replicas
 from tests.test_google_execution_completion import first_attempt
+from tests.test_google_total_envelope_api import created
 from tests.test_shopify_sales import configuration
 
 
@@ -44,7 +46,7 @@ def owned_sqlite_target(target: str, expected: Path) -> str:
 
 def main() -> None:
     target, output, mode = sys.argv[1:]
-    assert mode in {"daily_completed", "daily_unknown"}
+    assert mode in {"daily_completed", "daily_unknown", "total_created"}
     assert os.environ.get("INLET_RETIRED_EXECUTION_CHILD") == (
         "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
     )
@@ -70,15 +72,28 @@ def main() -> None:
         (path / "media").mkdir()
         with pytest.MonkeyPatch.context() as patch:
             clients = cast(Any, replicas).__wrapped__(engine, patch)
-            alice, _, attempt_id, wid, _, server, _ = first_attempt(
-                engine,
-                cast(Any, configuration).__wrapped__(),
-                path / "media",
-                patch,
-                clients,
-                timeout=mode == "daily_unknown",
-            )
-            assert server.posts == 1
+            if mode == "total_created":
+                alice, _, _, server = created(
+                    engine, cast(Any, configuration).__wrapped__(), path / "media", patch, clients
+                )
+                with Session(engine) as db:
+                    budget = db.scalars(
+                        select(ProviderExecutionAttempt).where(
+                            ProviderExecutionAttempt.step_id == "budget"
+                        )
+                    ).one()
+                    attempt_id, wid = budget.id, budget.workspace_id
+            else:
+                alice, _, attempt_id, wid, _, server, _ = first_attempt(
+                    engine,
+                    cast(Any, configuration).__wrapped__(),
+                    path / "media",
+                    patch,
+                    clients,
+                    timeout=mode == "daily_unknown",
+                )
+            count = 2 if mode == "total_created" else 1
+            assert server.posts == count
             with Session(engine) as db:
                 session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
                 assert session
@@ -89,11 +104,46 @@ def main() -> None:
                     db, wid, document.mandate.mandate_id, document.mandate.revision
                 )
                 hold = db.scalars(select(ProviderExposureReservation)).one()
-                response = db.scalars(select(ProviderExecutionResponse)).one()
-                receipt = db.scalars(select(ProviderExecutionReceipt)).one()
-                completion = db.get(GoogleOriginalCompletion, attempt_id)
                 assert hold.id == run.reservation_id and hold.state == "held"
-                assert (completion is None) == (mode == "daily_unknown")
+                attempts = list(
+                    db.scalars(
+                        select(ProviderExecutionAttempt).order_by(ProviderExecutionAttempt.step_id)
+                    )
+                )
+                assert [row.step_id for row in attempts] == (
+                    ["budget", "campaign"] if mode == "total_created" else ["budget"]
+                )
+                pins = []
+                for row in attempts:
+                    response = db.scalars(
+                        select(ProviderExecutionResponse).where(
+                            ProviderExecutionResponse.attempt_id == row.id
+                        )
+                    ).one()
+                    receipt = db.scalars(
+                        select(ProviderExecutionReceipt).where(
+                            ProviderExecutionReceipt.attempt_id == row.id
+                        )
+                    ).one()
+                    completion = db.get(GoogleOriginalCompletion, row.id)
+                    assert (completion is None) == (mode == "daily_unknown")
+                    resource = receipt.receipt.get("resource_name")
+                    if mode == "total_created":
+                        assert resource in server.rows
+                    pins.append(
+                        dict(
+                            step_id=row.step_id,
+                            attempt_id=row.id,
+                            fence=row.fence,
+                            request_digest=row.request_digest,
+                            response_digest=response.digest,
+                            latest_receipt_id=receipt.id,
+                            latest_receipt_digest=receipt.digest,
+                            latest_receipt_sequence=receipt.sequence,
+                            completion_digest=None if completion is None else completion.digest,
+                            resource_name=resource,
+                        )
+                    )
                 data = dict(
                     mode=mode,
                     workspace_id=wid,
@@ -112,22 +162,8 @@ def main() -> None:
                     plan_digest=review.plan_digest,
                     reservation_amount_micros=hold.amount_micros,
                     provider_posts=server.posts,
-                    attempts=[
-                        dict(
-                            step_id=attempt.step_id,
-                            attempt_id=attempt.id,
-                            fence=attempt.fence,
-                            request_digest=attempt.request_digest,
-                            response_digest=response.digest,
-                            latest_receipt_id=receipt.id,
-                            latest_receipt_digest=receipt.digest,
-                            latest_receipt_sequence=receipt.sequence,
-                            completion_digest=None if completion is None else completion.digest,
-                            resource_name=receipt.receipt.get("resource_name"),
-                        )
-                    ],
+                    attempts=pins,
                 )
-                assert attempt.id == response.attempt_id == receipt.attempt_id
                 db.commit()
         raw = json.dumps(data)
         assert len(raw.encode()) <= 8192

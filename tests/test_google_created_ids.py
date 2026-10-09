@@ -124,3 +124,43 @@ def test_untrusted_scalar_shapes_reject(change: str) -> None:
         pin["latest_receipt_sequence"] = True
     with pytest.raises(ValidationError):
         GoogleCreatedIds.model_validate(data)
+
+
+def total_example() -> dict[str, Any]:
+    data = example()
+    data.update(mode="total_created", provider_posts=2)
+    campaign = deepcopy(data["attempts"][0])
+    campaign.update(
+        step_id="campaign",
+        attempt_id="c" * 32,
+        fence="c" * 32,
+        latest_receipt_id="c" * 32,
+        resource_name="customers/1234567890/campaigns/2",
+    )
+    data["attempts"].append(campaign)
+    return data
+
+
+def test_total_exact_ordered_pair_roundtrips() -> None:
+    parsed = GoogleCreatedIds.model_validate(total_example())
+    assert GoogleCreatedIds.model_validate_json(parsed.model_dump_json()) == parsed
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["order", "attempt_id", "fence", "latest_receipt_id", "null", "posts", "bool_posts", "missing"],
+)
+def test_total_requires_distinct_complete_exact_pair(change: str) -> None:
+    data = total_example()
+    if change == "order":
+        data["attempts"].reverse()
+    elif change in {"attempt_id", "fence", "latest_receipt_id"}:
+        data["attempts"][1][change] = data["attempts"][0][change]
+    elif change == "null":
+        data["attempts"][1]["completion_digest"] = None
+    elif change in {"posts", "bool_posts"}:
+        data["provider_posts"] = 1 if change == "posts" else True
+    else:
+        data["attempts"].pop()
+    with pytest.raises(ValidationError):
+        GoogleCreatedIds.model_validate(data)

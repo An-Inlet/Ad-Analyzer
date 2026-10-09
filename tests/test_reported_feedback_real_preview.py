@@ -7,13 +7,19 @@ from app.settings import Settings
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.reported_feedback_journey_fixture import acquired, baseline
+from tests.reported_feedback_journey_fixture import acquired
 from tests.reported_original_fixture import (
     RetainedReportedOriginalIds,
     prepare_reported_read,
 )
 from tests.reported_original_fixture import customer_engine as customer_engine
 from tests.reported_original_fixture import reported_original as reported_original
+from tests.reported_planning_journey_fixture import (
+    PlanningOrigin,
+    acquired_current,
+    baseline_current,
+)
+from tests.reported_planning_journey_fixture import planning_origin as planning_origin
 from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
@@ -25,11 +31,16 @@ def test_actual_acquisitions_produce_real_calibrated_baseline_and_changed_previe
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    planning_origin: PlanningOrigin,
 ) -> None:
     with Session(customer_engine) as db:
-        data, runtime, observation = acquired(db, configuration, tmp_path, monkeypatch)
-        wid, principal, _, job, _, _, _, _, _, _, server = data
-        runtime, initial = baseline(db, data, runtime, observation)
+        data, runtime, observation = acquired_current(
+            db, configuration, tmp_path, monkeypatch, planning_origin
+        )
+        wid, principal, _, job, _, _, _, _, _, _, original = data
+        runtime, initial, reads = baseline_current(
+            db, data, runtime, observation, planning_origin, tmp_path, monkeypatch
+        )
         comparison = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
         assert comparison.status == "operational_reported_as_of", comparison
         result = apply_feedback_preview(
@@ -44,7 +55,8 @@ def test_actual_acquisitions_produce_real_calibrated_baseline_and_changed_previe
         assert initial.after_budget_micros == 46000000
         assert result.baseline_budget_micros == 46000000
         assert result.proposed_budget_micros == 47000000
-        assert len(server.posts) == 1
+        assert original.original_post_count == 1
+        reads.assert_read_only()
 
 
 @pytest.mark.parametrize(

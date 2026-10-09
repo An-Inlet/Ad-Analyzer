@@ -21,9 +21,15 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from tests.reported_feedback_journey_fixture import acquired, baseline
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_planning_journey_fixture import (
+    PlanningOrigin,
+    acquired_current,
+    baseline_current,
+)
+from tests.reported_planning_journey_fixture import planning_origin as planning_origin
 from tests.test_customer_identity import FakeProvider
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -39,11 +45,16 @@ def test_real_feedback_idempotent_not_compounded_and_retracted_with_retained_fin
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    planning_origin: PlanningOrigin,
 ) -> None:
     with Session(customer_engine) as db:
-        data, runtime, observation = acquired(db, configuration, tmp_path, monkeypatch)
-        wid, principal, _, job, _, _, _, _, _, _, server = data
-        runtime, initial = baseline(db, data, runtime, observation)
+        data, runtime, observation = acquired_current(
+            db, configuration, tmp_path, monkeypatch, planning_origin
+        )
+        wid, principal, _, job, _, _, _, _, _, _, original = data
+        runtime, initial, reads = baseline_current(
+            db, data, runtime, observation, planning_origin, tmp_path, monkeypatch
+        )
         comparison = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
         intent = FeedbackPreviewIntentV1(
             comparison_id=comparison.id, baseline_preview_id=initial.id
@@ -86,7 +97,8 @@ def test_real_feedback_idempotent_not_compounded_and_retracted_with_retained_fin
                 ProviderExposureReservation,
             )
         )
-        assert len(server.posts) == 1
+        assert original.original_post_count == 1
+        reads.assert_read_only()
 
 
 @pytest.mark.parametrize("erasure", ["pointer", "current_revision"])
@@ -96,14 +108,19 @@ def test_changed_mapping_appends_current_revision_without_invalidating_baseline(
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    planning_origin: PlanningOrigin,
 ) -> None:
     from app.initial_planning.preview import read_preview
     from app.workspaces.models import Workspace
 
     with Session(customer_engine) as db:
-        data, runtime, observation = acquired(db, configuration, tmp_path, monkeypatch)
-        wid, principal, _, job, _, _, _, _, _, _, server = data
-        runtime, initial = baseline(db, data, runtime, observation)
+        data, runtime, observation = acquired_current(
+            db, configuration, tmp_path, monkeypatch, planning_origin
+        )
+        wid, principal, _, job, _, _, _, _, _, _, original = data
+        runtime, initial, reads = baseline_current(
+            db, data, runtime, observation, planning_origin, tmp_path, monkeypatch
+        )
         comparison = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
         intent = FeedbackPreviewIntentV1(
             comparison_id=comparison.id, baseline_preview_id=initial.id
@@ -163,4 +180,5 @@ def test_changed_mapping_appends_current_revision_without_invalidating_baseline(
             require_current_slot(db, old)
         with pytest.raises(HTTPException):
             apply_feedback_preview(db, principal, FakeProvider(), wid, intent, changed)
-        assert len(server.posts) == 1
+        assert original.original_post_count == 1
+        reads.assert_read_only()

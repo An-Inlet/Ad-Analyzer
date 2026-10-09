@@ -134,3 +134,36 @@ now pass on the combined successor; diff check passes. This repeats the same two
 backend cases and adds no independent Q16 acceptance. Both the initial lint failure
 and final results are retained in
 `/workspace/inlet-evidence/20261009/successor-integration/`.
+
+
+## Reviewed Successor Packages At October 9 00:34 UTC
+
+Native fixture repair `a0bc585` is independently CLOSED and integrated. Genuine
+pinned historical mandate/source production now precedes unchanged current native
+read/authority assertions. No current write guard is bypassed. Existing module:
+78 passed, zero skips, 499.84s across SQLite/PostgreSQL; exact shared-producer
+compatibility: 4 passed, zero skips, 82.01s. The single repaired SQLite pass overlaps
+that module. Whole Ruff, bare mypy and diff checks passed. Original failure and
+inherited lint failure remain recorded in `inlet-native-diagnostic-fixture-20261009.md`.
+
+Exact dated Q16 fixture `d75855f` is independently CLOSED for its bounded claims
+and integrated. Four explicit SQLite/PostgreSQL cases passed, zero skips, 15.902s.
+Actual New York metadata, fixed September 15 baseline, October goal HTTP confirmation,
+November DST closed-day prefixes and same-order signed refund prove 0→25→20 sales
+with unchanged V1/digest/goal and no native reads during progress. A separate erasure
+case proves old-ID/artifact/receipt denials and six empty lifecycle sections. Actual
+owned image upload/download/SHA is proved; plan reference is text only, not vision
+or typed asset binding. This is not full Q16, browser or streamed-archive acceptance.
+See `inlet-q16-exact-dated-fixture-20261009.md` and the frozen shared fixture contract.
+
+Combined successor code head `c597300` passes whole Ruff and bare mypy (1,121 files)
+and diff checks. The two code packages modify disjoint test seams; their completed
+focused tests were not needlessly repeated. Full W1 remains the original `6a3b0f1`
+process, around 44% after 45 minutes, with failures visible and no terminal result.
+
+After the shared fixture freeze, two independent successor lanes started from
+`c597300`: explicit dated actual browser progress/correction/erasure, and real
+workspace archive creation/snapshot/delivery privacy. They may add their own
+controllers/tests but cannot silently change the shared fixture interface. Neither
+may touch W1 source or its aggregate database. Manual-report/expert/full-quality
+and live/commercial gates remain separately outstanding.

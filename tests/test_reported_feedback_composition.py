@@ -34,21 +34,45 @@ from pydantic import SecretStr
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.reported_original_fixture import (
+    ExpectedUnknownReadback,
+    RetainedReportedOriginalIds,
+    assert_no_attempt_derivatives,
+    prepare_reported_read,
+    retained_reported_original_fixture,
+)
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_original_fixture import reported_original as reported_original
+from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
 from tests.test_customer_identity import FakeProvider
-from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
+from tests.test_reported_feedback_acquisition import complete
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.planning_boundary
 def test_real_reports_compare_without_claiming_causality_and_idempotent_receipt(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, principal, runtime, job, request, source, clock, runner, requests, control, server = (
-            acquisition_fixture(db, configuration, tmp_path, monkeypatch)
+        (
+            wid,
+            principal,
+            runtime,
+            job,
+            request,
+            source,
+            clock,
+            runner,
+            requests,
+            control,
+            original_ids,
+        ) = prepare_reported_acquisition(
+            db, configuration, prepare_reported_read(db, reported_original), monkeypatch
         )
         control.update(before_conversions="2", after_conversions="4")
         complete(runner, wid, clock[0])
@@ -66,7 +90,7 @@ def test_real_reports_compare_without_claiming_causality_and_idempotent_receipt(
         assert result.causal_lift == result.delivery_time == "unavailable"
         assert result.spending_authority == "none"
         assert read_comparison(db, principal, FakeProvider(), wid, job.id, runtime).id == result.id
-        assert len(server.posts) == 1
+        assert original_ids.original_post_count == 1
         assert db.scalar(select(func.count()).select_from(ReportedWindowCapsule)) == 4
         row = db.get(ReportedActionComparison, result.id)
         assert row is not None
@@ -76,15 +100,19 @@ def test_real_reports_compare_without_claiming_causality_and_idempotent_receipt(
             validate_comparison_dependencies(db, row, clock[0])
 
 
+@pytest.mark.planning_boundary
 def test_actual_correction_requires_explicit_new_reports_same_original_opportunity(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     with Session(customer_engine) as db:
-        wid, principal, runtime, job, request, _, clock, runner, _, control, server = (
-            acquisition_fixture(db, configuration, tmp_path, monkeypatch)
+        wid, principal, runtime, job, request, _, clock, runner, _, control, original_ids = (
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, reported_original), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])
         complete(runner, wid, clock[0])
@@ -137,10 +165,11 @@ def test_actual_correction_requires_explicit_new_reports_same_original_opportuni
                 ProviderExposureReservation,
             )
         )
-        assert len(server.posts) == 1
+        assert original_ids.original_post_count == 1
 
 
 @pytest.mark.parametrize("change", ["original_session", "latest_unknown_receipt"])
+@pytest.mark.planning_boundary
 def test_final_delivery_rechecks_original_session_and_latest_receipt(
     customer_engine: Engine,
     configuration: Settings,
@@ -148,9 +177,17 @@ def test_final_delivery_rechecks_original_session_and_latest_receipt(
     monkeypatch: pytest.MonkeyPatch,
     change: str,
 ) -> None:
-    with Session(customer_engine) as db:
-        wid, principal, runtime, job, _, _, clock, runner, _, _, server = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+    expected = ExpectedUnknownReadback() if change == "latest_unknown_receipt" else None
+    with (
+        retained_reported_original_fixture(
+            customer_engine, tmp_path / "original", expected_unknown=expected
+        ) as (_, ids),
+        Session(customer_engine) as db,
+    ):
+        wid, principal, runtime, job, _, _, clock, runner, _, _, original_ids = (
+            prepare_reported_acquisition(
+                db, configuration, prepare_reported_read(db, ids), monkeypatch
+            )
         )
         complete(runner, wid, clock[0])
         complete(runner, wid, clock[0])
@@ -170,8 +207,11 @@ def test_final_delivery_rechecks_original_session_and_latest_receipt(
             assert original is not None
             request = OptimizationRequest.model_validate(original.request)
 
+            calls: list[str] = []
+
             def fail(req: httpx.Request) -> httpx.Response:
                 assert req.method == "GET"
+                calls.append(req.method)
                 raise httpx.ReadTimeout("offline unavailable current provider state")
 
             adapter = MetaOptimizationTransport(transport=httpx.MockTransport(fail))
@@ -187,12 +227,16 @@ def test_final_delivery_rechecks_original_session_and_latest_receipt(
             )
             assert response_row is not None
             response = OptimizationResponse.model_validate(response_row.response)
+            assert_no_attempt_derivatives(db)
+            assert expected is not None
+            expected.arm(clock[0])
             receipt = adapter.read_back(request, response, context, clock[0])
+            assert calls == ["GET"]
             assert receipt.outcome == "unknown"
             optimization.record_receipt(db, wid, job.original_attempt_id, receipt, lambda: clock[0])
         with pytest.raises(HTTPException):
             read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
         with pytest.raises(HTTPException):
             validate_comparison_dependencies(db, row, clock[0])
-        assert len(server.posts) == 1
+        assert original_ids.original_post_count == 1
         assert db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == 1

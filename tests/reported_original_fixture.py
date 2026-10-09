@@ -6,6 +6,7 @@ import re
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,7 +20,8 @@ from app.customers.models import CustomerSession, CustomerUser
 from app.database.session import Base
 from app.initial_planning.runtime import InitialPlanningRuntime
 from app.meta.models import MetaConnection
-from app.publication import execution_mandates
+from app.meta.security import utc
+from app.publication import execution_mandates, optimization
 from app.publication.execution_models import (
     ProviderExecutionAttempt,
     ProviderExecutionMandate,
@@ -81,6 +83,74 @@ def effect_graph(engine: Engine) -> dict[str, list[dict[str, Any]]]:
         }
 
 
+class ExpectedUnknownReadback:
+    """One explicit current GET time; never a supplied expected receipt or authority."""
+
+    def __init__(self) -> None:
+        self._observed_at: datetime | None = None
+
+    def arm(self, observed_at: datetime) -> None:
+        assert self._observed_at is None
+        assert isinstance(observed_at, datetime) and observed_at.utcoffset() == UTC.utcoffset(None)
+        self._observed_at = observed_at
+
+    @property
+    def observed_at(self) -> datetime:
+        assert self._observed_at is not None
+        return self._observed_at
+
+
+def assert_no_attempt_derivatives(db: Session) -> None:
+    from app.optimization_candidates.models import CandidateJob
+    from app.outcome_feedback.models import V3Assessment
+
+    for model in (CandidateJob, V3Assessment):
+        assert db.scalar(select(func.count()).select_from(model)) == 0
+
+
+def assert_unknown_readback_delta(
+    engine: Engine,
+    ids: RetainedReportedOriginalIds,
+    before: dict[str, list[dict[str, Any]]],
+    expected_unknown: ExpectedUnknownReadback,
+) -> None:
+    after = effect_graph(engine)
+    original = before["provider_execution_receipts"]
+    assert len(original) == 1 and original[0]["id"] == ids.receipt_id
+    appended = [r for r in after["provider_execution_receipts"] if r["id"] != ids.receipt_id]
+    assert len(appended) == 1 and len(after["provider_execution_receipts"]) == 2
+    new = appended[0]
+    assert (new["workspace_id"], new["attempt_id"], new["sequence"], new["supersedes_id"]) == (
+        ids.workspace_id,
+        ids.attempt_id,
+        2,
+        ids.receipt_id,
+    )
+    assert utc(new["observed_at"]) == expected_unknown.observed_at
+    with Session(engine) as db:
+        run, _, _, request = optimization.evidence_lock(db, ids.workspace_id, ids.attempt_id)
+        assert run.id == ids.run_id
+        receipt = optimization.unknown(request, lambda: expected_unknown.observed_at)
+        assert new["receipt"] == receipt.model_dump(mode="json")
+        latest = optimization.read_owned_outcome_receipt(
+            db, ids.workspace_id, ids.attempt_id, ids.actor_id
+        )
+        assert latest and latest.receipt_id == new["id"] and latest.sequence == 2
+        assert latest.outcome == "unknown" and latest.model_dump(mode="json") == new["projection"]
+        assert db.get(ProviderExecutionReceipt, ids.receipt_id)
+        assert_no_attempt_derivatives(db)
+    expected = deepcopy(before)
+    expected["provider_execution_receipts"].append(new)
+    expected["provider_execution_receipts"].sort(key=lambda r: r["id"])
+    for table in ("provider_execution_runs", "provider_execution_steps"):
+        assert len(expected[table]) == 1
+        row = expected[table][0]
+        assert (row["id"] if table == "provider_execution_runs" else row["run_id"]) == ids.run_id
+        assert row["state"] == "verified_target_state"
+        row["state"] = "unknown"
+    assert after == expected
+
+
 @pytest.fixture
 def customer_engine(base_customer_engine: Engine, tmp_path: Path) -> Iterator[Engine]:
     if base_customer_engine.dialect.name != "sqlite":
@@ -99,6 +169,8 @@ def customer_engine(base_customer_engine: Engine, tmp_path: Path) -> Iterator[En
 def retained_reported_original_fixture(
     engine: Engine,
     artifacts: Path,
+    *,
+    expected_unknown: ExpectedUnknownReadback | None = None,
 ) -> Iterator[tuple[Engine, RetainedReportedOriginalIds]]:
     artifacts.mkdir(parents=True)
     if engine.dialect.name == "sqlite":
@@ -157,10 +229,16 @@ def retained_reported_original_fixture(
     assert len(before["provider_execution_responses"]) == 1
     assert len(before["provider_execution_receipts"]) == 1
     assert len(before["provider_exposure_reservations"]) == 1
+    if expected_unknown is not None:
+        with Session(engine) as db:
+            assert_no_attempt_derivatives(db)
     try:
         yield engine, ids
     finally:
-        assert effect_graph(engine) == before
+        if expected_unknown is None:
+            assert effect_graph(engine) == before
+        else:
+            assert_unknown_readback_delta(engine, ids, before, expected_unknown)
 
 
 @pytest.fixture

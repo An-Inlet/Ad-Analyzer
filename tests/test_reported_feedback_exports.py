@@ -1,5 +1,6 @@
 """Actual fixed Meta acquisitions through comparison and owned ephemeral archive."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -17,25 +18,41 @@ from fastapi import HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.reported_original_fixture import (
+    RetainedReportedOriginalIds,
+    prepare_reported_read,
+    retained_reported_original_fixture,
+)
+from tests.reported_read_acquisition_fixture import prepare_reported_acquisition
 from tests.test_customer_exports import build, unpack
 from tests.test_customer_exports import export_engine as export_engine
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
+from tests.test_reported_feedback_acquisition import complete
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.fixture
+def reported_export_original(
+    export_engine: Engine, tmp_path: Path
+) -> Iterator[RetainedReportedOriginalIds]:
+    with retained_reported_original_fixture(export_engine, tmp_path / "original") as (_, ids):
+        yield ids
+
+
+@pytest.mark.planning_boundary
 def test_actual_comparison_archive_rechecks_original_session_without_slot(
     export_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    reported_export_original: RetainedReportedOriginalIds,
 ) -> None:
     customer_engine = export_engine
     monkeypatch.setattr(settings, "customer_export_enabled", True)
     with Session(customer_engine) as db:
-        wid, principal, runtime, job, _, _, clock, runner, _, _, _ = acquisition_fixture(
-            db, configuration, tmp_path, monkeypatch
+        wid, principal, runtime, job, _, _, clock, runner, _, _, _ = prepare_reported_acquisition(
+            db, configuration, prepare_reported_read(db, reported_export_original), monkeypatch
         )
         complete(runner, wid, clock[0])
         complete(runner, wid, clock[0])

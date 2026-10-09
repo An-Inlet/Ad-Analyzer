@@ -209,3 +209,22 @@ and is NONqualification. Its exact test-only additions were restored from root;
 correct isolated worktree was then qualified. The interrupted log/XML are retained.
 No aggregate database or production files changed. Root independently reviewed the
 final source and correct47-case result before integration.
+
+### Retained Engine And Current Campaign Reviews
+
+Root independently reviewed and integrated `1ec0e03`→`9314596` and
+`4dec962`→`3df12ee`. The first preserves every original statement in17 functions
+while explicitly qualifying95 retained-engine identities;181pass7existing SQLite
+row-lock skips includes86 overlapping current-boundary passes. The second uses
+genuine scalar-only source records then current offline campaign reviews:
+41pass1existing skip includes21 new original failures and10 already credited
+media cases. Final affected both-DB Google/Meta checks4pass after review tightening.
+Whole Ruff/mypy/diff passed in each isolated package before commit.
+
+Immutable exact overlay `successor-coverage-654.json` records644 direct successor
+passes plus10 explicit historical/current-equivalence cases;676 remain. The
+campaign overlap is counted once. Original failed aggregate and prior overlays
+remain unchanged. Current candidate-reader29 qualification and actual default
+restore CLI closure continue; separately reviewed configured API split proceeds
+with genuine current owned reads and a new34-node historical supplement. No
+aggregate rerun, hosted retry, provider write or deployment occurred.

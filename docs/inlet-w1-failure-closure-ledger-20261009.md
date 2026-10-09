@@ -89,3 +89,51 @@ The failure coverage overlay uses the exact observed stdout node lines only as
 lookup corroboration and explicitly records exit 4. It is not the partition tool's
 accepted provenance output. The CI 90-minute step/120-minute job gap remains open;
 failed-path timings cannot predict fully passing runtime or resource costs.
+
+## Reviewed Successor Update — 9 October
+
+At integration `099e9a5`, three further independently reviewed packages have exact
+passing successor XML matches against frozen failed identities:
+
+| Package | Newly covered frozen failures | Actual focused result |
+| --- | ---: | --- |
+| SQLite presence dependency around original migration, `57af351` | 1 | Full module 3 passed, 1 existing PostgreSQL-only SQLite skip, 5.253s |
+| Current TikTok source-only discovery, `ae470f1` | 72 | Both databases 72 passed, zero skips, 59.450s; separate pure compatibility 71 passed |
+| Explicit per-function retained MockHTTP engines, `20a44eb` | 29 | 29 retained cases plus 86 unchanged current boundaries: 115 passed, zero skips, 3.637s |
+
+`successor-coverage-244.json` alongside the original classification extends the
+142-node overlay without changing it. It matches actual XML classname/name pairs,
+retains all original trace hashes, checks no overlap, and hashes all three added
+raw XML files. **244 original failures now have direct reviewed passing evidence;
+1,086 remain without direct coverage.** Full module counts include originally
+passing cases and are not added as failure closure. Original W1 is still failed.
+
+Root independently reviewed SQLite and TikTok; `initial_start` independently
+reviewed the transport classification and AST equality. SQLite review restored
+the exact PostgreSQL intermediate full-column assertion and added all four
+restored trigger checks. Transport edits are only sixteen decorators across eight
+pure engine functions, with all original bodies/parameters/assertions unchanged.
+Current durable/customer cases in their mixed modules remain separate.
+
+The compact V2 evidence tool passed70 focused regressions and independent review.
+Third genuine frozen collection succeeded with6,581 nodes and unchanged clean6a;
+N3/N2 offline candidates prove disjoint/exhaustive membership and retain original
+exit1 outcomes. See `inlet-w1-partition-actual-evidence-20261009.md` for exact
+commands/hashes. No tests, shards or hosted workflows executed for those candidates;
+capacity/pass qualification remain false. Earlier failed collection attempts stay
+preserved. The initial142 overlay's lookup provenance remains accurately exit4;
+the later successful collection is a separate artifact, not a rewritten history.
+
+Next bounded work: genuine pinned commerce producer at actual sibling0051/0053
+heads; reviewed source-only Meta budget reads and actual planning-consent setup;
+per-function classification of remaining legacy-seed families. No aggregate rerun
+is justified while these known setup failures remain. Earlier138 repaired account
+and native-read cases will be reconsidered at the corrected integration if shared
+fixture changes affect them. No global seed patch, blanket skip or guard relaxation.
+
+Integrated successor whole Ruff, bare mypy (1128 source files), standalone
+collection-plugin mypy (1 source file), and diff checks passed at `099e9a5`.
+No integrated pytest aggregate was rerun. The package XML results above were
+executed on their recorded source branches; independent source review found no
+cross-package edit conflict. This distinction remains a limitation until the
+bounded corrected integration is qualified after regression closure.

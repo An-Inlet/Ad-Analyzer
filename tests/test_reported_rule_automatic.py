@@ -124,6 +124,8 @@ def assembled(
         (True, "unknown"),
     ],
 )
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_actual_reported_candidate_review_and_distinct_admission(
     customer_engine: Engine,
     configuration: Settings,

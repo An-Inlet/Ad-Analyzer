@@ -114,6 +114,11 @@ Perform scoped semantic erasure through the existing lifecycle path.
   refresh attempts referencing erased IDs fail with a controlled404/409 and no
   new plan/input/version/dependency/event/request-receipt rows. Do not pin an
   incorrect response code instead of inspecting the existing intended contract.
+  This does not prohibit an explicit fresh create with a complete client-retained
+  payload: that operation has a new plan UUID and must pass current validation.
+  Erased receipts do not create a permanent ban on reusing a request key. No
+  tombstone policy or blanket no-new-create-row assertion is introduced; see the
+  [clock/fixture feasibility clarification](q16-fixture-feasibility-20261009.md).
 - Verify complete scoped graph counts, including receipt/input links and relevant
   retained-source/evidence dependencies. Preserve unrelated workspace rows and
   protected financial records according to existing lifecycle rules; erasure

@@ -368,3 +368,35 @@ Combined integration verification at `ba68199`: whole Ruff passed, bare mypy
 passed across 1162 source files, standalone `scripts/inlet_partition_collection.py`
 mypy passed (one file), and diff check passed. Evidence is under
 `/workspace/inlet-evidence/20261009/integration-ba68199/`. No aggregate run.
+
+### Nine Hundred Targeted Identities And Bounded Source Cleanup
+
+At `ef14250`, exact immutable `successor-coverage-900.json` records **900 covered,
+430 remaining**: 856 direct successor passes and 44 explicit historical/current
+comparison cases. `9efd751`→`8fd6ad0` adds twelve retained epoch/linked coordinator
+identities (98 passes including 86 boundaries, 102.456s); `d20ad06`→`254b67a` adds
+two current scoped-media identities (88 passes including 86 boundaries, 7.613s).
+`f01837f`→`ef14250` adds two current PostgreSQL approval lock races (full module
+12 passes/two existing SQLite skips, 64.584s). Independent review closed each;
+original assertions remain. Each ran whole Ruff/mypy/diff checks before commit.
+
+Reviewed `0bd9a5e`→`f31aea7` bounds duplicate historical producer source lifetime
+at eleven allowlisted helper sites/sixteen profiles. Fixed source/driver provenance
+and immutable byte verification precede cleanup. Source survives active social
+handshakes and is removed only after confirmed process reap; unique/changed or
+uncertain content is retained. IDs, logs, databases and media remain. Generic
+runners/extractors and five historical batches/293 nodes are unchanged.
+
+Actual cleanup qualification: sixteen pure cases passed; bounded representative
+cohorts of eight, nine, and two passed (overlapping, not summed). Eighteen actual
+source copies were removed with verified provenance, totaling 282,319,768 logical
+bytes; this is not a filesystem capacity guarantee. Whole Ruff/mypy1164/diff
+passed. Intermediate failures and corrections are recorded in its package ledger.
+Two new A30 source helpers need a separately reviewed additive lifecycle followup.
+
+A reachable current reported-feedback inconsistency is under investigation:
+current baseline reads require planning confirmation, then feedback application
+still requests execution consent for that reference. A narrow reuse of the current
+planning-limit checker is proposed, pending genuine baseline/period evidence;
+no fixture bypass or production completion is claimed yet. Original financial
+ledger/goal invariants must remain intact. No aggregate or remote operation ran.

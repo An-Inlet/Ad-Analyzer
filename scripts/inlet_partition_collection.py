@@ -1,5 +1,6 @@
 """Opt-in collection evidence only; never run tests or modify collected items."""
 
+import ast
 import hashlib
 import json
 import os
@@ -16,6 +17,55 @@ MAX_NODES = 20_000
 
 def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(root), *args], text=True, timeout=30).strip()
+
+
+HISTORICAL_PATHS = (
+    "tests/fixtures/retired_execution/nodes-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-supplement-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-forward-2155ff3.json",
+)
+SNAPSHOT_PATH = "tests/retired_snapshot.py"
+
+
+def tracked_bytes(root: Path, relative: str) -> bytes:
+    committed = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "blob", f"HEAD:{relative}"],
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    if committed.returncode or committed.stdout != (root / relative).read_bytes():
+        raise pytest.UsageError("Evidence file must match a tracked HEAD blob")
+    return committed.stdout
+
+
+def historical_provenance(root: Path) -> dict[str, object] | None:
+    paths = (*HISTORICAL_PATHS, SNAPSHOT_PATH)
+    present = [(root / path).exists() for path in paths]
+    if not any(present):
+        return None
+    if not all(present):
+        raise pytest.UsageError("Incomplete historical provenance files")
+    source = tracked_bytes(root, SNAPSHOT_PATH)
+    pins = [
+        node.value.value
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "PIN"
+        and isinstance(node.value, ast.Constant)
+        and isinstance(node.value.value, str)
+    ]
+    if len(pins) != 1 or len(pins[0]) != 40 or any(c not in "0123456789abcdef" for c in pins[0]):
+        raise pytest.UsageError("Exact historical PIN literal required")
+    return dict(
+        pin=pins[0],
+        retired_snapshot_sha256=hashlib.sha256(source).hexdigest(),
+        manifests={
+            path: hashlib.sha256(tracked_bytes(root, path)).hexdigest() for path in HISTORICAL_PATHS
+        },
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -132,6 +182,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         pytest_version=pytest.__version__,
         config_path=str(config.inipath.resolve().relative_to(root)),
         config_sha256=hashlib.sha256(config.inipath.read_bytes()).hexdigest(),
+        historical_provenance=historical_provenance(root),
         collection_scope=config.getini("testpaths"),
         items=items,
     )

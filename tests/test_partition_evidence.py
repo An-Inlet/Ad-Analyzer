@@ -15,6 +15,7 @@ from _pytest.junitxml import bin_xml_escape, mangle_test_address
 from tests.partition_evidence import (
     WRAPPER,
     Collection,
+    HistoricalProvenance,
     Timing,
     build_candidate,
     canonical,
@@ -23,6 +24,7 @@ from tests.partition_evidence import (
     parse_report,
 )
 from tests.retired_execution_harness import BATCHES
+from tests.retired_snapshot import PIN
 
 
 def evidence() -> tuple[dict[str, Any], ET.Element]:
@@ -58,6 +60,18 @@ def evidence() -> tuple[dict[str, Any], ET.Element]:
         pytest_version=pytest.__version__,
         config_path="pyproject.toml",
         config_sha256="b" * 64,
+        historical_provenance=dict(
+            pin=PIN,
+            retired_snapshot_sha256=digest(
+                Path(__file__).with_name("retired_snapshot.py").read_bytes()
+            ),
+            manifests={
+                str(path.relative_to(Path(__file__).resolve().parents[1])): digest(
+                    path.read_bytes()
+                )
+                for path, _ in BATCHES.values()
+            },
+        ),
         collection_scope=["tests"],
         items=items,
     ), root
@@ -183,7 +197,8 @@ def test_child_manifest_contract(tmp_path: Path, bad: str) -> None:
             values[0] = json.loads(copied["original"][0].read_text())[0]
         path.write_text(json.dumps(values))
     with pytest.raises(ValueError):
-        historical(copied)
+        raw, _ = evidence()
+        historical(copied, HistoricalProvenance.model_validate(raw["historical_provenance"]))
 
 
 @pytest.mark.parametrize(
@@ -199,6 +214,9 @@ def test_child_manifest_contract(tmp_path: Path, bad: str) -> None:
         "lastfailed",
         "deselect",
         "ignored_config",
+        "historical",
+        "ignored_historical",
+        "partial_historical",
     ],
 )
 def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
@@ -217,6 +235,19 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         (repo / "pytest.ini").unlink()
         (repo / ".gitignore").write_text("__pycache__/\n.pytest_cache/\npytest.ini\n")
         (repo / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
+    if mode in {"historical", "ignored_historical", "partial_historical"}:
+        for index, (path, _) in enumerate(BATCHES.values()):
+            if mode == "partial_historical" and index:
+                break
+            target = repo / path.relative_to(Path(__file__).resolve().parents[1])
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(path.read_bytes())
+        (repo / "tests/retired_snapshot.py").write_bytes(
+            Path(__file__).with_name("retired_snapshot.py").read_bytes()
+        )
+        if mode == "ignored_historical":
+            with (repo / ".gitignore").open("a") as stream:
+                stream.write("tests/fixtures/retired_execution/nodes-2155ff3.json\n")
     if mode == "deselect":
         (repo / "conftest.py").write_text(
             "def pytest_collection_modifyitems(config,items):\n"
@@ -272,9 +303,16 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         env["PYTEST_ADDOPTS"] = "-k case"
     run = subprocess.run(args, cwd=repo, env=env, capture_output=True, text=True, timeout=30)
     assert not (repo / "EXECUTED").exists()
-    if mode == "valid":
+    if mode in {"valid", "historical"}:
         assert run.returncode == 0, run.stdout + run.stderr
         manifest = Collection.model_validate_json(output.read_bytes())
+        if mode == "historical":
+            expected, _ = evidence()
+            assert manifest.historical_provenance == HistoricalProvenance.model_validate(
+                expected["historical_provenance"]
+            )
+        else:
+            assert manifest.historical_provenance is None
         assert [i.node_id for i in manifest.items] == [
             "tests/test_small.py::TestGroup::test_case[a::b.c]",
             "tests/test_small.py::TestGroup::test_case[d]",
@@ -343,3 +381,43 @@ def test_zero_and_unknown_duration_files_stay_disjoint() -> None:
     assert all(
         s["nodes"] and s["unknown_count"] == len(s["nodes"]) for s in result["current_shards"]
     )
+
+
+@pytest.mark.parametrize("field", ["tests", "failures", "errors", "skipped"])
+def test_contradictory_root_totals_reject(field: str) -> None:
+    raw, root = evidence()
+    root.set(field, "99")
+    with pytest.raises(ValueError, match="root summary"):
+        candidate(raw, root)
+
+
+def test_matching_optional_root_totals_accept() -> None:
+    raw, root = evidence()
+    root.attrib.update(tests="6", failures="0", errors="0", skipped="0")
+    assert candidate(raw, root)["candidate_only"]
+
+
+@pytest.mark.parametrize("change", ["absent", "pin", "source", "paths", "same_count"])
+def test_historical_capture_binding_rejects_substitution(tmp_path: Path, change: str) -> None:
+    raw, root = evidence()
+    if change == "same_count":
+        batches = dict(BATCHES)
+        old, count = batches["original"]
+        nodes = json.loads(old.read_text())
+        nodes[0] = "tests/test_other.py::test_substituted[sqlite]"
+        altered = tmp_path / old.name
+        altered.write_text(json.dumps(nodes))
+        batches["original"] = (altered, count)
+        with pytest.raises(ValueError, match="manifest provenance"):
+            historical(batches, HistoricalProvenance.model_validate(raw["historical_provenance"]))
+        return
+    if change == "absent":
+        raw["historical_provenance"] = None
+    elif change == "pin":
+        raw["historical_provenance"]["pin"] = "c" * 40
+    elif change == "source":
+        raw["historical_provenance"]["retired_snapshot_sha256"] = "c" * 64
+    else:
+        raw["historical_provenance"]["manifests"]["unknown.json"] = "c" * 64
+    with pytest.raises(ValueError, match="historical source"):
+        candidate(raw, root)

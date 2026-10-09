@@ -43,12 +43,19 @@ class Item(Strict):
         return self
 
 
+class HistoricalProvenance(Strict):
+    pin: Hex40
+    retired_snapshot_sha256: Hex64
+    manifests: dict[str, Hex64]
+
+
 class Collection(Strict):
     schema_version: Literal["inlet.partition-collection.v1"]
     commit: Hex40
     pytest_version: str
     config_path: str
     config_sha256: Hex64
+    historical_provenance: HistoricalProvenance | None
     collection_scope: Annotated[list[str], Field(min_length=1)]
     items: Annotated[list[Item], Field(min_length=1, max_length=20_000)]
 
@@ -112,6 +119,7 @@ def parse_report(
     identities = {(i.junit_classname, i.junit_name): i.node_id for i in collection.items}
     result: dict[str, dict[str, Any]] = {}
     failures = 0
+    aggregate = dict(tests=0, failures=0, errors=0, skipped=0)
     for suite in root:
         counts = dict(tests=0, failures=0, errors=0, skipped=0)
         for case in suite:
@@ -155,7 +163,12 @@ def parse_report(
         for key, count in counts.items():
             if suite.get(key) != str(count):
                 raise ValueError("JUnit summary mismatch")
+        for key, count in counts.items():
+            aggregate[key] += count
         failures += counts["failures"] + counts["errors"]
+    for key, count in aggregate.items():
+        if key in root.attrib and root.get(key) != str(count):
+            raise ValueError("JUnit root summary mismatch")
     if set(result) != {i.node_id for i in collection.items}:
         raise ValueError("missing JUnit case")
     if (timing.exit_code == 0) != (failures == 0):
@@ -163,7 +176,22 @@ def parse_report(
     return result
 
 
-def historical(batches: dict[str, tuple[Path, int]]) -> list[dict[str, Any]]:
+def historical(
+    batches: dict[str, tuple[Path, int]],
+    provenance: HistoricalProvenance | None,
+) -> list[dict[str, Any]]:
+    expected_paths = {
+        name: str(path.relative_to(Path(__file__).resolve().parents[1]))
+        for name, (path, _) in BATCHES.items()
+    }
+    if (
+        provenance is None
+        or set(provenance.manifests) != set(expected_paths.values())
+        or provenance.pin != PIN
+        or provenance.retired_snapshot_sha256
+        != digest(bounded(Path(__file__).with_name("retired_snapshot.py"), 1024 * 1024))
+    ):
+        raise ValueError("historical source provenance mismatch")
     if {name: count for name, (_, count) in batches.items()} != {
         "original": 142,
         "ui_supplement": 19,
@@ -174,6 +202,8 @@ def historical(batches: dict[str, tuple[Path, int]]) -> list[dict[str, Any]]:
     entries = []
     for name, (path, expected) in batches.items():
         raw = bounded(path, 32 * 1024 * 1024)
+        if digest(raw) != provenance.manifests[expected_paths[name]]:
+            raise ValueError("historical manifest provenance mismatch")
         nodes = json.loads(raw)
         if (
             not isinstance(nodes, list)
@@ -221,7 +251,7 @@ def _build(
     batches: dict[str, tuple[Path, int]],
 ) -> dict[str, Any]:
     observations = parse_report(collection, timing, report)
-    old = historical(batches)
+    old = historical(batches, collection.historical_provenance)
     wrappers = {entry["wrapper"] for entry in old}
     actual = {i.node_id for i in collection.items if i.node_id.startswith(WRAPPER)}
     if actual != wrappers:

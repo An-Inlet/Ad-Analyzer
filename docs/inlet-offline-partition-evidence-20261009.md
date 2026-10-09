@@ -75,3 +75,34 @@ is produced. All original39 cases remain.
 Final repair: **40 passed, zero skips,2.89s**, `config-repair.log/xml/exit` in the
 same evidence directory. Whole Ruff, bare mypy1125, standalone plugin mypy and
 `git diff --check` passed. No actual frozen collection or aggregate/DB interaction.
+
+## Independent Historical Provenance And Root Totals Repairs
+
+Independent review found that matching historical counts did not bind supplied
+child files to the collected commit. The collection manifest now captures the exact
+three historical file paths/hashes plus the snapshot source hash and literal PIN,
+only after verifying every byte against tracked HEAD blobs. Fully absent historical
+files are permitted only for nonhistorical collection; partial files are rejected.
+Candidate generation requires complete provenance and matches all supplied manifest
+bytes and the actual snapshot source/PIN against it. A same-count substitution no
+longer qualifies. This remains operator-produced evidence, not cryptographic test-run
+attestation.
+
+Optional `testsuites` root totals now agree with actual aggregate test/failure/error/
+skipped counts, in addition to existing suite-level validation. Contradictory totals
+are rejected rather than silently ignored.
+
+Final focused invocation uses the same module and `--tb=short`, with JUnit at
+`/workspace/inlet-evidence/20261009/offline-partition/provenance-final.xml`:
+**53 passed, zero skips/failures/errors, 3.11s**. All prior 40 cases remain. Added
+coverage includes substituted PIN/source/path sets, missing provenance, same-count
+child substitution, each contradictory root count, matching root totals, and genuine
+throwaway Git collection with tracked historical files, ignored historical files and
+partial historical files. No collected fixture/test body executes. The preceding
+50-case repair run passed in 2.13s; it overlaps this final result.
+
+Whole `ruff check .`, bare `mypy` (1125 source files), standalone plugin mypy and
+`git diff --check` passed. Evidence in the same directory: `provenance-repair.log/xml/exit`,
+`provenance-final.log/xml/exit`, `ruff-provenance.log`, `mypy-provenance.log/exit`,
+`plugin-mypy-provenance.log`. Independent successor review is pending. No actual
+frozen W1 collection, DB, workflow, shard execution or aggregate change occurred.

@@ -162,26 +162,48 @@ def test_phase_constraint_change_preserves_native_staging(customer_engine: Engin
         db.commit()
     models = (MetaStagedMetric, MetaDetailCheckpoint, MetaDetailStagedPage)
 
-    def snapshots() -> list[list[dict[str, object]]]:
+    def snapshots(*, legacy: bool = False) -> list[list[dict[str, object]]]:
         with Session(engine) as db:
             return [
-                [dict(row) for row in db.execute(select(model.__table__)).mappings()]
+                [dict(row) for row in db.execute(select(*[
+                    column for column in model.__table__.columns
+                    if not legacy or column.name not in {"presence_context_token", "presence_json"}
+                ])).mappings()]
                 for model in models
             ]
 
     before = snapshots()
+    before_legacy = snapshots(legacy=True)
+    presence = importlib.import_module("migrations.versions.20261008_0090_meta_presence")
+    if engine.dialect.name == "sqlite":
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM meta_presence_stage_contexts")) == 0
+        assert all(row["presence_context_token"] is None and row["presence_json"] is None
+                   for row in before[0])
     migration = importlib.import_module("migrations.versions.20261006_0077_reported_feedback")
     revisions = importlib.import_module(
         "migrations.versions.20261007_0078_reported_preview_revisions"
     )
     rules = importlib.import_module("migrations.versions.20261007_0083_reported_rule_dependencies")
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
+        # SQLite rebuilds the parent table; remove only the proven-empty newer child.
+        if engine.dialect.name == "sqlite":
+            presence.downgrade()
         rules.downgrade()
         revisions.downgrade()
         migration.downgrade()
-    assert snapshots() == before
+    assert snapshots(legacy=True) == before_legacy
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
         migration.upgrade()
         revisions.upgrade()
         rules.upgrade()
+        if engine.dialect.name == "sqlite":
+            presence.upgrade()
     assert snapshots() == before
+    if engine.dialect.name == "sqlite":
+        with engine.connect() as connection:
+            triggers = set(connection.scalars(text(
+                "SELECT name FROM sqlite_master WHERE type='trigger'"
+            )))
+        assert {"meta_presence_stage_contexts_presence_insert",
+                "meta_presence_stage_contexts_immutable"} <= triggers

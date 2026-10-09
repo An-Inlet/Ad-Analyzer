@@ -27,6 +27,8 @@ from tests.test_repeat_optimization import reader
 from tests.test_shopify_sales import configuration as configuration
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize(
     "failure",
     [
@@ -231,6 +233,8 @@ def test_composition_prepare_and_transfer(
             assert document.replacement.observed_at == NOW
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unknown_ancestor_never_calls_financial_source(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:

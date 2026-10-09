@@ -68,6 +68,8 @@ def setup(
     return mandate, scope, state
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("kind", ["budget_change", "pause", "resume", "negative_keyword"])
 def test_claim_apply_readback_retains_future_exposure(
     customer_engine: Engine, configuration: Settings, kind: str
@@ -131,6 +133,8 @@ def test_claim_apply_readback_retains_future_exposure(
             live_google_ads_mutation_boundary(preview)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_current_state_generation_and_unmatched_outcome_fail_closed(
     customer_engine: Engine, configuration: Settings
 ) -> None:

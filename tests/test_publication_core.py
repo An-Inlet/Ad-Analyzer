@@ -82,6 +82,8 @@ def approved(
     return pid, wid, actor, authority
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_separate_review_and_server_compiler(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -131,6 +133,8 @@ def test_exact_separate_review_and_server_compiler(
         assert replay.id == pid
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_paused_dag_one_reservation_and_distinct_activation_review(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -164,6 +168,8 @@ def test_paused_dag_one_reservation_and_distinct_activation_review(
             s.dispatch_next(db, wid, pid, "different-request", actor, authority, adapter, NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_timeout_after_effect_reconciles_without_duplicate_creation(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -198,6 +204,8 @@ def test_timeout_after_effect_reconciles_without_duplicate_creation(
         assert db.scalar(select(func.count()).select_from(PublicationReceiptRecord)) == 3
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_crash_before_emission_requires_authoritative_no_effect(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -236,6 +244,8 @@ def test_crash_before_emission_requires_authoritative_no_effect(
         assert step is not None and step.fence == request.fence
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("after_dispatch", [False, True])
 def test_cancel_releases_only_before_dispatch(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, after_dispatch: bool
@@ -254,6 +264,8 @@ def test_cancel_releases_only_before_dispatch(
         assert adapter.calls == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize(
     "change", ["generation", "owner", "entitlement", "mandate", "kill", "high_water"]
 )
@@ -298,6 +310,8 @@ def test_current_authority_checked_before_each_step(
         assert adapter.calls == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_concurrent_claims_one_attempt(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -318,6 +332,8 @@ def test_concurrent_claims_one_attempt(
         assert db.scalar(select(func.sum(PublicationStepRecord.attempt))) == 1
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_transport_substitution_and_foreign_receipts_rejected(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
@@ -345,6 +361,8 @@ def test_transport_substitution_and_foreign_receipts_rejected(
             s.record_receipt(db, wid, pid, receipt, NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("seconds", [-1, 1])
 def test_receipt_cannot_predate_attempt_or_come_from_future(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, seconds: int
@@ -362,6 +380,8 @@ def test_receipt_cannot_predate_attempt_or_come_from_future(
         assert db.scalar(select(func.count()).select_from(PublicationReceiptRecord)) == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_original_request_archived_and_partial_no_effect_keeps_full_reservation(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:

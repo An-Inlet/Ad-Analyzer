@@ -80,6 +80,8 @@ def reader(facts: PortfolioFacts, **kwargs: Any) -> PortfolioExposureReader:
     )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_reservation_is_counted_once_only_for_activation(
     customer_engine: Engine,
     configuration: Settings,
@@ -101,6 +103,8 @@ def test_exact_reservation_is_counted_once_only_for_activation(
         assert ledger is not None and ledger.spent_high_water_micros == 0
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize(
     "change", ["unknown_profile", "missing_bound", "incomplete", "spend_regressed"]
 )
@@ -129,6 +133,8 @@ def test_unknown_evidence_never_becomes_zero_exposure(
         assert evidence.unreported_upper_micros is None
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("change", ["foreign", "duplicate", "currency", "plan", "stale_after_read"])
 def test_lineage_and_freshness_fail_closed(
     customer_engine: Engine,
@@ -156,6 +162,8 @@ def test_lineage_and_freshness_fail_closed(
             reader(facts, clock=clock)(db, doc.mandate, doc.plan, NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_profile_lifetime_limits_downstream_dispatch_eligibility(
     customer_engine: Engine,
     configuration: Settings,
@@ -176,6 +184,8 @@ def test_profile_lifetime_limits_downstream_dispatch_eligibility(
         assert not evidence.eligible(policy, NOW + timedelta(seconds=299))
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unresolved_prior_period_holds_are_preserved_in_portfolio(
     customer_engine: Engine,
     configuration: Settings,

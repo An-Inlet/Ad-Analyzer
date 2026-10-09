@@ -156,6 +156,8 @@ def approved(
     return wid, run, actor, store, runtime_for(db, store, review, server), native
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_full_persisted_social_activation_reuses_original_reservation(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
@@ -195,6 +197,8 @@ def test_full_persisted_social_activation_reuses_original_reservation(
         assert finished is not None and finished.state == "activation_observed"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 def test_unknown_social_activation_retains_attempt_then_reconciles_without_replay(
     customer_engine: Engine, configuration: Settings, tmp_path: Path, encoded: Any, provider: str
@@ -242,6 +246,8 @@ def test_unknown_social_activation_retains_attempt_then_reconciles_without_repla
         assert held is not None and held.state == "held"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
 @pytest.mark.parametrize("change", ["creative_or_media", "cancel", "disconnect", "generation"])
 def test_post_claim_graph_or_authority_drift_prevents_activation(

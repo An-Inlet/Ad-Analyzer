@@ -70,6 +70,8 @@ def chain(db: Session, config: Settings, path: Path, timeout: bool = False) -> A
     return wid, actor, binding, snapshot, runtime, target, action
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize(
     "failure",
     [

@@ -130,3 +130,31 @@ The existing original assertions and final immutable graph must both pass.
 Dependency10 and worker8 should be reported separately even if one source package
 is reviewed together. No full-case quality or live qualification claim follows from
 these fixture repairs. This read-only investigation ran no tests/providers/DB work.
+
+## Proposed Current Fixture Scheduling Refinement
+
+Qualification found two PostgreSQL setup failures: the first three-completion loop
+received up_to_date before any worker assertion. Six worker cases passed; failure
+rows were not retained after normal isolated-schema teardown. One authorized
+instrumented PG-session diagnostic passed13.99s, but observed a concrete divergence:
+fixed completion page9 supplied/runtime05:22:07.368057, committed job next_due_at
+05:22:07.383220, separate DB read05:22:07.468385. Its original +61s then allowed the
+next page. No failed-page timing was measured; association with the two failures is
+supported by due_job filtering against supplied now before effective_now and by
+capture_terminal_window assigning the effective DB/app completion timestamp.
+
+Proposed current-only correction, pending review: wrap this one acquired runner's
+page method for the duration of current assembly, always delegate once to the actual
+method and return its exact result. For successful fixed completions, read the exact
+owned job and latest matching job capsule in a separate current Session; require
+completion count advancement and next_due_at equal that capsule's actual completed
+at. Advance only the fixture's clock list to max(existing, committed completion).
+Subsequent page calls use max(explicit supplied now, fixture clock). Never move a DB
+row/timestamp, retry an up_to_date result, extend expiry, jump to an arbitrary future
+schedule, or change the original +61s spacing/tail. Rolling completions do not move
+that clock from a merely pending job. Original shared ready_reported_rule is untouched.
+
+A bounded actual delayed fixed-report probe should demonstrate that the observed
+completion can overtake supplied time and the next original read still uses the
+actual due frontier. Preserve the earlier6pass/2fail and diagnosticpass independently;
+rerun affected current dependencies/workers plus approved compatibility after repair.

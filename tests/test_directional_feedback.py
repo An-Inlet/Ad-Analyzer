@@ -347,66 +347,31 @@ def test_retraction_and_missing_held_head_cannot_reuse_old_feedback(
             resolve_original_opportunity(db, principal, work, runtime.candidate)
 
 
+@pytest.mark.planning_boundary
 def test_newer_held_original_without_receipt_blocks_old_qualified_anchor(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from app.publication import optimization, replacement
-    from app.publication.execution_models import ProviderExposureReservation
-    from app.publication.optimization_contracts import GoogleBudgetSetV1
-    from sqlalchemy import select
+    from tests.candidate_receipt_fixture import load_receipt_candidate
+    from tests.directional_held_retained_fixture import graph, staged_held_source
 
-    from tests import test_optimization_candidates as candidate_fixtures
-    from tests.test_commerce_measurement import NOW
-    from tests.test_repeat_optimization import reader
-
-    captured = []
-    original = cast(Any, candidate_fixtures).ready
-
-    def capture(*args: Any, **kwargs: Any) -> Any:
-        value = original(*args, **kwargs)
-        captured.append(value[6])
-        return value
-
-    monkeypatch.setattr(candidate_fixtures, "ready", capture)
-    with Session(customer_engine) as db:
-        principal, work, _, _, runtime, _ = candidate_fixtures.fixture(
-            db, configuration, tmp_path, with_receipt=True
-        )
-        initial = resolve_original_opportunity(db, principal, work, runtime)
-        execution = replace(captured[0], replacement_reader=reader(captured[0]))
-        held = db.scalar(
-            select(ProviderExposureReservation).where(ProviderExposureReservation.state == "held")
-        )
-        assert held
-        wid, actor = work.scope.account.workspace_id, principal.user.id
-        reviewed = replacement.prepare_repeat_optimization(
-            db,
-            wid,
-            work.scope.mandate,
-            work.scope.account,
-            held.id,
-            work.scope.target,
-            GoogleBudgetSetV1(amount_micros=46_000_000),
-            "a" * 64,
-            actor,
-            execution,
-            lambda: NOW,
-        )
-        optimization.approve_optimization(
-            db,
-            wid,
-            reviewed.id,
-            reviewed.digest,
-            reviewed.plan_digest,
-            actor,
-            execution,
-            lambda: NOW,
-        )
-        run = optimization.create_run(db, wid, reviewed.id, actor, execution, lambda: NOW)
-        claim = optimization.claim_step(db, wid, run.id, actor, execution, lambda: NOW)
+    with staged_held_source(customer_engine, tmp_path / "held-source") as source:
+        with Session(source.engine) as db:
+            principal, work, _, _, runtime, _ = load_receipt_candidate(db, source.original)
+            initial = resolve_original_opportunity(db, principal, work, runtime)
+            assert not db.new and not db.dirty and not db.deleted
+            db.commit()
+        assert graph(source.engine) == source.before
+        claim = source.claim_successor()
         assert claim and claim.attempt_id != initial.original_attempt_id
-        with pytest.raises(HTTPException, match="verified current original action"):
-            resolve_original_opportunity(db, principal, work, runtime)
+        claimed = graph(source.engine)
+        with Session(source.engine) as db:
+            principal, loaded_work, _, _, runtime, server = load_receipt_candidate(
+                db, source.original
+            )
+            assert loaded_work == work and not server.writes
+            with pytest.raises(HTTPException, match="verified current original action"):
+                resolve_original_opportunity(db, principal, work, runtime)
+        assert graph(source.engine) == claimed

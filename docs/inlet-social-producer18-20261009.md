@@ -43,3 +43,9 @@ Evidence /workspace/inlet-evidence/20261009/social-producer18/:
 
 No aggregate run, hosted execution, remote push, provider/model call or live claim.
 Only exact18 receive closure credit after independent review;137 is cohort size.
+
+Independent review closed0ae8347 with no P1/P2. Removed three duplicate read
+validations noted by review; each actual digest/media/source validation remains
+once. Both providers on both databases passed4, 49.770s; prior137 evidence is
+preserved and not claimed rerun. Whole Ruff/mypy1216/diff passed separately after
+this removal (dedup-static-results.json). No other behavior or assertion changed.

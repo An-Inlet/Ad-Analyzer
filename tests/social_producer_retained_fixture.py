@@ -94,7 +94,6 @@ def load_source(db: Session, source: SocialProducerSource) -> tuple[Any, ...]:
     document = CreationExecutionReview.model_validate(row.document)
     assert document.digest() == row.digest
     assert isinstance(document.plan, SocialPublishPlan)
-    assert document.digest() == row.digest
     plan = document.plan
     assert plan.digest() == ids.plan_digest == row.plan_digest
     assert plan.review.scope.account.platform == ids.provider
@@ -112,8 +111,6 @@ def load_source(db: Session, source: SocialProducerSource) -> tuple[Any, ...]:
     for media in db.scalars(select(MediaObject)):
         assert media.workspace_id == ids.workspace_id
         store.read_exact(ids.workspace_id, media.sha256, media.size)
-        store.read_exact(ids.workspace_id, media.sha256, media.size)
-    coordinator.source_current(db, ids.workspace_id, plan, ids.actor_id, store, lambda: NOW)
     coordinator.source_current(db, ids.workspace_id, plan, ids.actor_id, store, lambda: NOW)
     result = _fixture_from_original(
         db, ids.workspace_id, ids.run_id, ids.actor_id, store, native, ids.provider

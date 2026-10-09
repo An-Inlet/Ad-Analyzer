@@ -7,14 +7,13 @@ from uuid import uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from app.session_automation import service
 from app.session_automation.models import SessionAutomationRun
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import create_engine, inspect, make_url, text
 from sqlalchemy.orm import Session
 
-from tests.test_session_automation import automatic_fixture
+from tests.session_migration_retained_fixture import retained_session_migration_source
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -40,16 +39,12 @@ def test_0072_empty_roundtrip_and_populated_refusal(
         command.downgrade(config, "20261006_0068")
         assert "session_automation_runs" not in inspect(engine).get_table_names()
         command.upgrade(config, "heads")
-        with Session(engine) as db:
-            principal, wid, intent, runtime, _ = automatic_fixture(
-                db, configuration, tmp_path, "google_ads", monkeypatch
-            )
-            run = service.start(db, principal, wid, intent, runtime)
-            identifier = run.id
-        with pytest.raises(RuntimeError, match="cannot be discarded"):
-            command.downgrade(config, "20261006_0068")
-        with Session(engine) as db:
-            assert db.get(SessionAutomationRun, identifier)
+        with retained_session_migration_source(engine, tmp_path / "original") as ids:
+            identifier = ids.run_id
+            with pytest.raises(RuntimeError, match="cannot be discarded"):
+                command.downgrade(config, "20261006_0068")
+            with Session(engine) as db:
+                assert db.get(SessionAutomationRun, identifier)
     finally:
         engine.dispose()
         with admin.begin() as db:

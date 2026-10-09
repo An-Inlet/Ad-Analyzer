@@ -54,6 +54,9 @@ PROFILES = {
     "candidate_review_link": _test(
         "candidate_review_link_retained_fixture", "candidate_review_link_seed_driver"
     ),
+    "session_migration": _test(
+        "session_migration_retained_fixture", "session_migration_seed_driver"
+    ),
     "financial_origin": _test("financial_origin_retained_fixture", "financial_origin_seed_driver"),
     **{
         name: _test("retired_producer_fixture", "seed_driver", "historical-source")

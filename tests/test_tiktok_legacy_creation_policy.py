@@ -25,6 +25,8 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.test_social_coordinator_journeys import SocialServer, ready_legacy
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 @pytest.mark.parametrize("emitted", [False, True])
 def test_legacy_forward_creation_stops_without_erasing_original_history(
     customer_engine: Engine,

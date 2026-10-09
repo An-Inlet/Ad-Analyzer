@@ -43,7 +43,7 @@ from tests.test_social_optimization_http import Server
 
 
 @pytest.mark.parametrize("change", [None, "session", "generation", "precision", "environment"])
-def test_exact_native_preview_and_fresh_io_fences(
+def historical_contract_exact_native_preview_and_fresh_io_fences(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,

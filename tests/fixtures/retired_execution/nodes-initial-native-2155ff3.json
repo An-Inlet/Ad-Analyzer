@@ -1,0 +1,12 @@
+[
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-None]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-session]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-generation]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-precision]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-environment]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-None]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-session]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-generation]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-precision]",
+  "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-environment]"
+]

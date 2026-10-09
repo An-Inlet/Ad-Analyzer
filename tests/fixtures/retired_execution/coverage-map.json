@@ -673,5 +673,25 @@
       "tests/test_session_automation_api.py::test_real_owned_start_worker_history_and_new_session_stop"
     ],
     "reason": "Original configured execution bridge and its source/Start/worker contracts run unchanged at pinned pre-0086 runtime. Current Start/worker denial and authenticated retained history remain current. Historical populated downgrade is supplementary only; current lifecycle/schema qualification stays separate."
+  },
+  {
+    "original_function": "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences",
+    "preserved_local_callable": "tests/test_initial_planning_native.py::historical_contract_exact_native_preview_and_fresh_io_fences",
+    "historical_nodes": [
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-None]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-session]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-generation]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-precision]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[sqlite-environment]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-None]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-session]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-generation]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-precision]",
+      "tests/test_initial_planning_native.py::test_exact_native_preview_and_fresh_io_fences[postgres-environment]"
+    ],
+    "current_coverage": [
+      "tests/test_initial_planning_native_current.py::test_confirmed_native_preview_current_api"
+    ],
+    "reason": "Original V1 route/native execution-environment semantics require the authentic pre0086 consent runtime; current V2 APIs use actual planning confirmation and native reader profile/environment binding."
   }
 ]

@@ -28,6 +28,6 @@ Freeze a separate local extraction function for this literal commit/tree set,
 not a caller-selectable PIN and no fallback. Verify ancestor and exactcommit,
 extract local git archive, verify importedapp plus child literal source marker.
 Existing2155 extraction and modes remain unchanged. Budget mode alone selects
-this literal source; same real0079 schema and six-scalar contract, originalcurrent
+this literal source; same real0079 schema and seven-scalar contract, originalcurrent
 DDL/serialize/immutability/refusal checks and originalSQLite route remain. No
 schema additions or runtime stubs. Root review required before implementation.

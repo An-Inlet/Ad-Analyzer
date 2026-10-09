@@ -9,16 +9,14 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from app.optimization_candidates.models import CandidateJob, CandidateResult
-from app.optimization_candidates.service import enqueue, process
 from app.publication.execution_models import ProviderExecutionMandate
 from app.settings import Settings, settings
 from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import Engine, create_engine, inspect, make_url, select, text
 from sqlalchemy.orm import Session
 
-from tests.feedback_historical_schema import without_feedback
 from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
-from tests.test_optimization_candidates import fixture
+from tests.retired_migration_producer import retained_candidate_result_fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -44,23 +42,11 @@ def test_derived_candidate_migration_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "20261006_0062")
-        legacy_origin(engine)
-        without_feedback(monkeypatch, engine)
-        from tests.candidate_historical_schema import (
-            without_candidate_reviews,
-            without_initial_planning,
-        )
-
-        without_candidate_reviews(monkeypatch, engine)
-        without_initial_planning(monkeypatch, engine)
+        retained = retained_candidate_result_fixture(engine, tmp_path / "candidate-producer")
         with Session(engine) as db:
-            principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
-            row = enqueue(db, principal, work, runtime)
-            wid, identifier = row.workspace_id, row.id
-        assert process(engine, wid, identifier, runtime) == "completed"
-        with Session(engine) as db:
-            assert db.scalar(select(CandidateResult.id))
+            assert db.scalar(select(CandidateResult.id)) == retained.result_id
             mandate_ids = set(db.scalars(select(ProviderExecutionMandate.id)))
+            assert mandate_ids == set(retained.mandate_ids)
         command.downgrade(config, "20261006_0060")
         assert CandidateJob.__tablename__ not in inspect(engine).get_table_names()
         assert CandidateResult.__tablename__ not in inspect(engine).get_table_names()

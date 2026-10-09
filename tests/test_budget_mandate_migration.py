@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from tests.budget_mandate_fixture import first_customer
 from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.optimization_origin_historical_schema import legacy_origin as legacy_origin
+from tests.retired_migration_producer import retained_budget_preparation_fixture
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
@@ -40,12 +41,13 @@ def test_real_schema_retains_preparation(
         command.downgrade(Config("alembic.ini"), "20261007_0078")
         assert table not in inspect(customer_engine).get_table_names()
         command.upgrade(Config("alembic.ini"), "20261007_0079")
-        legacy_origin(customer_engine)
-    alice, root, body, *_ = first_customer(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas
-    )
-    prepared = alice.post(root + "/budget-mandates", headers=headers(alice), json=body)
-    assert prepared.status_code == 201, prepared.text
+        retained_budget_preparation_fixture(customer_engine, tmp_path / "budget-producer")
+    else:
+        alice, root, body, *_ = first_customer(
+            customer_engine, configuration, tmp_path, monkeypatch, replicas
+        )
+        prepared = alice.post(root + "/budget-mandates", headers=headers(alice), json=body)
+        assert prepared.status_code == 201, prepared.text
     with Session(customer_engine) as db:
         row = db.scalar(select(BudgetMandatePreparationRow))
         assert row is not None

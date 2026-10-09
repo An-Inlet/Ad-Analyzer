@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from app import advertising_capabilities
@@ -126,7 +126,11 @@ def retained_social_producer(
     provider: str,
     video: bytes | None,
     change: str | None,
+    *,
+    consumer: Literal["producer", "configuration"] = "producer",
 ) -> Iterator[SocialProducerSource]:
+    assert consumer in {"producer", "configuration"}
+    assert consumer != "configuration" or change is None
     assert provider in {"meta_ads", "tiktok_ads"}
     assert change in {
         None,
@@ -213,6 +217,12 @@ def retained_social_producer(
             image_id = plan.review.configuration.image.media_id if provider == "meta_ads" else None
             revision_key = (plan.review.source.draft_id, plan.review.source.revision)
         assert schema_snapshot(engine) == schema
+        configuration_document = None
+        if consumer == "configuration":
+            from tests.social_configuration_current_fixture import expected_document
+
+            with Session(engine) as db:
+                configuration_document = expected_document(db, source)
         before = graph(engine)
         assert all(
             not before[n]
@@ -240,7 +250,12 @@ def retained_social_producer(
                 expected["customer_media_objects"] = [
                     r for r in expected["customer_media_objects"] if r["id"] != image_id
                 ]
-            assert graph(engine) == expected
+            actual = graph(engine)
+            if configuration_document is not None:
+                from tests.social_configuration_current_fixture import configuration_delta
+
+                configuration_delta(expected, actual, ids, configuration_document)
+            assert actual == expected
             assert schema_snapshot(engine) == schema
     finally:
         if engine is not original:

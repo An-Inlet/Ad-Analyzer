@@ -6,7 +6,6 @@ import pytest
 from app.customers.models import CustomerMembership
 from app.lifecycle.export_serializers import serialize
 from app.publication import coordinator
-from app.publication.coordinator_contracts import CreationRuntime
 from app.publication.execution_authorization import owner_authorizer
 from app.publication.social_catalog import MetaConfigurationProfile
 from app.publication.social_compiler import compile_social
@@ -33,11 +32,17 @@ from pydantic import ValidationError
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.social_configuration_current_fixture import (
+    metadata_runtime,
+)
+from tests.social_configuration_current_fixture import (
+    social_configuration_source as social_configuration_source,
+)
+from tests.social_producer_retained_fixture import SocialProducerSource, load_source
 from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_shopify_sales import configuration as configuration
-from tests.test_social_customer_producer import fixture
 
 
 @pytest.mark.parametrize("provider", ["meta_ads", "tiktok_ads"])
@@ -47,25 +52,13 @@ def test_exact_configuration_confirmation(
     tmp_path: Path,
     encoded: Any,
     provider: str,
-    monkeypatch: pytest.MonkeyPatch,
+    social_configuration_source: SocialProducerSource,
 ) -> None:
-    with Session(customer_engine) as db:
-        captured: list[CreationRuntime] = []
-        original_prepare = coordinator.prepare_creation
-
-        def observe(*args: Any, **kwargs: Any) -> Any:
-            captured.append(args[6])
-            return original_prepare(*args, **kwargs)
-
-        with monkeypatch.context() as patch:
-            patch.setattr(coordinator, "prepare_creation", observe)
-            original, account, catalog, producer, actor, store, cover, _ = fixture(
-                db,
-                configuration,
-                tmp_path,
-                provider,
-                encoded() if provider == "tiktok_ads" else None,
-            )
+    with Session(social_configuration_source.engine) as db:
+        runtime = metadata_runtime()
+        original, account, catalog, producer, actor, store, cover, _ = load_source(
+            db, social_configuration_source
+        )
         profile = next(iter(producer.profiles.values()))
         if isinstance(profile, MetaConfigurationProfile):
             profile = profile.model_copy(update={"dsa_required": False})
@@ -184,14 +177,14 @@ def test_exact_configuration_confirmation(
         )
         assert verify_plan(db, account.workspace_id, plan, actor) == document
         with pytest.raises(HTTPException, match="validator unavailable"):
-            coordinator.gate(captured[0], "contract_test", plan)
+            coordinator.gate(runtime, "contract_test", plan)
         with pytest.raises(HTTPException, match="confirmation required"):
             coordinator.gate(
-                replace(captured[0], environment="live", live_enabled=True), "live", original
+                replace(runtime, environment="live", live_enabled=True), "live", original
             )
         seen: list[str] = []
         current_runtime = replace(
-            captured[0], social_configuration_current=lambda d, now: seen.append(d.digest())
+            runtime, social_configuration_current=lambda d, now: seen.append(d.digest())
         )
         coordinator.social_configuration_current(
             db, account.workspace_id, plan, actor, current_runtime, lambda: NOW

@@ -14,8 +14,11 @@ from app.settings import Settings
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.planning_runtime_fixture import configured_journey
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.configured_planning_read_fixture import configured_journey
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_planning_journey_fixture import PlanningOrigin
+from tests.reported_planning_journey_fixture import planning_origin as planning_origin
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
@@ -28,11 +31,15 @@ def test_configured_v2_adjustment_export_and_current_fences(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
+    planning_origin: PlanningOrigin,
     invalidate: str,
 ) -> None:
     with Session(customer_engine) as db:
         alice, provider, wid, principal, runtime, job, baseline, clock, requests, profile = (
-            configured_journey(db, customer_engine, configuration, tmp_path, monkeypatch, replicas)
+            configured_journey(
+                db, customer_engine, configuration, tmp_path, monkeypatch, replicas,
+                origin=planning_origin,
+            )
         )
         root = f"/api/customer/v1/workspaces/{wid}/reported-feedback"
         options = alice.get(root + "/options")

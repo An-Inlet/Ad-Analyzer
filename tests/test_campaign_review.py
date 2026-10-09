@@ -24,9 +24,12 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests.campaign_review_retained_fixture import RetainedCampaignReviewIds, current_binding
+from tests.campaign_review_retained_fixture import (
+    retained_campaign_binding as retained_campaign_binding,
+)
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_google_action_plans import setup
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -68,12 +71,17 @@ def png() -> bytes:
     return stream.getvalue()
 
 
+@pytest.mark.planning_boundary
 def test_exact_review_edit_and_stale_approval(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
+    customer_engine, ids = retained_campaign_binding
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, ids)
         body = definition(db, mandate, scope)
         first = s.revise(db, mandate.workspace_id, body, "owner", store, NOW)
         preview, artifact = s.preview(db, mandate.workspace_id, first.draft_id, store, NOW)
@@ -100,12 +108,18 @@ def test_exact_review_edit_and_stale_approval(
 
 
 @pytest.mark.parametrize("change", ["generation", "disconnect", "mandate", "paused", "expiry"])
+@pytest.mark.planning_boundary
 def test_review_binding_rechecks(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, change: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    change: str,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
+    customer_engine, ids = retained_campaign_binding
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, ids)
         first = s.revise(
             db, mandate.workspace_id, definition(db, mandate, scope), "owner", store, NOW
         )
@@ -131,12 +145,17 @@ def test_review_binding_rechecks(
         assert first.approved_by is None
 
 
+@pytest.mark.planning_boundary
 def test_scope_and_mandate_limits(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
+    customer_engine, ids = retained_campaign_binding
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, ids)
         body = definition(db, mandate, scope)
         row = s.revise(db, mandate.workspace_id, body, "owner", store, NOW)
         with pytest.raises(HTTPException) as caught:
@@ -226,13 +245,31 @@ def test_default_disabled() -> None:
     assert caught.value.status_code == 503
 
 
+@pytest.mark.planning_boundary
 def test_unsupported_campaign_type(customer_engine: Engine, configuration: Settings) -> None:
-    with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
-        payload = definition(db, mandate, scope).model_dump(mode="json")
-        payload["content"]["kind"] = "performance_max"
-        with pytest.raises(ValidationError):
-            RevisionInput.model_validate(payload)
+    payload: dict[str, Any] = dict(
+        account=dict(platform="google_ads", connection_id=1, account_id=1),
+        mandate_id="a" * 32,
+        mandate_revision=1,
+        currency="USD",
+        budget_micros=60,
+        starts_at=NOW,
+        ends_at=NOW + timedelta(hours=1),
+        content=dict(
+            kind="google_search_v1",
+            objective="website_sales",
+            name="Supplied campaign",
+            landing_page="https://example.invalid/shop",
+            audience=dict(countries=["US"], languages=["en"]),
+            headlines=["One", "Two", "Three"],
+            descriptions=["Description one", "Description two"],
+            exact_keywords=["supplied product"],
+        ),
+    )
+    payload = RevisionInput.model_validate(payload).model_dump(mode="json")
+    payload["content"]["kind"] = "performance_max"
+    with pytest.raises(ValidationError):
+        RevisionInput.model_validate(payload)
 
 
 def test_api_media_requires_current_session_csrf_and_owner(
@@ -293,16 +330,19 @@ def test_api_media_requires_current_session_csrf_and_owner(
     assert client.get(f"/api/customer/v1/workspaces/{wid + 1}/media/{media_id}").status_code == 404
 
 
+@pytest.mark.planning_boundary
 def test_entitlement_gate_on_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
+    customer_engine, ids = retained_campaign_binding
     from app.settings import settings
 
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, ids)
         body = definition(db, mandate, scope)
         monkeypatch.setattr(settings, "billing_required", True)
         monkeypatch.setattr(settings, "billing_price_id", "")
@@ -311,53 +351,22 @@ def test_entitlement_gate_on_review(
         assert caught.value.status_code == 503
 
 
+@pytest.mark.planning_boundary
 def test_image_review_binds_exact_media_and_meta_generation(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
-    from app.ads.enums import AdvertisingPlatform
-    from app.ads.models import AdvertisingAccount
+    customer_engine, ids = retained_campaign_binding
     from app.meta.models import MetaConnection
-    from app.workspaces.models import WorkspaceIntegration
 
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
-        integration = WorkspaceIntegration(
-            workspace_id=mandate.workspace_id,
-            integration_key="meta-review",
-            provider="meta_ads",
-            display_name="Meta",
-            status="active",
-            configuration={},
-        )
-        db.add(integration)
-        db.flush()
-        account = AdvertisingAccount(
-            workspace_id=mandate.workspace_id,
-            connection_id=integration.id,
-            platform=AdvertisingPlatform.META_ADS,
-            external_account_id="101",
-            name="Meta",
-            currency_code="USD",
-            time_zone="UTC",
-        )
-        db.add(account)
-        db.flush()
-        connection = MetaConnection(
-            workspace_id=mandate.workspace_id,
-            workspace_integration_id=integration.id,
-            account_id=account.id,
-            external_account_id="101",
-            encrypted_credentials="unopened-fixture",
-        )
-        db.add(connection)
+        mandate, scope = current_binding(db, ids)
+        connection = db.get(MetaConnection, int(ids.source_id))
+        assert connection
         policy = mandates.policy(db, mandate)
-        policy.accounts = [
-            AccountScope(platform="meta_ads", connection_id=integration.id, account_id=account.id)
-        ]
-        mandates.edit(db, mandate, mandate.revision, policy, "owner", NOW)
-        mandates.approve(db, mandate, mandate.revision, "owner", NOW)
-        db.commit()
         media = s.upload(db, mandate.workspace_id, "owner", png(), store, NOW)
         body = RevisionInput(
             account=policy.accounts[0],
@@ -392,9 +401,14 @@ def test_image_review_binds_exact_media_and_meta_generation(
             s.preview(db, mandate.workspace_id, row.draft_id, store, NOW)
 
 
+@pytest.mark.planning_boundary
 def test_concurrent_edit_has_one_winner(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
+    customer_engine, ids = retained_campaign_binding
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
 
@@ -402,7 +416,7 @@ def test_concurrent_edit_has_one_winner(
         pytest.skip("row-lock race requires PostgreSQL")
     store = LocalMediaStore(tmp_path)
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, ids)
         body = definition(db, mandate, scope)
         first = s.revise(db, mandate.workspace_id, body, "owner", store, NOW)
         wid, draft_id = mandate.workspace_id, first.draft_id

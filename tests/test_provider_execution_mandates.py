@@ -228,40 +228,35 @@ def test_populated_execution_migration_roundtrip(
         admin.dispose()
 
 
+@pytest.mark.planning_boundary
 def test_unresolved_budget_owner_cannot_get_second_period_reservation(
     customer_engine: Engine, configuration: Settings, tmp_path: Any
 ) -> None:
-    from uuid import uuid4
+    from tests.financial_origin_retained_fixture import (
+        current_policy,
+        financial_source_engine,
+        retained_financial_source,
+    )
 
-    from app.publication.execution_models import ProviderExposureReservation
-    from sqlalchemy.exc import IntegrityError
+    with financial_source_engine(customer_engine, tmp_path) as customer_engine:
+        from uuid import uuid4
 
-    with Session(customer_engine) as db:
-        p, actor = setup(db, configuration, tmp_path)
-        first = s.revise(db, p.workspace_id, p, actor, lambda: NOW)
-        later = p.model_copy(
-            update={"starts_at": p.ends_at, "ends_at": p.ends_at + timedelta(days=1)}
-        )
-        second = s.revise(db, p.workspace_id, later, actor, lambda: NOW)
-        db.add(
-            ProviderExposureReservation(
-                id=uuid4().hex,
-                workspace_id=p.workspace_id,
-                ledger_id=first.ledger_id,
-                environment=p.environment,
-                budget_owner_key="google/123/campaign/1",
-                amount_micros=50,
-                state="held",
-                evidence={},
+        from app.publication.execution_models import ProviderExposureReservation
+        from sqlalchemy.exc import IntegrityError
+
+        ids = retained_financial_source(customer_engine, tmp_path / "retained", "source_only")
+        with Session(customer_engine) as db:
+            p, actor = current_policy(db, ids), ids.actor_id
+            first = s.revise(db, p.workspace_id, p, actor, lambda: NOW)
+            later = p.model_copy(
+                update={"starts_at": p.ends_at, "ends_at": p.ends_at + timedelta(days=1)}
             )
-        )
-        db.commit()
-        with pytest.raises(IntegrityError), db.begin_nested():
+            second = s.revise(db, p.workspace_id, later, actor, lambda: NOW)
             db.add(
                 ProviderExposureReservation(
                     id=uuid4().hex,
                     workspace_id=p.workspace_id,
-                    ledger_id=second.ledger_id,
+                    ledger_id=first.ledger_id,
                     environment=p.environment,
                     budget_owner_key="google/123/campaign/1",
                     amount_micros=50,
@@ -269,4 +264,18 @@ def test_unresolved_budget_owner_cannot_get_second_period_reservation(
                     evidence={},
                 )
             )
-            db.flush()
+            db.commit()
+            with pytest.raises(IntegrityError), db.begin_nested():
+                db.add(
+                    ProviderExposureReservation(
+                        id=uuid4().hex,
+                        workspace_id=p.workspace_id,
+                        ledger_id=second.ledger_id,
+                        environment=p.environment,
+                        budget_owner_key="google/123/campaign/1",
+                        amount_micros=50,
+                        state="held",
+                        evidence={},
+                    )
+                )
+                db.flush()

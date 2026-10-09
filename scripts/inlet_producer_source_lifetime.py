@@ -51,6 +51,7 @@ def _test(
 
 
 PROFILES = {
+    "financial_origin": _test("financial_origin_retained_fixture", "financial_origin_seed_driver"),
     **{
         name: _test("retired_producer_fixture", "seed_driver", "historical-source")
         for name in ("review", "initial_rule", "native_diagnostic", "commerce_publication_0053")

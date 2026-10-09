@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 """No-rebuild origin DDL proof on populated real financial parent/RESTRICT children."""
 
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -10,19 +11,29 @@ from app.production_runtime.optimization_origin_contracts import OptimizationMan
 from app.production_runtime.optimization_policy_contracts import OptimizationCustomerIntentV1
 from app.publication import execution_mandates
 from app.settings import Settings
-from sqlalchemy import JSON, Engine, bindparam, text
+from sqlalchemy import JSON, Engine, bindparam, create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
+from tests.financial_origin_retained_fixture import (
+    ConsentedIds,
+    current_policy,
+    retained_financial_source,
+)
 from tests.migration_engine import migration_customer_engine as migration_customer_engine
 from tests.test_commerce_measurement import NOW
 from tests.test_optimization_runtime_contracts import policy as operating_policy
-from tests.test_provider_execution_mandates import setup
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.fixture
-def customer_engine(migration_customer_engine: Engine) -> Engine:
+def customer_engine(migration_customer_engine: Engine, tmp_path: Path) -> Iterator[Engine]:
+    original = migration_customer_engine
+    if original.dialect.name == "sqlite":
+        from app.database.models import register_models
+
+        migration_customer_engine = create_engine(f"sqlite:///{tmp_path / 'current.sqlite'}")
+        register_models().create_all(migration_customer_engine)
     # SQLite's common fixture is ORM-created. Only its EMPTY fixture table is
     # normalized to pre0080 shape before running the actual additive migration.
     # Production0080 never rebuilds a parent; the populated roundtrip below checks it.
@@ -53,7 +64,11 @@ def customer_engine(migration_customer_engine: Engine) -> Engine:
                     if not name.startswith(("omr_", "omp_")):
                         c.exec_driver_sql(sql)
                 import_module("migrations.versions.20261007_0080_optimization_origin").upgrade()
-    return migration_customer_engine
+    try:
+        yield migration_customer_engine
+    finally:
+        if migration_customer_engine is not original:
+            migration_customer_engine.dispose()
 
 
 def test_additive_deferred_digest_fk_preserves_populated_authority(
@@ -65,13 +80,11 @@ def test_additive_deferred_digest_fk_preserves_populated_authority(
         with customer_engine.connect() as connection:
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
             connection.commit()
+    ids = retained_financial_source(customer_engine, tmp_path / "retained", "consented_origin")
+    assert isinstance(ids, ConsentedIds)
     with Session(customer_engine) as db:
-        policy, actor = setup(db, configuration, tmp_path)
-        mandate = execution_mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
-        execution_mandates.consent(
-            db, policy.workspace_id, mandate.id, 1, policy.digest(), actor, lambda: NOW
-        )
-        mid, wid = mandate.id, policy.workspace_id
+        policy = current_policy(db, ids)
+        mid, wid = ids.provider_mandate_id, ids.workspace_id
     # Existing actual immutable-policy bytes and real RESTRICT consent child survive.
     with customer_engine.connect() as connection:
         original = connection.execute(
@@ -259,8 +272,9 @@ def test_marked_origin_denied_when_sqlite_foreign_keys_are_not_enabled(
         pytest.skip("SQLite connection integrity setting")
     with customer_engine.connect() as c:
         assert c.scalar(text("PRAGMA foreign_keys")) == 0
+    ids = retained_financial_source(customer_engine, tmp_path / "retained", "source_only")
     with Session(customer_engine) as db:
-        policy, actor = setup(db, configuration, tmp_path)
+        policy, actor = current_policy(db, ids), ids.actor_id
         mandate = execution_mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
         mid = mandate.id
     with (

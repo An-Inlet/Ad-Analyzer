@@ -13,8 +13,8 @@ from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from tests.financial_origin_retained_fixture import current_policy, retained_financial_source
 from tests.test_commerce_measurement import NOW
-from tests.test_provider_execution_mandates import setup
 from tests.test_shopify_sales import configuration as configuration
 
 
@@ -43,7 +43,7 @@ def test_actual_metadata_sqlite_postgres_sqlite_keeps_deferred_origin(
     url = validate_disposable_url()
     metadata = register_models()
     before = create_engine("sqlite://")
-    after = create_engine("sqlite://")
+    after = create_engine(f"sqlite:///{tmp_path / 'after.sqlite'}")
     admin = create_engine(url)
     schema = "inlet_origin_metadata_" + uuid4().hex
     pg = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
@@ -58,8 +58,9 @@ def test_actual_metadata_sqlite_postgres_sqlite_keeps_deferred_origin(
         assert_owned_fk(after)
         with after.begin() as connection:
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        ids = retained_financial_source(after, tmp_path / "retained", "source_only")
         with Session(after) as db:
-            policy, actor = setup(db, configuration, tmp_path)
+            policy, actor = current_policy(db, ids), ids.actor_id
             mandate = execution_mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
             mid = mandate.id
         # INSERT is allowed by the deferred constraint; COMMIT must fail without proof.
@@ -100,7 +101,7 @@ def test_sqlite_marked_insert_denied_if_physical_origin_fk_is_absent(
     metadata = register_models()
     table = metadata.tables["provider_execution_revisions"]
     constraint = next(c for c in table.constraints if c.name == "fk_optimization_origin_digest")
-    engine = create_engine("sqlite://")
+    engine = create_engine(f"sqlite:///{tmp_path / 'malformed.sqlite'}")
 
     def simulate_ddl_suppression(*args: object, **kwargs: object) -> None:
         # Reproduce the library suppression after the repair callback, to prove
@@ -127,8 +128,9 @@ def test_sqlite_marked_insert_denied_if_physical_origin_fk_is_absent(
                 for statement in migration.PARENT_SQL["sqlite"]:
                     connection.exec_driver_sql(statement)
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+        ids = retained_financial_source(engine, tmp_path / "retained", "source_only")
         with Session(engine) as db:
-            policy, actor = setup(db, configuration, tmp_path)
+            policy, actor = current_policy(db, ids), ids.actor_id
             mandate = execution_mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
             mid = mandate.id
         with (

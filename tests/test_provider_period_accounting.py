@@ -141,38 +141,47 @@ def test_settled_account_spend_cannot_be_omitted_from_period(
         assert ledger.spent_high_water_micros == 60
 
 
+@pytest.mark.planning_boundary
 def test_mixed_currency_prior_hold_is_not_added_as_numeric_micros(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
 ) -> None:
-    with Session(customer_engine) as db:
-        policy, actor = setup(db, configuration, tmp_path)
-        old = ProviderPeriodLedger(
-            id="a" * 32,
-            workspace_id=policy.workspace_id,
-            environment=policy.environment,
-            currency="JPY",
-            starts_at=policy.starts_at - timedelta(days=60),
-            ends_at=policy.starts_at - timedelta(days=30),
-        )
-        db.add(old)
-        db.flush()
-        db.add(
-            ProviderExposureReservation(
-                id="b" * 32,
+    from tests.financial_origin_retained_fixture import (
+        current_policy,
+        financial_source_engine,
+        retained_financial_source,
+    )
+
+    with financial_source_engine(customer_engine, tmp_path) as customer_engine:
+        ids = retained_financial_source(customer_engine, tmp_path / "retained", "source_only")
+        with Session(customer_engine) as db:
+            policy, actor = current_policy(db, ids), ids.actor_id
+            old = ProviderPeriodLedger(
+                id="a" * 32,
                 workspace_id=policy.workspace_id,
-                ledger_id=old.id,
                 environment=policy.environment,
-                budget_owner_key="old-jpy",
-                amount_micros=60,
-                state="held",
-                evidence={},
+                currency="JPY",
+                starts_at=policy.starts_at - timedelta(days=60),
+                ends_at=policy.starts_at - timedelta(days=30),
             )
-        )
-        db.commit()
-        with pytest.raises(HTTPException, match="currency"):
-            mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
+            db.add(old)
+            db.flush()
+            db.add(
+                ProviderExposureReservation(
+                    id="b" * 32,
+                    workspace_id=policy.workspace_id,
+                    ledger_id=old.id,
+                    environment=policy.environment,
+                    budget_owner_key="old-jpy",
+                    amount_micros=60,
+                    state="held",
+                    evidence={},
+                )
+            )
+            db.commit()
+            with pytest.raises(HTTPException, match="currency"):
+                mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
 
 
 @pytest.mark.retained_execution

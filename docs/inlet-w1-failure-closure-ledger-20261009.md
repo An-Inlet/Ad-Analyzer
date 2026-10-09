@@ -732,3 +732,33 @@ read-only dependency10/worker8, full actual browser2 and total-envelope20 are un
 legacy TikTok4 classification awaits review. No Full, hosted CI, push or deployment.
 Disk pressure mitigated by moving three inactive ignored type-check caches intact
 into/tmp (manifest root-completed-cache-move-2.json); unique evidence unchanged.
+
+### Full Browser And Retained TikTok Policy
+
+Legacy TikTok4 `8d9dbed`→`3ffc4eb`:94 passed39.357s (4 original+90 current
+boundaries), no skips/failures; whole Ruff/mypy1228/diff0. Exactly two individually
+reviewed retained decorators; whole module AST otherwise identical. No API/privacy/
+DDL behavior retired or reclassified.
+
+Full actual browser2 `05c3b5f`→`71803c3`:original timing failure retained9.790s.
+Actual new API job was due1.792s after bootstrap clock, so unchanged acquisition
+returned up_to_date. Approved fixture correction derives current clock from actual
+owned job.next_due_at+1sec, matching existing helper rule; no stored timestamp,
+identity or TTL mutation. Corrected gate1 passed15.339s, actual2bothDB passed52.875s,
+compatibility4 passed47.793s. Full shared JavaScript unchanged, actual login/request/
+acquisition/V1 PlanningConsent/47m feedback/late-response discard/rotation/logout
+preserved. Exactly two new same-actor ordinary-TTL sessions and actual rotated
+session revocation verified. WholeRuff/mypy1191/Node/diff0.
+
+Immutable successor-coverage-1202.json: **1202 covered (1090 direct,
+112 historical/current),128 remaining**. Combined71803c3 Ruff/mypy1229/plugin1/diff0.
+Original aggregate still failed, no aggregate rerun or live/hosted verification.
+Current18 dependency10+registry1 passed but worker6pass2fail during setup acquisition;
+no credit/integration yet. One bounded instrumented PG diagnostic passed13.994s,
+trace under reported-rule-current18/due-trace.jsonl; timing investigation remains.
+Google total-created source82 passed independently; dependent current20 under test,
+not credited. A brief05:22 shell transport disconnect recovered on harmless retry;
+main edits clean, diagnostic terminal XML verified, Google partial probe not yet
+claimed complete. No reset/duplicate runs. Workspace713MiB and/tmp7.3GiB available.
+Eight more inactive ignored caches moved intact/tmp with exact manifest
+root-completed-cache-move-3.json; no unique source/DB/evidence deletion.

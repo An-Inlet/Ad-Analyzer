@@ -19,6 +19,7 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests.google_completion_retained_fixture import retained_google_completion
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_durable_optimization import ready
@@ -91,6 +92,7 @@ def test_no_capture_for_nonexact_original_success(mode: str) -> None:
     assert "private" not in response.model_dump_json()
 
 
+@pytest.mark.planning_boundary
 @pytest.mark.parametrize("tamper", [None, "document", "fence", "request", "digest", "scope"])
 def test_durable_reader_and_export_never_release_hold(
     customer_engine: Engine,
@@ -98,8 +100,10 @@ def test_durable_reader_and_export_never_release_hold(
     tmp_path: Path,
     tamper: str | None,
 ) -> None:
-    with Session(customer_engine) as db:
-        wid, actor, attempt = emitted(db, configuration, tmp_path)
+    with retained_google_completion(
+        customer_engine, tmp_path / "original", purpose="reader", tamper=tamper
+    ) as (engine, ids), Session(engine) as db:
+        wid, actor, attempt = ids.workspace_id, ids.actor_id, ids.attempt_id
         row = db.get(GoogleOriginalCompletion, attempt)
         assert row is not None
         assert TABLES[row.__tablename__].protected
@@ -211,6 +215,7 @@ def test_legacy_acknowledgment_cannot_manufacture_capture(
             assert read_owned(db, wid, claim.attempt_id, actor, NOW) is None
 
 
+@pytest.mark.planning_boundary
 def test_customer_closure_retains_original_completion_and_financial_hold(
     customer_engine: Engine,
     configuration: Settings,
@@ -228,8 +233,10 @@ def test_customer_closure_retains_original_completion_and_financial_hold(
     from tests.test_customer_identity import FakeProvider
     from tests.test_customer_quiescing import confirmed
 
-    with Session(customer_engine) as db:
-        wid, actor, attempt = emitted(db, configuration, tmp_path)
+    with retained_google_completion(
+        customer_engine, tmp_path / "original", purpose="closure"
+    ) as (engine, ids), Session(engine) as db:
+        wid, actor, attempt = ids.workspace_id, ids.actor_id, ids.attempt_id
         row = db.get(GoogleOriginalCompletion, attempt)
         assert row is not None
         original = deepcopy(row.document)

@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "google_completion": _test(
+        "google_completion_retained_fixture", "google_completion_seed_driver"
+    ),
     "configured_candidate": _test(
         "configured_candidate_retained_fixture", "configured_candidate_seed_driver"
     ),

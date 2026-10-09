@@ -113,6 +113,50 @@ def test_dated_q16_real_archive_privacy_delivery(
             )
         )
         db.commit()
+    plan_url = f"/api/customer/v1/workspaces/{ids.workspace_id}/planning/plans/{ids.plan_id}"
+    current = alice.get(plan_url)
+    assert current.status_code == 200, current.text
+    value = current.json()
+    assert value["freshness"] == "current"
+    action = value["document"]["actions"][0]
+    binding = dict(
+        expected_version=1,
+        expected_event_sequence=0,
+        document_digest=value["document_digest"],
+        action_key=action["key"],
+        action_digest=value["action_digests"][action["key"]],
+        supersedes_event_id=None,
+    )
+    decision = alice.post(
+        plan_url + "/decisions",
+        headers=headers(alice),
+        json={
+            **binding,
+            "decision": "accepted_for_manual_application",
+            "reason": "Customer review only; no advertising authority",
+            "request_key": "q16-archive-decision",
+        },
+    )
+    assert decision.status_code == 200, decision.text
+    assert decision.json()["event_sequence"] == 1
+    # The current DTO checks actual wall time independently of service utc_now.
+    # Do not replace this with an October pre-plan application or bypass validation.
+    assertion = alice.post(
+        plan_url + "/assertions",
+        headers=headers(alice),
+        json={
+            **binding,
+            "expected_event_sequence": 1,
+            "assertion": "customer_reports_applied",
+            "reported_applied_at": value["document"]["generated_at"],
+            "statement": "Customer report, not independently verified",
+            "request_key": "q16-archive-report",
+        },
+    )
+    assert assertion.status_code == 422, assertion.text
+    assert "nonfuture reported application time required" in assertion.text
+    events = alice.get(plan_url + "/events")
+    assert events.status_code == 200 and len(events.json()["items"]) == 1
     baseline_finance = finance(customer_engine)
     native_count = len(calls)
     path = f"/api/customer/v1/workspaces/{ids.workspace_id}/exports"
@@ -139,6 +183,13 @@ def test_dated_q16_real_archive_privacy_delivery(
         json.loads(line) for line in entries["data/planning_document_versions.jsonl"].splitlines()
     ]
     assert len(versions) == 1 and versions[0]["plan_id"] == ids.plan_id
+    event_rows = [
+        json.loads(line) for line in entries["data/planning_document_events.jsonl"].splitlines()
+    ]
+    assert len(event_rows) == 1 and event_rows[0]["plan_id"] == ids.plan_id
+    (tmp_path / "before-plan-events.jsonl").write_bytes(
+        entries["data/planning_document_events.jsonl"]
+    )
     assert [json.loads(line)["id"] for line in entries["data/workspaces.jsonl"].splitlines()] == [
         ids.workspace_id
     ]

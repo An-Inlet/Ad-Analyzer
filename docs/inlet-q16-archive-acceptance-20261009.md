@@ -34,3 +34,9 @@ Initial `first.log` records a test setup error: Ruff removed an imported alias n
 This is bounded dated archive/privacy evidence, not full Q16, comprehensive planning quality, manual-application qualification, browser proof, production performance or live deployment acceptance. The separate browser/manual-report lane remains responsible for its own evidence.
 
 The deterministic-order edit exposed a static Table annotation mismatch (`mypy-closed.log`), repaired with a runtime-neutral explicit `Table` cast. Final `qualified.log/xml` reruns both cases and retains synthetic `before-manifest.json`, `before-plan-versions.jsonl`, `after-manifest.json` and `after-plan-sections.json` under each database case in evidence-local `artifacts/`. These are outputs of the actual archive, not reconstructed serializer fixtures. Raw prior logs remain. Only sanitized manifests/plan payloads are evidence deliverables; local database files under the fixture temporary root are not publication artifacts.
+
+## Nonempty Event Successor
+
+After freeze `6df867c`, the actual current API records one customer decision before archiving. A November-stage manual report is explicitly rejected422 by the actual-wall-clock request validator; no pre-plan timestamp or bypass substitutes for it. The real archive contains exactly one genuine event, and the erased archive contains none. Final successor run: **2 passed, 0 skipped, 25.709 seconds**, both databases (`events.log/xml`, `event-artifacts/` also retains `before-plan-events.jsonl`). Whole Ruff and bare mypy1,122 pass (`ruff-events.log`, `mypy-events.log`); diffcheck passes. No two-event/manual-report acceptance claim.
+
+Proposed natural chronology, pending root review: [October Plan Chronology](design/q16-october-plan-chronology-proposal.md). Generate and record the report in actual October, then advance only progress stages to the fixed November dates. No shared fixture edits yet.

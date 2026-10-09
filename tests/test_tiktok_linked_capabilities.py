@@ -24,6 +24,7 @@ from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_tiktok_owned_discovery import prepare
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
 
 IDENTITY = TikTokBusinessIdentityV1(
     identity_type="BC_AUTH_TT", identity_id="linked-123", identity_authorized_bc_id="bc-456"
@@ -55,6 +56,8 @@ def body(scope: Any, kind: str) -> dict[str, Any]:
     }
 
 
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("read_only_graph")
 @pytest.mark.parametrize("kind", ["identity", "advertiser"])
 @pytest.mark.parametrize(
     "change", ["none", "revoke", "generation", "close", "wrong", "boolean", "duplicate"]

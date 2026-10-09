@@ -26,6 +26,7 @@ from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
 from tests.test_tiktok_linked_posts_contracts import body
 from tests.test_tiktok_owned_discovery import prepare
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
 
 
 def wire_bytes(payload: object) -> bytes:
@@ -37,6 +38,8 @@ def wire_bytes(payload: object) -> bytes:
     )
 
 
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("read_only_graph")
 @pytest.mark.parametrize("kind", ["TT_USER", "BC_AUTH_TT"])
 def test_actual_owned_video_pagination(
     customer_engine: Engine,
@@ -107,6 +110,8 @@ def test_actual_owned_video_pagination(
         contexts.close()
 
 
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("read_only_graph")
 @pytest.mark.parametrize("change", ["revoke", "generation", "profile", "close", "foreign_scope"])
 def test_actual_owned_change_discards_catalogue(
     customer_engine: Engine,

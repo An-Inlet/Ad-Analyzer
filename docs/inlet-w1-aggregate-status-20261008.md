@@ -43,7 +43,36 @@ provider calls, advertising writes, deployment and commercial release remain hel
 
 The first bounded successor repair is independently reviewed and integrated from
 `0ecd0d7`. All 66 SQLite/PostgreSQL account-diagnostic API cases passed with no
-skips in77.80s; whole Ruff, bare mypy (1,117 files) and diff checks passed. Production
+skips in 77.80s; whole Ruff, bare mypy (1,117 files) and diff checks passed. Production
 code and every original API assertion are unchanged. The frozen W1 aggregate still
 contains its original fixture and its recorded failures; no rerun or retrospective
 pass claim is made. See `inlet-account-diagnostics-fixture-20261008.md`.
+
+## Completed Explicit CI Gates
+
+All six commands ran once on frozen `6a3b0f1`, with a clean checkout before each
+and after completion, using only separate database
+`inlet_w1_20261008_gates_09a55cf2_ci`. PostgreSQL: 3 passed (3.60s);
+ReadOnly: 75 passed, 38 deselected (6.60s); Security: 99 passed, 28 deselected
+(5.42s); Privacy: 14 passed, 58 deselected (2.09s); Focused: 43 passed,
+29 deselected (42.05s); exact CI orchestration/diagnostics pair: 43 passed
+(18.00s), including native PowerShell. All exit codes were zero, with no skips or
+retries. Counts overlap and must not be added as unique acceptance coverage.
+Evidence: `w1-aggregate/gates/results.json`, individual logs/XML/status files and
+`checkout-final.json` under the evidence root's parent. This does not supersede
+the still-running aggregate's observed failures.
+
+At October 9 00:00 UTC the original aggregate processes remained alive after
+roughly twelve minutes; the frozen checkout remained clean. Progress had reached
+approximately 12%. No restart or source change occurred.
+
+## Reviewed Next Acceptance Proposal
+
+Docs-only `55bc389` is reviewed and integrated on this successor branch. The next
+proposal is assembled Q16 privacy and separate later-day/corrected-sales acceptance,
+using the original frozen common basis and actual workflow. Before implementation
+or browser delegation, a bounded feasibility investigation must establish coherent
+November 3/4 synthetic clocks across identity, paid/native freshness, goal binding
+and database wall time. Existing guards, TTLs and frozen dates cannot be changed to
+make the fixture pass. See `design/planning-next-quality-acceptance-v1.md`.
+All quality cases and expert gates remain partial/unfulfilled.

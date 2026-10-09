@@ -35,6 +35,8 @@ from pydantic import SecretStr, ValidationError
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.candidate_read_retained_fixture import CandidateReadIds, load_candidate_read_fixture
+from tests.candidate_read_retained_fixture import retained_candidate_case as retained_candidate_case
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_execution_session_authorizer import revoke
@@ -43,10 +45,17 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 def prepared(
-    db: Session, config: Settings, path: Path, provider: str = "google_ads"
+    db: Session,
+    config: Settings,
+    path: Path,
+    provider: str = "google_ads",
+    *,
+    retained_ids: CandidateReadIds | None = None,
 ) -> tuple[Any, ...]:
-    principal, work, observation, _, candidate, server = fixture(
-        db, config, path, provider=provider
+    principal, work, observation, _, candidate, server = (
+        fixture(db, config, path, provider=provider)
+        if retained_ids is None
+        else load_candidate_read_fixture(db, retained_ids)
     )
     adapter = {
         "google_ads": GoogleOptimizationTransport,
@@ -89,12 +98,18 @@ def prepared(
 
 
 @pytest.mark.parametrize("provider", ["google_ads", "meta_ads", "tiktok_ads"])
+@pytest.mark.planning_boundary
 def test_actual_discovery_to_v2_read_and_export(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, provider: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    provider: str,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
         principal, old, observation, runtime, ref, server = prepared(
-            db, configuration, tmp_path, provider
+            db, configuration, tmp_path, provider, retained_ids=ids
         )
         wid = old.scope.account.workspace_id
         batch, jobs = x.enqueue_candidate_selection(
@@ -120,11 +135,16 @@ def test_actual_discovery_to_v2_read_and_export(
         assert db.scalar(select(func.count()).select_from(CandidateResult)) == 1
 
 
+@pytest.mark.planning_boundary
 def test_old_v1_bytes_and_digest_unchanged(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
-        principal, old, _, runtime, _, _ = prepared(db, configuration, tmp_path)
+        principal, old, _, runtime, _, _ = prepared(db, configuration, tmp_path, retained_ids=ids)
         raw = old.model_dump(mode="json")
         assert set(raw) == {"schema_version", "purpose", "scope", "policy"}
         expected = fingerprint("inlet.candidate-work.v1", raw)
@@ -136,11 +156,19 @@ def test_old_v1_bytes_and_digest_unchanged(
 
 
 @pytest.mark.parametrize("change", ["logout", "role", "privacy", "catalog", "expiry"])
+@pytest.mark.planning_boundary
 def test_changes_during_reads_admit_no_jobs(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path, change: str
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    change: str,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
-        principal, work, _, runtime, ref, server = prepared(db, configuration, tmp_path)
+        principal, work, _, runtime, ref, server = prepared(
+            db, configuration, tmp_path, retained_ids=ids
+        )
         wid, token = work.scope.account.workspace_id, principal.session.digest
 
         def source(db, request, now):  # type: ignore[no-untyped-def]
@@ -178,11 +206,16 @@ def test_changes_during_reads_admit_no_jobs(
         assert db.scalar(select(func.count()).select_from(CandidateJob)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_unapproved_scope_and_tamper_block(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
-        principal, old, _, runtime, ref, _ = prepared(db, configuration, tmp_path)
+        principal, old, _, runtime, ref, _ = prepared(db, configuration, tmp_path, retained_ids=ids)
         batch = x.plan_candidate_reads(
             db, principal, old.scope.account.workspace_id, old.scope.mandate, ref, runtime
         )
@@ -198,13 +231,16 @@ def test_unapproved_scope_and_tamper_block(
 
 
 @pytest.mark.parametrize("change", ["role", "privacy", "catalog_expiry"])
+@pytest.mark.planning_boundary
 def test_post_read_workspace_lock_wait_revalidates(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     change: str,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
 
@@ -212,7 +248,9 @@ def test_post_read_workspace_lock_wait_revalidates(
         pytest.skip("PostgreSQL row locks required")
     read_done, allow_return, entering_lock = Event(), Event(), Event()
     with Session(customer_engine) as db:
-        principal, work, _, runtime, ref, _ = prepared(db, configuration, tmp_path)
+        principal, work, _, runtime, ref, _ = prepared(
+            db, configuration, tmp_path, retained_ids=ids
+        )
         wid, actor, token = (
             work.scope.account.workspace_id,
             principal.user.id,
@@ -271,14 +309,19 @@ def test_post_read_workspace_lock_wait_revalidates(
         assert db.scalar(select(func.count()).select_from(CandidateJob)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_partial_insert_failure_rolls_back_batch(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
-        principal, work, _, runtime, ref, _ = prepared(db, configuration, tmp_path)
+        principal, work, _, runtime, ref, _ = prepared(
+            db, configuration, tmp_path, retained_ids=ids
+        )
         original = s._insert_checked
 
         def failure(db, principal, work, runtime):  # type: ignore[no-untyped-def]
@@ -294,13 +337,20 @@ def test_partial_insert_failure_rolls_back_batch(
         assert db.scalar(select(func.count()).select_from(CandidateJob)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_owner_selection_never_substitutes_child_or_conflicting_owner(
-    customer_engine: Engine, configuration: Settings, tmp_path: Path
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     from app.publication.optimization_contracts import BudgetOwnerRef, OptimizationTarget
 
     with Session(customer_engine) as db:
-        _, work, observation, runtime, _, _ = prepared(db, configuration, tmp_path, "meta_ads")
+        _, work, observation, runtime, _, _ = prepared(
+            db, configuration, tmp_path, "meta_ads", retained_ids=ids
+        )
         state = observation.state
         campaign = OptimizationTarget(kind="campaign", external_id="5", campaign_id="5")
         owner = BudgetOwnerRef(
@@ -353,14 +403,19 @@ def test_owner_selection_never_substitutes_child_or_conflicting_owner(
         )
 
 
+@pytest.mark.planning_boundary
 def test_expiry_during_insert_rolls_back(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    retained_candidate_case: tuple[Engine, CandidateReadIds],
 ) -> None:
+    customer_engine, ids = retained_candidate_case
     with Session(customer_engine) as db:
-        principal, work, _, runtime, ref, _ = prepared(db, configuration, tmp_path)
+        principal, work, _, runtime, ref, _ = prepared(
+            db, configuration, tmp_path, retained_ids=ids
+        )
         clock = [NOW]
         runtime = replace(runtime, clock=lambda: clock[0])
         original = s._insert_checked

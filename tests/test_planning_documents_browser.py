@@ -8,14 +8,15 @@ import time
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import uvicorn
 from app.customers.identity import get_identity_provider
 from app.database.session import get_db
 from app.main import app
-from app.planning_documents.models import PlanEventRow, PlanRow, PlanVersionRow
+from app.planning_documents.catalog_receipt_models import InputCatalogReceiptRow
+from app.planning_documents.models import PlanEventRow, PlanInputRow, PlanRow, PlanVersionRow
 from app.publication.execution_models import ProviderExecutionAttempt
 from app.settings import Settings, settings
 from sqlalchemy import Engine, func, select
@@ -24,6 +25,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
 
 from tests import test_customer_identity
+from tests.planning_target_inventory_fixture import Platform, install_inventory_scenario
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -38,7 +40,9 @@ pytestmark = pytest.mark.planning_boundary
     ("journey", "platform"),
     [("documents", "google_ads"), ("targets", "google_ads"),
      ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
-     ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads")],
+     ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads"),
+     ("target_disappearance", "google_ads"), ("target_disappearance", "meta_ads"),
+     ("target_disappearance", "tiktok_ads")],
 )
 def test_actual_planning_browser_lost_response_recovery_and_versions(
     journey: str,
@@ -71,6 +75,11 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         _, ticket, _, calls = setup_evidence(
             customer_engine, configuration, replicas, monkeypatch, platform
         )
+    inventory = (
+        install_inventory_scenario(cast(Platform, platform), monkeypatch)
+        if journey == "target_disappearance" else None
+    )
+    generation_counts: list[tuple[int, int]] = []
     browser_inputs = ticket.inputs.model_dump(mode="json")
     if window_source is not None:
         end = window_source.ends_at
@@ -112,6 +121,19 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             script = Path(f"tests/javascript/planning_{journey}_browser.mjs").read_text()
             script = script.replace("__INPUTS__", json.dumps(browser_inputs))
             await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if inventory is not None and path in (
+            "/__fixture__/inventory/absent", "/__fixture__/inventory/replacement"
+        ):
+            if scope.get("method") != "POST":
+                await JSONResponse({"error": "POST required"}, status_code=405)(
+                    scope, receive, send
+                )
+                return
+            inventory.advance("absent" if path.endswith("/absent") else "replacement")
+            await JSONResponse({"phase": inventory.phase, "native_calls": len(calls)})(
+                scope, receive, send
+            )
             return
         if window_source is not None and path == "/__fixture__/correct-window-source":
             from app.meta.client import MetaClient
@@ -185,7 +207,10 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             await JSONResponse({"ok": True})(scope, receive, send)
             complete.set()
             return
+        before = len(calls)
         await app(scope, receive, send)
+        if inventory is not None and path.endswith("/generate") and scope.get("method") == "POST":
+            generation_counts.append((before, len(calls)))
 
     cert, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
@@ -224,6 +249,13 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         assert complete.wait(55), "Browser did not report completion"
         assert results and results[0]["status"] == "passed", results
         assert calls
+        if inventory is not None:
+            assert inventory.phase == "replacement"
+            assert len(generation_counts) == 2 and all(a == b for a, b in generation_counts)
+            (tmp_path / "target-disappearance-result.json").write_text(json.dumps({
+                "browser": results[0], "generation_native_call_counts": generation_counts,
+                "platform": platform, "database": customer_engine.dialect.name,
+            }, indent=2))
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(PlanRow)) == 1
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == 2
@@ -231,6 +263,9 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
                 3 if journey == "documents" else 1 if journey == "progress" else 0
             )
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
+            if inventory is not None:
+                assert db.scalar(select(func.count()).select_from(PlanInputRow)) == 2
+                assert db.scalar(select(func.count()).select_from(InputCatalogReceiptRow)) == 2
     finally:
         browser.terminate()
         try:

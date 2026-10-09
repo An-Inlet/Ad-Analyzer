@@ -240,3 +240,37 @@ historical-wrapper region after84% of top-level cases. It is continuing locally
 past the hosted CI90-minute limit, an explicit CI-parity difference, with no hosted
 run or spend. Failures are visible; no terminal counts, retry, or aggregate pass is
 claimed. Successor fixes never rewrite this frozen result.
+
+## Reviewed Adverse Cases And CI Budget Gap
+
+Reviewed `9b1c129`, integrated `4cb7a66`: twelve actual HTTPS/Chromium cases passed
+on SQLite/PostgreSQL in445.486s, zero skips. This includes the prior eight, plus
+four cases for held-response same-owner session replacement and confirmed-goal
+HTTP revision. The former proves the actual old row was revoked before expiry;
+the latter shows Goal Changed/no sales amount while preserving the original
+artifact and events. Erased event/version collection endpoints now directly
+return404. Root inspected exact source and both unique session timestamp artifacts;
+combined Ruff, bare mypy1123, Node syntax and diff checks passed. The initial
+one-pass/one-failed clock expectation is retained, not hidden. Quality evidence
+`625ef09` records these mechanical results without declaring Q16 or expert gates
+complete. No production behavior changed in this package.
+
+The owner requested preservation of this run and a measured redundancy audit.
+Reviewed audit `6dec254`, integrated `8d34802`, found no remaining recursive Full:
+three historical manifests contain249 distinct nodes, and their preserved current
+function bodies are not also directly collected. Earlier child timings total
+51.02minutes arithmetically, while the prior current primary suite alone already
+lasted103.31minutes. Named gate repetitions cost about78test-seconds and cannot
+explain the long critical path. See [the concrete partition proposal](design/validation-overlap-audit-20261009.md).
+
+The90-minute step and120-minute job feasibility are now explicit release/CI gaps.
+Recommend exact, disjoint current file partitions based on terminal JUnit timing,
+plus three required historical jobs, preserving every node, prerequisite, isolated
+database and failure result. This is a reviewed recommendation, not an implemented
+or qualified faster workflow. Concurrent jobs may reduce elapsed time, not billed
+minutes; no spending-cap increase or hosted retry is authorized. Small duplicate
+gates are retained. Local contention and extraction overhead remain unproved causes.
+A passive late-run sampler now records30-second aggregate-descendant/cgroup resource
+observations in `w1-aggregate/late-resource-samples.jsonl`; it changes no tests.
+The original aggregate is still running around101minutes and its first historical
+batch is progressing. No terminal or comprehensive pass is claimed.

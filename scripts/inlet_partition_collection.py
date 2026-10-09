@@ -91,7 +91,6 @@ def pytest_configure(config: pytest.Config) -> None:
         not config.option.collectonly
         or not found_plugin
         or os.environ.get("PYTEST_ADDOPTS", "").strip()
-        or config.option.override_ini
         or config.option.inifilename
         or config.option.noconftest
         or config.option.confcutdir
@@ -99,7 +98,8 @@ def pytest_configure(config: pytest.Config) -> None:
         or config.getoption("junitprefix", default=None)
     ):
         raise pytest.UsageError("Only unfiltered collect-only evidence is permitted")
-    if set(shlex.split(str(config.inicfg.get("addopts", "")))) - {"-q", "--strict-markers"}:
+    configured_addopts = shlex.split(str(config.inicfg.get("addopts", "")))
+    if set(configured_addopts) - {"-q", "--strict-markers"}:
         raise pytest.UsageError("Noncanonical configured addopts")
     scope = config.getini("testpaths")
     if not scope or list(config.args) != scope:
@@ -118,6 +118,13 @@ def pytest_configure(config: pytest.Config) -> None:
     )
     if committed.returncode or committed.stdout != config.inipath.read_bytes():
         raise pytest.UsageError("Active configuration must match a tracked HEAD blob")
+    # Pytest normalizes the tracked --strict-markers addopt into this override.
+    # Explicit CLI overrides have already failed the invocation allowlist above.
+    if config.option.override_ini and not (
+        config.option.override_ini == ["strict_markers=true"]
+        and "--strict-markers" in configured_addopts
+    ):
+        raise pytest.UsageError("Unapproved configuration overrides")
     output = config.getoption("partition_manifest")
     if (
         not isinstance(output, Path)

@@ -106,3 +106,27 @@ Whole `ruff check .`, bare `mypy` (1125 source files), standalone plugin mypy an
 `provenance-final.log/xml/exit`, `ruff-provenance.log`, `mypy-provenance.log/exit`,
 `plugin-mypy-provenance.log`. Independent successor review is pending. No actual
 frozen W1 collection, DB, workflow, shard execution or aggregate change occurred.
+
+## Actual Collection Compatibility Repair
+
+After the original aggregate terminated, the authorized first genuine collection
+attempt on clean frozen `6a3b0f1` exited 4 before collecting or executing tests.
+`partition-collection.log/exit` under the aggregate evidence directory preserve the
+failure. No manifest was produced. Installed pytest normalizes the tracked
+`--strict-markers` addopt into `override_ini=['strict_markers=true']`; the original
+blanket override rejection rejected this canonical configuration too.
+
+The narrow successor accepts that exact normalized list only after verifying the
+configuration bytes against HEAD and only when its addopts contain
+`--strict-markers`. Original CLI allowlisting still rejects both `-o` and
+`--override-ini`, including an explicit identical value; environment addopts and all
+other overrides remain forbidden. No collection scope or application guard changes.
+
+Focused module: **56 passed, zero skips, 5.63s**, including the tracked W1-style
+pyproject configuration and both explicit-override negatives. All earlier 53 cases
+remain. Raw `strict-markers.log/xml/exit` is under
+`/workspace/inlet-evidence/20261009/offline-partition/`. A second genuine collection
+requires independent review of this repair; it has not been retried at this cutoff.
+Whole Ruff, bare mypy (1125 source files), standalone plugin mypy and diff checks
+passed; separate `ruff-strict-markers.log`, `mypy-strict-markers.log` and
+`plugin-mypy-strict-markers.log` retain their output.

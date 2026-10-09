@@ -217,6 +217,9 @@ def test_child_manifest_contract(tmp_path: Path, bad: str) -> None:
         "historical",
         "ignored_historical",
         "partial_historical",
+        "strict_markers",
+        "strict_override",
+        "strict_long_override",
     ],
 )
 def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
@@ -231,6 +234,11 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         "class TestGroup:\n @pytest.mark.parametrize('x',[1,2],ids=['a::b.c','d'])\n"
         " def test_case(self,x):\n  assert x\n"
     )
+    if mode.startswith("strict_"):
+        (repo / "pytest.ini").unlink()
+        (repo / "pyproject.toml").write_text(
+            '[tool.pytest.ini_options]\naddopts = "-q --strict-markers"\ntestpaths = ["tests"]\n'
+        )
     if mode == "ignored_config":
         (repo / "pytest.ini").unlink()
         (repo / ".gitignore").write_text("__pycache__/\n.pytest_cache/\npytest.ini\n")
@@ -288,6 +296,8 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
     additions = {
         "filter": ["-k", "case"],
         "override": ["-o", "testpaths=tests"],
+        "strict_override": ["-o", "strict_markers=true"],
+        "strict_long_override": ["--override-ini", "strict_markers=true"],
         "config": ["-c", "pytest.ini"],
         "noconftest": ["--noconftest"],
         "lastfailed": ["--lf"],
@@ -303,7 +313,7 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         env["PYTEST_ADDOPTS"] = "-k case"
     run = subprocess.run(args, cwd=repo, env=env, capture_output=True, text=True, timeout=30)
     assert not (repo / "EXECUTED").exists()
-    if mode in {"valid", "historical"}:
+    if mode in {"valid", "historical", "strict_markers"}:
         assert run.returncode == 0, run.stdout + run.stderr
         manifest = Collection.model_validate_json(output.read_bytes())
         if mode == "historical":

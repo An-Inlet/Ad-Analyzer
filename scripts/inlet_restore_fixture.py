@@ -14,6 +14,7 @@ from uuid import uuid4
 import httpx
 from app.ads.enums import AdvertisingPlatform
 from app.ads.models import AdvertisingAccount
+from app.advertising_capabilities import AdvertisingWritesDisabled
 from app.campaign_review.contracts import ReviewArtifact, RevisionInput
 from app.campaign_review.models import CampaignDraft, CampaignRevision, MediaObject
 from app.commerce.models import CommerceStore
@@ -707,7 +708,16 @@ def verify_populated(engine: Engine) -> None:
         server = Server()
         server.budget["amountMicros"] = "51000000"
         runtime = runtime_for(policy, server)
-        assert o.claim_step(db, 901, run.id, "1" * 32, runtime, lambda: NOW) is None
+        before_counts = tuple(db.scalar(select(func.count()).select_from(model)) for model in (
+            ProviderExecutionAttempt, ProviderExecutionRun, ProviderExposureReservation,
+            ProviderReservationReplacement,
+        ))
+        try:
+            o.claim_step(db, 901, run.id, "1" * 32, runtime, lambda: NOW)
+        except AdvertisingWritesDisabled:
+            pass
+        else:
+            raise AssertionError("planning restore claimed historical execution")
         claim = OptimizationClaim(
             workspace_id=901,
             run_id=run.id,
@@ -717,12 +727,8 @@ def verify_populated(engine: Engine) -> None:
         )
         try:
             o.execute_claim(db, claim, "1" * 32, runtime, lambda: NOW)
-        except HTTPException as error:
-            assert (
-                error.status_code == 409
-                and error.detail == "original optimization claim unavailable"
-            )
-            db.rollback()
+        except AdvertisingWritesDisabled:
+            pass
         else:
             raise AssertionError("restored unknown attempt replayed")
         try:
@@ -739,11 +745,14 @@ def verify_populated(engine: Engine) -> None:
                 runtime,
                 lambda: NOW,
             )
-        except HTTPException as error:
-            assert error.status_code == 409 and "unknown original" in str(error.detail)
-            db.rollback()
+        except AdvertisingWritesDisabled:
+            pass
         else:
             raise AssertionError("restored unknown outcome replaced")
+        assert tuple(db.scalar(select(func.count()).select_from(model)) for model in (
+            ProviderExecutionAttempt, ProviderExecutionRun, ProviderExposureReservation,
+            ProviderReservationReplacement,
+        )) == before_counts
         try:
             settlement.settle_unemitted(db, 901, successor.id, "1" * 32, lambda: NOW)
         except HTTPException as error:

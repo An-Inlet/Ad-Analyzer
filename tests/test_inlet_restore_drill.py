@@ -10,6 +10,7 @@ import pytest
 from scripts import inlet_restore_drill as drill
 from sqlalchemy import create_engine, make_url, text
 
+from tests.restore_producer_fixture import seeded_restore_graph as seeded_restore_graph
 from tests.test_customer_identity import customer_engine as customer_engine
 
 
@@ -208,7 +209,9 @@ def test_normalization_does_not_hide_changed_constraints(before: str, after: str
 
 
 @pytest.mark.parametrize("tamper", [None, "hold", "charge", "approval", "audit"])
-def test_populated_restore_graph_and_behavior(customer_engine: Any, tamper: str | None) -> None:
+def test_populated_restore_graph_and_behavior(
+    seeded_restore_graph: Any, tamper: str | None,
+) -> None:
     from app.publication.execution_models import (
         ProviderExposureReservation,
         ProviderPeriodLedger,
@@ -219,11 +222,7 @@ def test_populated_restore_graph_and_behavior(customer_engine: Any, tamper: str 
     from sqlalchemy import select
     from sqlalchemy.orm import Session
 
-    if customer_engine.dialect.name == "sqlite":
-        with customer_engine.connect() as connection:
-            connection.execute(text("PRAGMA foreign_keys=ON"))
-            connection.commit()
-    drill.seed(customer_engine)
+    customer_engine = seeded_restore_graph
     if tamper:
         with Session(customer_engine) as db:
             if tamper == "hold":
@@ -253,14 +252,14 @@ def test_populated_restore_graph_and_behavior(customer_engine: Any, tamper: str 
 
 
 @pytest.mark.parametrize("tamper", [False, True])
-def test_performance_restore_fixture(customer_engine: Any, tamper: bool) -> None:
+def test_performance_restore_fixture(seeded_restore_graph: Any, tamper: bool) -> None:
     from app.ads.models import DailyMetric
     from fastapi import HTTPException
     from scripts.inlet_restore_fixture import verify_performance
     from sqlalchemy import update
     from sqlalchemy.orm import Session
 
-    drill.seed(customer_engine)
+    customer_engine = seeded_restore_graph
     if tamper:
         with Session(customer_engine) as db:
             db.execute(update(DailyMetric).values(clicks=999))
@@ -273,7 +272,7 @@ def test_performance_restore_fixture(customer_engine: Any, tamper: bool) -> None
 
 @pytest.mark.parametrize("tamper", [False, True])
 def test_initial_restore_documents_are_strict_and_session_private(
-    customer_engine: Any,
+    seeded_restore_graph: Any,
     tamper: bool,
 ) -> None:
     import json
@@ -284,7 +283,7 @@ def test_initial_restore_documents_are_strict_and_session_private(
     from sqlalchemy import select
     from sqlalchemy.orm import Session
 
-    drill.seed(customer_engine)
+    customer_engine = seeded_restore_graph
     with Session(customer_engine) as db:
         for model in (ObservationRow, CalibrationRow, PreviewRow):
             row = db.scalars(select(model)).one()

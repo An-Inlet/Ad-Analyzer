@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 from uuid import uuid4
 
@@ -33,6 +35,7 @@ from scripts.inlet_restore_fixture import (
     verify_performance_constraints,
     verify_populated,
 )
+from scripts.inlet_restore_historical import seed_retained_graph
 from scripts.inlet_restore_initial_fixture import (
     seed_initial,
     verify_initial,
@@ -128,7 +131,8 @@ def insert(db: Connection, table_name: str, **values: Any) -> None:
     db.execute(table.insert().values(**values))
 
 
-def seed(engine: Engine) -> None:
+def seed_legacy_contract_graph(engine: Engine) -> None:
+    """Retained source reference only; default drill uses a closed historical child."""
     now = datetime(2026, 10, 6, tzinfo=UTC)
     stamps = {"created_at": now, "updated_at": now}
     with engine.begin() as db:
@@ -357,7 +361,8 @@ def run_drill(container: str | None = None) -> dict[str, Any]:
         settings.database_url = engine.url.render_as_string(hide_password=False)
         config = Config("alembic.ini")
         command.upgrade(config, "head")
-        seed(engine)
+        with TemporaryDirectory(prefix="inlet_restore_source_") as artifacts:
+            seed_retained_graph(engine, Path(artifacts))
         verify_isolation(engine)
         verify_populated(engine)
         verify_owned_constraints(engine)

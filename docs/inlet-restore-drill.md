@@ -113,3 +113,23 @@ provider revocations that occurred after the snapshot; preserving a revocation a
 inside this synthetic backup does not prove post-snapshot reconciliation. Validate
 role ownership/privileges and key availability separately. No live release readiness
 or purchasability claim follows from this result.
+
+## Authentic Historical Synthetic Seed
+
+The default command now seeds its generated schema through a separate interpreter
+using locally verified historical source
+`2155ff3e3ab00cd62057dd86cb49d45359d4f49f`. This exercises genuine original consent,
+request, response and held-reservation producers without re-enabling advertising
+writes in the current application. Current verifiers, schema constraints, native
+backup/restore, ownership/privacy checks and current write denials still run in
+the current interpreter. It is synthetic-history recovery, not live authority.
+
+Run from a Git source checkout containing that ancestor and its fixed app, tests
+and scripts trees. The tool never fetches missing objects, accepts an alternate
+source, or bypasses verification. Missing or altered source fails closed with a
+fixed diagnostic. Only the exact migration-installed bootstrap is allowed before
+seeding; populated customer/source/execution graphs are rejected. Private source,
+producer output and logs are temporary and cleaned on every exit. The child has
+an explicit three-minute deadline and 16MiB log bound, with termination and reaping
+on failure. The parent remains responsible for its one generated schema and all
+native tool cleanup. No CLI arguments were added.

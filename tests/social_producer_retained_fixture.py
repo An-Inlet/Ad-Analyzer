@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 from app import advertising_capabilities
@@ -34,6 +34,9 @@ from tests.financial_origin_retained_fixture import schema_snapshot
 from tests.retired_snapshot import PIN, extract, run_bounded
 from tests.test_commerce_measurement import NOW
 
+if TYPE_CHECKING:
+    from tests.social_review_api_current_fixture import SocialApiLoginEvidence
+
 
 @dataclass(frozen=True)
 class SocialProducerIds:
@@ -53,6 +56,7 @@ class SocialProducerSource:
     engine: Engine
     ids: SocialProducerIds
     artifacts: Path
+    api_evidence: "SocialApiLoginEvidence | None" = None
 
 
 def owned_sqlite_target(target: str, expected: Path) -> str:
@@ -127,10 +131,10 @@ def retained_social_producer(
     video: bytes | None,
     change: str | None,
     *,
-    consumer: Literal["producer", "configuration"] = "producer",
+    consumer: Literal["producer", "configuration", "api"] = "producer",
 ) -> Iterator[SocialProducerSource]:
-    assert consumer in {"producer", "configuration"}
-    assert consumer != "configuration" or change is None
+    assert consumer in {"producer", "configuration", "api"}
+    assert consumer == "producer" or change is None
     assert provider in {"meta_ads", "tiktok_ads"}
     assert change in {
         None,
@@ -223,6 +227,14 @@ def retained_social_producer(
 
             with Session(engine) as db:
                 configuration_document = expected_document(db, source)
+        if consumer == "api":
+            from tests.social_review_api_current_fixture import (
+                SocialApiLoginEvidence,
+                expected_api_document,
+            )
+            with Session(engine) as db:
+                api = SocialApiLoginEvidence(expected_api_document(db, source), ids.actor_id)
+            source = SocialProducerSource(engine, ids, artifacts, api)
         before = graph(engine)
         assert all(
             not before[n]
@@ -255,7 +267,10 @@ def retained_social_producer(
                 from tests.social_configuration_current_fixture import configuration_delta
 
                 configuration_delta(expected, actual, ids, configuration_document)
-            assert actual == expected
+            if source.api_evidence is not None:
+                source.api_evidence.assert_delta(expected, actual)
+            else:
+                assert actual == expected
             assert schema_snapshot(engine) == schema
     finally:
         if engine is not original:

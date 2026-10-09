@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from app.api.customer_social_review import router
 from app.campaign_review.storage import get_media_store
-from app.customers.models import CustomerUser
 from app.publication.social_review_contracts import (
     LegacySocialConfigurationDocumentV1,
     SocialRequirements,
@@ -22,13 +21,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.social_producer_retained_fixture import SocialProducerSource, load_source
+from tests.social_review_api_current_fixture import assert_closed_api_delta, social_api_replicas
+from tests.social_review_api_current_fixture import social_api_source as social_api_source
 from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
-from tests.test_customer_identity import ISSUER, ORIGIN, FakeProvider, login
+from tests.test_customer_identity import ORIGIN, FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
-from tests.test_social_customer_producer import fixture
+
+replicas = social_api_replicas
 
 
 @pytest.mark.parametrize("platform", ["meta_ads", "tiktok_ads"])
@@ -39,21 +41,19 @@ def test_owned_exact_no_dsa_api(
     encoded: Any,
     replicas: tuple[TestClient, TestClient, FakeProvider],
     platform: str,
+    social_api_source: SocialProducerSource,
 ) -> None:
     alice, bob, _ = replicas
+    customer_engine = social_api_source.engine
     with Session(customer_engine) as db:
-        original, account, catalog, producer, actor, store, cover, _ = fixture(
-            db, configuration, tmp_path, platform, encoded() if platform == "tiktok_ads" else None
+        original, account, catalog, producer, actor, store, cover, _ = load_source(
+            db, social_api_source
         )
         profile = next(iter(producer.profiles.values()))
         if platform == "meta_ads":
             profile = profile.model_copy(update={"dsa_required": False})
         option = catalog.options[0].model_copy(update={"profile_digest": profile.digest()})
         catalog = catalog.model_copy(update={"options": [option]})
-        user = db.get(CustomerUser, actor)
-        assert user is not None
-        user.issuer, user.subject = ISSUER, "social-owner"
-        db.commit()
     runtime = SocialReviewRuntime(
         environment="contract_test",
         catalog=lambda request, now: catalog,
@@ -75,8 +75,8 @@ def test_owned_exact_no_dsa_api(
         client.app.include_router(router)
         client.app.dependency_overrides[get_media_store] = lambda: store
         client.app.dependency_overrides[get_social_review_runtime] = lambda: runtime
-    login(alice, "social-owner:1")
-    login(bob, "other:1")
+    assert social_api_source.api_evidence is not None
+    social_api_source.api_evidence.login(social_api_source, alice, bob)
     headers = {"Origin": ORIGIN, "X-CSRF-Token": alice.cookies.get("__Host-inlet_csrf", "") or ""}
     base = f"/api/customer/v1/workspaces/{account.workspace_id}/execution/social"
     intent = {
@@ -183,3 +183,4 @@ def test_owned_exact_no_dsa_api(
         assert preserved is not None and preserved.digest == legacy.digest()
     assert alice.delete("/api/customer/v1/session", headers=headers).status_code == 204
     assert alice.get(saved).status_code == 401
+    assert_closed_api_delta(social_api_source)

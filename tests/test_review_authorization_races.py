@@ -22,6 +22,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.campaign_review_retained_fixture import (
+    RetainedCampaignReviewIds,
+    current_binding,
+)
+from tests.campaign_review_retained_fixture import (
+    retained_campaign_binding as retained_campaign_binding,
+)
 from tests.test_campaign_review import png
 from tests.test_customer_identity import ORIGIN, FakeProvider, login
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -117,6 +124,7 @@ def test_upload_rechecks_authority_after_actual_asgi_body_wait(
     assert not list(tmp_path.rglob("*"))
 
 
+@pytest.mark.planning_boundary
 @pytest.mark.parametrize("revocation", ["session", "membership"])
 def test_approval_rechecks_after_waiting_for_workspace_lock(
     customer_engine: Engine,
@@ -124,6 +132,7 @@ def test_approval_rechecks_after_waiting_for_workspace_lock(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     revocation: str,
+    retained_campaign_binding: tuple[Engine, RetainedCampaignReviewIds],
 ) -> None:
     from concurrent.futures import ThreadPoolExecutor
     from datetime import datetime
@@ -136,10 +145,10 @@ def test_approval_rechecks_after_waiting_for_workspace_lock(
 
     from tests.test_campaign_review import definition
     from tests.test_commerce_measurement import NOW
-    from tests.test_google_action_plans import setup
 
     if customer_engine.dialect.name != "postgresql":
         pytest.skip("authorization lock interleaving requires PostgreSQL")
+    customer_engine, source_ids = retained_campaign_binding
     monkeypatch.setattr(settings, "customer_app_origin", ORIGIN)
 
     class Clock(datetime):
@@ -163,7 +172,7 @@ def test_approval_rechecks_after_waiting_for_workspace_lock(
     client = TestClient(app, base_url=ORIGIN)
     uid = login(client, "owner:1")
     with Session(customer_engine) as db:
-        mandate, scope, _ = setup(db, configuration)
+        mandate, scope = current_binding(db, source_ids)
         wid = mandate.workspace_id
         revision = service.revise(db, wid, definition(db, mandate, scope), uid, store, NOW)
         draft_id, review_digest = revision.draft_id, revision.digest

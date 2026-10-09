@@ -94,7 +94,7 @@ def issue_at(alice: Any, provider: Any, subject: str, now: datetime) -> None:
         issue.setattr(provider, "verify", verify)
         login(alice, f"q16-{stamp}")
         assert time.time is real_time
-    assert getattr(customer_api, "time") is time
+    assert vars(customer_api)["time"] is time
 
 
 def test_real_october_session_cannot_authorize_november_service_clock(

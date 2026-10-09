@@ -120,3 +120,17 @@ reporting periods, refund, privacy and browser assertions remain to be implement
 No production authentication clock seam is needed. Erased-ID refresh must never
 restore deleted data; an intentional new fully validated submission is distinct and
 is not silently prohibited by a new tombstone policy.
+
+
+### Successor Integration Check Correction
+
+Root's merged-tree check caught Ruff B009 in the final `getattr` assertion of
+`41aa960`. The component's final mypy repair had not been followed by a successful
+Ruff check, so its earlier all-checks statement did not describe that exact source.
+Root changed only the module-restoration identity assertion to
+`vars(customer_api)["time"] is time`. The explicit dated probe was rerun because
+of this edit: 2 passed, no skips, in 9.99s. Whole Ruff and bare mypy (1,118 files)
+now pass on the combined successor; diff check passes. This repeats the same two
+backend cases and adds no independent Q16 acceptance. Both the initial lint failure
+and final results are retained in
+`/workspace/inlet-evidence/20261009/successor-integration/`.

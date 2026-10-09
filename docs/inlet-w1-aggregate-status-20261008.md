@@ -210,3 +210,33 @@ partial; no full quality, live, deployment or commercial claim is made.
 The SINGLE frozen aggregate is still original `6a3b0f1`, roughly65% after66 minutes.
 Its checkout is clean and its separate database unchanged by successor work. No
 terminal aggregate counts exist yet, and no aggregate was restarted.
+
+## October 9: Actual UI Chronology And Continued Frozen Run
+
+Reviewed `ef9f9af`, integrated `4982685`, extends the actual HTTPS/Chromium
+Q16 journey to genuine October UI decisions and manual reports before November
+measurement. The final invocation passed eight cases across SQLite/PostgreSQL
+(202.012s, zero skips): four existing November cases plus four October cases.
+It naturally waits for a representable nonfuture report minute; it does not backdate
+generation or bypass the date validator. Both event payloads remain unchanged and
+visibly unverified through sales0→25→20, then clear on semantic erasure. An initial
+driver failure omitted the explicit history-read action and remains documented.
+Root reviewed the exact changes; combined `4982685` whole Ruff, bare mypy1123,
+Node syntax and diff checks passed. Raw results: `q16-browser-chronology/final.log`
+and `final.xml` under `/workspace/inlet-evidence/20261009/`.
+
+Reviewed documentation `4f5a367` reconciles E25–E29 and exact remaining Q16 gaps.
+A dated matched-path401 must not be credited as proof of global authentication
+clock advancement or real session expiry: the goal-progress reader uses injected
+`as_of`, while ordinary authentication retains actual October time. The separate
+same-owner held-response revocation and changed-goal browser cases are currently
+under qualification, not passed evidence. All Q01–Q16 remain partial and all six
+human expert gates remain unfulfilled.
+
+The environment startup callback preserved the same container and original run.
+At approximately92 minutes the SINGLE aggregate still has its original launcher
+and pytest PIDs137720/137734 and clean frozen `6a3b0f1` checkout. It has reached the
+historical-wrapper region after84% of top-level cases. It is continuing locally
+past the hosted CI90-minute limit, an explicit CI-parity difference, with no hosted
+run or spend. Failures are visible; no terminal counts, retry, or aggregate pass is
+claimed. Successor fixes never rewrite this frozen result.

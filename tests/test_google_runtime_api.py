@@ -21,7 +21,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["complete", "revoked_activation", "unknown_creation"])
-def test_configured_google_creation_then_separate_activation(
+def retained_test_configured_google_creation_then_separate_activation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -200,7 +200,7 @@ def test_configured_google_creation_then_separate_activation(
 @pytest.mark.parametrize(
     "scenario", ["missing_manifest", "live_scenario", "social_body", "real_transport"]
 )
-def test_configured_admission_denies_before_source_or_http(
+def retained_test_configured_admission_denies_before_source_or_http(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

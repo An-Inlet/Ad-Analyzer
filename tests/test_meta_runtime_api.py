@@ -20,7 +20,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("scenario", ["complete", "unknown_creation", "unknown_activation"])
-def test_configured_meta_creation_then_separate_activation(
+def retained_test_configured_meta_creation_then_separate_activation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -137,7 +137,7 @@ def test_configured_meta_creation_then_separate_activation(
 @pytest.mark.parametrize(
     "scenario", ["revoke", "generation", "expired", "real_transport", "missing"]
 )
-def test_meta_configuration_boundary_fails_closed(
+def retained_test_meta_configuration_boundary_fails_closed(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -218,7 +218,7 @@ def test_meta_configuration_boundary_fails_closed(
         assert control["builds"] == 0
 
 
-def test_tiktok_typed_and_direct_intents_cannot_build_meta_source(
+def retained_test_tiktok_typed_and_direct_intents_cannot_build_meta_source(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -272,7 +272,7 @@ def test_tiktok_typed_and_direct_intents_cannot_build_meta_source(
     assert control["builds"] == 0 and control["opened"] == 0 and requests == []
 
 
-def test_same_environment_coexistence_is_lazy_and_mismatch_denied(
+def retained_test_same_environment_coexistence_is_lazy_and_mismatch_denied(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

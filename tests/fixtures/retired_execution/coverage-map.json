@@ -693,5 +693,109 @@
       "tests/test_initial_planning_native_current.py::test_confirmed_native_preview_current_api"
     ],
     "reason": "Original V1 route/native execution-environment semantics require the authentic pre0086 consent runtime; current V2 APIs use actual planning confirmation and native reader profile/environment binding."
+  },
+  {
+    "original_function": "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation",
+    "preserved_local_callable": "tests/test_google_runtime_api.py::retained_test_configured_google_creation_then_separate_activation",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[sqlite-complete]",
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[sqlite-revoked_activation]",
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[sqlite-unknown_creation]",
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[postgres-complete]",
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[postgres-revoked_activation]",
+      "tests/test_google_runtime_api.py::test_configured_google_creation_then_separate_activation[postgres-unknown_creation]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read"
+    ]
+  },
+  {
+    "original_function": "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http",
+    "preserved_local_callable": "tests/test_google_runtime_api.py::retained_test_configured_admission_denies_before_source_or_http",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[sqlite-missing_manifest]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[sqlite-live_scenario]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[sqlite-social_body]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[sqlite-real_transport]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[postgres-missing_manifest]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[postgres-live_scenario]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[postgres-social_body]",
+      "tests/test_google_runtime_api.py::test_configured_admission_denies_before_source_or_http[postgres-real_transport]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read"
+    ]
+  },
+  {
+    "original_function": "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation",
+    "preserved_local_callable": "tests/test_meta_runtime_api.py::retained_test_configured_meta_creation_then_separate_activation",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[sqlite-complete]",
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[sqlite-unknown_creation]",
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[sqlite-unknown_activation]",
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[postgres-complete]",
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[postgres-unknown_creation]",
+      "tests/test_meta_runtime_api.py::test_configured_meta_creation_then_separate_activation[postgres-unknown_activation]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read",
+      "tests/test_configured_retained_dispatch.py::test_current_meta_configured_dispatch"
+    ]
+  },
+  {
+    "original_function": "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed",
+    "preserved_local_callable": "tests/test_meta_runtime_api.py::retained_test_meta_configuration_boundary_fails_closed",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[sqlite-revoke]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[sqlite-generation]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[sqlite-expired]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[sqlite-real_transport]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[sqlite-missing]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[postgres-revoke]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[postgres-generation]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[postgres-expired]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[postgres-real_transport]",
+      "tests/test_meta_runtime_api.py::test_meta_configuration_boundary_fails_closed[postgres-missing]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read",
+      "tests/test_configured_retained_dispatch.py::test_current_meta_configured_dispatch"
+    ]
+  },
+  {
+    "original_function": "tests/test_meta_runtime_api.py::test_tiktok_typed_and_direct_intents_cannot_build_meta_source",
+    "preserved_local_callable": "tests/test_meta_runtime_api.py::retained_test_tiktok_typed_and_direct_intents_cannot_build_meta_source",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_meta_runtime_api.py::test_tiktok_typed_and_direct_intents_cannot_build_meta_source[sqlite]",
+      "tests/test_meta_runtime_api.py::test_tiktok_typed_and_direct_intents_cannot_build_meta_source[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read",
+      "tests/test_configured_retained_dispatch.py::test_current_meta_configured_dispatch"
+    ]
+  },
+  {
+    "original_function": "tests/test_meta_runtime_api.py::test_same_environment_coexistence_is_lazy_and_mismatch_denied",
+    "preserved_local_callable": "tests/test_meta_runtime_api.py::retained_test_same_environment_coexistence_is_lazy_and_mismatch_denied",
+    "reason": "Original configured publication/availability contract is retained at exact PIN; current read and planning-denial route matrix is separate.",
+    "historical_nodes": [
+      "tests/test_meta_runtime_api.py::test_same_environment_coexistence_is_lazy_and_mismatch_denied[sqlite]",
+      "tests/test_meta_runtime_api.py::test_same_environment_coexistence_is_lazy_and_mismatch_denied[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_retained_reads.py::test_current_configured_owned_read",
+      "tests/test_configured_retained_reads.py::test_current_configured_adverse_read",
+      "tests/test_configured_retained_dispatch.py::test_current_meta_configured_dispatch"
+    ]
   }
 ]

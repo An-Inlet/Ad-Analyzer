@@ -1,0 +1,58 @@
+# Current Read Consumer Regression Fixture Proposal
+
+Docs-only inspection from `d85db66`. Root approval of this interface is required before source edits. No tests, database connections, collector requests or Full run were performed. Evidence is the exact frozen `6a3b0f1` failure inventory at `/workspace/inlet-evidence/20261009/w1-failure-classification/failed-nodes.json`, plus current source. Node identities are XML-derived and must be verified by collection before execution.
+
+## Counts Are Not One Semantic Family
+
+The 1,247 shared legacy-approval-seed failures comprise 138 already covered by reviewed successors (66 account-diagnostic API nodes and 72 failed native-assembly nodes), plus1,109 still requiring per-function partition. Native assembly's complete qualified module had78 cases, including cases that did not fail the aggregate; do not subtract78 again. The separate10 `test_initial_planning_native` consent failures are not part of those1,247.
+
+| Current consumer | Exact failed functions / node counts | Required fixture, preserving original assertions |
+| --- | --- | --- |
+| `test_tiktok_owned_discovery` | `test_owned_get_traversal`6; `test_owned_change_during_io_discards_every_result`12; `test_bounded_inconsistent_wire_never_returns_complete`24; `test_elapsed_context_or_stream_delay_discards_and_closes`4; `test_wrong_owned_scope_denied_before_first_http`4 | **Source-only**,50 total. `prepare` currently calls `configured_tiktok_customer`, which approves legacy mandates, uploads/reviews video and builds execution policy. None is consumed by the discovery reader assertions. Preserve actual `OwnedTikTokContexts`, vault, source generation/token/expiry, original session, manifest drift, pagination/deadline/stream closure and wrong-scope checks. |
+| `test_customer_tiktok_discovery` | `test_configured_discovery_has_no_execution_or_native_identifier_output`10; `test_original_authority_changes_deny_discovery_without_partial_delivery`12 | **Source-only configured read**,22 total. Actual route requires owned source, real manifest/bundle and registered descriptor, but must never invoke financial builder. Preserve CSRF/foreign/session/generation/token/delivery drift, field redaction, counts/truncation, unknown events, unavailable profile/source behavior and zero execution effects. |
+| `test_meta_budget_read` | `test_actual_owned_vault_and_original_session_after_http`8 (`none/revoked/generation/goal` ×bothDB) | **Current goal+source read**. Current `acquisition_fixture` brings an execution-derived reported acquisition anchor unnecessarily. `owned_meta_budget_reader` uses exact scope/cohort/campaign, confirmed goal definition, active vault token/profile/source and original authority, not that acquisition anchor. Preserve actual GET parsing,45,000,000 amount, credential header, request/close counts and post-HTTP goal/source/session changes. Pure/golden tests in this module are not seed failures. |
+| `test_initial_planning_native` | `test_exact_native_preview_and_fresh_io_fences`10 (`None/session/generation/precision/environment` ×bothDB) | **Current planning confirmation**, not retained execution consent. Explicit `execution_mandates.consent` is now correctly denied. Use actual `budget_mandates.prepare_budget_mandate`/`consent_budget_mandate` via existing `budget_mandate_fixture.first_customer` / `test_planning_consents.confirm` patterns; preserve10m→11m native preview, precision/environment denial, source/session changes and forbidden financial qualification/exposure calls. Native output may be a limits draft with separate planning confirmation; never activate execution mandate or use legacy consent fallback. Concrete selection/profile compatibility must be inspected before that package. |
+| `test_campaign_review` media | `test_owned_media_and_integrity`2; `test_reject_unvalidated_media`8 | **Owned workspace/media only**,10 nodes. `setup` is used only for workspace ID. Preserve actual upload/dedup/download, foreign404, corrupted-file503 and invalid-media rejection. Do not invoke or synthesize an approved mandate. |
+| `test_campaign_review` bound offline review | `test_exact_review_edit_and_stale_approval`2; `test_review_binding_rechecks`10; `test_scope_and_mandate_limits`2; `test_unsupported_campaign_type`2; `test_entitlement_gate_on_review`2; `test_image_review_binds_exact_media_and_meta_generation`2; `test_concurrent_edit_has_one_winner`1 | **Genuine retained binding**,21 nodes. `campaign_review.binding` explicitly validates a retained approved legacy mandate; `campaign_review.approve` approves an offline plan and remains current/non-publishing. Preserve exact limit90 rejection, revision/CAS/digest, existing mandate invalidation, source generation, pause/expiry, current media and foreign-workspace checks. Reuse the reviewed pinned-producer pattern, not a source-only row or policy bypass. Existing generic native diagnostic pin does not automatically prove the exact original low-micro caps needed by this module. The image test itself reapproves an edited mandate: move that setup into a closed genuine pinned Meta producer rather than relaxing its current guard. |
+
+The pure `test_google_native_inventory`, `test_meta_native_inventory`, `test_tiktok_native_inventory` and `test_tiktok_customer_discovery_contracts` have **zero failures** in this inventory; do not relabel or modify them as seed repairs. Their current source-reader regressions can be selected as compatibility where relevant. The single `test_tiktok_discovery_ui` failure belongs to removed-control/DOM expectations, not this source-seed family; it needs separate UI review. Other retired create/approve/claim/execute consumer modules remain unclassified by this bounded investigation and must not inherit a broad marker.
+
+## First Coherent Package:72 Current TikTok Discovery Nodes
+
+Exact nodes and source hash are preserved in [the bounded manifest](regression-read-consumer-first-package-nodes.json), including all parameter combinations and XML testcase ordinals. No huge payload parameter IDs from unrelated media tests are copied into the proposal.
+
+New private fixture in `tests/tiktok_read_fixture.py`:
+
+```python
+@dataclass(frozen=True)
+class TikTokReadIds:
+    workspace_id: int
+    account_id: int
+    actor_id: str
+    source_id: str
+
+prepare_tiktok_read_source(
+    engine: Engine, configuration: Settings, path: Path,
+    monkeypatch: pytest.MonkeyPatch, replicas: Any,
+) -> TikTokReadIds
+```
+
+Implementation follows the reviewed source-only pattern in `0ecd0d7` / `test_planning_target_catalog_api.seed`: create only owner/workspace/integration/account/source, encrypted **synthetic** TikTok grant and ordinary real login. Preserve the original expected `offline-tiktok-access` grant, current `NOW` fixture expiry interval and source generation semantics; no new lifetime defaults or authority. Reuse existing pure `bundle_document`, `TikTokConfigurationBundleV1` and manifest factories and write/read the actual bounded configuration files. Keep source ownership exact; scope comes from current `customer_intents.account`, not a composed proof object. Return scalar IDs only; clients/provider are already caller-owned in `replicas`.
+
+For `test_tiktok_owned_discovery.prepare`, reconstruct actual principal/session and `OwnedTikTokContexts` exactly as now, using the same current loader/manifest and clock. Remove the irrelevant encoded-video argument/setup from this read path; retain all50 actual consumer assertions. No changes to `configured_tiktok_customer` or global `test_mandates.seed`.
+
+For `tests/tiktok_discovery_fixture.configured_discovery_customer`, use the same new read source instead of the execution fixture. Keep its external six-value return shape for existing22 consumers: actual client/base, `{account_id, identity_type}`, requests, control and zero-write server counters. Register the exact existing descriptor with a test builder that increments `builds` and raises if called; this is an explicit forbidden financial-build sentinel, not a fake successful execution runtime. The existing current composition must still resolve registration and check source/profile, while discovery never builds financial evidence. Keep actual discovery MockHTTP/close/redaction callbacks unchanged and actual customer routes. Do not preserve irrelevant video/media/legacy mandate preparation merely to fill unused return fields.
+
+At setup and after each consumer, assert zero legacy mandates, execution mandates/consents, attempts, reviews, responses/receipts and exposure reservations. These assertions supplement existing zero-write/GET-only checks; they are not permission to omit current billing, owner, original-session, source-generation or manifest checks. Use explicit `planning_boundary` classification only for these reviewed current read functions/modules; no autouse capability patch or blanket seed classification.
+
+Potential implementation discovery (not assumed): if descriptor registration truly requires construction of execution effects, stop and report the exact read dependency before changing production. Inspection currently shows discovery checks registration metadata and the tests expect `builds == 0`, so no historical producer should be necessary for this first package.
+
+## Ordered Coverage Plan
+
+1. Approve the above source-only interface. Reproduce one exact failed SQLite node in each of the two modules to preserve current baseline, without patching authority. Verify all72 manifest node IDs through collection. Implement only new fixture, owned `prepare`, customer discovery fixture and reviewed module markers/imports. Run50+22 current cases on SQLite/PostgreSQL once; preserve all original adverse modes. Run relevant passing pure TikTok discovery/native inventory contracts as compatibility, whole Ruff/bare mypy/diff. No Full.
+2. Meta goal-bound budget read8: freeze a separate `MetaBudgetReadIds` (workspace/goal/revision/account/campaign/source) and actual-current-principal fixture using source+confirmed Shopify goal, without acquisition/approval history. Keep original amount/server/token and every post-IO predicate. Reuse current first-customer/goal readiness helpers only after checking their clocks and source meanings; do not fabricate an acquisition object to preserve tuple indexes.
+3. Initial nominal planning10: build exact native selection through actual current preparation/confirmation, then the unchanged preview/adverse checks. Prove zero `ProviderExecutionConsent`, draft execution limits remain nonactive and real `PlanningConsentRow` exists. This is a current planning adaptation, not a retired execution test.
+4. Campaign media10: source/workspace-only setup. Then separately freeze a closed pinned legacy-campaign fixture for the21 bound offline-review cases, with actual original caps and a closed Google/Meta setup selector, immutable IDs only and current engine/schema. Follow `a0bc585`'s subprocess/ownership/zero-effect pattern; never serialize old runtime/credentials or patch present guards. Run current service assertions after return. Any actual forward-execution expectation discovered remains in a separately verified historical harness, not this current fixture.
+5. Continue per-function classification of the remaining1,109 residual shared-seed failures using the exact inventory. A passing consumer package reduces only its exact failed-node set; it does not imply the whole shared seed or aggregate is repaired. Keep the frozen failed aggregate and its logs unchanged.
+
+This proposal fixes regression setup coupling only. It does not add product features, provider writes, numeric recommendation policy, live access or new platform evidence architecture.

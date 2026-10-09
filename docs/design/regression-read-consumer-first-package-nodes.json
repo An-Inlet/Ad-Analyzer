@@ -1,0 +1,369 @@
+{
+  "source": "/workspace/inlet-evidence/20261009/w1-failure-classification/failed-nodes.json",
+  "source_sha256": "f7ced91dfca12cf509ab3bb72986d615ab7b1a64d06f84776bbd81363c3880b9",
+  "frozen_aggregate_commit": "6a3b0f1",
+  "scope": "First source-only TikTok discovery package; exact XML-derived nodes, collection verification pending; no execution",
+  "count": 72,
+  "nodes": [
+    {
+      "ordinal": 1744,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[sqlite-observed]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1745,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[sqlite-missing_events]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1746,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[sqlite-bc]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1747,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[sqlite-unconfigured]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1748,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[sqlite-source]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1749,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[postgres-observed]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1750,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[postgres-missing_events]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1751,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[postgres-bc]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1752,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[postgres-unconfigured]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1753,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_configured_discovery_has_no_execution_or_native_identifier_output[postgres-source]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1754,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-csrf]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1755,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-foreign]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1756,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-revoke]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1757,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1758,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-delivery]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1759,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[sqlite-token]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1760,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-csrf]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1761,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-foreign]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1762,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-revoke]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1763,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1764,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-delivery]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 1765,
+      "node_id": "tests/test_customer_tiktok_discovery.py::test_original_authority_changes_deny_discovery_without_partial_delivery[postgres-token]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6282,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[sqlite-pixel]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6283,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[sqlite-identity]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6284,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[sqlite-empty]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6285,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[postgres-pixel]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6286,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[postgres-identity]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6287,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_get_traversal[postgres-empty]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6288,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-revoke]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6289,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6290,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-profile]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6291,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-token]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6292,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-expiry]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6293,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[sqlite-close]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6294,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-revoke]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6295,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6296,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-profile]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6297,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-token]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6298,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-expiry]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6299,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_owned_change_during_io_discards_every_result[postgres-close]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6300,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-duplicate]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6301,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-totals]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6302,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-missing_id]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6303,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-foreign]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6304,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-status]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6305,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-oversize]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6306,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-total_bytes]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6307,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-deadline]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6308,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-many_pages]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6309,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-duplicate_key]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6310,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-nonfinite]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6311,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[sqlite-deep]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6312,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-duplicate]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6313,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-totals]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6314,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-missing_id]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6315,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-foreign]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6316,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-status]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6317,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-oversize]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6318,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-total_bytes]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6319,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-deadline]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6320,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-many_pages]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6321,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-duplicate_key]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6322,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-nonfinite]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6323,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_bounded_inconsistent_wire_never_returns_complete[postgres-deep]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6324,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_elapsed_context_or_stream_delay_discards_and_closes[sqlite-context]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6325,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_elapsed_context_or_stream_delay_discards_and_closes[sqlite-stream]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6326,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_elapsed_context_or_stream_delay_discards_and_closes[postgres-context]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6327,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_elapsed_context_or_stream_delay_discards_and_closes[postgres-stream]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6328,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_wrong_owned_scope_denied_before_first_http[sqlite-workspace]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6329,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_wrong_owned_scope_denied_before_first_http[sqlite-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6330,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_wrong_owned_scope_denied_before_first_http[postgres-workspace]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    },
+    {
+      "ordinal": 6331,
+      "node_id": "tests/test_tiktok_owned_discovery.py::test_wrong_owned_scope_denied_before_first_http[postgres-generation]",
+      "category": "legacy_approval_seed_blocked_requires_per_test_semantic_partition"
+    }
+  ]
+}

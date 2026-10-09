@@ -116,6 +116,7 @@ class SocialApiLoginEvidence:
         if self.bound is None:
             assert actual == before
             return
+        assert self.original == before
         expected = deepcopy(self.bound)
         # Revalidate the source snapshot, not a generic acceptance of bound rows.
         for name in before:
@@ -184,14 +185,18 @@ def social_api_source(
 @pytest.fixture
 def social_api_replicas(
     social_api_source: SocialProducerSource, monkeypatch: pytest.MonkeyPatch,
-) -> tuple[TestClient, TestClient, FakeProvider]:
+) -> Iterator[tuple[TestClient, TestClient, FakeProvider]]:
     clients = cast(tuple[TestClient, TestClient, FakeProvider],
                    cast(Any, identity_replicas).__wrapped__(social_api_source.engine, monkeypatch))
     with Session(social_api_source.engine) as db:
         user = db.get(CustomerUser, social_api_source.ids.actor_id)
         assert user and user.issuer == "mock" and user.subject == user.id
         clients[2].issuer, clients[2].email = user.issuer, user.email
-    return clients
+    try:
+        yield clients
+    finally:
+        clients[0].close()
+        clients[1].close()
 
 
 def assert_closed_api_delta(source: SocialProducerSource) -> None:
@@ -204,6 +209,10 @@ def assert_closed_api_delta(source: SocialProducerSource) -> None:
         SocialApiLoginEvidence(evidence.document, evidence.actor).assert_delta(
             evidence.original, actual
         )
+    changed_before = deepcopy(evidence.original)
+    changed_before["customer_users"][0]["issuer"] = "changed-before-login"
+    with pytest.raises(AssertionError):
+        evidence.assert_delta(changed_before, actual)
     for table in (
         "customer_sessions", "customer_social_configuration_approvals",
         "customer_social_configuration_reviews",

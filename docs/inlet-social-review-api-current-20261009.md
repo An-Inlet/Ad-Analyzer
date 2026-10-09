@@ -29,8 +29,8 @@ requires-new-review/confirmation409, actual logout204 and subsequent401 all rema
 Existing runtime/media dependency injection is disclosed; no capability/guard bypass.
 
 Each actual case additionally validates adversarial copies (not DB mutations): unbound
-expectation, duplicate session/review/approval, changed retained issuer and workspace
-must reject. These six checks per case are supplemental assertions, not new pytest
+expectation, duplicate session/review/approval, changed retained issuer and workspace, and an altered original pre-login auth snapshot
+must reject. These seven checks per case are supplemental assertions, not new pytest
 nodes or extra original-failure credit.
 
 ## Exact Evidence
@@ -61,3 +61,14 @@ Static uses whole ruff check ., bare mypy with /tmp/inlet-social-review-api-mypy
 git diff --check. Original identity mapping/assertion proof retained. Compatibility
 overlaps already closed cases; only exact four passing originals can add recovery.
 No live publication, new erasure coverage, quality-completion or Full rerun claim.
+
+
+## Independent Review Followup
+
+Review of13050f6 required comparing the entire immutable original graph to the login
+before-snapshot, including auth tables. Bound assert_delta now requires
+self.original==before; an adversarial copied original auth row proves rejection.
+Local replica fixture now yields and closes both clients in finally before the source
+finalizer. No production/allowlist change; original24-pass evidence remains above.
+Affected four only followup:4 passed,66.681s, zero failures/skips. Command is the API module alone with unique
+followup-artifacts basetemp and followup.xml/log. Whole Ruff/bare mypy1230/diff pass.

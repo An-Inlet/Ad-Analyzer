@@ -34,6 +34,9 @@ from sqlalchemy import Engine, delete
 from sqlalchemy.orm import Session
 
 from tests import test_feedback_snapshot as fixtures
+from tests.feedback_snapshot_retained_fixture import (
+    snapshot_receipt_source as snapshot_receipt_source,
+)
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_feedback_policy import policy as feedback_policy
 from tests.test_shopify_sales import configuration as configuration
@@ -167,12 +170,15 @@ def assembly(
     return principal, work, saved, policy, qualification, runtime, later, slot.id, snapshot
 
 
+@pytest.mark.planning_boundary
 def test_real_owned_reader_and_explicit_mapping_keep_counts_separate(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         principal, work, saved, policy, qualification, runtime, now, _, _ = assembly(
             db, configuration, tmp_path, monkeypatch
@@ -202,12 +208,15 @@ def test_real_owned_reader_and_explicit_mapping_keep_counts_separate(
         )
 
 
+@pytest.mark.planning_boundary
 def test_required_qualification_cohort_freshness_and_policy_fail_closed(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     with Session(customer_engine) as db:
         principal, work, saved, policy, qualification, runtime, now, _, _ = assembly(
             db, configuration, tmp_path, monkeypatch
@@ -295,12 +304,15 @@ def test_required_qualification_cohort_freshness_and_policy_fail_closed(
             )
 
 
+@pytest.mark.planning_boundary
 def test_retraction_and_missing_held_head_cannot_reuse_old_feedback(
+    snapshot_receipt_source: Engine,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine = snapshot_receipt_source
     from app.publication.execution_models import ProviderExposureReservation
 
     with Session(customer_engine) as db:

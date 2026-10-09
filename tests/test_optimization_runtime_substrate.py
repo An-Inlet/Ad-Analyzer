@@ -10,6 +10,7 @@ import pytest
 from app.customers.access import SESSION_COOKIE, CustomerPrincipal, digest
 from app.customers.models import CustomerSession, CustomerUser
 from app.google_connections.models import GoogleCustomerConnection
+from app.google_connections.security import Vault as GoogleVault
 from app.meta.models import MetaConnection
 from app.meta.security import Vault as MetaVault
 from app.production_runtime.optimization_configuration import (
@@ -22,18 +23,20 @@ from app.production_runtime.optimization_transport import optimization_execution
 from app.publication.customer_authority import bind_authority
 from app.publication.execution_contracts import ExecutionAccount
 from app.settings import Settings, settings
+from cryptography.fernet import Fernet
 from fastapi import HTTPException
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from tests.google_runtime_fixture import configured_customer
-from tests.meta_runtime_fixture import configured_meta_customer
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_identity import customer_engine as customer_engine
+from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
 from tests.test_optimization_runtime_contracts import manifest, policy
+from tests.test_planning_target_catalog_api import seed as source_seed
 from tests.test_shopify_sales import configuration as configuration
+from tests.tiktok_read_fixture import read_only_graph as read_only_graph
 
 
 @pytest.mark.parametrize(
@@ -96,6 +99,8 @@ def test_empty_registry_and_real_transport_do_not_construct_io(
     "change",
     [None, "revoked", "expired", "source", "provider", "unknown_expiry", "billing", "final_expiry"],
 )
+@pytest.mark.planning_boundary
+@pytest.mark.usefixtures("read_only_graph")
 def test_owned_credentials_context_and_cleanup(
     customer_engine: Engine,
     configuration: Settings,
@@ -105,9 +110,29 @@ def test_owned_credentials_context_and_cleanup(
     platform: str,
     change: str | None,
 ) -> None:
-    setup = configured_customer if platform == "google_ads" else configured_meta_customer
-    alice, base, *_ = setup(customer_engine, configuration, tmp_path, monkeypatch, replicas)
-    wid = int(base.split("/workspaces/")[1].split("/")[0])
+    # Current credential readers need owned sources and a real session, not execution approval.
+    for key in ("google_customer_encryption_key", "meta_token_encryption_key"):
+        monkeypatch.setattr(settings, key, SecretStr(Fernet.generate_key().decode()))
+    monkeypatch.setattr(settings, "google_customer_client_id", "offline-client")
+    monkeypatch.setattr(settings, "google_customer_client_secret", SecretStr("offline-secret"))
+    owned = source_seed(customer_engine, configuration, tmp_path, platform)
+    wid = owned.workspace_id
+    with Session(customer_engine) as db:
+        if platform == "google_ads":
+            google = db.scalar(select(GoogleCustomerConnection))
+            assert google is not None
+            google.encrypted_grant = GoogleVault().seal(wid, google.id, "offline-refresh")
+        else:
+            meta = db.scalar(select(MetaConnection))
+            assert meta is not None
+            meta.encrypted_credentials = MetaVault(settings).seal(
+                wid, meta.external_account_id,
+                {"access_token": "offline-meta-access",
+                 "expires_at": (NOW + timedelta(hours=2)).isoformat()},
+            )
+        db.commit()
+    alice = replicas[0]
+    assert login(alice, "diagnostic-owner:read") == owned.actor
     provider = replicas[2]
     with Session(customer_engine) as db:
         session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))

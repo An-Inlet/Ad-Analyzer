@@ -177,6 +177,8 @@ def test_durable_reader_and_export_never_release_hold(
         ] == before
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_legacy_acknowledgment_cannot_manufacture_capture(
     customer_engine: Engine,
     configuration: Settings,

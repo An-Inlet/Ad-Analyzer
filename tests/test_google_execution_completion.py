@@ -186,6 +186,8 @@ def test_real_wire_ambiguous_success_does_not_produce_capture(mode: str) -> None
 
 
 @pytest.mark.parametrize("mode", ["rollback", "duplicate", "late_unknown", "conflict"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_capture_and_response_are_atomic_and_never_override_latest_receipt(
     customer_engine: Engine,
     configuration: Settings,

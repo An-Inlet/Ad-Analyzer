@@ -167,3 +167,46 @@ workspace archive creation/snapshot/delivery privacy. They may add their own
 controllers/tests but cannot silently change the shared fixture interface. Neither
 may touch W1 source or its aggregate database. Manual-report/expert/full-quality
 and live/commercial gates remain separately outstanding.
+
+
+## Archive, Browser And Natural Chronology Successors
+
+Reviewed archive `6df867c` passed two database cases (25.246s). Its actual request,
+worker, database snapshot, media serialization and streaming route produce a complete
+archive; semantic erasure after the unchanged builder returns causes the unchanged
+final delivery guard to reject409, close the temporary file and mark interrupted
+without a manifest digest. A fresh complete archive omits the erased graph. Actual
+billing records and a populated foreign workspace remain untouched. `7259317`
+adds one genuine decision event before archival and preserves the correct422 for
+future-dated manual reporting (two cases, 25.709s). These are overlapping successor
+runs; counts must not be added. No execution obligation was fabricated.
+
+Reviewed browser `d43d28f` passes four actual HTTPS/Chromium cases across both
+databases (25.943s), with Ruff, bare mypy, Node syntax and diff checks passing.
+The UI shows0→25→20 with immutable document/goal and handles erased IDs. Root review
+caught a fixed-delay race-proof gap in the earlier version; the corrected driver
+awaits the actual held response body on a clone and a following task before checking
+that stale bytes cannot repopulate the DOM. It returns the identical original
+Response; the current controller rejects the stale epoch before parsing that body.
+This proves the explicit-refresh race, not universal revocation of in-flight bytes.
+Durable actual artifacts/responses are in `q16-browser/synchronized-artifacts/`.
+
+The future-report422 is a correct real-clock validator result, not a product defect.
+Reviewed additive chronology `9b43f9e` instead generates and reports in actual
+October, then advances only the supported measurement/fixture clocks into November.
+The shared helper adds optional `generation_stage="october"` and `initial_day`;
+its default and scalar IDs stay unchanged. Eight compatibility cases passed once
+(61.276s: old API4, old November archive2, new October2). Both genuine events remain
+unchanged through0→25→20, serialize in the real archive, and disappear on erasure.
+Root also inspected both unique archived reports: `customer_report_only`, no spending
+authority, writes disabled. A first artifact-review count included pytest's current
+symlink duplicate; resolved unique paths confirmed the two actual database cases.
+
+Combined successor code head is `a368e22` before this documentation commit. The new
+October browser lane starts only after that shared interface qualification; actual
+UI reporting in that chronology remains pending. All Q01–Q16 and expert gates remain
+partial; no full quality, live, deployment or commercial claim is made.
+
+The SINGLE frozen aggregate is still original `6a3b0f1`, roughly65% after66 minutes.
+Its checkout is clean and its separate database unchanged by successor work. No
+terminal aggregate counts exist yet, and no aggregate was restarted.

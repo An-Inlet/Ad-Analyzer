@@ -195,3 +195,17 @@ remaining21 campaign review with genuine source records; default synthetic resto
 CLI repair with current verification (not a test-only replacement hiding broken
 CLI); separately designed configured API historical/current split. No product
 expansion or owner action is needed for these routine regression repairs.
+
+### Linked Read Closure
+
+Reviewed8c027bf→854c2c5 adds42 original TikTok linked-read identities. Correct
+isolated cohort47pass/no skips59.421s includes5 existing pure cases. Only explicit
+planning markers and zero-authority fixture imports/decorators changed; source-only
+setup was already reviewed. Overlay538 records exact XML matches/hash:528 current
+passes plus10 authentic historical/current-equivalence cases;792 remain.
+
+An initial wrong-checkout focused invocation was interrupted after25 passes (exit2)
+and is NONqualification. Its exact test-only additions were restored from root;
+correct isolated worktree was then qualified. The interrupted log/XML are retained.
+No aggregate database or production files changed. Root independently reviewed the
+final source and correct47-case result before integration.

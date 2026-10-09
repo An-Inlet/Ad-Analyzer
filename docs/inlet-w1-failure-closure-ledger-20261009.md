@@ -658,3 +658,40 @@ not deeper historical authority. Whole Ruff/mypy1216/diff passed; no pytest fail
 Immutable overlay successor-coverage-1140.json: **1140 covered (1040 direct,
 100 historical/current),190 remaining**. Held2 and configured-runtime10 await final
 independent review; root social-producer18 is in focused qualification. No aggregate.
+
+### Current Held Reads, Social Producer, And Configured Feedback
+
+Held2 `e650295`→`88826d9`, guard `d33e008`→`180c4dc`:111 passed55.820s
+(2 exact current temporal consumers,5 protocol negatives,86 boundaries,16 lifetime,
+2 receipt compatibility). Followup16 passed62.21s including bothDB consumers,
+5 protocol negatives and9 owned-path checks; final pure9 passed2.31s. One bounded
+original child stays alive across the actual first current read, then claims the
+second original request only after the explicit parent signal. Exact source schema
+and financial deltas checked at both stages. Ruff/mypy1210/script typing/diff passed.
+Initial nullable/import and malformed negative-test attempts retained.
+
+Social producer18 `0ae8347`→`215d088`, duplicate-validation removal
+`9b4896d`→`8877cb4`:137 passed194.286s (18 exact,17 guards,86 boundaries,16 lifetime).
+Followup positive4 passed49.770s; original extracted post-ready body and all selected
+assertions remain AST-identical. Closed original source has zero provider effects;
+current full metadata graph allows only the three exact original adversary changes.
+First incorrect account attribute probe retained, corrected source DTO verified.
+Whole Ruff/mypy1216/diff passed with individually recorded exits.
+
+Configured runtime10 `7a90f74`→`8880a29`:10 passed117.735s; final nullability
+assertion followup2 passed22.962s and bounded compatibility21 passed2.232s.
+Real current ordinary same-actor login, configured factories, Meta sync/scheduler,
+V2 baseline and planning confirmation replace old guarded execution setup. Actual
+profile and rolling frontier preserved; no runtime/policy overrides. Whole
+Ruff/mypy1191/diff passed. Combined at8880a29 Ruff/mypy1223/plugin1/diff passed.
+
+Configured feedback8 `d0371f4`→`9e18b7b`:8 passed92.157s, zero skips/failures.
+Gate2 passed23.555s and overlapping compatibility23 passed28.193s. Entire original
+post-helper body and assertions unchanged; session/generation/expiry/baseline fences
+remain current. Whole Ruff/mypy1191/diff passed. No shared helper or production change.
+
+Immutable overlay successor-coverage-1178.json: **1178 covered (1078 direct,
+100 historical/current),152 remaining**. Original aggregate remains failed; no
+whole-suite rerun or hosted/live verification. Current configured browser2, social
+configuration4, dependencies10/worker8 and Google completion12 are in isolated work.
+Q01–Q16 remain partial; all six human gates unfulfilled. No push, merge or deployment.

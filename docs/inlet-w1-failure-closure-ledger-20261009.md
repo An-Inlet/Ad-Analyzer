@@ -596,3 +596,50 @@ runtime10 explicitly deferred to its own interface, never credited by injected t
 Combined static checks at a46b6ed: whole Ruff, bare mypy1207, standalone collection
 plugin mypy1 and diff all passed; individual exits recorded in integration-a46b6ed/.
 No additional database rerun was needed for the reviewed disjoint integration.
+
+### Current Completion, Feedback Lifecycle, And Media Closure
+
+Direct reported-rule `320da4b`→`be86a9e`:98 passed155.637s (12 exact original
+retained-engine contracts+86 default boundaries). Exactly two per-function decorators;
+whole module assertion/parameter/helper AST identical. Current API/privacy, dependency
+and worker cases remain current. Whole Ruff/mypy1207/diff passed.
+
+Google completion `49527e6`→`77cca54`, owned-file guard `874f93b`→`611f410`:
+116 passed133.412s (14 original current reader/export/closure cases+86+16 lifetime).
+All19 original assertions preserved. Genuine original capture remains protected;
+five exact corruption paths, no-tamper response idempotency, precise closure
+revocation/cancellation deltas preserve every other financial field. Independent
+review required stricter before-IO nonsymlink/file/URL checks; successor34 guard
+checks passed2.567s and representative2 DB cases passed22.414s. Earlier malformed
+negative-test URL attempts retained. Whole Ruff/mypy1208/diff passed; combined at
+611f410 Ruff/mypy1210/plugin1/diff passed with separate exit records.
+
+Reported preview consumers `cacaa6c`→`e2be803`:28 original current cases passed,
+2 unchanged SQLite PostgreSQL-concurrency skips,313.354s. Genuine V1 native catalog
+and stored preview use actual current PlanningConsent and exact checked period/
+owned target set. Actual V1 probe2 passed43.001s, strict guard compatibility14
+passed1.955s. Original migration0078, SQL pointer, capacity, concurrent replacement,
+rollback, current revision and non-compounding assertions/parameter matrices remain.
+Historical single POST scalar is separate from zero-current-POST GET recorder.
+Prior14 already-closed negatives are unchanged and excluded from credit. Whole
+Ruff/mypy1190/diff passed. Configured runtime10 remains a separate interface.
+
+TikTok media `39c868d`→`eb96dcc`, independently reviewed:145 passed56.006s
+(22 video including2 original failures,17 file guards,4 Google/Meta compatibility,
+86 boundaries,16 lifetime). Followup19 passed21.711s moves factory after owned-file
+validation. Genuine original TikTok binding only; entire current media body from
+actual encoding onward and all5 original assertions preserved. Exact source/schema/
+financial snapshot and zero provider rows/effects remain. Whole Ruff/mypy1208/diff
+passed. First circular-import collection failure preserved; no source/test ran on
+that failed attempt. No whole-suite failure counter is inferred from cohort size.
+
+Immutable overlay `successor-coverage-1138.json`: **1138 covered (1038 direct,
+100 historical/current),192 remaining**. Original aggregate still failed and all
+raw attempts unchanged. No aggregate rerun, hosted capacity or live verification.
+Next: actual configured runtime10, staged current directional-held2 preserving
+before/after current reads, and current late-publication closure2. Q01–Q16 remain
+partial and all six human gates unfulfilled. No pushes, merges or deployments.
+
+Combined at eb96dcc: whole Ruff, bare mypy1213, standalone plugin mypy1 and diff
+passed. Full collection exited0:6823 cases across452 modules; collection only, not
+execution or aggregate qualification. Individual logs/results: integration-eb96dcc/.

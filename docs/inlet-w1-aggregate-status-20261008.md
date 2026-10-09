@@ -274,3 +274,50 @@ A passive late-run sampler now records30-second aggregate-descendant/cgroup reso
 observations in `w1-aggregate/late-resource-samples.jsonl`; it changes no tests.
 The original aggregate is still running around101minutes and its first historical
 batch is progressing. No terminal or comprehensive pass is claimed.
+
+## Terminal W1 Result — 9 October, 02:14:44 UTC
+
+The ONE original aggregate finished with exit1. Frozen source remains exactly
+`6a3b0f16f9ebc9c0a80dbab60140c0b8f9324f46`, clean. No restart, marker exclusion,
+hosted retry, timeout increase or budget change occurred.
+
+- **6,581 top-level cases:5,168 passed,1,330 failed,83 skipped; zero errors.**
+- Pytest reported167 warnings and8,597.96s (2h23m17s); JUnit suite time8,588.489s.
+- Launcher wall time8,760.129814s (2h26m00s), including reporting/process exit.
+- Three nested historical wrappers separately ran249 children:246 passed and
+  three expected SQLite concurrency skips. Never add these to top-level counts.
+  Actual child durations:original1071.41s, UI346.37s, forward811.74s.
+- The previously failing historical PostgreSQL unknown-response node passed this
+  time (26.937s). Earlier failure cause remains unknown; this is not a fix claim.
+
+Authoritative files under `/workspace/inlet-evidence/20261008/w1-aggregate/`:
+`aggregate.result.json`, `aggregate.xml`, `aggregate.log`, `aggregate.summary.json`,
+`aggregate.timing.json`, `historical.summary.json`, `aggregate.resources.json`.
+The83 parent skips are database/backend-specific qualifications, not missing browser
+or PowerShell prerequisites. Earlier six explicit CI gate commands passed on this
+same frozen source; they do not override these1,330 failures.
+
+Read-only terminal triage identifies1,307 failures ending in the disabled-advertising
+boundary, mostly legacy seed approval before the intended assertions; this is not
+permission to weaken the planning-only boundary. The remaining23 need their exact
+migration/browser/portal/pilot/route traces assessed. Exhaustive per-node
+classification is underway. Already reviewed successor repairs cover66 account-
+diagnostic and72 native-assembly failed nodes; their focused evidence does not
+retroactively alter frozen W1 or qualify all remaining failures.
+
+Late47-minute shared-cgroup observations averaged1.058 CPU cores on a four-core
+quota, with0.616s additional throttling and no new memory-limit/OOM events. This
+sample does not establish a cause for earlier failures or unsampled runtime.
+Current parent-case measured seconds excluding three wrappers total6,141.813s;
+failed paths are not passing-runtime estimates. CI90-minute step/120-minute job
+feasibility remains unqualified and a release gap.
+
+Reviewed offline partition tool `b94f9a4` is integrated at `a259894`;53 focused tests,
+whole Ruff, bare mypy1125, standalone plugin mypy and diff checks passed. Independent
+review closed after tracked-config/historical-provenance and JUnit-total repairs.
+It produces review candidates only, not execution authority or capacity guarantees.
+Now that the aggregate is terminal, genuine frozen collection and an offline
+three-current-group candidate are authorized; no shard/Full/hosted run is authorized
+by that operation. Q14's queued twelve-case focused browser qualification is also
+released on its separate branch/database. All comprehensive quality and live release
+gates remain open.

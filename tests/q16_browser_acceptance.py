@@ -8,6 +8,7 @@ import threading
 import time
 from collections.abc import Generator
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
@@ -41,9 +42,11 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
+@pytest.mark.parametrize("generation_stage", ["nov3", "october"])
 @pytest.mark.parametrize("branch", ["progress", "privacy"])
 def test_dated_q16_browser(
     customer_engine: Engine, configuration: Settings, replicas: Any,
+    generation_stage: Literal["nov3", "october"],
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, branch: Literal["progress", "privacy"],
 ) -> None:
     listener = socket.socket()
@@ -56,7 +59,7 @@ def test_dated_q16_browser(
         client.base_url = origin
     calls: list[str] = []
     ids = prepare_q16_case(customer_engine, configuration, replicas, monkeypatch, tmp_path,
-                           branch=branch, native_calls=calls)
+                           branch=branch, native_calls=calls, generation_stage=generation_stage)
     alice, _, provider = replicas
     base = f"/api/customer/v1/workspaces/{ids.workspace_id}/planning/plans/{ids.plan_id}"
     original = alice.get(base + "/export", params={"version": 1})
@@ -69,7 +72,8 @@ def test_dated_q16_browser(
     )
     initial_counts = retained_counts(customer_engine)
     native_count = len(calls)
-    now = NOV3
+    now = NOV3 if generation_stage == "nov3" else datetime.now(UTC)
+    fixed_stage = generation_stage == "nov3"
     issued = 0
     state: dict[str, Any] = {"hold": False, "held": False, "release": None, "reads": []}
     complete = threading.Event()
@@ -84,7 +88,7 @@ def test_dated_q16_browser(
     })
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
-        nonlocal now, issued
+        nonlocal now, issued, fixed_stage
         path = scope.get("path", "")
         if path == "/__fixture__/start":
             html = Path("app/portal/static/planning.html").read_text().replace(
@@ -94,14 +98,15 @@ def test_dated_q16_browser(
             return
         if path == "/__fixture__/driver.mjs":
             source = Path("tests/javascript/q16_browser.mjs").read_text()
-            browser_data = dict(ids=asdict(ids), branch=branch, expected=expected)
+            browser_data = dict(ids=asdict(ids), branch=branch, expected=expected,
+                                generation_stage=generation_stage)
             await Response(source.replace("__CASE__", json.dumps(browser_data)),
                            media_type="text/javascript")(scope, receive, send)
             return
         if path == "/api/customer/v1/session" and scope["method"] == "POST":
             # Same narrow issuance seam as issue_at, but this is the actual browser HTTPS POST.
             issued += 1
-            stamp = int(now.timestamp())
+            stamp = int((now if fixed_stage else datetime.now(UTC)).timestamp())
             project = provider.issuer.rsplit("/", 1)[1]
             real_time = time.time
 
@@ -120,10 +125,13 @@ def test_dated_q16_browser(
                 assert time.time is real_time
             assert vars(customer_api)["time"] is time
             return
-        if path in {"/__fixture__/later_day", "/__fixture__/refund_correction"}:
-            stage: Literal["later_day", "refund_correction"] = (
+        if path in {"/__fixture__/initial_day", "/__fixture__/later_day",
+                    "/__fixture__/refund_correction"}:
+            stage: Literal["initial_day", "later_day", "refund_correction"] = (
+                "initial_day" if path.endswith("initial_day") else
                 "later_day" if path.endswith("later_day") else "refund_correction"
             )
+            fixed_stage = True
             now = import_progress_stage(customer_engine, configuration, ids, stage=stage)
             paid(customer_engine, ids.workspace_id, now, monkeypatch, initial=False)
             monkeypatch.setattr(api, "utc_now", lambda: now)
@@ -198,7 +206,7 @@ def test_dated_q16_browser(
         f"--user-data-dir={tmp_path / 'browser'}", origin + "/__fixture__/start",
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
-        assert complete.wait(90), "Dated Q16 browser did not finish"
+        assert complete.wait(150), "Dated Q16 browser did not finish"
         (tmp_path / "browser-result.json").write_text(json.dumps(results, indent=2))
         (tmp_path / "progress-responses.json").write_text(json.dumps(state["reads"], indent=2))
         assert results and results[0]["status"] == "passed", results
@@ -212,13 +220,20 @@ def test_dated_q16_browser(
             assert [r["net_sales_micros_exact"] for r in successes] == ["0", "25000000", "20000000"]
             assert [r["sales"]["coverage"]["closed_day_count"] for r in successes] == [2, 3, 3]
             assert successes[-1]["sales"]["coverage"]["ends_at_exclusive"] == "2026-11-04T05:00:00Z"
-            assert retained_counts(customer_engine)[:7] == initial_counts[:7]
+            expected_events = 2 if generation_stage == "october" else 0
+            assert retained_counts(customer_engine)[:7] == (
+                initial_counts[0], initial_counts[1],
+                int(initial_counts[2] or 0) + expected_events, expected_events,
+                *initial_counts[4:7],
+            )
             assert results[0]["document_bytes"] == original_document_bytes
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == (
                 1 if branch == "progress" else 0
             )
-            assert db.scalar(select(func.count()).select_from(PlanEventRow)) == 0
+            assert db.scalar(select(func.count()).select_from(PlanEventRow)) == (
+                2 if generation_stage == "october" and branch == "progress" else 0
+            )
             assert db.scalar(select(func.count()).select_from(ProviderExecutionAttempt)) == 0
     finally:
         browser.terminate()

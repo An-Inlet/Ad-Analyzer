@@ -12,6 +12,7 @@ from app.settings import Settings
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.current_runtime_read_contexts import current_tiktok_source as current_tiktok_source
 from tests.test_campaign_video import encoded as encoded
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -199,6 +200,7 @@ def test_configured_linked_creation_then_separate_activation(
 
 
 @pytest.mark.parametrize("change", ["permission", "session", "source", "rights"])
+@pytest.mark.planning_boundary
 def test_configured_linked_confirmation_rechecks_owned_current_facts(
     customer_engine: Engine,
     configuration: Settings,
@@ -207,7 +209,12 @@ def test_configured_linked_confirmation_rechecks_owned_current_facts(
     replicas: Any,
     encoded: Any,
     change: str,
+    current_tiktok_source: Any,
 ) -> None:
+    from tests.tiktok_linked_current_read_fixture import configured_linked_customer
+
+    customer_engine, tmp_path, replicas, ids = current_tiktok_source
+
     import time
     from datetime import timedelta
 
@@ -216,7 +223,7 @@ def test_configured_linked_confirmation_rechecks_owned_current_facts(
     from app.sources.models import SourceConnection
 
     alice, base, _, draft, revision, server, _, control = configured_linked_customer(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, ids
     )
     prefix = base + "/tiktok/linked"
     response = alice.post(

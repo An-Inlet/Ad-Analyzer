@@ -12,6 +12,7 @@ from app.settings import Settings
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
+from tests.current_runtime_read_contexts import current_tiktok_source as current_tiktok_source
 from tests.test_campaign_video import encoded as encoded
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -107,6 +108,7 @@ def test_configured_custom_identity_cannot_create_future_review(
         "billing",
     ],
 )
+@pytest.mark.planning_boundary
 def test_tiktok_configuration_boundary(
     customer_engine: Engine,
     configuration: Settings,
@@ -115,7 +117,12 @@ def test_tiktok_configuration_boundary(
     replicas: Any,
     encoded: Any,
     scenario: str,
+    current_tiktok_source: Any,
 ) -> None:
+    from tests.tiktok_current_read_fixture import configured_tiktok_customer
+
+    customer_engine, tmp_path, replicas, ids = current_tiktok_source
+
     import time
     from datetime import timedelta
 
@@ -131,7 +138,7 @@ def test_tiktok_configuration_boundary(
     from tests.test_commerce_measurement import NOW
 
     alice, base, _, draft, revision, server, requests, control = configured_tiktok_customer(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, encoded()
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, ids
     )
 
     def invalidate() -> None:

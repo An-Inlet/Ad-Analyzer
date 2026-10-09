@@ -11,6 +11,9 @@ from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from tests.configured_optimization_fixture import configured
+from tests.current_runtime_read_contexts import (
+    current_optimization_source as current_optimization_source,
+)
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
@@ -329,19 +332,25 @@ def test_later_consent_rejects_meaningful_change(
     assert not wire.google.writes
 
 
+@pytest.mark.planning_boundary
 def test_real_transport_scenario_denies_before_factory_or_oauth(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
+    current_optimization_source: Any,
 ) -> None:
+    from tests.optimization_current_read_fixture import configured
+
+    customer_engine, tmp_path, replicas, ids = current_optimization_source
+
     import httpx
     from app.production_runtime import optimization_assembly
     from app.production_runtime.optimization_transport import optimization_execution_transport
 
     alice, base, query, wire, control = configured(
-        customer_engine, configuration, tmp_path, monkeypatch, replicas, "google_ads"
+        customer_engine, configuration, tmp_path, monkeypatch, replicas, ids
     )
     monkeypatch.setattr(
         optimization_assembly, "optimization_execution_transport", optimization_execution_transport

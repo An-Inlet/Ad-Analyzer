@@ -161,3 +161,24 @@ of this initial closed expectation.
 Coordinate the optional parameter and finally branch with the capacity author's
 SourceLifetime integration. Do not modify extraction lifetime, URL validation,
 strict original scalar interface or historical driver to implement this delta.
+
+### Actual Retained Dates: Preparation Gate Still Open
+
+Read-only inspection of an actual A14-produced SQLite graph on October 9 found the
+original ledger period October 5 11:00 UTC through October 6 12:00 UTC (action_count
+one), while its unchanged confirmed goal has budget dates November 1–December 1
+UTC, 50,000,000 micros and balanced aggressiveness. The periods do not overlap.
+`execution_mandates.revise` would therefore need a new zero-counter November ledger
+if genuine preparation reaches it; the proposed two-provider-table delta above is
+NOT sufficient and is not approved for implementation.
+
+Separately, `checked_planning_limits` requires `starts_at <= now < ends_at`, including
+inside actual `consent_budget_mandate`. October current acquisitions cannot confirm
+this November planning period. These are inspected actual stored dates plus source
+predicates, not a claimed end-to-end preparation failure. Preserve the existing goal
+and evidence; do not advance clocks, enlarge source lifetimes or synthesize consent.
+Before C implementation, reproduce the exact preparation boundary and review a
+coherent original fixture chronology. A possible separate closed historical producer
+would create a genuinely current-budget goal before the original effect/anchor, but
+its exact input seam/ledger compatibility is not frozen here. No alteration of the
+already retained original goal/ledger is authorized. A14 remains independent.

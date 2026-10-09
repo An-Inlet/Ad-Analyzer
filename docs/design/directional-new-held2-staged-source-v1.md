@@ -164,3 +164,17 @@ Preserve raw artifacts, exact original two identities, before/after graph and
 statement-preservation proof. No newFull/aggregate, live provider, runtime object
 transfer, manufactured transition or timeout increase. Implementation requires
 independent interface review first.
+
+## Reviewed Exact Existing-Row Delta
+
+Before implementation, replacement.transfer and claim_step were re-read. For the
+single original chain used here, existing-row changes are restricted to:
+predecessor reservation.state held→superseded; original run.state→canceled and
+canceled_at→its existing value or NOW; original ledger.action_count +1,
+last_dispatch_at→NOW, spent_high_water_micros→max(original value,
+actual typed repeat plan.exposure.reported_spend_micros). All other fields in these
+rows, and every other original provider/spending/source row, must be identical.
+The new successor run/step end dispatching, with exactly one new attempt and no
+response/receipt. Added review/approval/reservation/replacement rows must form the
+actual typed repeat plan/request/audit graph; additions are not an allowance to
+change unrelated original rows. Parent current reads must produce zero graph delta.

@@ -7,7 +7,7 @@ requirements. No newer-held-action case, production or historical runtime change
 
 ## The Original 50m/45m Distinction
 
-`test_google_optimization_http.Server` starts campaign5, Google budget resource7,
+`test_google_optimization_http.Server` starts campaign5, Google budget resource9,
 USD/UTC, with amountMicros=50000000. `test_optimization_candidates.fixture` reads
 this state BEFORE its optional receipt branch; the immutable CandidateObservation
 and runtime.reader closure retain that50m state. The with_receipt=True branch
@@ -44,7 +44,7 @@ Use the following explicit checks before setting its mock read state:
 
 1. `result` is the actual six-element loader tuple. Its server is an instance of
    `tests.test_google_optimization_http.Server`; it has zero current writes.
-2. The captured CandidateObservation budget_owner.budget_amount_micros is50m,
+2. The captured CandidateObservation.state.budget_amount_micros is50m,
    and the server budget amount is the string50000000. Preserve that immutable
    observation and all scope/evidence/timestamp/policy fields unchanged.
 3. Use its exact work.scope.source.attempt_id and owned workspace to read the

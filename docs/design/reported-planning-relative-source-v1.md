@@ -126,3 +126,16 @@ assertions remain unchanged.
 This proposal closes the fixed-date feasibility question without claiming the new
 relative producer already passes. First actual both-DB probe must be reviewed before
 moving the28 consumer bodies. No Full, hosted/native call or execution-policy change.
+
+## Reviewed SQLite File Ownership Tightening
+
+The relative parent accepts only a plain `sqlite` URL with no query, host/user/port
+components, naming the absolute existing regular nonsymlink file
+`artifacts.parent / 'current.sqlite'` supplied by reported_original.customer_engine.
+Reject alternate files, relative paths, driver variants and symlink aliases before
+any database access or child launch. The child independently enforces the same
+rule against `Path(output).parent.parent / 'current.sqlite'` before create_engine.
+No source/target database creation or fallback is allowed. PostgreSQL ownership
+checks remain unchanged. Negative tests exercise both actual entry boundaries with
+foreign/query/missing/symlink inputs and a forbidden database factory/access sentinel.
+This applies only to the new relative fixture; existing fixed producers stay intact.

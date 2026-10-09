@@ -97,3 +97,26 @@ failures. Mandate-binding negative tests must remain intact; archive cases whose
 bodies execute historical optimizations require historical production/current-read
 separation. Existing bounded historical fixtures are not failures merely because
 they import old setup modules. No blanket fixture substitution is approved.
+
+
+## Reviewed Dated Q16 Clock Probe
+
+`41aa960` is independently reviewed and integrated only on this successor branch.
+The explicit probe passed on SQLite/PostgreSQL (2 cases, 11.40s), with whole Ruff,
+bare mypy (1,118 files) and diff checks passing. It uses actual login with narrowly
+substituted issuance time and coherent synthetic verified-identity inputs; normal
+session TTL, real authority/monotonic/database clocks and production code remain
+unchanged. An expired October session is denied at the November stage; fresh
+ordinary-TTL November logins permit actual default planning generation and saved-
+version progress 0→25,000,000 micros after actual commerce import, preserving the
+same plan digest/confirmed goal. The expired November 3 session is denied before
+November 4 re-login. No provider execution attempts were created.
+
+This is a dated UTC feasibility experiment, intentionally outside default pytest
+collection, not the exact New York Q16 case or browser acceptance. It must not become
+a date-dependent default regression. The reviewed fixture direction is documented
+in `design/q16-fixture-feasibility-20261009.md`; exact source metadata, image,
+reporting periods, refund, privacy and browser assertions remain to be implemented.
+No production authentication clock seam is needed. Erased-ID refresh must never
+restore deleted data; an intentional new fully validated submission is distinct and
+is not silently prohibited by a new tombstone policy.

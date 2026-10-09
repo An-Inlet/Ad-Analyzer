@@ -17,6 +17,7 @@ from app.campaign_review.storage import LocalMediaStore
 from app.customers.models import CustomerMembership, CustomerUser
 from app.database.session import Base
 from app.publication.customer_intents import account
+from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
@@ -72,7 +73,7 @@ def retained_configured_draft_fixture(
         target = str(engine.url)
     else:
         assert os.environ["AD_ANALYZER_CI_DISPOSABLE_POSTGRES"] == "true"
-        url = make_url(os.environ["AD_ANALYZER_TEST_POSTGRES_URL"])
+        url = make_url(validate_disposable_url())
         assert url.drivername == "postgresql+psycopg"
         assert url.host in {"127.0.0.1", "localhost", "::1"} and not url.query
         assert url.database and re.fullmatch(r"inlet_[a-z0-9_]+_ci", url.database)

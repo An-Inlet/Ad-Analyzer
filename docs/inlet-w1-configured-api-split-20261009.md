@@ -103,3 +103,13 @@ The environment reached disk100% during the32 run; its full XML/log/exit remaine
 intact and contained no disk error. Root reclaimed inventoried completed duplicate
 PIN source trees, preserving all raw evidence. No new runs started until resume;
 the two-case correction checked available disk exceeded500MiB before launch.
+
+Second independent review hardened database admission: parent and pinned child now
+call the repository `validate_disposable_url()` as well as checking loopback,
+no query, exact engine URL and owned schema. This rejects `inlet_prod_ci`, which
+the prior local regex alone admitted. Pure parent/child regressions prove rejection
+before connect/extract/child launch; no unsafe database is contacted. These two
+cases plus four actual bothDB positive reads passed **6pass0skip24.063s**
+(`url-guards.xml`/`.log`/`.exit`). Whole Ruff/bare mypy1143/diff pass again
+(`ruff-url.log`, `mypy-url.log`). No adverse/current/historical test expectations
+or production behavior changed for this guard repair.

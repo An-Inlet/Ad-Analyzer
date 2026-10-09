@@ -9,6 +9,7 @@ from typing import Any, cast
 
 import app
 import pytest
+from scripts.reset_disposable_postgres import validate_disposable_url
 from sqlalchemy import create_engine, event, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
@@ -27,7 +28,7 @@ def main() -> None:
     else:
         assert re.fullmatch(r"inlet_test_[a-f0-9]{32}", target)
         assert os.environ["AD_ANALYZER_CI_DISPOSABLE_POSTGRES"] == "true"
-        url = make_url(os.environ["AD_ANALYZER_TEST_POSTGRES_URL"])
+        url = make_url(validate_disposable_url())
         assert url.drivername == "postgresql+psycopg"
         assert url.host in {"127.0.0.1", "localhost", "::1"} and not url.query
         assert url.database and re.fullmatch(r"inlet_[a-z0-9_]+_ci", url.database)

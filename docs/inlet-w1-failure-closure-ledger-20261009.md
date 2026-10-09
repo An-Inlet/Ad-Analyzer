@@ -241,3 +241,23 @@ bothDB plus guard19pass141.936s and final realCLI+strictguard2pass96.550s close 
 Whole final Ruff/mypy1133/diff passed. Exact overlay675 unions successful original
 identities across those raw XMLs:21 added,655 remaining. It does not claim the
 initial command passed, historical unknown-specific routing unchanged, or cloud DR.
+
+### Current Candidate And Report Request Foundation
+
+Reviewed `8a43e87`→`d63f9ba` and `d667326`→`5d0a90d` add29+16 original
+failures. Both use closed genuine pinned source producers, strict scalar output,
+validated disposable loopback schemas and current real consumers. Candidate:
+115pass3existing skips289.392s includes86 overlapping current-boundary passes;
+final all-provider/bothDB6pass69.624s after stronger URL/freshness guards. Reported:
+27pass182.348s includes11 existing compatibility cases; final service/API bothDB
+4pass28.539s after guards. Original source60day session preserved; no TTL expansion.
+Actual original reported mock POSTcount1 is measured, and every persisted provider/
+financial row remains unchanged across current requests. No fabricated prior posts.
+
+Exact overlay720 =710 direct successor passes+10 explicit historical/current
+API-equivalence cases;610 remain. Root and independent source reviews closed before
+integration. Whole Ruff/mypy/diff passed each final package; combined checks running
+at5d0a90d. Next root56 current single-owner/no-receipt candidate consumers reuse the
+same reviewed source, excluding receipt/two-owner cases. Configured API34 historical/
+current read split, social two-phase migration and populated reported restore, and
+current acquisition/retry adapter continue under separately reviewed interfaces.

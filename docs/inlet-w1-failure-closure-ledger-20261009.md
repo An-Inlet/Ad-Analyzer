@@ -228,3 +228,16 @@ remain unchanged. Current candidate-reader29 qualification and actual default
 restore CLI closure continue; separately reviewed configured API split proceeds
 with genuine current owned reads and a new34-node historical supplement. No
 aggregate rerun, hosted retry, provider write or deployment occurred.
+
+### Actual Default Restore CLI
+
+Independently reviewed `cd5682a`→`8f1937a` repairs the actual default synthetic
+restore producer, not a patched test-only native path. Current verification retains
+original rows/receipts/holds/privacy/financial integrity while three forward checks
+now require immutable planning-write denial and unchanged counts. Native local
+PostgreSQL dump/restore, cleanup, actual main and strict bootstrap guards qualified.
+Initial combined34pass1fail9errors remains unsuccessful; corrected18 ordinary
+bothDB plus guard19pass141.936s and final realCLI+strictguard2pass96.550s close it.
+Whole final Ruff/mypy1133/diff passed. Exact overlay675 unions successful original
+identities across those raw XMLs:21 added,655 remaining. It does not claim the
+initial command passed, historical unknown-specific routing unchanged, or cloud DR.

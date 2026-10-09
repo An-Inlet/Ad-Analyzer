@@ -467,3 +467,32 @@ whole Ruff/mypy1179/diff passed. SourceLifetime16 passed separately. The dated
 non-default diagnostic remains distinct from original frozen failure coverage.
 No feedback production fix or actual browser-session behavior is claimed here.
 All source XML/logs and earlier failed probes remain in reported-planning-original/.
+
+### Current Financial Source And Feedback Consent Repair
+
+Financial `51be8c3`→`2d0da5e` and guard followup `0b2c7b2`→`ea295ec`
+independently reviewed. Genuine pinned source supplies original financial lineage;
+current metadata/DDL, raw SQL negatives, migrations and financial assertions remain
+in current code. Final96 passed/one existing SQLite-only PostgreSQL skip (95.470s)
+includes all10 original failures and86 boundary overlaps. Guard followup11 passed
+(26.474s) verifies exact PostgreSQL query/schema allowlist and both parent/child
+fresh database checks with exact migration bootstrap preservation. Whole package
+Ruff/mypy1178/diff passed. Initial failed probes remain preserved.
+
+Immutable overlay `successor-coverage-1016.json`: **1016 covered (932 direct,
+84 historical/current),314 remaining**. Combined at `ea295ec`: whole Ruff,
+bare mypy1184, collection-plugin mypy1 and diff passed; logs integration-ea295ec/.
+
+Production repair `cc02905`→`96a2a24` replaces the feedback service's inconsistent
+execution-consent lookup with existing checked_planning_limits. Actual current V2
+baseline reproduced separate_execution_consent_required before repair. Five modes
+across SQLite/PG now pass across preserved targeted runs: positive46m→47m preview,
+revoked session, changed configured policy,46m cap and unrepresentable native amount.
+No new execution consent, financial effect or native POST occurs. Initial expectation
+of a different error label and subsequent exact correction remain recorded.
+Compatibility16 passed; whole Ruff/mypy1180/diff passed on this package.
+
+This is a dated non-default October diagnostic, not permanent default-collected
+regression coverage or authenticated API proof. Actual current API session handoff
+and existing consumer repair remain in progress. Historical scalar identity/session
+records are not rewritten to create browser credentials. No aggregate or live claim.

@@ -24,6 +24,8 @@ from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("stop_kind", ["cancel", "pause", "revoke"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_stop_after_mandate_dispatch_commit_prevents_first_provider_step(
     customer_engine: Engine,
     configuration: Settings,
@@ -87,6 +89,8 @@ def test_stop_after_mandate_dispatch_commit_prevents_first_provider_step(
         assert record.state == ("cancel_requested" if stop_kind == "cancel" else "approved")
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_delayed_submission_is_not_retried_from_absent_readback(
     customer_engine: Engine,
     configuration: Settings,

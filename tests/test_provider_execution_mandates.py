@@ -67,6 +67,8 @@ def setup(
     ), actor
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_separate_consent_and_current_generation(
     customer_engine: Engine, configuration: Settings, tmp_path: Any
 ) -> None:
@@ -93,6 +95,8 @@ def test_exact_separate_consent_and_current_generation(
             s.checked(db, p.workspace_id, binding, actor, lambda: NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revision_and_new_consent_do_not_reset_shared_ledger(
     customer_engine: Engine, configuration: Settings, tmp_path: Any
 ) -> None:
@@ -127,6 +131,8 @@ def test_revision_and_new_consent_do_not_reset_shared_ledger(
 
 
 @pytest.mark.parametrize("change", ["environment", "period", "overlap", "foreign", "owner"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_cannot_reinterpret_period_or_environment(
     customer_engine: Engine, configuration: Settings, tmp_path: Any, change: str
 ) -> None:
@@ -148,6 +154,8 @@ def test_cannot_reinterpret_period_or_environment(
             )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_pause_and_revoke_keep_accounting(
     customer_engine: Engine, configuration: Settings, tmp_path: Any
 ) -> None:

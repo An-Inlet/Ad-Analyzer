@@ -70,6 +70,8 @@ def second_account(db: Session, policy: ProviderMandatePolicy) -> ExecutionAccou
 
 
 @pytest.mark.parametrize("mode", ["new", "revision"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_settled_account_spend_cannot_be_omitted_from_period(
     customer_engine: Engine,
     configuration: Settings,
@@ -173,6 +175,8 @@ def test_mixed_currency_prior_hold_is_not_added_as_numeric_micros(
             mandates.revise(db, policy.workspace_id, policy, actor, lambda: NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_drafts_are_editable_but_first_consent_pins_all_period_mandates(
     customer_engine: Engine,
     configuration: Settings,
@@ -219,6 +223,8 @@ def test_drafts_are_editable_but_first_consent_pins_all_period_mandates(
         )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_competing_account_set_consents_serialize(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:

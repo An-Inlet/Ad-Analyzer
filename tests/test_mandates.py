@@ -121,6 +121,8 @@ def evidence(db: Session, m: Mandate, total: int = 10, bound: int = 60) -> Synth
     )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_durable_claim_unknown_and_reconciled_budget(
     customer_engine: Engine, configuration: Settings
 ) -> None:
@@ -172,6 +174,8 @@ def test_durable_claim_unknown_and_reconciled_budget(
             )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_review_stale_state_and_stop_semantics(
     customer_engine: Engine, configuration: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -227,6 +231,8 @@ def test_exact_review_stale_state_and_stop_semantics(
             s.approve(db, m, 1, "owner", NOW)
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_revisions_never_reset_consumption_or_expand_by_aggressiveness(
     customer_engine: Engine, configuration: Settings
 ) -> None:
@@ -271,6 +277,8 @@ def test_revisions_never_reset_consumption_or_expand_by_aggressiveness(
         assert m.changes_used == 40
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_account_and_goal_revalidation_and_overlap(
     customer_engine: Engine, configuration: Settings
 ) -> None:
@@ -315,6 +323,8 @@ def test_account_and_goal_revalidation_and_overlap(
 
 
 @pytest.mark.parametrize("same_action", [False, True])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_postgres_claim_race_cannot_overspend_or_duplicate(
     customer_engine: Engine, configuration: Settings, same_action: bool
 ) -> None:
@@ -370,6 +380,8 @@ def test_postgres_claim_race_cannot_overspend_or_duplicate(
         )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_canonical_dedup_and_complete_monotonic_observation(
     customer_engine: Engine, configuration: Settings
 ) -> None:
@@ -474,6 +486,8 @@ def test_api_roles_csrf_and_workspace_isolation(
         )
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_postgres_stop_dispatch_race(customer_engine: Engine, configuration: Settings) -> None:
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier

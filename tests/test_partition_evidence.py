@@ -198,6 +198,7 @@ def test_child_manifest_contract(tmp_path: Path, bad: str) -> None:
         "noconftest",
         "lastfailed",
         "deselect",
+        "ignored_config",
     ],
 )
 def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
@@ -212,6 +213,10 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         "class TestGroup:\n @pytest.mark.parametrize('x',[1,2],ids=['a::b.c','d'])\n"
         " def test_case(self,x):\n  assert x\n"
     )
+    if mode == "ignored_config":
+        (repo / "pytest.ini").unlink()
+        (repo / ".gitignore").write_text("__pycache__/\n.pytest_cache/\npytest.ini\n")
+        (repo / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
     if mode == "deselect":
         (repo / "conftest.py").write_text(
             "def pytest_collection_modifyitems(config,items):\n"
@@ -231,6 +236,12 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
         ),
     ]:
         subprocess.run(["git", *git_args], cwd=repo, check=True, capture_output=True)
+    if mode == "ignored_config":
+        (repo / "pytest.ini").write_text(
+            "[pytest]\ntestpaths = tests\npython_files = test_small.py\n"
+        )
+        status = subprocess.check_output(["git", "status", "--porcelain"], cwd=repo)
+        assert status == b""
     output = tmp_path / "collection.json"
     args = [
         sys.executable,
@@ -271,6 +282,8 @@ def test_genuine_collect_only_plugin(tmp_path: Path, mode: str) -> None:
     else:
         assert run.returncode != 0
         assert not output.exists()
+        if mode == "ignored_config":
+            assert "tracked HEAD blob" in run.stderr
 
 
 @pytest.mark.parametrize("change", ["truncated", "entity", "ambiguous_outcome", "nested"])

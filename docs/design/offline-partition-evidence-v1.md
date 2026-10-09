@@ -17,7 +17,8 @@ never execution/deselection authority or a CI-duration/pass guarantee.
   --partition-manifest PATH` invocation (optional `-q`/`-qq`); reject nonempty
   PYTEST_ADDOPTS, override_ini, alternate configfile, noconftest/confcutdir and
   lastfailed. Require the active configuration inside the clean Git root and
-  record its relative path/hash. Reject selection filters (`-k`, `-m`, `--deselect`, ignore paths/globs) and any
+  require its exact bytes to match a tracked HEAD blob and record its relative
+  path/hash. Ignored auto-discovered configuration cannot supply collection policy. Reject selection filters (`-k`, `-m`, `--deselect`, ignore paths/globs) and any
   positional collection scope except the configured full `testpaths`. Observe
   `pytest_deselected` and fail on any deselection; never modify items. A successful
   collection/session finish writes the manifest only after verifying full unique

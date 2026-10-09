@@ -59,6 +59,15 @@ def pytest_configure(config: pytest.Config) -> None:
         raise pytest.UsageError("Configuration must belong to the Git root")
     if config.inipath is None or not config.inipath.resolve().is_relative_to(root):
         raise pytest.UsageError("Owned configuration required")
+    relative_config = str(config.inipath.resolve().relative_to(root))
+    committed = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "blob", f"HEAD:{relative_config}"],
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    if committed.returncode or committed.stdout != config.inipath.read_bytes():
+        raise pytest.UsageError("Active configuration must match a tracked HEAD blob")
     output = config.getoption("partition_manifest")
     if (
         not isinstance(output, Path)

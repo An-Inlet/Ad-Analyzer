@@ -60,3 +60,18 @@ exists yet, no timing envelope was fabricated, and no real candidate/runtime sav
 is claimed. Actual frozen collection may occur only after the original aggregate
 is terminal, with only the standalone scripts directory added to PYTHONPATH.
 Any CI partition execution or workflow change remains a separate reviewed package.
+
+
+## Reviewed Configuration Provenance Repair
+
+Root review found that an ignored auto-discovered `pytest.ini` could shadow tracked
+configuration while Git status remained clean. The plugin now requires active
+configuration bytes to equal the tracked HEAD blob, before collection/manifest
+production. This does not ban other ignored generated files or change collection.
+The added tiny Git fixture proves its ignored override leaves Git status clean but
+is rejected specifically for missing tracked configuration; no manifest/test body
+is produced. All original39 cases remain.
+
+Final repair: **40 passed, zero skips,2.89s**, `config-repair.log/xml/exit` in the
+same evidence directory. Whole Ruff, bare mypy1125, standalone plugin mypy and
+`git diff --check` passed. No actual frozen collection or aggregate/DB interaction.

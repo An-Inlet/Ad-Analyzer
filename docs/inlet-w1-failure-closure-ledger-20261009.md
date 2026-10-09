@@ -137,3 +137,31 @@ No integrated pytest aggregate was rerun. The package XML results above were
 executed on their recorded source branches; independent source review found no
 cross-package edit conflict. This distinction remains a limitation until the
 bounded corrected integration is qualified after regression closure.
+
+### Additional Current Read And Migration Repairs
+
+At `2847724`, independently reviewed commerce `e4749fd`, Meta reads `dfe337a`,
+and owned credential contexts `6f26d48` add1+8+32 exact frozen failed identities.
+External `successor-coverage-285.json` preserves previous overlays and records
+all raw successor XML hashes. **285 covered; 1,045 remain.**
+
+Commerce:5 passed/no skips61.351s including four existing shared producer/lifecycle
+cases; only one frozen commerce failure credited. Parent real0051/0053 sibling
+head set, current downgrade/refusal/retention assertions preserved; child runs
+verified historical producer. Initial incorrect singleton-head probe retained.
+Meta:8 passed/no skips13.075s; actual source/goal/history, original45m budget,
+GET/closure/revocation/generation/goal checks retained. Source-only setup observes
+already-fresh commerce and seeds the same native mock budget without prior writes.
+Credential module:41 passed/no skips26.158s =32 repaired+9 existing pure cases;
+original vault/session/billing/source/expiry/cleanup assertions unchanged. Root
+reviewed commerce/Meta; rule_review independently reviewed credential fixture.
+Whole package Ruff/mypy/diff passed; aggregate was not rerun.
+
+Active:147 explicitly classified retained-engine cases;41 separately classified
+accounting/dispatch cases; three further migration profiles; current native-preview
+API plus authentic retained V1 route coverage. Migration producer at0079 exposed
+missing newer0085 privacy tables even under2155; a closed earlier authentic source
+is being qualified, without no-op hooks or schema fabrication. Native preview
+requires a separately documented V1/V2 routing split rather than claiming the old
+runtime predicate still runs through current API. No passing evidence credited
+for these active packages yet.

@@ -300,3 +300,19 @@ and independent post-cleanup XML/PIN/IDs/SQLite integrity checks are retained as
 root-source-cleanup-20261009.json and root-source-cleanup-integrity-20261009.json.
 Original aggregate SHA remains unchanged. This is temporary-fixture reclamation,
 not an aggregate reset, broader cleanup or evidence replacement.
+
+### Current Report Acquisition And Exact Receipt Reconciliation
+
+Reviewed123cf9b→da2dc99 adds28 current acquisition/retry identities.55pass331.282s
+includes27 compatibility cases; final affected10bothDBpass70.523s after explicit
+nonnull timestamps/control-key assertions. Original rolling/fixed chronology,
+checkpoints, owned source/session, GET-only report responses and retries remain;
+no TTL expansion, job/capsule seeding or global acquisition fixture change.
+Reviewed93b0bf1→1c01091 adds2 current receipt-invalidation cases:88pass27.106s
+includes86 default boundaries; final2pass16.022s after explicit Google action type.
+Exactly one validated same-attempt unknown receipt may append and known run/step
+state change; all original financial/provider rows otherwise remain identical.
+Whole Ruff/mypy/diff passed each isolated final package (1139/1151 files).
+
+Exact overlay808 =798 direct successor passes+10 explicit historical/current
+API-equivalence,522 remaining. No new full-green or live verification claim.

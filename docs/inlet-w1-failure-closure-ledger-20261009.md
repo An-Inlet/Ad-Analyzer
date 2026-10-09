@@ -316,3 +316,50 @@ Whole Ruff/mypy/diff passed each isolated final package (1139/1151 files).
 
 Exact overlay808 =798 direct successor passes+10 explicit historical/current
 API-equivalence,522 remaining. No new full-green or live verification claim.
+
+### Subsequent Current Reads, API Split, And Session Regressions
+
+Root independently reviewed and integrated the packages through `3fb6474`.
+Exact immutable evidence `successor-coverage-884.json` records **884 original
+failures covered: 840 direct successor passes and 44 explicit historical/current
+comparison cases; 446 remain**. This is targeted evidence, not a passing aggregate.
+Prior overlays and the original failed W1 aggregate remain unchanged.
+
+Since the previous 808-case entry:
+- Candidate worker twelve: `722338e` → `3dde85a`. Initial cohort had 87 passes
+  and eleven disk-full setup errors; those failures are preserved. Affected twelve
+  passed after safe capacity recovery (88.562 seconds); 86 current boundaries
+  already passed in the original cohort. Original assertions and worker behavior
+  remain, with genuine dual-account source records and no child candidate jobs.
+- Configured API split: chain `e0db3f3` through `257d0b2`, integrated through
+  `7426af5`. All 34 original historical API identities pass at the explicit pin
+  (164.064 seconds). Separately, 42 current owned-read/denial cases plus 86 current
+  boundaries passed (128 total, 294.088 seconds). Supplement twelve passed;
+  exact-detail tightening initially had two failures, corrected affected two pass;
+  URL guard and both-database positive checks six passed. Historical API execution
+  success is never represented as current planning capability.
+- Fifth historical manifest tooling: `77946fe` → `74ffc9d`; 72 focused passes,
+  whole Ruff/mypy and standalone collection-plugin mypy passed. Successor manifests
+  now contain five batches/293 children; original three/249 evidence is unchanged.
+- Reported comparison/archive: `bc5de9f` → `249be1b`; twenty passed, including ten
+  original failures, in 128.622 seconds. Actual current Meta GET timeout and receipt
+  reconciliation plus real owned archive construction remain. Optional expected
+  unknown receipt delta is one-shot and exact; default entire graph equality stays.
+- Session authorizer: `19b251e` → `3fb6474`; 106 passed (twenty original identities
+  plus 86 overlapping current boundaries), 33.710 seconds. Five individually
+  reviewed retained-engine functions gain only existing markers/fixtures; complete
+  original module AST remains unchanged after stripping those ten decorators.
+
+Each source package ran Ruff, bare mypy and diff checks before commit. Session
+qualification checked 1161 source files; this is its isolated base, not a claim
+that all combined integration tests have passed. Package ledgers contain precise
+artifact paths and failed attempts.
+
+Disk exhaustion was resolved by deleting only inventoried completed duplicate pinned
+source extraction directories; unique databases, logs, XML, manifests, worktrees
+and original aggregate evidence remain. Integrity hashes were verified. A bounded
+source-lifetime utility is in progress to prevent those reproductions accumulating.
+No aggregate rerun, hosted retry, remote push, merge, deployment or provider write.
+Next: source lifetime qualification, current runtime API thirty-case package, and
+explicitly designed reported preview/revision regression split. All readiness and
+human review gates remain open.

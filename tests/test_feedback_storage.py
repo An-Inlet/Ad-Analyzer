@@ -29,6 +29,9 @@ from sqlalchemy import Engine, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from tests.feedback_erasure_retained_fixture import (
+    feedback_erasure_sources as feedback_erasure_sources,
+)
 from tests.test_commerce_measurement import NOW, FakeMeasurement, source
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_feedback_policy import assessment as assessment
@@ -183,26 +186,23 @@ def seed_graph(
         "workspace",
     ],
 )
+@pytest.mark.planning_boundary
 def test_any_dependency_erases_numeric_parent_and_workspace_candidate_cache(
     customer_engine: Engine,
     configuration: Settings,
-    assessment: OwnedV3Assessment,
+    feedback_erasure_sources: Any,
     erasure: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    customer_engine, assessment, second = feedback_erasure_sources
     with Session(customer_engine) as db:
         identifier, historical, job, slot = seed_graph(db, assessment, configuration)
         from app.optimization_candidates.service import enqueue, process
 
-        from tests import test_google_action_plans as fixtures
-        from tests.test_mandates import seed
-        from tests.test_optimization_candidates import fixture
+        from tests.candidate_read_retained_fixture import load_candidate_read_fixture
 
-        monkeypatch.setattr(
-            fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "unrelated", **kwargs)
-        )
-        principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path / "unrelated")
+        principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, second)
         other_job = enqueue(db, principal, work, runtime)
         other_id, other_wid = other_job.id, other_job.workspace_id
         assert process(customer_engine, other_wid, other_id, runtime) == "completed"

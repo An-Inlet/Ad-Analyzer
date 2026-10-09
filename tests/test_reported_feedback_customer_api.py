@@ -2,6 +2,7 @@
 
 from typing import Any
 
+import pytest
 from app.api import customer_reported_feedback as api
 from app.customers.models import CustomerMembership
 from app.main import app
@@ -10,11 +11,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.reported_feedback_fixture import seeded
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.reported_original_fixture import RetainedReportedOriginalIds, prepare_reported_read
+from tests.reported_original_fixture import (
+    customer_engine as customer_engine,
+)
+from tests.reported_original_fixture import reported_original as reported_original
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_customer_identity import login
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
+from tests.test_shopify_sales import configuration as configuration
 
 
 def test_unavailable_api_is_owned_and_accepts_no_proof(
@@ -88,11 +94,13 @@ def test_reported_comparison_shell_is_csp_protected() -> None:
     assert "onclick=" not in result.text
 
 
+@pytest.mark.planning_boundary
 def test_actual_owned_action_discovery_request_history_and_session_fence(
     replicas: Any,
     customer_engine: Engine,
     configuration: Any,
     tmp_path: Any,
+    reported_original: RetainedReportedOriginalIds,
 ) -> None:
     from app.customers.models import CustomerUser
     from app.reported_feedback.models import ReportedFeedbackJob
@@ -100,8 +108,8 @@ def test_actual_owned_action_discovery_request_history_and_session_fence(
 
     alice, bob, _ = replicas
     with Session(customer_engine) as db:
-        wid, principal, _, runtime, intent, original, _, server = seeded(
-            db, configuration, tmp_path
+        wid, principal, _, runtime, intent, original, _, original_ids = prepare_reported_read(
+            db, reported_original
         )
         user = db.get(CustomerUser, principal.user.id)
         assert user
@@ -147,7 +155,6 @@ def test_actual_owned_action_discovery_request_history_and_session_fence(
     assert bob.get(root + "/comparisons").json() == []
     with Session(customer_engine) as db:
         assert db.get(ReportedFeedbackJob, value["id"]) is not None
-    assert len(server.posts) == 1  # Only the original fixture action; reporting never mutates ads.
-
-
-from tests.test_shopify_sales import configuration as configuration  # noqa: E402
+    assert (
+        original_ids.original_post_count == 1
+    )  # Only the original fixture action; reporting never mutates ads.

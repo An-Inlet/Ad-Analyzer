@@ -24,3 +24,10 @@ warnings. Whole `ruff check .`, bare `mypy` (**1127 source files**) and
 Durable evidence: `/workspace/inlet-evidence/20261009/w1-migration-sqlite/`
 `focused.log` and `focused.xml`. Remaining work: separately frozen single-phase
 commerce producer feasibility at real 0053; social two-phase remains deferred.
+
+Independent review follow-up: restrict the intermediate legacy-column comparison
+to SQLite so PostgreSQL retains its original complete snapshot assertion. Check
+all four reinstalled SQLite triggers, including staged insert/update. Final
+unchanged module command: **3 passed, 1 expected skip, 0 errors/failures,
+5.253 seconds**; `review-final.log/xml` in the same evidence directory. Whole
+Ruff, bare mypy1127 and diff checks passed. Prior result remains recorded above.

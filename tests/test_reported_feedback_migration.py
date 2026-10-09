@@ -192,7 +192,9 @@ def test_phase_constraint_change_preserves_native_staging(customer_engine: Engin
         rules.downgrade()
         revisions.downgrade()
         migration.downgrade()
-    assert snapshots(legacy=True) == before_legacy
+    assert snapshots(legacy=engine.dialect.name == "sqlite") == (
+        before_legacy if engine.dialect.name == "sqlite" else before
+    )
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
         migration.upgrade()
         revisions.upgrade()
@@ -206,4 +208,6 @@ def test_phase_constraint_change_preserves_native_staging(customer_engine: Engin
                 "SELECT name FROM sqlite_master WHERE type='trigger'"
             )))
         assert {"meta_presence_stage_contexts_presence_insert",
-                "meta_presence_stage_contexts_immutable"} <= triggers
+                "meta_presence_stage_contexts_immutable",
+                "meta_staged_metrics_presence_insert",
+                "meta_staged_metrics_presence_update"} <= triggers

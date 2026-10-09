@@ -2,8 +2,8 @@
 
 import os
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 from app.lifecycle.contracts import LifecycleScopeV1
@@ -17,7 +17,6 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from tests.migration_engine import migration_customer_engine as migration_customer_engine
-from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
 
@@ -90,9 +89,7 @@ def test_native_restore_real_protected_meta_review(
         assert result.provider_posts == 1
 
 
-def test_native_restore_real_reported_graph(
-    customer_engine: Engine, configuration: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_native_restore_real_reported_graph(customer_engine: Engine, tmp_path: Path) -> None:
     from app.customers.models import CustomerSession
     from app.meta.models import MetaConnection
     from app.meta.security import utc
@@ -100,44 +97,24 @@ def test_native_restore_real_reported_graph(
         ProviderExecutionReceipt,
         ProviderExposureReservation,
     )
-    from app.reported_feedback.contracts import FeedbackPreviewIntentV1
     from app.reported_feedback.models import ReportedActionComparison, ReportedFeedbackSlot
     from app.reported_feedback.service import (
-        apply_feedback_preview,
-        read_comparison,
         validate_preview_dependencies,
     )
 
-    from tests.reported_feedback_journey_fixture import acquired, baseline
+    from tests.reported_restore_retained_fixture import retained_reported_restore_fixture
 
-    with Session(customer_engine) as db:
-        data, runtime, observation = acquired(db, configuration, tmp_path, monkeypatch)
-        wid, principal, _, job, _, source, clock, _, _, _, server = data
-        source_id = source.id
-        runtime, initial = baseline(db, data, runtime, observation)
-        comparison = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
-        assert comparison.status == "operational_reported_as_of"
-        result = apply_feedback_preview(
-            db,
-            principal,
-            FakeProvider(),
-            wid,
-            FeedbackPreviewIntentV1(comparison_id=comparison.id, baseline_preview_id=initial.id),
-            runtime,
-        )
-        db.commit()
-        assert result.proposed_budget_micros == 47000000
-        slot_id = result.id
-        session_id = principal.session.digest
-        receipt_count = db.scalar(select(func.count()).select_from(ProviderExecutionReceipt))
-        hold_count = db.scalar(select(func.count()).select_from(ProviderExposureReservation))
-        assert receipt_count and hold_count
+    result = retained_reported_restore_fixture(customer_engine, tmp_path / "reported-source")
+    wid, source_id, slot_id = result.workspace_id, result.source_id, result.slot_id
+    session_id = result.session_digest
+    receipt_count, hold_count = result.receipt_count, result.hold_count
+    observed_at = datetime.fromisoformat(result.observed_at)
     roundtrip(customer_engine)
     with Session(customer_engine) as db:
         db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update(key_share=True))
         slot = db.get(ReportedFeedbackSlot, slot_id)
         assert slot
-        assert validate_preview_dependencies(db, slot, clock[0]).digest() == result.digest()
+        assert validate_preview_dependencies(db, slot, observed_at).digest() == result.slot_digest
         for table in ("reported_feedback_jobs", "reported_feedback_slots"):
             rows = export_section(db, LifecycleScopeV1(workspace_id=wid), table)["rows"]
             assert rows and session_id not in repr(rows)
@@ -151,7 +128,7 @@ def test_native_restore_real_reported_graph(
         source.generation += 1
         db.flush()
         with pytest.raises(HTTPException):
-            validate_preview_dependencies(db, slot, clock[0])
+            validate_preview_dependencies(db, slot, observed_at)
         db.rollback()
         db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update(key_share=True))
         with pytest.raises(DBAPIError), db.begin_nested():
@@ -161,7 +138,7 @@ def test_native_restore_real_reported_graph(
         session.revoked_at = 1
         db.flush()
         with pytest.raises(HTTPException):
-            validate_preview_dependencies(db, slot, clock[0])
+            validate_preview_dependencies(db, slot, observed_at)
         db.rollback()
         db.scalar(select(Workspace).where(Workspace.id == wid).with_for_update(key_share=True))
         bump_workspace_export_revision(db, wid)
@@ -174,4 +151,4 @@ def test_native_restore_real_reported_graph(
         assert (
             db.scalar(select(func.count()).select_from(ProviderExposureReservation)) == hold_count
         )
-    assert len(server.posts) == 1
+    assert result.provider_posts == 1

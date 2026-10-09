@@ -165,3 +165,33 @@ is being qualified, without no-op hooks or schema fabrication. Native preview
 requires a separately documented V1/V2 routing split rather than claiming the old
 runtime predicate still runs through current API. No passing evidence credited
 for these active packages yet.
+
+### Review Closure At 5aba7e0
+
+Exact overlay `successor-coverage-496.json` now covers496 original identities;
+834 remain. **486 are direct current-successor passes;10 are explicitly authentic
+pinned V1 passes with separately qualified current V2 API equivalence.** The latter
+are not mislabeled current passes of unchanged V1 routing. Overlay records both
+raw XML hashes and the changed environment/profile predicate limitation.
+
+Since285: retained-engine147 (`41d1e80`,233pass1existing skip399.472s), retained
+accounting/dispatch41 (`da2c8cd`,130pass4existing skips76.955s), migration3 (`80c6969`,
+9pass77.578s including one previously credited commerce case), current media10
+(`1c0a8aa`,14pass12.643s), native planning10 (`33bb66e`, authentic pinned10pass21.19s
+plus current10+consent16=26pass91.583s). All independently reviewed; exact original
+XML identity intersections, not cohort totals, determine closure. Earlier overlays
+remain unchanged. Initial import-cycle, old-pin privacy and closed-count failures
+remain recorded in their package ledgers.
+
+Successor historical collection now has four wrappers/259 child nodes. The three
+original manifests remain byte-identical. Original frozen W1 and its three-wrapper/
+249-child candidate are still bound to original source/tool and were not rewritten.
+Final partition+mapping71pass5.920s qualified the additive successor contract.
+
+Integrated whole Ruff, bare mypy1134, standalone plugin mypy1, and diff checks passed
+at5aba7e0. No current aggregate or original three historical batches were rerun.
+Next:42 current TikTok linked reads;95 narrowly classified retained-engine cases;
+remaining21 campaign review with genuine source records; default synthetic restore
+CLI repair with current verification (not a test-only replacement hiding broken
+CLI); separately designed configured API historical/current split. No product
+expansion or owner action is needed for these routine regression repairs.

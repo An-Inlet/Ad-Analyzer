@@ -84,6 +84,9 @@ PROFILES = {
     "reported_planning_original": _test(
         "reported_planning_original_fixture", "reported_planning_original_seed_driver"
     ),
+    "reported_planning_relative_original": _test(
+        "reported_planning_relative_fixture", "reported_planning_relative_seed_driver"
+    ),
     "candidate_receipt": _test("candidate_receipt_fixture", "candidate_receipt_seed_driver"),
     "feedback_erasure": _test("feedback_erasure_retained_fixture", "feedback_erasure_seed_driver"),
     "candidate_dual": _test("candidate_worker_fixture", "candidate_worker_seed_driver"),

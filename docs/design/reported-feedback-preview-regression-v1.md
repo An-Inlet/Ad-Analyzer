@@ -128,3 +128,36 @@ overlapping counts, no production or full-suite success claim from this proposal
 Read-only source and policy inspection only. No tests or production edits were
 performed for this document. The original failed-node evidence remains under
 `/workspace/inlet-evidence/20261009/w1-failure-classification/failed-nodes.json`.
+
+## Closed Planning-Only Graph Delta (For Review Before B/C Implementation)
+
+Add a dedicated `ExpectedPlanningConfirmation` test-only expectation, default off,
+not an arbitrary callback/table allowlist. Its one-shot `bind(db, mandate_id,
+revision)` is invoked only after actual `consent_budget_mandate` and successful
+`checked_planning_limits`; bind requires the original workspace/goal/account and
+captures the exact new mandate/revision/preparation/PlanningConsent scalar/document
+rows. Reject original mandate ID, revision other than one, active state, absent or
+inconsistent preparation/confirmation, or any execution consent for the new ID.
+
+The outer original context accepts this closed expectation as mutually exclusive
+with `ExpectedUnknownReadback`; strict default behavior stays byte-for-byte equal.
+At exit, all original `effect_graph` rows must equal the pre-yield snapshot. Exactly
+one new `provider_execution_mandates` row and one matching
+`provider_execution_revisions` row may equal the bound records. Every other
+provider table and mandate_actions remains exactly equal, including old consents,
+responses, receipts, attempts, reservations and runs. Preparation and PlanningConsent
+are additionally bound to that exact reference and digest, with no unbound rows.
+No authority derived from copied expected JSON: bind follows the real checker and
+exit independently validates structural bindings/canonical digests.
+
+Tests that intentionally invalidate/remove the current planning confirmation use a
+separate narrow negative fixture assertion outside this strict positive expectation;
+do not add arbitrary expected deletion/mutation knobs. Existing revision/capsule
+privacy tests must be inspected for actual deletion of the new planning rows;
+if they do erase them, freeze an exact semantic-erasure outcome first rather than
+relaxing this equality contract. New-row mutation/revision acceptance is not part
+of this initial closed expectation.
+
+Coordinate the optional parameter and finally branch with the capacity author's
+SourceLifetime integration. Do not modify extraction lifetime, URL validation,
+strict original scalar interface or historical driver to implement this delta.

@@ -76,3 +76,24 @@ November 3/4 synthetic clocks across identity, paid/native freshness, goal bindi
 and database wall time. Existing guards, TTLs and frozen dates cannot be changed to
 make the fixture pass. See `design/planning-next-quality-acceptance-v1.md`.
 All quality cases and expert gates remain partial/unfulfilled.
+
+
+## Successor Investigations
+
+Reviewed docs-only Google investigation `8dee44e` records three existing limits:
+raw missing fields are normalized to zero; selected-action totals cannot be equated
+with legacy aggregate totals; current seven-day completions cannot prove full
+August/September windows. Official provider documentation also says action-segmented
+reports suppress zero-conversion rows. Missing rows therefore remain unavailable,
+not explicit observed zero. See `design/planning-google-selected-event-proposal-v1.md`.
+This review accepts the evidence and proposal for discussion, not its new collection,
+selection, storage or consumer architecture. No implementation or tests accompanied
+it; no Q01/Q02 completion claim follows.
+
+Static test inventory additionally traced legacy mandate-bound diagnostic reads,
+Meta budget acquisition and retained archive fixtures into guarded approval setup.
+These are candidates for terminal-failure classification, not newly reproduced
+failures. Mandate-binding negative tests must remain intact; archive cases whose
+bodies execute historical optimizations require historical production/current-read
+separation. Existing bounded historical fixtures are not failures merely because
+they import old setup modules. No blanket fixture substitution is approved.

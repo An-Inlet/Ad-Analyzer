@@ -45,6 +45,8 @@ def emitted(db: Session, configuration: Settings, tmp_path: Path):  # type: igno
 
 
 @pytest.mark.parametrize("kind", ["budget", "pause"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_actual_capture_preserves_normalized_bytes(kind: str) -> None:
     adapter, _, request, ctx = setup(kind)
     response = adapter.apply_once(request, ctx, request.dispatched_at)
@@ -57,6 +59,8 @@ def test_actual_capture_preserves_normalized_bytes(kind: str) -> None:
 
 
 @pytest.mark.parametrize("mode", ["timeout", "foreign", "partial_error", "async", "empty", "extra"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_no_capture_for_nonexact_original_success(mode: str) -> None:
     adapter, server, request, ctx = setup()
 

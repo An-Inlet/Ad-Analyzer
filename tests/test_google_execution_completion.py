@@ -155,6 +155,8 @@ def test_real_api_completion_historical_authority_and_unknown_hold(
 
 
 @pytest.mark.parametrize("mode", ["duplicate_json", "deep", "partial", "async"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_real_wire_ambiguous_success_does_not_produce_capture(mode: str) -> None:
     from app.executors.google_publication import GooglePublicationHTTP
     from app.publication.google_execution_completion_contracts import GoogleCapturedCreationResponse

@@ -57,6 +57,8 @@ def graph(
     return adapter, requests, receipts, context
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_linked_disabled_graph_does_not_require_post_id_before_review() -> None:
     server = TikTokServer()
     _, requests, receipts, _ = graph(server)
@@ -83,6 +85,8 @@ def test_exact_linked_disabled_graph_does_not_require_post_id_before_review() ->
         {"operation_status": "ENABLE"},
     ],
 )
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_exact_readback_conflicts(change: dict[str, Any]) -> None:
     server = TikTokServer()
     adapter, requests, receipts, context = graph(server)
@@ -96,6 +100,8 @@ def test_exact_readback_conflicts(change: dict[str, Any]) -> None:
     assert adapter.read_back(request, response, context, NOW).outcome == "conflict"
 
 
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_unknown_response_reconciliation_never_replays_and_expired_context_has_no_io() -> None:
     server = TikTokServer()
     adapter, requests, _, context = graph(server)
@@ -120,6 +126,8 @@ def test_unknown_response_reconciliation_never_replays_and_expired_context_has_n
     ],
     ids=["duplicate", "nonfinite", "deep"],
 )
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_malformed_wire_response_is_sanitized_unknown_without_retry(raw: bytes) -> None:
     calls = []
 

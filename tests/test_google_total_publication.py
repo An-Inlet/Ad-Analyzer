@@ -100,6 +100,8 @@ def test_exact_total_contract_rejects_mismatch(failure: str) -> None:
 
 
 @pytest.mark.parametrize("failure", [None, "daily", "amount", "period", "shared", "missing"])
+@pytest.mark.retained_execution
+@pytest.mark.usefixtures("retained_execution_engine")
 def test_actual_total_budget_http_readback(failure: str | None) -> None:
     plan = compile_google(total_review())
     request = materialize_google(plan, "c" * 32, "budget", {}, {}, uuid4().hex, NOW)

@@ -22,7 +22,7 @@ from app.publication.execution_models import (
 )
 from scripts.inlet_producer_source_lifetime import SourceLifetime
 from scripts.reset_disposable_postgres import validate_disposable_url
-from sqlalchemy import Engine, inspect, select, text
+from sqlalchemy import Engine, func, inspect, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -89,6 +89,9 @@ class ExpectedPlanningConfirmation:
         after = effect_graph(engine)
         if self._rows is None:
             assert after == before
+            with Session(engine) as db:
+                for model in (BudgetMandatePreparationRow, PlanningConsentRow):
+                    assert db.scalar(select(func.count()).select_from(model)) == 0
             return
         assert self._ids == ids
         expected = deepcopy(before)
@@ -124,6 +127,10 @@ def retained_reported_planning_original_fixture(
         assert re.fullmatch(r"inlet_test_[a-f0-9]{32}", target)
     assert all(not rows for rows in effect_graph(engine).values())
     tables = set(inspect(engine).get_table_names())
+    with engine.connect() as empty_check:
+        for table in sorted(tables - {"alembic_version"}):
+            quoted = engine.dialect.identifier_preparer.quote(table)
+            assert empty_check.execute(text(f"SELECT 1 FROM {quoted} LIMIT 1")).first() is None
     root = Path(__file__).resolve().parents[1]
     with SourceLifetime.open("reported_planning_original", artifacts) as lifetime:
         snapshot = lifetime.source

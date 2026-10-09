@@ -62,3 +62,15 @@ Next: independent review of this coherent fixture; then genuine baseline/current
 API mismatch reproduction and the already reviewed narrow checked_planning_limits
 replacement, followed by the remaining exact current preview/revision consumers.
 No aggregate, live traffic, hosted action, production execution or deployment.
+
+## Reviewed Guard Tightening
+
+Parent now checks every actual table except alembic_version is empty before child
+startup, matching the existing child check. Unbound expectations require both
+planning preparation and PlanningConsent tables empty in addition to identical
+provider graph. Two pure negatives substitute only count-query results; no rows,
+identity or authority are persisted.
+
+Final affected both-database probe plus two pure negatives:4passed24.479s
+(`guards.log/xml`). Whole Ruff/bare mypy1179/diff passed again
+(`ruff-guards.log`, `mypy-guards.log`). No dependent consumer or production changes.

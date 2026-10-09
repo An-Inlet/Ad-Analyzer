@@ -261,3 +261,25 @@ at5d0a90d. Next root56 current single-owner/no-receipt candidate consumers reuse
 same reviewed source, excluding receipt/two-owner cases. Configured API34 historical/
 current read split, social two-phase migration and populated reported restore, and
 current acquisition/retry adapter continue under separately reviewed interfaces.
+
+### Current Candidate Evidence And Remaining Restore Graphs
+
+Reviewed9898978→f833fad adds56 exact original failures via12 current consumer
+functions using the unchanged candidate source interface.142pass0skip394.491s
+includes86 overlapping planning-boundary passes; AST confirms original assertions,
+parameters and global fixture unchanged. Whole Ruff/mypy1137/diff passed.
+Reviewed78e9c07→dcf18a6 adds2 exact failures: actual social0057→0059 migration
+with a closed two-phase original producer, and actual native reported graph restore
+with current dependency/privacy/export verification. Both whole affected modules
+plus4 boundary cases7pass2unchanged SQLite native skips121.489s; forced-deadline
+schema cleanup1pass11.492s. Whole Ruff/mypy1146/diff passed. Original protected
+Meta restore remains unchanged. These are current DDL/read verification, not
+retained-only test markers or missing-table stubs.
+
+Exact overlay778 has768 direct successor passes+10 historical/current-equivalence;
+552 remain. Combined Ruff/mypy1142/diff previously passed at5d0a90d. A guessed
+optional standalone-plugin command targeted a nonexistent tools path and failed
+before checking anything; no standalone plugin pass is claimed from that command.
+Current next packages: worker ownership12, exact receipt reconciliation2, reported
+acquisition/retry28, and configured API historical/current34 split with strict
+causal status/detail assertions. Full aggregate remains the frozen failed run.

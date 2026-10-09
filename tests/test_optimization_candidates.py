@@ -37,6 +37,9 @@ from sqlalchemy.orm import Session
 
 from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
 from tests.candidate_receipt_fixture import receipt_candidate_source as receipt_candidate_source
+from tests.candidate_worker_fixture import (
+    current_dual_candidate_read as current_dual_candidate_read,
+)
 from tests.test_commerce_measurement import NOW, FakeMeasurement, source
 from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -585,28 +588,22 @@ def test_actual_association_cannot_register_as_measured_learning(
         assert db.scalar(select(func.count()).select_from(CandidateResult)) == 0
 
 
+@pytest.mark.planning_boundary
 def test_failed_tenant_does_not_starve_other_owned_read(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    current_dual_candidate_read: tuple[Engine, dict[str, Any]],
 ) -> None:
-    from tests import test_google_action_plans as fixtures
-    from tests.test_mandates import seed
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
 
-    monkeypatch.setattr(
-        fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "first", **kwargs)
-    )
+    customer_engine, ids = current_dual_candidate_read
     with Session(customer_engine) as db:
-        first, work1, observation1, _, runtime1, _ = fixture(db, configuration, tmp_path / "first")
+        first, work1, observation1, _, runtime1, _ = load_candidate_read_fixture(db, ids["first"])
         first_id = s.enqueue(db, first, work1, runtime1).id
-    monkeypatch.setattr(
-        fixtures, "seed", lambda db, config, **kwargs: seed(db, config, "second", **kwargs)
-    )
     with Session(customer_engine) as db:
-        second, work2, observation2, _, runtime2, _ = fixture(
-            db, configuration, tmp_path / "second"
-        )
+        second, work2, observation2, _, runtime2, _ = load_candidate_read_fixture(db, ids["second"])
         s.enqueue(db, second, work2, runtime2)
 
     def reader(db, scope, now):  # type: ignore[no-untyped-def]

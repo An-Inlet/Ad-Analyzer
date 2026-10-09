@@ -10,13 +10,17 @@ from app.settings import Settings
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.candidate_current_fixture import current_candidate_read as current_candidate_read
+from tests.candidate_worker_fixture import (
+    current_dual_candidate_read as current_dual_candidate_read,
+)
 from tests.test_customer_identity import customer_engine as customer_engine
-from tests.test_optimization_candidates import fixture
 from tests.test_shopify_sales import configuration as configuration
 
 
 @pytest.mark.parametrize("batch_limit", [1, 10])
 @pytest.mark.parametrize("failure", ["raise", "none"])
+@pytest.mark.planning_boundary
 def test_distinct_scoped_lifetimes_survive_first_admission_failure(
     customer_engine: Engine,
     configuration: Settings,
@@ -24,18 +28,16 @@ def test_distinct_scoped_lifetimes_survive_first_admission_failure(
     monkeypatch: pytest.MonkeyPatch,
     batch_limit: int,
     failure: str,
+    current_dual_candidate_read: tuple[Engine, dict[str, Any]],
 ) -> None:
-    from tests import test_google_action_plans as fixtures
-    from tests.test_mandates import seed
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
 
+    customer_engine, ids = current_dual_candidate_read
     runtimes = {}
     originals = {}
     for name in ("first", "second"):
-        monkeypatch.setattr(
-            fixtures, "seed", lambda db, config, name=name, **kw: seed(db, config, name, **kw)
-        )
         with Session(customer_engine) as db:
-            principal, work, _, _, runtime, _ = fixture(db, configuration, tmp_path / name)
+            principal, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids[name])
             job = service.enqueue(db, principal, work, runtime)
             runtimes[job.workspace_id] = runtime
             originals[job.workspace_id] = (job.actor_id, job.auth_session_digest)
@@ -83,10 +85,12 @@ def test_distinct_scoped_lifetimes_survive_first_admission_failure(
     assert len(set(originals.values())) == 2
 
 
+@pytest.mark.planning_boundary
 def test_revoked_first_job_yields_to_same_workspace_next_tick(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
+    current_candidate_read: tuple[Engine, Any],
 ) -> None:
     from dataclasses import replace
     from datetime import timedelta
@@ -95,10 +99,12 @@ def test_revoked_first_job_yields_to_same_workspace_next_tick(
     from app.customers.models import CustomerSession
     from app.optimization_candidates.models import CandidateJob
 
+    from tests.candidate_read_retained_fixture import load_candidate_read_fixture
     from tests.test_execution_session_authorizer import guard
 
+    customer_engine, ids = current_candidate_read
     with Session(customer_engine) as db:
-        first, work, _, _, runtime, _ = fixture(db, configuration, tmp_path)
+        first, work, _, _, runtime, _ = load_candidate_read_fixture(db, ids)
         first_job = service.enqueue(db, first, work, runtime)
         first_id = first_job.id
         first_job.due_at = runtime.clock() - timedelta(seconds=1)

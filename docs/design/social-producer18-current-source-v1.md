@@ -43,7 +43,9 @@ not child-selected. No arbitrary serialized publication plan is trusted as autho
 
 Factor only current `test_social_customer_producer.fixture`'s existing post-ready
 body (from `run = db.get(...)` through return tuple) into a private helper accepting
-current db, wid, runid, actor, store and native. The original public fixture keeps
+current db, wid, runid, actor, store, native and the closed Meta/TikTok provider.
+The provider must match the actual current owned plan/account; the original fixture
+passes its unchanged provider. No global or guessed default replaces that input. The original public fixture keeps
 its signature and exact original guarded ready block, then delegates to this helper.
 No existing caller gains a new bypass flag or alternate runtime. Prove the extracted
 body AST-identical and characterize unchanged original caller with a bounded retained

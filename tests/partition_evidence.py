@@ -257,6 +257,7 @@ def historical(
         "initial_forward": 88,
         "initial_native": 10,
         "configured_api": 34,
+        "runtime_api": 40,
     }:
         raise ValueError("historical batch contract mismatch")
     seen: set[str] = set()
@@ -284,7 +285,7 @@ def historical(
                 pin=PIN,
             )
         )
-    if len(seen) != 293:
+    if len(seen) != 333:
         raise ValueError("historical union mismatch")
     return entries
 

@@ -22,7 +22,7 @@ from tests.test_shopify_sales import configuration as configuration
 
 @pytest.mark.parametrize("platform", ["google_ads", "meta_ads"])
 @pytest.mark.parametrize("mode", ["budget", "pause", "unknown"])
-def test_configured_prepare_consent_exact_mutation(
+def retained_test_configured_prepare_consent_exact_mutation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -122,7 +122,7 @@ def test_configured_prepare_consent_exact_mutation(
 
 
 @pytest.mark.parametrize("change", ["session", "source", "generation"])
-def test_revocation_during_actual_native_http_rolls_back_preparation(
+def retained_test_revocation_during_actual_native_http_rolls_back_preparation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -184,7 +184,7 @@ def test_revocation_during_actual_native_http_rolls_back_preparation(
     assert control["opened"] == control["closed"]
 
 
-def test_configured_exact_consent_and_technical_route_bypass_denied(
+def retained_test_configured_exact_consent_and_technical_route_bypass_denied(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -282,7 +282,7 @@ def test_configured_exact_consent_and_technical_route_bypass_denied(
 
 
 @pytest.mark.parametrize("change", ["native_state", "qualification_revision"])
-def test_later_consent_rejects_meaningful_change(
+def retained_test_later_consent_rejects_meaningful_change(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -366,7 +366,7 @@ def test_real_transport_scenario_denies_before_factory_or_oauth(
     assert not wire.calls and not wire.google.writes
 
 
-def test_prepare_failure_after_both_inserts_is_atomic(
+def retained_test_prepare_failure_after_both_inserts_is_atomic(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

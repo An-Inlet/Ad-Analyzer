@@ -105,8 +105,8 @@ def test_exact_class_parameter_mapping_disjoint_file_balance() -> None:
     assert sum(map(len, groups)) == len(set.union(*groups))
     assert result["current_shards"][0]["files"] == ["tests/test_alpha.py"]
     assert len(result["current_shards"][0]["node_refs"]) == 2
-    assert len(result["historical"]) == 5
-    assert sum(x["child_count"] for x in result["historical"]) == 293
+    assert len(result["historical"]) == 6
+    assert sum(x["child_count"] for x in result["historical"]) == 333
 
 
 @pytest.mark.parametrize(
@@ -485,11 +485,11 @@ def test_oversized_same_display_distinct_suffix_maps_compactly() -> None:
     assert raw["items"][-1]["node"]["display"] == raw["items"][-2]["node"]["display"]
     assert raw["items"][-1]["node"]["utf8_bytes"] == raw["items"][-2]["node"]["utf8_bytes"]
     result = candidate(raw, root)
-    assert len(result["observations"]) == 8
+    assert len(result["observations"]) == 9
     assert len(json.dumps(result).encode()) < 20_000
     refs = [n for group in result["current_shards"] for n in group["node_refs"]]
     assert len(refs) == len(set(refs)) == 3
-    assert len(result["identity_index"]) == 8
+    assert len(result["identity_index"]) == 9
 
 
 @pytest.mark.parametrize("change", ["digest", "length", "same_digest", "duplicate", "class"])
@@ -551,5 +551,24 @@ def test_fifth_manifest_requires_exact_captured_provenance(tmp_path: Path, chang
         replaced = tmp_path / path.name
         replaced.write_text(json.dumps(nodes))
         batches = {**BATCHES, "configured_api": (replaced, count)}
+        with pytest.raises(ValueError, match="historical manifest provenance"):
+            historical(batches, HistoricalProvenance.model_validate(raw["historical_provenance"]))
+
+@pytest.mark.parametrize("change", ["missing_sixth", "substituted_sixth"])
+def test_sixth_manifest_requires_exact_captured_provenance(tmp_path: Path, change: str) -> None:
+    raw, root = evidence()
+    path, count = BATCHES["runtime_api"]
+    assert count == 40
+    relative = str(path.relative_to(Path(__file__).resolve().parents[1]))
+    if change == "missing_sixth":
+        del raw["historical_provenance"]["manifests"][relative]
+        with pytest.raises(ValueError, match="historical source provenance"):
+            candidate(raw, root)
+    else:
+        nodes = json.loads(path.read_text())
+        nodes[0] = "tests/test_substituted.py::test_other[sqlite]"
+        replaced = tmp_path / path.name
+        replaced.write_text(json.dumps(nodes))
+        batches = {**BATCHES, "runtime_api": (replaced, count)}
         with pytest.raises(ValueError, match="historical manifest provenance"):
             historical(batches, HistoricalProvenance.model_validate(raw["historical_provenance"]))

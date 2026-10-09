@@ -21,7 +21,7 @@ from tests.test_shopify_sales import configuration as configuration
 from tests.tiktok_runtime_fixture import configured_tiktok_customer
 
 
-def test_configured_custom_identity_cannot_create_future_review(
+def retained_test_configured_custom_identity_cannot_create_future_review(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -200,7 +200,7 @@ def test_tiktok_configuration_boundary(
     assert control["opened"] == control["closed"]
 
 
-def test_meta_tiktok_composition_is_lazy_and_environment_exact(
+def retained_test_meta_tiktok_composition_is_lazy_and_environment_exact(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

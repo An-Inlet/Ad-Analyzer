@@ -15,7 +15,8 @@ FORWARD = MANIFEST.parent / "nodes-forward-2155ff3.json"
 BATCHES = {"original": (MANIFEST, 142), "ui_supplement": (SUPPLEMENT, 19),
            "initial_forward": (FORWARD, 88),
            "initial_native": (MANIFEST.parent / "nodes-initial-native-2155ff3.json", 10),
-           "configured_api": (MANIFEST.parent / "nodes-configured-api-2155ff3.json", 34)}
+           "configured_api": (MANIFEST.parent / "nodes-configured-api-2155ff3.json", 34),
+           "runtime_api": (MANIFEST.parent / "nodes-runtime-api-2155ff3.json", 40)}
 
 
 def qualify(root: Path, artifacts: Path, batch: str) -> None:

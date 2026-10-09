@@ -33,7 +33,7 @@ def configured(
     replicas: Any,
     ids: OptimizationSourceIds,
 ) -> Any:
-    platform = "google_ads"
+    platform = ids.provider
     alice, _, _ = replicas
     monkeypatch.setattr(settings, "google_customer_client_id", "offline-client")
     monkeypatch.setattr(settings, "google_customer_client_secret", SecretStr("offline-secret"))
@@ -42,9 +42,21 @@ def configured(
         "google_customer_encryption_key",
         SecretStr(base64.urlsafe_b64encode(b"g" * 32).decode()),
     )
+    monkeypatch.setattr(
+        settings,
+        "meta_token_encryption_key",
+        SecretStr(base64.urlsafe_b64encode(b"m" * 32).decode()),
+    )
     base = f"/api/customer/v1/workspaces/{ids.workspace_id}/execution"
     query = dict(goal_id=ids.goal_id, goal_revision=ids.goal_revision, account_id=ids.account_id)
-    assert login(alice, "configured-google:current-optimization-read") == ids.actor_id
+    assert (
+        login(
+            alice,
+            ("configured-google" if platform == "google_ads" else "configured-meta")
+            + ":current-optimization-read",
+        )
+        == ids.actor_id
+    )
     raw = policy().model_dump()
     for rule in raw["rules"]:
         rule.update(

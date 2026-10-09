@@ -797,5 +797,126 @@
       "tests/test_configured_retained_reads.py::test_current_configured_adverse_read",
       "tests/test_configured_retained_dispatch.py::test_current_meta_configured_dispatch"
     ]
+  },
+  {
+    "original_function": "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation",
+    "preserved_local_callable": "tests/test_configured_optimization_api.py::retained_test_configured_prepare_consent_exact_mutation",
+    "historical_nodes": [
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-budget-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-budget-meta_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-pause-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-pause-meta_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-unknown-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[sqlite-unknown-meta_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-budget-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-budget-meta_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-pause-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-pause-meta_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-unknown-google_ads]",
+      "tests/test_configured_optimization_api.py::test_configured_prepare_consent_exact_mutation[postgres-unknown-meta_ads]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_optimization_boundaries"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation",
+    "preserved_local_callable": "tests/test_configured_optimization_api.py::retained_test_revocation_during_actual_native_http_rolls_back_preparation",
+    "historical_nodes": [
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[sqlite-session]",
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[sqlite-source]",
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[sqlite-generation]",
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[postgres-session]",
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[postgres-source]",
+      "tests/test_configured_optimization_api.py::test_revocation_during_actual_native_http_rolls_back_preparation[postgres-generation]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_optimization_boundaries",
+      "tests/test_runtime_b40_current.py::test_current_optimization_read_invalidation"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_configured_optimization_api.py::test_configured_exact_consent_and_technical_route_bypass_denied",
+    "preserved_local_callable": "tests/test_configured_optimization_api.py::retained_test_configured_exact_consent_and_technical_route_bypass_denied",
+    "historical_nodes": [
+      "tests/test_configured_optimization_api.py::test_configured_exact_consent_and_technical_route_bypass_denied[sqlite]",
+      "tests/test_configured_optimization_api.py::test_configured_exact_consent_and_technical_route_bypass_denied[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_optimization_boundaries"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_configured_optimization_api.py::test_later_consent_rejects_meaningful_change",
+    "preserved_local_callable": "tests/test_configured_optimization_api.py::retained_test_later_consent_rejects_meaningful_change",
+    "historical_nodes": [
+      "tests/test_configured_optimization_api.py::test_later_consent_rejects_meaningful_change[sqlite-native_state]",
+      "tests/test_configured_optimization_api.py::test_later_consent_rejects_meaningful_change[sqlite-qualification_revision]",
+      "tests/test_configured_optimization_api.py::test_later_consent_rejects_meaningful_change[postgres-native_state]",
+      "tests/test_configured_optimization_api.py::test_later_consent_rejects_meaningful_change[postgres-qualification_revision]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_optimization_boundaries"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_configured_optimization_api.py::test_prepare_failure_after_both_inserts_is_atomic",
+    "preserved_local_callable": "tests/test_configured_optimization_api.py::retained_test_prepare_failure_after_both_inserts_is_atomic",
+    "historical_nodes": [
+      "tests/test_configured_optimization_api.py::test_prepare_failure_after_both_inserts_is_atomic[sqlite]",
+      "tests/test_configured_optimization_api.py::test_prepare_failure_after_both_inserts_is_atomic[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_optimization_boundaries"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_tiktok_runtime_api.py::test_configured_custom_identity_cannot_create_future_review",
+    "preserved_local_callable": "tests/test_tiktok_runtime_api.py::retained_test_configured_custom_identity_cannot_create_future_review",
+    "historical_nodes": [
+      "tests/test_tiktok_runtime_api.py::test_configured_custom_identity_cannot_create_future_review[sqlite]",
+      "tests/test_tiktok_runtime_api.py::test_configured_custom_identity_cannot_create_future_review[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_tiktok_local_configuration"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_tiktok_runtime_api.py::test_meta_tiktok_composition_is_lazy_and_environment_exact",
+    "preserved_local_callable": "tests/test_tiktok_runtime_api.py::retained_test_meta_tiktok_composition_is_lazy_and_environment_exact",
+    "historical_nodes": [
+      "tests/test_tiktok_runtime_api.py::test_meta_tiktok_composition_is_lazy_and_environment_exact[sqlite]",
+      "tests/test_tiktok_runtime_api.py::test_meta_tiktok_composition_is_lazy_and_environment_exact[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_composition_is_lazy_and_environment_exact"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
+  },
+  {
+    "original_function": "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation",
+    "preserved_local_callable": "tests/test_tiktok_linked_runtime_api.py::retained_test_configured_linked_creation_then_separate_activation",
+    "historical_nodes": [
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[sqlite-complete]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[sqlite-unknown_creation]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[sqlite-unknown_activation]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[sqlite-media]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[sqlite-confirmation]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[postgres-complete]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[postgres-unknown_creation]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[postgres-unknown_activation]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[postgres-media]",
+      "tests/test_tiktok_linked_runtime_api.py::test_configured_linked_creation_then_separate_activation[postgres-confirmation]"
+    ],
+    "current_coverage": [
+      "tests/test_runtime_b40_current.py::test_current_tiktok_local_configuration"
+    ],
+    "reason": "Original execution preparation/consent/activation assertions preserved at exact PIN; current genuine source reads and explicit planning denials are separate."
   }
 ]

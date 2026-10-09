@@ -65,6 +65,8 @@ def test_production_named_database_rejected_before_io(
             str(tmp_path / "ids.json"),
         ],
     )
+    if kind == "optimization":
+        monkeypatch.setattr(sys, "argv", [*sys.argv, "google_ads"])
     with pytest.raises(SystemExit) as failure:
         if entry == "parent":
             context = (
@@ -78,3 +80,32 @@ def test_production_named_database_rejected_before_io(
             child.main()
     assert failure.value.code == 1 and invoked == []
     assert not (tmp_path / "ids.json").exists()
+
+
+@pytest.mark.parametrize("entry", ["parent", "child"])
+def test_optimization_provider_dispatch_is_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    entry: str,
+) -> None:
+    from tests import optimization_source_retained_fixture as parent
+    from tests.fixtures.retired_execution import optimization_source_seed_driver as child
+
+    invoked: list[bool] = []
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        invoked.append(True)
+        raise AssertionError("unsupported provider must fail before IO")
+
+    monkeypatch.setattr(parent, "extract", forbidden)
+    monkeypatch.setattr(child, "create_engine", forbidden)
+    monkeypatch.setattr(sys, "argv", ["driver", "invalid", str(tmp_path / "ids"), "tiktok_ads"])
+    with pytest.raises(AssertionError):
+        if entry == "parent":
+            with parent.retained_optimization_source_fixture(
+                cast(Engine, object()), tmp_path / "unused", cast(Any, "tiktok_ads")
+            ):
+                pytest.fail("unsupported provider yielded")
+        else:
+            child.main()
+    assert invoked == [] and not (tmp_path / "unused").exists()

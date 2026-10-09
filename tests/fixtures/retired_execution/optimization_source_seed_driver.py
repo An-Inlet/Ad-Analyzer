@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session
 
 
 def main() -> None:
-    target, output = sys.argv[1:]
+    target, output, provider = sys.argv[1:]
+    assert provider in {"google_ads", "meta_ads"}
     assert os.environ["INLET_RETIRED_EXECUTION_CHILD"] == (
         "2155ff3e3ab00cd62057dd86cb49d45359d4f49f"
     )
@@ -51,9 +52,9 @@ def main() -> None:
             clients = cast(Any, replicas).__wrapped__(engine, patch)
             config = cast(Any, configuration).__wrapped__()
             alice, base, query, wire, control = configured(
-                engine, config, Path(output).parent / "media", patch, clients, "google_ads"
+                engine, config, Path(output).parent / "media", patch, clients, provider
             )
-            assert wire.calls == [] and not wire.google.writes
+            assert wire.calls == [] and not wire.google.writes and not wire.meta.posts
             assert control["factory"] == control["opened"] == 0
             operating = OptimizationOperatingPolicyV1.model_validate_json(
                 (Path(output).parent / "media" / "optimization-policy.json").read_text()
@@ -62,6 +63,7 @@ def main() -> None:
                 session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
                 assert session
                 data = dict(
+                    provider=provider,
                     workspace_id=int(base.split("/workspaces/")[1].split("/")[0]),
                     actor_id=session.user_id,
                     account_id=query["account_id"],

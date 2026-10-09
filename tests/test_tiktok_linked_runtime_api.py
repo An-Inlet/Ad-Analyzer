@@ -24,7 +24,7 @@ from tests.tiktok_linked_runtime_fixture import configured_linked_customer
 @pytest.mark.parametrize(
     "scenario", ["complete", "unknown_creation", "unknown_activation", "media", "confirmation"]
 )
-def test_configured_linked_creation_then_separate_activation(
+def retained_test_configured_linked_creation_then_separate_activation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

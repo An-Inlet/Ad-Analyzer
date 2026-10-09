@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from app import advertising_capabilities
 from app.customers.models import CustomerMembership, CustomerUser
@@ -28,6 +29,7 @@ from tests.test_commerce_measurement import NOW
 
 @dataclass(frozen=True)
 class OptimizationSourceIds:
+    provider: Literal["google_ads", "meta_ads"]
     workspace_id: int
     actor_id: str
     account_id: int
@@ -57,7 +59,9 @@ def no_effects(engine: Engine) -> None:
 def retained_optimization_source_fixture(
     customer_engine: Engine,
     artifacts: Path,
+    provider: Literal["google_ads", "meta_ads"] = "google_ads",
 ) -> Iterator[tuple[Engine, OptimizationSourceIds, Path]]:
+    assert provider in {"google_ads", "meta_ads"}
     artifacts.mkdir(parents=True)
     engine = customer_engine
     if engine.dialect.name == "sqlite":
@@ -92,7 +96,11 @@ def retained_optimization_source_fixture(
             driver = root / "tests/fixtures/retired_execution/optimization_source_seed_driver.py"
             lifetime.child_started()
             code = run_bounded(
-                [sys.executable, str(driver), target, str(output)], snapshot, env, log, 180
+                [sys.executable, str(driver), target, str(output), provider],
+                snapshot,
+                env,
+                log,
+                180,
             )
             lifetime.after_reaped(code)
         assert code == 0, log.read_text()[-6000:]
@@ -100,6 +108,7 @@ def retained_optimization_source_fixture(
         raw = json.loads(output.read_text())
         assert type(raw) is dict
         assert set(raw) == set(OptimizationSourceIds.__dataclass_fields__)
+        assert raw["provider"] == provider
         for name in ("workspace_id", "account_id", "goal_revision"):
             assert type(raw[name]) is int and raw[name] > 0
         for name in ("actor_id", "goal_id"):
@@ -121,7 +130,7 @@ def retained_optimization_source_fixture(
             definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
             assert definition.budget_start == NOW.date()
             scope = account(db, ids.workspace_id, ids.account_id)
-            assert scope.account.platform == "google_ads"
+            assert scope.account.platform == provider
         assert set(inspect(engine).get_table_names()) == tables
         no_effects(engine)
         try:

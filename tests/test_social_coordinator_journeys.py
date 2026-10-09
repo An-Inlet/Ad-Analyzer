@@ -45,7 +45,7 @@ from app.publication.social_compiler import compile_social
 from app.publication.social_contracts import SocialProviderContext, SocialPublicationReview
 from app.settings import Settings
 from app.sources.models import SourceConnection
-from app.workspaces.models import WorkspaceIntegration
+from app.workspaces.models import Workspace, WorkspaceIntegration
 from fastapi import HTTPException
 from pydantic import SecretStr
 from sqlalchemy import Engine, func, select
@@ -529,19 +529,23 @@ def test_authority_change_after_claim_prevents_provider_call(
         assert reservation is not None and reservation.state == "held"
 
 
+@pytest.mark.planning_boundary
 def test_real_media_reader_rejects_foreign_scope_and_changed_review(
     customer_engine: Engine, configuration: Settings, tmp_path: Path
 ) -> None:
     with Session(customer_engine) as db:
-        policy, actor = setup(db, configuration, tmp_path)
+        workspace = Workspace(slug="scoped-media", name="Scoped Media", client_name="Media")
+        db.add(workspace)
+        db.flush()
+        wid, actor = workspace.id, "owner"
         store = LocalMediaStore(tmp_path)
-        media = source.upload(db, policy.workspace_id, actor, png(), store, NOW)
+        media = source.upload(db, wid, actor, png(), store, NOW)
         reader = ScopedProviderMediaReader(db, store)
-        binding = reader.binding(policy.workspace_id, media.id)
-        assert reader.read_verified(policy.workspace_id, binding) == png()
+        binding = reader.binding(wid, media.id)
+        assert reader.read_verified(wid, binding) == png()
         with pytest.raises(ValueError):
-            reader.read_verified(policy.workspace_id + 999, binding)
+            reader.read_verified(wid + 999, binding)
         with pytest.raises(ValueError):
             reader.read_verified(
-                policy.workspace_id, binding.model_copy(update={"validation_digest": "f" * 64})
+                wid, binding.model_copy(update={"validation_digest": "f" * 64})
             )

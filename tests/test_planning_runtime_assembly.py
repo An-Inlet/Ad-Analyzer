@@ -11,8 +11,11 @@ from fastapi import HTTPException
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from tests.planning_runtime_fixture import configured_journey
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.configured_planning_read_fixture import configured_journey
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_planning_journey_fixture import PlanningOrigin
+from tests.reported_planning_journey_fixture import planning_origin as planning_origin
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_customer_identity import replicas as replicas
 from tests.test_shopify_sales import configuration as configuration
 
@@ -23,10 +26,19 @@ def test_actual_configured_api_worker_native_preview(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
+    planning_origin: PlanningOrigin,
 ) -> None:
     with Session(customer_engine) as db:
         alice, provider, wid, principal, runtime, _, value, _, requests, profile = (
-            configured_journey(db, customer_engine, configuration, tmp_path, monkeypatch, replicas)
+            configured_journey(
+                db,
+                customer_engine,
+                configuration,
+                tmp_path,
+                monkeypatch,
+                replicas,
+                origin=planning_origin,
+            )
         )
         assert runtime.initial.native is None and runtime.initial.profile == profile
         root = f"/api/customer/v1/workspaces/{wid}/initial-planning"
@@ -62,6 +74,7 @@ def test_configured_preview_denies_changed_authority(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
+    planning_origin: PlanningOrigin,
     change: str,
 ) -> None:
     from datetime import timedelta
@@ -72,7 +85,15 @@ def test_configured_preview_denies_changed_authority(
 
     with Session(customer_engine) as db:
         alice, provider, wid, principal, _, job, value, clock, requests, profile = (
-            configured_journey(db, customer_engine, configuration, tmp_path, monkeypatch, replicas)
+            configured_journey(
+                db,
+                customer_engine,
+                configuration,
+                tmp_path,
+                monkeypatch,
+                replicas,
+                origin=planning_origin,
+            )
         )
         count = len(requests)
         if change == "session":

@@ -32,7 +32,9 @@ from tests.test_planning_customer_boundary import owned_workspace
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("page", ["execution", "optimization", "social-configuration"])
+@pytest.mark.parametrize(
+    "page", ["execution", "optimization", "social-configuration", "tiktok-linked"]
+)
 def test_current_history_pages_preserve_scope_and_have_no_action_controls(
     customer_engine: Engine, replicas: Any, monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path, page: str,
@@ -60,7 +62,7 @@ def test_current_history_pages_preserve_scope_and_have_no_action_controls(
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path")
-        if page == "social-configuration" and path == "/app/social-configuration":
+        if page in {"social-configuration", "tiktok-linked"} and path == f"/app/{page}":
             messages: list[Any] = []
 
             async def capture(message: Any) -> None:
@@ -127,7 +129,7 @@ def test_current_history_pages_preserve_scope_and_have_no_action_controls(
         "--disable-background-networking", "--no-first-run", "--disable-extensions",
         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
         f"--user-data-dir={tmp_path / 'browser'}",
-        origin + ("/app/social-configuration" if page == "social-configuration"
+        origin + (f"/app/{page}" if page in {"social-configuration", "tiktok-linked"}
                   else "/__fixture__/start"),
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

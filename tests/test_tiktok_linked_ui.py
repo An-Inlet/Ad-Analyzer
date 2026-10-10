@@ -1,4 +1,4 @@
-"""Real DOM/media tests with response fixtures; not configured API qualification."""
+"""Detached current component/media tests and current history route; no live qualification."""
 
 import functools
 import hashlib
@@ -20,7 +20,7 @@ from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_portal import portal_executable
 
 
-def test_linked_shell_and_javascript() -> None:
+def historical_contract_linked_shell_and_javascript() -> None:
     with TestClient(app) as client:
         response = client.get("/app/tiktok-linked")
         assert response.status_code == 200
@@ -34,10 +34,12 @@ def test_linked_shell_and_javascript() -> None:
 
 def test_linked_dom_exact_media_consent_and_stale_responses(tmp_path: Path, encoded: Any) -> None:
     browser = portal_executable("chromium", "chromium-browser", "google-chrome")
+    raw = Path("tests/fixtures/retained-tiktok-linked.html").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        "7432269f40afd4254399841fa46fe5df374d3eb94ec5cbbf45cb768b2bbfbabd"
+    )
     (tmp_path / "index.html").write_text(
-        Path("app/portal/static/tiktok-linked.html")
-        .read_text()
-        .replace("/app/assets/tiktok-linked.mjs", "/driver.mjs")
+        raw.decode("utf-8").replace("/app/assets/tiktok-linked.mjs", "/driver.mjs")
     )
     assets = tmp_path / "app/assets"
     assets.mkdir(parents=True)
@@ -110,3 +112,18 @@ def test_linked_dom_exact_media_consent_and_stale_responses(tmp_path: Path, enco
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+def test_current_linked_route_is_history_only() -> None:
+    with TestClient(app) as client:
+        response = client.get("/app/tiktok-linked")
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        assert "unsafe-inline" not in response.headers["content-security-policy"]
+        assert response.content == Path("app/portal/static/advertising-history.html").read_bytes()
+        assert "Commercial Music" not in response.text
+        assert "Advertising History" in response.text
+        assert "<form" not in response.text and "<input" not in response.text
+    subprocess.run(
+        [portal_executable("node"), "--check", "app/portal/static/tiktok-linked.mjs"], check=True
+    )

@@ -1003,5 +1003,17 @@
       "tests/test_financial_budget_period_current.py::test_current_invalid_budget_midnight_goal_and_route_boundaries"
     ],
     "reason": "Retired budget-mandate HTTP converter ordering remains exact pinned original; current authenticated goal flow and persisted-definition converter rejection remain exercised separately from exact current planning-write route denial with no financial effects."
+  },
+  {
+    "original_function": "tests/test_tiktok_linked_ui.py::test_linked_shell_and_javascript",
+    "preserved_local_callable": "tests/test_tiktok_linked_ui.py::historical_contract_linked_shell_and_javascript",
+    "historical_nodes": [
+      "tests/test_tiktok_linked_ui.py::test_linked_shell_and_javascript"
+    ],
+    "current_coverage": [
+      "tests/test_tiktok_linked_ui.py::test_current_linked_route_is_history_only",
+      "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls"
+    ],
+    "reason": "Old actual linked publication shell remains exact historical; current actual route is history-only with original security/cache headers and no action controls."
   }
 ]

@@ -994,3 +994,18 @@ Capacity recovery moved ignored regenerable bytecode only from inactive worktree
 to/tmp (190335120bytes), preserved source/data/evidence; manifest
 `recovery/inactive-bytecode-move-3.json`. Workspace free688MiB at completion; continue
 500MiB heavy-run preflight. All Q packages remain partial and human gates unmet.
+
+## Current Mandate API Scope Two — 2026-10-10
+
+Integrated79aedbe after design32cdd28. Genuine current unapproved draft setup
+preserves full original CSRF/roles/workspace isolation assertions and checks no
+approval/effects.104 passed20.114s (module18 plus86 defaultboundaries); Ruff and
+bare mypy1246/diff pass. Initial nonexistent-test-path command exit4 retained, no
+assertion failure. Source AST proof, logs/XML in
+`/workspace/inlet-evidence/20261010/mandate-api-scope2/`; package ledger
+`docs/inlet-mandate-api-scope2-20261010.md`.
+
+Exact targeted coverage1280/1330 =1160direct +120historical/current;50remain.
+No registry addition (11/369). Frozen aggregate unchanged; no full rerun, hosted
+retry, push or live action. Continue campaignUI2/planreview10/API14 and remaining
+mixed privacy/pilot tests.

@@ -27,7 +27,8 @@ BATCHES = {"original": (MANIFEST, 142), "ui_supplement": (SUPPLEMENT, 19),
            "tiktok_linked_shell": (
                MANIFEST.parent / "nodes-tiktok-linked-shell-2155ff3.json", 1),
            "plan_review_owner": (
-               MANIFEST.parent / "nodes-plan-review-owner-2155ff3.json", 2)}
+               MANIFEST.parent / "nodes-plan-review-owner-2155ff3.json", 2),
+           "highwater_api": (MANIFEST.parent / "nodes-highwater-api-2155ff3.json", 4)}
 
 
 def qualify(root: Path, artifacts: Path, batch: str) -> None:

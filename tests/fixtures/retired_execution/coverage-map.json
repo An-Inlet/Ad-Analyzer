@@ -1027,5 +1027,19 @@
       "tests/test_plan_review_authority.py::test_current_role_permissions_and_guard_default"
     ],
     "reason": "Only original owner approval200 is retired; current all-role edit/default-guard/pause and nonowner403 remain actual current SQL/API, while owner now receives exact planning409 with unchanged graph. Actual PG authorization wait races remain current unchanged."
+  },
+  {
+    "original_function": "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation",
+    "preserved_local_callable": "tests/test_inlet_review_regressions.py::retained_test_rejected_api_claim_preserves_highwater_without_reservation",
+    "historical_nodes": [
+      "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[sqlite-50]",
+      "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[sqlite-110]",
+      "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[postgres-50]",
+      "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[postgres-110]"
+    ],
+    "current_coverage": [
+      "tests/test_current_claim_prevention.py::test_current_rejected_api_claim_preserves_all_financial_rows"
+    ],
+    "reason": "Original rejected synthetic claim commits monotonic highwater; current exact planning denial preserves full financial graph before evaluating observations."
   }
 ]

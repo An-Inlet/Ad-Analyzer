@@ -1,0 +1,6 @@
+[
+  "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[sqlite-50]",
+  "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[sqlite-110]",
+  "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[postgres-50]",
+  "tests/test_inlet_review_regressions.py::test_rejected_api_claim_preserves_highwater_without_reservation[postgres-110]"
+]

@@ -29,7 +29,7 @@ from tests.test_tiktok_sources import configured as configured
 
 
 @pytest.mark.parametrize("observed", [50, 110])
-def test_rejected_api_claim_preserves_highwater_without_reservation(
+def retained_test_rejected_api_claim_preserves_highwater_without_reservation(
     customer_engine: Engine,
     configuration: Settings,
     monkeypatch: pytest.MonkeyPatch,

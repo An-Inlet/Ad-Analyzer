@@ -57,11 +57,30 @@ the already completed frozen preflight. Until then this remains partial validati
 ## Evidence And Status
 
 Evidence and executable local harness:
-`/workspace/inlet-evidence/20261010/w1-partitioned-9d7aa2e/`.
-The controller is running in tool session `31866`; `started.json` identifies its
+`/workspace/inlet-evidence/20261010/w1-partitioned-9d7aa2e-b/`.
+The successor controller is running in tool session `14531`; `started.json` identifies its
 process. Never launch another copy. Consult `progress.json`, `controller-stopped.json`
 or `combined-parent-result.json` before taking further action.
 
 No application, test assertion, frozen checkout or CI workflow changed. No hosted
 retry, purchase, budget increase, deployment, provider call or advertising write.
 Q01–Q16 and human release/usefulness gates remain open.
+
+## First Partition Environment Correction
+
+Attempt A stopped correctly after partition 00: 217 passed, 3 skipped and two
+restore-test failures in 215.00 pytest seconds. Exact terminal identities matched
+all 222 expected cases. Minimum memory headroom was 4,408,606,720 bytes; no
+resource interruption. All 711 supplemental members were archived and verified.
+The attempt, source, database and scratch remain preserved.
+
+Both failures were the same missing launcher setting: native PostgreSQL tools
+are inside `inlet-b01-postgres`, but `INLET_RESTORE_POSTGRES_CONTAINER` was unset.
+Setting this existing supported option resolved the prerequisite: both PostgreSQL
+restore tests passed, with two existing SQLite skips, exit zero in 74.95 seconds.
+No application, assertion or frozen-source change was needed.
+
+Attempt B uses separate evidence, fresh database names and scratch paths, and
+requires the passing restore prerequisite before starting. It carries no passing
+case credit from A and starts the full disjoint union afresh. The safety reserves
+and coverage/archive checks are unchanged.

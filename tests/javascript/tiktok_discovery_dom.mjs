@@ -1,9 +1,10 @@
 // DOM doubles only; configured HTTPS/API acceptance is verified separately.
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import {checkedDiscovery,discoveryIntent,tiktokDiscovery} from '../../app/portal/static/tiktok-discovery.mjs';
 class Element {value='';textContent='';hidden=false;disabled=false;children=[];replaceChildren(...v){this.children=v;this.value='';this.textContent='';}append(...v){this.children.push(...v);}}
-const elements=new Map([...fs.readFileSync('app/portal/static/execution.html','utf8').matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+// Unit-only DOM: the current execution page intentionally serves advertising history.
+const unitIds=['section','result','summary','identities','pixels','notice','account','type','accounts','read'];
+const elements=new Map(unitIds.map(id=>['discovery-'+id,new Element()]));
 globalThis.document={getElementById:id=>elements.get(id),createElement:()=>new Element()};
 globalThis.Option=class extends Element{constructor(label,value){super();this.textContent=label;this.value=value;}};
 const $=id=>elements.get('discovery-'+id),text=e=>[e.textContent,...e.children.map(text)].join(' ');

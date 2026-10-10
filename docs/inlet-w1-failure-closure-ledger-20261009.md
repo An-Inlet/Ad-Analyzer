@@ -1040,3 +1040,36 @@ pytest-current alias historical XML copies were byte-verified and counted once.
 Original frozen aggregate/hash unchanged. Next packages: API14, customer social10,
 feedback privacy4, freshpilot2, two-brandpilot2 and archiveprivacy2. Website paused;
 all Q partial/six human gates unmet; no live, hosted retry, push, merge or deployment.
+
+## Social API10 And Feedback Privacy4 — 2026-10-10
+
+Integratedsocial6375c8e/1e3e127 from2a66db5: currentfinal4 passed102.01s, prior
+current/API/default16 passed186.10s; newhistorical10 passed70.56s(wrapper83.92s).
+Actualpositive configuration/history beforeprecisevalid-request planningdenials,
+request-bounded logout and fullsourcegraph preserved. Initial fixture dependency/
+query/status corrections and partitiondrift failures retained. Detailedledger
+`docs/inlet-social-execution-api-split-20261010.md`, evidence social-execution-api10.
+
+Integratedfeedbackdesign a216db3/7e74cae/code c12df7b fromd2e8676: current4+guards16
+20passed54.253s, finalcompleted2 passed48.921s, newhistoricclaimed2 passed13.95s
+(wrapper28.549s). Prior156pass4fail86.477s preserved; fournewexpected-row failures
+wereonly nonexistent dependency store_id, removed after modelverification. Strict
+fileguards/fullgraph/privacy+1/currentreadonlynextreceipt and originalAST retained.
+Detailedledger `docs/inlet-feedback-review-composition4-20261010.md`, evidence
+feedback-composition4. No original current privacy assertions retired wholesale.
+
+Exactcoverage1310/1330=1172direct+138historical/current;20remain (API14, fresh2,
+twobrand2, archive2). Registry15/387. Rootfixed exactfeedbackpartitioncount/path/
+expectations aftersocialdriftrepair; merged75partition/map cases passed, wholeRuff/
+baremypy/diff0 under integration-social-feedback. No originalbatch oraggregate rerun.
+
+FreshcurrentbothDB journey independentlypassed initialreview, finalprecise progress/
+session assertionspending; APIcurrent24pass and historic14pass pendingfinalshared
+compatibility/filechecks. TwobrandcurrentA passed; sourceclosureexactORMtimestamp
+correctionpending. ArchiveexactDTO/40mholds vs44mbudgetcontractapproved520ac03,
+implementationauthorized. All Q partial/human gatesunmet, hosted/pushholdunchanged.
+
+Brief19:14executortransport failure recoveredoneboundedretry. Existingworker sessions
+continued orwerealreadyterminal; noreset/duplicate. Recoveryevidence preserved.
+Ignoredinactivecaches movedintactto/tmp only, manifestsrecovery/inactive-bytecode-
+move-4.json andinactive-cache-move-5.json; unique source/DB/evidenceuntouched.

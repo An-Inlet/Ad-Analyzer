@@ -1,0 +1,16 @@
+[
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_candidate[sqlite]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_candidate[postgres]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-none]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-session]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-capsule]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-source]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-unknown]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-none]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-session]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-capsule]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-source]",
+  "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-unknown]",
+  "tests/test_configured_reported_rule_api.py::test_configured_revoked_session_does_not_shadow_current_session[sqlite]",
+  "tests/test_configured_reported_rule_api.py::test_configured_revoked_session_does_not_shadow_current_session[postgres]"
+]

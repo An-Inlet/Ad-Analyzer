@@ -1095,5 +1095,49 @@
       "tests/test_fresh_brand_planning_pilot.py::test_fresh_visible_planning_brand_journey"
     ],
     "reason": "Full original zero-user legacy journey preserved at PIN2155; current zero-user actual OAuth/import/default-v3 planning/manual review/progress/isolation journey is separate."
+  },
+  {
+    "original_function": "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_candidate",
+    "preserved_local_callable": "tests/test_configured_reported_rule_api.py::retained_test_actual_configured_reported_candidate",
+    "historical_nodes": [
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_candidate[sqlite]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_candidate[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_reported_current.py::test_current_configured_reported_candidate"
+    ],
+    "reason": "Exact original configured reported review/Start/effect/session assertions remain at the immutable historical PIN. Current genuine candidate reads, scoped sessions, and planning-only write prevention run over one authentic immutable original effect."
+  },
+  {
+    "original_function": "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start",
+    "preserved_local_callable": "tests/test_configured_reported_rule_api.py::retained_test_actual_configured_reported_automatic_start",
+    "historical_nodes": [
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-none]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-session]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-capsule]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-source]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[sqlite-unknown]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-none]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-session]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-capsule]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-source]",
+      "tests/test_configured_reported_rule_api.py::test_actual_configured_reported_automatic_start[postgres-unknown]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_reported_current.py::test_current_configured_reported_start_prevented"
+    ],
+    "reason": "Exact original configured reported review/Start/effect/session assertions remain at the immutable historical PIN. Current genuine candidate reads, scoped sessions, and planning-only write prevention run over one authentic immutable original effect."
+  },
+  {
+    "original_function": "tests/test_configured_reported_rule_api.py::test_configured_revoked_session_does_not_shadow_current_session",
+    "preserved_local_callable": "tests/test_configured_reported_rule_api.py::retained_test_configured_revoked_session_does_not_shadow_current_session",
+    "historical_nodes": [
+      "tests/test_configured_reported_rule_api.py::test_configured_revoked_session_does_not_shadow_current_session[sqlite]",
+      "tests/test_configured_reported_rule_api.py::test_configured_revoked_session_does_not_shadow_current_session[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_configured_reported_current.py::test_current_configured_reported_new_session_cannot_adopt"
+    ],
+    "reason": "Exact original configured reported review/Start/effect/session assertions remain at the immutable historical PIN. Current genuine candidate reads, scoped sessions, and planning-only write prevention run over one authentic immutable original effect."
   }
 ]

@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "configured_reported_original": _test(
+        "configured_reported_original_fixture", "configured_reported_original_seed_driver"
+    ),
     "feedback_review_original": _test(
         "feedback_review_retained_fixture", "feedback_review_seed_driver"
     ),

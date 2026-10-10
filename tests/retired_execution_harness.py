@@ -12,7 +12,9 @@ from tests.retired_snapshot import PIN, TREES, extract, run_bounded
 MANIFEST = Path(__file__).parent / "fixtures/retired_execution/nodes-2155ff3.json"
 SUPPLEMENT = MANIFEST.parent / "nodes-supplement-2155ff3.json"
 FORWARD = MANIFEST.parent / "nodes-forward-2155ff3.json"
-BATCHES = {"fresh_planning_pilot": (MANIFEST.parent / "nodes-fresh-planning-pilot-2155ff3.json", 2),
+BATCHES = {"configured_reported_api": (
+               MANIFEST.parent / "nodes-configured-reported-rule-2155ff3.json", 14),
+           "fresh_planning_pilot": (MANIFEST.parent / "nodes-fresh-planning-pilot-2155ff3.json", 2),
            "feedback_claimed": (MANIFEST.parent / "nodes-feedback-claimed-2155ff3.json", 2),
            "original": (MANIFEST, 142), "ui_supplement": (SUPPLEMENT, 19),
            "initial_forward": (FORWARD, 88),

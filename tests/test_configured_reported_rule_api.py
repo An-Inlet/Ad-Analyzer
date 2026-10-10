@@ -15,7 +15,7 @@ from tests.test_customer_optimization_api import headers
 from tests.test_shopify_sales import configuration as configuration
 
 
-def test_actual_configured_reported_candidate(
+def retained_test_actual_configured_reported_candidate(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -57,7 +57,7 @@ def test_actual_configured_reported_candidate(
 
 
 @pytest.mark.parametrize("change", ["none", "session", "capsule", "source", "unknown"])
-def test_actual_configured_reported_automatic_start(
+def retained_test_actual_configured_reported_automatic_start(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -205,7 +205,7 @@ def test_configured_master_disable_constructs_no_native_or_policy_factory(
     )
 
 
-def test_configured_revoked_session_does_not_shadow_current_session(
+def retained_test_configured_revoked_session_does_not_shadow_current_session(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

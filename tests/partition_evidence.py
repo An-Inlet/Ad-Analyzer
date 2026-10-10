@@ -267,6 +267,7 @@ def historical(
         "highwater_api": 4,
         "social_execution_api": 10,
         "feedback_claimed": 2,
+        "configured_reported_api": 14,
         "fresh_planning_pilot": 2,
     }:
         raise ValueError("historical batch contract mismatch")
@@ -295,7 +296,7 @@ def historical(
                 pin=PIN,
             )
         )
-    if len(seen) != 389:
+    if len(seen) != 403:
         raise ValueError("historical union mismatch")
     return entries
 

@@ -1,6 +1,6 @@
 """Ordinary API composition with explicit offline evidence and actual provider HTTP."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +39,9 @@ def configured_current_optimization(
     monkeypatch: pytest.MonkeyPatch,
     replicas: Any,
     ids: Any,
+    *,
+    replacement_enabled: bool = False,
+    now: datetime | None = None,
 ) -> Any:
     import base64
 
@@ -90,7 +93,7 @@ def configured_current_optimization(
     selected = manifest().model_copy(
         update={
             "operating_policy_digest": operating.digest(),
-            "replacement_enabled": False,
+            "replacement_enabled": replacement_enabled,
             "settlement_enabled": False,
         }
     )
@@ -109,7 +112,7 @@ def configured_current_optimization(
         providers=selected.providers,
     )
     control: dict[str, Any] = {"opened": 0, "closed": 0, "factory": 0, "admissions": []}
-    control["now"] = NOW
+    control["now"] = NOW if now is None else now
     control["qualification_revision"] = 1
     monkeypatch.setattr(assembly, "utc_now", lambda: control["now"])
     wire = Wire(platform)

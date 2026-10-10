@@ -32,7 +32,7 @@ from tests.test_planning_customer_boundary import owned_workspace
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("page", ["execution", "optimization"])
+@pytest.mark.parametrize("page", ["execution", "optimization", "social-configuration"])
 def test_current_history_pages_preserve_scope_and_have_no_action_controls(
     customer_engine: Engine, replicas: Any, monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path, page: str,
@@ -60,6 +60,32 @@ def test_current_history_pages_preserve_scope_and_have_no_action_controls(
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path")
+        if page == "social-configuration" and path == "/app/social-configuration":
+            messages: list[Any] = []
+
+            async def capture(message: Any) -> None:
+                messages.append(message)
+
+            await app(scope, receive, capture)
+            start = next(m for m in messages if m["type"] == "http.response.start")
+            assert start["status"] == 200
+            assert b"text/html" in dict(start["headers"])[b"content-type"]
+            raw = b"".join(m.get("body", b"") for m in messages
+                           if m["type"] == "http.response.body")
+            assert raw == Path("app/portal/static/advertising-history.html").read_bytes()
+            html = raw.decode("utf-8")
+            assert html.count("/app/assets/advertising-history.mjs") == 1
+            html = html.replace("/app/assets/advertising-history.mjs", "/__fixture__/driver.mjs")
+            body = html.encode("utf-8")
+            assert sum(k.lower() == b"content-length" for k, _ in start["headers"]) == 1
+            headers = [(k, str(len(body)).encode("ascii") if k.lower() == b"content-length" else v)
+                       for k, v in start["headers"]]
+            assert [(k, v) for k, v in headers if k.lower() != b"content-length"] == [
+                (k, v) for k, v in start["headers"] if k.lower() != b"content-length"
+            ]
+            await send({**start, "headers": headers})
+            await send({"type": "http.response.body", "body": body})
+            return
         if path == "/__fixture__/start":
             html = Path(f"app/portal/static/{page}.html").read_text().replace(
                 "/app/assets/advertising-history.mjs", "/__fixture__/driver.mjs"
@@ -100,7 +126,9 @@ def test_current_history_pages_preserve_scope_and_have_no_action_controls(
         "--headless", "--no-sandbox", "--disable-gpu", "--ignore-certificate-errors",
         "--disable-background-networking", "--no-first-run", "--disable-extensions",
         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
-        f"--user-data-dir={tmp_path / 'browser'}", origin + "/__fixture__/start",
+        f"--user-data-dir={tmp_path / 'browser'}",
+        origin + ("/app/social-configuration" if page == "social-configuration"
+                  else "/__fixture__/start"),
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         assert complete.wait(40), "Current history browser did not finish"

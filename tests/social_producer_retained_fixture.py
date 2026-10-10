@@ -36,6 +36,7 @@ from tests.test_commerce_measurement import NOW
 
 if TYPE_CHECKING:
     from tests.social_review_api_current_fixture import SocialApiLoginEvidence
+    from tests.social_review_ui_current_fixture import SocialUiEvidence
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,7 @@ class SocialProducerSource:
     ids: SocialProducerIds
     artifacts: Path
     api_evidence: "SocialApiLoginEvidence | None" = None
+    ui_evidence: "SocialUiEvidence | None" = None
 
 
 def owned_sqlite_target(target: str, expected: Path) -> str:
@@ -131,9 +133,9 @@ def retained_social_producer(
     video: bytes | None,
     change: str | None,
     *,
-    consumer: Literal["producer", "configuration", "api"] = "producer",
+    consumer: Literal["producer", "configuration", "api", "ui"] = "producer",
 ) -> Iterator[SocialProducerSource]:
-    assert consumer in {"producer", "configuration", "api"}
+    assert consumer in {"producer", "configuration", "api", "ui"}
     assert consumer == "producer" or change is None
     assert provider in {"meta_ads", "tiktok_ads"}
     assert change in {
@@ -236,6 +238,17 @@ def retained_social_producer(
                 api = SocialApiLoginEvidence(expected_api_document(db, source), ids.actor_id)
             source = SocialProducerSource(engine, ids, artifacts, api)
         before = graph(engine)
+        if consumer == "ui":
+            from tests.social_review_ui_current_fixture import (
+                SocialUiEvidence,
+                expected_ui_document,
+            )
+
+            with Session(engine) as db:
+                ui = SocialUiEvidence(
+                    expected_ui_document(db, source), ids.actor_id, deepcopy(before)
+                )
+            source = SocialProducerSource(engine, ids, artifacts, ui_evidence=ui)
         assert all(
             not before[n]
             for n in (
@@ -269,6 +282,8 @@ def retained_social_producer(
                 configuration_delta(expected, actual, ids, configuration_document)
             if source.api_evidence is not None:
                 source.api_evidence.assert_delta(expected, actual)
+            elif source.ui_evidence is not None:
+                source.ui_evidence.assert_delta(expected, actual)
             else:
                 assert actual == expected
             assert schema_snapshot(engine) == schema

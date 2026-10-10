@@ -89,3 +89,17 @@ No Full, shared DB reset, TTL change, live calls or production edits.
 The earlier WIP remains unqualified and backed up; this docs commit does not certify
 its implementation. All failures remain recorded. Parent review is required before
 implementing this revised shell/history split.
+
+## Approved Timestamp Correction During Qualification
+
+The original ORM name assignment invokes `WorkspaceTimestampMixin.updated_at`.
+The first retained-shell gate and one bounded diagnostic established that actual
+login committed successfully, but the new recorder rejected its graph because the
+proposed name-only delta omitted that automatic field. Preserve those failures.
+The closed correction is one-shot `record_workspace_name_change` immediately after
+the original commit: original owned name becomes the exact XSS test string and its
+actual updated_at falls inside real UTC before/after commit bounds; every other
+row/column stays exact. Freeze that resulting graph before login. Subsequent login
+and final comparisons permit no further workspace changes. Copied timestamp/bounds,
+name/other-column and second-binding negatives supplement the genuine browser flow.
+No original baseline, DB timestamp, current clock or auth behavior is rewritten.

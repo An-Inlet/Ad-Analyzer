@@ -9,7 +9,7 @@ from app.ads.models import AdvertisingAccount
 from app.goals import service as goals
 from app.goals.schemas import ConfirmInput
 from app.mandates import service as s
-from app.mandates.models import Mandate, MandateAction
+from app.mandates.models import Mandate, MandateAction, MandateRevision
 from app.mandates.schemas import (
     AccountScope,
     ActionDraft,
@@ -37,6 +37,7 @@ def seed(
     *,
     days: int = 1,
     goal_budget_micros: int = 50_000_000,
+    approve: bool = True,
 ) -> Mandate:
     g = seed_goal(db, config, slug, goal_budget_micros=goal_budget_micros)
     p = goals.preview(db, g, NOW)
@@ -83,7 +84,8 @@ def seed(
     )
     m = s.create(db, g.workspace_id, d, "owner", NOW)
     db.flush()
-    s.approve(db, m, 1, "owner", NOW)
+    if approve:
+        s.approve(db, m, 1, "owner", NOW)
     db.commit()
     return m
 
@@ -454,8 +456,8 @@ def test_api_roles_csrf_and_workspace_isolation(
     uid = login(owner, "owner:1")
     login(outsider, "outsider:1")
     with Session(customer_engine) as db:
-        m = seed(db, configuration)
-        other = seed(db, configuration, "beta")
+        m = seed(db, configuration, approve=False)
+        other = seed(db, configuration, "beta", approve=False)
         wid, mid, otherid = m.workspace_id, m.id, other.id
         member = CustomerMembership(user_id=uid, workspace_id=wid, role="owner", status="active")
         db.add(member)
@@ -484,6 +486,20 @@ def test_api_roles_csrf_and_workspace_isolation(
         assert owner.post(path + "/stop/pause", headers=headers).status_code == (
             200 if role == "admin" else 403
         )
+
+    with Session(customer_engine) as db:
+        for mandate_id in (mid, otherid):
+            saved = db.get(Mandate, mandate_id)
+            revision = db.get(MandateRevision, (mandate_id, 1))
+            assert saved is not None and saved.state == "draft" and saved.paused
+            assert saved.revision == 1
+            assert (saved.observed_micros, saved.reserved_micros) == (0, 0)
+            assert (saved.changes_used, saved.actions_used) == (0, 0)
+            assert revision is not None
+            assert revision.approved_at is None and revision.approved_by is None
+        assert db.scalar(select(func.count()).select_from(MandateAction)) == 0
+    owner.close()
+    outsider.close()
 
 
 @pytest.mark.retained_execution

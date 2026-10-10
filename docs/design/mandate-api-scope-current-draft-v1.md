@@ -9,8 +9,8 @@ created draft mandates in both workspaces, not historical execution authority.
 Add an explicit keyword-only approve=True to the shared offline seed, preserving
 all existing callers/default behavior. Only these two API cases pass approve=False;
 only skip the obsolete approve call. Current create/flush/commit remain real. Assert
-both revisions remain unapproved and draft, counters zero and no actions before and
-after requests. Do not bypass any service guard or modify production code. Preserve
+both revisions remain unapproved and draft, counters zero and no actions after
+all requests. Do not bypass any service guard or modify production code. Preserve
 all other tests and shared seed statements modulo this conditional. This is a fixture
 repair; it makes no historical/execution or live qualification claim.
 

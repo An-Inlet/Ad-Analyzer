@@ -150,3 +150,17 @@ explicit paths to the completed evidence; final reconciliation covers their
 disjoint union. Attempt B's stopped controller and original logs remain immutable.
 No partial partition receives completion credit, no passing tests are duplicated,
 and the 512 MiB / 1 GiB / 2 GiB reserves remain unchanged.
+
+## Twenty-Partition Checkpoint
+
+Twenty partitions have exact terminal and retention qualification: 4,388 passed,
+34 skipped. There are 2,672 unreported parent cases, including the historical
+wrappers whose 407 children remain separately unqualified. Continuation C is
+active at partition 20 (the twenty-first), PID 104868 / session 46704.
+No parent test has failed in the qualified B/C execution. B stopped only for the
+preserved FIFO archive failure, repaired without rerunning its passing tests.
+
+A 22:27 UTC disconnect callback was notification-only: the same continuation PID
+was alive at 22:28:42 with a resource sample four seconds old, clean frozen source
+and 4.34 GiB memory headroom. No reset or duplicate was required. Final provenance
+will combine exactly the 14 verified B partitions and the 38 C partitions.

@@ -48,6 +48,7 @@ def load_initial_lineage(db: Session, source: "InitialLineageSource") -> Provide
     assert run.parent_run_id == ids.parent_run_id and run.reservation_id == ids.reservation_id
     assert run.state == ("created_paused" if ids.mode == "creation" else "activation_observed")
     parent = db.get(ProviderExecutionRun, ids.parent_run_id) if ids.parent_run_id else None
+    assert (parent is not None) == (ids.mode == "activation")
     if parent:
         assert parent.review_id == ids.parent_review_id and parent.workspace_id == ids.workspace_id
         assert parent.reservation_id == ids.reservation_id and parent.parent_run_id is None

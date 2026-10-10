@@ -49,3 +49,12 @@ The proposal's broader failure-retention wording was corrected with parent appro
 
 No Full, historical batch, hosted/live call, push, merge to main or deployment.
 This bounded package awaits independent review; API14 remains unimplemented.
+
+## Explicit Parent Follow-Up
+
+Root review suggested making activation parent existence explicit. One assertion
+now requires parent presence iff activation mode (existing counts/links already
+implied it). This follow-up was already running when the earlier package closed;
+root approved retaining it. `parent-explicit.log/xml/exit`:2 activation cases passed
+20.574s, no skips. Whole Ruff/mypy1244/diff individually0 in *-parent files.
+No other source changes; earlier128 cohort remains its own observation.

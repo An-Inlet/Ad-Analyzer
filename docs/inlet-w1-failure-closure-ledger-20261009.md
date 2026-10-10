@@ -845,3 +845,16 @@ current customer-page controls remain absent and server write boundaries remain.
 Evidence20261010/candidate-dom1. Immutablecoverage1247=1135direct+112historical/current,
 83remain; no aggregate rerun. Inactive frozen-tree ignored mypy cache moved intact
 into/tmp with recovery/frozen-cache-move.json; unique evidence unchanged.
+
+
+### TikTok Discovery Unit DOM
+
+Root package8bbfa0e fixes the same obsolete page-derived fake DOM inventory for the
+current detached TikTok read component. Original1 plus actual current history-only
+execution browser2bothDB passed7.408s; wholeRuff/mypy1236/Node/diff0. Full original
+driver tail/wrapper/production byte-identical; no customer-page discovery controls
+restored. Evidence20261010/tiktok-discovery-dom1. Immutablecoverage1248=1136direct+
+112historical/current,82remaining. These unit checks are not visible customer flows.
+Social UI4 initial gate exposed history-only shell replacement, so no driver login
+occurred; two timeouts/two strict teardown errors preserved. Revised explicit
+component-fixture/current-page interface required before rerun; no closure credit.

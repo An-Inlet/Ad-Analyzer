@@ -21,3 +21,14 @@ that only inventory/import changed; whole Ruff, mypy, Node syntax and diff check
 No historical child or retained marker is needed: the current module itself is
 executed. Count only the exact original case as targeted fixture repair, and keep
 current actual page/browser qualification separate.
+
+
+## Qualified Result — 2026-10-10
+
+Original wrapper1 passed5.799s; actual current history optimization browser2 (SQLite
+and PostgreSQL) plus43 default direct/HTTP boundary cases passed27.180s. Whole Ruff,
+mypy1236, Node syntax and diff each exit0. XML/raw logs/static exits/source proof:
+/workspace/inlet-evidence/20261010/candidate-dom1. Every driver byte from
+`globalThis.document=` onward is identical to41324b9; Python wrapper and production
+files unchanged. This demonstrates the current detached module's unit contract and
+separately the current page's history-only behavior, not a purchasable/live product.

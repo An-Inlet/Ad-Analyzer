@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import {candidateReads,checkedCandidateStatus} from '../../app/portal/static/candidate-read.mjs';
 class Element {value='';textContent='';hidden=false;disabled=false;children=[];replaceChildren(...v){this.children=v;this.value='';}append(...v){this.children.push(...v);}remove(){this.removed=true;}}
-const elements=new Map([...fs.readFileSync('app/portal/static/optimization.html','utf8').matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+// Unit-only DOM: the current optimization page intentionally serves advertising history.
+const unitIds=['opt-candidates',...['policy','mandate','results','progress','message','load','read','refresh'].map(id=>'opt-candidate-'+id)];
+const elements=new Map(unitIds.map(id=>[id,new Element()]));
 globalThis.document={getElementById:id=>elements.get(id)};globalThis.Option=class extends Element{constructor(t,v){super();this.textContent=t;this.value=v;}};
 const $=id=>elements.get('opt-candidate-'+id),node=(tag,t)=>Object.assign(new Element(),{tag,textContent:t});
 const jid='a'.repeat(32),rid='b'.repeat(32),mid='c'.repeat(32),pid='d'.repeat(32),h='e'.repeat(64),calls=[];

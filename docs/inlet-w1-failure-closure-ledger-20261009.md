@@ -795,3 +795,40 @@ reviewed6b4a481 and qualified current18ca52cea remain unintegrated/uncredited; D
 proposal40789f8 docs-only. Exact heads, gaps, terminal checks and preservation caveats
 are in docs/inlet-pause-checkpoint-20261009.md. No new tests after owner pause; no push,
 hosted CI, aggregate rerun, merge or deployment. Await explicit owner resume.
+
+
+### Owner Resume And Reviewed Integration — 2026-10-10
+
+Owner explicitly resumed Inlet. Seven checkpoint worktrees were clean at their
+recorded heads; all 61 indexed evidence files and the original aggregate XML hash
+matched. Read-only remote lookup still reports main ea3591c5086fbf2cee8038bf9208ac7f0050de75;
+no remote followup branch exists. No push, hosted retry, merge or deployment occurred.
+The environment restart wiped /tmp: prior temporary source/SQLite/artifacts and moved
+regenerable caches there are lost. Workspace commits, logs, XML and proofs survive;
+no claim is made that lost temporary evidence is recoverable. Existing PostgreSQL
+was restarted without reset; both integration and frozen aggregate databases survive.
+The frozen aggregate database remains untouched. Recovery proof is in
+/workspace/inlet-evidence/20261010/recovery/reconciliation.json.
+
+Reviewed Meta lock2 6b4a481 integrated e321999 (interfaces efe796d/ae58328):
+122 passed, two unchanged SQLite skips, 30.388s; prior PG probe2 passed30.227s.
+Exact original thread/barrier bodies remain unchanged. Current18 ca52cea independently
+reviewed and integrated91702b7 (interfaces17b7cee/e82cb1a): dependencies11 passed110.652s,
+worker8 passed82.303s, compatibility92 passed50.496s, timing-repair4 passed48.580s.
+These are preserved terminal qualifications from before pause, not rerun on resume.
+Current-only clock follows the actual owned committed capture/due evidence; no
+production clock, stored timestamp, permission or original assertion was relaxed.
+
+Immutable20261010 successor-coverage-1246.json records1246 covered (1134 direct,
+112 historical/current),84 remaining. Combined91702b7 whole Ruff, bare mypy1236 files,
+collector-plugin mypy and diff check each exit0; logs/results in
+/workspace/inlet-evidence/20261010/integration-91702b7. Original aggregate remains
+failed; targeted closure does not establish aggregate, hosted or live qualification.
+
+Approved closed interfaces for DDL3 (40789f8), social UI4 (1a0ece4) and reported
+source6 (0cdd1a1); implementation in isolated lanes. Configured reported API14 still
+requires a separate reviewed source/historical/current split. Preserve new unique
+failure/source evidence durably before checkpoint; use /tmp only with that caveat.
+Q01–Q16 remain partial; all six human usefulness gates remain unmet. No evidence
+shortens the prior low-confidence4–8 week controlled pilot /6–10 week purchasable
+release estimate. Website remains owner-managed and paused.

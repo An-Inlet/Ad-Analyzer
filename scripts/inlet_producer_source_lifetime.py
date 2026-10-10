@@ -51,6 +51,7 @@ def _test(
 
 
 PROFILES = {
+    "initial_lineage": _test("initial_lineage_retained_fixture", "initial_lineage_seed_driver"),
     "meta_review_lock": _test("meta_review_lock_retained_fixture", "meta_review_lock_seed_driver"),
     "provider_ddl": _test("provider_ddl_retained_fixture", "provider_ddl_seed_driver"),
     "google_created": _test("google_created_retained_fixture", "google_created_seed_driver"),

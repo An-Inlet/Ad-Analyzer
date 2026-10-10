@@ -107,7 +107,9 @@ PIN child must use it compatibly or fail, never patch schema/adopt a foreign gra
 
 Keep run_bounded and SourceLifetime failure/reap behavior unchanged. Success cleanup
 is only the verified duplicate extracted PIN/archive, never ids/log/media/SQLite.
-Failure leaves evidence/source; copy unique child logs/IDs/lifetime and failures to
+Existing SourceLifetime may remove verified duplicate source/archive after a reaped
+child, including failure. Unconfirmed/unreaped or cleanup-error sources remain.
+Unique IDs/log/media/SQLite are retained; copy child logs/IDs/lifetime and failures to
 /workspace/inlet-evidence before checkpoint because/tmp can disappear on restart.
 
 ## Bounded Qualification After Review

@@ -1,3 +1,4 @@
+// Detached current-module unit DOM; retained inventory is not a served product page.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {reportedBasis,exactMicros,checkedRuleBasis,checkedRuleOption,ruleBasisLines} from '../../app/portal/static/reported-rule-view.mjs';
@@ -16,7 +17,7 @@ const lines=ruleBasisLines(checkedRuleBasis(b,d)).join('\n');assert.match(lines,
 const option={schema_version:'inlet.reported-rule-automatic-option.v1',policy:{policy_id:'d'.repeat(32),revision:1},policy_digest:'e'.repeat(64),label:'Owned Test Rule',environment:'contract_test',decision_basis:reportedBasis,rule_parameters:parameters,lifetime_seconds:120,cadence_seconds:30,session_bound:true,causal_lift:'unavailable',financial_qualification:'checked_separately_before_each_change'};
 checkedRuleOption(option);assert.throws(()=>checkedRuleOption({...option,policy_digest:'wrong'}));
 class Element {value='';textContent='';checked=false;disabled=false;children=[];replaceChildren(...v){this.children=v;this.value='';}append(...v){this.children.push(...v);}}
-const elements=new Map([...fs.readFileSync('app/portal/static/optimization.html','utf8').matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));globalThis.document={getElementById:id=>elements.get(id)};
+const elements=new Map([...fs.readFileSync('tests/fixtures/retained-optimization-dom.html','utf8').matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));globalThis.document={getElementById:id=>elements.get(id)};
 const $=id=>elements.get('opt-auto-'+id);const mandate={mandate:{mandate_id:'f'.repeat(32),revision:1,consent_id:'1'.repeat(32),environment:'contract_test'},label:'Consented Mandate',currency:'USD',total_limit_micros:100000000,starts_at:b.observed_at,ends_at:b.expires_at};
 const calls=[];let uncertain=false,runs=[];
 const controller=sessionAutomation({state:()=>({busy:false,wid:1,epoch:1}),node:(tag,textContent)=>Object.assign(new Element(),{tag,textContent}),rows:()=>{},summary:()=>{},money:exactMicros,path:p=>p,changed:()=>{},guarded:fn=>fn(1),api:async(path,t,method='GET',body)=>{calls.push({path,method,body});if(path.endsWith('/capabilities'))return {available:true,session_bound:true,policies:[option],mandates:[mandate],message:'Configured'};if(path.endsWith('/runs'))return {runs};if(path.endsWith('/start')){if(uncertain)throw Error('Response lost');return {run_id:'2'.repeat(32),status:'running',session_bound:true,environment:'contract_test',message:'Started'};}throw Error('Unexpected request');}});

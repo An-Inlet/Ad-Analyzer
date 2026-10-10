@@ -21,3 +21,9 @@ history-only UI, and current server write boundaries already qualified unchanged
 Preserve full driver equality after normalizing only inventory path/comment and
 original Python function's subprocess/assert tail; whole Ruff/mypy/Node/diff. Only
 original2 contribute direct fixture repair credit; browser cases are supplemental.
+
+Qualified20261010: original2 and actual current history-only optimization browser2
+passed, no skips/failures; XML has exact duration. Whole Ruff/mypy1236/bothNode/diff0.
+Source proof preserves exact driver bytes after only path/comment normalization,
+and original Python subprocess/assert tail AST. Evidence20261010/reported-dom2.
+No customer action-page availability or live authority qualification is claimed.

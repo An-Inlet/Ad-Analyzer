@@ -1073,3 +1073,23 @@ Brief19:14executortransport failure recoveredoneboundedretry. Existingworker ses
 continued orwerealreadyterminal; noreset/duplicate. Recoveryevidence preserved.
 Ignoredinactivecaches movedintactto/tmp only, manifestsrecovery/inactive-bytecode-
 move-4.json andinactive-cache-move-5.json; unique source/DB/evidenceuntouched.
+
+### Fresh Planning Pilot Integrated (2026-10-10)
+
+Integrated designs af4c00b/f9a22b8 and implementation 0305253 (worker 2414f46).
+Current zero-user HTTPS browser journey passed SQLite/PostgreSQL: 2 passed,
+66.54 seconds, including real mocked OAuth/import/default-v3 planning, precise
+progress, exact selected-session revocation, active Brand B isolation and zero
+execution reservations. Original PIN pilot separately passed 2 children in
+44.09 seconds (wrapper 57.02 seconds). Detailed package ledger:
+`docs/inlet-w1-fresh-planning-pilot-20261010.md`.
+
+Root merged all explicit registry contracts: 16 batches/389 historical children.
+Combined partition/map checks: 75 passed; whole Ruff, configured mypy (1258 files)
+and diff checks exit 0. Exact commands/results: integration-fresh/results.json
+under /workspace/inlet-evidence/20261010. No production changes in this package.
+
+Immutable successor-coverage-1312.json now records 1312/1330 original failures
+covered (1172 direct, 140 historical/current); 18 remain: API14, two-brand2,
+archive2. Current and historical supplementary counts are not double counted.
+Aggregate and hosted retries remain held; no remote writes, merge or deployment.

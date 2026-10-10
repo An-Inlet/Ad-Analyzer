@@ -170,3 +170,47 @@ entire1.90GB inventory would bring durable free capacity only around2.5GB, below
 the proposed evidence-plus-reserve gate. Existing recovery manifests batch1–5 remain
 untouched. Inventory is not approval to delete/move anything or a guarantee that
 all cache directories remain inactive at execution time.
+
+## Compression, Original Packet Breakdown And DB Growth
+
+Further read-only inventory is saved as `original-packet-breakdown.json` and
+`original-packet-extensions.json` beside the cache inventory. Original aggregate
+occupies1.9GiB allocated; pytest subtree1.8GiB. Historical parent subdirectories
+are353/70/25MiB. Many lifecycle/erasure cases each retain24MiB. Logical extension
+classification (not proof of disposability): SQLite DBs362.9MB, Python sources348.7MB,
+bytecode228.1MB, XML100.3MB, Markdown98.5MB, logs74.6MB, JSON33.2MB, JS31.2MB;
+extensionless555.4MB includes material not safely classified as media or source.
+Named media extensions total only0.43MB; treating the remainder as disposable media
+would be wrong. Directory-name classifier found58.7MB under explicit source/original
+names, but additional copied source plainly exists elsewhere. These classifications
+overlap and are not additive. No source bytes or temporary databases were removed.
+
+Lossless archive staging is technically plausible because much content is source,
+bytecode/text and SQLite, but compression ratio/elapsed/memory were NOT measured.
+A reviewed future operation could write a compressed tar on/tmp, generate a per-file
+path/size/SHA256 inventory first, read every archive member back and compare its
+streamed content and metadata inventory (without doubling extraction size), then
+copy archive+inventory durably and verify archive SHA256 after copying. Retain all
+unique original inputs; no deletion is authorized by archive creation. This does
+not free existing workspace space and needs room for the compressed copy. For a
+NEW run, scratch artifacts could be archived/copied by completed phase only if
+that evidence policy is approved and durable copies verified before checkpoint;
+/tmp-only ongoing evidence remains vulnerable to restart. Live DB/WAL files cannot
+be treated as consistent archived snapshots while writers remain active. Keep
+complete durable raw root log/XML even if supplementary artifacts are losslessly
+compressed. Never infer a complete archive from successful tar exit alone.
+
+Current71 inlet databases occupy4,381,230,649 bytes in the existing PostgreSQL volume;
+none was dropped/reset. The old aggregate's terminal90MB DB is not its peak growth
+bound, and WAL/container backing volume overhead is separate. Before launch measure
+actual Docker volume backing free bytes/inodes and establish a reservation for the
+three new DBs plus WAL and temporary files. Periodically sample those NEW database
+sizes, filesystem space and cgroup memory; preserve monotonic timestamps. Do not
+let public-schema teardown enter an old/shared DB. Root's later snapshot improved
+workspace free to1.7GiB and reduced/tmp free to5.8GiB after its separate capacity
+work; those are changing values, not a durable reservation or compression proof.
+
+Final safety gate remains after all pending closure packages (root now reports18
+remaining), final registry union and exact clean source are reviewed. No collection
+or aggregate is authorized by this document. The reviewed38f6580 ledger's20-open
+snapshot remains the source-specific statement above; later counts do not rewrite it.

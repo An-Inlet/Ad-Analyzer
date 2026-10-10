@@ -214,3 +214,18 @@ Final safety gate remains after all pending closure packages (root now reports18
 remaining), final registry union and exact clean source are reviewed. No collection
 or aggregate is authorized by this document. The reviewed38f6580 ledger's20-open
 snapshot remains the source-specific statement above; later counts do not rewrite it.
+
+## Root Prerequisite Follow-Up
+
+At integration203be3f, exact original coverage is1326/1330 with four pending
+(two-brand2/archive2); earlier counts above remain historical snapshots. Native
+PowerShell is installed: `/workspace/inlet-tools/pwsh` sets the required workspace
+XDG paths then invokes `/workspace/inlet-powershell/opt/microsoft/powershell/7/pwsh`.
+Its `-NoProfile -Command '$PSVersionTable.PSVersion.ToString()'` probe returned7.6.6
+with exit0. A preceding direct-binary probe failed on its read-only default home
+cache; no validation test ran. Future command PATH must include `/workspace/inlet-tools`.
+Evidence: corrected-aggregate-readiness/powershell-resolution.json.
+
+Root moved only inactive ignored mypy caches intact to/tmp under recovery manifest
+inactive-cache-move-6.json, leaving approximately1.7GiB workspace/5.8GiBtmp free.
+This improves bounded repair headroom, not full-run capacity qualification.

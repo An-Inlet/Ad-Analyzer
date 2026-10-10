@@ -8,41 +8,35 @@ import time
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 import pytest
 import uvicorn
-from app.ads.enums import AdvertisingPlatform
-from app.ads.models import AdvertisingAccount
 from app.api import customer_campaign_review
 from app.campaign_review import service
 from app.campaign_review.contracts import RevisionInput
 from app.campaign_review.models import CampaignRevision
-from app.campaign_review.storage import LocalMediaStore, get_media_store
+from app.campaign_review.storage import get_media_store
 from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerMembership, CustomerUser
-from app.database.session import Base, get_db
+from app.database.session import get_db
 from app.main import app
 from app.mandates import service as mandates
-from app.mandates.schemas import AccountScope
-from app.meta.models import MetaConnection
 from app.settings import Settings, settings
-from app.sources.models import SourceConnection
-from app.workspaces.models import WorkspaceIntegration
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
 
+from tests.campaign_review_ui_retained_fixture import CampaignUiSource, binding
+from tests.campaign_review_ui_retained_fixture import campaign_ui_source as campaign_ui_source
 from tests.test_campaign_review import definition, png
 from tests.test_campaign_video import encoded as encoded
 from tests.test_commerce_measurement import NOW
 from tests.test_customer_browser_api_journey import localhost_certificate
-from tests.test_customer_identity import ISSUER, FakeProvider
+from tests.test_customer_identity import FakeProvider
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_portal import portal_executable
-from tests.test_google_action_plans import setup
 from tests.test_inlet_customer_journey import JourneyClock
 from tests.test_shopify_sales import configuration as configuration
 
@@ -67,6 +61,7 @@ def test_review_browser_real_api(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     encoded: Any,
+    campaign_ui_source: CampaignUiSource,
 ) -> None:
     chromium = portal_executable(
         "chromium", "chromium-browser", "google-chrome", "google-chrome-stable"
@@ -76,104 +71,17 @@ def test_review_browser_real_api(
     origin = f"https://127.0.0.1:{listener.getsockname()[1]}"
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     monkeypatch.setattr(customer_campaign_review, "datetime", JourneyClock)
-    engine = customer_engine
-    if engine.dialect.name == "sqlite":
-        engine = create_engine(
-            f"sqlite:///{tmp_path / 'review.sqlite'}", connect_args={"check_same_thread": False}
-        )
-        Base.metadata.create_all(engine)
+    source = campaign_ui_source
+    engine, store, actor = source.engine, source.store, source.ids.actor_id
     factory = sessionmaker(engine)
-    store = LocalMediaStore(tmp_path / "media")
     video_bytes = encoded()
-    actor = uuid4().hex
     with factory() as db:
-        mandate, account, _ = setup(db, configuration)
-        db.add(
-            CustomerUser(
-                id=actor, issuer=ISSUER, subject="review-owner", email="review@example.invalid"
-            )
-        )
-        db.flush()
-        db.add(CustomerMembership(user_id=actor, workspace_id=mandate.workspace_id, role="owner"))
-        db.commit()
-        integration = WorkspaceIntegration(
-            workspace_id=mandate.workspace_id,
-            integration_key="review-image",
-            provider="meta_ads",
-            display_name="Meta",
-            status="active",
-            configuration={},
-        )
-        db.add(integration)
-        db.flush()
-        meta = AdvertisingAccount(
-            workspace_id=mandate.workspace_id,
-            connection_id=integration.id,
-            platform=AdvertisingPlatform.META_ADS,
-            external_account_id="101",
-            name="Meta",
-            currency_code="USD",
-            time_zone="UTC",
-        )
-        db.add(meta)
-        db.flush()
-        db.add(
-            MetaConnection(
-                workspace_id=mandate.workspace_id,
-                workspace_integration_id=integration.id,
-                account_id=meta.id,
-                external_account_id="101",
-                encrypted_credentials="unopened-fixture",
-            )
-        )
+        mandate, account = binding(db, source.ids)
         policy = mandates.policy(db, mandate)
-        policy.accounts.append(
-            AccountScope(platform="meta_ads", connection_id=integration.id, account_id=meta.id)
-        )
-        tiktok = WorkspaceIntegration(
-            workspace_id=mandate.workspace_id,
-            integration_key="review-video",
-            provider="tiktok_ads",
-            display_name="TikTok",
-            status="active",
-            configuration={},
-        )
-        db.add(tiktok)
-        db.flush()
-        video_account = AdvertisingAccount(
-            workspace_id=mandate.workspace_id,
-            connection_id=tiktok.id,
-            platform=AdvertisingPlatform.TIKTOK_ADS,
-            external_account_id="202",
-            name="TikTok",
-            currency_code="USD",
-            time_zone="UTC",
-        )
-        db.add(video_account)
-        db.flush()
-        db.add(
-            SourceConnection(
-                id=uuid4().hex,
-                workspace_id=mandate.workspace_id,
-                integration_id=tiktok.id,
-                account_id=video_account.id,
-                provider="tiktok_ads",
-                external_id="202",
-                status="connected",
-                generation=1,
-                window_start=NOW.date(),
-                window_end=NOW.date(),
-                staged={},
-            )
-        )
-        policy.accounts.append(
-            AccountScope(
-                platform="tiktok_ads", connection_id=tiktok.id, account_id=video_account.id
-            )
-        )
-        mandates.edit(db, mandate, mandate.revision, policy, actor, NOW)
-        mandates.approve(db, mandate, mandate.revision, actor, NOW)
-        db.commit()
+        user = db.get(CustomerUser, actor)
+        assert user and user.subject == "review-owner"
+        provider = FakeProvider()
+        provider.issuer, provider.email = user.issuer, user.email
         image = service.upload(db, mandate.workspace_id, actor, png(), store, NOW)
         image_definition = definition(db, mandate, account).model_dump(mode="json")
         image_definition["account"] = policy.accounts[1].model_dump()
@@ -201,6 +109,9 @@ def test_review_browser_real_api(
             db, mandate.workspace_id, definition(db, mandate, account), actor, store, NOW
         )
         wid, draft_id = mandate.workspace_id, row.draft_id
+        image_media_id = image.id
+
+    source.evidence.bind_setup(source, draft_id, image_draft_id, image_media_id, video_bytes)
 
     def database() -> Generator[Session, None, None]:
         with factory() as db:
@@ -211,7 +122,7 @@ def test_review_browser_real_api(
         "dependency_overrides",
         {
             get_db: database,
-            get_identity_provider: lambda: FakeProvider(),
+            get_identity_provider: lambda: provider,
             get_media_store: lambda: store,
         },
     )
@@ -222,6 +133,7 @@ def test_review_browser_real_api(
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         nonlocal media_denied
+        request_started = int(time.time())
         path = scope.get("path", "")
         if path == "/__fixture__/driver.mjs":
             script = (
@@ -272,7 +184,14 @@ def test_review_browser_real_api(
             )
             await Response(html, media_type="text/html")(scope, receive, send)
             return
-        await app(scope, receive, send)
+        async def record(message: Any) -> None:
+            if (path == "/api/customer/v1/session" and scope["method"] == "POST"
+                    and message["type"] == "http.response.start" and message["status"] == 200):
+                source.evidence.bind_login(source, message["headers"], request_started,
+                                           int(time.time()))
+            await send(message)
+
+        await app(scope, receive, record)
 
     certificate, key = localhost_certificate(tmp_path)
     server = uvicorn.Server(
@@ -309,6 +228,7 @@ def test_review_browser_real_api(
     )
     try:
         assert completed.wait(60), "Campaign review browser did not report completion"
+        (tmp_path / "browser-result.json").write_text(json.dumps(result, indent=2))
         assert result and result[0]["status"] == "passed", result
         with factory() as db:
             revisions = list(
@@ -321,6 +241,7 @@ def test_review_browser_real_api(
             assert len(revisions) == 3
             assert revisions[0].approved_by == actor and revisions[1].approved_by is None
             assert revisions[2].approved_by is None
+        source.evidence.negatives(source)
     finally:
         browser.terminate()
         try:
@@ -331,5 +252,3 @@ def test_review_browser_real_api(
         server.should_exit = True
         thread.join(timeout=10)
         listener.close()
-        if engine is not customer_engine:
-            engine.dispose()

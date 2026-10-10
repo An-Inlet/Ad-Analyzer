@@ -149,3 +149,13 @@ recovery credit; supplementary tests overlap existing packages.
 Current customer product credit is offline planning/review/media behavior only.
 The authentic approved legacy source is compatibility provenance, not a new current
 spending authorization or proof that the product can publish advertising.
+
+## Source Metadata Precision Found By Initial Gate
+
+The genuine prefix leaves the original Google account's `time_zone` null; only the
+newly added Meta/TikTok accounts explicitly set UTC. The simulation policy timezone
+is UTC. First SQLite setup gate correctly preserved the original row and exposed an
+over-broad new validator assumption (1setup error,8.475s, before current upload/browser).
+The narrow expected invariant is Google null, Meta/TikTok UTC; never populate unknown
+Google metadata or infer account timezone from the policy. Failed source DB/IDs/logs
+are retained under `/workspace/inlet-evidence/20261010/campaign-review-ui2/`.

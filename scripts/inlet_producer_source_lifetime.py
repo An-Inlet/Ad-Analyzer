@@ -85,6 +85,8 @@ PROFILES = {
         archive="historical-budget-source.tar",
     ),
     "candidate_read": _test("candidate_read_retained_fixture", "candidate_read_seed_driver"),
+    "campaign_review_ui": _test("campaign_review_ui_retained_fixture",
+                                "campaign_review_ui_seed_driver"),
     "campaign_review": _test("campaign_review_retained_fixture", "campaign_review_seed_driver"),
     "social_producer": _test("social_producer_retained_fixture", "social_producer_seed_driver"),
     "configured_draft": _test("configured_draft_retained_fixture", "configured_draft_seed_driver"),

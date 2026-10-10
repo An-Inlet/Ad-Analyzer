@@ -20,6 +20,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, event, select, text, update
 from sqlalchemy.orm import Session
 
+from tests.plan_review_current_fixture import PlanReviewCase, graph
+from tests.plan_review_current_fixture import plan_review_case as plan_review_case
 from tests.test_customer_identity import ISSUER, FakeProvider, login
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -48,23 +50,29 @@ def fixture(
     return wid, actor, mandate.id, mandate.revision, policy, ceiling
 
 
+@pytest.mark.planning_boundary
 @pytest.mark.parametrize("change", ["revoked_session", "lost_owner"])
 def test_approval_rechecks_after_real_postgres_workspace_wait(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    replicas: tuple[TestClient, TestClient, FakeProvider],
+    plan_review_case: PlanReviewCase,
     change: str,
 ) -> None:
     if customer_engine.dialect.name != "postgresql":
         pytest.skip("PostgreSQL row-lock race")
-    with Session(customer_engine) as db:
-        wid, actor, mid, revision, _, _ = fixture(db, configuration, tmp_path)
-    alice, _, _ = replicas
-    alice.app.include_router(api.router)  # type: ignore[attr-defined]
+    customer_engine = plan_review_case.engine
+    ids = plan_review_case.ids
+    wid, actor, mid, revision = (
+        ids.workspace_id,
+        ids.actor_id,
+        ids.simulation_mandate_id,
+        plan_review_case.revision,
+    )
+    alice = plan_review_case.clients[0]
+    original_graph = graph(customer_engine)
     monkeypatch.setattr(api, "datetime", JourneyClock)
-    login(alice, "review-owner:1")
     began = Event()
     backend: list[int] = []
 
@@ -125,6 +133,8 @@ def test_approval_rechecks_after_real_postgres_workspace_wait(
         row = db.get(MandateRevision, (mid, revision))
         assert row and row.approved_at is None
 
+    plan_review_case.check(original_graph, "none")
+
 
 @pytest.mark.retained_execution
 @pytest.mark.usefixtures("retained_execution_engine")
@@ -179,7 +189,7 @@ def test_simulation_goal_ceiling_at_each_boundary(
 
 
 @pytest.mark.parametrize("role", ["owner", "admin", "analyst", "viewer"])
-def test_existing_role_permissions_and_guard_default(
+def retained_test_existing_role_permissions_and_guard_default(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -226,3 +236,68 @@ def test_existing_role_permissions_and_guard_default(
     assert response.status_code == (200 if role == "owner" else 403)
     response = alice.post(root + "/stop/pause", headers=headers(alice))
     assert response.status_code == (200 if role in {"owner", "admin"} else 403)
+
+
+@pytest.mark.planning_boundary
+@pytest.mark.parametrize("role", ["owner", "admin", "analyst", "viewer"])
+def test_current_role_permissions_and_guard_default(
+    customer_engine: Engine,
+    configuration: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    plan_review_case: PlanReviewCase,
+    role: str,
+) -> None:
+    customer_engine = plan_review_case.engine
+    ids = plan_review_case.ids
+    wid, actor, mid, revision, policy = (
+        ids.workspace_id,
+        ids.actor_id,
+        ids.simulation_mandate_id,
+        plan_review_case.revision,
+        plan_review_case.policy,
+    )
+    with Session(customer_engine) as db:
+        db.execute(
+            update(CustomerMembership)
+            .where(CustomerMembership.user_id == actor, CustomerMembership.workspace_id == wid)
+            .values(role=role)
+        )
+        db.commit()
+    alice, _, provider = plan_review_case.clients
+    monkeypatch.setattr(api, "datetime", JourneyClock)
+    with Session(customer_engine) as db:
+        user = db.get(CustomerUser, actor)
+        session = db.scalar(select(CustomerSession).where(CustomerSession.user_id == actor))
+        assert user and session
+        principal = CustomerPrincipal(user, session)
+        if role in {"owner", "admin"}:
+            assert guard_customer_mutation(db, principal, wid) == role
+        else:
+            with pytest.raises(HTTPException) as error:
+                guard_customer_mutation(db, principal, wid)
+            assert error.value.status_code == 403
+        db.rollback()
+    root = f"/api/customer/v1/workspaces/{wid}/mandates/{mid}"
+    before_edit = graph(customer_engine)
+    response = alice.put(
+        root,
+        json={"expected_revision": revision, "definition": policy.model_dump(mode="json")},
+        headers=headers(alice),
+    )
+    assert response.status_code == (403 if role == "viewer" else 200)
+    if response.status_code == 200:
+        revision = response.json()["revision"]
+    plan_review_case.check(before_edit, "none" if role == "viewer" else "edit")
+    before_approval = graph(customer_engine)
+    response = alice.post(
+        root + "/approve", json={"expected_revision": revision}, headers=headers(alice)
+    )
+    assert response.status_code == (409 if role == "owner" else 403)
+    if role == "owner":
+        assert response.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+    plan_review_case.check(before_approval, "none")
+    before_pause = graph(customer_engine)
+    response = alice.post(root + "/stop/pause", headers=headers(alice))
+    assert response.status_code == (200 if role in {"owner", "admin"} else 403)
+    plan_review_case.check(before_pause, "pause" if role in {"owner", "admin"} else "none")

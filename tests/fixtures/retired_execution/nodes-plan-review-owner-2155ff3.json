@@ -1,0 +1,4 @@
+[
+  "tests/test_plan_review_authority.py::test_existing_role_permissions_and_guard_default[sqlite-owner]",
+  "tests/test_plan_review_authority.py::test_existing_role_permissions_and_guard_default[postgres-owner]"
+]

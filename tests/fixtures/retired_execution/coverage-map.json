@@ -1015,5 +1015,17 @@
       "tests/test_current_advertising_history_browser.py::test_current_history_pages_preserve_scope_and_have_no_action_controls"
     ],
     "reason": "Old actual linked publication shell remains exact historical; current actual route is history-only with original security/cache headers and no action controls."
+  },
+  {
+    "original_function": "tests/test_plan_review_authority.py::test_existing_role_permissions_and_guard_default",
+    "preserved_local_callable": "tests/test_plan_review_authority.py::retained_test_existing_role_permissions_and_guard_default",
+    "historical_nodes": [
+      "tests/test_plan_review_authority.py::test_existing_role_permissions_and_guard_default[sqlite-owner]",
+      "tests/test_plan_review_authority.py::test_existing_role_permissions_and_guard_default[postgres-owner]"
+    ],
+    "current_coverage": [
+      "tests/test_plan_review_authority.py::test_current_role_permissions_and_guard_default"
+    ],
+    "reason": "Only original owner approval200 is retired; current all-role edit/default-guard/pause and nonowner403 remain actual current SQL/API, while owner now receives exact planning409 with unchanged graph. Actual PG authorization wait races remain current unchanged."
   }
 ]

@@ -10,20 +10,31 @@ from fastapi import HTTPException
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from tests.reported_rule_fixture import ready_reported_rule
-from tests.test_customer_identity import customer_engine as customer_engine
+from tests.reported_original_fixture import RetainedReportedOriginalIds
+from tests.reported_original_fixture import customer_engine as customer_engine
+from tests.reported_rule_current_fixture import ready_current_reported_rule
+from tests.reported_rule_current_fixture import reported_rule_original as reported_rule_original
+from tests.test_customer_identity import customer_engine as base_customer_engine  # noqa: F401
 from tests.test_shopify_sales import configuration as configuration
 
 
 def test_actual_owned_reports_read_then_revocation_denies(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with Session(customer_engine) as db:
-        principal, identity, work, observation, clock, requests, server = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        (principal, identity, work, observation, clock, requests, server) = (
+            ready_current_reported_rule(
+                db,
+                configuration,
+                tmp_path,
+                monkeypatch,
+                original=reported_rule_original,
+                engine=customer_engine,
+            )
         )
         held = db.scalar(select(ProviderExposureReservation))
         assert held and held.state == "held"
@@ -40,6 +51,7 @@ def test_actual_owned_reports_read_then_revocation_denies(
 
 
 def test_final_authorization_wait_cannot_extend_report_lifetime(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -51,8 +63,13 @@ def test_final_authorization_wait_cannot_extend_report_lifetime(
     from app.reported_feedback import candidate_source
 
     with Session(customer_engine) as db:
-        principal, identity, work, observation, clock, _, _ = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        principal, identity, work, observation, clock, _, _ = ready_current_reported_rule(
+            db,
+            configuration,
+            tmp_path,
+            monkeypatch,
+            original=reported_rule_original,
+            engine=customer_engine,
         )
         original = lock_customer_mutation
         checks = 0
@@ -71,6 +88,7 @@ def test_final_authorization_wait_cannot_extend_report_lifetime(
 
 
 def test_final_rule_guard_rejects_changed_commerce_source(
+    reported_rule_original: RetainedReportedOriginalIds,
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -81,8 +99,13 @@ def test_final_rule_guard_rejects_changed_commerce_source(
     from app.reported_feedback.candidate_source import assert_reported_rule_current
 
     with Session(customer_engine) as db:
-        principal, identity, work, observation, clock, _, _ = ready_reported_rule(
-            db, configuration, tmp_path, monkeypatch
+        principal, identity, work, observation, clock, _, _ = ready_current_reported_rule(
+            db,
+            configuration,
+            tmp_path,
+            monkeypatch,
+            original=reported_rule_original,
+            engine=customer_engine,
         )
         current = read_reported_rule(db, principal, identity, work, observation, lambda: clock[0])
         # A non-emitting document isolates the final guard from financial admission.

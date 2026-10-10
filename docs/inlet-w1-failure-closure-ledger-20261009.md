@@ -1160,3 +1160,12 @@ ignoredinactivecachemoves recorded in recovery/inactive-cache-move-7.json.
 Preserve1GiBdurable and2GiBscratch reserve; resource-stop is interrupted, neverpass.
 Node24 vsCI22 and reusedoffline dependencies remain explicitparity limits.
 NativePowerShellwrapper7.6.6 resolved. Push/hosted/merge/deploy/live holdsremain.
+
+### Corrected Aggregate Started On The Reviewed Successor
+
+See `docs/inlet-w1-corrected-validation-20261010.md` for the concise current record.
+Frozen source is `9d7aa2e` after a documentation-only whitespace correction. Full
+collection found 7,094 parent cases. All required local preflight commands passed;
+the one unfiltered aggregate started at 19:43:12 UTC with separate owned databases.
+It is still running; targeted closure is not an aggregate pass. Exact processes,
+commands, logs, capacity samples and terminal archival are durably checkpointed.

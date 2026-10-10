@@ -1093,3 +1093,25 @@ Immutable successor-coverage-1312.json now records 1312/1330 original failures
 covered (1172 direct, 140 historical/current); 18 remain: API14, two-brand2,
 archive2. Current and historical supplementary counts are not double counted.
 Aggregate and hosted retries remain held; no remote writes, merge or deployment.
+
+### Configured Reported API Integrated (2026-10-10)
+
+Designs a933543/9818dc5; combined implementation44943c7 integrates reviewed
+f603fe7 and79ac4d0, resolving only explicit concurrent registry unions. Real
+current owned read jobs complete/suggest before precise write prevention; original
+14 execution contracts remain separately exercised. Original factory, role and
+session claims are not inferred from early planning denials. Fixed source files
+are bounded and independently typed with exact original two-stage commitments.
+
+Worker checks: current/scalar24 passed358.45s; historical14 passed232.29s
+(wrapper247.14s); compatibility135 passed327.81s; finalfile/current8 passed38.38s.
+Initial fixture failures preserved in detailedledger
+`docs/inlet-configured-reported-api14-20261010.md`. Root mergedpartition/map/guard
+checks: 98 passed; wholeRuff/configuredmypy/diff exit0; commands/logs
+`/workspace/inlet-evidence/20261010/integration-reported-api/results.json`.
+
+Registry17/403. Exact immutable successor-coverage-1326.json records1326/1330
+originalfailures covered (1172direct+154historical/current); fourremain:
+two-brand2 andarchive2. Noaggregate, hostedretry, remote, merge ordeployment.
+Capacity preservedby moving27ignoredinactive mypy caches intact to/tmp (1.13GB);
+manifest recovery/inactive-cache-move-6.json. Unique evidence/source/DB untouched.

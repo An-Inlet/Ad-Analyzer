@@ -48,7 +48,7 @@ Neither the original nor interrupted aggregate database is modified.
 
 The runner stops on any failure, collection mismatch, archive failure, or reserve
 breach (512 MiB memory, 1 GiB durable storage, 2 GiB scratch). No automatic retries
-or resumed partial credit are allowed. It records commands, source and helper
+or credit for partially completed partitions are allowed. It records commands, source and helper
 hashes, resources, terminal results and a running progress ledger. Final acceptance
 requires all 52 terminal partitions, exact combined coverage, skip review, verified
 archives, separate reconciliation of the 19 historical batches / 407 children, and
@@ -57,8 +57,8 @@ the already completed frozen preflight. Until then this remains partial validati
 ## Evidence And Status
 
 Evidence and executable local harness:
-`/workspace/inlet-evidence/20261010/w1-partitioned-9d7aa2e-b/`.
-The successor controller is running in tool session `14531`; `started.json` identifies its
+`/workspace/inlet-evidence/20261010/w1-partitioned-9d7aa2e-c/`.
+The continuation controller is running in tool session `46704`; `started.json` identifies its
 process. Never launch another copy. Consult `progress.json`, `controller-stopped.json`
 or `combined-parent-result.json` before taking further action.
 
@@ -120,3 +120,33 @@ parented to PID 1, all with zero RSS, and no configured cgroup PID cap. This is
 an environment process-reaping limitation, not evidence of active browser memory
 retention. No reset or process-killing action was taken. Detailed evidence is in
 `browser-process-diagnosis.json`. The active validation harness is unchanged.
+
+## FIFO Retention Repair And Exact Continuation
+
+Attempt B stopped at 22:11:30 UTC after partition 13 passed (220 passes / one
+skip). The archive helper correctly rejected two unopened FIFO fixtures left by
+SQLite target-safety tests. All passing JUnit and scratch evidence remained intact.
+No test failure, resource breach, frozen-source change or test rerun occurred.
+
+A separate archive-helper successor now preserves FIFO type/mode/owner/time
+metadata without ever opening a FIFO. Sockets, devices and hardlinked FIFOs remain
+rejected. Regular-file opens are nonblocking so a file replaced by a FIFO cannot
+hang before the identity check. Thirteen operational self-checks pass, including
+exact FIFO preservation, forbidden FIFO opening, socket rejection, mutation races,
+output caps and existing overwrite/symlink safeguards. One initial self-check
+assumed an unrestricted umask; its failed output is retained, and the final
+fixture explicitly sets the intended mode. Helper/self-check evidence is under
+`/workspace/inlet-evidence/20261010/archive-fifo-successor/`.
+
+Partition 13 was then archived and its owned database dumped and verified before
+cleanup. Its original passing test execution is unchanged. Fourteen completed
+partitions therefore account for 3,068 passes and 28 skips.
+
+Continuation C reverifies the exact source, terminal identities, exit statuses,
+archive hashes and database-dump hashes for all 14 completed partitions. It runs
+only the 38 still-unexecuted partitions, with new database/scratch names and the
+verified FIFO-aware helper. Its manifest retains all 52 original selectors and
+explicit paths to the completed evidence; final reconciliation covers their
+disjoint union. Attempt B's stopped controller and original logs remain immutable.
+No partial partition receives completion credit, no passing tests are duplicated,
+and the 512 MiB / 1 GiB / 2 GiB reserves remain unchanged.

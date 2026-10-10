@@ -858,3 +858,24 @@ restored. Evidence20261010/tiktok-discovery-dom1. Immutablecoverage1248=1136dire
 Social UI4 initial gate exposed history-only shell replacement, so no driver login
 occurred; two timeouts/two strict teardown errors preserved. Revised explicit
 component-fixture/current-page interface required before rerun; no closure credit.
+
+
+### Current Reported Source Six
+
+Independent review CLOSED for0344805, integrateda631d4b after interface6b7a31d.
+Only obsolete setup replaced by reviewed current18 fixture; all three original
+post-setup tails/decorators unchanged. Actual current original-session revocation,
+second-authorization expiry and commerce source-revision guards remain exercised.
+Source6 passed83.093s, overlapping positive2 passed36.847s; shared19+86 compatibility
+105 passed209.850s. No skips/failures. WholeRuff/mypy1236/diff0, and combineda631d4b
+Ruff/mypy1236/collector-plugin-mypy/diff each0. Evidence20261010/reported-rule-source6
+and integration-a631d4b. Initial one Ruff line-length finding fixed by wrapping only.
+
+Immutablecoverage1254=1142direct+112historical/current,76remaining. No aggregate or
+hosted rerun. Source proofs/logs/IDs durably copied before temporary cleanup. Ignored
+inactive bytecode caches moved intact/tmp with recovery/inactive-bytecode-move.json;
+no unique evidence removed. Revised social interfacee4166a8 approved: exact hashed
+retained HTML shell with CURRENT component/API and separate actual current History
+route browser. Must label unavailable UI accurately; initial failures remain recorded.
+DDL3 final qualification/new-row strictness followup and initial prior-lineage6
+interface remain pending. No pushes, merge, deployment or live provider operations.

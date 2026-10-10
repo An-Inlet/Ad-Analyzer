@@ -1,0 +1,4 @@
+[
+  "tests/test_fresh_brand_pilot.py::test_fresh_visible_brand_journey[sqlite]",
+  "tests/test_fresh_brand_pilot.py::test_fresh_visible_brand_journey[postgres]"
+]

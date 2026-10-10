@@ -182,7 +182,7 @@ Concrete producer ports: Shopify uses actual customer authorize/callback routes,
 `CommerceSyncService.page(wid, now=reporting_clock)` and its existing terminal
 measurement publication. Google uses actual customer authorize/callback/select,
 `google_connections.contracts.get_transport()` with only HTTP transport injected,
-and `google_connections.service.tick(db, connection, now, transport)`; its terminal
+and `google_connections.service.tick(db, wid, cid, generation, transport, now)`; its terminal
 `campaign_performance.aggregate.publish` remains untouched. Native target reads use
 `account_diagnostics.diagnostic_transport` with MockTransport. Planning uses default
 `PlanningDocumentService` v3 and `OwnedPlanningEvidenceReader`; no v1/v2 policy

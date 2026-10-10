@@ -185,7 +185,7 @@ class FreshBrowser(GoogleBrowser):
         )
 
 
-def test_fresh_visible_brand_journey(
+def historical_fresh_visible_brand_journey(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

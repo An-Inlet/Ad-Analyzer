@@ -45,6 +45,7 @@ HISTORICAL_PATHS = (
     "tests/fixtures/retired_execution/nodes-highwater-api-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-social-execution-api-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-feedback-claimed-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-fresh-planning-pilot-2155ff3.json",
 )
 SNAPSHOT_PATH = "tests/retired_snapshot.py"
 

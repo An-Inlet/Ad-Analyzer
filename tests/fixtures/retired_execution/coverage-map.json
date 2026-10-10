@@ -1083,5 +1083,17 @@
       "tests/test_feedback_review_composition.py::test_current_dependency_retraction_preserves_protected_history"
     ],
     "reason": "Only the pinned claimed-stage third-context race is historical. All four current cases retain real dependency erasure/cascade/protected-history; claimed current execution denies before context and completed current reconciliation reads the actual retained effect."
+  },
+  {
+    "original_function": "tests/test_fresh_brand_pilot.py::test_fresh_visible_brand_journey",
+    "preserved_local_callable": "tests/test_fresh_brand_pilot.py::historical_fresh_visible_brand_journey",
+    "historical_nodes": [
+      "tests/test_fresh_brand_pilot.py::test_fresh_visible_brand_journey[sqlite]",
+      "tests/test_fresh_brand_pilot.py::test_fresh_visible_brand_journey[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_fresh_brand_planning_pilot.py::test_fresh_visible_planning_brand_journey"
+    ],
+    "reason": "Full original zero-user legacy journey preserved at PIN2155; current zero-user actual OAuth/import/default-v3 planning/manual review/progress/isolation journey is separate."
   }
 ]

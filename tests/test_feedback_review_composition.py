@@ -108,7 +108,7 @@ def derived_graph(db: Session, wid: int, attempt_id: str) -> tuple[str, str]:
 
 
 @pytest.mark.parametrize("stage", ["claimed_final_context", "completed"])
-def test_dependency_retraction_blocks_forward_preserves_protected_history(
+def historical_contract_dependency_retraction_blocks_forward_preserves_protected_history(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -193,6 +193,135 @@ def test_dependency_retraction_blocks_forward_preserves_protected_history(
         link = db.get(CandidateReviewLink, review.review_id)
         assert link and link.candidate_result_id is None and link.candidate_workspace_id is None
         assert db.get(ProviderExecutionReview, review.review_id) is not None
+        assert [
+            (r.id, r.state, r.amount_micros)
+            for r in db.scalars(select(ProviderExposureReservation))
+        ] == holds
+        assert (
+            db.scalar(
+                select(ProviderExecutionReceipt.id).where(
+                    ProviderExecutionReceipt.attempt_id == claim.attempt_id
+                )
+            )
+            is not None
+        )
+
+
+@pytest.mark.planning_boundary
+@pytest.mark.parametrize("stage", ["claimed_final_context", "completed"])
+def test_current_dependency_retraction_preserves_protected_history(
+    customer_engine: Engine,
+    tmp_path: Path,
+    stage: str,
+) -> None:
+    import re
+
+    from app.advertising_capabilities import AdvertisingWritesDisabled
+    from app.publication.contracts import fingerprint
+    from app.publication.optimization_contracts import OptimizationReceipt
+    from app.shopify.security import utc
+
+    from tests.feedback_review_retained_fixture import (
+        assert_erased,
+        assert_structural,
+        graph,
+        read_runtime,
+        retained_feedback_review,
+        source_readback,
+    )
+
+    with retained_feedback_review(customer_engine, tmp_path / "feedback-source", stage) as (
+        engine,
+        ids,
+    ), Session(engine) as db:
+        claim = source_readback(db, ids)
+        execution, server = read_runtime(claim, ids)
+        db.rollback()
+        original_graph = graph(engine)
+        numeric_id, dependency_id = derived_graph(db, ids.workspace_id, ids.attempt_id)
+        holds = [
+            (r.id, r.state, r.amount_micros)
+            for r in db.scalars(select(ProviderExposureReservation))
+        ]
+        db.commit()
+        before = graph(engine)
+        assert_structural(original_graph, before, ids, numeric_id, dependency_id)
+        with Session(engine) as other:
+            other.execute(
+                delete(CommerceMeasurementPublication).where(
+                    CommerceMeasurementPublication.id == dependency_id
+                )
+            )
+            other.commit()
+        erased = graph(engine)
+        assert_erased(before, erased, ids, numeric_id, dependency_id)
+        db.expire_all()
+        if stage == "claimed_final_context":
+            with pytest.raises(AdvertisingWritesDisabled) as denied:
+                optimization.execute_claim(db, claim, ids.actor_id, execution, lambda: NOW)
+            assert denied.value.detail == "advertising_writes_disabled_in_planning_mvp"
+            db.rollback()
+            assert graph(engine) == erased
+            assert server.calls == [] and server.writes == [] and ids.provider_posts == 0
+        else:
+            receipt = optimization.reconcile_attempt(
+                db,
+                ids.workspace_id,
+                claim.attempt_id,
+                execution,
+                lambda: NOW + timedelta(seconds=1),
+            )
+            assert receipt.outcome == "verified_target_state"
+            db.commit()
+            after = graph(engine)
+            old_receipts = erased["provider_execution_receipts"]
+            new = [
+                row for row in after["provider_execution_receipts"] if row not in old_receipts
+            ]
+            assert (
+                len(new) == 1
+                and len(after["provider_execution_receipts"]) == len(old_receipts) + 1
+            )
+            row = new[0]
+            assert re.fullmatch(r"[a-f0-9]{32}", row["id"])
+            parsed = OptimizationReceipt.model_validate(row["receipt"])
+            assert parsed == receipt
+            optimization.validate_receipt(claim.request, parsed)
+            assert (
+                row["attempt_id"] == ids.attempt_id and row["workspace_id"] == ids.workspace_id
+            )
+            assert row["sequence"] == 2 and row["supersedes_id"] == ids.receipt_id
+            assert utc(row["observed_at"]) == NOW + timedelta(seconds=1)
+            assert row["digest"] == fingerprint(
+                "inlet.optimization-receipt.v1", receipt.model_dump(mode="json")
+            )
+            run, document, attempt, _ = optimization.evidence_lock(
+                db, ids.workspace_id, ids.attempt_id
+            )
+            projection = optimization.normalized(
+                db, run, document, attempt, receipt, row["id"], row["digest"], 2, ids.receipt_id
+            )
+            assert row["projection"] == projection.model_dump(mode="json")
+            db.rollback()
+            assert {name for name in after if after[name] != erased[name]} == {
+                "provider_execution_receipts"
+            }
+            assert db.get(GoogleOriginalCompletion, claim.attempt_id) is not None
+            assert ids.provider_posts == 1 and not server.writes
+            assert server.calls and all(
+                path.endswith("googleAds:search") for path, _ in server.calls
+            )
+        db.expire_all()
+        assert db.get(V3Assessment, numeric_id) is None
+        assert (
+            db.scalar(
+                select(CandidateJob.id).where(CandidateJob.workspace_id == ids.workspace_id)
+            )
+            is None
+        )
+        link = db.get(CandidateReviewLink, ids.review_id)
+        assert link and link.candidate_result_id is None and link.candidate_workspace_id is None
+        assert db.get(ProviderExecutionReview, ids.review_id) is not None
         assert [
             (r.id, r.state, r.amount_micros)
             for r in db.scalars(select(ProviderExposureReservation))

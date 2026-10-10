@@ -1071,5 +1071,17 @@
       "tests/test_social_execution_current.py::test_current_social_configuration_history_and_execution_boundary"
     ],
     "reason": "Original execution and mid-IO races are preserved at PIN. Current positive owned configuration/history/privacy and predependency write denial are separately verified; denial does not claim callbacks ran."
+  },
+  {
+    "original_function": "tests/test_feedback_review_composition.py::test_dependency_retraction_blocks_forward_preserves_protected_history",
+    "preserved_local_callable": "tests/test_feedback_review_composition.py::historical_contract_dependency_retraction_blocks_forward_preserves_protected_history",
+    "historical_nodes": [
+      "tests/test_feedback_review_composition.py::test_dependency_retraction_blocks_forward_preserves_protected_history[sqlite-claimed_final_context]",
+      "tests/test_feedback_review_composition.py::test_dependency_retraction_blocks_forward_preserves_protected_history[postgres-claimed_final_context]"
+    ],
+    "current_coverage": [
+      "tests/test_feedback_review_composition.py::test_current_dependency_retraction_preserves_protected_history"
+    ],
+    "reason": "Only the pinned claimed-stage third-context race is historical. All four current cases retain real dependency erasure/cascade/protected-history; claimed current execution denies before context and completed current reconciliation reads the actual retained effect."
   }
 ]

@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "feedback_review_original": _test(
+        "feedback_review_retained_fixture", "feedback_review_seed_driver"
+    ),
     "initial_lineage": _test("initial_lineage_retained_fixture", "initial_lineage_seed_driver"),
     "meta_review_lock": _test("meta_review_lock_retained_fixture", "meta_review_lock_seed_driver"),
     "provider_ddl": _test("provider_ddl_retained_fixture", "provider_ddl_seed_driver"),

@@ -1,0 +1,4 @@
+[
+  "tests/test_feedback_review_composition.py::test_dependency_retraction_blocks_forward_preserves_protected_history[sqlite-claimed_final_context]",
+  "tests/test_feedback_review_composition.py::test_dependency_retraction_blocks_forward_preserves_protected_history[postgres-claimed_final_context]"
+]

@@ -23,4 +23,3 @@ AD_ANALYZER_TEST_POSTGRES_URL=postgresql+psycopg://postgres@127.0.0.1:55432/inle
 ```
 
 Final affected command uses the same environment, selects `tests/test_campaign_review.py::test_exact_review_edit_and_stale_approval tests/test_campaign_review.py::test_image_review_binds_exact_media_and_meta_generation`, and writes `final-tmp`/`final.xml`. Whole `ruff check .`, bare `mypy`, and `git diff --check` followed final source changes. PostgreSQL uses only caller-owned UUID fixture schemas; SQLite creates a dedicated current-schema file per producer. No aggregate source/database, Full, shared schema reset, live provider or advertising writes. No aggregate pass claim.
-

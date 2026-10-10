@@ -945,3 +945,32 @@ to/tmp, manifest recovery/inactive-bytecode-move-2.json. Unique evidence unchang
 Next active packages: financial-budget-period4 current/historical split, genuine
 creation/activation lineage4 source, campaign-review browser2 source interface.
 No aggregate rerun, pushes, hosted retry, merges, deployments or live qualification.
+
+
+### Current Creation/Activation Lineage And Financial Periods
+
+Lineage4 4ee1511 reviewedCLOSED/integrated9b5b0a0 afterc542127:128 passed51.828s
+(exact4+86boundaries+20guards+18lifetime), no skips/failures; SQLite creation1 passed
+10.625s, activation1 passed10.356s. Full original loops/outcome counts run at exactPIN;
+original current suffix/guards remain current over validated5/8 real source graph,
+held reservation and immutable fullrows/physicalDDL. Explicit parent followup8b3e9d6
+integratede02559b; affectedactivation2 passed20.574s, Ruff/mypy1244/diff0. Existing
+SourceLifetime behavior preserved: verified duplicate extracts can be cleaned after
+reaped failure, unique IDs/log/media/SQLite retained; docs corrected precisely.
+
+Financial4 ab98b57/03f33ce reviewedCLOSED/integratedece6970/6c855c2 after48d48e7.
+Current100 passed27.16s (4+7pure+86boundaries+2sourceguards+registry), historical4
+passed6.43s, wrapper1 passed13.93s. Cleanup followup closes both clients in finally
+before source teardown; normalizedbodyAST unchanged, affectedcurrent4 passed21.97s.
+WholeRuff/mypy1241/diff0. Actual current goal GET/edit/preview/confirm persists the
+invalid boundary; current converter AND assembly wrapper independently reject exact
+financialreason. Actual current route separately rejects exact planning-write409;
+no conflation or early generic denial credit. No native/runtime/financial effects.
+
+Ten historical batches now368children; no prior364 rerun. Combinede02559b wholeRuff/
+mypy1246/diff0. Immutablecoverage1276=1157direct+119historical/current,54remaining.
+Evidence20261010/initial-lineage4/financial-period4 and integration logs. The copied
+historical pytest current alias was verified byte-identical to numbered directory;
+only numbered original XML counted. Original aggregate remainsfailed/no rerun.
+Next: campaign browser2, plan-reviewauthority10 interface, configured reportedAPI14
+interface, and remaining mixed privacy/pilot contracts. No pushes/hosted/live work.

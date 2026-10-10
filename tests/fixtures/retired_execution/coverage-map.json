@@ -1139,5 +1139,18 @@
       "tests/test_configured_reported_current.py::test_current_configured_reported_new_session_cannot_adopt"
     ],
     "reason": "Exact original configured reported review/Start/effect/session assertions remain at the immutable historical PIN. Current genuine candidate reads, scoped sessions, and planning-only write prevention run over one authentic immutable original effect."
+  },
+  {
+    "original_function": "tests/test_two_brand_pilot.py::test_two_brands_api_review_execution_and_closure_isolation",
+    "preserved_local_callable": "tests/test_two_brand_pilot.py::retained_test_two_brands_api_review_execution_and_closure_isolation",
+    "historical_nodes": [
+      "tests/test_two_brand_pilot.py::test_two_brands_api_review_execution_and_closure_isolation[sqlite]",
+      "tests/test_two_brand_pilot.py::test_two_brands_api_review_execution_and_closure_isolation[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_two_brand_pilot_current.py::test_two_brand_current_onboarding_planning_and_isolation",
+      "tests/test_two_brand_retained_source.py::test_current_closure_over_exact_two_brand_source"
+    ],
+    "reason": "Exact historical two-brand execution remains pinned; current fresh two-brand CRM/goal/default-v3 planning/manual decision and owned current closure over the exact retained historical receipt graph are separate positive counterparts. Current closure preserves protected receipts/reservations and other-brand availability; no current advertising execution authority is asserted."
   }
 ]

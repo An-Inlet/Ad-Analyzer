@@ -1,0 +1,4 @@
+[
+  "tests/test_two_brand_pilot.py::test_two_brands_api_review_execution_and_closure_isolation[sqlite]",
+  "tests/test_two_brand_pilot.py::test_two_brands_api_review_execution_and_closure_isolation[postgres]"
+]

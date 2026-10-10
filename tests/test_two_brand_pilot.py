@@ -113,7 +113,7 @@ def native_fixture(db: Session, wid: int, platform: str, external: str) -> Accou
     return AccountScope(account_id=account.id, connection_id=integration.id, platform=platform)
 
 
-def test_two_brands_api_review_execution_and_closure_isolation(
+def retained_test_two_brands_api_review_execution_and_closure_isolation(
     customer_engine: Engine,
     configuration: Settings,
     configured: None,

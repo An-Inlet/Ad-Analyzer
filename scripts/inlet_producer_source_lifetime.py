@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "two_brand_receipt": _test(
+        "two_brand_receipt_retained_fixture", "two_brand_receipt_seed_driver"
+    ),
     "configured_reported_original": _test(
         "configured_reported_original_fixture", "configured_reported_original_seed_driver"
     ),

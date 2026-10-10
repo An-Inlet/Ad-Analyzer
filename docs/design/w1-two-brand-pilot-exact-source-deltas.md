@@ -32,6 +32,7 @@ BrandCommon {
   advertising_integration_id: PositiveInt
   store_id: Id32
   shopify_connection_id: PositiveInt
+  shopify_integration_id: PositiveInt
   crm_connection_id: Id32
   crm_integration_id: PositiveInt
   goal_id: Id32
@@ -116,8 +117,8 @@ Source: `app/api/customer.py::login`.
 - `customer_token_exchanges`: remove exactly rows whose pre-call expires_at is at or
   before that login's server `now`; add exactly the fresh verified token digest and
   expiry. Reject any other deletion/update. Existing unexpired exchanges unchanged.
-- No other row changes. Capture narrow server-time bounds or pin only customer
-  authentication wallclock in the harness; never mutate stored historical times.
+- No other row changes. Capture narrow real server-time request bounds; do not pin authentication
+  wallclock or mutate stored historical times.
 
 ### Closure Preview
 
@@ -143,8 +144,8 @@ For **A only**, permitted column changes:
 
 | Table | Exact allowed transition |
 |---|---|
-| workspaces | status active→closing; export_privacy_revision +1 |
-| workspace_integrations | status revoked; secret_manager_reference null |
+| workspaces | status active→closing; export_privacy_revision +1; updated_at within actual closure request bounds (SQLAlchemy onupdate=utc_now) |
+| workspace_integrations | exactly A3 rows: status revoked; secret_manager_reference null; updated_at within actual closure request bounds (same ORM mixin); B unchanged |
 | customer_source_connections | status disconnected; encrypted_grant/cursor/next_attempt_at null; staged {}; generation +1 |
 | google_customer_connections | status disconnected; encrypted_grant/cursor/next_attempt_at null; staged {}; generation +1 |
 | shopify_connections | status reconnect_required; encrypted_credentials empty string; cursor/next_attempt_at null |
@@ -211,3 +212,5 @@ No implementation/tests yet. Followup source discovery may establish a concrete
 additional row, but requires an explicit amended allowlist rather than a broad
 finance exemption. No historical activation is current policy. Existing archive
 source22dda68 remains incompatible; only low-level exact helpers may be reused.
+
+The source scalar index resolves ShopifyConnection by the unique workspace and commerce_store_id pair. Its native id is distinct from CommerceStore.connection_id, which identifies the owned WorkspaceIntegration. Both links are checked independently. The first strict-validation run exposed the original DTO extraction conflation; its exact source DB and failure remain preserved in closure-sqlite-04. No source rows or prefix changed.

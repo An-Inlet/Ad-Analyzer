@@ -105,8 +105,8 @@ def test_exact_class_parameter_mapping_disjoint_file_balance() -> None:
     assert sum(map(len, groups)) == len(set.union(*groups))
     assert result["current_shards"][0]["files"] == ["tests/test_alpha.py"]
     assert len(result["current_shards"][0]["node_refs"]) == 2
-    assert len(result["historical"]) == 17
-    assert sum(x["child_count"] for x in result["historical"]) == 403
+    assert len(result["historical"]) == 18
+    assert sum(x["child_count"] for x in result["historical"]) == 405
 
 
 @pytest.mark.parametrize(
@@ -485,11 +485,11 @@ def test_oversized_same_display_distinct_suffix_maps_compactly() -> None:
     assert raw["items"][-1]["node"]["display"] == raw["items"][-2]["node"]["display"]
     assert raw["items"][-1]["node"]["utf8_bytes"] == raw["items"][-2]["node"]["utf8_bytes"]
     result = candidate(raw, root)
-    assert len(result["observations"]) == 20
+    assert len(result["observations"]) == 21
     assert len(json.dumps(result).encode()) < 20_000
     refs = [n for group in result["current_shards"] for n in group["node_refs"]]
     assert len(refs) == len(set(refs)) == 3
-    assert len(result["identity_index"]) == 20
+    assert len(result["identity_index"]) == 21
 
 
 @pytest.mark.parametrize("change", ["digest", "length", "same_digest", "duplicate", "class"])

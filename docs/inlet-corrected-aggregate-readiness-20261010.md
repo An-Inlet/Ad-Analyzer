@@ -153,3 +153,20 @@ IDs and failures, exact source/hash/status and resource/capacity samples. Retain
 root and child outcomes separately. Copy scratch-only artifacts durably before
 checkpoint and hash them; reboot loss of /tmp must be disclosed. Any repair occurs
 on a successor; never rewrite this new run's frozen source or restart silently.
+
+## Additional Read-Only Cache Inventory
+
+`/workspace/inlet-evidence/20261010/corrected-aggregate-readiness/ignored-cache-inventory.json`
+records46 non-symlink `.mypy_cache` directories, each Git-ignored and over1MiB,
+1,897,615,368 logical bytes total. No mutation occurred. Process/cwd evidence is only
+a snapshot and must be rechecked with lane owners before any approved move. In
+particular exclude `inlet-fresh-planning-proposal` and `inlet-retained-reported-rule12`
+while their lanes are pending. Completed own-lane candidates include
+`inlet-reported-planning-durable`, `inlet-reported-planning-baseline`,
+`inlet-reported-proof14`, `inlet-reported-composition`, `inlet-reported-acquisition`,
+`inlet-reported-foundation`, and `inlet-reported-preview-consumers`, approximately
+42MiB logical each; current typechecking uses explicit/tmp caches. Even moving the
+entire1.90GB inventory would bring durable free capacity only around2.5GB, below
+the proposed evidence-plus-reserve gate. Existing recovery manifests batch1–5 remain
+untouched. Inventory is not approval to delete/move anything or a guarantee that
+all cache directories remain inactive at execution time.

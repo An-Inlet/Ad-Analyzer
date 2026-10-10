@@ -173,6 +173,7 @@ def test_pause_and_revoke_keep_accounting(
         assert db.get(ProviderPeriodLedger, binding.ledger_id) is not None
 
 
+@pytest.mark.planning_boundary
 def test_populated_execution_migration_roundtrip(
     monkeypatch: pytest.MonkeyPatch, configuration: Settings, tmp_path: Any
 ) -> None:
@@ -182,9 +183,13 @@ def test_populated_execution_migration_roundtrip(
     from alembic import command
     from alembic.config import Config
     from app.customers.models import CustomerUser
+    from app.publication.customer_intents import binding as current_binding
     from app.settings import settings
     from scripts.reset_disposable_postgres import validate_disposable_url
     from sqlalchemy import create_engine, make_url, text
+
+    from tests.financial_origin_retained_fixture import current_policy, retained_financial_source
+    from tests.provider_ddl_retained_fixture import ConsentIds, phase
 
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
@@ -192,7 +197,7 @@ def test_populated_execution_migration_roundtrip(
     ):
         pytest.skip("explicit disposable PostgreSQL required")
     url = validate_disposable_url()
-    schema = "provider_execution_" + uuid4().hex
+    schema = "inlet_migration_fixture_" + uuid4().hex
     admin = create_engine(url)
     with admin.begin() as db:
         db.execute(text(f'CREATE SCHEMA "{schema}"'))
@@ -204,13 +209,25 @@ def test_populated_execution_migration_roundtrip(
         # Seed with today's ORM only at today's schema. Then exercise the real
         # predecessor upgrade with populated retained customer data.
         command.upgrade(config, "head")
+        ids = retained_financial_source(engine, tmp_path / "original", "source_only")
         with Session(engine) as db:
-            p, actor = setup(db, configuration, tmp_path)
+            p, actor = current_policy(db, ids), ids.actor_id
         command.downgrade(config, "20261006_0043")
         command.upgrade(config, "head")
         with Session(engine) as db:
             row = s.revise(db, p.workspace_id, p, actor, lambda: NOW)
-            binding = s.consent(db, p.workspace_id, row.id, 1, p.digest(), actor, lambda: NOW)
+            mandate_id = row.id
+        consent = phase(
+            engine,
+            ids,
+            tmp_path / "original",
+            tmp_path / "consent-first",
+            "execution_consent",
+            provider_mandate_id=mandate_id,
+        )
+        assert isinstance(consent, ConsentIds)
+        with Session(engine) as db:
+            binding = current_binding(db, p.workspace_id, mandate_id, 1)
             ledger, _ = s.checked(db, p.workspace_id, binding, actor, lambda: NOW)
             ledger.spent_high_water_micros = 30
             db.commit()
@@ -220,7 +237,16 @@ def test_populated_execution_migration_roundtrip(
             assert db.get(CustomerUser, actor) is not None
             assert db.scalar(select(func.count()).select_from(ProviderPeriodLedger)) == 0
             row = s.revise(db, p.workspace_id, p, actor, lambda: NOW)
-            s.consent(db, p.workspace_id, row.id, 1, p.digest(), actor, lambda: NOW)
+            mandate_id = row.id
+        consent = phase(
+            engine,
+            ids,
+            tmp_path / "original",
+            tmp_path / "consent-second",
+            "execution_consent",
+            provider_mandate_id=mandate_id,
+        )
+        assert isinstance(consent, ConsentIds)
     finally:
         engine.dispose()
         with admin.begin() as db:

@@ -339,6 +339,7 @@ def test_empty_blockers_need_exact_fresh_server_proof() -> None:
         ProviderPublicationReview.model_validate(data)
 
 
+@pytest.mark.planning_boundary
 def test_populated_provider_migration_roundtrip(
     monkeypatch: pytest.MonkeyPatch,
     configuration: Settings,
@@ -352,13 +353,16 @@ def test_populated_provider_migration_roundtrip(
     from scripts.reset_disposable_postgres import validate_disposable_url
     from sqlalchemy import create_engine, make_url, text
 
+    from tests.financial_origin_retained_fixture import retained_financial_source
+    from tests.provider_ddl_retained_fixture import QualificationIds, phase
+
     if (
         not os.environ.get("AD_ANALYZER_TEST_POSTGRES_URL")
         or os.environ.get("AD_ANALYZER_CI_DISPOSABLE_POSTGRES") != "true"
     ):
         pytest.skip("explicit disposable PostgreSQL required")
     url = validate_disposable_url()
-    schema = "provider_review_" + uuid4().hex
+    schema = "inlet_migration_fixture_" + uuid4().hex
     admin = create_engine(url)
     with admin.begin() as db:
         db.execute(text(f'CREATE SCHEMA "{schema}"'))
@@ -368,22 +372,28 @@ def test_populated_provider_migration_roundtrip(
     config = Config("alembic.ini")
     try:
         command.upgrade(config, "head")
-        with Session(engine) as db:
-            wid, draft, actor, store = seeded(db, configuration, tmp_path)
+        ids = retained_financial_source(engine, tmp_path / "original", "source_only")
+        actor = ids.actor_id
         command.downgrade(config, "20261006_0040")
         command.upgrade(config, "head")
+        approved = phase(
+            engine, ids, tmp_path / "original", tmp_path / "approved", "qualification_approved"
+        )
+        assert isinstance(approved, QualificationIds)
         with Session(engine) as db:
-            row = prepare(db, wid, draft, actor, store)
-            s.approve(
-                db, wid, row.id, row.review_digest, row.plan_digest, actor, store, lambda: NOW
-            )
             assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == 1
         command.downgrade(config, "20261006_0040")
         command.upgrade(config, "head")
         with Session(engine) as db:
             assert db.scalar(select(func.count()).select_from(ProviderReviewRecord)) == 0
             assert db.get(CustomerUser, actor) is not None
-            row = prepare(db, wid, draft, actor, store)
+        prepared = phase(
+            engine, ids, tmp_path / "original", tmp_path / "prepared-again", "qualification_only"
+        )
+        assert isinstance(prepared, QualificationIds)
+        with Session(engine) as db:
+            row = db.get(ProviderReviewRecord, prepared.review_id)
+            assert row is not None
             assert row.source_revision == 1
     finally:
         engine.dispose()
@@ -392,6 +402,7 @@ def test_populated_provider_migration_roundtrip(
         admin.dispose()
 
 
+@pytest.mark.planning_boundary
 def test_database_rejects_cross_workspace_qualification_reference(
     customer_engine: Engine,
     configuration: Settings,
@@ -402,9 +413,18 @@ def test_database_rejects_cross_workspace_qualification_reference(
 
     if customer_engine.dialect.name != "postgresql":
         pytest.skip("PostgreSQL composite foreign-key guarantee")
+    from tests.financial_origin_retained_fixture import retained_financial_source
+    from tests.provider_ddl_retained_fixture import QualificationIds, phase
+
+    ids = retained_financial_source(customer_engine, tmp_path / "original", "source_only")
+    prepared = phase(
+        customer_engine, ids, tmp_path / "original", tmp_path / "qualified", "qualification_only"
+    )
+    assert isinstance(prepared, QualificationIds)
+    actor = ids.actor_id
     with Session(customer_engine) as db:
-        wid, draft, actor, store = seeded(db, configuration, tmp_path)
-        row = prepare(db, wid, draft, actor, store)
+        row = db.get(ProviderReviewRecord, prepared.review_id)
+        assert row is not None
         other = Workspace(slug="foreign", name="Foreign", client_name="Foreign", status="active")
         db.add(other)
         db.commit()

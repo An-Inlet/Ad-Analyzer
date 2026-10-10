@@ -25,3 +25,11 @@ pure handoff parser; never rerun existing361 historical children for this additi
 Whole Ruff/mypy/Node/diff before code freeze; retain exact child collection/results/
 provenance logs and source fixture evidence durably. Coverage credit is3 historical
 with current counterparts, never add children to parent aggregate pass counts.
+
+Qualified20261010: seven parent cases passed (one new3-child historical wrapper,
+registry, unchanged pure parser and four current actual planning browser cases).
+All3 historical children passed separately; exact durations preserved in XML.
+Whole Ruff/mypy1236/both Node syntax/diff0. Evidence20261010/initial-dom3 includes
+raw parent/child logs/XML, exact child collection, PIN/tree provenance and SHA copies.
+No other historical batch rerun. Registry verifies exact original function AST after
+name normalization. Current total is9 batches/364 children, never added to parents.

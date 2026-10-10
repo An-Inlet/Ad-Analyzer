@@ -1,0 +1,5 @@
+[
+  "tests/test_initial_automation_ui.py::test_initial_automation_stale_session_uncertainty_and_recovery",
+  "tests/test_initial_execution_ui.py::test_execution_ui_stale_results_and_separate_approval[v1]",
+  "tests/test_initial_execution_ui.py::test_execution_ui_stale_results_and_separate_approval[v2]"
+]

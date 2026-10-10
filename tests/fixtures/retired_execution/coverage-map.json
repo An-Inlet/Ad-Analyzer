@@ -966,5 +966,28 @@
       "tests/test_google_completion_api_current.py::test_current_completion_privacy_and_unknown_hold"
     ],
     "reason": "Original unknown-advance idempotent success is retired; exact original privacy/assertions remain pinned, while current same-owner sessions and actual current receipt routes retain privacy and unknown advance explicitly denies409 with unchanged financial graph."
+  },
+  {
+    "original_function": "tests/test_initial_automation_ui.py::test_initial_automation_stale_session_uncertainty_and_recovery",
+    "preserved_local_callable": "tests/test_initial_automation_ui.py::historical_contract_initial_automation_stale_session_uncertainty_and_recovery",
+    "historical_nodes": [
+      "tests/test_initial_automation_ui.py::test_initial_automation_stale_session_uncertainty_and_recovery"
+    ],
+    "current_coverage": [
+      "tests/test_initial_budget_mandate_browser.py::test_first_customer_budget_browser"
+    ],
+    "reason": "Removed execution handoff/Start DOM controls remain exact pinned originals; current actual planning-only budget browser verifies absent controls, no execution requests and stale intent/logout clearing."
+  },
+  {
+    "original_function": "tests/test_initial_execution_ui.py::test_execution_ui_stale_results_and_separate_approval",
+    "preserved_local_callable": "tests/test_initial_execution_ui.py::historical_contract_execution_ui_stale_results_and_separate_approval",
+    "historical_nodes": [
+      "tests/test_initial_execution_ui.py::test_execution_ui_stale_results_and_separate_approval[v1]",
+      "tests/test_initial_execution_ui.py::test_execution_ui_stale_results_and_separate_approval[v2]"
+    ],
+    "current_coverage": [
+      "tests/test_initial_budget_mandate_browser.py::test_first_customer_budget_browser"
+    ],
+    "reason": "Removed execution handoff/Start DOM controls remain exact pinned originals; current actual planning-only budget browser verifies absent controls, no execution requests and stale intent/logout clearing."
   }
 ]

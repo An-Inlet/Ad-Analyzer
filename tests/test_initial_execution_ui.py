@@ -19,7 +19,7 @@ def test_versioned_execution_handoff_frontend_contract() -> None:
 
 
 @pytest.mark.parametrize("version", ["v1", "v2"])
-def test_execution_ui_stale_results_and_separate_approval(version: str) -> None:
+def historical_contract_execution_ui_stale_results_and_separate_approval(version: str) -> None:
     result = subprocess.run(
         [portal_executable("node"), "tests/javascript/initial_execution_dom.mjs", version],
         capture_output=True,

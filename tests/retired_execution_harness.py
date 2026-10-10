@@ -20,7 +20,8 @@ BATCHES = {"original": (MANIFEST, 142), "ui_supplement": (SUPPLEMENT, 19),
            "configured_candidates": (
                MANIFEST.parent / "nodes-configured-candidates-2155ff3.json", 16),
            "google_completion_api": (
-               MANIFEST.parent / "nodes-google-completion-api-2155ff3.json", 12)}
+               MANIFEST.parent / "nodes-google-completion-api-2155ff3.json", 12),
+           "initial_dom": (MANIFEST.parent / "nodes-initial-dom-2155ff3.json", 3)}
 
 
 def qualify(root: Path, artifacts: Path, batch: str) -> None:

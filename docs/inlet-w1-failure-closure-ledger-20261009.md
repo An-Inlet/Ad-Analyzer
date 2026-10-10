@@ -913,3 +913,35 @@ Social UI4 current component/retainedshell gate now passes after observed ORM wo
 updated_at correction with strict real-time bounds; final cohort pending. Its earlier
 failures remain evidence. Next packages: socialUI4, creation/activationlineage4, financial
 budget-periodAPI4 interface. Full frozen aggregate awaits closing all known failures.
+
+
+### Social Component And Reported DOM Closure
+
+SocialUI01ac10e reviewedCLOSED/integrated8a13652 with interfacesac278fe/a997267.
+Four original cases explicitly run CURRENT component/API in exact hashed retained
+HTML test shell; supplemental2 exercise actual current social History route. Six
+passed52.880s, compatibility16 passed97.307s, corrected overlappinggate2 passed21.640s.
+Header preservation finding fixed; affected actualHistory2 passed5.177s. Original
+current response status/security/cache headers preserved except changed body length.
+WholeRuff/mypy1237/twoNode/diff0; combined8a13652 static0 (1241files).
+
+Earlier UI failures retained: original shell caused two timeouts/two strict unbound
+teardown errors; retainedshell then reached login but exact graph rejected ORM's
+workspace.updated_at from the deliberate name assignment. One bounded diagnostic
+identified the actual timestamp. Corrected one-shot binding permits only exactname
+and updated_at bounded by real commit interval, freezes full resulting graph, rejects
+secondbinding/otherfield/time changes. No auth/TTL/source guard relaxation.
+
+Root reportedDOM2 846c566 integratedeb8afe0: original2 detached current module units
+plus actual current optimization History browser2 passed5.663s; wholeRuff/mypy1236/
+twoNode/diff0 and combinedeb8afe0 Ruff/mypy1241/diff0. Only exact hashed retainedHTML
+DOM inventory path and comment change in drivers; original assertion bytes unchanged.
+No current customer Start/execution controls restored. All component coverage carries
+explicit scope in immutableoverlay1268=1153direct+115historical/current,62remaining.
+
+Evidence20261010/social-review-ui4/reported-dom2 and respective integration logs.
+Moved only ignored regenerable bytecode from ten inactive worktrees (no active CWD)
+to/tmp, manifest recovery/inactive-bytecode-move-2.json. Unique evidence unchanged.
+Next active packages: financial-budget-period4 current/historical split, genuine
+creation/activation lineage4 source, campaign-review browser2 source interface.
+No aggregate rerun, pushes, hosted retry, merges, deployments or live qualification.

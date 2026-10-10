@@ -168,3 +168,37 @@ source, databases and media. No cleanup was performed here.
 Website remains paused/owner-managed. All Q packages remain partial; all six human
 release gates remain unmet. Neither historical nor mocked current acceptance is a
 live pilot, purchase qualification, deployment approval or finished SaaS claim.
+
+## Additive Fixture Interface Freeze — 2026-10-10
+
+Implementation owner: customer_portal owns the new current pilot test/fixture and
+this document; imports `FreshBrowser` and `TestOfferHTTP` by explicit class name
+from the legacy module, never its collected test function. Historical manifest and
+coverage registry changes are coordinated with root; append only this package's
+exact two PIN2155 children, not rerun previous batches. Shared production/importer
+files remain read-only unless a reproduced defect is separately coordinated.
+
+Concrete producer ports: Shopify uses actual customer authorize/callback routes,
+`CommerceSyncService.page(wid, now=reporting_clock)` and its existing terminal
+measurement publication. Google uses actual customer authorize/callback/select,
+`google_connections.contracts.get_transport()` with only HTTP transport injected,
+and `google_connections.service.tick(db, connection, now, transport)`; its terminal
+`campaign_performance.aggregate.publish` remains untouched. Native target reads use
+`account_diagnostics.diagnostic_transport` with MockTransport. Planning uses default
+`PlanningDocumentService` v3 and `OwnedPlanningEvidenceReader`; no v1/v2 policy
+substitution, fabricated completion or expected-success bundle. If current v3 does
+not support the resulting genuine Google completion, record the exact gap and
+retain truthful insufficient output; do not claim supported complete evidence.
+
+Temporal fixture: use real UTC now for identity/session/callback validation and
+planning freshness. Set provider reporting to the immediately preceding complete
+UTC day (Google account zone UTC); Shopify shop zone UTC, baseline previous complete
+calendar month, goal target next calendar month and budget exactly that target
+month. Use an explicit synthetic September/November2026 legacy clock only inside
+the isolated PIN test, never current planning authorization. Current Shopify source
+and agreement dates are generated relative to the declared reporting/goal windows;
+all acquisition completion timestamps are actual importer values. OAuth expires_in
+stays3600; no session/native/plan TTL extension. First gate is SQLite actual fresh
+connection→import→confirmed goal→default planning generation, before the broader
+both-DB browser/recovery/isolation matrix. Capacity preflight before implementation
+read533MiB; repeat immediately before any browser/extraction run.

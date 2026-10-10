@@ -1115,3 +1115,20 @@ originalfailures covered (1172direct+154historical/current); fourremain:
 two-brand2 andarchive2. Noaggregate, hostedretry, remote, merge ordeployment.
 Capacity preservedby moving27ignoredinactive mypy caches intact to/tmp (1.13GB);
 manifest recovery/inactive-cache-move-6.json. Unique evidence/source/DB untouched.
+
+### Two-Brand Planning And Closure Integrated (2026-10-10)
+
+Designs57fe5ae/8a977a6; implementationfbcbd81 fromac8be4a. Current two-brand
+planning/auth/CRM/ownedreceipt/closure final4 passed42.352s; prior source+current
+6 passed84.133s. Finalsource/DTO/AST/historical wrapper11parent passed78.544s,
+new originalchildren2 passed25.21s separately. Fullclosure graph checks preserve
+BrandB, historicalsessions, heldreservation/financialreceipts; only exactowned
+closure deltas and request-bounded ORM timestamps permitted. Distinct Shopify
+connection/integration IDs re-resolved. Clients close on failure; foreignclosure404.
+
+Root explicit registry18/405; combinedpartition/map/scalarguards 84passed,
+wholeRuff/configuredmypy/diff exit0. Evidenceintegration-two-brand/results.json;
+detailedledger `docs/inlet-two-brand-pilot2-20261010.md` retains failures/repairs.
+Immutable successor-coverage-1328.json:1328/1330 (1172direct+156historical/current),
+archive2 remains. Archive exact source-readback gap reviewed and closed in WIP,
+finalPG/historical/statics pending. Aggregate notstarted; holdsunchanged.

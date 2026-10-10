@@ -1009,3 +1009,34 @@ Exact targeted coverage1280/1330 =1160direct +120historical/current;50remain.
 No registry addition (11/369). Frozen aggregate unchanged; no full rerun, hosted
 retry, push or live action. Continue campaignUI2/planreview10/API14 and remaining
 mixed privacy/pilot tests.
+
+## Campaign UI2, Plan Review10 And Highwater API4 — 2026-10-10
+
+Integrated campaign design956b73f/code89e5c9c from171805a: final22 passed121.469s
+(browser2/current review12/boundary8), precursor module3 passed26.202s; IDs reader
+guards8 passed2.018s plus final parser reread actual2source outputs. Full current
+JS/HTML preserved; exact5draft/7revision/2media graph, normal auth and viewer denial.
+Original null Google timezone retained; initial overbroad fixture assertion failure
+source DB/logs preserved. Evidence campaign-review-ui2 and detailed package ledger.
+
+Plan review design e5033f8/code89c9410 fromd394dc6:106 passed2existingSQLite skips
+102.64s; actualPG locks/owner gate4 passed49.78s; historicalowner2 passed4.63s
+(wrapper14.68s). Full original PG wait/PID/authorization body retained. Six nonowner
+original identities map explicitly to current equivalents; onlyowner2 historical.
+Exact simulation/financial mutation checks and existing18ceiling cases preserved.
+Evidence plan-review10; zero-test filename typo exit4 preserved.
+
+Highwater designe06a77a/codee0a60aa from8b7a64a:92parent passed22.406s; separate
+historical4 passed5.277s. Current real scoped API rejects high/lower claims with
+precise planning409 and full unchanged database graph. Original highwater commit
+contract exactAST retained. Evidence highwater-api4.
+
+Manual merge resolution unioned only registry/map additions. Combined registry13
+batches375children. Merged registry test1/Ruff/bare mypy/diff all pass; logs in
+integration-plan-highwater. No prior historical batches or aggregate rerun.
+
+Exact coverage1296/1330 =1170direct +126historical/current,34remain. Duplicate
+pytest-current alias historical XML copies were byte-verified and counted once.
+Original frozen aggregate/hash unchanged. Next packages: API14, customer social10,
+feedback privacy4, freshpilot2, two-brandpilot2 and archiveprivacy2. Website paused;
+all Q partial/six human gates unmet; no live, hosted retry, push, merge or deployment.

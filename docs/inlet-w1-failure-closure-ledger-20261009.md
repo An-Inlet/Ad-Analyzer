@@ -832,3 +832,16 @@ failure/source evidence durably before checkpoint; use /tmp only with that cavea
 Q01–Q16 remain partial; all six human usefulness gates remain unmet. No evidence
 shortens the prior low-confidence4–8 week controlled pilot /6–10 week purchasable
 release estimate. Website remains owner-managed and paused.
+
+
+### Candidate Read Unit DOM
+
+Reviewed root package09a76de integrated2155e9e (interfacec594d56): original1 passed
+5.799s; actual current history-only optimization browser2bothDB plus43 direct/HTTP
+write-boundary cases passed27.180s. WholeRuff/mypy1236/Node/diff0. Only unit DOM
+inventory changed; all original driver assertions/tail, wrapper and production
+unchanged. This is detached current-module unit coverage with mocked API responses;
+current customer-page controls remain absent and server write boundaries remain.
+Evidence20261010/candidate-dom1. Immutablecoverage1247=1135direct+112historical/current,
+83remain; no aggregate rerun. Inactive frozen-tree ignored mypy cache moved intact
+into/tmp with recovery/frozen-cache-move.json; unique evidence unchanged.

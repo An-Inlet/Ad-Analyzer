@@ -84,3 +84,26 @@ Attempt B uses separate evidence, fresh database names and scratch paths, and
 requires the passing restore prerequisite before starting. It carries no passing
 case credit from A and starts the full disjoint union afresh. The safety reserves
 and coverage/archive checks are unchanged.
+
+## Verified First Two Cycles
+
+Attempt B partitions 00 and 01 are terminal and fully retained: respectively
+219 passes / 3 existing skips and 220 passes / 2 existing skips, with no failures.
+All 444 identities match their disjoint planned collections and terminal reports.
+Both cycles verified archives and database dumps before deleting only their
+new duplicate scratch and dedicated disposable databases. Partition 00 archived
+669 members; its database dump is 701,477 bytes.
+
+Minimum memory headroom during their pytest processes was respectively
+4,106,690,560 and 4,050,513,920 bytes, substantially above the unchanged reserve.
+Their separate archive stages also stayed above 4.8 GB headroom. After the first
+cleanup, the second pytest began at 12,061,118,464 bytes cgroup memory, near the
+12.02 GB post-cache-disposal baseline. These measurements support bounded process
+isolation; they do not prove every remaining partition will fit.
+
+Partition 02 is active. This is 439 passed / 5 skipped out of 7,094 planned parent
+cases, not full acceptance. `first-two-resource-analysis.json` records the measured
+stage samples. The original interrupted full run remains separate and unchanged.
+A 20:46 UTC disconnect notification did not interrupt the executor: a subsequent
+check found the controller alive, recent samples, clean frozen source and all
+prior evidence intact. No reset or duplicate was started.

@@ -69,135 +69,143 @@ def test_current_invalid_budget_midnight_goal_and_route_boundaries(
         customer_engine, tmp_path / "retained", "google_ads"
     ) as (engine, ids, media):
         clients = cast(Any, replicas).__wrapped__(engine, monkeypatch)
-        alice, base, _, _, _, server, requests, control = configured_customer(
-            engine, configuration, media, monkeypatch, clients, ids
-        )
-        wid = ids.workspace_id
-        # Exact initial current goal setup from configured(...), with the genuine actor.
-        with Session(engine) as db:
-            goal = db.scalars(select(Goal).where(Goal.workspace_id == wid)).one()
-            initial_definition = GoalDefinition.model_validate(goals.current(db, goal).definition)
-            goals.revise(
-                db,
-                goal,
-                initial_definition.model_copy(update={"budget_start": NOW.date()}),
-                ids.actor_id,
-                NOW,
+        try:
+            alice, base, _, _, _, server, requests, control = configured_customer(
+                engine, configuration, media, monkeypatch, clients, ids
             )
-            preview = goals.preview(db, goal, NOW)
-            goals.confirm(
-                db,
-                goal,
-                ConfirmInput(
-                    expected_revision=goal.revision,
-                    preview_id=preview.id,
-                    idempotency_key="configured-optimization-goal",
-                ),
-                NOW,
-                actor_id=ids.actor_id,
-            )
-            db.commit()
-            query: dict[str, Any] = dict(
-                goal_id=goal.id, goal_revision=goal.revision, account_id=ids.account_id
-            )
-            store = db.scalar(select(CommerceStore).where(CommerceStore.workspace_id == wid))
-            assert store
-            store.time_zone = zone
-            db.commit()
-        monkeypatch.setattr(customer_goals, "datetime", SimpleNamespace(now=lambda _: NOW))
-        alice.app.include_router(goals_router)
-        alice.app.include_router(optimization_router)
-        runtime_calls = 0
+            wid = ids.workspace_id
+            # Exact initial current goal setup from configured(...), with the genuine actor.
+            with Session(engine) as db:
+                goal = db.scalars(select(Goal).where(Goal.workspace_id == wid)).one()
+                initial_definition = GoalDefinition.model_validate(
+                    goals.current(db, goal).definition
+                )
+                goals.revise(
+                    db,
+                    goal,
+                    initial_definition.model_copy(update={"budget_start": NOW.date()}),
+                    ids.actor_id,
+                    NOW,
+                )
+                preview = goals.preview(db, goal, NOW)
+                goals.confirm(
+                    db,
+                    goal,
+                    ConfirmInput(
+                        expected_revision=goal.revision,
+                        preview_id=preview.id,
+                        idempotency_key="configured-optimization-goal",
+                    ),
+                    NOW,
+                    actor_id=ids.actor_id,
+                )
+                db.commit()
+                query: dict[str, Any] = dict(
+                    goal_id=goal.id, goal_revision=goal.revision, account_id=ids.account_id
+                )
+                store = db.scalar(select(CommerceStore).where(CommerceStore.workspace_id == wid))
+                assert store
+                store.time_zone = zone
+                db.commit()
+            monkeypatch.setattr(customer_goals, "datetime", SimpleNamespace(now=lambda _: NOW))
+            alice.app.include_router(goals_router)
+            alice.app.include_router(optimization_router)
+            runtime_calls = 0
 
-        def forbidden_runtime() -> None:
-            nonlocal runtime_calls
-            runtime_calls += 1
-            raise AssertionError("Current planning denial must precede runtime construction")
+            def forbidden_runtime() -> None:
+                nonlocal runtime_calls
+                runtime_calls += 1
+                raise AssertionError("Current planning denial must precede runtime construction")
 
-        alice.app.dependency_overrides[get_configured_customer_optimization_runtime] = (
-            forbidden_runtime
-        )
-        goal_root = base.removesuffix("/execution") + "/goals/" + query["goal_id"]
-        response = alice.get(goal_root)
-        assert response.status_code == 200, response.text
-        definition = response.json()["definition"]
-        for key in ("target_window", "baseline_window"):
-            definition[key]["time_zone"] = zone
-        definition.update(budget_start=start.isoformat(), budget_end=end.isoformat())
-        revised = alice.put(
-            goal_root,
-            headers=headers(alice),
-            json={"expected_revision": query["goal_revision"], "definition": definition},
-        )
-        assert revised.status_code == 200, revised.text
-        revision = revised.json()["revision"]
-        preview_response = alice.post(
-            goal_root + "/preview", headers=headers(alice), json={"expected_revision": revision}
-        )
-        assert preview_response.status_code == 200, preview_response.text
-        confirmed = alice.post(
-            goal_root + "/confirm",
-            headers=headers(alice),
-            json={
-                "expected_revision": revision,
-                "preview_id": preview_response.json()["preview_id"],
-                "idempotency_key": "financial-boundary-confirm",
-            },
-        )
-        assert confirmed.status_code == 200, confirmed.text
-        before = financial_rows(engine)
-        with Session(engine) as db:
-            current = db.get(Goal, query["goal_id"])
-            assert current and current.workspace_id == wid and current.revision == revision
-            retained = goals.current(db, current)
-            assert current.confirmed_preview_id == preview_response.json()["preview_id"]
-            assert retained.confirmed_at is not None and retained.confirmed_by == ids.actor_id
-            persisted = GoalDefinition.model_validate(retained.definition)
-            assert persisted.budget_start == start and persisted.budget_end == end
-            assert persisted.target_window.time_zone == persisted.baseline_window.time_zone == zone
-        for convert in (financial_budget_period, period):
-            with pytest.raises(HTTPException) as caught:
-                convert(persisted)
-            assert caught.value.status_code == 409
-            assert caught.value.detail == "financial_budget_period_unavailable"
-        selected = {**query, "goal_revision": revision, "option_id": "a" * 64}
-        rejected = alice.post(
-            base + "/optimization/budget-mandates",
-            headers=headers(alice),
-            json={
-                "intent": {
-                    "selection": selected,
-                    "total_cap_micros": 50_000_000,
-                    "aggressiveness": "balanced",
-                }
-            },
-        )
-        assert rejected.status_code == 409, rejected.text
-        assert rejected.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
-        assert runtime_calls == 0 and control["transports_opened"] == 0 and not requests
-        assert server.posts == server.activations == 0
-        assert financial_rows(engine) == before
-        with Session(engine) as db:
-            for model in (
-                ProviderExecutionMandate,
-                ProviderExecutionRevision,
-                ProviderPeriodLedger,
-                OptimizationMandatePreparationRow,
-            ):
-                assert db.scalar(select(func.count()).select_from(model)) == 0
-        (tmp_path / "current-result.json").write_text(
-            json.dumps(
-                dict(
-                    confirmed=confirmed.json(),
-                    persisted_definition=persisted.model_dump(mode="json"),
-                    route_rejection=rejected.json(),
-                    converter_reason="financial_budget_period_unavailable",
-                    runtime_calls=runtime_calls,
-                    provider_requests=len(requests),
-                    provider_posts=server.posts,
-                ),
-                indent=2,
+            alice.app.dependency_overrides[get_configured_customer_optimization_runtime] = (
+                forbidden_runtime
             )
-        )
-        clients[0].close()
-        clients[1].close()
+            goal_root = base.removesuffix("/execution") + "/goals/" + query["goal_id"]
+            response = alice.get(goal_root)
+            assert response.status_code == 200, response.text
+            definition = response.json()["definition"]
+            for key in ("target_window", "baseline_window"):
+                definition[key]["time_zone"] = zone
+            definition.update(budget_start=start.isoformat(), budget_end=end.isoformat())
+            revised = alice.put(
+                goal_root,
+                headers=headers(alice),
+                json={"expected_revision": query["goal_revision"], "definition": definition},
+            )
+            assert revised.status_code == 200, revised.text
+            revision = revised.json()["revision"]
+            preview_response = alice.post(
+                goal_root + "/preview", headers=headers(alice), json={"expected_revision": revision}
+            )
+            assert preview_response.status_code == 200, preview_response.text
+            confirmed = alice.post(
+                goal_root + "/confirm",
+                headers=headers(alice),
+                json={
+                    "expected_revision": revision,
+                    "preview_id": preview_response.json()["preview_id"],
+                    "idempotency_key": "financial-boundary-confirm",
+                },
+            )
+            assert confirmed.status_code == 200, confirmed.text
+            before = financial_rows(engine)
+            with Session(engine) as db:
+                current = db.get(Goal, query["goal_id"])
+                assert current and current.workspace_id == wid and current.revision == revision
+                retained = goals.current(db, current)
+                assert current.confirmed_preview_id == preview_response.json()["preview_id"]
+                assert retained.confirmed_at is not None and retained.confirmed_by == ids.actor_id
+                persisted = GoalDefinition.model_validate(retained.definition)
+                assert persisted.budget_start == start and persisted.budget_end == end
+                assert (
+                    persisted.target_window.time_zone == persisted.baseline_window.time_zone == zone
+                )
+            for convert in (financial_budget_period, period):
+                with pytest.raises(HTTPException) as caught:
+                    convert(persisted)
+                assert caught.value.status_code == 409
+                assert caught.value.detail == "financial_budget_period_unavailable"
+            selected = {**query, "goal_revision": revision, "option_id": "a" * 64}
+            rejected = alice.post(
+                base + "/optimization/budget-mandates",
+                headers=headers(alice),
+                json={
+                    "intent": {
+                        "selection": selected,
+                        "total_cap_micros": 50_000_000,
+                        "aggressiveness": "balanced",
+                    }
+                },
+            )
+            assert rejected.status_code == 409, rejected.text
+            assert rejected.json()["detail"] == "advertising_writes_disabled_in_planning_mvp"
+            assert runtime_calls == 0 and control["transports_opened"] == 0 and not requests
+            assert server.posts == server.activations == 0
+            assert financial_rows(engine) == before
+            with Session(engine) as db:
+                for model in (
+                    ProviderExecutionMandate,
+                    ProviderExecutionRevision,
+                    ProviderPeriodLedger,
+                    OptimizationMandatePreparationRow,
+                ):
+                    assert db.scalar(select(func.count()).select_from(model)) == 0
+            (tmp_path / "current-result.json").write_text(
+                json.dumps(
+                    dict(
+                        confirmed=confirmed.json(),
+                        persisted_definition=persisted.model_dump(mode="json"),
+                        route_rejection=rejected.json(),
+                        converter_reason="financial_budget_period_unavailable",
+                        runtime_calls=runtime_calls,
+                        provider_requests=len(requests),
+                        provider_posts=server.posts,
+                    ),
+                    indent=2,
+                )
+            )
+        finally:
+            try:
+                clients[0].close()
+            finally:
+                clients[1].close()

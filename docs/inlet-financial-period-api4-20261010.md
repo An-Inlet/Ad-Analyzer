@@ -61,3 +61,14 @@ and all four historical identities.
 No aggregate rerun, remote/live provider call, advertising write, global guard
 patch, production change, added skip or xfail occurred. Original W1 failures remain
 immutable; this package provides bounded successor evidence for four identities.
+
+## Failure-Safe Client Cleanup Followup
+
+Independent review requested both current app clients close before retained-source
+teardown even if an assertion fails. The existing current body is now inside
+try/finally; nested cleanup also closes the second client if the first close fails.
+`cleanup-preservation.json` verifies the complete body AST inside try is unchanged.
+Only the affected current4 were rerun: **4 passed,21.97s**, `cleanup.log/xml`;
+unique artifacts copied to `cleanup-artifacts/`. Whole Ruff and bare mypy1241
+passed separately (`ruff-cleanup.log`, `mypy-cleanup.log`), and diff check passed.
+Neither historical4 nor the earlier100-case cohort was repeated.

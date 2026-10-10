@@ -8,7 +8,7 @@ It supplies no completion credit to the replacement partition execution.
 
 The aggregate's sampled cgroup memory rose from 11,970,580,480 to
 16,650,354,688 bytes. After process shutdown, usage fell to about 13.87 GB.
-No pytest or browser process remained. The post-run memory breakdown included
+No active pytest or resident-memory-consuming browser process remained. The post-run memory breakdown included
 about 5.19 GB of tmpfs/shared memory, 4.73 GB of other file cache, and 3.73 GB
 of reclaimable slab. These are cgroup totals, not proof of a particular test leak.
 The interrupted runner sampled totals only, so per-test attribution is unavailable.
@@ -107,3 +107,16 @@ stage samples. The original interrupted full run remains separate and unchanged.
 A 20:46 UTC disconnect notification did not interrupt the executor: a subsequent
 check found the controller alive, recent samples, clean frozen source and all
 prior evidence intact. No reset or duplicate was started.
+
+## Ten-Partition Checkpoint
+
+Ten partitions have complete, exactly matched and retained evidence: 2,192 passed,
+20 existing skips; 4,882 parent outcomes remain pending. Partition 10 (the eleventh)
+is running. `ten-partition-checkpoint.json` retains current resource measurements.
+No full-suite or historical-child completion is claimed.
+
+A more precise browser-process inspection found 572 defunct Chromium entries
+parented to PID 1, all with zero RSS, and no configured cgroup PID cap. This is
+an environment process-reaping limitation, not evidence of active browser memory
+retention. No reset or process-killing action was taken. Detailed evidence is in
+`browser-process-diagnosis.json`. The active validation harness is unchanged.

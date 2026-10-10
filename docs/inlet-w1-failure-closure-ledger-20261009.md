@@ -879,3 +879,37 @@ retained HTML shell with CURRENT component/API and separate actual current Histo
 route browser. Must label unavailable UI accurately; initial failures remain recorded.
 DDL3 final qualification/new-row strictness followup and initial prior-lineage6
 interface remain pending. No pushes, merge, deployment or live provider operations.
+
+
+### Initial DOM, Prior Budget And Current DDL
+
+Root initialDOM3 d2bfcee integrated28f14c5: exact original two functions (three
+cases) preserved by name-only AST normalization and new precise initial_dom batch;
+seven parent cases passed50.574s (wrapper, mapping registry, unchanged parser and
+four actual current planning browsers). Three historical children separately passed
+3.441s. Actual current page retains absent execution controls/no execution requests,
+planning-only consent, changed-intent and late-response clearing/logout. No customer
+execution feature restored. Nine historical batches now contain364 children; only
+new3 rerun. WholeRuff/mypy1236/twoNode/diff0; combined28f14c5 static0. Evidenceinitial-dom3.
+
+Prior-budget2 76548dc reviewedCLOSED/integrated971d0fc after interface09fdeed:
+94 passed103.738s (exact2+source6compat+86boundaries), no skips/failures; Ruff/mypy1236/
+diff0, combined971d0fc all0. Entire original current guard/future-scope suffix retained.
+Creation/activation remaining4 have separately approved closed source05cb9ee, not
+implemented or credited yet. Evidenceinitial-prior-budget2. Intermediatecoverage1259.
+
+DDL3 ba3b671 reviewedCLOSED/integratede0ad15c after94a933c. Resolved only additive
+SourceLifetime registry conflict by retaining BOTH meta_review_lock and provider_ddl.
+Merged lifecycle16 passed; wholeRuff/mypy1240/diff0 (integration-ddl3). Original actual
+PostgreSQL FK and0040/0043 migration/assertion sequences preserved. Before-row strictness
+followup,118 passed140.66s; after full exact qualification-row fix, affected2PG+18guards
+20 passed95.41s. Unchanged execution migration retains preceding qualification.
+One earlier bootstrap precondition failure preserved and corrected with exact migration
+bootstrap projection; no production DDL failure. All source/IDs/media/logproofdurable.
+
+Immutablecoverage1262=1147direct+115historical/current,68remaining. Original aggregate
+unchanged/failed; no aggregate rerun, hosted qualification, push, merge or deployment.
+Social UI4 current component/retainedshell gate now passes after observed ORM workspace
+updated_at correction with strict real-time bounds; final cohort pending. Its earlier
+failures remain evidence. Next packages: socialUI4, creation/activationlineage4, financial
+budget-periodAPI4 interface. Full frozen aggregate awaits closing all known failures.

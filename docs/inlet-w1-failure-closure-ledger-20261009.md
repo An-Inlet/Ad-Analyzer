@@ -974,3 +974,23 @@ historical pytest current alias was verified byte-identical to numbered director
 only numbered original XML counted. Original aggregate remainsfailed/no rerun.
 Next: campaign browser2, plan-reviewauthority10 interface, configured reportedAPI14
 interface, and remaining mixed privacy/pilot contracts. No pushes/hosted/live work.
+
+## TikTok Linked UI Two — 2026-10-10
+
+Integrated design3146236 and implementation45680d0 from4a290a4. Exact detached
+component/media browser retained full current assertions in hashed historical HTML;
+actual current route remains History. Qualification6 parent passed16.350s and new
+historical shell1 passed1.743s separately. Ruff/mypy1246/diff pass; initial formatting
+and incorrect explicit-mypy invocation logs preserved. Detailed package ledger:
+`docs/inlet-tiktok-linked-ui2-20261010.md`; raw evidence in
+`/workspace/inlet-evidence/20261010/tiktok-linked-ui2/`.
+
+Exact original-identity coverage1278/1330:1158 direct +120 historical/current,
+52 remain. Registry11 batches369 children, only new1 ran. Original failed aggregate
+unchanged, no full rerun or live/hosted/push operations. Existing campaign UI2,
+planreview10 and configured reported API14 packages continue under reviewed contracts.
+
+Capacity recovery moved ignored regenerable bytecode only from inactive worktrees
+to/tmp (190335120bytes), preserved source/data/evidence; manifest
+`recovery/inactive-bytecode-move-3.json`. Workspace free688MiB at completion; continue
+500MiB heavy-run preflight. All Q packages remain partial and human gates unmet.

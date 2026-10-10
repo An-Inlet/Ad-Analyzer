@@ -1,0 +1,4 @@
+[
+  "tests/test_archive_closure_financial_social.py::test_owned_archive_then_closure_retains_replacement_and_social_evidence[sqlite]",
+  "tests/test_archive_closure_financial_social.py::test_owned_archive_then_closure_retains_replacement_and_social_evidence[postgres]"
+]

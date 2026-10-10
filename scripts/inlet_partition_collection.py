@@ -30,6 +30,7 @@ def git(root: Path, *args: str) -> str:
 
 
 HISTORICAL_PATHS = (
+    "tests/fixtures/retired_execution/nodes-archive-financial-social-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-supplement-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-forward-2155ff3.json",

@@ -173,7 +173,7 @@ def social_approval(db: Session, wid: int, actor: str, scope: Any, store: LocalM
     return row.id
 
 
-def test_owned_archive_then_closure_retains_replacement_and_social_evidence(
+def historical_contract_owned_archive_then_closure_retains_replacement_and_social_evidence(
     export_engine: Engine, configuration: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     store = LocalMediaStore(tmp_path)

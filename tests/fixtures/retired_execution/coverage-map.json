@@ -1152,5 +1152,17 @@
       "tests/test_two_brand_retained_source.py::test_current_closure_over_exact_two_brand_source"
     ],
     "reason": "Exact historical two-brand execution remains pinned; current fresh two-brand CRM/goal/default-v3 planning/manual decision and owned current closure over the exact retained historical receipt graph are separate positive counterparts. Current closure preserves protected receipts/reservations and other-brand availability; no current advertising execution authority is asserted."
+  },
+  {
+    "original_function": "tests/test_archive_closure_financial_social.py::test_owned_archive_then_closure_retains_replacement_and_social_evidence",
+    "preserved_local_callable": "tests/test_archive_closure_financial_social.py::historical_contract_owned_archive_then_closure_retains_replacement_and_social_evidence",
+    "historical_nodes": [
+      "tests/test_archive_closure_financial_social.py::test_owned_archive_then_closure_retains_replacement_and_social_evidence[sqlite]",
+      "tests/test_archive_closure_financial_social.py::test_owned_archive_then_closure_retains_replacement_and_social_evidence[postgres]"
+    ],
+    "current_coverage": [
+      "tests/test_archive_financial_social_current.py::test_current_archive_and_closure"
+    ],
+    "reason": "Exact original two-brand financial replacement/social approval and Bob forwarding run unchanged at PIN; current authenticated archive/privacy/closure and active409/closing404 zero-effect boundaries use that genuine closed prefix on current DDL."
   }
 ]

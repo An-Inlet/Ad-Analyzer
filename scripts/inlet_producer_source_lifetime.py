@@ -51,6 +51,9 @@ def _test(
 
 
 PROFILES = {
+    "archive_financial_social": _test(
+        "archive_financial_social_retained_fixture", "archive_financial_social_seed_driver"
+    ),
     "two_brand_receipt": _test(
         "two_brand_receipt_retained_fixture", "two_brand_receipt_seed_driver"
     ),

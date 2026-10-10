@@ -4,8 +4,8 @@
 
 All 1,330 original failing identities now have passing targeted successor evidence:
 1,172 direct cases and 158 preserved historical cases with current-policy coverage.
-This is not an aggregate pass. The corrected, unfiltered aggregate is running on
-frozen commit `9d7aa2e1193ec627b33088764210f94e49cf504d`.
+This is not an aggregate pass. The corrected, unfiltered aggregate was interrupted
+by the memory-reserve monitor on frozen commit `9d7aa2e1193ec627b33088764210f94e49cf504d`.
 
 The canonical collection succeeded with 7,094 parent cases, including 19 separately
 identified historical wrappers. Their 407 children are reported separately and
@@ -52,7 +52,7 @@ before pytest fixtures. Failed outputs remain retained. The latter changes did n
 modify product or test code. Successful database/static gates were not duplicated
 when the launcher resumed its remaining steps.
 
-## Running Aggregate And Evidence Retention
+## Interrupted Aggregate And Evidence Retention
 
 The aggregate started at 19:43:12 UTC. No marker exclusions, new skip policy or
 stop-on-first-failure option was used. It has its own dedicated database; migration
@@ -62,12 +62,12 @@ Durable evidence directory:
 `/workspace/inlet-evidence/20261010/w1-corrected-9d7aa2e/`.
 It contains the frozen source record, canonical collection, exact commands, every
 preflight result, start/PID records, raw aggregate log and periodic resource samples.
-The JUnit and terminal result will be written there when pytest exits.
+The JUnit and terminal result are preserved there.
 
 Supplemental test files use the unique scratch directory
-`/tmp/inlet-corrected-9d7aa2e-aggregate`. A terminal watcher will inventory every
-member, create a bounded lossless archive, stream-verify contents and metadata, then
-copy and hash-verify it into durable evidence. Restart loss or an unverified archive
+`/tmp/inlet-corrected-9d7aa2e-aggregate`. The terminal watcher inventoried all 9,720
+members, created and stream-verified a lossless archive, then copied and hash-verified
+it into durable evidence. The compressed archive is 12,001,915 bytes. Restart loss or an unverified archive
 prevents a qualified pass. Preflight supplemental artifacts are already archived
 and verified. Existing unique evidence is not deleted.
 
@@ -78,8 +78,23 @@ excluded. No aggregate restart or duplicate is authorized by this status documen
 
 ## Remaining Gates
 
-First reconcile the terminal aggregate against its exact collection and historical
-child manifests, verify skips and supplemental retention, and report actual timing.
+The run stopped at 20:33:23 UTC after 3,010.85 seconds of launcher time
+(pytest reported 2,979.89 seconds). The monitor observed only 529,514,496 bytes
+of memory headroom, below its 512 MiB reserve; SIGINT was followed by SIGTERM
+after the 30-second shutdown allowance. Terminal exit was -15. No OOM kill was
+recorded. Both original process IDs are absent.
+
+JUnit contains 1,554 passes, 26 existing PostgreSQL-only skips and zero recorded
+failures/errors. Exact classname/name-hash reconciliation matches all 1,580
+reported cases to the 7,094-case collection, leaving 5,514 without outcomes.
+No historical wrappers had reported yet; their 407 child results cannot be
+claimed from this run. All archive hashes were independently reverified.
+
+At the liveness check, durable disk had about 1.59 GiB free, scratch about 4.10 GiB,
+and memory about 3.08 GiB of headroom after shutdown. Both frozen worktrees remain
+clean. There is no running aggregate, restart or duplicate. Diagnose cumulative
+memory pressure and prepare a concrete capacity remedy before proposing another
+run; do not relax the reserve or infer a full pass from partial results.
 A local pass would not establish hosted CI capacity: CI still has its 90-minute
 pytest and 120-minute job limits. Node 24 locally differs from CI Node 22, and
 existing offline dependencies were reused rather than freshly installed.

@@ -1169,3 +1169,17 @@ collection found 7,094 parent cases. All required local preflight commands passe
 the one unfiltered aggregate started at 19:43:12 UTC with separate owned databases.
 It is still running; targeted closure is not an aggregate pass. Exact processes,
 commands, logs, capacity samples and terminal archival are durably checkpointed.
+
+
+## Corrected Aggregate Terminal — 2026-10-10
+
+Frozen `9d7aa2e` aggregate interrupted by the 512 MiB memory reserve at
+20:33:23 UTC; exit -15 after SIGINT and shutdown allowance. 1,554 passed,
+26 existing PostgreSQL-only skips, zero recorded failures/errors; 5,514 of
+7,094 collected parents remain unreported. This is not an aggregate pass.
+Both original PIDs are absent; frozen corrected and original source remain clean.
+All 9,720 supplemental members are durably archived and hash-verified.
+Evidence: `w1-corrected-9d7aa2e/aggregate.result.json`,
+`terminal-reconciliation.json`, `supplemental-durable-verified.json` under the
+20261010 evidence directory. No restart, duplicate, remote write or hosted retry.
+Next: diagnose cumulative memory pressure before proposing a capacity remedy.

@@ -1132,3 +1132,31 @@ detailedledger `docs/inlet-two-brand-pilot2-20261010.md` retains failures/repair
 Immutable successor-coverage-1328.json:1328/1330 (1172direct+156historical/current),
 archive2 remains. Archive exact source-readback gap reviewed and closed in WIP,
 finalPG/historical/statics pending. Aggregate notstarted; holdsunchanged.
+
+### All Original Failure Identities Have Targeted Successors (2026-10-10)
+
+Integrated328ec85 from48e8fda. Current archiveprivacy SQLite1 andPostgreSQL1+15
+strictguards passed; originalhistorical2 passed separately(wrapper/AST/partition3).
+Independent review sourcebinding gap closed: exactconsent/policy/approval/steps/
+ledgerdispatch baseline verified. Current exports/closure preserve fullfinancial/
+social/BrandB graph. Active409 vsclosedworkspace404 follows existingauthorityorder.
+Detailedledger `docs/inlet-archive-current-privacy2-20261010.md`; durableevidence
+`/workspace/inlet-evidence/archive-current-contract-01/` including earlierfailures.
+
+Combined rootpartition/map/guards: 92passed; wholeRuff/configuredmypy/diff0.
+Exactregistry19batches/407children. Immutable successor-coverage-1330.json records
+all1330originalfailure identities covered (1172direct+158historical/current).
+This is targeted-successor coverage, NOT a passing aggregate or livequalification.
+Allnew known fixture/partition failures have terminal bounded repair evidence.
+
+Next freeze this reviewed source, collect exact full inventory, run required local
+checks against three NEW ownedDBs, then one unfiltered aggregate. Use new/tmp
+basetemp with durable rootlog/XML/provenance, no concurrentheavy lanes, and
+capacity monitoring. Root accepts transient scratch-restart exposure: interrupted
+or missing supplemental artifacts cannot be called a qualified pass. Afterterminal,
+losslessly archive ALL supplemental members, streamverify and copy/hashdurably;
+never delete unique existing evidence. Baseline2.3GiBworkspace/5.1GiBtmp after
+ignoredinactivecachemoves recorded in recovery/inactive-cache-move-7.json.
+Preserve1GiBdurable and2GiBscratch reserve; resource-stop is interrupted, neverpass.
+Node24 vsCI22 and reusedoffline dependencies remain explicitparity limits.
+NativePowerShellwrapper7.6.6 resolved. Push/hosted/merge/deploy/live holdsremain.

@@ -1,0 +1,6 @@
+[
+  "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[sqlite-America/Havana-start0-end0]",
+  "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[sqlite-Pacific/Apia-start1-end1]",
+  "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[postgres-America/Havana-start0-end0]",
+  "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[postgres-Pacific/Apia-start1-end1]"
+]

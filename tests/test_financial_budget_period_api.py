@@ -34,7 +34,7 @@ from tests.test_shopify_sales import configuration as configuration
         ("Pacific/Apia", date(2011, 12, 30), date(2011, 12, 31)),
     ],
 )
-def test_invalid_budget_midnight_returns409_without_authority(
+def retained_test_invalid_budget_midnight_returns409_without_authority(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

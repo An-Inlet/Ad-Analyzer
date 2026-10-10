@@ -989,5 +989,19 @@
       "tests/test_initial_budget_mandate_browser.py::test_first_customer_budget_browser"
     ],
     "reason": "Removed execution handoff/Start DOM controls remain exact pinned originals; current actual planning-only budget browser verifies absent controls, no execution requests and stale intent/logout clearing."
+  },
+  {
+    "original_function": "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority",
+    "preserved_local_callable": "tests/test_financial_budget_period_api.py::retained_test_invalid_budget_midnight_returns409_without_authority",
+    "historical_nodes": [
+      "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[sqlite-America/Havana-start0-end0]",
+      "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[sqlite-Pacific/Apia-start1-end1]",
+      "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[postgres-America/Havana-start0-end0]",
+      "tests/test_financial_budget_period_api.py::test_invalid_budget_midnight_returns409_without_authority[postgres-Pacific/Apia-start1-end1]"
+    ],
+    "current_coverage": [
+      "tests/test_financial_budget_period_current.py::test_current_invalid_budget_midnight_goal_and_route_boundaries"
+    ],
+    "reason": "Retired budget-mandate HTTP converter ordering remains exact pinned original; current authenticated goal flow and persisted-definition converter rejection remain exercised separately from exact current planning-write route denial with no financial effects."
   }
 ]

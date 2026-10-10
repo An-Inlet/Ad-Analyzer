@@ -116,7 +116,7 @@ proposal; never fill missing columns with fabricated authority or disable guards
 
 Driver output: exact-key, bounded JSON scalar manifest (maximum16KiB), version and
 literal source identity; exactly two brand entries with integer workspace/account/
-integration/store IDs, actor/goal/draft/source-connection IDs, fixed CRM/platform,
+integration IDs and 32-hex store IDs, actor/goal/draft/source-connection IDs, fixed CRM/platform,
 goal/draft revisions/digests; A's provider mandate/revision, consent, ledger,
 creation/activation review and run IDs/digests, reservation ID and one exact owned
 activation attempt/receipt ID+digests; bounded expected graph row counts/digest and
@@ -141,8 +141,8 @@ Current consumer:
 2. Historical sessions are not reused as current credentials. Create two current
    sessions through actual login with the original stored issuer/subject/email;
    assert the returned user IDs exactly match retained owners. No identity rewrite,
-   membership reassignment or direct session insert. Original historical sessions
-   can be revoked through the ordinary test-owned session lifecycle; no live grants.
+   membership reassignment or direct session insert. Historical session rows remain unchanged; fresh empty-cookie clients do not
+   rotate them. No live grants.
 3. Read A's exact retained receipt through current `read_owned_outcome_receipt`:
    original A succeeds; B under A workspace and B under B workspace both fail.
 4. Use current assembled HTTP closure-preview and exact confirm revision/inventory

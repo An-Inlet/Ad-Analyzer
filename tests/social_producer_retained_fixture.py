@@ -35,6 +35,7 @@ from tests.retired_snapshot import PIN, extract, run_bounded
 from tests.test_commerce_measurement import NOW
 
 if TYPE_CHECKING:
+    from tests.social_execution_read_current_fixture import SocialExecutionReadEvidence
     from tests.social_review_api_current_fixture import SocialApiLoginEvidence
     from tests.social_review_ui_current_fixture import SocialUiEvidence
 
@@ -59,6 +60,7 @@ class SocialProducerSource:
     artifacts: Path
     api_evidence: "SocialApiLoginEvidence | None" = None
     ui_evidence: "SocialUiEvidence | None" = None
+    execution_api_evidence: "SocialExecutionReadEvidence | None" = None
 
 
 def owned_sqlite_target(target: str, expected: Path) -> str:
@@ -133,9 +135,9 @@ def retained_social_producer(
     video: bytes | None,
     change: str | None,
     *,
-    consumer: Literal["producer", "configuration", "api", "ui"] = "producer",
+    consumer: Literal["producer", "configuration", "api", "ui", "execution_api"] = "producer",
 ) -> Iterator[SocialProducerSource]:
-    assert consumer in {"producer", "configuration", "api", "ui"}
+    assert consumer in {"producer", "configuration", "api", "ui", "execution_api"}
     assert consumer == "producer" or change is None
     assert provider in {"meta_ads", "tiktok_ads"}
     assert change in {
@@ -237,6 +239,16 @@ def retained_social_producer(
             with Session(engine) as db:
                 api = SocialApiLoginEvidence(expected_api_document(db, source), ids.actor_id)
             source = SocialProducerSource(engine, ids, artifacts, api)
+        if consumer == "execution_api":
+            from tests.social_execution_read_current_fixture import (
+                SocialExecutionReadEvidence,
+                expected_execution_document,
+            )
+            with Session(engine) as db:
+                evidence = SocialExecutionReadEvidence(
+                    expected_execution_document(db, source), ids.actor_id
+                )
+            source = SocialProducerSource(engine, ids, artifacts, execution_api_evidence=evidence)
         before = graph(engine)
         if consumer == "ui":
             from tests.social_review_ui_current_fixture import (
@@ -280,7 +292,9 @@ def retained_social_producer(
                 from tests.social_configuration_current_fixture import configuration_delta
 
                 configuration_delta(expected, actual, ids, configuration_document)
-            if source.api_evidence is not None:
+            if source.execution_api_evidence is not None:
+                source.execution_api_evidence.assert_delta(expected, actual)
+            elif source.api_evidence is not None:
                 source.api_evidence.assert_delta(expected, actual)
             elif source.ui_evidence is not None:
                 source.ui_evidence.assert_delta(expected, actual)

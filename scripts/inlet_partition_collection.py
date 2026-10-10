@@ -38,6 +38,12 @@ HISTORICAL_PATHS = (
     "tests/fixtures/retired_execution/nodes-runtime-api-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-configured-candidates-2155ff3.json",
     "tests/fixtures/retired_execution/nodes-google-completion-api-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-initial-dom-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-financial-period-api-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-tiktok-linked-shell-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-plan-review-owner-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-highwater-api-2155ff3.json",
+    "tests/fixtures/retired_execution/nodes-social-execution-api-2155ff3.json",
 )
 SNAPSHOT_PATH = "tests/retired_snapshot.py"
 

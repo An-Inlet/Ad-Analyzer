@@ -1,0 +1,12 @@
+[
+  "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[sqlite-meta_ads]",
+  "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[sqlite-tiktok_ads]",
+  "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[postgres-meta_ads]",
+  "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[postgres-tiktok_ads]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-session_during_catalog]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-expiry_during_qualification]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-server_configuration_guard]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-session_during_catalog]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-expiry_during_qualification]",
+  "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-server_configuration_guard]"
+]

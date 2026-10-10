@@ -1041,5 +1041,35 @@
       "tests/test_current_claim_prevention.py::test_current_rejected_api_claim_preserves_all_financial_rows"
     ],
     "reason": "Original rejected synthetic claim commits monotonic highwater; current exact planning denial preserves full financial graph before evaluating observations."
+  },
+  {
+    "original_function": "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation",
+    "preserved_local_callable": "tests/test_customer_social_execution.py::historical_contract_social_customer_paused_creation_and_activation",
+    "historical_nodes": [
+      "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[sqlite-meta_ads]",
+      "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[sqlite-tiktok_ads]",
+      "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[postgres-meta_ads]",
+      "tests/test_customer_social_execution.py::test_social_customer_paused_creation_and_activation[postgres-tiktok_ads]"
+    ],
+    "current_coverage": [
+      "tests/test_social_execution_current.py::test_current_social_configuration_history_and_execution_boundary"
+    ],
+    "reason": "Original execution and mid-IO races are preserved at PIN. Current positive owned configuration/history/privacy and predependency write denial are separately verified; denial does not claim callbacks ran."
+  },
+  {
+    "original_function": "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io",
+    "preserved_local_callable": "tests/test_customer_social_execution.py::historical_contract_social_creation_rechecks_authority_after_io",
+    "historical_nodes": [
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-session_during_catalog]",
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-expiry_during_qualification]",
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[sqlite-server_configuration_guard]",
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-session_during_catalog]",
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-expiry_during_qualification]",
+      "tests/test_customer_social_execution.py::test_social_creation_rechecks_authority_after_io[postgres-server_configuration_guard]"
+    ],
+    "current_coverage": [
+      "tests/test_social_execution_current.py::test_current_social_configuration_history_and_execution_boundary"
+    ],
+    "reason": "Original execution and mid-IO races are preserved at PIN. Current positive owned configuration/history/privacy and predependency write denial are separately verified; denial does not claim callbacks ran."
   }
 ]

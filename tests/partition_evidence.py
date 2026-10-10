@@ -260,6 +260,12 @@ def historical(
         "runtime_api": 40,
         "configured_candidates": 16,
         "google_completion_api": 12,
+        "initial_dom": 3,
+        "financial_period_api": 4,
+        "tiktok_linked_shell": 1,
+        "plan_review_owner": 2,
+        "highwater_api": 4,
+        "social_execution_api": 10,
     }:
         raise ValueError("historical batch contract mismatch")
     seen: set[str] = set()
@@ -287,7 +293,7 @@ def historical(
                 pin=PIN,
             )
         )
-    if len(seen) != 361:
+    if len(seen) != 385:
         raise ValueError("historical union mismatch")
     return entries
 

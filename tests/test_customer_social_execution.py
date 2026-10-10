@@ -216,7 +216,7 @@ def confirmed(
 
 
 @pytest.mark.parametrize("platform", ["meta_ads", "tiktok_ads"])
-def test_social_customer_paused_creation_and_activation(
+def historical_contract_social_customer_paused_creation_and_activation(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,
@@ -363,7 +363,7 @@ def test_social_customer_paused_creation_and_activation(
     "change",
     ["session_during_catalog", "expiry_during_qualification", "server_configuration_guard"],
 )
-def test_social_creation_rechecks_authority_after_io(
+def historical_contract_social_creation_rechecks_authority_after_io(
     customer_engine: Engine,
     configuration: Settings,
     tmp_path: Path,

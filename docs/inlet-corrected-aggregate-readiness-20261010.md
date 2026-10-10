@@ -229,3 +229,68 @@ Evidence: corrected-aggregate-readiness/powershell-resolution.json.
 Root moved only inactive ignored mypy caches intact to/tmp under recovery manifest
 inactive-cache-move-6.json, leaving approximately1.7GiB workspace/5.8GiBtmp free.
 This improves bounded repair headroom, not full-run capacity qualification.
+## Authorized Representative Compression Measurement
+
+Root authorized a bounded operational measurement after the read-only plan. No
+aggregate/collection/test or original-file change occurred. Script and results are
+retained in the readiness evidence directory: `compression-measure.py`,
+`compression-sample-manifest.json`, `compression-sample-result.json`, and
+`compression-durable-copy-and-powershell.json`.
+
+Sample: original root log/XML/result plus whole historical child2 and lifecycle
+`test_storage_owned_binding_era0` directories. Exactly4,804 members (4,481 regular
+files and10 symlinks),98,873,386 logical input bytes produced11,129,154 compressed
+bytes: **11.26%** compressed/input,5.114s compression and0.776s streamed verification
+plus source reread. Output had a hard300MiB cap. Every member's path/type/content
+SHA256/size/mode/UID/GID/mtime or symlink target was verified by streaming the
+archive, with no extraction or following links. Original file hashes/mtimes were
+rechecked unchanged. Archive copied durably and SHA256 verified again:
+`3606f1f6b8ee18ab38f481c53f8b69b05464a7294e3bac7f767b8894ba82dfc8`.
+Both original inputs and/tmp sample remain; nothing was deleted.
+
+This demonstrates that lifecycle/source artifact structure can be retained at tar
+level: exact relative paths, metadata, symlink relationships and raw manifest/log
+bytes survive. Embedded absolute recorded paths remain unchanged provenance, not
+new runnable paths. Audit extraction must separately validate links/path traversal
+and restore only into an isolated tree; archived presence is not permission to
+rerun old producer state. Preserve SourceLifetime manifests and any retained-failure
+source; do not synthesize cleaned-source entries or selectively omit unique files.
+
+Applying the measured ratio to the roughly1.848GB logical original packet gives
+about208MB, below300MiB, but this is **only extrapolation**, not full-packet evidence.
+The sample includes highly compressible root failures and is not statistically
+representative. Full compressed size and future corrected-artifact size remain
+unknown. No full-packet compression was attempted. A later explicit bounded full
+compression can stop at300MiB without deleting inputs; cap exceedance is a capacity
+finding, not permission to drop members.
+
+## Practical Scratch-First Alternative For A Future Authorized Run
+
+A NEW unique/tmp basetemp with durable root log/XML/start/terminal/provenance files
+may avoid1.9GB raw artifact growth on workspace. At measured5.8GiB scratch free,
+16GiB cgroup memory and1.7GiB durable free, this is plausible but not capacity-proven.
+Reserve at least2GiB scratch/memory headroom and1GiB durable/DB backing reserve;
+monitor NEW basetemp, memory, WAL and database growth rather than assuming the old
+packet is an upper bound. No overlapping heavy lanes. After terminal, create a
+lossless supplemental archive on/tmp, stream-verify all members against a complete
+inventory, copy durably, and verify whole-archive hash. With1.7GiB durable free and
+1GiB reserve, the copy budget is approximately0.7GiB before new DB/log growth;
+recompute it from actual capacity, never silently exceed it. A300MiB bounded first
+archive attempt fits that nominal budget; exceeding the cap requires reassessment,
+not truncation, deletion or an unbounded retry. Keep raw root log/XML durable.
+
+Important limitation: terminal-only supplemental archival loses unarchived/tmp
+artifacts on restart, as this environment already demonstrated. Root must explicitly
+accept that transient risk or require incremental verified archives of completed,
+closed artifact subtrees into durable storage during the run. Do not archive
+actively written SQLite/WAL or modify/delete live basetemp. Compression is additional
+CPU/memory work; measure/record overlap if incremental copying is chosen. This plan
+is a feasible lower-durable-space candidate, not authorization or a new full-run
+success claim. Existing unique evidence stays untouched regardless of new-run result.
+
+PowerShell prerequisite is now resolved: exact executable wrapper
+`/workspace/inlet-tools/pwsh` delegates to
+`/workspace/inlet-powershell/opt/microsoft/powershell/7/pwsh`; actual invocation
+reported7.6.6. Add `/workspace/inlet-tools` before the venv/currentPATH in future
+preflight so `shutil.which('pwsh')` resolves it. Wrapper/binary hashes and version
+are retained durably; this supersedes the earlier PATH-only availability gap.

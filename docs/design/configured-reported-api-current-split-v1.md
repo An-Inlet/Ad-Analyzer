@@ -152,7 +152,9 @@ job; run_customer_tick candidate_reads completed; GET200 suggested decision,
 causal_lift unavailable and real decision digest. Then POST result/review must exact
 409 advertising_writes_disabled_in_planning_mvp, not a missing-runtime/error union.
 Owned capabilities must report automation unavailable with empty policies/mandates;
-POST Start exact409. Workers return{} before factory construction under current
+POST Start exact409 using a syntactically valid body built from the actual owned
+source mandate and typed registered automatic policy (never indexing the deliberately
+empty capability arrays or inventing permission). Workers return{} before factory construction under current
 boundary (spy forbidden pinned/native/policy factories), not simulated worker output.
 
 Current Start prevention matrix retains named none/session/capsule/source/unknown

@@ -181,3 +181,35 @@ operational qualification; this proposal does not request or infer that authorit
 Expert creative quality and rights/claim review remain distinct from passing the
 customer journey. Finishing these controls is engineering work, not a credential
 blocker and not permission to change the owner-managed public webpage.
+
+## Frozen DOM And Upload Contract For Independent Browser Tests
+
+Scoped editor host: `#planning-creative-inputs`, hidden for v1–v4. Exact v5 controls:
+
+- `#planning-include-product`: checkbox, "Include Product Details".
+- `#planning-product-name`: text, "Product Name".
+- `#planning-list-price`: text decimal, "List Price (Optional)".
+- `#planning-price-currency`: text, "Price Currency".
+- `#planning-product-facts`: textarea, "Customer-Asserted Facts — One Per Line".
+- `#planning-product-restrictions`: textarea, "Product Restrictions — One Per Line".
+- `#planning-image-library`: rows with `data-planning-media-id` equal to the scoped
+  opaque media ID. Each row has a selection checkbox labeled "Select Workspace
+  Image N", a Preview Image button, and an optional explicit Use Current Image
+  button when its saved expected hash differs from fresh metadata. No automatic
+  hash replacement. Selection order is click order; saved order retained.
+- `#planning-image-file`: file input, "Upload A Workspace Image", accept PNG/JPEG.
+- `#planning-image-upload`: button, "Upload And Select Image". Selecting a file
+  alone performs no request. Button posts the file once; only a verified successful
+  current-session receipt adds and selects that image (deduplicated by media ID).
+  An unknown upload outcome never invents a selected ID or retries automatically.
+- `#planning-image-status`: live status text; `#planning-image-preview`: bounded
+  current preview container, cleared/revoked on editor/session/workspace changes.
+
+Saved document basis host: `#planning-creative-basis`, emitted only for a genuine
+v5 document. Includes product name, exact price, facts/restrictions, supplied image
+count and original observation times with the explicit unassessed/review notice.
+Existing planning save/generate/current/version/export button IDs remain unchanged.
+
+No new API or TLS test implementation belongs to the component author. Browser
+agent owns separate Python/JS actual TLS journey files; component author owns new
+component tests and production HTML/JS. Both consume these stable selectors.

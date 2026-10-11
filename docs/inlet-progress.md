@@ -7870,3 +7870,17 @@ preserve one source and twelve evidence hashes. See
 validation repair with public validation and all after-SQL checks preserved.
 No production repair yet; prior failed occurrences remain unresolved. Q14
 label repair and Q13 historical report/retraction tests proceed independently.
+
+
+## Q13 Report/Retraction Candidate Stopped
+
+Candidate `490b2bf` remains isolated: the exact SQLite lifecycle stopped at its
+second genuine generation with HTTP 409 `planning_authority_expired`, before
+V2 validation and historical retraction. Original exit 1; 0 passed, 1 failed,
+PostgreSQL unrun. First-generation report, replay, conflicting-key and input-edit
+assertions were reached; this is not lifecycle qualification. Root inspected the
+original XML/result and verified three frozen source hashes. Independent failure
+accuracy review confirmed sixteen evidence hashes and fourteen tested sources.
+See `inlet-q13-report-retraction-candidate-20261011.md`. No retry, internal guard
+phase attribution, incident closure, or root test-code integration. The unchanged
+five-second guard and original session remain; measured runtime repair proceeds.

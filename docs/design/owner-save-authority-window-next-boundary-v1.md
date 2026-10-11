@@ -256,7 +256,7 @@ Consume verifies exact artifact type/seal/request commitments and burns it **bef
 any callback or SQL invocation, including unsuccessful attempts and completed replay.
 A second consume refuses. Source caller mutations after preparation cannot alter the
 owned original. Prepare separately owned callback ticket/bundle copies before refresh;
-callbacks never receive the candidate or artifact. Verify callback copy commitments
+callbacks never receive the prepared original candidate or artifact. Verify callback copy commitments
 before/after each callback and never replace the prepared originals with callback values.
 
 At consume entry, before/after external callbacks, before persistence and after final
@@ -283,3 +283,36 @@ whether the new placement actually reduces final-window cost. Neither a successf
 single probe nor a lower pure-call count establishes reliable acceptance. If preparation
 plus mandatory fresh work still exceeds five seconds, record that outcome and stop
 claiming this slice resolves qualification; do not renew the fact or retry automatically.
+
+
+### Existing Final-Source Closure Candidate (Explicit Port Correction)
+
+The current service `final_sources` closure references `candidate` for creative proof
+and `recheck_owner_review_input_receipts`. It must not continue closing over the
+caller-owned original after adopting preparation. Those after-SQL validations remain
+mandatory, including `_linked`'s full fresh receipt/catalog comparisons.
+
+Use an internal one-use callback lease:
+
+    _take_owner_callback_copy(prepared: _PreparedOwnerSave) -> _OwnerCallbackCopy
+
+The factory creates a **separate owned candidate graph** (and callback ticket/bundle
+copies) alongside the prepared originals. The accessor transfers only those callback
+copies, once, never the artifact or its original candidate. The private service closure
+captures `callback_copy.candidate`, not the original `candidate`; the existing callback
+signature passed to repository remains unchanged. There is no public schema/version or
+new caller injection. The callback candidate goes through the same mandatory strict
+validation rules after refresh as the other graphs; structural copying alone grants
+no trusted-model status. If valid callback copies cannot safely be constructed before
+refresh under the closed-error rules, their construction stays after refresh and its
+cost is included, not hidden by trusting an unsafe model copy.
+
+The prepared artifact records type-aware commitments for this distinct callback graph;
+repository verifies these before/after the callback and again before writes/return.
+Mutation of either copy fails the outer transaction even if the callback restores a
+valid but different proof. Original prepared-candidate commitment is checked separately.
+No copy identity is used instead of the full existing current receipt validations.
+Tests must mutate the actual closure candidate during the source callback and prove
+rollback, then show original caller candidate mutation cannot influence the callback.
+A callback retaining its copy does not obtain a reusable authority object; consumption
+is already burned and every later use must reacquire normal authority independently.

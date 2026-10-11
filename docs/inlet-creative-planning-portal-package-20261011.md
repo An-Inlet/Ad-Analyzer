@@ -50,3 +50,18 @@ Actual authenticated TLS/API/database journey tests belong to the independent br
 package and are pending on this production freeze. Component mocks do not establish
 that qualification, live provider readiness, visual quality, usage rights, or private
 v5 production activation. No remote pushes, hosted CI, live calls or deployments.
+
+## Independent Review Repair
+
+Reviewer found an exact-value P2 in the initial portal freeze: changing one product
+control reconstructed all saved fields, trimming untouched names and splitting
+untouched multiline array entries. The component now compares each field separately
+and preserves its original typed value when unchanged; only edited controls parse.
+Saved fixed schema/provenance/review metadata and unchanged list-price metadata also
+remain intact. A DOM regression changes only price in a saved whitespace/multiline
+product, then edits name and facts independently and asserts all untouched fields.
+
+Narrow repaired cohort: 2 passed, zero skips (`field-preservation.xml/log`). Whole
+Ruff and configured mypy (1,412 files) passed again; Node syntax and diff checks clean.
+No server, authority, session, or legacy-policy behavior changed. Final actual browser
+qualification is held until this repair is reviewed and consumed.

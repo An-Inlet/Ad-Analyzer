@@ -61,19 +61,25 @@ available full catalog relationships for prompt feedback, with server validation
 authoritative. Unknown relationships must not be guessed independent.
 
 Controls: **Observed Daily Setting** (read-only exact currency/amount),
-**Requested Daily Setting** (editable, nonnegative, no more than observed),
+**Requested Daily Hypothesis** (editable, nonnegative, no more than observed),
 **Customer Alternative**, **Include This Review**, **Remove This Review**.
 Use existing exact decimal-to-micros parsing extended/reused only if it preserves
 six fractional digits and rejects exponent/overflow/extra precision. Never derive
 a daily amount from the monthly/period allocation. Zero ceiling permits only zero
 request; still no implication that a zero native setting is provider-valid.
 
-Proposed component handle: `readIntent()`, `setBusy(bool)`, `clear()`.
+Proposed component handle: `readIntents()`, `setBusy(bool)`, `clear()`.
+`readIntents()` returns an ordered list of at most20 exact intent primitives.
+Preserve saved order deterministically; append explicitly added groups in selection
+order and remove only the selected item. Enforce one intent per full account/owner
+across all groups and alternatives; never collapse duplicates silently.
 Inputs provided by caller: verified capability, current account catalogs, scenario
-intent snapshot, confirmed currency/ceiling and guarded discovery callback. Returned
-intent is the exact reviewed GoogleDailyBudgetIntentV1 primitive, including opaque
+intent snapshot, confirmed currency/ceiling and guarded discovery callback. Each returned
+item is the exact reviewed GoogleDailyBudgetIntentV1 primitive, including opaque
 selection and expected observation/facts digests. Server fills resolved fields.
-Do not submit owner_key, source digest or representative as browser authority.
+Preserve untouched schema_version, cadence, unit, currency and opaque commitments
+exactly; only explicitly edited fields may change. Do not submit owner_key, source
+digest or representative as browser authority.
 Scenario edits notify the component; missing/renamed alternatives clear the binding
 and require explicit reselection, never silently move a hypothesis to another one.
 

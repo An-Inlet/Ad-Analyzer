@@ -1,8 +1,14 @@
 """Immutable planning artifact; runtime source resolution remains a separate boundary."""
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from app.planning_documents.actions import BudgetScenario, CreativeBrief, ManualAction, NativeBudget
 from app.planning_documents.common import (
@@ -20,7 +26,12 @@ from app.planning_documents.common import (
 )
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
 from app.planning_documents.fields import ProposedField
-from app.planning_documents.selected_inputs import reject_legacy_selected
+from app.planning_documents.selected_inputs import (
+    SELECTED_GENERATOR_VERSION,
+    SELECTED_POLICY_VERSION,
+    reject_legacy_selected,
+)
+from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 
 
 class PlanVersion(NoAuthority):
@@ -42,12 +53,33 @@ class PlanVersion(NoAuthority):
     summary: Text
     limitations: tuple[Text, ...] = Field(min_length=1, max_length=30)
     quality_status: Literal["not_expert_qualified"] = "not_expert_qualified"
+    selected_reporting_proof: SelectedRetainedProofV1 | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_selected_proof(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.selected_reporting_proof is None:
+            result.pop("selected_reporting_proof", None)
+        return result
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
         reject_legacy_selected(
             self.inputs.selected_reporting, self.policy_version, self.generator_version
         )
+        selected_policy = (self.policy_version, self.generator_version) == (
+            SELECTED_POLICY_VERSION,
+            SELECTED_GENERATOR_VERSION,
+        )
+        if selected_policy:
+            if self.selected_reporting_proof is None:
+                raise ValueError("selected planning requires retained proof")
+            privacy = self.evidence[0].privacy_revision
+            if any(item.privacy_revision != privacy for item in self.evidence):
+                raise ValueError("selected evidence privacy mismatch")
+            self.selected_reporting_proof.assert_inputs(self.inputs, privacy)
+        elif self.selected_reporting_proof is not None:
+            raise ValueError("selected retained proof requires the exact v4 policy pair")
         if (self.version == 1) != (self.parent_digest is None):
             raise ValueError("version ancestry required")
         if not self.inputs.created_at <= self.generated_at < self.valid_until:

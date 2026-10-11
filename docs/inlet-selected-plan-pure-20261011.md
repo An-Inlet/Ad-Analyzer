@@ -38,3 +38,9 @@ reuses the bounded internal index across `read(campaign_id, requested_window)`.
 It is not a currentness or SQL authority cache. `selected-plan-pure05` records the
 49-case overlapping follow-up, plus whole Ruff/mypy1316 checks and unsafe-input /
 read-only property coverage.
+
+Static evidence correction: the 63ede67 follow-up command sequence did not stop
+on Ruff's B010 warning for the intentional readonly-property test, so its prior
+whole-Ruff success statement was overstated. The assertion now uses
+`object.__setattr__`; `selected-plan-proof01/ruff-fixed.log` records a clean whole
+check. No production arithmetic behavior changed. Original logs remain retained.

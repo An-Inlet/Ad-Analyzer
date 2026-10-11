@@ -264,7 +264,7 @@ def test_prepared_reader_validates_input_and_exposes_only_immutable_values() -> 
     with pytest.raises(ValueError):
         PreparedSelectedPlanProjection(original.model_copy(update={"campaigns": ()}))
     with pytest.raises(AttributeError):
-        setattr(prepared, "pin", original.pin())
+        object.__setattr__(prepared, "pin", original.pin())
     changed = original.model_copy(update={"capture": capture(value="1")})
     assert changed != prepared.snapshot()
     assert prepared.read(5, window()).summary.conversions.value == 10

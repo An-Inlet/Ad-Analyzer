@@ -33,16 +33,8 @@ from app.planning_documents.context import (
     TargetRef,
 )
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.source_contracts import SourceFence as SourceFence
 from app.publication.contracts import fingerprint as source_fingerprint
-
-
-class SourceFence(Frozen):
-    """Private owned local source tuple, checked again after all external reads."""
-
-    account: AccountRef
-    source_binding_digest: Digest
-    source_revision: Text
-    privacy_revision: int = Field(strict=True, ge=0)
 
 
 class GenerationTicket(NoAuthority):

@@ -39,6 +39,7 @@ from app.api.customer_planning_target_catalog import (
 from app.api.customer_reported_feedback import router as customer_reported_feedback_router
 from app.api.customer_reporting import router as customer_reporting_router
 from app.api.customer_reporting_capture import router as customer_reporting_capture_router
+from app.api.customer_reporting_range import router as customer_reporting_range_router
 from app.api.customer_session_automation import router as customer_session_automation_router
 from app.api.customer_shopify import router as customer_shopify_router
 from app.api.customer_social_execution import router as customer_social_execution_router
@@ -221,6 +222,7 @@ app.include_router(customer_planning_documents_router)
 app.include_router(customer_candidates_router)
 app.include_router(customer_reporting_router)
 app.include_router(customer_reporting_capture_router)
+app.include_router(customer_reporting_range_router)
 app.include_router(customer_ad_detail_router)
 app.include_router(customer_sources_router)
 app.include_router(customer_acquisitions_router)

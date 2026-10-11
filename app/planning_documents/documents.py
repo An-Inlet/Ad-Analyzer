@@ -38,6 +38,7 @@ from app.planning_documents.creative_production_contracts import CreativeComposi
 from app.planning_documents.creative_retained_proof import CreativeRetainedProofV1
 from app.planning_documents.empty_catalog_validation import validate_empty_catalog_proposals
 from app.planning_documents.fields import ProposedField
+from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
     SELECTED_POLICY_VERSION,
@@ -116,6 +117,7 @@ class PlanVersion(NoAuthority):
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
+        reject_google_budget_generation(self.inputs.google_daily_budget_intents)
         validate_creative_policy(self.inputs.creative, self.policy_version, self.generator_version)
         creative_policy = (self.policy_version, self.generator_version) == (
             CREATIVE_POLICY_VERSION,

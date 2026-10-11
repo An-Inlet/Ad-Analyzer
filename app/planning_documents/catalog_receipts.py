@@ -9,7 +9,13 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import HTTPException
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -18,7 +24,7 @@ from app.billing.entitlements import paid_work
 from app.collectors.native_diagnostics import Inventory
 from app.customers.access import CustomerPrincipal
 from app.customers.models import CustomerSession
-from app.lifecycle.privacy import database_utc_now
+from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.planning_catalog.metadata_binding import validate_bound_metadata
 from app.planning_catalog.metadata_contracts import PlanningMetadataV1, TargetCatalogV2
 from app.planning_catalog.projection_v2 import project_v2
@@ -31,6 +37,8 @@ from app.planning_documents.common import Digest, Frozen, Id, Positive, fingerpr
 from app.planning_documents.composer import targets
 from app.planning_documents.context import EvidenceRef, PlanInputRevision, ReportingWindow
 from app.planning_documents.evidence_local import resolve_source_fences
+from app.planning_documents.google_budget_intents import ResolvedGoogleDailyBudgetIntentV1
+from app.planning_documents.google_budget_owner_contracts import GoogleBudgetOwnerUnavailable
 from app.planning_documents.models import PlanInputRow
 from app.planning_documents.ports import CatalogEvidence, GenerationTicket, SourceFence
 from app.planning_documents.requests import CustomerInputs
@@ -101,6 +109,17 @@ class ResolvedInputs(Frozen):
 
 
 class ResolvedInputCatalogs(Frozen):
+    owner_intents: tuple[ResolvedGoogleDailyBudgetIntentV1, ...] | None = Field(
+        default=None, max_length=20
+    )
+
+    @model_serializer(mode="wrap")
+    def serialize_owners(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        value: dict[str, Any] = handler(self)
+        if self.owner_intents is None:
+            value.pop("owner_intents", None)
+        return value
+
     catalogs: tuple[CatalogEvidence, ...] = Field(max_length=20)
     bindings: tuple[ReceiptBindingV1, ...] = Field(max_length=20)
 
@@ -598,13 +617,30 @@ def resolve_input_catalogs(
         for aid in sorted(by_account)
     ]
     catalogs = tuple(c for _, c in loaded)
-    from app.planning_documents.input_resolution import resolve
+    from app.planning_documents.google_budget_input_resolution import (
+        resolve_google_daily_budget_inputs,
+    )
+    from app.planning_documents.input_resolution import _resolve_ordinary, resolve
 
-    inputs = resolve(prepared, intent, catalogs)
+    owner_intents = None
+    if intent.google_daily_budget_intents is not None:
+        ordinary = _resolve_ordinary(prepared, intent, catalogs)
+        try:
+            owner_intents = resolve_google_daily_budget_inputs(
+                inputs=ordinary,
+                intents=intent.google_daily_budget_intents,
+                catalogs=catalogs,
+                sources=sources,
+                principal=principal,
+                privacy_revision=workspace_export_revision(db, prepared.workspace_id),
+            )
+        except (ValueError, GoogleBudgetOwnerUnavailable) as error:
+            raise CatalogReceiptUnavailable("selection_mismatch") from error
+    inputs = resolve(prepared, intent, catalogs, owner_intents=owner_intents)
     bindings = _bindings(inputs, loaded)
     _check_sources(db, principal, inputs, sources, now)
     _unexpired(db, loaded, now)
-    return ResolvedInputCatalogs(catalogs=catalogs, bindings=bindings)
+    return ResolvedInputCatalogs(catalogs=catalogs, bindings=bindings, owner_intents=owner_intents)
 
 
 def _check_sources(
@@ -654,6 +690,9 @@ def bind_input_receipts(
         )
         for b in resolved.receipt_bindings
     ]
+    _check_current_owner_receipts(
+        inputs, loaded, sources, workspace_export_revision(db, inputs.workspace_id)
+    )
     if _bindings(inputs, loaded) != resolved.receipt_bindings:
         raise CatalogReceiptUnavailable("selection_mismatch")
     existing = _input_links(db, inputs)
@@ -738,6 +777,7 @@ def resolve_saved_input_catalogs(
         )
         for link in links
     ]
+    _check_current_owner_receipts(inputs, loaded, ticket.sources, ticket.privacy_revision)
     expected = _bindings(inputs, loaded)
     if any(
         not utc(inputs.created_at) <= utc(link.created_at) < utc(row.expires_at)
@@ -886,3 +926,29 @@ def validate_retained_input_receipts(db: Session, inputs: PlanInputRevision) -> 
         raise CatalogReceiptUnavailable("integrity_unavailable") from exc
     if actual != expected:
         raise CatalogReceiptUnavailable("selection_mismatch")
+
+    if inputs.google_daily_budget_intents is not None:
+        from app.planning_documents.google_budget_input_receipts import (
+            validate_historical_owner_receipts,
+        )
+
+        try:
+            validate_historical_owner_receipts(inputs, loaded)
+        except (ValueError, GoogleBudgetOwnerUnavailable) as error:
+            raise CatalogReceiptUnavailable("integrity_unavailable") from error
+
+
+def _check_current_owner_receipts(
+    inputs: PlanInputRevision,
+    loaded: list[tuple[CatalogReceiptRow, CatalogEvidence]],
+    sources: tuple[SourceFence, ...],
+    privacy_revision: int,
+) -> None:
+    if inputs.google_daily_budget_intents is None:
+        return
+    from app.planning_documents.google_budget_input_receipts import validate_current_owner_receipts
+
+    try:
+        validate_current_owner_receipts(inputs, loaded, sources, privacy_revision)
+    except (ValueError, GoogleBudgetOwnerUnavailable) as error:
+        raise CatalogReceiptUnavailable("selection_mismatch") from error

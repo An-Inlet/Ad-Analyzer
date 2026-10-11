@@ -14,6 +14,7 @@ from app.planning_documents.common import MAX_ACTIONS, MAX_BRIEFS, MAX_SCENARIOS
 from app.planning_documents.context import AccountTarget, PlanInputRevision, TargetRef
 from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
 from app.planning_documents.ports import (
     CatalogEvidence,
     EvidenceBundle,
@@ -151,6 +152,7 @@ class DescriptivePlanComposer:
         generated_at: datetime,
     ) -> PlanVersion:
         inputs = PlanInputRevision.model_validate(inputs)
+        reject_google_budget_generation(inputs.google_daily_budget_intents)
         evidence = EvidenceBundle.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
         try:

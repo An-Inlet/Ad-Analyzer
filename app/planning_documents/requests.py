@@ -23,6 +23,7 @@ from app.planning_documents.common import (
 )
 from app.planning_documents.context import ReportingWindow
 from app.planning_documents.creative_basis import CreativeInputV1
+from app.planning_documents.google_budget_intents import GoogleDailyBudgetIntentV1
 from app.planning_documents.selected_inputs import (
     SelectedCaptureSelectorV1,
     validate_selected_accounts,
@@ -62,6 +63,9 @@ class CustomerInputs(Frozen):
     scenario_intents: tuple[ScenarioIntent, ...] = Field(max_length=8)
     maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
     creative: CreativeInputV1 | None = None
+    google_daily_budget_intents: tuple[GoogleDailyBudgetIntentV1, ...] | None = Field(
+        default=None, max_length=20
+    )
     selected_reporting: tuple[SelectedCaptureSelectorV1, ...] | None = Field(
         default=None, max_length=20
     )
@@ -73,10 +77,20 @@ class CustomerInputs(Frozen):
             result.pop("selected_reporting", None)
         if self.creative is None:
             result.pop("creative", None)
+        if self.google_daily_budget_intents is None:
+            result.pop("google_daily_budget_intents", None)
         return result
 
     @model_validator(mode="after")
     def selected(self) -> "CustomerInputs":
+        if self.google_daily_budget_intents is not None:
+            ids = self.account_ids
+            if any(i.account_id not in ids for i in self.google_daily_budget_intents):
+                raise ValueError("owner intent account must be selected")
+            keys = tuple(
+                (i.account_id, i.owner_selection_id) for i in self.google_daily_budget_intents
+            )
+            unique(keys, "budget owner intent")
         validate_selected_accounts(self.selected_reporting, self.account_ids)
         unique(self.account_ids, "selected account")
         targets = (

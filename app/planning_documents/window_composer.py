@@ -18,6 +18,7 @@ from app.planning_documents.context import (
 )
 from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_inputs import reject_legacy_selected
@@ -189,6 +190,7 @@ class WindowPlanComposer:
         generated_at: datetime,
     ) -> PlanVersion:
         ticket = GenerationTicket.model_validate(ticket)
+        reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
         evidence = WindowEvidenceBundleV1.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
         try:
@@ -226,6 +228,8 @@ class WindowPlanComposer:
         policy: PlanningCompositionPolicy,
         generated_at: datetime,
     ) -> PlanVersion:
+        ticket = GenerationTicket.model_validate(ticket)
+        reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
         inputs = ticket.inputs
         version, parent_digest = ticket.expected_version + 1, ticket.expected_parent_digest
         generated_by = ticket.actor_id

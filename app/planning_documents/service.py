@@ -37,6 +37,10 @@ from app.planning_documents.events import CustomerDecision, ManualAssertion, Rea
 from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
 from app.planning_documents.generation_ports import GenerationEvidence, GenerationEvidenceReader
+from app.planning_documents.google_budget_generation_guard import (
+    reject_google_budget_generation,
+    validate_google_budget_input_policy,
+)
 from app.planning_documents.models import (
     PlanDependencyRow,
     PlanEventRow,
@@ -160,6 +164,17 @@ class PlanningDocumentService:
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: CreatePlan | EditPlan
     ) -> InputResult:
         try:
+            validate_google_budget_input_policy(
+                request.inputs.google_daily_budget_intents,
+                self.policy.version,
+                self.policy.generator_version,
+            )
+            if (
+                request.inputs.google_daily_budget_intents is not None
+                and ticket_reporting_capability(self.policy.version, self.policy.digest()).mode
+                != "creative_selected_requested_window"
+            ):
+                raise ValueError("Google budget owner hypotheses require canonical private V5.")
             validate_creative_policy(
                 request.inputs.creative, self.policy.version, self.policy.generator_version
             )
@@ -252,7 +267,10 @@ class PlanningDocumentService:
             authority.final(current, fact)
         try:
             resolved = input_resolution.resolve(
-                prepared, request.inputs, selected_catalogs.catalogs
+                prepared,
+                request.inputs,
+                selected_catalogs.catalogs,
+                owner_intents=selected_catalogs.owner_intents,
             )
         except ValidationError as error:
             raise HTTPException(
@@ -338,6 +356,7 @@ class PlanningDocumentService:
                 raise repository.changed("generation input or version changed")
             inputs = repository.inputs(db, plan)
             try:
+                reject_google_budget_generation(inputs.google_daily_budget_intents)
                 validate_creative_policy(
                     inputs.creative, self.policy.version, self.policy.generator_version
                 )

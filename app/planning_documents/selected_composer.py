@@ -27,6 +27,7 @@ from app.planning_documents.creative_plan_bundle import assert_creative_collecti
 from app.planning_documents.creative_plan_document import creative_basis_reference
 from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
@@ -276,6 +277,7 @@ class SelectedPlanComposer:
         generated_at: datetime,
     ) -> PlanVersion:
         ticket = GenerationTicket.model_validate(ticket)
+        reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
         evidence = SelectedPairedEvidenceV1.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
         try:
@@ -312,6 +314,8 @@ class SelectedPlanComposer:
         *,
         creative: CollectedCreativeBasisV1 | None = None,
     ) -> PlanVersion:
+        ticket = GenerationTicket.model_validate(ticket)
+        reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
         if creative is not None:
             creative = CollectedCreativeBasisV1.model_validate(creative)
             contract = assert_selected_composition_policy(

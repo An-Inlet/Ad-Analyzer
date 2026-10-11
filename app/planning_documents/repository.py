@@ -101,6 +101,16 @@ def inputs(db: Session, plan: PlanRow, revision: int | None = None) -> PlanInput
         raise HTTPException(404, "plan input not found")
     result = document_for_row(row.__tablename__, values(row))
     assert isinstance(result, PlanInputRevision)
+    if result.google_daily_budget_intents is not None:
+        from app.planning_documents.catalog_receipts import (
+            CatalogReceiptUnavailable,
+            validate_retained_input_receipts,
+        )
+
+        try:
+            validate_retained_input_receipts(db, result)
+        except CatalogReceiptUnavailable as error:
+            raise changed("The original budget owner input proof is unavailable.") from error
     return result
 
 

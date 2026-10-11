@@ -9,6 +9,7 @@ from app.planning_documents.creative_plan_bundle import (
     assert_creative_collection_time,
 )
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_composer import SelectedPlanComposer
 from app.planning_documents.selected_policy_contract import assert_selected_composition_policy
@@ -27,6 +28,7 @@ class CreativePlanComposer:
             if type(generated_at) is not datetime:
                 raise ValueError("aware creative generation time required")
             ticket = GenerationTicket.model_validate(ticket)
+            reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
             evidence = CreativePairedEvidenceV1.model_validate(evidence)
             policy = PlanningCompositionPolicy.model_validate(policy)
             contract = assert_selected_composition_policy(

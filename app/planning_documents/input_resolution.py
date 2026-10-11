@@ -19,6 +19,10 @@ from app.planning_documents.context import (
     PlanInputRevision,
     TargetRef,
 )
+from app.planning_documents.google_budget_intents import (
+    GoogleDailyBudgetIntentV1,
+    ResolvedGoogleDailyBudgetIntentV1,
+)
 from app.planning_documents.ports import CatalogEvidence
 from app.planning_documents.repository import changed, check_goal
 from app.planning_documents.requests import CustomerInputs, TargetSelector
@@ -105,7 +109,7 @@ def prepare(
     return result
 
 
-def resolve(
+def _resolve_ordinary(
     prepared: PlanInputRevision, intent: CustomerInputs, catalogs: tuple[CatalogEvidence, ...]
 ) -> PlanInputRevision:
     """Exact snapshot selectors only. Caller rechecks catalog source fences at commit."""
@@ -152,3 +156,29 @@ def resolve(
     result = PlanInputRevision.model_validate(values)
     check_allocations(result, catalogs)
     return result
+
+
+def resolve(
+    prepared: PlanInputRevision,
+    intent: CustomerInputs,
+    catalogs: tuple[CatalogEvidence, ...],
+    *,
+    owner_intents: tuple[ResolvedGoogleDailyBudgetIntentV1, ...] | None = None,
+) -> PlanInputRevision:
+    result = _resolve_ordinary(prepared, intent, catalogs)
+    if (intent.google_daily_budget_intents is None) != (owner_intents is None):
+        raise ValueError("exact resolved owner intents required")
+    if owner_intents is not None:
+        supplied = intent.google_daily_budget_intents
+        assert supplied is not None
+        if len(supplied) != len(owner_intents) or any(
+            request
+            != GoogleDailyBudgetIntentV1.model_validate(
+                {name: getattr(resolved, name) for name in GoogleDailyBudgetIntentV1.model_fields}
+            )
+            for request, resolved in zip(supplied, owner_intents, strict=True)
+        ):
+            raise ValueError("resolved owner request differs")
+    values = result.model_dump(mode="python")
+    values["google_daily_budget_intents"] = owner_intents
+    return PlanInputRevision.model_validate(values)

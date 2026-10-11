@@ -73,6 +73,10 @@ costs, then propose bounded safe phase instrumentation before another execution.
 Any diagnostic execution requires review of that concrete proposal; use normal
 clocks, unchanged authority limits, no concurrent DB job and retained failure output.
 No inferred performance cause is established by the fixed error alone.
+The same error covers either monotonic fact age outside0..5seconds or session
+wall-clock expiry; both03 did not distinguish those branches. The reviewed observer
+proposal is [a separate diagnostic design](design/q09-r02-authority-observer-proposal-v1.md).
+Failure-reproducing source remains isolated at `0b6fd79`; no four-case pass is claimed.
 
 R02 has a known route/reason and is tracked separately from R01's original generic
 browser action409. It does not retroactively explain R01. No broader Q09, live,

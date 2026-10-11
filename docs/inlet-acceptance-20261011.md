@@ -1,6 +1,6 @@
 # Inlet Acceptance Checkpoint — October 11
 
-Reviewed local code through `4359f2e` on `codex/inlet-w1-followup`. This dated
+Reviewed local code through `9b2421b`; review packet through `a4827d2` on `codex/inlet-w1-followup`. This dated
 checkpoint supersedes current-status claims in the October 6/7 snapshots without
 rewriting their evidence. Inlet is **not a live-qualified, purchasable release**.
 The approved MVP is comprehensive planning with **zero advertising-platform writes**,
@@ -112,10 +112,38 @@ checks, preserved failures, artifacts and remaining judgments.
 No new pull request or remote push occurred in this continuation. Prior draft PRs
 remain recorded in historical ledgers; remote status was not refreshed during the
 hold. Hosted runs/retries, pushes, merge and deployment remain held. Routine offline
-engineering continues without package-by-package approval. Next is the bounded
-private portal capability/product/image flow and actual browser qualification.
-The existing portal rejects the V5 capability and omits creative input; the API
-qualification does not claim that gap is closed. The portal design is under review,
-with PNG/JPEG scope matching the existing server contract. Default activation,
-public webpage work and live release remain separate. No human expert gate is
-closed by these internal technical versions or by automated test passes.
+engineering continues without package-by-package approval. The private portal now
+supports the reviewed product/image flow; default V3 remains unchanged. Next is
+reviewing the bounded Q07 budget-safety matrix before implementation. Public webpage
+work and live release remain separate. No human expert gate is closed by internal
+technical versions or automated test passes.
+
+## Latest Portal And Three-Platform Checkpoint
+
+- The original browser Generate-action 409 remains unexplained: the original
+  evidence cannot identify whether generate, current-plan or versions failed.
+  The bounded route observer passed the five original ordered cases, which is
+  passing evidence, not a diagnosis. No repeat-until-green claim is made.
+- UTC receipt repair `3a0f72b` fixes a separately reproduced SQLite offset-loss
+  defect. Six receipt cases passed across SQLite/PostgreSQL; the final strengthened
+  offset/tamper pair also passed. This is not the cause of the original PostgreSQL
+  browser conflict. Historical malformed receipts still fail closed.
+- Clean post-repair browser cohort `integrated-10`: 12 passed, zero failures,
+  errors or skips, 143.556s at source `3a0f72b`. The preceding incorrectly selected
+  cohort was interrupted and preserved; its 20 passes are not this qualification.
+- Q05 package `9b2421b` (author `ff497d9`): 10 both-database cases passed,
+  zero failures/errors/skips, 105.070s. Actual three-platform inputs, generation,
+  replay, history and export preserve independently bounded alternatives and
+  global one-asset capacity. Four actual synthetic artifacts have independently
+  verified byte hashes and strict document digests. Whole Ruff and configured
+  no-path mypy passed (1,418 files); independent source/evidence review closed.
+- The proposed save-preparation optimization is deferred: the measured movable
+  pure work was only about 0.09 seconds, 3.46–3.72% of save duration. No production
+  performance fix or original-conflict cause is claimed.
+
+See the [portal checkpoint](inlet-private-portal-checkpoint-20261011.md),
+[Q05 package](inlet-creative-q05-package-20261011.md),
+[cost assessment](inlet-creative-save-cost-assessment-20261011.md), and
+[actual artifact review packet](inlet-creative-review-packet-20261011.md).
+These targeted cohorts overlap earlier evidence and do not establish exhaustive
+current-head, live-provider or human-quality acceptance. All Q01–Q16 remain partial.

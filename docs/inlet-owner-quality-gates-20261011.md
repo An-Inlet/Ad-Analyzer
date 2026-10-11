@@ -5,11 +5,11 @@ All six remain open. These are the unchanged human usefulness criteria in the
 automated test results. Technical policy versions V4/V5 do not denote product
 completion. Inlet is not yet a live-qualified, purchasable release.
 
-**Recommended owner action when the review packet is complete:** nominate an
+**Recommended owner action now that actual review artifacts are available:** nominate an
 advertising/ecommerce expert (the owner may review). Record a separate pass/fail,
 reason and required correction for each criterion and Google-only, Meta-only,
 TikTok-only and three-platform case. Keep every criterion; do not average away a
-failure. Engineering and private portal work continue while this is pending.
+failure. Engineering and remaining acceptance work continue while this is pending.
 
 | Gate | Decision to record | Recommended pass rule |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ packet. Each of the following needs its own pass/fail and concrete correction:
 
 | Human decision | Recommended standard | Engineering that does not need to wait |
 | --- | --- | --- |
-| Are the facts and metrics right? | Accept only if the chosen conversion event, dates, currency and missing-data limits are clear and correct. | Verify exact numeric/source bindings and prepare the missing combined-platform artifact. |
+| Are the facts and metrics right? | Accept only if the chosen conversion event, dates, currency and missing-data limits are clear and correct. | Verify exact numeric/source bindings and extend the now-generated combined-platform evidence. |
 | Is the advice useful for this campaign? | Accept only if a customer can locate the campaign and follow specific steps, or understand why to leave it alone. | Improve traceable targets and surface prerequisites; collect reviewer corrections. |
 | Does the budget make sense? | Accept only if each alternative separately fits the approved ceiling and its tradeoffs are understandable. | Verify exact allocation/reserve arithmetic and keep alternatives separate. |
 | Is the reasoning honest? | Accept only if evidence, assumptions and uncertainty are distinguishable and no unsupported performance promise appears. | Check evidence links, timestamps and uncertainty labels. |
@@ -53,7 +53,7 @@ packet. Each of the following needs its own pass/fail and concrete correction:
 | Are progress labels truthful? | Accept only if customer reports, observed provider data and proven outcomes remain distinct. | Test history/currentness and manual-action labels; prevent unverified success claims. |
 
 The owner or nominated expert supplies the judgments; automated tests cannot do so.
-The PostgreSQL conflict investigation, performance measurement, missing review
+The PostgreSQL conflict investigation, further evidence-backed performance work, additional review
 artifacts and acceptance fixes can all proceed independently. Provisioning live
 services, selecting commercial terms, pilots, merge and deployment are separate
 future owner decisions. No credentials, spending or advertising writes are needed

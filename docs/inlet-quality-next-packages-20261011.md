@@ -6,6 +6,23 @@ unchanged. [W1 local validation](inlet-w1-validation-result-20261011.md) is comp
 it does not close these product-quality or release gates. Existing mechanical
 coverage remains in [the evidence matrix](inlet-planning-quality-evidence-20261008.md).
 
+## Current Checkpoint After Q05
+
+The table below is the original acceptance work map, not a claim that every listed
+engineering join is still missing. Provider-alone Q01–Q04 and combined Q05 now have
+actual private V5 API-generated artifacts in the
+[review packet](inlet-creative-review-packet-20261011.md). Q05 `9b2421b` passed its
+10-case SQLite/PostgreSQL cohort; a separate clean post-UTC-repair browser cohort
+passed 12 cases. Root Ruff and configured mypy passed (1,418 files). These are
+bounded mechanical results, not closure of the frozen cases or human gates.
+
+Next: review the proposed Q07 matrix for actual over-ceiling/negative/mixed-owned-
+account currency rejection, unchanged ceiling under assertive settings and a higher
+ceiling only through a newly confirmed goal/input revision. The original browser
+409 cause remains unknown; the separately proven UTC receipt repair does not
+explain it. Measured save-preparation work is too small to justify implementing
+that proposal now. Original failures and frozen qualification remain preserved.
+
 ## Engineering That Can Continue Without Another Approval
 
 | Case | Concrete next deliverable | Acceptance evidence still needed |
@@ -53,10 +70,10 @@ No average score can hide a failed criterion; automated/agent results stay separ
 |5.Creative feasibility | Can the customer produce the brief with stated facts/capacity? | Fail invented assets/claims or omitted production dependencies |
 |6.Honest lifecycle labels | Are decision, customer report, read observation and outcome distinct? | Fail provider-verification or causal-lift claims inferred from reports/matching fields |
 
-**Precise owner actions when packets are ready:** nominate an advertising/ecommerce
+**Precise owner actions now that review artifacts are available:** nominate an advertising/ecommerce
 expert reviewer (the owner may review), then record pass/fail with reasons for each
-criterion and provider case. Recommend retaining all six unchanged. This is not a
-request for approval now: engineering and packet preparation can continue.
+criterion and provider case. Recommend retaining all six unchanged. This is a quality review, not release approval; engineering and further packet
+preparation can continue independently.
 
 Other later explicit decisions: any evidence-backed revision to impossible provider
 acceptance; unresolved pricing/commercial/privacy architecture; hosted-CI retry

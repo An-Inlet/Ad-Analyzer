@@ -80,3 +80,13 @@ Exact final pytest shape (using the established disposable fixture environment):
 --durations=20 --basetemp=<new durable directory>/tmp
 --junitxml=<new durable directory>/results.xml`; redirect to that directory's run.log.
 Never reuse an evidence directory. No broad aggregate validation was invoked.
+
+Independent-review follow-up: final DB-local authorization now runs after the head
+read on `none` and `refresh_required`, and after source validation/locks before
+accepting catalog output. Context exit remains IO-free. `state07`: four both-DB
+clock-after-head cases passed (7.607s). `sourcewait08`: two both-DB fact-expiry after
+real source-validation cases plus unchanged positive full flow passed (4 cases,
+11.854s). The test advances only the authority monotonic clock by six seconds while
+catalog wall-clock validity remains intact; it does not sleep or weaken guards.
+Whole Ruff/mypy 1,301/diff passed again (`*-waits-final.log`). Original 27-pass logs
+and one intermediate test import mypy diagnostic remain preserved.

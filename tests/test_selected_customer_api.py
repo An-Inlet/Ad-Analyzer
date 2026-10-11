@@ -398,3 +398,73 @@ def test_identity_refresh_occurs_without_active_sql_transaction(
     finally:
         for name, callback in (("begin", begun), ("commit", ended), ("rollback", ended)):
             event.remove(f.engine, name, callback)
+
+
+@pytest.mark.parametrize("state", ["none", "refresh_required"])
+def test_state_rechecks_expiry_after_head_read(
+    customer: CustomerFixture, monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    from datetime import timedelta
+
+    from app.google_connections.selected_customer import SelectedCustomerService
+
+    f = customer
+    if state == "refresh_required":
+        receipt = f.confirm(f.choice()).json()
+        invalid = f.post(
+            "/event-selection/invalidate",
+            {
+                "account_id": f.aid,
+                "expected_selection_id": receipt["selection_id"],
+                "expected_selection_digest": receipt["selection_digest"],
+            },
+        )
+        assert invalid.status_code == 200
+    original = SelectedCustomerService.head
+
+    def after_wait(self: SelectedCustomerService, db: Session, account_id: int) -> Any:
+        result = original(self, db, account_id)
+        f.now += timedelta(hours=9)
+        return result
+
+    monkeypatch.setattr(SelectedCustomerService, "head", after_wait)
+    response = f.alice.get(f.base + "/event-selection", params={"account_id": f.aid})
+    assert response.status_code == 401
+    assert response.json()["detail"] == "original customer session expired"
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_options_recheck_identity_fact_after_source_wait(
+    customer: CustomerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import time
+    from types import SimpleNamespace
+
+    from app.google_connections import selected_customer
+    from app.planning_documents import authority
+
+    f = customer
+    offset = [0.0]
+    monkeypatch.setattr(
+        authority,
+        "time",
+        SimpleNamespace(
+            monotonic=lambda: time.monotonic() + offset[0],
+            time=time.time,
+        ),
+    )
+    from app.campaign_performance.selected_storage import current_scope
+
+    original = current_scope
+
+    def after_wait(db: Session, scope: Any) -> None:
+        original(db, scope)
+        offset[0] = 6.0  # Authority expires; catalog's real 60-second interval remains valid.
+
+    monkeypatch.setattr(selected_customer, "current_scope", after_wait)
+    response = f.post("/event-options", {"account_id": f.aid})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "planning_authority_expired"
+    assert response.headers["cache-control"] == "no-store"
+    with Session(f.engine) as db:
+        assert db.scalar(select(func.count()).select_from(EventSelectionRow)) == 0

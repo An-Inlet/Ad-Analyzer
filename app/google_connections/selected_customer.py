@@ -198,8 +198,10 @@ class SelectedCustomerService:
         self.guard(db, account_id)
         head = self.head(db, account_id)
         if head is None:
+            self.guard(db, account_id)
             return SelectionView(account_id=account_id, state="none")
         if head.invalidated:
+            self.guard(db, account_id)
             return SelectionView(
                 account_id=account_id,
                 state="refresh_required",
@@ -286,6 +288,7 @@ class SelectedCustomerService:
     def current_catalog(self, db: Session, aid: int, catalog: GoogleReportingCatalogV1) -> None:
         self.guard(db, aid, read=True)
         current_scope(db, catalog.request.scope)
+        self.guard(db, aid, read=True)
         if not catalog.request.started_at <= self.now() < catalog.expires_at:
             raise unavailable()
 

@@ -120,3 +120,116 @@ a timeout as success or bypassing fresh checks. If later evidence shows mandator
 work itself cannot fit, bring the owner a concrete architecture/acceptance choice with
 measurements; do not silently extend/renew the deadline, remove passes, or label a
 repeated successful retry as qualification. No such owner decision is requested now.
+
+## Parent-Requested V6 Preparation Contract (For Review, Not Yet Approved)
+
+The parent requests the concrete preparation option now rather than authorizing another
+measurement first. The following supersedes the recommendation to extract alone if
+reviewed and approved. It extends the earlier V5 proposal only to the exact canonical
+V6 pair; V1–V5 public behavior remains unchanged. It is routine internal engineering
+under the offline assignment, subject to technical security review, not an owner
+request to weaken the authority model. No sufficient savings are promised.
+
+### Exact Private Ports
+
+    _prepare_owner_save(*, ticket: GenerationTicket,
+        bundle: CreativePairedEvidenceV1, candidate: PlanVersion,
+        request_key: str, request_digest: str) -> _PreparedOwnerSave
+
+    repository._save_prepared_owner_generation(db, *, principal, fact,
+        prepared: _PreparedOwnerSave, now, recheck) -> PlanVersion
+
+Only `PlanningDocumentService.generate`'s exact V6 branch calls the factory after
+composition and before its existing final `authority.refresh`. The fact is acquired
+once, in its current relative order before all transactional currentness checks.
+The prepared artifact is never an API field, public repository argument, policy flag,
+constructor injection or transferable authority. Public `save_generation` retains
+complete validation, including for V6 direct callers. Shared private SQL code is
+permitted; an untrusted caller cannot choose a prevalidated boolean.
+
+### Complete Owned Graph Inventory
+
+| Root | Required owned content and commitment |
+| --- | --- |
+| Ticket | `operation_id`, `actor_id`, **`session_digest`**, complete `inputs`, `expected_version`, nullable `expected_parent_digest`, `privacy_revision`, complete ordered `sources`, `policy_version`, full `policy_digest`, original `prepared_at`, inherited authority flags. |
+| Inputs | Every declared field, including original goal definition/confirmation, account identities, scenarios/exclusions/constraints, selected reporting selectors, creative input, and resolved owner intents with original selector/observation/facts commitments. No reconstructed reduced request subset. |
+| Reporting | Complete `bundle.reporting.selected`: catalogs including full native/metadata documents and references, selected captures/proof, performance, commerce, context, all gaps and window gaps; complete paired traffic windows/gaps and envelope fields. No merely matching digest substituted for the actual graph. |
+| Images | Complete `bundle.creative.basis`, exact requested creative input, every original observed image/time/hash/dimensions/metadata; complete ordered `rows` including each witness and private `created_by`; original `ticket_digest`. No media bytes or provider tokens enter this packet. |
+| Candidate | Every declared `PlanVersion` field: inherited no-authority flags, schema, complete inputs/version/parent, exact policy/generator, readiness/limitations, actor/times, evidence/actions/scenarios/briefs/summary, quality status, selected proof, creative proof/composition, V6 owner proof and **complete ordered original `google_budget_input_catalogs`**. |
+| Request | Exact request key/digest; bind additionally to ticket operation/actor/session/workspace/plan, not just document digest. |
+| Derived | Exact canonical document UTF-8/digest, original input commitment, full type-aware structural commitments, expected complete evidence/target bindings. No SQL row, principal, fact, callback, clock, currentness result or live Session is stored. |
+
+The factory strictly validates the supplied original graphs before reconstructing them.
+It recursively copies **every declared field**, including fields omitted by public
+serialization, into independent model instances/tuples; no shared mutable model or
+container with callers. Revalidate reconstructed graphs and reject unsupported private
+attributes or types rather than silently discard them. Field inventory must be asserted
+against actual `model_fields` in tests so a future field addition cannot escape copying
+or commitment. Runtime data is bounded by existing graph limits.
+
+Commitment includes concrete model/enum classes, field names, strict primitive types,
+ordered containers, Decimal tuples, and datetime wall representation, UTC instant,
+offset/fold and timezone identity. Numeric false versus bool, bytes versus text, and
+string versus datetime must differ. Include excluded session and image pins. Public
+JSON/digest alone is insufficient. Do not use `model_construct` or JSON coercion as
+proof of original validity. The artifact has an unforgeable-by-normal-callers local
+factory seal and consumed state; Python reflection is not claimed as a sandbox.
+
+### Pure Versus Current Map And Error Order
+
+Factory can compute all original-graph checks listed in steps 1/2 above, including
+`assert_owner_review_generation_bundle` on original collected catalogs. It **cannot**
+replace `recheck_owner_review_input_receipts`'s `_linked` call after actual receipt
+loads, nor any nested validation consuming data after a SQL/callback boundary.
+
+Keep these operations in SQL exactly where they are: authority lock/current original
+session; completed receipt lookup; plan/head/input/parent loads and comparisons;
+paid/goal/account/privacy; all selected-image-selected source checks; current original
+receipt TTL/opaque commitments; retained capture and every dependency; CAS, writes,
+flush, final evidence expiry and final original-fact checks. No historical SQL document
+may be treated as covered by the prepared original bundle.
+
+To preserve exact completed replay/error precedence, the factory immediately raises
+only validation failures which the existing public function raises before its first
+SQL lock. For checks currently after receipt/head checks, retain bounded **typed
+expected-domain failure descriptors**, not exception objects/tracebacks or arbitrary
+text, in separate phase results. Consume re-emits the same fixed domain error only at
+that check's former position if replay has not returned. Unexpected validator failures
+are never reclassified as a domain error; no broad `ValueError` over callbacks/SQL.
+This phase/error mapping must be enumerated in implementation review before factoring;
+if an existing error cannot be represented without changing observable behavior, keep
+that check inside the transaction. No new permission to move callbacks or SQL follows.
+
+### One Use, Callback Isolation And Late Mutation
+
+Consume verifies exact artifact type/seal/request commitments and burns it **before**
+any callback or SQL invocation, including unsuccessful attempts and completed replay.
+A second consume refuses. Source caller mutations after preparation cannot alter the
+owned original. Prepare separately owned callback ticket/bundle copies before refresh;
+callbacks never receive the candidate or artifact. Verify callback copy commitments
+before/after each callback and never replace the prepared originals with callback values.
+
+At consume entry, before/after external callbacks, before persistence and after final
+flush, verify the original packet's type-aware commitments. Any tamper fails the entire
+outer transaction; no partial head/dependency/receipt persists. Returning a candidate
+must not leak the private artifact or reusable proof. No commitment walk renews clocks.
+All existing final expiry/fact checks still run after potentially expensive walks;
+commitment overhead counts inside the five seconds. This is not a mechanism for
+accepting a stale currentness proof merely because original bytes remain unchanged.
+
+### Exact Qualification And Decision Gate
+
+Before implementation: independently review this field inventory, strict copy/commitment
+algorithm, deferred error phases and private consume route. Required tests include
+V1–V6 public parity; V6 complete/empty owner inputs; full original catalog substitution;
+private session/image-created-by mutation; datetime/Decimal/enum lookalikes; original
+aliases and callback mutation; reused/forged packet; replay after later metadata loss;
+wrong actor/session/request; all current SQL mutation races; pre-CAS and post-flush
+expiry rollback; real six-second authority refusal. Saved bytes/digests/dependencies
+must match the public path exactly. Current SQL pass counts/order must remain unchanged.
+
+One reviewed coherent uninstrumented API cohort plus a bounded observer can assess
+whether the new placement actually reduces final-window cost. Neither a successful
+single probe nor a lower pure-call count establishes reliable acceptance. If preparation
+plus mandatory fresh work still exceeds five seconds, record that outcome and stop
+claiming this slice resolves qualification; do not renew the fact or retry automatically.

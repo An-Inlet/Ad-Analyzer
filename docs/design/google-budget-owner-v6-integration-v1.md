@@ -41,6 +41,16 @@ from that complete retained proof; reject mixed or missing epochs. This checks
 structural joins, not authenticity of opaque session commitments. The SQL boundary
 below must authenticate those against original receipt rows.
 
+Verified existing full-source mechanism: `SelectedRetainedProofV1.assert_inputs`
+requires `{proof.source_fence.account} == set(inputs.accounts)` and the same privacy
+for every entry, independently of which accounts have capture pins. The production
+`selected_plan_local.capture_selected_proof` iterates all `ticket.inputs.accounts`.
+Thus an owned account unselected for owner/capture evidence still has its genuine
+source fence; no new full-source storage mechanism is needed. Preserve this exact
+invariant and add a V6 retained generation/history regression with the existing
+unselected-owned-Meta input case (no fabricated catalog for that account).
+
+
 New `GoogleOwnerReviewPlanComposer.compose(*, ticket, evidence:
 CreativePairedEvidenceV1, policy, generated_at) -> PlanVersion` accepts only exact
 canonical V6. It validates the complete original ticket/bundle, composes owner
@@ -93,7 +103,11 @@ already validated `(CatalogReceiptRow, CatalogEvidence)` pairs to a private cons
 retain the public `validate_retained_input_receipts(db, inputs) -> None` behavior.
 Expose a narrow `load_retained_owner_input_evidence(db, inputs) ->
 RetainedOwnerInputEvidence` with immutable catalogs/sources only, after that complete
-validation and original actor/session/authenticated scalar commitment check. No
+validation and original actor/session/authenticated scalar commitment check.
+`RetainedOwnerInputEvidence` is a frozen value with exactly
+`catalogs: tuple[CatalogEvidence, ...]` and `sources: tuple[SourceFence, ...]`, each
+bounded to20; it contains no ORM row, Session, Connection or callback. Copies are
+validated before crossing this private port. No
 private scalar is returned or serialized, no current Principal is fabricated, and
 no SQL call is moved into a pure validator. Callers own clean original transactions.
 
@@ -136,7 +150,8 @@ receipts: InputCatalogReceiptRow already binds plan/input revision/account/recei
 and the document commits the complete input digest. V6 complete history must require
 that exact graph in addition to every existing selected/traffic/commerce/creative
 PlanDependencyRow. It cannot accept an owner proof merely because it is self-consistent.
-Dependency maximum and overflow sentinel remain the V5 maximum (no new row kind),
+Dependency maximum remains `MAX_EVIDENCE + MAX_ACCOUNTS + 2`, with fetch limit
+`MAX_EVIDENCE + MAX_ACCOUNTS + 3` for the overflow sentinel (same as V5; no new row kind),
 with the existing bounded input-link fetch checked separately. Verify this with a
 whole-set missing/extra dependency and missing-input-link test before integration.
 

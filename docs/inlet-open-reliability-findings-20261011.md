@@ -197,3 +197,23 @@ existing final identity refresh, with complete private graph ownership and exact
 deferred error precedence. All fresh SQL, source, receipt, retained, CAS and final
 five-second checks must remain. Implementation awaits technical review; sufficient
 timing improvement is not established. R01/R02 remain independently unresolved.
+
+### R03 Extracted-Phase Observation
+
+A single authorized phase-cost observation on frozen `606d38b` failed at the
+post-flush guard. Fact 11 passed the pre-CAS guard at 4.962805 seconds and failed
+at 5.197661 seconds; session lifetime remained positive. One report, 491 helper
+calls, no truncation, no retry. Source and observer checks were unchanged during
+the run. Independent review and root verification checked all 11 evidence hashes.
+
+The three non-overlapping pure phases took 0.216883, 0.005185 and 0.566632 seconds,
+each with zero SQL. Their observed sum is 0.788700 seconds, not predicted removable
+time. Save took 5.197482 seconds with 2,385 SQL statements; retained capture took
+1.757764 seconds with 774 statements, included within save. Nested timings/counts
+must not be summed. Evidence: `google-owner-v6-runtime/extraction-07-summary.json`.
+
+This occurrence is located, but service qualification remains failed and R01/R02
+retain their original evidence. Next investigation is source-only inspection of
+adjacent duplicate validation within the owner-binding pure call. It grants no
+permission to remove checks across SQL/callback boundaries, extend deadlines or
+claim a fix before changed-source acceptance tests pass.

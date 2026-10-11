@@ -164,3 +164,11 @@ A 22:27 UTC disconnect callback was notification-only: the same continuation PID
 was alive at 22:28:42 with a resource sample four seconds old, clean frozen source
 and 4.34 GiB memory headroom. No reset or duplicate was required. Final provenance
 will combine exactly the 14 verified B partitions and the 38 C partitions.
+
+## Thirty-Partition Checkpoint — 11 October UTC
+
+Thirty partitions are terminal and retained: 6,561 passed / 71 skipped, all exact
+identity matches. Of 7,094 parent cases, 462 remain (two ordinary groups and the
+20 individually isolated historical-file cases). The 407 historical children
+still require separate reconciliation. Controller 104868 / session 46704 continues
+on unchanged frozen source. This remains partial validation, not full acceptance.

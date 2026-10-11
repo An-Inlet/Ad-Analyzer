@@ -86,3 +86,8 @@ def customer_tiktok_linked() -> FileResponse:
 @router.get("/app/planning", include_in_schema=False)
 def customer_planning_documents() -> FileResponse:
     return FileResponse(STATIC / "planning.html", media_type="text/html")
+
+
+@router.get("/app/reporting", include_in_schema=False)
+def customer_reporting() -> FileResponse:
+    return FileResponse(STATIC / "reporting.html", media_type="text/html")

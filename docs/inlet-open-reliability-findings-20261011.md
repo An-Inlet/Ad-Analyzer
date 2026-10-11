@@ -39,3 +39,13 @@ original facts cannot be recovered by instrumentation added afterwards.
 and [all portal attempts](inlet-private-portal-checkpoint-20261011.md) remain the
 source record. Closure needs an evidence-supported diagnosis; current passing
 observations alone do not meet that standard.
+
+## Q08 Milestone Observation — 32852e2
+
+The planned exact ordered seven-node run passed once in68.60s, with no skips or
+failures and no concurrent database job. All44 bounded route records returned200;
+all seven observer shutdowns completed. Fourteen safe artifacts and exact manifest
+are retained in `/workspace/inlet-evidence/20261011/q08-browser-integration/`.
+No historical cause was established. R01 remains OPEN; no extra retry is planned
+from this successful observation. Normal-path artifact persistence was exercised;
+forced-timeout persistence remains source-reviewed, not runtime demonstrated.

@@ -66,3 +66,24 @@ public activation, expert quality or complete Q08 release claim is made.
 
 Exact ordered browser nodes are retained in `browser-seven-nodeids.txt` beside
 `browser-collection.txt` under the evidence root; collection itself runs no tests.
+
+## Integrated Browser Milestone — Source 32852e2
+
+The exact ordered seven-node cohort passed: 7 tests, zero failures/errors/skips,
+68.60 seconds (JUnit68.531s). It ran once, serial `-x`, with normal clocks and no
+stage/screenshot instrumentation. Existing SQLite Google/Meta/TikTok/safety and
+PostgreSQL Google preceded both Q08 database journeys. Whole root Ruff and
+configured no-path mypy passed1,432 files before the run.
+
+Evidence: `/workspace/inlet-evidence/20261011/q08-browser-integration/qualification.json`.
+Fourteen safe result/route artifacts were copied; private browser profiles were not
+inspected or copied. The44 bounded observed routes all returned200. All seven
+observer shutdown properties are complete. This verifies normal completion
+persistence, not a forced-timeout exception path. Resource reserves remained above
+512MiB memory/1GiB workspace/2GiB scratch; no reserve stop or retry occurred.
+
+R01 remains open: this successful successor does not diagnose the original409.
+The six expert judgments and full frozen Q08 acceptance remain open. Default V3,
+separate frozen9d7aa2e exhaustive qualification and all live/remote/release holds
+are unchanged. The next engineering slice is the reviewed Q06 shared-owner
+baseline; exact native-setting production interfaces still require review.

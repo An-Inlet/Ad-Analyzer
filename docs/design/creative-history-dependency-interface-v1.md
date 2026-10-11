@@ -49,3 +49,8 @@ capture/raw evidence rejected through the genuine historical path. If SQL fixtur
 are required, use both databases and coordinate the slot. No advertising writes,
 service dispatch, new historical paid restriction or runtime activation. Whole
 Ruff/configured mypy and exact byte/digest compatibility checks required.
+
+Review clarification: the historical SQL fetch limit must remain allowed maximum
+plus one overflow sentinel. V4 stays MAX_EVIDENCE+MAX_ACCOUNTS+2 fetched; v5 must
+fetch MAX_EVIDENCE+MAX_ACCOUNTS+3 for its one larger allowed dependency set. Test
+an extra row at that boundary so truncation cannot conceal unexpected evidence.

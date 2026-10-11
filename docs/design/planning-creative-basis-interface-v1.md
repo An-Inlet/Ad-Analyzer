@@ -23,7 +23,10 @@ extra-forbidden document primitives. All values carry planning-only authority.
 - `OwnedPlanningImageV1`: server-only metadata witness: workspace ID, media ID,
   SHA256, size, MIME (`image/png` or `image/jpeg`), width, height, created_at,
   observed_at and nonnegative strict privacy revision. Reuse existing image byte
-  and pixel limits. UTC ordering requires created_at<=observed_at. These values
+  and pixel limits:1..8MiB per image, strict positive integer dimensions with
+  width*height<=16,000,000, and128MiB aggregate library size. Do not use the64MiB
+  video limit. Require aware datetime/ISO timestamp inputs, reject numeric/bool
+  timestamp coercion and normalize instants to UTC; created_at<=observed_at. These values
   describe integrity-checked owned bytes at observation time, never product
   depiction, suitability or rights. `visual_assessment` is `not_assessed`.
 - `CreativeBasisV1`: workspace, goal currency, privacy revision, requested

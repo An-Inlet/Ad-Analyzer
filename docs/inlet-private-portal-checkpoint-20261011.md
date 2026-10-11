@@ -63,3 +63,17 @@ is available; it contains synthetic review material, not expert verdicts. Live
 identity/payment/storage/provider activation, commercial decisions, pilots and
 human merge/deployment gates remain. There are no new remote pushes or hosted runs.
 The frozen qualified `9d7aa2e` evidence is unchanged and does not qualify this head.
+
+## Integrated Browser Freeze
+
+Root integrated browser commit `5aa82b3` is the unchanged cherry-pick of reviewed
+`87c44be593a771c78715f837cab0ae516ca6368b`. Independent final source/evidence review
+is closed with no remaining P1/P2. Root whole Ruff and configured no-path mypy pass
+on the combined branch (1,414 files). [Exact browser ledger](inlet-creative-portal-browser-package-20261011.md)
+records all attempts, durations, screenshot provenance and limitations. This review
+closure does not resolve the original PostgreSQL conflict or qualify a release.
+
+Next package: a design-only performance proposal grounded in measured stage costs,
+then independent contract review before implementation. No additional broad test
+retry, authority renewal, relaxed freshness or live activation is authorized by
+this checkpoint.

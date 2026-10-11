@@ -7614,3 +7614,35 @@ Original R01/R02/R03 incidents, broader Q01–Q16 gaps, and all live/remote/rele
 holds remain open. Next bounded work is acceptance-gap triage against the frozen
 requirements, keeping ordinary reporting correction and privacy-erasing fresh
 consent distinct; do not silently redefine Q11 or broaden selected-provider facts.
+
+
+## 2026-10-11 — V6 Final Authority Rollback And Reliability Definition
+
+Integrated author `8c0d1b0` as `c78ff4c`: new test-only actual V6 final-publication
+expiry coverage. SQLite and PostgreSQL each passed once, no errors/failures/skips.
+The test verifies actual CAS/version/dependencies/request-receipt flush, delays
+six real seconds, observes the original final authority refusal, and checks exact
+planning/admission/reporting rollback plus zero new financial/provider effects.
+No production, clock, limit, retention or advertising behavior changed.
+
+Root and independent review verified two source and 19 evidence hashes, exact XML
+identities and original exits. The two durable outcome artifacts are assertion
+summaries, not independent timing telemetry. Root whole Ruff/configured no-path
+mypy passed (1,489 files); application and test trees match qualified author
+exactly. No identical pytest was rerun during integration. See
+[qualification ledger](inlet-v6-real-authority-delay-20261011.md).
+
+The [R03 definition and critical path](inlet-reliability-critical-path-20261011.md)
+now separates the original unlocated 409 from later observed fact-age failures
+and the qualified successor. R01–R03 remain open; deliberate expiry proves
+rollback, not natural latency cause or timing margin. A
+[coherent integration design](design/current-planning-integration-validation-v1.md)
+is prepared for a settled successor source, separate from frozen `9d7aa2e`.
+
+The owner retention decision remains pending; the parent's recommendation is
+historical plans marked stale on ordinary reconnect with fresh data required
+for new advice, while explicit privacy deletion still erases. No implementation
+change follows without that decision. Artifact sharing and six human judgments
+remain pending; all evidence remains local. Next work is bounded Q12–Q16
+acceptance-gap reconciliation and exact integration selection after source settles,
+without invented Q09 social semantics or repeated incident pass-chasing.

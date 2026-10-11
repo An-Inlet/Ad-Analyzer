@@ -39,3 +39,30 @@ This commit is an explicitly UNQUALIFIED integration candidate, permitted by the
 parent after disjoint pure evidence/source equality/static checks. Changed-runtime
 acceptance, Q13 lifecycle, post-SQL/currentness and final-authority cases remain
 pending. No incident-cause, timing-margin, browser, human quality or live claim.
+
+## Changed-Runtime Attempt: Stopped
+
+On clean69b346a, separately authorized pure4 passed once (each originalexit0,
+exactXML, post-node source verified). SQLite was then authorized once, Q13first.
+Its second genuine `/generate` returned409 `planning_authority_expired` at test
+line148. Originalpytestexit1;0DBpasses/1failure, pytest25.39s. The runner stopped;
+remaining7SQLite and8PostgreSQL nodes are unrun. PostgreSQL was not authorized.
+No retry, alternate clock, profiler or source mutation occurred during the run.
+
+Existing production diagnostic, retained in the failed log/XML, reported
+`phase=pre_cas`, `cause=fact_age_outside_window`, `route=generate`,
+`session_predicate=not_evaluated`. This establishes only that fixed guard/cause
+classification for this attempt. Numeric fact age and underlying cost cause were
+not measured. The earlier uninstrumented Q13 failure remains phase/age unknown;
+this result cannot retroactively classify it. The selected same-call repair is
+not sufficient for changed-runtime acceptance. Root integration remains held.
+
+First generation/report/replay/changed-key/input-edit assertions completed; the
+historical retraction and final export checks were not reached. The final synthetic
+artifact writer was not reached, so no completed Q13 lifecycle document/event/export
+packet is delivered. Pure successes are separate boundary evidence, not DB passes.
+
+`candidate01-summary.json` preserves exact five attempted identities, original
+exits, source hashes, output hashes/lengths and15unrunIDs under the evidence root.
+SHA256: `f7a641371104d9e12a2e6da686bcea0613c5484b9108eecb7a25f1a528db46e3`.
+Only this ledger changed after the attempt; all app/test bytes remain unchanged.

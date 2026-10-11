@@ -7481,3 +7481,29 @@ period-ceiling compatibility are not qualified by these request-level cases.
 Next is the reviewed complete-to-fresh-partial browser recovery variant, preserving
 the immutable original plan and requiring explicit stale-review removal. Existing
 human, incident and release limits remain unchanged.
+
+## 2026-10-11 — Changed Membership Recovery And Human Review Handoff
+
+Integrated `b3901bd` as `4349849`: five test/fixture files and the qualification
+ledger, with no production changes. Both new SQLite/PostgreSQL browser cases
+passed. A newly included ready review becomes unready after real local acquisition
+returns incomplete membership; Save refuses without a POST or planning-state
+change. Explicit removal saves input revision 2 with no owner review. The sole
+generated version remains V1 and its full historical document/digest is unchanged.
+
+Root and independent review verified six frozen source and 46 evidence hashes,
+both exact XML cases, 20 copied artifacts, strict membership catalogs and original/
+export/historical document equality. Thirty-six observed routes completed with
+successful 2xx responses and untruncated observers. Root whole Ruff and configured
+no-path mypy passed (1,486 files); app/tests match the frozen author exactly.
+Earlier four browser cases were not rerun or relabeled as this two-case cohort.
+The read-only artifact-inspection correction for successful HTTP201 is preserved.
+
+The [decision-ready human review packet](inlet-shared-budget-human-review-20261011.md)
+links actual PostgreSQL evidence and distinguishes revised inputs from generated
+versions. Independent review identified no further concrete P1/P2 inside this
+investigation-only flow. The next dependent milestone is the six human usefulness
+judgments, not another redundant same-path test. Recommend an owner or nominated
+advertising/ecommerce reviewer; no verdict is presumed. Native-budget/period-cap
+qualification, broader Q01–Q16 work, original reliability incidents and all
+live/release gates remain open. No new push, PR, merge or deployment occurred.

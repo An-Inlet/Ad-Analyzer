@@ -98,3 +98,8 @@ All four SQLite/PostgreSQL document/export pairs were strictly parsed and their
 domain digests independently verified. Four browser journeys passed on the repaired
 source; the earlier renderer failure is preserved. These artifacts support human
 assessment, not a completed Q06 or expert usefulness verdict.
+
+The [shared-budget human decision packet](inlet-shared-budget-human-review-20261011.md)
+now adds the actual complete-to-fresh-partial recovery evidence, preserved V1 and
+explicit distinction between input revision 2 and a generated successor. It has
+six unfilled human verdict fields; automated passes do not fill them.

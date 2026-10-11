@@ -87,3 +87,8 @@ the exact outcomes and local evidence. These tests qualify the coherent private
 manual-review journey, not actionable native daily-budget edits, provider access,
 public/default activation, expert usefulness, release readiness or resolution of
 R01/R02/R03. All remote/live/sharing holds remain.
+
+Independent root XML inspection initially treated ordinary testcase `properties`
+children as failures. Its corrected evidence assertion checks only failure/error/
+skipped tags and confirmed four passes (testcase-time total94.619s). This was an
+inspection correction only; no test was rerun.

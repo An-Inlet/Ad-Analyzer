@@ -63,6 +63,17 @@ def test_actual_owner_review_generation_history_export_replay(
     assert response.status_code == 200, response.text
     result = response.json()
     document = PlanVersion.model_validate(result["document"])
+    from app.planning_documents.models import PlanVersionRow
+    from app.planning_documents.storage import plan_version_storage_pair
+    from sqlalchemy.orm import Session
+
+    with Session(customer_engine) as db:
+        stored = db.get(
+            PlanVersionRow,
+            (document.inputs.workspace_id, document.inputs.plan_id, document.version),
+        )
+        assert stored is not None
+        assert (stored.canonical_json, stored.digest) == plan_version_storage_pair(document)
     assert document.policy_version == "inlet.descriptive-review.v6"
     assert document.google_budget_owner_review is not None
     assert document.google_budget_input_catalogs is not None

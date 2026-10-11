@@ -50,7 +50,7 @@ from app.planning_documents.retained_sources import (
     recheck_retained_sources,
 )
 from app.planning_documents.selected_paired_evidence import SelectedPairedEvidenceV1
-from app.planning_documents.storage import canonical, document_for_row
+from app.planning_documents.storage import canonical, document_for_row, plan_version_storage_pair
 from app.planning_documents.window_evidence import WindowEvidenceBundleV1
 from app.publication import customer_intents
 from app.shopify.security import ShopifyError, utc
@@ -585,6 +585,7 @@ def save_generation(
     )
     if updated is None:
         raise changed("generation head changed")
+    candidate_json, candidate_digest = plan_version_storage_pair(candidate)
     db.add(
         PlanVersionRow(
             workspace_id=wid,
@@ -592,8 +593,8 @@ def save_generation(
             version=candidate.version,
             input_revision=ticket.inputs.revision,
             parent_digest=candidate.parent_digest,
-            digest=candidate.digest(),
-            canonical_json=canonical(candidate),
+            digest=candidate_digest,
+            canonical_json=candidate_json,
             generator_version=candidate.generator_version,
             policy_version=candidate.policy_version,
             actor_id=current.user.id,

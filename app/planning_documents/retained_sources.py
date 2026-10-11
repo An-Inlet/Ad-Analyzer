@@ -34,6 +34,10 @@ from app.planning_documents.common import (
     fingerprint,
 )
 from app.planning_documents.context import AccountRef
+from app.planning_documents.creative_inputs import (
+    CREATIVE_GENERATOR_VERSION,
+    CREATIVE_POLICY_VERSION,
+)
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.evidence_local import ordinary_meta
 from app.planning_documents.models import PlanDependencyRow
@@ -323,6 +327,24 @@ def capture_retained_sources(
 ) -> tuple[RetainedSourceWitness, ...]:
     document = PlanVersion.model_validate(document)
     if (document.policy_version, document.generator_version) == (
+        CREATIVE_POLICY_VERSION,
+        CREATIVE_GENERATOR_VERSION,
+    ):
+        from app.planning_documents.creative_retained_sources import (
+            capture_creative_retained_sources,
+        )
+
+        try:
+            return capture_creative_retained_sources(
+                db, principal=principal, document=document, now=now
+            )
+        except HTTPException as error:
+            if error.status_code != 409:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
+    if (document.policy_version, document.generator_version) == (
         SELECTED_POLICY_VERSION,
         SELECTED_GENERATOR_VERSION,
     ):
@@ -479,6 +501,26 @@ def recheck_retained_sources(
     now: datetime,
 ) -> None:
     """Validate complete immutable dependency set, then recompute current local integrity."""
+    if (document.policy_version, document.generator_version) == (
+        CREATIVE_POLICY_VERSION,
+        CREATIVE_GENERATOR_VERSION,
+    ):
+        # V5 must reject dirty/changed roots before the generic first SQL guard.
+        from app.planning_documents.creative_retained_sources import (
+            recheck_creative_retained_sources,
+        )
+
+        try:
+            recheck_creative_retained_sources(
+                db, principal=principal, document=document, dependencies=dependencies, now=now
+            )
+            return
+        except HTTPException as error:
+            if error.status_code in {401, 403, 402}:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
     _guard(db, principal, document.inputs.workspace_id, principal.user.id)
     try:
         _recheck(db, principal, document, dependencies, now)

@@ -25,10 +25,24 @@ from app.planning_documents.selected_inputs import (
 from app.planning_documents.selected_plan_history import validate_selected_historical_dependencies
 from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 from app.planning_documents.selected_plan_retained import capture_selected_reporting_pin
+from app.planning_documents.selected_policy_contract import selected_policy_contract
 from app.shopify.security import utc
 
 
 def capture_selected_retained_sources(
+    db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
+) -> tuple[RetainedSourceWitness, ...]:
+    """Unchanged exact-v4 entrypoint; the shared subset is not complete v5 proof."""
+    document = PlanVersion.model_validate(document)
+    if (document.policy_version, document.generator_version) != (
+        SELECTED_POLICY_VERSION,
+        SELECTED_GENERATOR_VERSION,
+    ):
+        raise RetainedSourcesChanged("proof_unavailable")
+    return capture_selected_reporting_sources(db, principal=principal, document=document, now=now)
+
+
+def capture_selected_reporting_sources(
     db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
 ) -> tuple[RetainedSourceWitness, ...]:
     """Compare saved proof with actual SQL before locked persistence/current use.
@@ -38,12 +52,8 @@ def capture_selected_retained_sources(
     """
     document = PlanVersion.model_validate(document)
     proof = document.selected_reporting_proof
-    if (
-        (document.policy_version, document.generator_version)
-        != (SELECTED_POLICY_VERSION, SELECTED_GENERATOR_VERSION)
-        or proof is None
-        or document.inputs.selected_reporting is None
-    ):
+    selected_policy_contract(document.policy_version, document.generator_version)
+    if proof is None or document.inputs.selected_reporting is None:
         raise RetainedSourcesChanged("proof_unavailable")
     wid = document.inputs.workspace_id
     root = db.get_transaction()

@@ -55,6 +55,19 @@ class Q16Ids:
     generate_request_key: str
 
 
+@dataclass(frozen=True)
+class Q16Basis:
+    workspace_id: int
+    goal_id: str
+    goal_revision: int
+    confirmation_id: str
+    store_id: str
+    account_id: int
+    media_id: str
+    media_sha256: str
+    body: dict[str, Any]
+
+
 class NewYorkMeasurement(FakeMeasurement):
     def shop(self, shop: str, token: str) -> dict[str, Any]:
         result = super().shop(shop, token)
@@ -148,7 +161,7 @@ def native_account(
     return aid
 
 
-def prepare_q16_case(
+def prepare_q16_basis(
     engine: Engine,
     config: Settings,
     replicas: Any,
@@ -158,7 +171,7 @@ def prepare_q16_case(
     branch: Literal["privacy", "progress"],
     native_calls: list[str],
     generation_stage: Literal["nov3", "october"] = "nov3",
-) -> Q16Ids:
+) -> Q16Basis:
     now = datetime.now(UTC)
     assert now < NOV3 and now.year == 2026 and now.month == 10
     alice, _, provider = replicas
@@ -244,8 +257,7 @@ def prepare_q16_case(
         "utc_now",
         (lambda: NOV3) if generation_stage == "nov3" else (lambda: datetime.now(UTC)),
     )
-    root = f"/api/customer/v1/workspaces/{wid}/planning/plans"
-    create_key, generate_key = "q16-plan-create", "q16-plan-generate"
+    create_key = "q16-plan-create"
     body = dict(
         request_key=create_key,
         inputs=dict(
@@ -272,6 +284,37 @@ def prepare_q16_case(
             maximum_creative_assets=1,
         ),
     )
+    return Q16Basis(wid, gid, revision, confirmation, store_id, aid, media_id, image_digest, body)
+
+
+def prepare_q16_case(
+    engine: Engine,
+    config: Settings,
+    replicas: Any,
+    patch: pytest.MonkeyPatch,
+    artifacts: Path,
+    *,
+    branch: Literal["privacy", "progress"],
+    native_calls: list[str],
+    generation_stage: Literal["nov3", "october"] = "nov3",
+) -> Q16Ids:
+    basis = prepare_q16_basis(
+        engine,
+        config,
+        replicas,
+        patch,
+        artifacts,
+        branch=branch,
+        native_calls=native_calls,
+        generation_stage=generation_stage,
+    )
+    alice, _, _ = replicas
+    wid, gid, revision = basis.workspace_id, basis.goal_id, basis.goal_revision
+    confirmation, store_id, aid = basis.confirmation_id, basis.store_id, basis.account_id
+    media_id, image_digest = basis.media_id, basis.media_sha256
+    body = basis.body
+    root = f"/api/customer/v1/workspaces/{wid}/planning/plans"
+    create_key, generate_key = "q16-plan-create", "q16-plan-generate"
     planned = alice.post(root, headers=headers(alice), json=body)
     assert planned.status_code == 201, planned.text
     pid = planned.json()["plan_id"]

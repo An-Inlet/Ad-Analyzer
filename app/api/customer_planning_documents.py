@@ -79,7 +79,11 @@ def planning_capabilities(
             policy_version=configured.policy.version,
             generator_version=configured.policy.generator_version,
             selected_reporting_available=capability.mode
-            in ("selected_requested_window", "creative_selected_requested_window"),
+            in (
+                "selected_requested_window",
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            ),
         )
 
 

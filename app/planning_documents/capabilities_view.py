@@ -19,7 +19,12 @@ class PlanningCapabilitiesV1(NoAuthority):
     def configured(self) -> "PlanningCapabilitiesV1":
         capability = reporting_capability(self.policy_version, self.generator_version)
         if self.selected_reporting_available != (
-            capability.mode in ("selected_requested_window", "creative_selected_requested_window")
+            capability.mode
+            in (
+                "selected_requested_window",
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            )
         ):
             raise ValueError("configured planning capability mismatch")
         return self

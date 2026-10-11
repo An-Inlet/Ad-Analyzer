@@ -58,8 +58,9 @@ def test_complete_genuine_v6_investigation_only(zero: bool, empty: bool, no_link
         )
     assert PlanVersion.model_validate_json(doc.model_dump_json()) == doc
     assert PlanVersion.model_validate(doc).digest() == doc.digest()
-    with pytest.raises(ValueError):
-        reporting_capability(policy.version, policy.generator_version)
+    assert reporting_capability(policy.version, policy.generator_version).mode == (
+        "owner_review_creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize("social", ["meta", "tiktok"])

@@ -115,7 +115,10 @@ def read_google_budget_owners(
             capability = ticket_reporting_capability(
                 configured.policy.version, configured.policy.digest()
             )
-            if capability.mode != "creative_selected_requested_window":
+            if capability.mode not in (
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            ):
                 raise HTTPException(
                     409, "Google budget owner discovery is unavailable for this planning policy."
                 )

@@ -38,6 +38,7 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
+from app.planning_documents.owner_review_generation import assert_owner_review_generation_bundle
 from app.planning_documents.policy_capabilities import (
     reporting_capability,
     ticket_reporting_capability,
@@ -452,7 +453,8 @@ def save_generation(
         raise changed("unknown planning policy or generator") from error
     expected_bundle = (
         CreativePairedEvidenceV1
-        if capability.mode == "creative_selected_requested_window"
+        if capability.mode
+        in ("creative_selected_requested_window", "owner_review_creative_selected_requested_window")
         else SelectedPairedEvidenceV1
         if capability.mode == "selected_requested_window"
         else WindowEvidenceBundleV1
@@ -551,6 +553,10 @@ def save_generation(
             assert_empty_catalog_bindings(candidate.creative_composition.proposals, actual.catalogs)
         except ValueError as error:
             raise changed("empty catalog witness differs from actual collected evidence") from error
+    if capability.mode == "owner_review_creative_selected_requested_window":
+        if not isinstance(bundle, CreativePairedEvidenceV1):
+            raise changed("creative paired evidence required")
+        assert_owner_review_generation_bundle(ticket=ticket, candidate=candidate, bundle=bundle)
     paid_work(db, wid, now)
     check_goal(db, ticket.inputs, now)
     check_accounts(db, ticket.inputs)

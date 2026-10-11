@@ -48,6 +48,9 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
+from app.planning_documents.owner_review_generation import recheck_owner_review_input_receipts
+from app.planning_documents.owner_review_plan_composer import OwnerReviewPlanComposer
+from app.planning_documents.owner_review_policy import is_owner_review_policy
 from app.planning_documents.policy_capabilities import (
     reporting_capability,
     ticket_reporting_capability,
@@ -139,11 +142,15 @@ class PlanningDocumentService:
         self.media_store = media_store
         if (
             reporting_capability(self.policy.version, self.policy.generator_version).mode
-            == "creative_selected_requested_window"
+            in (
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            )
             and media_store is None
         ):
             raise ValueError("explicit creative media store required")
         self.creative_composer = CreativePlanComposer()
+        self.owner_review_composer = OwnerReviewPlanComposer()
         self.composer = DescriptivePlanComposer()
         self.window_composer = WindowPlanComposer()
         self.selected_composer = SelectedPlanComposer()
@@ -172,9 +179,19 @@ class PlanningDocumentService:
             if (
                 request.inputs.google_daily_budget_intents is not None
                 and ticket_reporting_capability(self.policy.version, self.policy.digest()).mode
-                != "creative_selected_requested_window"
+                not in (
+                    "creative_selected_requested_window",
+                    "owner_review_creative_selected_requested_window",
+                )
             ):
-                raise ValueError("Google budget owner hypotheses require canonical private V5.")
+                raise ValueError(
+                    "Google budget owner hypotheses require canonical private V5 or V6."
+                )
+            if (
+                is_owner_review_policy(self.policy.version, self.policy.generator_version)
+                and request.inputs.google_daily_budget_intents is None
+            ):
+                raise ValueError("explicit Google budget owner hypotheses required")
             validate_creative_policy(
                 request.inputs.creative, self.policy.version, self.policy.generator_version
             )
@@ -185,7 +202,11 @@ class PlanningDocumentService:
             )
             if (
                 reporting_capability(self.policy.version, self.policy.generator_version).mode
-                in ("selected_requested_window", "creative_selected_requested_window")
+                in (
+                    "selected_requested_window",
+                    "creative_selected_requested_window",
+                    "owner_review_creative_selected_requested_window",
+                )
                 and request.inputs.selected_reporting is None
             ):
                 raise ValueError("explicit selected reporting selectors required")
@@ -356,7 +377,11 @@ class PlanningDocumentService:
                 raise repository.changed("generation input or version changed")
             inputs = repository.inputs(db, plan)
             try:
-                reject_google_budget_generation(inputs.google_daily_budget_intents)
+                if is_owner_review_policy(self.policy.version, self.policy.generator_version):
+                    if inputs.google_daily_budget_intents is None:
+                        raise ValueError("explicit Google budget owner hypotheses required")
+                else:
+                    reject_google_budget_generation(inputs.google_daily_budget_intents)
                 validate_creative_policy(
                     inputs.creative, self.policy.version, self.policy.generator_version
                 )
@@ -365,7 +390,11 @@ class PlanningDocumentService:
                 )
                 if (
                     reporting_capability(self.policy.version, self.policy.generator_version).mode
-                    in ("selected_requested_window", "creative_selected_requested_window")
+                    in (
+                        "selected_requested_window",
+                        "creative_selected_requested_window",
+                        "owner_review_creative_selected_requested_window",
+                    )
                     and inputs.selected_reporting is None
                 ):
                     raise ValueError("explicit selected reporting selectors required")
@@ -396,7 +425,10 @@ class PlanningDocumentService:
             capability = ticket_reporting_capability(ticket.policy_version, ticket.policy_digest)
         except ValueError as error:
             raise repository.changed("unknown configured planning policy") from error
-        if capability.mode == "creative_selected_requested_window":
+        if capability.mode in (
+            "creative_selected_requested_window",
+            "owner_review_creative_selected_requested_window",
+        ):
             if self.media_store is None:
                 raise repository.changed("explicit creative media store required")
             creative_reader = OwnedCreativePairedReader(
@@ -434,7 +466,11 @@ class PlanningDocumentService:
                 raise repository.changed("selected reporting integrity unavailable") from error
         expected_bundle = (
             CreativePairedEvidenceV1
-            if capability.mode == "creative_selected_requested_window"
+            if capability.mode
+            in (
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            )
             else SelectedPairedEvidenceV1
             if capability.mode == "selected_requested_window"
             else WindowEvidenceBundleV1
@@ -448,10 +484,18 @@ class PlanningDocumentService:
         except ValueError as error:
             raise repository.changed("planning evidence does not match generation") from error
         try:
-            if capability.mode == "creative_selected_requested_window":
+            if capability.mode in (
+                "creative_selected_requested_window",
+                "owner_review_creative_selected_requested_window",
+            ):
                 if not isinstance(bundle, CreativePairedEvidenceV1):
                     raise repository.changed("creative paired evidence required")
-                candidate = self.creative_composer.compose(
+                composer = (
+                    self.owner_review_composer
+                    if capability.mode == "owner_review_creative_selected_requested_window"
+                    else self.creative_composer
+                )
+                candidate = composer.compose(
                     ticket=ticket, evidence=bundle, policy=self.policy, generated_at=self.clock()
                 )
             elif capability.mode == "selected_requested_window":
@@ -534,13 +578,23 @@ class PlanningDocumentService:
                     )
                 except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
                     raise repository.changed("creative planning evidence unavailable") from error
-                recheck_saved_input_receipts(
-                    db,
-                    principal=current,
-                    ticket=actual_ticket,
-                    catalogs=actual_bundle.reporting.selected.catalogs,
-                    now=self.clock(),
-                )
+                if capability.mode == "owner_review_creative_selected_requested_window":
+                    recheck_owner_review_input_receipts(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        candidate=candidate,
+                        catalogs=actual_bundle.reporting.selected.catalogs,
+                        now=self.clock(),
+                    )
+                else:
+                    recheck_saved_input_receipts(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        catalogs=actual_bundle.reporting.selected.catalogs,
+                        now=self.clock(),
+                    )
             elif isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
 
                 def authorize(db: Session, workspace_id: int, actor: str) -> None:

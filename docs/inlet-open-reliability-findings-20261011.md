@@ -217,3 +217,22 @@ retain their original evidence. Next investigation is source-only inspection of
 adjacent duplicate validation within the owner-binding pure call. It grants no
 permission to remove checks across SQL/callback boundaries, extend deadlines or
 claim a fix before changed-source acceptance tests pass.
+
+### R03 Changed-Source Uninstrumented Acceptance Failed
+
+Same-call owner-validation reuse froze at `6df589b`, with 24 focused tests passing
+and whole Ruff/configured mypy (1,478 files) clean. The unchanged fallback and fresh
+validation across database boundaries were independently reviewed.
+
+Acceptance08 then ran without external profiling on that changed source. Its first
+SQLite zero-budget case failed with `409 planning_authority_expired`; no cases
+passed and 27 remained unrun. The runner stopped immediately and did not retry.
+The internal guard location and fact age were not recorded, so no phase is inferred
+from earlier instrumented runs. Process duration was 24.831 seconds; XML duration
+was 21.304 seconds. Source stayed clean and all later output paths remained absent.
+
+Independent review and root verification checked the 11 evidence hashes in
+`google-owner-v6-runtime/acceptance-08-summary.json`. The actual service remains
+unqualified and isolated from the integration branch. Next work is source-only
+review of validation handoffs and query boundaries; no further observation or
+unchanged retry is authorized, and the five-second guard remains unchanged.

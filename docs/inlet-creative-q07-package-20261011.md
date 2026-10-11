@@ -59,7 +59,7 @@ Actual create rejects over1000, negative integer, unsupported allocation currenc
 field and attempted client ceiling/aggressiveness overrides without plan-row changes.
 The separate actual EUR account test proves currency rejection beyond schema-extra
 field refusal. Goal update/preview/confirm sets assertive while retaining1000;
-over1100 still fails, and genuine generated document remains1000/assertive.
+an allocation-plus-reserve total of1100 still fails, and genuine generated document remains1000/assertive.
 
 A real1100 goal revision cannot be adopted before confirmation, whether input uses
 the old or new revision. Actual confirmation permits a new input revision with

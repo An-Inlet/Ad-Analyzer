@@ -16,12 +16,12 @@ actual private V5 API-generated artifacts in the
 passed 12 cases. Root Ruff and configured mypy passed (1,418 files). These are
 bounded mechanical results, not closure of the frozen cases or human gates.
 
-Next: review the proposed Q07 matrix for actual over-ceiling/negative/mixed-owned-
-account currency rejection, unchanged ceiling under assertive settings and a higher
-ceiling only through a newly confirmed goal/input revision. The original browser
-409 cause remains unknown; the separately proven UTC receipt repair does not
-explain it. Measured save-preparation work is too small to justify implementing
-that proposal now. Original failures and frozen qualification remain preserved.
+Q07 currency/ceiling and Q10 constraint joins now have reviewed, bounded actual API
+coverage; see the [integrated checkpoint](inlet-q07-q10-checkpoint-20261011.md).
+Next is the approved Q08 zero-budget owned-empty-catalog baseline, before production
+account-level creative changes. Its retained empty-catalog witness contract remains
+under design review. The original browser409 remains unknown; subsequent fixes do
+not explain it. All original failures and frozen qualification remain preserved.
 
 ## Engineering That Can Continue Without Another Approval
 

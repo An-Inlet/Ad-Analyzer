@@ -58,3 +58,21 @@ separate; its evidence has not been removed.
 each of the six gates and each provider-alone/combined case. Review can start now
 independently of engineering. Diagnose remaining faults and prepare further
 acceptance evidence in parallel; do not treat this review request as release approval.
+
+
+## Additional Local Q07 And Q10 Review Material
+
+These deliberate case variants supplement the original common inputs; they do not
+replace the original packets. No upload or external sharing has been performed.
+
+- Q07 [manifest](/workspace/inlet-evidence/20261011/creative-q07/artifacts/manifest.json):
+  actual1000/assertive and newly confirmed1100 versions, each with exact export on
+  SQLite/PostgreSQL. Eight hashes/digests independently verified; no ceiling increase
+  follows from aggressiveness alone.
+- Q10 [evidence manifest](/workspace/inlet-evidence/20261011/creative-q10/evidence-manifest.json):
+  actual Meta exclusion/fixed200/one-image variants, typed product restrictions and
+  separate global-constraint deferral. Four final document/export pairs independently
+  verified. Retained restrictions and structural copy checks are not expert approval.
+
+The six human decisions still require separate judgments. Further offline acceptance
+work proceeds independently; external artifact delivery requires owner approval.

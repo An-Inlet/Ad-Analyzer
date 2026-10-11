@@ -1,6 +1,6 @@
 # Inlet Acceptance Checkpoint — October 11
 
-Reviewed local code through `9b2421b`; review packet through `a4827d2` on `codex/inlet-w1-followup`. This dated
+Reviewed local code through `990da7e` on `codex/inlet-w1-followup`. This dated
 checkpoint supersedes current-status claims in the October 6/7 snapshots without
 rewriting their evidence. Inlet is **not a live-qualified, purchasable release**.
 The approved MVP is comprehensive planning with **zero advertising-platform writes**,
@@ -114,7 +114,8 @@ remain recorded in historical ledgers; remote status was not refreshed during th
 hold. Hosted runs/retries, pushes, merge and deployment remain held. Routine offline
 engineering continues without package-by-package approval. The private portal now
 supports the reviewed product/image flow; default V3 remains unchanged. Next is
-reviewing the bounded Q07 budget-safety matrix before implementation. Public webpage
+the bounded Q08 zero-budget, owned-empty-catalog API baseline before any new
+account-level creative contract is implemented. Public webpage
 work and live release remain separate. No human expert gate is closed by internal
 technical versions or automated test passes.
 
@@ -147,3 +148,37 @@ See the [portal checkpoint](inlet-private-portal-checkpoint-20261011.md),
 [actual artifact review packet](inlet-creative-review-packet-20261011.md).
 These targeted cohorts overlap earlier evidence and do not establish exhaustive
 current-head, live-provider or human-quality acceptance. All Q01–Q16 remain partial.
+
+## Q07 Currency Repair And Q10 Constraint Evidence
+
+Q07 `990da7e` (author `8e87ced`) fixes a reproduced wrong201 admission: an actual
+owned EUR target received a USD-goal allocation. The shared guard binds exact
+validated catalog identity and currency at input save and new generation, with a
+fixed422 and no partial records. Existing history/export/completed replay remain
+unchanged; foreign-currency accounts without allocations remain readable. The
+initial invalid second-Meta fixture and actual wrong201 are both preserved.
+
+Actual tests also show assertive remains at1000; a1100 ceiling requires a real
+new goal revision, preview, confirmation and input CAS. The old1000 version stays
+immutable. Final bounded20 cases passed199.120s across both databases and pure
+checks, including Q05 and legacy history/replay preservation. Eight generated
+artifacts passed independent hash/strict-digest verification. See the
+[Q07 ledger](inlet-creative-q07-package-20261011.md).
+
+Q10 `dce7790` (author `fb3e3b7`) adds actual Meta exclusion/fixed-allocation/one-asset
+coverage: A and its child are absent from actionable outputs, B has200 plus800
+reserve, and supplied product restrictions survive. Four both-database cases
+passed25.260s. A separate global-freeform-constraint case truthfully defers creative;
+useful constrained creative remains an open gap. Four document/export pairs and
+26 evidence hashes passed independent verification. See the
+[Q10 ledger](inlet-creative-q10-package-20261011.md).
+
+Both packages have closed independent source review in their stated scope. The
+original browser409 is still unexplained and separate from UTC and currency fixes.
+The Q08 baseline-only approval and unresolved retained empty-catalog proof contract
+are recorded in its [design](design/creative-q08-owned-empty-account-interface-20261011.md).
+No external artifact delivery is authorized: artifacts remain local. All six human
+gates, Q01–Q16 partial status, defaultV3 and frozen9d7aa2e remain unchanged.
+
+Root combined Q07/Q10 qualification: four Q10 cases passed after currency integration;
+whole Ruff/configured mypy1,423 passed. [Exact checkpoint](inlet-q07-q10-checkpoint-20261011.md).

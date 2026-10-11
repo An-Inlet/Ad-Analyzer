@@ -39,3 +39,19 @@ Frozen9d7aa2e exhaustive predecessor qualification is untouched. No new Full or
 hosted run, remote push, provider/model call, credentials, advertising changes,
 spend, purchase, merge or deployment. Six human expert usefulness gates and all
 live/release gates remain outstanding.
+
+## Owned Collection, History And Currentness
+
+Reviewed closed additions: complete creative history `2b1d6fe` (72 database/regression
+tests plus 5 pure checks), combined owned reporting/image collection `e1bd167`
+(42 SQLite/PostgreSQL tests), and metadata currentness `841b587` (58 both-database
+tests plus 2 overlapping checks; whole Ruff/mypy 1,400 source files). Each package
+ledger preserves initial failed attempts and distinguishes actual local fixture
+ports from live providers.
+
+Retained-dispatch interface `f509f3a` is approved and implementation is undergoing
+qualification. Atomic-service interface `eee5b81` is approved subject to explicit
+media metadata admission and prerequisite dispatch closure. Runtime/API tests are
+being prepared; these are not verified application behavior yet. Default v3 remains
+unchanged, v5 service remains unregistered at this checkpoint, and no new full
+qualification or live release is claimed.

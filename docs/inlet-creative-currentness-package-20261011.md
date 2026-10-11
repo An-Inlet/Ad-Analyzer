@@ -1,7 +1,8 @@
 # Creative Metadata Currentness — 2026-10-11
 
 Status: implemented and qualified on `codex/inlet-w1-followup`;
-source review found no P1/P2, frozen final review pending. Interface `40b6ceb`.
+frozen commit `841b587` passed independent final review with no P1/P2 findings.
+Interface `40b6ceb`.
 
 `capture_creative_retained_source` checks a genuine v5 document against current
 owned image metadata within the caller's clean root transaction. It requires the

@@ -87,3 +87,13 @@ Use actual retained social catalog fixtures where practical; fabricated pure
 inputs are not claimed as API qualification. Whole Ruff/configured mypy before
 commit; independent review. Actual owned reader and eventual retained v5 API
 integration remain separate packages and require their own qualification.
+
+Reviewed exactness requirements: `first_priority` is a strict positive integer;
+all generated priorities must fit MAX_ACTIONS without truncation. Shot purpose is
+a closed `introduction` / `demonstration` / `cta` identifier with exact order.
+Source images equal the complete ordered basis selections; selected image is the
+first member, or null for an empty basis. Format price with exact integer-micros
+arithmetic or controlled Decimal precision, independent of ambient context.
+Preserve restrictions verbatim in each relevant brief/review path. Any text
+overflow fails explicitly instead of truncating facts. With no catalogs, defer;
+current privacy qualification remains the owned reader/caller's responsibility.

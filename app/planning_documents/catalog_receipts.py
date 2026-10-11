@@ -254,11 +254,11 @@ def _payload(row: CatalogReceiptRow) -> tuple[ReceiptPayloadV1, TargetCatalogV2]
                 utc(row.expires_at),
             )
             != (
-                metadata.reporting_starts_at,
-                metadata.reporting_ends_at,
-                min(native.observation_started_at, metadata.observation_started_at),
-                max(native.observed_at, metadata.observed_at),
-                catalog.expires_at,
+                utc(metadata.reporting_starts_at),
+                utc(metadata.reporting_ends_at),
+                min(utc(native.observation_started_at), utc(metadata.observation_started_at)),
+                max(utc(native.observed_at), utc(metadata.observed_at)),
+                utc(catalog.expires_at),
             )
             or not utc(row.observed_at) <= utc(row.created_at) < utc(row.expires_at)
         ):
@@ -475,12 +475,16 @@ def write_catalog_receipt(
         payload_bytes=len(raw.encode()),
         composite_digest=catalog.composite_digest,
         target_count=len(catalog.targets),
-        reporting_starts_at=metadata.reporting_starts_at,
-        reporting_ends_at=metadata.reporting_ends_at,
-        observation_started_at=min(native.observation_started_at, metadata.observation_started_at),
-        observed_at=max(native.observed_at, metadata.observed_at),
-        expires_at=catalog.expires_at,
-        created_at=current,
+        # SQL scalar timestamps are UTC instants on both dialects; SQLite drops
+        # offsets rather than converting them. Keep canonical payload bytes intact.
+        reporting_starts_at=utc(metadata.reporting_starts_at),
+        reporting_ends_at=utc(metadata.reporting_ends_at),
+        observation_started_at=min(
+            utc(native.observation_started_at), utc(metadata.observation_started_at)
+        ),
+        observed_at=max(utc(native.observed_at), utc(metadata.observed_at)),
+        expires_at=utc(catalog.expires_at),
+        created_at=utc(current),
     )
     db.add(row)
     db.flush()

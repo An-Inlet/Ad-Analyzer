@@ -24,8 +24,9 @@ actually necessary. The parent assigns lanes before implementation.
 ## Exact Existing Wiring And Minimal Delta
 
 `planningCapability()` currently accepts exact pairs1–5 and returns only selected
-and creative flags. Add exact pair6 and its server-frozen response checks, with
-creative true and ownerReview true only for6. Preserve the *exact returned objects*
+and creative flags. Add exact pair6 and its server-frozen response checks. V5 keeps creative:true; V6 returns
+selected:true, creative:true and ownerReview:true. Only V6 adds ownerReview:true.
+Preserve the *exact returned objects*
 for1–5; do not add false fields to legacy output or change the default configuration.
 Mixed/unknown pairs still refuse. No browser-provided policy selection.
 
@@ -135,7 +136,8 @@ those classes and add closed regex/method matches for `owner_discovery` (POST
 planning/google-budget-owners), `create` (POSTplanning/plans), `revise` (POST
 plans/{id}/inputs), `version` (GETplans/{id}/versions/{positive}), `export` (GET
 plans/{id}/export), and `request_receipt` (GETplanning/plans/requests/{operation}/{request_key}),
-with operation constrained to the existing Operation literal and key constrained to
+with operation constrained to the current Operation literal
+`create|revise|generate|decide|assert_applied` and key constrained to
 the existing 8–128-character `[A-Za-z0-9_-]` RequestKey. Do not classify arbitrary paths or log captured IDs/query strings.
 Add only the exact frozen owner refusal literal to fixed_detail; unlisted strings,
 structured422 payloads and arbitrary exception texts remain `unlisted_server_detail`.

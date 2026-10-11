@@ -7201,3 +7201,14 @@ Real six-second-delay regression `db4a220` passed SQLite/PostgreSQL and review,
 proving unchanged five-second authority rejection with no generation writes;
 its whole Ruff/mypy1409 passed. [Runtime ledger](inlet-creative-runtime-qualification-20261011.md).
 Common Basis actual V5 review artifacts are next; expert/live/release gates remain.
+
+## 2026-10-11 — Q08 Preparation And Q06 Shared-Owner Baseline
+
+Private Q08 account preparation now retains exact empty-query proof and rejects
+substituted evidence before persistence. Focused consumer98, actual API4 and one
+ordered browser7 passed; their counts overlap other package checks and are not an
+exhaustive claim. Q06 actual shared-owner baseline4 passed across both databases;
+exact native-edit and recovery outputs remain unimplemented. Integrated whole Ruff
+and mypy1,433 passed. [Checkpoint and next package](inlet-q08-q06-checkpoint-20261011.md).
+R01 remains open, six human judgments remain pending, and all remote/live/release
+holds remain. Artifacts are local only.

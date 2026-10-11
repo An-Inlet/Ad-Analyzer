@@ -19,6 +19,20 @@ def creative_local_witness(document: PlanVersion) -> RetainedSourceWitness:
         CREATIVE_GENERATOR_VERSION,
     ) or document.creative_proof is None:
         raise ValueError("exact creative document required")
+    return _creative_local_witness(document)
+
+
+def _creative_local_witness(document: PlanVersion) -> RetainedSourceWitness:
+    from app.planning_documents.selected_policy_contract import selected_policy_contract
+
+    document = PlanVersion.model_validate(document)
+    if (
+        not selected_policy_contract(
+            document.policy_version, document.generator_version
+        ).requires_creative
+        or document.creative_proof is None
+    ):
+        raise ValueError("exact creative document required")
     proof = document.creative_proof
     proof.assert_inputs(document.inputs, document.evidence[0].privacy_revision)
     return RetainedSourceWitness(
@@ -39,10 +53,10 @@ def creative_local_witness(document: PlanVersion) -> RetainedSourceWitness:
     )
 
 
-def validate_creative_local_dependency(
+def _validate_creative_local_dependency(
     document: PlanVersion, dependencies: Sequence[PlanDependencyRow]
 ) -> None:
-    expected = creative_local_witness(document).model_dump()
+    expected = _creative_local_witness(document).model_dump()
     expected["observed_at"] = utc(expected["observed_at"])
     expected["expires_at"] = utc(expected["expires_at"])
     matches = [
@@ -52,3 +66,10 @@ def validate_creative_local_dependency(
     ]
     if len(matches) != 1 or _row(matches[0]) != expected:
         raise ValueError("complete original creative dependency required")
+
+
+def validate_creative_local_dependency(
+    document: PlanVersion, dependencies: Sequence[PlanDependencyRow]
+) -> None:
+    creative_local_witness(document)
+    _validate_creative_local_dependency(document, dependencies)

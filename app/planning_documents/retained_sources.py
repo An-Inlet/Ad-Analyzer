@@ -326,6 +326,24 @@ def capture_retained_sources(
     db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
 ) -> tuple[RetainedSourceWitness, ...]:
     document = PlanVersion.model_validate(document)
+    from app.planning_documents.owner_review_policy import is_owner_review_policy
+
+    if is_owner_review_policy(document.policy_version, document.generator_version):
+        from app.planning_documents.google_budget_owner_retained import (
+            capture_owner_review_retained_sources,
+        )
+
+        try:
+            return capture_owner_review_retained_sources(
+                db, principal=principal, document=document, now=now
+            )
+        except HTTPException as error:
+            if error.status_code != 409:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
+
     if (document.policy_version, document.generator_version) == (
         CREATIVE_POLICY_VERSION,
         CREATIVE_GENERATOR_VERSION,
@@ -501,6 +519,24 @@ def recheck_retained_sources(
     now: datetime,
 ) -> None:
     """Validate complete immutable dependency set, then recompute current local integrity."""
+    from app.planning_documents.owner_review_policy import is_owner_review_policy
+
+    if is_owner_review_policy(document.policy_version, document.generator_version):
+        from app.planning_documents.google_budget_owner_retained import (
+            recheck_owner_review_retained_sources,
+        )
+
+        try:
+            recheck_owner_review_retained_sources(
+                db, principal=principal, document=document, dependencies=dependencies, now=now
+            )
+            return
+        except HTTPException as error:
+            if error.status_code in {401, 402, 403}:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
     if (document.policy_version, document.generator_version) == (
         CREATIVE_POLICY_VERSION,
         CREATIVE_GENERATOR_VERSION,

@@ -25,7 +25,7 @@ from app.planning_documents.retained_sources import (
 from app.shopify.security import utc
 
 
-def capture_creative_retained_source(
+def _capture_creative_retained_source(
     db: Session,
     *,
     principal: CustomerPrincipal,
@@ -33,7 +33,8 @@ def capture_creative_retained_source(
     now: datetime,
 ) -> RetainedSourceWitness:
     """Caller owns fresh viewer fact/final authority and workspace-first transaction."""
-    from app.planning_documents.creative_history import creative_local_witness
+    from app.planning_documents.creative_history import _creative_local_witness
+    from app.planning_documents.selected_policy_contract import selected_policy_contract
 
     if type(now) is not datetime or now.tzinfo is None or now.utcoffset() is None:
         raise RetainedSourcesChanged("source_changed")
@@ -44,8 +45,9 @@ def capture_creative_retained_source(
         raise RetainedSourcesChanged("proof_unavailable") from None
     proof = document.creative_proof
     if (
-        (document.policy_version, document.generator_version)
-        != (CREATIVE_POLICY_VERSION, CREATIVE_GENERATOR_VERSION)
+        not selected_policy_contract(
+            document.policy_version, document.generator_version
+        ).requires_creative
         or proof is None
     ):
         raise RetainedSourcesChanged("proof_unavailable")
@@ -136,9 +138,24 @@ def capture_creative_retained_source(
             if digest != commitment.row_identity_digest:
                 raise RetainedSourcesChanged("source_changed")
         guard()
-        witness = creative_local_witness(document)
+        witness = _creative_local_witness(document)
         clean()
         _guard(db, principal, wid, principal.user.id)
         clean()
         sample()
         return witness
+
+
+def capture_creative_retained_source(
+    db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
+) -> RetainedSourceWitness:
+    try:
+        document = PlanVersion.model_validate(document)
+    except ValueError:
+        raise RetainedSourcesChanged("proof_unavailable") from None
+    if (document.policy_version, document.generator_version) != (
+        CREATIVE_POLICY_VERSION,
+        CREATIVE_GENERATOR_VERSION,
+    ):
+        raise RetainedSourcesChanged("proof_unavailable")
+    return _capture_creative_retained_source(db, principal=principal, document=document, now=now)

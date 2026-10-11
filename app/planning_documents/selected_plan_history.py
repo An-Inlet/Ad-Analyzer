@@ -58,9 +58,9 @@ def validate_selected_historical_dependencies(
     if len(rows) != len(dependencies):
         raise ValueError("duplicate historical dependency")
     if contract.requires_creative:
-        from app.planning_documents.creative_history import validate_creative_local_dependency
+        from app.planning_documents.creative_history import _validate_creative_local_dependency
 
-        validate_creative_local_dependency(document, dependencies)
+        _validate_creative_local_dependency(document, dependencies)
         rows.pop("local:creative:basis")
     common: dict[str, Any] = dict(
         workspace_id=document.inputs.workspace_id,
@@ -132,7 +132,7 @@ def validate_selected_historical_dependencies(
     return tuple(item.capture_pin for item in proof.accounts if item.capture_pin is not None)
 
 
-def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
+def _validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
     """Read complete retained SQL under caller-owned viewer/lifecycle transaction."""
     document = PlanVersion.model_validate(document)
     transaction = db.get_transaction()
@@ -185,3 +185,16 @@ def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
                 raise ValueError("historical traffic integrity unavailable") from None
     if db.get_transaction() is not transaction or not transaction.is_active:
         raise ValueError("historical read transaction changed")
+
+
+def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
+    document = PlanVersion.model_validate(document)
+    contract = selected_policy_contract(document.policy_version, document.generator_version)
+    if contract.requires_owner_review:
+        from app.planning_documents.google_budget_owner_retained import (
+            validate_owner_review_plan_history,
+        )
+
+        validate_owner_review_plan_history(db, document)
+    else:
+        _validate_selected_plan_history(db, document)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.customers.access import CustomerPrincipal
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
-from app.planning_documents.creative_history import creative_local_witness
+from app.planning_documents.creative_history import _creative_local_witness
 from app.planning_documents.creative_inputs import (
     CREATIVE_GENERATOR_VERSION,
     CREATIVE_POLICY_VERSION,
@@ -23,6 +23,7 @@ from app.planning_documents.retained_sources import (
 )
 from app.planning_documents.selected_plan_history import validate_selected_historical_dependencies
 from app.planning_documents.selected_plan_witnesses import capture_selected_reporting_sources
+from app.planning_documents.selected_policy_contract import selected_policy_contract
 from app.shopify.security import utc
 
 
@@ -32,11 +33,9 @@ class _Context:
     ) -> None:
         self.document = PlanVersion.model_validate(document)
         if (
-            (document.policy_version, document.generator_version)
-            != (
-                CREATIVE_POLICY_VERSION,
-                CREATIVE_GENERATOR_VERSION,
-            )
+            not selected_policy_contract(
+                document.policy_version, document.generator_version
+            ).requires_creative
             or type(now) is not datetime
             or now.tzinfo is None
             or now.utcoffset() is None
@@ -100,7 +99,7 @@ class _Context:
         self.clock()
 
 
-def capture_creative_retained_sources(
+def _capture_creative_retained_sources(
     db: Session,
     *,
     principal: CustomerPrincipal,
@@ -108,7 +107,7 @@ def capture_creative_retained_sources(
     now: datetime,
 ) -> tuple[RetainedSourceWitness, ...]:
     # Imported only after its separately reviewed frozen implementation is available.
-    from app.planning_documents.creative_currentness import capture_creative_retained_source
+    from app.planning_documents.creative_currentness import _capture_creative_retained_source
 
     context = _Context(db, principal, document, now)
     document = context.document
@@ -118,7 +117,7 @@ def capture_creative_retained_sources(
             db, principal=principal, document=document, now=context.clock()
         )
         context.clean()
-        creative = capture_creative_retained_source(
+        creative = _capture_creative_retained_source(
             db, principal=principal, document=document, now=context.clock()
         )
         context.clean()
@@ -129,7 +128,7 @@ def capture_creative_retained_sources(
         )
         if len(result) != len(keys) or {w.evidence_key for w in result} != keys:
             raise RetainedSourcesChanged("proof_unavailable")
-        if creative != creative_local_witness(document):
+        if creative != _creative_local_witness(document):
             raise RetainedSourcesChanged("source_changed")
         for witness in result:
             if (
@@ -144,7 +143,7 @@ def capture_creative_retained_sources(
         return result
 
 
-def recheck_creative_retained_sources(
+def _recheck_creative_retained_sources(
     db: Session,
     *,
     principal: CustomerPrincipal,
@@ -158,7 +157,7 @@ def recheck_creative_retained_sources(
     context.clean()
     saved = {row.evidence_key: _row(row) for row in dependencies}
     with db.no_autoflush:
-        current = capture_creative_retained_sources(
+        current = _capture_creative_retained_sources(
             db, principal=principal, document=document, now=context.clock()
         )
         context.clean()
@@ -175,3 +174,34 @@ def recheck_creative_retained_sources(
             if actual != original:
                 raise RetainedSourcesChanged("source_changed")
         context.guard()
+
+
+def _v5(document: PlanVersion) -> PlanVersion:
+    document = PlanVersion.model_validate(document)
+    if (document.policy_version, document.generator_version) != (
+        CREATIVE_POLICY_VERSION,
+        CREATIVE_GENERATOR_VERSION,
+    ):
+        raise RetainedSourcesChanged("proof_unavailable")
+    return document
+
+
+def capture_creative_retained_sources(
+    db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
+) -> tuple[RetainedSourceWitness, ...]:
+    return _capture_creative_retained_sources(
+        db, principal=principal, document=_v5(document), now=now
+    )
+
+
+def recheck_creative_retained_sources(
+    db: Session,
+    *,
+    principal: CustomerPrincipal,
+    document: PlanVersion,
+    dependencies: Sequence[PlanDependencyRow],
+    now: datetime,
+) -> None:
+    _recheck_creative_retained_sources(
+        db, principal=principal, document=_v5(document), dependencies=dependencies, now=now
+    )

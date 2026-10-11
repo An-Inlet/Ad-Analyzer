@@ -24,9 +24,10 @@ All v1–v4 pairs reject non-null creative inputs, including an empty object.
 
 Apply this guard to plan create/edit admission and generation, and to existing
 pure composers/PlanVersion validation so no older composer silently ignores typed
-creative inputs. Admission uses the existing bounded422 input-error handling;
-saved incompatible generation conflicts consistently with current selected-input
-handling. No new public configuration or service policy acceptance is enabled.
+creative inputs. Malformed input retains existing422 validation handling;
+unsupported policy admission and incompatible saved generation use the existing
+409 conflict handling, consistently with selected inputs. No new public
+configuration or service policy acceptance is enabled.
 
 Validate legacy Python/JSON and digest goldens; null omission versus explicit
 empty/value; copied-model and currency failures; exact policy-pair gating; actual

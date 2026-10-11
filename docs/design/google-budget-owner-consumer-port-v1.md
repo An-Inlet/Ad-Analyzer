@@ -57,7 +57,8 @@ are serialized in the response or logged.
 
 Add omitted-by-default google_daily_budget_intents to CustomerInputs and its resolved
 counterpart to PlanInputRevision only after this port's review. None preserves all
-old Python/JSON bytes; reject duplicate accounts/owners and bounded overflow.
+old Python/JSON bytes; reject duplicate full-account/owner pairs and bounded overflow.
+Multiple independently owned budgets in one account remain representable.
 Capability is exact private V5. Older configured policies reject the new field
 rather than silently ignore it. Explicit empty remains distinct from absent.
 
@@ -92,6 +93,9 @@ Enforce all these rules on create/edit and retained reconstruction:
 - Existing ordinary scenario rules prevent duplicate owner allocations. A child of
   an affected campaign cannot add a second allocation to that same native pool within
   the named scenario; reject that new intent rather than reinterpret legacy inputs.
+  Join children through full advertiser/native parent identity in the entire catalog,
+  including represented owner campaign rows; a Google child budget_owner_key of
+  None is not evidence of an independent pool.
 
 Exact existing create/edit receipt replay precedes new lookup. Changed request-key
 reuse, source/goal/privacy/session changes, expiry or revision/version CAS failures
@@ -101,8 +105,11 @@ reject atomically with no partial input graph or financial/execution effect.
 
 New inputs may be stored only after the configured V5 service explicitly supports
 retaining and exposing them as customer hypotheses; generation must fail closed
-while the later review-action/document consumer is unavailable. Do not accept a
-new intent and then generate a plan which silently drops it. Existing inputs with
+while the later review-action/document consumer is unavailable. A shared fail-closed
+guard must reject every non-null new intent field, including an explicit empty tuple,
+at genuine generation preparation, direct pure composition and PlanVersion document
+admission. None alone uses the unchanged legacy path. A service-only gate is
+insufficient. Do not generate a plan which silently drops stored hypotheses. Existing inputs with
 no new field and Q08 empty-account preparation keep their current path unchanged.
 
 Before enabling generation, independently freeze the exact review attachment,

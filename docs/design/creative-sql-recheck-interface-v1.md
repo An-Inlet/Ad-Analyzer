@@ -47,3 +47,10 @@ unsafe copies; no partial writes; callback exceptions propagate. Preserve origin
 observation timestamps and all existing proof digest regressions. Whole Ruff and
 configured mypy required. History/currentness/dependency wiring remains a later
 separately reviewed package; ordinary metadata loss is not semantic privacy erasure.
+
+Review clarification: capture both Session root and underlying Connection root
+transaction identities at entry; require the same active, nonnested, clean objects
+through every callback and SQL phase. Reject dirty state before queries/autoflush.
+Strictly validate aware supplied now and compare UTC-normalized ticket/image
+instants (including DST folds), never raw same-zone datetimes. Future-ticket/image
+checks apply at the freshly sampled final time as well as the initial boundary.

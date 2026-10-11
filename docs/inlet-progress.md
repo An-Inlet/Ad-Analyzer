@@ -7738,3 +7738,30 @@ ledger passed root/independent source review on separate branch
 The source inventory is local at `/workspace/inlet-design/Q15-LITERAL-TEXT-SOURCE-INVENTORY.json`
 (SHA `d0178b080e028e01b5ee47e4c1aae8301272ef36fbfc3267afacf48865af72bf`).
 The Q12 branch still points to `9fd75ab`; production and all owner gates are unchanged.
+
+
+## Complete Normal PostgreSQL Save Measurement
+
+The narrowed observer02 ran once on unchanged `9fd75ab` application/tests and
+passed the sole normal PostgreSQL owner journey. XML case24.370s, suite26.091s,
+process28.252921s; no skips/unrun. Its56 frames and34 save-active final calls
+have no truncation, accounting, recording or restoration error. Root and
+independent review verified one source/13 evidence hashes in frozen packet
+`43696983d87a853cfd149daeba7c6a84f16d3f8e3e704e99b233c850b7fb739c`.
+External observer Ruff/compile passed; no new application static or acceptance
+run was performed. [Exact disjoint table](inlet-v6-normal-save-measurement02-20261011.md).
+
+Observed save was3.086127s with2,385 SQL executions. Within that save, two separate
+selected-current passes consumed1.696164s/1,402 SQL, and selected retained capture
+0.494016s/620 SQL. Those nonoverlapping selected-reporting spans total2.190180s;
+parent spans must not be added again. Pre-CAS and post-flush original guards
+returned, with sampled age brackets around2.9965s and3.0862s respectively. These
+are current observations, not original predicate samples, reliable safety margin,
+or historical failure causation. The earlier failed diagnostics case stays failed.
+
+The next repair investigation targets the selected reporting read family. Source
+inspection shows deliberate independent currentness/ownership rereads; historical
+facts are already batch-loaded. Do not remove a pass, cache SQL facts, renew
+authority, or select a small validation edit without a concrete sufficient mechanism.
+Runtime repair and combined-source acceptance remain outstanding; Q15 source is
+ready but unrun. All production/live/remote/owner decision gates remain unchanged.

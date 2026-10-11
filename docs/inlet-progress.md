@@ -7342,3 +7342,24 @@ qualify actual generation/save or the final five-second authority interval. Next
 reviewed exact-V6 service integration with 13 disjoint actual API cases per database,
 then the existing customer portal. R01/R02, human usefulness judgments and all
 remote/live/release/sharing holds remain unchanged.
+
+## 2026-10-11 — Restricted Retained Context Validation
+
+Integrated independently reviewed `fb2d864` as `788edfc`. The private retained context
+now supports an additional exact-policy restriction while always validating the
+whole document. The two owner entry points consume that checked result instead
+of immediately validating the same document twice before any database access.
+All subsequent receipt, source, transaction, privacy and authority checks remain.
+
+[Package ledger](inlet-owner-context-restriction-20261011.md) records30distinct
+passing cases:16pure/wrapper and14affected retained cases acrossSQLite/PostgreSQL.
+The final14-case pure rerun overlaps that count. Initial static findings are retained;
+final changes were an equivalent short-circuit style repair and test-only typing.
+Root verified4source/14evidence hashes and3XML reports, then wholeRuff and configured
+no-path mypy passed1471files. Local evidence: `owner-context-restriction/`.
+
+This validates the narrow context behavior, not generation latency or R03 resolution.
+The service/storage branch is assembling this commit with the independently reviewed
+canonical-once storage-pair change for16pure and28actualAPI checks on changed source.
+Service remains unintegrated pending that qualification. All live/remote/release
+holds, human usefulness gaps and original reliability findings remain explicit.

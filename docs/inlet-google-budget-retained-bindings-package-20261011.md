@@ -32,3 +32,12 @@ released by the parent. No database/browser/provider calls.
 
 No claim of current source authorization, daily-to-period spending qualification,
 provider mutation authority or live verification is made.
+
+## Root Integration
+
+Author `a60f5dc` independently CLOSED and integrated as `7e8b00f`. Root whole
+Ruff and configured no-path mypy passed over1,448 files; diff check passed.
+No repeated pytest at integration. This includes active original binding `ed594ad`
+and scalar commitment `afde942`; their separate results remain in their ledgers.
+Atomic input/read/history consumers are source work in an isolated lane and are
+not activated by this package. Generation of owner hypotheses remains unavailable.

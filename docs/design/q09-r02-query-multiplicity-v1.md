@@ -53,14 +53,19 @@ all campaign/day metrics with a single bounded ordered query. Sixty-one dates do
 `db.get(Campaign)` in `store_selected_capture` is an acquisition write path, outside
 the observed final generation save; optimizing it would not address this interval.
 
-Original input/catalog receipts are another repeated source family:
-`repository.inputs` validates retained links; the later saved-receipt check reloads
-owned original receipts with session/TTL/source/selection commitment checks. Those
-are different historical/current purposes, not interchangeable authorization.
+Original input/catalog receipts are another potential source family:
+`repository.inputs` validates historical owner receipt links only when
+`google_daily_budget_intents` is non-null. Q09 probe04 has None, so that conditional
+historical validation is NOT executed work in this probe and must not be attributed
+to its query count. The later saved-receipt check does reload owned original
+receipts with session/TTL/source/selection commitment checks. Historical and
+current receipt purposes remain distinct, not interchangeable authorization.
 
 ## Smallest Reviewable Next Measurement Contract
 
-Before changing production, propose a separate evidence-only helper census of the
+The helper census is DEFERRED. The exact-one probe authorization is exhausted;
+no further diagnostic execution is authorized or scheduled. Before changing
+production, a separately approved evidence-only helper census could inspect the
 same save interval, not another broad timing retry. Fixed allowlisted wrappers
 could count calls and SQL deltas for `_reporting`, `current_scope`, `_aggregate`,
 `historical_capture`, `manifest`, `read_presence`, and original saved-receipt load.

@@ -77,3 +77,15 @@ Next package: a design-only performance proposal grounded in measured stage cost
 then independent contract review before implementation. No additional broad test
 retry, authority renewal, relaxed freshness or live activation is authorized by
 this checkpoint.
+
+## Diagnostic Scope Correction
+
+Further harness review corrected an earlier inference: the failed browser
+**Generate action** performs POST generate, GET current plan, then GET version
+history, and maps any HTTP 409 to the same message. The original `both-02` run
+captured none of their statuses/details. Therefore the evidence does **not**
+establish that POST generate failed or that authority expired. Its disposable
+schema was cleaned up by the fixture, so no original database state survives.
+Earlier references to a "generation 409" describe the user action only. Retain the
+failure without attributing it to a particular route. The next bounded diagnostic
+must capture fixed route classes/status/error detail for all three requests.

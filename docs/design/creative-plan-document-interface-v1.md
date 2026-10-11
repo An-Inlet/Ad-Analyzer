@@ -60,3 +60,9 @@ fails including empty cases, field/value digests, added/dropped generic creative
 foreign targets, capacity, reference scope/time, copied models and mixed policies.
 Assert v1–v4 byte/digest goldens and v5 capability/composer refusal unchanged. Run
 whole Ruff/configured mypy. Historical/persistence acceptance stays separately gated.
+
+Review clarification: v5 document checks normalize input creation, generated_at,
+valid_until and all reference observation/expiry instants to UTC before bounds
+comparisons (including DST folds). Do not rely on legacy same-zone comparisons.
+This does not change v1–v4 serialized values. Future genuine bundle/composer must
+validate the full canonical policy/digest, not infer it from version strings.

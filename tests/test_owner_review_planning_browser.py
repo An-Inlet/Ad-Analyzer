@@ -46,7 +46,10 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("journey", ["positive", "partial", "complete_to_partial", "literal_text"])
+@pytest.mark.parametrize(
+    "journey",
+    ["positive", "partial", "complete_to_partial", "literal_text", "duplicate_names"],
+)
 def test_actual_owner_review_planning_browser(
     customer_engine: Engine,
     request: pytest.FixtureRequest,
@@ -87,7 +90,10 @@ def test_actual_owner_review_planning_browser(
         tmp_path,
         partial=journey == "partial",
         response_control=response_control,
-        native_names=literal["names"] if literal else None,
+        native_names=(
+            {"1": "Mug Campaign", "2": "Mug Campaign", "3": "Mug Campaign"}
+            if journey == "duplicate_names" else literal["names"] if literal else None
+        ),
     )
     basis = fixture.basis
     original_cookie = replicas[0].cookies[SESSION_COOKIE]
@@ -142,6 +148,7 @@ def test_actual_owner_review_planning_browser(
         form=form,
         journey=journey,
         literal=literal,
+        duplicate_names=journey == "duplicate_names",
     )
     complete = threading.Event()
     results: list[dict[str, Any]] = []
@@ -359,6 +366,18 @@ def test_actual_owner_review_planning_browser(
                 "1",
                 "2",
             }
+        if journey == "duplicate_names":
+            assert result["duplicate_checks"] is True
+            selected_reference = (
+                document.inputs.scenario_intents[0].allocations[0].target.provider_reference
+            )
+            assert selected_reference is not None
+            assert selected_reference.entity_id == "2"
+            assert len(document.inputs.excluded_entity_keys) == 1
+            assert document.inputs.excluded_entity_keys == tuple(result["excluded_keys"])
+            assert [m.display_name for m in reviews[0].witness.affected_campaigns] == [
+                "Mug Campaign", "Mug Campaign"
+            ]
         if literal:
             assert result["literal_checks"] is True
             assert document.inputs.milestone == literal["milestone"]

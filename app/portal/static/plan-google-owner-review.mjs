@@ -1,3 +1,4 @@
+import {ownerCampaignLabel} from './plan-owner-campaign-label.mjs';
 import {ownerAmount} from './plan-google-owner-inputs.mjs';
 // Saved immutable proof only. No discovery, mutation or native-edit qualification.
 export function appendGoogleOwnerReview(host,plan){
@@ -13,7 +14,7 @@ export function appendGoogleOwnerReview(host,plan){
   const evidence=w.catalog_evidence.reference,times=[evidence.observation_started_at,evidence.observed_at,evidence.expires_at].map(Date.parse);
   if(!times.every(Number.isFinite)||times[0]>times[1]||times[1]>=times[2]||w.affected_campaigns.some(m=>JSON.stringify(m.account)!==JSON.stringify(account)||m.budget_owner_key!==w.representative.budget_owner_key))throw Error('Saved owner review observations unavailable.');
   block.append(node('h4',scenario.title),node('p',`Observed Daily Setting: ${w.currency} ${ownerAmount(w.current_amount_micros)} Per Day`),node('p',`Requested Daily Hypothesis: ${i.currency} ${ownerAmount(i.requested_amount_micros)} Per Day`),node('p',i.requested_amount_micros===0?'Manual Review Required. Zero is not a qualified native edit or a guarantee of zero exposure.':'Review Required — Not Qualified Against The Period Ceiling'));
-  const list=node('ul','');list.dataset.role='owner-members';for(const m of w.affected_campaigns)list.append(node('li',m.display_name??'Campaign Name Unavailable'));block.append(node('h4','All Affected Campaigns'),list);
+  const list=node('ul','');list.dataset.role='owner-members';for(const m of w.affected_campaigns)list.append(node('li',ownerCampaignLabel(m)));block.append(node('h4','All Affected Campaigns'),list);
   block.append(node('p',`Observed ${evidence.observation_started_at} to ${evidence.observed_at}. Original evidence expires ${evidence.expires_at}.`));section.append(block);
  }
  host.append(section);

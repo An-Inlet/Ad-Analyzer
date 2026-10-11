@@ -7884,3 +7884,26 @@ accuracy review confirmed sixteen evidence hashes and fourteen tested sources.
 See `inlet-q13-report-retraction-candidate-20261011.md`. No retry, internal guard
 phase attribution, incident closure, or root test-code integration. The unchanged
 five-second guard and original session remain; measured runtime repair proceeds.
+
+
+## Q14 Duplicate-Name Labels Qualified And Integrated
+
+Integrated exact author `fd5ef1b` from `bcc362a`: shared-budget option, detail,
+included and saved lists now show the literal campaign name and actual native ID.
+Malformed IDs fail closed. No backend selection, spending, or retention behavior
+changed. Three disjoint checks passed: component (3.872s suite), SQLite TLS
+(24.035s) and PostgreSQL TLS (32.669s). The original baseline display failure and
+the first TLS test ordering-assumption failure remain preserved; expected labels
+now follow the actual canonical-key member order with independent exact identity
+checks. The component pass was carried without repetition.
+
+Root and independent review verified ten source and eighty-five evidence hashes,
+exact XML results, document/export equality and identity joins. Author and root
+app/tests are byte-identical. Whole root Ruff and configured mypy (1,490 files)
+passed; no integration pytest repetition. Freeze `eb69aed5caa52576e49da33d139fad70743ee7657799651c29914ca0f34c0f0b`
+is at `/workspace/inlet-evidence/20261011/q14-owner-labels/freeze-fd5ef1b.json`.
+
+The 21:55 disconnect notice did not interrupt work: read-only recovery verified
+all worktrees/evidence and the one original PostgreSQL test process, which then
+returned success without restart. Record: `recovery-2155.json`. Runtime expiry
+repair and Q13 retraction qualification remain open; nothing pushed or deployed.

@@ -1,3 +1,4 @@
+import {ownerCampaignLabel} from './plan-owner-campaign-label.mjs';
 import {planningCapability} from './plan-capability.mjs';
 import {parsePlanningMicros} from './plan-target-picker.mjs';
 const mounted=new WeakMap(),digest=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
@@ -40,18 +41,18 @@ export function renderGoogleOwnerInputs(host,{capability,workspaceId,saved=null,
   rows.replaceChildren();entries.forEach((entry,index)=>{const row=node('section');row.dataset.index=String(index);const p=entry.intent;
    row.append(node('p',`${entry.ready?'Included Review':'Saved Or Changed Review — Reselect Before Saving'} · Customer Alternative ${p.scenario_key} · Requested Daily Hypothesis ${p.currency} ${ownerAmount(p.requested_amount_micros)} Per Day`));
    if(entry.historical)row.append(node('p',`Historical Observed Daily Setting: ${p.currency} ${ownerAmount(entry.historical.observed_amount_micros)} Per Day`));
-   if(entry.option){const members=node('ul');members.dataset.role='owner-members';entry.option.affected_campaigns.forEach(m=>members.append(node('li',m.display_name??'Campaign Name Unavailable')));row.append(members);}
+   if(entry.option){const members=node('ul');members.dataset.role='owner-members';entry.option.affected_campaigns.forEach(m=>members.append(node('li',ownerCampaignLabel(m))));row.append(members);}
    row.append(button('Remove This Review','owner-remove',()=>{entries.splice(entries.indexOf(entry),1);renderEntries();}));rows.append(row);
   });setBusy(busy);
  }
  function renderOptions(c){
   choices.replaceChildren();if(!options.length)return;
   const label=node('label','Shared Google Budget '),select=node('select');select.dataset.role='owner-option';const empty=node('option','Choose A Shared Budget');empty.value='';select.append(empty);
-  options.forEach((o,index)=>{const opt=node('option',o.affected_campaigns.map(m=>m.display_name??'Campaign Name Unavailable').join(' · '));opt.value=String(index);select.append(opt);});label.append(select);choices.append(label);
+  options.forEach((o,index)=>{const opt=node('option',o.affected_campaigns.map(m=>ownerCampaignLabel(m)).join(' · '));opt.value=String(index);select.append(opt);});label.append(select);choices.append(label);
   const detail=node('div');choices.append(detail);
   select.onchange=()=>{detail.replaceChildren();if(busy)return;const o=options[Number(select.value)];if(select.value===''||!o)return;
    detail.append(node('p',`Observed Daily Setting: ${o.currency} ${ownerAmount(o.current_amount_micros)} Per Day`));
-   const members=node('ul');members.dataset.role='owner-members';o.affected_campaigns.forEach(m=>members.append(node('li',m.display_name??'Campaign Name Unavailable')));detail.append(members);
+   const members=node('ul');members.dataset.role='owner-members';o.affected_campaigns.forEach(m=>members.append(node('li',ownerCampaignLabel(m))));detail.append(members);
    const alternative=node('select');alternative.dataset.role='owner-scenario';const blank=node('option','Choose A Customer Alternative');blank.value='';alternative.append(blank);c.scenarios.forEach(s=>{const n=node('option',s.title);n.value=s.key;alternative.append(n);});const al=node('label','Customer Alternative ');al.append(alternative);detail.append(al);
    const requested=node('input');requested.type='text';requested.inputMode='decimal';requested.maxLength=23;requested.dataset.role='owner-requested';const rl=node('label',`Requested Daily Hypothesis (${o.currency}) `);rl.append(requested);detail.append(rl);
    detail.append(button('Include This Review','owner-include',()=>{const fresh=currentContext();if(stamp(fresh)!==snapshot||Date.parse(o.expires_at)<=Date.now())fail('Owner choices expired or changed. Read targets and reselect.');validScenario(o,fresh,alternative.value);const value=parsePlanningMicros(requested.value);if(value>BigInt(o.current_amount_micros)||(fresh.totalCeilingMicros===0&&value!==0n))fail('The daily hypothesis cannot exceed the observed setting; a zero ceiling requires zero.');

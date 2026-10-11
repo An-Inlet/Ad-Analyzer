@@ -38,9 +38,9 @@ Fresh event confirmation after acquisition must use the actual resulting scope.
 
 `google_reporting_range_receipts` is erasable workspace data, not financial history.
 Fields: request ID primary key, workspace/account/integration IDs, completion ID,
-initiating customer ID, canonical typed receipt JSON, payload digest and byte count.
+job ID, initiating customer ID, canonical typed receipt JSON, payload digest and byte count.
 Use composite account/workspace/integration and completion/account/workspace FKs,
-customer FK, immutable UPDATE refusal, and exact scalar/payload agreement. Canonical
+customer and job/workspace FKs, immutable UPDATE refusal, and exact scalar/payload agreement. Canonical
 receipt is bounded16KiB; no grants, session digests or raw provider bodies are stored.
 
 Typed receipt commits schema/request ID, original initiating customer, requested

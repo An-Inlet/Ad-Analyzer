@@ -70,3 +70,20 @@ Final whole Ruff and configured no-path mypy (1443 source files) passed;
 catalog/discovery artifacts from available/partial cases across both databases.
 The disposable PostgreSQL fixture uses isolated schemas; existing databases,
 workers and frozen evidence were not reset or modified.
+
+## Integration Review
+
+Author `b30bf8cae1e7ced27edf7463a6da93c830e02f61` integrated as `79ff5fc`
+with design `8e6142e` integrated as `93200c8`. Independent final source/evidence
+review CLOSED with no remaining P1/P2; no reviewer test rerun. Root verified all
+eight artifact hashes, four strict catalogs and four strict discovery views:
+two available views each name both shared members and10,000,000 observed micros;
+two partial views explicitly remain unavailable. The initial root artifact checker
+used an incorrect Python import path, corrected without changing product/artifacts.
+This is recorded in artifacts/root-verification.json.
+
+Root whole Ruff and configured no-path mypy passed over1,443 files at `79ff5fc`;
+diff check passed. Evidence root-ruff.log/root-mypy.log is retained beside the
+package qualification. No repeat API/browser or exhaustive successor test is claimed.
+Next is a separate reviewed pure input-binding helper and concrete admission/history
+port design; generation of setting hypotheses remains unavailable.

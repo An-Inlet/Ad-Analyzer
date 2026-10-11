@@ -113,3 +113,73 @@ No owner decision is needed for this bounded connected-account preparation path.
 Supporting a brand with no connected account is a separate scope decision and must
 not be smuggled in through a fixture. Human usefulness assessment and live provider
 qualification remain separate gates. This proposal does not claim full Q08 closure.
+
+## Review Status And Concrete Witness Addendum
+
+**Approved now: baseline fixture/API phase only.** Production behavior and the
+following additive witness proposal remain unapproved. Next actionable package is
+the isolated actual baseline described above, not account-preparation code.
+
+Proposed `EmptyDeclaredCatalogWitnessV1(Frozen)` exact fields:
+
+- `schema_version: Literal["inlet.empty-declared-catalog-witness.v1"]`.
+- `catalog_evidence: CatalogEvidence` — the complete existing typed pair of
+  `EvidenceRef` and `TargetCatalogV2`, not only its digest or newest pointer.
+- `prerequisite_action_key: Key` — exact existing
+  `review:account_<account_id>` investigation key in this document.
+
+No freeform customer-supplied emptiness assertion or new loose metadata copy.
+`CatalogEvidence` already binds composite native/metadata observations, owned
+workspace/account/connection/platform/generation, source binding, document digest,
+privacy, currency/timezone, reporting range, observation times and expiry. Its full
+retained catalog carries both coverage arrays and the concrete declared scopes,
+query-profile provenance available in those observations, and empty target/entity
+arrays. Retain those exact original values, including partial-scope reasons. Do not
+invent a new claim that Meta's SDK-status query covers every provider campaign.
+
+Proposed new `CreativeProposalV1.empty_catalog_witness:
+EmptyDeclaredCatalogWitnessV1 | None = None`, omitted when None. Require it exactly
+when `target_basis == "observed_empty_account"`; forbid it for existing campaign
+proposals. Both defaults must be omitted recursively in nested composition and
+PlanVersion serialization, not only the top-level model, preserving all previous
+canonical campaign bytes/digests.
+
+The new witness validates strictly revalidated nested instances, exact Meta account
+scope, **all** native/metadata/normalized target arrays empty, each observed count
+zero, and no unavailable coverage. Partial coverage is allowed only for the actual
+recognized bounded declared query with its preserved reasons; it means “nothing
+observed in this query,” not “the account has no campaigns.” Reject unrecognized
+profile/scope tuples rather than infer completeness. The exact supported tuple is
+to be frozen from the actual baseline receipt before production approval. Limit the
+serialized witness to 256 KiB and retain the enclosing existing document byte cap;
+fail rather than truncate. All timestamp comparisons normalize aware instants to
+UTC and reject numeric/coerced dates, including copied model instances.
+
+At composition and repository save, require the embedded CatalogEvidence to equal
+the actual collected catalog for this ticket, including its digest and full strict
+model, and bind its reference to an identical entry in document.evidence. Existing
+fresh source and authority passes remain mandatory. The original ticket inputs,
+account, source generation, privacy revision and reporting window must match; its
+observation interval must precede generated_at, generated_at must precede expiry,
+and document.valid_until must not exceed that expiry. Match the creative proof's
+owned image/product/privacy and exact zero ceiling independently. The prerequisite
+must exist exactly once, be an account-scoped investigate action for this same
+account, and be named by the preparation action; no arbitrary key or foreign action.
+
+Pure PlanVersion/history/export validation uses this **embedded immutable original
+witness**, never a later live catalog or current pointer. It recomputes the canonical
+catalog digest, all reference/coverage/empty-array/ownership/time/prerequisite
+bindings and normal proposal constraints. Missing witness, changed facts/scope,
+nonempty arrays, tampered digest, foreign account/privacy or missing prerequisite
+reject. A later nonempty live catalog can make current advice stale but must not
+rewrite or invalidate an otherwise intact historical empty-query document. Existing
+privacy/lifecycle erasure and historical ownership checks still apply; embedding
+facts does not bypass them. This is retained observation integrity, not fresh source
+authority or proof of provider-wide emptiness.
+
+Required later pure regressions include missing/copied/tampered witnesses, exact
+source prerequisite linkage, UTC fold/expiry boundaries, oversized payload, nested
+legacy byte preservation, and historical parsing/export after a distinct later
+nonempty catalog. Actual save must reject a candidate whose otherwise valid witness
+was substituted after collection. None of these production tests or changes are
+authorized by the baseline-only approval.

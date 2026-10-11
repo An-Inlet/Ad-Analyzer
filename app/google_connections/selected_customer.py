@@ -44,6 +44,7 @@ from app.google_connections.selected_catalog import (
     GoogleReportingCatalogV1,
     GoogleReportingOptionV1,
 )
+from app.google_connections.selected_source_pin import SourcePin, source_pin
 from app.planning_documents import authority
 from app.planning_documents.read_context import snapshot
 
@@ -138,6 +139,7 @@ class SelectedCustomerService:
         self.provider, self.wid, self.runtime = provider, workspace_id, runtime
         self.sessions = sessions or (runtime.sessions if runtime else None)
         self._active: tuple[Session, authority.IdentityFact, object] | None = None
+        self._catalog_pin: SourcePin | None = None
 
     @contextmanager
     def open(self, account_id: int, *, read: bool = True) -> Iterator[Session]:
@@ -145,6 +147,14 @@ class SelectedCustomerService:
             raise unavailable()
         fact = authority.refresh(self.original, self.provider)
         with self.sessions() as db:
+            # Legacy SQLite does not BEGIN for SELECT/SAVEPOINT. A nested storage
+            # release must never commit before the final original-session guard.
+            if db.get_bind().dialect.name == "sqlite":
+                connection = db.connection()
+                driver = connection.connection.driver_connection
+                assert driver is not None
+                if not driver.in_transaction:
+                    connection.exec_driver_sql("BEGIN")
             current = authority.lock(db, self.original, self.wid, fact)
             authority.final(current, fact)
             self._active = (db, fact, db.get_transaction())
@@ -242,6 +252,8 @@ class SelectedCustomerService:
                 raise HTTPException(503, "reporting_selection_runtime_unavailable")
             if expected is not None:
                 self.cas(db, expected)
+            self._catalog_pin = source_pin(db, self.wid, intent.account_id)
+            self.guard(db, intent.account_id, read=True)
         from app.google_connections.selected_owned_context import OwnedGoogleReportingContext
 
         assert self.sessions is not None
@@ -254,6 +266,7 @@ class SelectedCustomerService:
             runtime.oauth,
             runtime.vault,
             runtime.clock,
+            expected_grant=self._catalog_pin.grant(),
         )
         request = context.catalog_request()
         try:
@@ -288,6 +301,9 @@ class SelectedCustomerService:
     def current_catalog(self, db: Session, aid: int, catalog: GoogleReportingCatalogV1) -> None:
         self.guard(db, aid, read=True)
         current_scope(db, catalog.request.scope)
+        pin = source_pin(db, self.wid, aid)
+        if pin != self._catalog_pin or pin.source_id != catalog.request.scope.source_connection_ref:
+            raise unavailable()
         self.guard(db, aid, read=True)
         if not catalog.request.started_at <= self.now() < catalog.expires_at:
             raise unavailable()

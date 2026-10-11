@@ -7907,3 +7907,17 @@ The 21:55 disconnect notice did not interrupt work: read-only recovery verified
 all worktrees/evidence and the one original PostgreSQL test process, which then
 returned success without restart. Record: `recovery-2155.json`. Runtime expiry
 repair and Q13 retraction qualification remain open; nothing pushed or deployed.
+
+
+## Selected Validation Compatibility Characterized
+
+Prechange pure characterization now has sixteen distinct successful cases: five
+from the first cohort and eleven changed/unrun cases from the second. The original
+failed assumption that extra-bearing nested subtypes silently canonicalize is
+preserved; actual strict validation correctly rejects those fields. Source
+`07c60d0`, freeze `abedac541855d1137acc6ee17923a6da7ab95ea3712ea66e4fe211c1b4c50115`;
+root and independent review verified two source and twenty-nine evidence hashes.
+No runtime production code changed for characterization. The repair must still
+qualify custom-timezone callback parity and non-null legacy nested behavior,
+retain public validation, and retain all assertions after SQL. See
+`inlet-selected-ticket-characterization-20261011.md`.

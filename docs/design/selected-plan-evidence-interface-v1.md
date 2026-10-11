@@ -85,3 +85,17 @@ independent missing values, fractions, mapping races, final-session expiry and
 privacy erasure on SQLite and PostgreSQL. Preserve baseline qualification and old
 policy golden bytes. Fixtures do not establish live provider support, paid product
 readiness, causal lift, cross-platform attribution or spending authority.
+
+## Review Clarifications
+
+The private bundle carries each full validated selected capture exactly once,
+indexed by its explicit account/capture selector. Bundle validation recomputes each
+window summary from that complete graph and compares every typed value plus pin.
+A digest alone cannot qualify arithmetic or make an arbitrary copied summary true.
+Do not duplicate the full capture per campaign/window; count its bytes once within
+the bundle cap. The owned reader still supplies actual authority and currentness.
+
+Historical archive validation checks retained immutable graph/row integrity and
+preserves old plan bytes even after an ordinary sync. It does not require current
+live source equality. Current decisions, final persistence and currentness checks
+remain strict; history can correctly be stale without becoming unexportable.

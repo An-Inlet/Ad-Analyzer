@@ -6,7 +6,7 @@ Purpose: expose exact existing work to later bounded attribution; not a timing f
 
 ## Ports And Exact Positions
 
-All four ordinary private functions live in `app/planning_documents/repository.py`.
+All three ordinary private functions live in `app/planning_documents/repository.py`.
 They receive no Session, principal, clock or callback. Existing imported functions and
 exception clauses remain identical. The added `ReportingCapability` import is typing.
 
@@ -21,13 +21,10 @@ beyond the existing assert_ticket. Raw validation errors, capability ValueError 
 bundle mapping and exception causes remain untouched. Call is at repository entry,
 after service's existing identity refresh, before deriving workspace/plan and locking.
 
-    _generation_candidate_relation(ticket: GenerationTicket,
-        candidate: PlanVersion, actor_id: str) -> None
-
-Moves only the candidate.inputs/version/parent/generated_by/policy comparison and its
-fixed409. `actor_id` is the existing `current.user.id` scalar evaluated at that exact
-callsite. This remains after exact replay and saved input/head comparisons, before
-prior-version SQL read. No change to principal loading/authority checks.
+The candidate relation block remains entirely inline and unchanged. Its OR expression
+reads `current.user.id` only after preceding input/version/parent comparisons pass;
+passing that ORM scalar eagerly to a helper would change evaluation/error/possible SQL
+order. Three extracted phases suffice; there is no actor argument or thunk.
 
     _generation_actual_bindings(ticket: GenerationTicket,
         bundle: GenerationEvidence, candidate: PlanVersion) -> None
@@ -63,7 +60,7 @@ reusable proof or authority. No argument snapshot/ownership mechanism is introdu
 ## Source Preflight And Bounded Qualification Proposal
 
 Before execution, reviewer compares each extracted block to its exact prior statements
-and public call ordering, including original actor scalar read. Focused tests should
+and public call ordering, including the unchanged short-circuit actor scalar read. Focused tests should
 check helper call order around replay/head/parent gates using the existing genuine
 fixture; exact wrong-packet raw ValidationError, capability409, relation409, proof409
 and allocation422 behavior; successful unchanged stored bytes and rollback on late
@@ -72,7 +69,7 @@ qualification. Select exact reusable nodes after source review; no test executio
 new diagnostic probe is authorized by this document.
 
 A later observer may wrap these ordinary functions with original-once calls and bounded
-payload-free timings/SQL counts. Expected helper SQL count is zero except the actor
-scalar remains read at its former public callsite. Unexpected SQL would need diagnosis,
+payload-free timings/SQL counts. Expected helper SQL count is zero; the actor
+scalar remains in its original short-circuit expression outside all helpers. Unexpected SQL would need diagnosis,
 not suppression. Nested owner calls overlap their wrapper and must not be summed as
 independent cost. No performance or R01/R02/R03 closure claim follows from extraction.

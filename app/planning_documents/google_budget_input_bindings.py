@@ -109,6 +109,17 @@ def validate_google_daily_budget_input_bindings(
             or source.privacy_revision != privacy_revision
         ):
             raise ValueError("source account generation/privacy differs")
+    catalog_map, target_map = _catalog_context(inputs, catalogs, source_map, privacy_revision)
+    return _bind_owners(inputs, intents, catalog_map, target_map)
+
+
+def _catalog_context(
+    inputs: PlanInputRevision,
+    catalogs: tuple[CatalogEvidence, ...],
+    source_map: dict[int, SourceFence],
+    privacy_revision: int,
+) -> tuple[dict[int, CatalogEvidence], dict[str, TargetRef]]:
+    accounts = {a.account_id: a for a in inputs.accounts}
     catalog_map: dict[int, CatalogEvidence] = {}
     target_map: dict[str, TargetRef] = {}
     admitted = _instant(inputs.created_at)
@@ -172,6 +183,15 @@ def validate_google_daily_budget_input_bindings(
             if target.canonical_entity_key in target_map:
                 raise ValueError("duplicate catalog canonical target")
             target_map[target.canonical_entity_key] = target
+    return catalog_map, target_map
+
+
+def _bind_owners(
+    inputs: PlanInputRevision,
+    intents: tuple[ResolvedGoogleDailyBudgetIntentV1, ...],
+    catalog_map: dict[int, CatalogEvidence],
+    target_map: dict[str, TargetRef],
+) -> tuple[GoogleDailyBudgetOwnerWitnessV1, ...]:
     if intents and inputs.constraints:
         raise ValueError("freeform constraints require clarification")
     if intents and any(key not in target_map for key in inputs.excluded_entity_keys):
@@ -253,3 +273,64 @@ def validate_google_daily_budget_input_bindings(
             raise ValueError("exactly one affected owner campaign allocation required")
         result.append(witness)
     return tuple(result)
+
+
+def validate_retained_google_daily_budget_input_bindings(
+    *,
+    inputs: PlanInputRevision,
+    intents: tuple[ResolvedGoogleDailyBudgetIntentV1, ...],
+    catalogs: tuple[CatalogEvidence, ...],
+    sources: tuple[SourceFence, ...],
+) -> tuple[GoogleDailyBudgetOwnerWitnessV1, ...]:
+    """Bind original linked receipts only; SQL separately verifies links and opaque IDs."""
+    if any(
+        type(values) is not tuple or len(values) > 20 for values in (intents, catalogs, sources)
+    ):
+        raise ValueError("bounded tuple input graph required")
+    _times(inputs)
+    _originals(catalogs)
+    inputs = PlanInputRevision.model_validate(inputs)
+    intents = tuple(ResolvedGoogleDailyBudgetIntentV1.model_validate(v) for v in intents)
+    catalogs = tuple(CatalogEvidence.model_validate(v) for v in catalogs)
+    sources = tuple(SourceFence.model_validate(v) for v in sources)
+    accounts = {a.account_id: a for a in inputs.accounts}
+    if len(accounts) != len(inputs.accounts):
+        raise ValueError("duplicate input account identity")
+    source_map = {source.account.account_id: source for source in sources}
+    catalog_accounts = [catalog.reference.account for catalog in catalogs]
+    if any(account is None for account in catalog_accounts):
+        raise ValueError("owned retained catalog required")
+    catalog_ids = {account.account_id for account in catalog_accounts if account is not None}
+    if (
+        len(source_map) != len(sources)
+        or len(catalog_ids) != len(catalogs)
+        or set(source_map) != catalog_ids
+    ):
+        raise ValueError("exact original linked source set required")
+    for account_id, source in source_map.items():
+        if (
+            source.account != accounts.get(account_id)
+            or source.source_revision != source.account.connection_version
+        ):
+            raise ValueError("retained source account generation differs")
+    if not catalogs:
+        if not (
+            _instant(inputs.reporting_window.starts_at)
+            < _instant(inputs.reporting_window.ends_at_exclusive)
+            <= _instant(inputs.created_at)
+        ):
+            raise ValueError("original closed input window required")
+        if (
+            intents
+            or sources
+            or inputs.fixed_allocations
+            or inputs.excluded_entity_keys
+            or any(s.allocations for s in inputs.scenario_intents)
+        ):
+            raise ValueError("no-receipt history cannot contain selected targets or owner evidence")
+        return ()
+    epochs = {source.privacy_revision for source in sources}
+    if len(epochs) != 1:
+        raise ValueError("retained linked privacy must be unanimous")
+    catalog_map, target_map = _catalog_context(inputs, catalogs, source_map, next(iter(epochs)))
+    return _bind_owners(inputs, intents, catalog_map, target_map)

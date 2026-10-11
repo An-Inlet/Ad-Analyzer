@@ -56,7 +56,7 @@ or public v4 activation is claimed.
 
 All packages above received independent source review with no remaining P1/P2
 findings in their stated scope. Whole Ruff and configured no-path mypy passed on
-integration through `e94aba5` (1379 files). These targeted cohorts overlap and are
+integration through `fe70396` (1393 files). These targeted cohorts overlap and are
 not summed as unique or exhaustive current-head coverage. No new exhaustive run
 or hosted CI is claimed.
 
@@ -87,8 +87,9 @@ No new pull request or remote push occurred in this continuation. Prior draft PR
 remain recorded in historical ledgers; remote status was not refreshed during the
 hold. Hosted runs/retries, pushes, merge and deployment remain held. Routine offline
 engineering continues without package-by-package approval. Next packages are the
-private complete image-row collection pins and the shared exact canonical selected
-policy validator, followed by typed creative proof, atomic retention/currentness,
-history and genuine v5 composition for Q03/Q04. The standalone reader and production
-proposals are implemented; creative-bearing PlanVersion remains rejected until
-proof integration. No default policy activation is implied.
+complete creative history dependencies, owned combined collection and atomic
+retention/currentness for Q03/Q04. Private image pins, exact policy contract,
+retained proof, SQL recheck and genuine pure v5 document/composer are now implemented
+and independently reviewed; the customer service still refuses v5 registration.
+[Exact creative integration](inlet-creative-proof-integration-20261011.md) records
+all package commits, checks and retained failures. No default activation is implied.

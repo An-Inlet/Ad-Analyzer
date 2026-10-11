@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.goals import service as goals
 from app.goals.schemas import GoalDefinition
+from app.planning_documents.allocation_currency import check_allocations
 from app.planning_documents.common import fingerprint
 from app.planning_documents.composer import targets
 from app.planning_documents.context import (
@@ -148,4 +149,6 @@ def resolve(
             for scenario in intent.scenario_intents
         ),
     )
-    return PlanInputRevision.model_validate(values)
+    result = PlanInputRevision.model_validate(values)
+    check_allocations(result, catalogs)
+    return result

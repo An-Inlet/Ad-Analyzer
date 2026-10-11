@@ -4,7 +4,7 @@ import copy
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx
@@ -41,7 +41,9 @@ class CreativeQ05Basis:
     native_calls: list[tuple[str, str]]
 
 
-def _social_account(engine: Engine, wid: int, platform: str) -> int:
+def _social_account(
+    engine: Engine, wid: int, platform: str, *, currency: Literal["USD", "EUR"] = "USD"
+) -> int:
     # Fixture-owned connection bootstrap only, using keys initialized once below.
     now = datetime.now(UTC)
     bundle = dict(access_token=PRIVATE, expires_at=(now + timedelta(hours=1)).isoformat())
@@ -62,7 +64,7 @@ def _social_account(engine: Engine, wid: int, platform: str) -> int:
             platform=AdvertisingPlatform(platform),
             external_account_id="123",
             name="Mug " + platform,
-            currency_code="USD",
+            currency_code=currency,
             time_zone="America/New_York",
         )
         db.add(account)
@@ -106,6 +108,8 @@ def prepare_creative_q05_basis(
     replicas: Any,
     patch: pytest.MonkeyPatch,
     artifacts: Path,
+    *,
+    meta_currency: Literal["USD", "EUR"] = "USD",
 ) -> CreativeQ05Basis:
     creative = prepare_creative_common_basis(
         engine, config, replicas, patch, artifacts, platform="google_ads", selected_value="10"
@@ -122,11 +126,12 @@ def prepare_creative_q05_basis(
     patch.setattr(settings, "meta_client_secret", SecretStr("synthetic-app-secret"))
     accounts = (
         basis.account_id,
-        _social_account(engine, basis.workspace_id, "meta_ads"),
+        _social_account(engine, basis.workspace_id, "meta_ads", currency=meta_currency),
         _social_account(engine, basis.workspace_id, "tiktok_ads"),
     )
     meta, tiktok = MetaServer(), TikTokServer()
     meta.account["timezone_name"] = "America/New_York"
+    meta.account["currency"] = meta_currency
     meta.campaigns.append({**meta.campaigns[0], "id": "7"})
     meta.adsets.append({**meta.adsets[0], "id": "8", "campaign_id": "7"})
     calls: list[tuple[str, str]] = []
@@ -192,6 +197,16 @@ def prepare_creative_q05_basis(
         target = targets[0]
         assert response.json()["native_observation"]["account_id"] == aid
         assert response.json()["native_observation"]["workspace_id"] == basis.workspace_id
+        if aid == accounts[1]:
+            assert response.json()["native_observation"]["currency"] == meta_currency
+            with Session(engine) as db:
+                owned = db.get(AdvertisingAccount, aid)
+                assert owned is not None
+                assert (owned.workspace_id, owned.currency_code, owned.external_account_id) == (
+                    basis.workspace_id,
+                    meta_currency,
+                    "123",
+                )
         selectors.append(
             dict(
                 account_id=aid,

@@ -44,3 +44,22 @@ for review; do not manufacture a receipt or bypass the boundary.
 No implementation, database changes, tests or provider calls were performed for
 this seam proposal. Later arithmetic/goal-revision tests remain as specified in
 the approved Q07 interface; this seam does not change shared Q05 behavior.
+
+## Revised seam after actual cardinality failure (supersedes the second source)
+
+SQLite01 failed before acquisition: MetaConnection has unique workspace_id. Keep
+that constraint intact. No currency behavior was measured. Retain the initial
+proposal and failed evidence as chronology, not a passing source design.
+
+Exact revised shared signature: prepare_creative_q05_basis(..., artifacts, *,
+meta_currency: Literal["USD", "EUR"] = "USD"). Pass this only into the original
+Meta AdvertisingAccount.currency_code and MetaServer.account["currency"] before
+any acquisition. Source123, existing vault identity, integration cardinality and
+all other defaults remain unchanged. The helper asserts real native catalog currency,
+owned account currency/workspace/source123 and actual selector binding. Q07 calls
+EUR, keeps the normal three account_ids and existing real Meta selector, so each
+scenario still totals1000. No second source or post-acquisition mutation exists.
+
+Review the exact diff before execution. Qualify the EUR SQLite case first; if save
+admits it, preserve the wrong201 and stop before production edits. Existing Q05
+SQLite/PostgreSQL pair must pass with omitted keyword during final preservation.

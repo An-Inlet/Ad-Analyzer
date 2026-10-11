@@ -17,6 +17,7 @@ from app.goals.models import GoalPreview
 from app.goals.schemas import GoalDefinition
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.planning_documents import authority
+from app.planning_documents.allocation_currency import check_allocations
 from app.planning_documents.authority import IdentityFact
 from app.planning_documents.common import fingerprint
 from app.planning_documents.composer import targets
@@ -533,6 +534,7 @@ def save_generation(
         for target in proposed_targets
     ):
         raise changed("candidate target differs from actual owned catalog")
+    check_allocations(ticket.inputs, actual.catalogs)
     paid_work(db, wid, now)
     check_goal(db, ticket.inputs, now)
     check_accounts(db, ticket.inputs)

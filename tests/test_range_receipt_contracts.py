@@ -49,3 +49,16 @@ def test_receipt_rejects_changed_scope_or_unqualified_metadata(kind: str) -> Non
 
     with pytest.raises(ValidationError):
         RangeReceiptV1.model_validate_json(json.dumps(value))
+
+
+@pytest.mark.parametrize("kind", ["negative_count", "invalid_scope"])
+def test_digest_revalidates_unsafe_copies(kind: str) -> None:
+    value = receipt()
+    if kind == "negative_count":
+        value = value.model_copy(update={"row_count": -1})
+    else:
+        value = value.model_copy(
+            update={"final_scope": value.final_scope.model_copy(update={"account_id": -1})}
+        )
+    with pytest.raises(ValidationError):
+        value.digest()

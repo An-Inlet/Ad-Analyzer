@@ -93,7 +93,9 @@ SQL = {'sqlite': ('\n'
             "CAST(j.status AS TEXT)='succeeded' AND j.job_name='google_customer_range_read') AND "
             'EXISTS(SELECT 1 FROM campaign_performance_completions c WHERE c.id=NEW.completion_id '
             'AND c.account_id=NEW.account_id AND c.workspace_id=NEW.workspace_id AND '
-            "c.platform='google_ads' AND CAST(c.source_connection_ref AS "
+            "c.platform='google_ads' AND c.selected_event IS NULL AND "
+            "c.semantics='provider_aggregate_unspecified' AND "
+            "c.reporting_basis='provider_defaults_unspecified' AND CAST(c.source_connection_ref AS "
             "TEXT)=CAST(json_extract(NEW.canonical_json,'$.final_scope.source_connection_ref') AS "
             'TEXT) AND CAST(c.generation AS '
             "TEXT)=CAST(json_extract(NEW.canonical_json,'$.final_scope.generation') AS TEXT) AND "
@@ -191,7 +193,9 @@ SQL = {'sqlite': ('\n'
                 "CAST(j.status AS TEXT)='succeeded' AND j.job_name='google_customer_range_read') "
                 'AND EXISTS(SELECT 1 FROM campaign_performance_completions c WHERE '
                 'c.id=NEW.completion_id AND c.account_id=NEW.account_id AND '
-                "c.workspace_id=NEW.workspace_id AND c.platform='google_ads' AND "
+                "c.workspace_id=NEW.workspace_id AND c.platform='google_ads' AND c.selected_event "
+                "IS NULL AND c.semantics='provider_aggregate_unspecified' AND "
+                "c.reporting_basis='provider_defaults_unspecified' AND "
                 'CAST(c.source_connection_ref AS TEXT)=CAST((NEW.canonical_json::jsonb #>> '
                 "'{final_scope,source_connection_ref}') AS TEXT) AND CAST(c.generation AS "
                 "TEXT)=CAST((NEW.canonical_json::jsonb #>> '{final_scope,generation}') AS TEXT) "

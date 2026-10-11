@@ -54,6 +54,9 @@ def binding(dialect: str) -> str:
         "c.account_id=NEW.account_id",
         "c.workspace_id=NEW.workspace_id",
         "c.platform='google_ads'",
+        "c.selected_event IS NULL",
+        "c.semantics='provider_aggregate_unspecified'",
+        "c.reporting_basis='provider_defaults_unspecified'",
     ]
     for col, path in {
         "source_connection_ref": "final_scope.source_connection_ref",

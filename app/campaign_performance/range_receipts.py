@@ -45,6 +45,9 @@ def _dependencies(db: Session, receipt: RangeReceiptV1) -> None:
     j = db.get(JobRun, receipt.job_id, populate_existing=True)
     if (
         c is None
+        or c.selected_event is not None
+        or c.semantics != "provider_aggregate_unspecified"
+        or c.reporting_basis != "provider_defaults_unspecified"
         or (
             c.workspace_id,
             c.account_id,

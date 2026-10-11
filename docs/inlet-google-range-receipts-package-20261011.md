@@ -51,3 +51,24 @@ Bounded test recipe (with the established local disposable test environment):
 Resource reserve was temporarily breached during concurrent workspace growth;
 work paused. Only this lane's regenerable mypy cache moved to scratch. Tests
 resumed after the parent restored reserves; no evidence was removed.
+
+## Independent review follow-up
+
+Review identified two strict-boundary gaps: an unsafe `model_copy` could be hashed
+without validation, and historical receipt reads did not check the completion's
+fixed aggregate semantics. The successor revalidates before hashing and requires
+`selected_event IS NULL`, `provider_aggregate_unspecified` semantics and
+`provider_defaults_unspecified` reporting basis in both the reader and insertion
+trigger. Frozen 0092 literals have identical predicates. The adversarial tests
+mutate metadata-created completion rows (the deployed 0074 immutability trigger
+is an additional defense), prove historical read/export and new receipt insertion
+deny, then prove rollback restores the original receipt.
+
+`review05` passed 19 pure/SQLite cases in 8.113 seconds, zero skips; PostgreSQL
+cases were deliberately deselected while the parent's integration cohort owned
+the disposable PostgreSQL slot. Whole Ruff and mypy1307 passed (`*05.log`).
+
+After the parent's PostgreSQL release, `review06` passed all 11 PostgreSQL cases
+in 23.682 seconds, zero failures/skips. The final repaired package therefore has
+30 passing cases across the split pure/SQLite and PostgreSQL checks. PostgreSQL
+was released to the range publisher author after completion.

@@ -244,3 +244,36 @@ def test_actual0092_metadata_parity_and_populated_downgrade(customer: CustomerFi
     ):
         migration.downgrade()
         migration.upgrade()
+
+
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [("selected_event", "purchase"), ("semantics", "changed"), ("reporting_basis", "changed")],
+)
+def test_historical_metadata_semantics_and_insert_binding(
+    customer: CustomerFixture, field: str, bad: str
+) -> None:
+    # Metadata-created schema permits adversarial completion mutation; the deployed
+    # 0074 immutable trigger is an additional defense, not a reader assumption.
+    f = customer
+    with Session(f.engine) as db:
+        receipt = ready(db, f)
+        store_range_receipt(db, receipt)
+        db.commit()
+        db.execute(
+            update(PerformanceCompletion)
+            .where(PerformanceCompletion.id == receipt.completion_id)
+            .values({field: bad})
+        )
+        db.flush()
+        with pytest.raises(SelectedReportingUnavailable, match="dependency"):
+            read_range_receipt(db, f.wid, f.aid, receipt.request_id, False)
+        with pytest.raises(SelectedReportingUnavailable, match="dependency"):
+            export_range_receipt(db, values(receipt))
+        replacement = receipt.model_copy(update={"request_id": uuid4().hex})
+        db.add(RangeReceiptRow(**values(replacement)))
+        with pytest.raises(DBAPIError):
+            db.flush()
+        db.rollback()
+        assert read_range_receipt(db, f.wid, f.aid, receipt.request_id) == receipt
+        assert db.get(RangeReceiptRow, replacement.request_id) is None

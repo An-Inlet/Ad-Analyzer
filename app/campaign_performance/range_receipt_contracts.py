@@ -62,6 +62,7 @@ class RangeReceiptV1(Frozen):
         return self
 
     def digest(self) -> str:
+        value = RangeReceiptV1.model_validate(self)
         return hashlib.sha256(
-            b"inlet.google-reporting-range-receipt.v1\0" + _canonical(self)
+            b"inlet.google-reporting-range-receipt.v1\0" + _canonical(value)
         ).hexdigest()

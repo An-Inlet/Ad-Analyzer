@@ -1,9 +1,15 @@
 """Standalone production proposals, not ready assets or publication authority."""
 
 import json
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import (
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from app.planning_documents.actions import CreativeBrief, ManualAction
 from app.planning_documents.common import (
@@ -16,11 +22,13 @@ from app.planning_documents.common import (
     Text,
     unique,
 )
+from app.planning_documents.context import AccountTarget
 from app.planning_documents.creative_basis import (
     CreativeBasisV1,
     PlanningMediaSelectionV1,
     _ordered,
 )
+from app.planning_documents.empty_catalog_contracts import EmptyDeclaredCatalogWitnessV1
 
 
 class CreativeShotV1(NoAuthority):
@@ -62,6 +70,17 @@ class CreativeProposalV1(NoAuthority):
     action: ManualAction
     brief: CreativeBrief
     production: CreativeProductionV1
+    target_basis: Literal["existing_campaign", "observed_empty_account"] = "existing_campaign"
+    empty_catalog_witness: EmptyDeclaredCatalogWitnessV1 | None = None
+
+    @model_serializer(mode="wrap")
+    def omit_legacy_defaults(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.target_basis == "existing_campaign":
+            result.pop("target_basis", None)
+        if self.empty_catalog_witness is None:
+            result.pop("empty_catalog_witness", None)
+        return result
 
     @model_validator(mode="after")
     def coherent(self) -> "CreativeProposalV1":
@@ -78,12 +97,28 @@ class CreativeProposalV1(NoAuthority):
             or brief.target != action.target
             or production.basis_evidence_key not in action.evidence_keys
             or not set(brief.claim_evidence_keys) <= set(action.evidence_keys)
-            or getattr(action.target, "kind", None) != "campaign"
             or action.target.account.platform not in {"meta_ads", "tiktok_ads"}
             or production.deliverable
             != ("image_creative" if action.target.account.platform == "meta_ads" else "video")
         ):
             raise ValueError("incoherent creative proposal")
+        witness = self.empty_catalog_witness
+        if self.target_basis == "existing_campaign":
+            if witness is not None or getattr(action.target, "kind", None) != "campaign":
+                raise ValueError(
+                    "existing campaign proposal requires campaign and no empty witness"
+                )
+        elif (
+            witness is None
+            or not isinstance(action.target, AccountTarget)
+            or action.target.account.platform != "meta_ads"
+            or witness.catalog_evidence.reference.account != action.target.account
+            or witness.catalog_evidence.reference.key not in action.evidence_keys
+            or action.prerequisites != (witness.prerequisite_action_key,)
+            or not production.source_images
+            or production.deliverable != "image_creative"
+        ):
+            raise ValueError("account preparation requires exact empty witness and prerequisite")
         return self
 
 

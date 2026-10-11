@@ -1,0 +1,33 @@
+{
+  "meta_catalog": {
+    "json": "fa1a408ad63d757ab46966dfb1d115d0c1bb2e10448e05ebf9ec1f5dba08096a",
+    "python": "2f946fc7b53898aa776469ef27f7933ee12492231fb796363c1f56034eac8e43",
+    "digest": "e83e5c88322a9c71127d661b687cf837db697737ea5ca129484fb0da2b68d851"
+  },
+  "meta_composition": {
+    "json": "df0508e420355c0b7ab001fe61c2270e7b0b18430af09f4c2337303f2d8388bb",
+    "python": "c49e2e02dd1c1078c91e1e63122d270ac5637437b5ef28dd0bd0f1a2b0580ef2",
+    "digest": "77dd8d2555a7252a39093890a7a1c7436e923f13d5a288fa7b719173e957cf87"
+  },
+  "meta_document": {
+    "json": "e0311125c0545df18fb6a2ec398682667c132461b3e2fb1fd40bbe38d7f57796",
+    "python": "aee1d58c591ce17f0419b865c59819ab310f4e21753a7b3e9bdbfe2423b2c04e",
+    "digest": "210eea5b9942d42e85d3c44b6cb85d56277fd67e9f6d38a33be53098aa3c2165"
+  },
+  "tiktok_catalog": {
+    "json": "77f782d3542b39a19d009f017ae7537f3db7e29ca0be17f1d63a0e32b3e216bd",
+    "python": "0c86f17ccbf196ef02a2e5d6c56895091794b821d730854cce25ead478142f66",
+    "digest": "48ae20265b97f8f7b6faa6d5d66869ff336835f99d78123f3c07b00542236f3c"
+  },
+  "tiktok_composition": {
+    "json": "687acf87a380716c0804e0e375daa7b7cd79c86981cc52b514a806b0ffcf3a63",
+    "python": "80b5b8773978c1d1f0a7e7bd441f91218e007eb0e10a38c6a261f3ded0809c8a",
+    "digest": "6570a222c7798d0f5ac5077f2e7df90096c6f8018cead0032fabbcf0fbb7fbaa"
+  },
+  "tiktok_document": {
+    "json": "a3dff2854c25cee9a2947e7f3f3bd1c4a5a88c9c2305cafa5293f94d22034c3b",
+    "python": "4aadb0822b79c83b2e609d8cff685e875793cf18c9b56f05d8df6ed64e27e37d",
+    "digest": "dced3dfe59677c4eb8e78021f5dbeb888e983f87922c337f2ebd4517d816f949"
+  },
+  "catalog_schema": "b30d8c5de7e271d3925a4df8d6218c8fe40cd51f6c7e7f7b397d106d81064991"
+}

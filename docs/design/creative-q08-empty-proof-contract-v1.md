@@ -98,10 +98,14 @@ a self-consistent rehash alone is not authentication of a provider observation.
 New cycle-free `empty_catalog_validation.py` exports:
 
 `validate_empty_catalog_proposals(*, inputs, proposals, actions, evidence,
- generated_at, valid_until, privacy_revision) -> None`
+ generated_at, valid_until, privacy_revision, sources: tuple[SourceFence,...]) -> None`
 
 Types are existing PlanInputRevision, CreativeProposalV1, ManualAction, EvidenceRef
-and aware datetime; the module must not import PlanVersion/ports. PlanVersion's
+and aware datetime plus cycle-free source_contracts.SourceFence; the module must
+not import PlanVersion/ports. Sources are the actual selected retained proof account
+source_fences, unique by full account; each witness reference must match exact
+account, source-binding digest, source_revision and privacy. AccountRef alone does
+not contain this complete source commitment. PlanVersion's
 exact V5 path invokes it after existing creative/selected proof validation. For
 each new account proposal require:
 
@@ -128,7 +132,10 @@ complete structural proof checks without current media bytes, paid entitlement o
 new provider IO. Existing historical READ_ROLES and privacy/source-erasure rules
 still run. A later nonempty catalog alone does not alter this retained original
 empty-query witness or historical digest. Currentness continues to compare current
-source/catalog evidence through existing readers, separately from history.
+source/catalog evidence through existing readers, separately from history. Persisted
+SQL source/witness fences do not discover out-of-band provider campaign changes;
+only fresh acquisition can observe those changes. No every-read live inventory
+guarantee or provider-wide emptiness follows from SQL currentness.
 
 ## Actual composition and final save binding
 

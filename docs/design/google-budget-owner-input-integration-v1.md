@@ -141,6 +141,39 @@ into public input JSON or modify old receipt payloads. No such storage is curren
 approved. Implementation must wait for review of this exact historical signature; the discovery
 endpoint remains useful independently.
 
+### Historical opaque selection commitment (mandatory SQL wrapper join)
+
+The pure owner binding kernel preserves the opaque selection string; observation
+and facts equality alone do not authenticate it. Therefore historical
+`validate_retained_input_receipts` must also recompute each original opaque
+selection from the **same exact validated CatalogReceiptRow** supplying its witness.
+Use retained actor_id/session_digest/authenticated_at, original source/account/
+privacy, composite digest, witness digest/owner and UTC reporting window. Compare
+against the resolved intent.owner_selection_id before accepting historical input.
+Actor must equal inputs.created_by, and the existing link/account/admission checks
+remain mandatory. No current principal/session, paid status or currentTTL is used.
+
+Narrow helper refactor proposed for discovery owner review:
+
+```
+_owner_selection_commitment(
+    *, actor_id: Id, session_digest: Digest, authenticated_at: int,
+    source: SourceFence, witness: GoogleDailyBudgetOwnerWitnessV1,
+) -> str
+```
+
+Strictly validate scalar strings and nonnegative authenticated integer (notbool),
+source and witness. Move the existing exact fingerprint payload unchanged into
+this private pure helper. Existing `owner_selection_id(principal,source,witness)`
+delegates with its already authenticated scalar values; historical wrapper passes
+only values from the exact original validated receipt. This is hashing, never an
+authority assertion: do not construct fake CustomerPrincipal/CustomerSession ORM
+objects from historical rows. No private scalar enters public DTOs or logs.
+Golden equality proves existing discovery commitments unchanged; historical tests
+change session/authenticated/actor commitments independently and must refuse even
+when observation/facts digests still match. Both current final-link and historical
+wrappers must apply this commitment check, not just initial selector resolution.
+
 ## Generation refusal at every boundary
 
 New cycle-free primitive guard `reject_google_budget_generation(value)` rejects

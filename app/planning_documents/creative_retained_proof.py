@@ -10,7 +10,10 @@ from app.planning_documents.creative_basis import CreativeBasisV1, _ordered
 
 if TYPE_CHECKING:
     from app.planning_documents.context import PlanInputRevision
-    from app.planning_documents.creative_image_collection import CollectedCreativeBasisV1
+    from app.planning_documents.creative_image_collection import (
+        CollectedCreativeBasisV1,
+        PlanningImageRowPinV1,
+    )
     from app.planning_documents.ports import GenerationTicket
 
 
@@ -78,16 +81,24 @@ def creative_proof_from_collection(
         images=tuple(
             CreativeImageCommitmentV1(
                 media_id=row.witness.media_id,
-                row_identity_digest=fingerprint(
-                    "creative-image-row-identity.v1",
-                    {
-                        key: value.isoformat() if isinstance(value, datetime) else value
-                        for key, value in row.identity().items()
-                    },
-                ),
+                row_identity_digest=creative_image_row_identity_digest(row),
             )
             for row in collection.rows
         ),
     )
     result.assert_inputs(ticket.inputs, ticket.privacy_revision)
     return result
+
+
+def creative_image_row_identity_digest(row: "PlanningImageRowPinV1") -> str:
+    """Exact original commitment; excludes observation time only, never creator/time."""
+    from app.planning_documents.creative_image_collection import PlanningImageRowPinV1
+
+    row = PlanningImageRowPinV1.model_validate(row)
+    return fingerprint(
+        "creative-image-row-identity.v1",
+        {
+            key: value.isoformat() if isinstance(value, datetime) else value
+            for key, value in row.identity().items()
+        },
+    )

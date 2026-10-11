@@ -174,6 +174,7 @@ def prepare_q16_basis(
     generation_stage: Literal["nov3", "october"] = "nov3",
     native_account_factory: Callable[[Engine, int, pytest.MonkeyPatch, list[str]], int]
     | None = None,
+    owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
 ) -> Q16Basis:
     now = datetime.now(UTC)
     assert now < NOV3 and now.year == 2026 and now.month == 10
@@ -248,11 +249,16 @@ def prepare_q16_basis(
             client = NewYorkMeasurement(config, [([], None)])
             result = CommerceSyncService(db, config, client).page(wid, now=NOV3)
             assert result["status"] == "complete", result
-        asset = media.upload(
-            db, wid, actor, IMAGE.read_bytes(), LocalMediaStore(artifacts), generation_at
-        )
-        db.commit()
-        media_id, image_digest = asset.id, asset.sha256
+        if owned_image_upload is None:
+            asset = media.upload(
+                db, wid, actor, IMAGE.read_bytes(), LocalMediaStore(artifacts), generation_at
+            )
+            db.commit()
+            media_id, image_digest = asset.id, asset.sha256
+        else:
+            db.commit()
+    if owned_image_upload is not None:
+        media_id, image_digest = owned_image_upload(wid)
     if generation_stage == "nov3":
         issue_at(alice, provider, "q16-owner", NOV3)
     patch.setattr(

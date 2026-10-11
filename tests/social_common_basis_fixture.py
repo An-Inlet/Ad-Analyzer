@@ -1,6 +1,7 @@
 """Native social catalog-only Common Basis; no performance, video or execution seeded."""
 
 import copy
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -147,6 +148,7 @@ def prepare_social_common_basis(
     artifacts: Path,
     *,
     platform: Platform,
+    owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     calls: list[str] = []
     basis = prepare_q16_basis(
@@ -158,6 +160,7 @@ def prepare_social_common_basis(
         branch="privacy",
         native_calls=calls,
         generation_stage="october",
+        owned_image_upload=owned_image_upload,
         native_account_factory=partial(social_account, platform=platform),
     )
     patch.setattr(

@@ -1,6 +1,7 @@
 """Frozen Common Basis through real selected APIs; provider IO is MockHTTP only."""
 
 import json
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -37,6 +38,7 @@ def prepare_selected_common_basis(
     artifacts: Path,
     *,
     value: str | None,
+    owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     if engine.dialect.name == "sqlite":
         with engine.connect() as connection:
@@ -52,6 +54,7 @@ def prepare_selected_common_basis(
         branch="privacy",
         native_calls=calls,
         generation_stage="october",
+        owned_image_upload=owned_image_upload,
     )
     alice, _, _ = replicas
     original_cookie = alice.cookies[SESSION_COOKIE]

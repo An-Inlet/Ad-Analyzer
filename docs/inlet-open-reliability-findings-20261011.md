@@ -148,3 +148,27 @@ here; it cannot repair this occurrence. No deadline, refresh, source pass or cac
 has changed. The original SQLite-owner failure and R01/R02 remain unexplained.
 Evidence: `google-owner-v6-runtime/remaining-04/02-sqlite-observer.json`. The four
 changed pure registry cases passed separately; they do not qualify actual generation.
+
+### R03 Retained-Stage Observation And Bounded Changes
+
+The one authorized stage observation on unchanged production source (`27046fb`,
+docs-only child of `d594cb9`) also failed, but later: the pre-CAS guard passed at
+4.919881–4.919896s, then the final post-flush guard failed at5.473398–5.473451s.
+Session lifetime remained positive. One generation report,492helper calls and no
+truncation were recorded; evidence summary/docs freeze `f34f0e2` was independently
+reviewed. This invocation differs from the prior pre-CAS failure.
+
+Retained capture took1.937800s with774successful SQL statements. Its adjacent owner
+document wrapper took0.102388s including its nested owner validator; eight owner
+validators within the retained subtree totaled0.800709s with noSQL. Four owner
+validators after retained capture totaled0.385767s with noSQL. These nested and
+inclusive values cannot be added or treated as predicted removable time.
+
+The reviewed next work removes only two source-proven adjacent duplicates:
+[context validation](design/owner-retained-context-restriction-v1.md) and
+[canonical storage serialization](design/planning-version-storage-pair-v1.md).
+All remaining validators, fresh SQL/source passes, CAS, rollback and final authority
+checks stay intact. No cache, refreshed deadline or wider time limit is proposed.
+Both changes require focused regression coverage and qualification on their new
+source; no further unchanged-source diagnostic retry is planned. The historical
+failures remain in the record without a retroactive cause or reliability claim.

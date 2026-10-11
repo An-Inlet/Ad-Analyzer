@@ -172,3 +172,28 @@ checks stay intact. No cache, refreshed deadline or wider time limit is proposed
 Both changes require focused regression coverage and qualification on their new
 source; no further unchanged-source diagnostic retry is planned. The historical
 failures remain in the record without a retroactive cause or reliability claim.
+
+### R03 Combined Qualification Remains Blocked
+
+Combined06 tested context restriction plus canonical storage-pair changes on
+`ee6ef59` with recorded source diff `93103576`. Sixteen pure tests passed. The
+first actual SQLite zero-budget case failed before CAS at the original authority
+guard: fact age 6.519859–6.519885 seconds, with positive session lifetime. The
+remaining 27 API cases were not run; PostgreSQL and actual storage-pair rollback
+remain unqualified. Storage serialization was not reached. No unchanged retry ran.
+
+Diagnostic-only freeze `69865572ba17608f111c4ca725ce7161239bf72d` preserves
+production bytes from that attempt. Whole Ruff, configured no-path mypy (1,476
+files), and diff checks passed after test-only style/type corrections; initial
+static failures remain recorded. Independent review and root verification checked
+six source hashes and 20 evidence hashes. Evidence lives in
+`google-owner-v6-runtime/storage-pair-final-qualification.json`. The failing service
+changes are not integrated; root's context-only code remains `788edfc`.
+
+Workspace recovery at 17:49 UTC confirmed preserved clean integration HEAD
+`ea49d6c`, readable evidence and no active tests. No reset or duplicate run occurred.
+The next source-only contract reviews moving original-data validation before the
+existing final identity refresh, with complete private graph ownership and exact
+deferred error precedence. All fresh SQL, source, receipt, retained, CAS and final
+five-second checks must remain. Implementation awaits technical review; sufficient
+timing improvement is not established. R01/R02 remain independently unresolved.

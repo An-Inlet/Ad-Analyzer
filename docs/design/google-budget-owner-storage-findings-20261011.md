@@ -69,3 +69,12 @@ The proposed amount remains a customer hypothesis. No storage receipt, membershi
 proof or manual review prerequisite qualifies a positive daily amount as a period
 spending cap. Native-setting output remains unavailable while that economic and
 provider-validity evidence is unqualified. No advertising write path is introduced.
+
+Independent source review confirmed these findings. The retained inventory is a
+typed native model, not raw HTTP bytes or an authenticated provider transcript.
+Two constraints must be explicit in the later consumer freeze: current
+ReceiptBindingV1/InputCatalogReceiptRow requires selected_count >= 1 and `_bindings`
+derives entity selections, so an owner-only link cannot silently reuse an empty
+selection shape; and new owner window joins must compare UTC instants rather than
+inherit Python same-zone datetime equality. Neither issue permits weakening the
+existing receipt gates.

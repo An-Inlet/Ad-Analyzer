@@ -29,3 +29,10 @@ remains unchanged; separate authorization and result files record the single run
 Final whole Ruff, configured no-path mypy1481 and diff checking passed.
 The four genuine TLS journeys are a separate dependent package after UI freeze;
 no R01/R02/R03 incident or performance closure is inferred.
+
+Integrated locally as `87d052d` from frozen author `a738a0b`. Root and independent
+review verified six source and thirteen evidence hashes and the exact 33 ordered
+XML cases. The entire application/test trees match the author candidate; root
+Ruff and configured no-path mypy passed (1,481 files). No identical pytest rerun
+was needed for source-identical integration. Customer UI component work and the
+four authenticated TLS journeys remain separately unqualified.

@@ -78,7 +78,8 @@ def planning_capabilities(
             workspace_id=workspace_id,
             policy_version=configured.policy.version,
             generator_version=configured.policy.generator_version,
-            selected_reporting_available=capability.mode == "selected_requested_window",
+            selected_reporting_available=capability.mode
+            in ("selected_requested_window", "creative_selected_requested_window"),
         )
 
 

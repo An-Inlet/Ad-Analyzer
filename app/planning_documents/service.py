@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app.campaign_review.contracts import MediaStore
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
@@ -25,7 +26,13 @@ from app.planning_documents.composer import (
     DescriptivePlanComposer,
     PlanCompositionUnavailable,
 )
+from app.planning_documents.creative_basis_reader import PlanningImageUnavailable
+from app.planning_documents.creative_finalization import recheck_collected_creative
 from app.planning_documents.creative_inputs import validate_creative_policy
+from app.planning_documents.creative_paired_reader import OwnedCreativePairedReader
+from app.planning_documents.creative_plan_bundle import CreativePairedEvidenceV1
+from app.planning_documents.creative_plan_composer import CreativePlanComposer
+from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
@@ -108,6 +115,7 @@ class PlanningDocumentService:
         clock: Callable[[], datetime] = utc_now,
         *,
         policy: PlanningCompositionPolicy | None = None,
+        media_store: MediaStore | None = None,
     ) -> None:
         self.engine = engine
         self.provider = provider
@@ -124,6 +132,14 @@ class PlanningDocumentService:
             self.policy.version, self.policy.generator_version
         ) != ticket_reporting_capability(self.policy.version, self.policy.digest()):
             raise ValueError("exact canonical planning policy required")
+        self.media_store = media_store
+        if (
+            reporting_capability(self.policy.version, self.policy.generator_version).mode
+            == "creative_selected_requested_window"
+            and media_store is None
+        ):
+            raise ValueError("explicit creative media store required")
+        self.creative_composer = CreativePlanComposer()
         self.composer = DescriptivePlanComposer()
         self.window_composer = WindowPlanComposer()
         self.selected_composer = SelectedPlanComposer()
@@ -154,7 +170,7 @@ class PlanningDocumentService:
             )
             if (
                 reporting_capability(self.policy.version, self.policy.generator_version).mode
-                == "selected_requested_window"
+                in ("selected_requested_window", "creative_selected_requested_window")
                 and request.inputs.selected_reporting is None
             ):
                 raise ValueError("explicit selected reporting selectors required")
@@ -177,6 +193,8 @@ class PlanningDocumentService:
                 stored = repository.inputs(db, plan, prior.input_revision)
                 authority.final(current, fact)
                 return InputResult(plan_id=plan.id, input_revision=stored.revision, inputs=stored)
+            if request.inputs.creative is not None:
+                repository.check_creative_media_references(db, wid, request.inputs.creative)
             parent_digest = None
             if isinstance(request, EditPlan):
                 plan = repository.owned(db, wid, plan_id)
@@ -257,6 +275,8 @@ class PlanningDocumentService:
                 saved = repository.inputs(db, plan, prior.input_revision)
                 authority.final(current, fact)
                 return InputResult(plan_id=plan.id, input_revision=saved.revision, inputs=saved)
+            if resolved.creative is not None:
+                repository.check_creative_media_references(db, wid, resolved.creative)
             actual = resolve_source_fences(
                 db, principal=current, accounts=prepared.accounts, now=self.clock()
             )
@@ -326,7 +346,7 @@ class PlanningDocumentService:
                 )
                 if (
                     reporting_capability(self.policy.version, self.policy.generator_version).mode
-                    == "selected_requested_window"
+                    in ("selected_requested_window", "creative_selected_requested_window")
                     and inputs.selected_reporting is None
                 ):
                     raise ValueError("explicit selected reporting selectors required")
@@ -357,28 +377,46 @@ class PlanningDocumentService:
             capability = ticket_reporting_capability(ticket.policy_version, ticket.policy_digest)
         except ValueError as error:
             raise repository.changed("unknown configured planning policy") from error
-        reader_type = (
-            OwnedSelectedPairedReader
-            if capability.mode == "selected_requested_window"
-            else OwnedWindowEvidenceReader
-            if capability.mode == "presence_requested_window"
-            else OwnedPlanningEvidenceReader
-        )
-        reader: GenerationEvidenceReader = reader_type(
-            lambda: Session(self.engine),
-            principal=principal,
-            provider=self.provider,
-            policy=self.policy,
-            clock=self.clock,
-        )
-        try:
-            bundle = reader.collect(ticket)
-        except (ValueError, RetainedSourcesChanged) as error:
-            if capability.mode != "selected_requested_window":
-                raise
-            raise repository.changed("selected reporting integrity unavailable") from error
+        if capability.mode == "creative_selected_requested_window":
+            if self.media_store is None:
+                raise repository.changed("explicit creative media store required")
+            creative_reader = OwnedCreativePairedReader(
+                lambda: Session(self.engine),
+                principal=principal,
+                provider=self.provider,
+                policy=self.policy,
+                store=self.media_store,
+                clock=self.clock,
+            )
+            try:
+                bundle: GenerationEvidence = creative_reader.collect(ticket)
+            except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
+                raise repository.changed("creative planning evidence unavailable") from error
+        else:
+            reader_type = (
+                OwnedSelectedPairedReader
+                if capability.mode == "selected_requested_window"
+                else OwnedWindowEvidenceReader
+                if capability.mode == "presence_requested_window"
+                else OwnedPlanningEvidenceReader
+            )
+            reader: GenerationEvidenceReader = reader_type(
+                lambda: Session(self.engine),
+                principal=principal,
+                provider=self.provider,
+                policy=self.policy,
+                clock=self.clock,
+            )
+            try:
+                bundle = reader.collect(ticket)
+            except (ValueError, RetainedSourcesChanged) as error:
+                if capability.mode != "selected_requested_window":
+                    raise
+                raise repository.changed("selected reporting integrity unavailable") from error
         expected_bundle = (
-            SelectedPairedEvidenceV1
+            CreativePairedEvidenceV1
+            if capability.mode == "creative_selected_requested_window"
+            else SelectedPairedEvidenceV1
             if capability.mode == "selected_requested_window"
             else WindowEvidenceBundleV1
             if capability.mode == "presence_requested_window"
@@ -391,7 +429,13 @@ class PlanningDocumentService:
         except ValueError as error:
             raise repository.changed("planning evidence does not match generation") from error
         try:
-            if capability.mode == "selected_requested_window":
+            if capability.mode == "creative_selected_requested_window":
+                if not isinstance(bundle, CreativePairedEvidenceV1):
+                    raise repository.changed("creative paired evidence required")
+                candidate = self.creative_composer.compose(
+                    ticket=ticket, evidence=bundle, policy=self.policy, generated_at=self.clock()
+                )
+            elif capability.mode == "selected_requested_window":
                 if not isinstance(bundle, SelectedPairedEvidenceV1):
                     raise repository.changed("selected paired evidence required")
                 candidate = self.selected_composer.compose(
@@ -431,7 +475,54 @@ class PlanningDocumentService:
             actual_bundle: GenerationEvidence,
             now: datetime,
         ) -> None:
-            if isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
+            if isinstance(actual_bundle, CreativePairedEvidenceV1):
+
+                def creative_authorize(db: Session, workspace_id: int, actor: str) -> None:
+                    if actor != current.user.id:
+                        raise repository.changed("original generation actor changed")
+                    authority.lock(db, current, workspace_id, fact)
+
+                try:
+                    recheck_selected_paired_sources(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        bundle=actual_bundle.reporting,
+                        authorize=creative_authorize,
+                        clock=self.clock,
+                    )
+                    proof = recheck_collected_creative(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        collection=actual_bundle.creative,
+                        now=self.clock(),
+                        authorize=creative_authorize,
+                    )
+                    if (
+                        proof
+                        != creative_proof_from_collection(actual_bundle.creative, actual_ticket)
+                        or proof != candidate.creative_proof
+                    ):
+                        raise repository.changed("creative proof differs from collected evidence")
+                    recheck_selected_paired_sources(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        bundle=actual_bundle.reporting,
+                        authorize=creative_authorize,
+                        clock=self.clock,
+                    )
+                except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
+                    raise repository.changed("creative planning evidence unavailable") from error
+                recheck_saved_input_receipts(
+                    db,
+                    principal=current,
+                    ticket=actual_ticket,
+                    catalogs=actual_bundle.reporting.selected.catalogs,
+                    now=self.clock(),
+                )
+            elif isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
 
                 def authorize(db: Session, workspace_id: int, actor: str) -> None:
                     if actor != current.user.id:

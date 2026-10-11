@@ -118,8 +118,10 @@ def test_full_genuine_document(platform: str, empty: bool) -> None:
     assert doc.creative_proof is not None and doc.creative_composition is not None
     assert len(doc.creative_composition.proposals) == (0 if empty else 1)
     assert not doc.advertising_writes_enabled
-    with pytest.raises(ValueError):
-        reporting_capability(doc.policy_version, doc.generator_version)
+    assert (
+        reporting_capability(doc.policy_version, doc.generator_version).mode
+        == "creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize(

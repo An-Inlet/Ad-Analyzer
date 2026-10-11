@@ -75,14 +75,16 @@ def test_old_type_exports_keep_class_identity() -> None:
     assert SelectedPlanPinV1 is LegacyPin
 
 
-def test_explicit_none_v4_document_proof_roundtrip_and_current_policy_unavailable() -> None:
+def test_explicit_none_v4_document_proof_roundtrip_and_registered_witness() -> None:
     from app.planning_documents.policy_capabilities import reporting_capability
 
     doc = none_document()
     assert PlanVersion.model_validate_json(doc.model_dump_json()) == doc
     assert doc.selected_reporting_proof is not None
-    with pytest.raises(ValueError):
-        reporting_capability(doc.policy_version, doc.generator_version)
+    assert (
+        reporting_capability(doc.policy_version, doc.generator_version).local_witness_kind
+        == "local_reporting_v3"
+    )
     assert PlanVersion.model_validate(packet()).model_dump().get("selected_reporting_proof") is None
     assert "selected_reporting_proof" not in PlanVersion.model_validate(packet()).model_dump()
 

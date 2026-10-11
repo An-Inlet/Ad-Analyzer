@@ -165,8 +165,10 @@ def test_owned_ports_retain_original_context_no_persistence(
         assert {g.reason for g in result.reporting.selected.window_gaps} == {
             "unsupported_selected_mapping"
         }
-    with pytest.raises(ValueError):
-        reporting_capability(reader.policy.version, reader.policy.generator_version)
+    assert (
+        reporting_capability(reader.policy.version, reader.policy.generator_version).mode
+        == "creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize(

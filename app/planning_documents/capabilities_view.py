@@ -18,6 +18,8 @@ class PlanningCapabilitiesV1(NoAuthority):
     @model_validator(mode="after")
     def configured(self) -> "PlanningCapabilitiesV1":
         capability = reporting_capability(self.policy_version, self.generator_version)
-        if self.selected_reporting_available != (capability.mode == "selected_requested_window"):
+        if self.selected_reporting_available != (
+            capability.mode in ("selected_requested_window", "creative_selected_requested_window")
+        ):
             raise ValueError("configured planning capability mismatch")
         return self

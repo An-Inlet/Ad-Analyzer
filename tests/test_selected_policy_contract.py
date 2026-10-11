@@ -107,13 +107,15 @@ def test_wrong_digest_and_other_canonical_policy() -> None:
         )
 
 
-def test_registration_unchanged() -> None:
+def test_legacy_witness_kind_preserved_with_private_v5_registration() -> None:
     assert (
         reporting_capability(policy(4).version, policy(4).generator_version).local_witness_kind
         == "local_reporting_v3"
     )
-    with pytest.raises(ValueError):
-        reporting_capability(policy(5).version, policy(5).generator_version)
+    assert (
+        reporting_capability(policy(5).version, policy(5).generator_version).mode
+        == "creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize("first", ["documents", "selected_policy_contract"])

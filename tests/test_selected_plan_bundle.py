@@ -358,7 +358,7 @@ def test_unknown_fixture_profile_requires_explicit_unsupported_gaps() -> None:
         bundle.model_copy(update={"window_gaps": (wrong, gaps[1])}).assert_ticket(ticket)
 
 
-def test_canonical_v4_registered_and_v5_reserved() -> None:
+def test_canonical_v4_and_private_v5_registered() -> None:
     from app.planning_documents.policy_capabilities import reporting_capability
 
     assert (
@@ -367,8 +367,10 @@ def test_canonical_v4_registered_and_v5_reserved() -> None:
         ).local_witness_kind
         == "local_reporting_v3"
     )
-    with pytest.raises(ValueError):
-        reporting_capability("inlet.descriptive-review.v5", "inlet.descriptive-planning.v5")
+    assert (
+        reporting_capability("inlet.descriptive-review.v5", "inlet.descriptive-planning.v5").mode
+        == "creative_selected_requested_window"
+    )
 
 
 def gap_bundle(

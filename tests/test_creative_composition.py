@@ -444,9 +444,11 @@ def test_valid_basis_foreign_currency_or_privacy_still_rejected() -> None:
         compose(inputs, catalogs, CreativeBasisV1.model_validate(privacy))
 
 
-def test_canonical_v5_value_does_not_register_capability() -> None:
+def test_canonical_v5_has_distinct_private_capability() -> None:
     from app.planning_documents.policy_capabilities import reporting_capability
 
     policy = canonical_creative_policy()
-    with pytest.raises(ValueError, match="unknown"):
-        reporting_capability(policy.version, policy.generator_version)
+    assert (
+        reporting_capability(policy.version, policy.generator_version).mode
+        == "creative_selected_requested_window"
+    )

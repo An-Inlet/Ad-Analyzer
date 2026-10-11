@@ -105,8 +105,7 @@ def test_exact_v5_reservation_is_not_capability_registration() -> None:
     for invalid in ((pair[0], "inlet.descriptive-planning.v4"), ("unknown", pair[1])):
         with pytest.raises(ValueError):
             validate_creative_policy(CreativeInputV1(), *invalid)
-    with pytest.raises(ValueError, match="unknown"):
-        reporting_capability(*pair)
+    assert reporting_capability(*pair).mode == "creative_selected_requested_window"
 
 
 def test_reserved_v5_cannot_parse_an_unproved_creative_document() -> None:

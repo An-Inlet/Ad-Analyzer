@@ -51,8 +51,10 @@ def test_pure_genuine_v5_bundle_and_unchanged_v4_bytes() -> None:
     bundle.assert_ticket(actual)
     assert bundle.reporting_proof == original.reporting_proof
     assert (original.model_dump_json(), original.digest()) == before
-    with pytest.raises(ValueError):
-        reporting_capability(policy.version, policy.generator_version)
+    assert (
+        reporting_capability(policy.version, policy.generator_version).mode
+        == "creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize("empty", [False, True])
@@ -115,8 +117,10 @@ def test_actual_paired_reader_preserves_genuine_v5_context(
             ) == previous_traffic.model_dump(
                 exclude={"reference": {"expires_at"}, "target": {"selection_key"}}
             )
-    with pytest.raises(ValueError):
-        reporting_capability(policy.version, policy.generator_version)
+    assert (
+        reporting_capability(policy.version, policy.generator_version).mode
+        == "creative_selected_requested_window"
+    )
     with pytest.raises(ValueError):
         SelectedPlanComposer().compose(
             ticket=actual, evidence=bundle, policy=policy, generated_at=old.clock()

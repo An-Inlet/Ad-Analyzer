@@ -174,8 +174,10 @@ def test_genuine_typed_output_and_original_reporting(platform: str, images: int)
     assert len(proposals[0].production.storyboard) == (3 if platform == "tiktok" else 0)
     assert all(a.native_budget is None for a in doc.actions)
     assert PlanVersion.model_validate_json(doc.model_dump_json()) == doc
-    with pytest.raises(ValueError):
-        reporting_capability(policy.version, policy.generator_version)
+    assert (
+        reporting_capability(policy.version, policy.generator_version).mode
+        == "creative_selected_requested_window"
+    )
 
 
 @pytest.mark.parametrize("capacity", [0, None, 1])

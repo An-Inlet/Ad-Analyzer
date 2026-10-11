@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.billing.entitlements import paid_work
+from app.campaign_review.models import MediaObject
 from app.commerce.ledger import lock_store
 from app.customers.access import CustomerPrincipal
 from app.goals import service as goals
@@ -20,6 +21,10 @@ from app.planning_documents.authority import IdentityFact
 from app.planning_documents.common import fingerprint
 from app.planning_documents.composer import targets
 from app.planning_documents.context import AccountRef, PlanInputRevision, TargetRef
+from app.planning_documents.creative_basis import CreativeInputV1
+from app.planning_documents.creative_plan_bundle import CreativePairedEvidenceV1
+from app.planning_documents.creative_plan_document import creative_basis_reference
+from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion
 from app.planning_documents.generation_ports import GenerationEvidence
@@ -50,6 +55,22 @@ from app.shopify.security import ShopifyError, utc
 
 def changed(reason: str) -> HTTPException:
     return HTTPException(409, reason)
+
+
+def check_creative_media_references(
+    db: Session, workspace_id: int, creative: CreativeInputV1
+) -> None:
+    """New input admission only; caller holds workspace authority, no byte evidence."""
+    creative = CreativeInputV1.model_validate(creative)
+    for selection in sorted(creative.media_selections, key=lambda item: item.media_id):
+        row = db.scalar(
+            select(MediaObject)
+            .where(MediaObject.workspace_id == workspace_id, MediaObject.id == selection.media_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is None or row.sha256 != selection.expected_sha256:
+            raise changed("selected creative media unavailable")
 
 
 def values(row: PlanInputRow | PlanVersionRow | PlanEventRow) -> dict[str, Any]:
@@ -418,7 +439,9 @@ def save_generation(
     except ValueError as error:
         raise changed("unknown planning policy or generator") from error
     expected_bundle = (
-        SelectedPairedEvidenceV1
+        CreativePairedEvidenceV1
+        if capability.mode == "creative_selected_requested_window"
+        else SelectedPairedEvidenceV1
         if capability.mode == "selected_requested_window"
         else WindowEvidenceBundleV1
         if capability.mode == "presence_requested_window"
@@ -430,6 +453,12 @@ def save_generation(
         bundle.assert_ticket(ticket)
     except ValueError as error:
         raise changed("planning evidence does not match generation") from error
+    if isinstance(bundle, CreativePairedEvidenceV1) and utc(candidate.generated_at) < max(
+        utc(ticket.prepared_at),
+        utc(bundle.reporting.selected.collected_at),
+        *(utc(image.observed_at) for image in bundle.creative.basis.images),
+    ):
+        raise changed("candidate generation predates original creative collection")
     wid, plan_id = ticket.inputs.workspace_id, ticket.inputs.plan_id
     current = authority.lock(db, principal, wid, fact)
     if ticket.actor_id != current.user.id or ticket.session_digest != current.session.digest:
@@ -460,10 +489,11 @@ def save_generation(
         _, prior_version = version(db, plan)
         if prior_version.digest() != ticket.expected_parent_digest:
             raise changed("generation parent changed")
-    actual = bundle.selected if isinstance(bundle, SelectedPairedEvidenceV1) else bundle
+    reporting = bundle.reporting if isinstance(bundle, CreativePairedEvidenceV1) else bundle
+    actual = reporting.selected if isinstance(reporting, SelectedPairedEvidenceV1) else reporting
     if (
-        isinstance(bundle, SelectedPairedEvidenceV1)
-        and candidate.selected_reporting_proof != bundle.selected.reporting_proof
+        isinstance(reporting, SelectedPairedEvidenceV1)
+        and candidate.selected_reporting_proof != reporting.selected.reporting_proof
     ):
         raise changed("candidate selected proof differs from actual read bundle")
     refs = (
@@ -473,10 +503,17 @@ def save_generation(
     )
     if actual.commerce is not None:
         refs.append(actual.commerce.reference)
-    if isinstance(bundle, SelectedPairedEvidenceV1):
-        refs.extend(item.reference for item in bundle.traffic)
+    if isinstance(reporting, SelectedPairedEvidenceV1):
+        refs.extend(item.reference for item in reporting.traffic)
+    if isinstance(bundle, CreativePairedEvidenceV1):
+        proof = creative_proof_from_collection(bundle.creative, ticket)
+        if candidate.creative_proof != proof:
+            raise changed("candidate creative proof differs from actual read bundle")
+        refs.append(creative_basis_reference(proof, ticket.inputs, candidate.valid_until))
     if (
-        {ref.key: ref for ref in candidate.evidence} != {ref.key: ref for ref in refs}
+        len(candidate.evidence) != len(refs)
+        or len({ref.key for ref in refs}) != len(refs)
+        or {ref.key: ref for ref in candidate.evidence} != {ref.key: ref for ref in refs}
         or any(ref.privacy_revision != ticket.privacy_revision for ref in candidate.evidence)
         or utc(candidate.valid_until) > min(utc(ref.expires_at) for ref in refs)
     ):

@@ -98,3 +98,24 @@ The [safe diagnostic analysis](/workspace/inlet-evidence/20261011/creative-porta
 records candidate conflict sites and surviving evidence limits. No further original
 sequence retry was started. A separate pure-admission cost probe is being prepared;
 no optimization has been implemented or claimed to fix the original action conflict.
+
+## Clean Bounded Cohort After The Separate UTC Repair
+
+The [UTC receipt repair](inlet-catalog-receipt-utc-repair-20261011.md) is integrated
+at `3a0f72b`, independently reviewed. Root whole Ruff and configured mypy pass
+(1,416 files). It fixes the proven SQLite offset-storage defect; it does not identify
+the original PostgreSQL action conflict.
+
+- `integrated-09` mistakenly selected the entire legacy file (32 planned cases).
+  Root stopped its exact pytest process with SIGINT: exit 2, 20 completed passes,
+  zero failures/errors/skips, 209.972s. Retain this interrupted attempt.
+- `integrated-10` selected eight new portal cases and four explicit legacy V3/V4
+  node IDs. **12 passed, zero failures/errors/skips, 143.556s**, exit 0, on `3a0f72b`.
+  Normal clocks; no stage plugin or screenshot capture; no concurrent tests.
+  This is the clean bounded post-repair cohort, not exhaustive or live qualification.
+
+Evidence and exact case/hash manifest:
+`/workspace/inlet-evidence/20261011/creative-portal-browser/integrated-post-utc-qualification.json`.
+All `both-02` evidence remains; the historical route/cause is still unresolved.
+The private product/default-policy boundary and frozen `9d7aa2e` remain unchanged.
+The Q05 three-platform artifact run proceeds separately after database-slot release.

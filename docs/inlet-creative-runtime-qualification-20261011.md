@@ -74,3 +74,21 @@ The three runtime test files are frozen for reuse. Their scenarios have passed
 across the recorded runs, but the initial whole-cohort authority expiry remains an
 open performance investigation. A final normal 28-case cohort is required after
 the separately reviewed performance slice; diagnostic passes do not erase failures.
+
+## Integrated Normal Qualification
+
+After reviewed performance commit `e478b4b`, `final12.xml` passed all 28 actual
+API/lifecycle cases on SQLite and PostgreSQL in 319.863 seconds, with zero failures,
+errors or skips. No timing plugin or clock replacement was loaded. Whole Ruff
+passed and configured no-path mypy passed 1,408 files. This supersedes the pending
+normal-cohort gate above; it does not erase `final06` or establish its root cause.
+Bounded comparative timing and a deliberate real-clock authority-expiry test remain
+separate checks.
+
+`timing13` passed both PostgreSQL one/two-image journeys after integration. Combined
+SQL calls were 29,471 versus 32,531 across the earlier two diagnostics. The maximum
+identity interval used 2,217 calls versus 2,627, but its age was 3.693 seconds versus
+2.759 seconds previously (SQL wall time 1.033s, process CPU 2.999s). Thus structural
+query reduction is verified; elapsed-time improvement is not. No retry or expanded
+optimization is justified from this measurement alone. The original timeout cause
+remains unproven. `runtime-qualification.json` retains attempt counts and XML hashes.

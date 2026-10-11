@@ -8,6 +8,7 @@ from typing import Any, Literal
 from fastapi import HTTPException
 from pydantic import Field, field_validator
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.ads.enums import AdvertisingPlatform, JobRunStatus, MetricEntityType
@@ -131,6 +132,20 @@ def view(receipt: RangeReceiptV1) -> RangeView:
         requested_starts_on=receipt.requested_starts_on,
         requested_ends_on=receipt.requested_ends_on,
         row_count=receipt.row_count,
+    )
+
+
+def _receipt_id_collision(error: IntegrityError) -> bool:
+    original = error.orig
+    diagnostic = getattr(original, "diag", None)
+    if getattr(original, "sqlstate", None) == "23505":
+        return (
+            getattr(diagnostic, "table_name", None) == "google_reporting_range_receipts"
+            and getattr(diagnostic, "constraint_name", None)
+            == "google_reporting_range_receipts_pkey"
+        )
+    return getattr(original, "sqlite_errorcode", None) in {1555, 2067} and str(original) == (
+        "UNIQUE constraint failed: google_reporting_range_receipts.request_id"
     )
 
 
@@ -276,7 +291,15 @@ def acquire_range(service: SelectedCustomerService, intent: RangeIntent) -> Rang
             acquisition_digest=result.digest(),
             job_id=job.id,
         )
-        store_range_receipt(db, receipt)
+        try:
+            store_range_receipt(db, receipt)
+        except IntegrityError as error:
+            # A globally colliding ID may belong to another workspace. Roll back
+            # every publication effect, not only storage's nested savepoint.
+            db.rollback()
+            if _receipt_id_collision(error):
+                raise unavailable() from None
+            raise
         retained = read_range_receipt(db, service.wid, intent.account_id, intent.request_id)
         if retained != receipt or source_pin(db, service.wid, intent.account_id) != initial.grant:
             raise unavailable()

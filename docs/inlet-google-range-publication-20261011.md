@@ -64,3 +64,15 @@ no advertising spend or write authority.
 - `git diff --check`: passed. No broad baseline or Full run.
 - An attempted `mypy .` invocation encountered the repository's duplicate script
   module discovery; the repository-configured `mypy` invocation above passed.
+
+## Review Repair: Global Request-ID Collision
+
+An independent P2 review found that different workspaces can reach publication
+before a global receipt-ID collision becomes visible. Exact receipt primary-key
+uniqueness errors now roll back the entire outer publication transaction and return
+sanitized409, without reading or exposing a foreign winner. Other database integrity
+errors are not translated. Actual duplicate-header tests on both databases verify
+unchanged metrics, jobs, completion pointer, receipt count and source sync time.
+The repaired API cohort passed **35 cases, zero skips, 103.32 seconds**; whole Ruff,
+configured mypy (1,318 files) and diff check passed. Durable `collision-*` evidence
+is retained alongside the original95-case package evidence.

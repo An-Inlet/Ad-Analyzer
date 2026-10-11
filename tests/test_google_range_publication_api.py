@@ -300,3 +300,72 @@ def test_concurrent_same_request_winner_is_replayed_without_second_publication(
     response = f.post("/aggregate-range", body)
     assert response.status_code == 200 and response.json() == winner
     assert counts(f)[1:] == (before[1] + 1, before[2] + 1, 1, before[4])
+
+
+def test_actual_receipt_id_collision_rolls_back_all_publication_effects(
+    range_customer: CustomerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.google_connections import range_publication
+    from sqlalchemy import insert
+
+    f = range_customer
+    before, state = counts(f), scheduler(f)
+    with Session(f.engine) as db:
+        source = db.get(GoogleCustomerConnection, f.source_id)
+        pointer = db.get(CurrentPerformance, f.aid)
+        assert source and pointer
+        old_sync, old_completion = source.last_sync_at, pointer.completion_id
+        old_metrics = list(db.execute(select(DailyMetric.__table__).order_by(DailyMetric.id)))
+    from app.campaign_performance.range_receipts import store_range_receipt
+
+    actual = store_range_receipt
+
+    def duplicate(db: Session, receipt: Any) -> None:
+        actual(db, receipt)
+        row = db.get(RangeReceiptRow, receipt.request_id)
+        assert row
+        values = {column.name: getattr(row, column.name) for column in row.__table__.columns}
+        with db.begin_nested():
+            db.execute(insert(RangeReceiptRow).values(**values))
+
+    monkeypatch.setattr(range_publication, "store_range_receipt", duplicate)
+    response = f.post("/aggregate-range", intent(f))
+    assert response.status_code == 409
+    assert response.json() == {"detail": "reporting_range_unavailable"}
+    assert counts(f) == before and scheduler(f) == state
+    with Session(f.engine) as db:
+        source = db.get(GoogleCustomerConnection, f.source_id)
+        pointer = db.get(CurrentPerformance, f.aid)
+        assert source and pointer
+        assert source.last_sync_at == old_sync and pointer.completion_id == old_completion
+        assert (
+            list(db.execute(select(DailyMetric.__table__).order_by(DailyMetric.id))) == old_metrics
+        )
+
+
+def test_receipt_collision_classifier_is_narrow() -> None:
+    import sqlite3
+    from types import SimpleNamespace
+
+    from app.google_connections.range_publication import _receipt_id_collision
+    from sqlalchemy.exc import IntegrityError
+
+    class PGError(Exception):
+        sqlstate = "23505"
+        diag = SimpleNamespace(
+            table_name="google_reporting_range_receipts",
+            constraint_name="google_reporting_range_receipts_pkey",
+        )
+
+    error = PGError()
+    assert _receipt_id_collision(IntegrityError("", {}, error))
+    error.diag = SimpleNamespace(table_name="other", constraint_name="other_pkey")
+    assert not _receipt_id_collision(IntegrityError("", {}, error))
+    sqlite = sqlite3.IntegrityError(
+        "UNIQUE constraint failed: google_reporting_range_receipts.request_id"
+    )
+    sqlite.sqlite_errorcode = 1555
+    assert _receipt_id_collision(IntegrityError("", {}, sqlite))
+    sqlite.sqlite_errorcode = 787
+    assert not _receipt_id_collision(IntegrityError("", {}, sqlite))
+    assert not _receipt_id_collision(IntegrityError("", {}, ValueError("other")))

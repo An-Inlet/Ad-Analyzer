@@ -5,8 +5,10 @@ import math
 from collections.abc import Callable
 from datetime import UTC, datetime
 from time import monotonic
+from typing import Any
 
 from fastapi import HTTPException
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,14 @@ class PlanningImageUnavailable(ValueError):
         super().__init__("owned planning image evidence unavailable")
 
 
+def _validated[Model: BaseModel](model: type[Model], value: Any) -> Model:
+    """Only pure DTO parsing errors are expected media-evidence failures."""
+    try:
+        return model.model_validate(value)
+    except ValidationError:
+        raise PlanningImageUnavailable() from None
+
+
 class _Row(Frozen):
     witness: OwnedPlanningImageV1
     created_by: Id
@@ -56,12 +66,6 @@ class OwnedPlanningImageReader:
         self.provider, self.store, self.clock = provider, store, clock
 
     def collect(self, ticket: GenerationTicket, requested: CreativeInputV1) -> CreativeBasisV1:
-        try:
-            return self._collect(ticket, requested)
-        except ValueError:
-            raise PlanningImageUnavailable() from None
-
-    def _collect(self, ticket: GenerationTicket, requested: CreativeInputV1) -> CreativeBasisV1:
         started = last_tick = monotonic()
         last_wall: datetime | None = None
 
@@ -85,8 +89,8 @@ class OwnedPlanningImageReader:
             return now
 
         checkpoint()
-        ticket = GenerationTicket.model_validate(ticket)
-        requested = CreativeInputV1.model_validate(requested)
+        ticket = _validated(GenerationTicket, ticket)
+        requested = _validated(CreativeInputV1, requested)
         if (ticket.actor_id, ticket.session_digest) != (
             self.principal.user.id,
             self.principal.session.digest,
@@ -122,19 +126,22 @@ class OwnedPlanningImageReader:
                     if row is None or row.sha256 != selected.expected_sha256:
                         raise PlanningImageUnavailable()
                     result.append(
-                        _Row(
-                            created_by=row.created_by,
-                            witness=OwnedPlanningImageV1(
-                                workspace_id=row.workspace_id,
-                                media_id=row.id,
-                                sha256=row.sha256,
-                                size=row.size,
-                                mime=row.mime,
-                                width=row.width,
-                                height=row.height,
-                                created_at=utc(row.created_at),
-                                observed_at=checkpoint(),
-                                privacy_revision=ticket.privacy_revision,
+                        _validated(
+                            _Row,
+                            dict(
+                                created_by=row.created_by,
+                                witness=dict(
+                                    workspace_id=row.workspace_id,
+                                    media_id=row.id,
+                                    sha256=row.sha256,
+                                    size=row.size,
+                                    mime=row.mime,
+                                    width=row.width,
+                                    height=row.height,
+                                    created_at=utc(row.created_at),
+                                    observed_at=checkpoint(),
+                                    privacy_revision=ticket.privacy_revision,
+                                ),
                             ),
                         )
                     )
@@ -148,12 +155,15 @@ class OwnedPlanningImageReader:
 
         original = rows()
         # Validate exact order, currency and total library size BEFORE private I/O.
-        basis = CreativeBasisV1(
-            workspace_id=wid,
-            goal_currency=ticket.inputs.goal.definition.target_window.currency,
-            privacy_revision=ticket.privacy_revision,
-            requested=requested,
-            images=tuple(row.witness for row in original),
+        basis = _validated(
+            CreativeBasisV1,
+            dict(
+                workspace_id=wid,
+                goal_currency=ticket.inputs.goal.definition.target_window.currency,
+                privacy_revision=ticket.privacy_revision,
+                requested=requested,
+                images=tuple(row.witness for row in original),
+            ),
         )
         images = []
         for row in original:
@@ -161,7 +171,7 @@ class OwnedPlanningImageReader:
             checkpoint()
             try:
                 data = self.store.read_exact(wid, image.sha256, image.size)
-            except OSError:
+            except (OSError, ValueError):
                 raise PlanningImageUnavailable() from None
             checkpoint()
             if (
@@ -183,13 +193,11 @@ class OwnedPlanningImageReader:
             observed = checkpoint()
             del data
             images.append(
-                OwnedPlanningImageV1.model_validate(
-                    image.model_copy(update={"observed_at": observed})
-                )
+                _validated(OwnedPlanningImageV1, image.model_copy(update={"observed_at": observed}))
             )
         final = rows()
         if tuple(row.identity() for row in original) != tuple(row.identity() for row in final):
             raise PlanningImageUnavailable()
-        result = CreativeBasisV1.model_validate(basis.model_copy(update={"images": tuple(images)}))
+        result = _validated(CreativeBasisV1, basis.model_copy(update={"images": tuple(images)}))
         checkpoint()
         return result

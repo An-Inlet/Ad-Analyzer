@@ -56,3 +56,19 @@ Evidence: `/workspace/inlet-evidence/20261011/owned-planning-images/`.
   whole Ruff and configured mypy passed (1,373 source files); diff check passed.
 
 No live calls, default runtime activation, remote push, hosted checks, merge or deploy.
+
+## Review Repair: Scoped Expected Errors
+
+Independent review found the original outer `ValueError` handler also hid unexpected
+identity-provider, clock and session-factory failures as media absence. The repair
+removes that outer handler. Only pure DTO `model_validate` calls normalize Pydantic
+`ValidationError`; callback and clock evaluation occurs outside those handlers.
+Documented storage `ValueError` and `OSError` are normalized only at `read_exact`.
+Existing scoped goal/image HTTP handling and auth/payment propagation are preserved.
+
+The affected cohort passed46cases across SQLite/PostgreSQL, zero skips,41.173seconds
+(`scoped-errors.xml`). Tests prove exact exception-instance propagation for provider
+`ValueError` and `ValidationError`, clock and session-factory failures; copied invalid
+DTOs and expected storage errors retain the fixed media error. Initial Ruff reported
+generic syntax UP047 then UP049; both failed logs remain preserved. Final static results
+are recorded in `ruff-scoped-errors-final.log` and `mypy-scoped-errors-final.log`.

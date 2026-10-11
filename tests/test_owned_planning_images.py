@@ -240,7 +240,9 @@ def test_original_rows_and_authority_rechecked_after_storage(
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize("damage", ["type", "size", "swap", "io", "corrupt", "mime", "dimensions"])
+@pytest.mark.parametrize(
+    "damage", ["type", "size", "swap", "io", "storage_value", "corrupt", "mime", "dimensions"]
+)
 def test_bad_bytes_and_decoded_metadata_are_fixed_failures(
     customer_engine: Engine,
     configuration: Settings,
@@ -279,6 +281,8 @@ def test_bad_bytes_and_decoded_metadata_are_fixed_failures(
     def read(*args: Any) -> Any:
         if damage == "io":
             raise OSError("private-storage-path")
+        if damage == "storage_value":
+            raise ValueError("private-storage-integrity")
         if damage == "corrupt":
             return b"not image"
         data = original(*args)
@@ -469,3 +473,69 @@ def test_elapsed_after_final_authority_context_is_rejected(
     with pytest.raises(module.PlanningImageUnavailable):
         reader.collect(ticket, CreativeInputV1())
     assert exits[0] == 2 and not calls
+
+
+@pytest.mark.parametrize("source", ["provider", "clock", "sessions", "provider_validation"])
+def test_unexpected_value_errors_do_not_become_media_absence(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    source: str,
+) -> None:
+    from pydantic import TypeAdapter, ValidationError
+
+    reader, ticket, request, _, calls = prepared(
+        customer_engine, configuration, replicas, monkeypatch, tmp_path
+    )
+    failure: ValueError = ValueError("unexpected callback failure")
+    if source == "provider_validation":
+        try:
+            TypeAdapter(int).validate_python("not-an-integer")
+        except ValidationError as error:
+            failure = error
+
+    def fail(*args: Any) -> Any:
+        raise failure
+
+    if source in {"provider", "provider_validation"}:
+        monkeypatch.setattr(reader.provider, "check_active", fail)
+    elif source == "clock":
+        reader.clock = fail
+    else:
+        reader.sessions = fail
+    with pytest.raises(ValueError) as propagated:
+        reader.collect(ticket, request)
+    assert propagated.value is failure
+    assert not isinstance(propagated.value, module.PlanningImageUnavailable)
+    assert not calls
+
+
+@pytest.mark.parametrize("source", ["ticket", "requested"])
+def test_invalid_copied_dto_remains_fixed_media_error(
+    customer_engine: Engine,
+    configuration: Settings,
+    replicas: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    source: str,
+) -> None:
+    reader, ticket, request, _, calls = prepared(
+        customer_engine, configuration, replicas, monkeypatch, tmp_path
+    )
+    if source == "ticket":
+        ticket = ticket.model_copy(update={"actor_id": True})
+    else:
+        request = request.model_copy(
+            update={
+                "media_selections": (
+                    request.media_selections[0].model_copy(update={"expected_sha256": b"f" * 64}),
+                )
+            }
+        )
+    with pytest.raises(
+        module.PlanningImageUnavailable, match="^owned planning image evidence unavailable$"
+    ):
+        reader.collect(ticket, request)
+    assert not calls

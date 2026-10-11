@@ -82,6 +82,9 @@ async function run() {
   $('shopify-disconnect-consent').checked = true;
   $('shopify-disconnect-confirm').click();
   await until(() => $('message').textContent.includes('Shopify disconnected') && !$('retry').disabled, 'Actual UI disconnect failed');
+  assert($('message').textContent.includes('imported Shopify data removed'), 'Shopify raw-data deletion must remain explicit');
+  assert($('message').textContent.includes('selected reporting evidence across this workspace were erased'), 'Workspace planning erasure must be explicit');
+  assert($('message').textContent.includes('Saved goal history remains'), 'Goal retention must remain distinct');
   assert((await api(root + '/shopify', 'DELETE')).status === 204, 'Repeated disconnect remains safe');
   assert((await api(root + '/commerce/snapshots/' + beforeDisconnect.baseline_snapshot_id)).status === 404, 'Disconnected measurement snapshot is erased');
   assert((await (await api(root + '/shopify')).json()).length === 0, 'Disconnected grant remains visible');

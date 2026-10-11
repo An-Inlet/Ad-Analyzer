@@ -311,6 +311,13 @@ def test_tiktok_navigation_selection_cancel_retry_and_disconnect(
         begin()
         browser.evaluate("document.getElementById('consent-approve').click()")
         browser.wait("document.getElementById('tiktok-account')?.options.length === 2")
+        connection_warning = browser.evaluate(
+            "document.getElementById('tiktok-selection').textContent"
+        )
+        assert "If this account was previously connected to this workspace" in connection_warning
+        assert "selected reporting evidence across the entire workspace" in connection_warning
+        assert "including plans for other connected accounts" in connection_warning
+        assert "erased plans and decisions are not restored" in connection_warning
         assert browser.evaluate("location.search") == ""
         assert (
             browser.evaluate(
@@ -399,6 +406,15 @@ def test_tiktok_navigation_selection_cancel_retry_and_disconnect(
         )
         browser.evaluate("document.getElementById('tiktok-disconnect-cancel').click()")
         assert browser.evaluate("document.getElementById('tiktok-disconnect-review').hidden")
+        removal_warning = browser.evaluate(
+            "document.getElementById('tiktok-disconnect-review').textContent"
+        )
+        assert "selected reporting evidence across this entire workspace" in removal_warning
+        assert "including plans for other connected accounts" in removal_warning
+        acknowledgment = browser.evaluate(
+            "document.getElementById('tiktok-disconnect-consent').parentElement.textContent"
+        )
+        assert "across this workspace will be erased" in acknowledgment
         browser.evaluate(
             "document.getElementById('tiktok-disconnect-open').click();document.getElementById('tiktok-disconnect-consent').checked=true"
         )
@@ -424,6 +440,10 @@ def test_tiktok_navigation_selection_cancel_retry_and_disconnect(
             "document.getElementById('message').textContent.includes('TikTok disconnected') && "
             "!document.getElementById('retry').disabled"
         )
+        result_text = browser.evaluate("document.getElementById('message').textContent")
+        assert "selected reporting evidence across this workspace were erased" in result_text
+        assert "goal history remain" in result_text
+        assert "before creating a new plan" in result_text
         assert (
             browser.evaluate("document.getElementById('tiktok-disconnect-account').options.length")
             == 1

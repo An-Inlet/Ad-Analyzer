@@ -283,6 +283,13 @@ def test_meta_customer_browser_consent_selection_disconnect(
         begin()
         browser.evaluate("document.getElementById('consent-approve').click()")
         browser.wait("document.getElementById('meta-account')?.options.length === 1")
+        connection_warning = browser.evaluate(
+            "document.getElementById('meta-selection').textContent"
+        )
+        assert "If this account is already saved in this workspace" in connection_warning
+        assert "selected reporting evidence across the entire workspace" in connection_warning
+        assert "including plans for other connected accounts" in connection_warning
+        assert "erased plans and decisions are not restored" in connection_warning
         assert browser.evaluate("location.search") == ""
         with factory() as db:
             member = db.get(CustomerMembership, (actor, wid))
@@ -323,10 +330,23 @@ def test_meta_customer_browser_consent_selection_disconnect(
             " && "
             "!document.getElementById('retry').disabled"
         )
+        removal_warning = browser.evaluate(
+            "document.getElementById('meta-disconnect-review').textContent"
+        )
+        assert "selected reporting evidence across this entire workspace" in removal_warning
+        assert "including plans for other connected accounts" in removal_warning
+        acknowledgment = browser.evaluate(
+            "document.getElementById('meta-disconnect-consent').parentElement.textContent"
+        )
+        assert "across this workspace will be erased" in acknowledgment
         browser.evaluate(
             "document.getElementById('meta-disconnect-consent').checked=true;document.getElementById('meta-disconnect-confirm').click()"
         )
         browser.wait("document.getElementById('message').textContent.includes('Meta disconnected')")
+        result_text = browser.evaluate("document.getElementById('message').textContent")
+        assert "selected reporting evidence across this workspace were erased" in result_text
+        assert "goal history remain" in result_text
+        assert "before creating a new plan" in result_text
         with factory() as db:
             assert db.scalar(select(func.count()).select_from(MetaConnection)) == 0
         assert len(provider_calls) == before

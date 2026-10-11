@@ -333,6 +333,11 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
             )
 
         def begin(current: Browser) -> None:
+            setup_warning = current.evaluate(
+                "document.getElementById('shopify-setup').textContent"
+            )
+            assert "whether for a new store connection or a reconnection" in setup_warning
+            assert "selected reporting evidence across this entire workspace" in setup_warning
             current.evaluate(
                 "document.getElementById('shopify-domain').value="
                 + json.dumps(SHOP)
@@ -390,6 +395,18 @@ def test_portal_shopify_consent_cancel_back_retry_and_session_change(
         assert browser.evaluate("document.getElementById('workspace').value") == str(wid)
         assert browser.evaluate("location.search") == ""
         assert provider_calls == ["token", "metadata"]
+        browser.evaluate("document.getElementById('shopify-disconnect-open').click()")
+        removal_warning = browser.evaluate(
+            "document.getElementById('shopify-disconnect-review').textContent"
+        )
+        assert "imported Shopify data" in removal_warning
+        assert "including plans for other connected accounts" in removal_warning
+        assert "Saved goals and revision history remain" in removal_warning
+        acknowledgment = browser.evaluate(
+            "document.getElementById('shopify-disconnect-consent').parentElement.textContent"
+        )
+        assert "across this workspace will be erased" in acknowledgment
+        browser.evaluate("document.getElementById('shopify-disconnect-cancel').click()")
         with factory() as db:
             row = db.scalar(select(ShopifyConnection))
             assert row is not None and row.workspace_id == wid and row.shop_domain == SHOP

@@ -354,7 +354,7 @@ if (typeof document !== 'undefined') {
   $('shopify-disconnect-confirm').onclick = () => guarded(async () => {
     if (!$('shopify-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Shopify.');
     await api(root() + '/shopify', 'DELETE'); await loadWorkspace();
-    say('Shopify disconnected and imported data removed. Saved goal history remains; reconnect and import before reconfirming.');
+    say('Shopify disconnected and imported Shopify data removed. Saved plans, their recorded decisions and selected reporting evidence across this workspace were erased. Saved goal history remains; reconnect and import before reconfirming goals, selecting reporting evidence again and creating a new plan. Running ads are unchanged.');
   });
   const cancelGoogleDisconnect = () => { $('google-disconnect-consent').checked = false; show('google-disconnect-review', false); };
   $('google-disconnect-account').onchange = cancelGoogleDisconnect;
@@ -382,7 +382,7 @@ if (typeof document !== 'undefined') {
       const selected = crmConnections[provider]?.find(row => row.id === $(provider+'-disconnect-account').value);
       if (!crmSetup[provider]?.can_manage || !selected || !$(provider+'-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting.');
       await api(root()+`/sources/${provider}/`+encodeURIComponent(selected.id),'DELETE');
-      await loadWorkspace(); say(`${name} disconnected locally. Financial reports and goal history remain unchanged.`);
+      await loadWorkspace(); say(`${name} disconnected locally. Saved plans, their recorded decisions and selected reporting evidence across this workspace were erased. Financial reports and goal history remain. Reconnect, import fresh data and select reporting evidence again before creating a new plan. Provider data and running ads are unchanged.`);
     });
   }
   $('tiktok-authorize').onclick = () => guarded(async () => {
@@ -398,7 +398,7 @@ if (typeof document !== 'undefined') {
     const selected = tiktokConnections.find(row => row.id === $('tiktok-disconnect-account').value);
     if (!tiktokSetup?.can_manage || !selected || !$('tiktok-disconnect-consent').checked) throw new Error('Select an advertiser and confirm the data effects before disconnecting TikTok.');
     await api(root()+'/sources/tiktok_ads/'+encodeURIComponent(selected.id),'DELETE'); await loadWorkspace();
-    say('TikTok disconnected. Historical data remains; campaigns and spending are unchanged.');
+    say('TikTok disconnected. Saved plans, their recorded decisions and selected reporting evidence across this workspace were erased. Imported reporting and goal history remain. Import fresh data and select reporting evidence again before creating a new plan. Campaigns and spending are unchanged.');
   });
   $('meta-authorize').onclick = () => guarded(async () => {
     if (!metaSetup?.enabled || !metaSetup.can_manage) throw new Error('Meta connection setup is unavailable.');
@@ -410,7 +410,7 @@ if (typeof document !== 'undefined') {
   $('meta-disconnect-confirm').onclick = () => guarded(async () => {
     if (!metaSetup?.can_manage || !$('meta-disconnect-consent').checked) throw new Error('Confirm the data effects before disconnecting Meta.');
     await api(root()+'/meta', 'DELETE'); await loadWorkspace();
-    say('Meta disconnected. Historical data remains; running campaigns and spending are unchanged.');
+    say('Meta disconnected. Saved plans, their recorded decisions and selected reporting evidence across this workspace were erased. Imported reporting and goal history remain. Reconnect, import fresh data and select reporting evidence again before creating a new plan. Running campaigns and spending are unchanged.');
   });
   $('google-authorize').onclick = () => guarded(async () => {
     if (!googleSetup?.enabled || !googleSetup.can_manage) throw new Error('Google Ads setup is unavailable for this session.');

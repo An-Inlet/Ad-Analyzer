@@ -18,6 +18,7 @@ from app.planning_documents.selected_plan_proof import (
     SelectedRetainedAccountProofV1,
     SelectedRetainedProofV1,
 )
+from app.planning_documents.selected_traffic_contracts import SelectedTrafficPinV1
 from app.planning_documents.source_contracts import SourceFence
 
 from tests.test_planning_document_contracts import packet
@@ -164,3 +165,65 @@ def test_exact_input_account_selector_and_privacy_coverage() -> None:
     assert other.state_digest() != account.state_digest()
     with pytest.raises(ValueError):
         SelectedRetainedProofV1(accounts=(other,)).assert_inputs(inputs, 0)
+
+
+def traffic() -> SelectedTrafficPinV1:
+    account = chosen()
+    pin = account.capture_pin
+    assert pin
+    return SelectedTrafficPinV1(
+        source_fence=pin.source_fence,
+        aggregate=pin.aggregate,
+        range_request_id="f" * 32,
+        range_receipt_digest="1" * 64,
+        presence_header_digest="2" * 64,
+        presence_fact_digest="3" * 64,
+        campaign_map_digest=pin.campaign_map_digest,
+    )
+
+
+def test_absent_traffic_preserves_prior_nested_canonical_proof_bytes() -> None:
+    from app.planning_documents.common import fingerprint
+
+    account = chosen()
+    old_payload = dict(
+        source_fence=account.source_fence.model_dump(mode="json"),
+        legacy_reporting_digest=account.legacy_reporting_digest,
+        selection_head=account.selection_head.model_dump(mode="json")
+        if account.selection_head
+        else None,
+        capture_pin=account.capture_pin.model_dump(mode="json") if account.capture_pin else None,
+    )
+    assert account.model_dump(mode="json") == old_payload
+    assert account.state_digest() == fingerprint("inlet.local-reporting-state.v3", old_payload)
+    assert "traffic_pin" not in SelectedRetainedProofV1(accounts=(account,)).model_dump_json()
+    assert "traffic_pin" not in none_document().model_dump_json()
+    assert (
+        "traffic_pin" not in none_document().model_dump()["selected_reporting_proof"]["accounts"][0]
+    )
+
+
+def test_optional_traffic_binds_exact_selected_acquisition_and_changes_commitment() -> None:
+    original = chosen()
+    account = SelectedRetainedAccountProofV1.model_validate(
+        original.model_copy(update={"traffic_pin": traffic()})
+    )
+    assert account.state_digest() != original.state_digest()
+    assert SelectedRetainedAccountProofV1.model_validate_json(account.model_dump_json()) == account
+    with pytest.raises(ValueError):
+        account.model_copy(update={"capture_pin": None}).state_digest()
+
+
+@pytest.mark.parametrize("field", ["aggregate", "source_fence", "campaign_map_digest"])
+def test_traffic_cannot_mix_another_selected_acquisition(field: str) -> None:
+    pin = traffic()
+    if field == "campaign_map_digest":
+        value: Any = "f" * 64
+    elif field == "aggregate":
+        value = pin.aggregate.model_copy(update={"completion_id": "f" * 32})
+    else:
+        value = pin.source_fence.model_copy(update={"source_binding_digest": "f" * 64})
+    with pytest.raises(ValueError):
+        chosen().model_copy(
+            update={"traffic_pin": pin.model_copy(update={field: value})}
+        ).state_digest()

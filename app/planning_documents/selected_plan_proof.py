@@ -1,12 +1,13 @@
 """Retained v4 commitments; historical opaque values are not reconstructed facts."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import Field, model_validator
+from pydantic import Field, SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from app.planning_documents.common import Digest, Frozen, Id, fingerprint
 from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
+from app.planning_documents.selected_traffic_contracts import SelectedTrafficPinV1
 from app.planning_documents.source_contracts import SourceFence
 
 
@@ -23,6 +24,14 @@ class SelectedRetainedAccountProofV1(Frozen):
     legacy_reporting_digest: Digest
     selection_head: SelectedHeadProofV1 | None
     capture_pin: SelectedPlanPinV1 | None
+    traffic_pin: SelectedTrafficPinV1 | None = None
+
+    @model_serializer(mode="wrap")
+    def omit_absent_traffic(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.traffic_pin is None:
+            result.pop("traffic_pin", None)
+        return result
 
     @model_validator(mode="after")
     def binding(self) -> "SelectedRetainedAccountProofV1":
@@ -38,6 +47,14 @@ class SelectedRetainedAccountProofV1(Frozen):
             != (pin.selection_id, pin.selection_digest)
         ):
             raise ValueError("retained selected pin must match its active original head")
+        traffic = self.traffic_pin
+        if traffic is not None and (
+            pin is None
+            or traffic.source_fence != fence
+            or traffic.aggregate != pin.aggregate
+            or traffic.campaign_map_digest != pin.campaign_map_digest
+        ):
+            raise ValueError("retained traffic must match its exact selected acquisition")
         return self
 
     def state_digest(self) -> str:

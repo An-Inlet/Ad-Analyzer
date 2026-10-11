@@ -10,7 +10,6 @@ from app.customers.access import CustomerPrincipal
 from app.planning_documents.catalog_evidence import CatalogEvidence
 from app.planning_documents.catalog_receipt_models import CatalogReceiptRow
 from app.planning_documents.catalog_receipts import CatalogReceiptUnavailable, _load
-from app.planning_documents.common import fingerprint
 from app.planning_documents.context import AccountRef
 from app.planning_documents.evidence_local import resolve_source_fences
 from app.planning_documents.google_budget_owner_contracts import (
@@ -25,6 +24,7 @@ from app.planning_documents.google_budget_owner_discovery_contracts import (
     GoogleBudgetOwnersRequestV1,
     GoogleBudgetOwnersViewV1,
 )
+from app.planning_documents.google_budget_owner_selection import original_owner_selection_id
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.read_context import PlanningReadContexts
 from app.planning_documents.service import PlanningDocumentService
@@ -35,31 +35,12 @@ from app.publication import customer_intents
 def owner_selection_id(
     *, principal: CustomerPrincipal, source: SourceFence, witness: GoogleDailyBudgetOwnerWitnessV1
 ) -> str:
-    source = SourceFence.model_validate(source)
-    witness = GoogleDailyBudgetOwnerWitnessV1.model_validate(witness)
-    ref = witness.catalog_evidence.reference
-    if (ref.account, ref.source_binding_digest, ref.source_revision, ref.privacy_revision) != (
-        source.account,
-        source.source_binding_digest,
-        source.source_revision,
-        source.privacy_revision,
-    ):
-        raise ValueError("exact witness source required")
-    window = ref.reporting_window
-    assert window is not None
-    return fingerprint(
-        "inlet.google-budget-owner-selection.v1",
-        dict(
-            source=source.model_dump(mode="json"),
-            actor=principal.user.id,
-            session_digest=principal.session.digest,
-            authenticated_at=principal.session.authenticated_at,
-            composite_digest=witness.catalog_evidence.catalog.composite_digest,
-            witness_digest=witness.digest(),
-            owner_key=witness.owner_key,
-            reporting_starts_at=window.starts_at.astimezone(UTC).isoformat(),
-            reporting_ends_at=window.ends_at_exclusive.astimezone(UTC).isoformat(),
-        ),
+    return original_owner_selection_id(
+        actor_id=principal.user.id,
+        session_digest=principal.session.digest,
+        authenticated_at=principal.session.authenticated_at,
+        source=source,
+        witness=witness,
     )
 
 

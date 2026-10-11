@@ -56,8 +56,8 @@ In `capture_owner_review_retained_sources` and
 canonical result, not the supplied unsafe copy.
 
 Keep `_owner_document` unchanged for historical validation and any other caller.
-Keep whole dependency validation first in recheck, all before/after original receipt
-loads, complete catalog JSON equality, selected/image/selected/current witness checks,
+Keep whole dependency validation at its existing position after context construction
+and before owner receipt reads in recheck, all before/after original receipt loads, complete catalog JSON equality, selected/image/selected/current witness checks,
 READ_ROLES, original transaction roots, guard/error boundaries, final clocks and
 five-second caller authority unchanged. No cross-I/O/pass/request reuse is introduced.
 

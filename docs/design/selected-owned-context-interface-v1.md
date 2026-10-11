@@ -27,7 +27,8 @@ Constructor, trusted composition only:
 
 Capture original user ID, issuer, subject, session digest/authenticated_at and expiry
 as immutable private scalar identity. Never retain/adopt mutable principal ORM rows
-as fresh authority. Reuse bind_authority original-session checks; additionally require
+as fresh authority. Use planning_documents.read_context.snapshot and PlanningReadContexts with
+authority.refresh before SQL, then authority.lock/final under SQL; additionally require
 persisted session authenticated_at and expiry equal original captured values, not an
 extended/replaced local session. Owner role is required, not admin. No original
 session digest or secret in repr/serialization/logs/exceptions.
@@ -81,7 +82,7 @@ opaque catalog IDs remain untrusted until this resolver actually checks owned ro
 
 1. Validate injected clock as actual aware datetime and normalize UTC. Pin operation
    start/deadline <=start+60s and original session expiry before authorization/I/O.
-2. In fresh Session from sessions, use original-session authorizer workspace→user→
+2. In fresh Session from sessions, use original-session locked identity fact (maximum age5s) workspace→user→
    session→membership then current account/source locks. Recheck original scalar
    identity/session bindings; paid_work at fresh time; ALL_DATA_SYNCS enabled.
 3. Server-derive account/integration/native source/generation/privacy/currency/timezone
@@ -155,3 +156,14 @@ request.started_at is authoritative. A resolver page-operation deadline can narr
 but never extend it: selected mode uses min(operation start+60s,
 request.started_at+60s, original session expiry). Require actual GoogleHTTPRead
 instance with version v24; duck-typed OAuth adapters cannot qualify this port.
+
+## Review Correction: Identity Provider IO
+
+The original bind_authority prescription was incompatible with this document's
+no-provider-IO-under-SQL promise. Resolver now reuses PlanningReadContexts.open():
+identity refresh runs before opening each SQL Session, then exact current owner/
+original identity/session rows are checked under locks with a5s identity-fact bound.
+Snapshot copies loaded user status and session user_id/revoked_at as well as identity
+fields; no lazy SQL during refresh. Callers must release preparation transactions.
+After context exit's final authority guard and SQL close, resolver samples operation
+deadline again before returning scope or pinning grant. Vault/OAuth remain outsideSQL.

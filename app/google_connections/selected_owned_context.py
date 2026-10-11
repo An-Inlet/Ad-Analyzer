@@ -31,7 +31,7 @@ from app.google_connections.selected_catalog import (
 from app.google_connections.selected_http import SelectedGoogleContext
 from app.google_connections.selected_presence import PRODUCER, query_profile_digest
 from app.lifecycle.privacy import workspace_export_revision
-from app.publication.customer_authority import bind_authority
+from app.planning_documents.read_context import PlanningReadContexts, snapshot
 
 
 class OwnedGoogleReportingContext:
@@ -55,8 +55,11 @@ class OwnedGoogleReportingContext:
         ):
             raise HTTPException(503, "Google reporting configuration unavailable")
         self._sessions, self._oauth, self._vault, self._clock = sessions, oauth, vault, clock
-        self._authorize = bind_authority(principal, identity_provider)
+        principal = snapshot(principal)
         self._actor, self._sid = principal.user.id, principal.session.digest
+        self._contexts = PlanningReadContexts(
+            sessions, principal, identity_provider, workspace_id, self._actor
+        )
         self._auth_time, self._expiry = (
             principal.session.authenticated_at,
             principal.session.expires_at,
@@ -85,8 +88,7 @@ class OwnedGoogleReportingContext:
         self, expected: ReportingScopeV1 | None
     ) -> tuple[ReportingScopeV1, str, str | None]:
         self._check_time()
-        with self._sessions() as db:
-            self._authorize(db, self._wid, self._actor)
+        with self._contexts.open() as db:
             session = db.get(CustomerSession, self._sid, populate_existing=True)
             if session is None or (session.authenticated_at, session.expires_at) != (
                 self._auth_time,
@@ -137,12 +139,15 @@ class OwnedGoogleReportingContext:
                 if read_selection(db, self._wid, self._aid) != self._selected.selection:
                     raise HTTPException(409, "Google reporting selection changed")
                 _aggregate(db, self._selected.aggregate)
-            self._authorize(db, self._wid, self._actor)
+            self._contexts.authorize(db, self._wid, self._actor)
             paid_work(db, self._wid, self._now())
             self._check_time()
-            if self._grant is None:
-                self._grant = grant
-            return scope, grant[0], grant[1]
+        # Context exit performs its final locked authority guard and closes SQL.
+        # Those waits must finish before the final operation-deadline sample.
+        self._check_time()
+        if self._grant is None:
+            self._grant = grant
+        return scope, grant[0], grant[1]
 
     def catalog_request(self) -> GoogleReportingCatalogRequestV1:
         if self._selected is not None:

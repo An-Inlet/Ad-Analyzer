@@ -31,7 +31,7 @@ from app.google_connections.selected_owned_context import OwnedGoogleReportingCo
 from app.google_connections.selected_presence import PRODUCER, query_profile_digest
 from fastapi import HTTPException
 from pydantic import SecretStr
-from sqlalchemy import Engine, select
+from sqlalchemy import Connection, Engine, select
 from sqlalchemy.orm import Session
 
 from tests.test_customer_identity import FakeProvider
@@ -176,6 +176,7 @@ class Fixture:
             assert current
             completion = db.get(PerformanceCompletion, current.completion_id)
             assert completion
+            db.rollback()  # Release preparation reads before identity/provider refresh.
             scope = self.resolver().catalog_request().scope
             selection = CustomerEventSelectionV1(
                 selection_id=uuid4().hex,
@@ -408,3 +409,81 @@ def test_capture_outer_deadline_cannot_be_extended(
     with pytest.raises(HTTPException):
         resolver.selected_context(request)
     assert len(f.calls) == calls_before
+
+
+def test_identity_refresh_never_holds_sql_transaction(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import event
+
+    f = Fixture(customer_engine)
+    active: set[int] = set()
+    checks = []
+
+    def begin(connection: Connection) -> None:
+        active.add(id(connection))
+
+    def finish(connection: Connection) -> None:
+        active.discard(id(connection))
+
+    def identity(subject: str, authenticated_at: int) -> None:
+        assert not active, "identity provider called while SQL transaction active"
+        checks.append((subject, authenticated_at))
+
+    event.listen(customer_engine, "begin", begin)
+    event.listen(customer_engine, "rollback", finish)
+    event.listen(customer_engine, "commit", finish)
+    monkeypatch.setattr(f.identity, "check_active", identity)
+    try:
+        resolver = f.resolver()
+        req = resolver.catalog_request()
+        catalog = GoogleReportingCatalogHTTP(
+            resolver.catalog_context,
+            resolver.revalidate_catalog,
+            transport=f.transport,
+            clock=lambda: f.clock,
+        )(req)
+        assert len(catalog.options) == 2 and len(checks) > 3 and not active
+    finally:
+        event.remove(customer_engine, "begin", begin)
+        event.remove(customer_engine, "rollback", finish)
+        event.remove(customer_engine, "commit", finish)
+
+
+def test_identity_refresh_revocation_observed_by_locked_snapshot(
+    customer_engine: Engine, configured: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    f = Fixture(customer_engine)
+    resolver = f.resolver()
+
+    def revoke(subject: str, authenticated_at: int) -> None:
+        with Session(customer_engine) as db:
+            session = db.get(CustomerSession, f.sid)
+            assert session
+            session.revoked_at = 1
+            db.commit()
+
+    monkeypatch.setattr(f.identity, "check_active", revoke)
+    with pytest.raises(HTTPException):
+        resolver.catalog_request()
+    assert not f.calls
+
+
+def test_deadline_after_context_exit_not_only_inside_body(
+    customer_engine: Engine, configured: None
+) -> None:
+    from sqlalchemy import event
+
+    f = Fixture(customer_engine)
+    resolver = f.resolver()
+
+    def closing_wait(connection: Connection) -> None:
+        f.clock += timedelta(seconds=61)
+
+    event.listen(customer_engine, "rollback", closing_wait)
+    try:
+        with pytest.raises(HTTPException, match="operation expired"):
+            resolver.catalog_request()
+        assert not f.calls
+    finally:
+        event.remove(customer_engine, "rollback", closing_wait)

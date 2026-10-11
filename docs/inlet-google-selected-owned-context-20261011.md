@@ -47,3 +47,20 @@ orchestration, actual September/August range provenance and live v24 capability 
 separate. Context is not finalization authority. Existing owner must be rechecked
 inside storage commit transaction. Required developer-token limitation retained.
 No Q01/Q02/live/purchasable qualification claim follows from these tests.
+
+## Independent Review: Identity IO Boundary Repaired
+
+The original bind_authority reused provider.check_active under SQL authorization
+locks, contradicting the promised no-provider-IO boundary. Replaced locally with
+PlanningReadContexts + loaded original snapshot: refresh before opening SQL, exact
+current owner/session/identity checks under locks using5s identity fact, final guard
+on context exit. Resolver deadline now sampled after final guard AND SQL close.
+No global authorization helper changed. Original authenticated_at/expiry remain pinned.
+
+Actual engine transaction instrumentation asserts identity-provider callbacks have
+no active SQL transaction; provider revocation is observed under subsequent locks;
+expiry during SQL-context close denies scope return. Full original tests retained.
+Final review run40passed onSQLite/PostgreSQL,0skips32.80s; wholeRuff/mypy1297 and
+diffcheckpass. Evidence review-final-both-db.xml/.log, review-final-ruff.log,
+review-final-mypy.log. Earlier review-both-db log preserves4 test-only missing type
+import failures (36passed), repaired before final run. No tests deselected in final.

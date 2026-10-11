@@ -34,3 +34,26 @@ This sheet does not request those approvals prematurely or authorize credentials
 live calls, purchases, advertising writes, public claims or default-policy changes.
 The qualified `9d7aa2e` evidence is preserved unchanged and does not qualify all
 subsequent commits automatically.
+
+## Decisions And Work That Can Proceed Independently
+
+Recommended decision now: appoint one advertising/ecommerce reviewer and use the
+existing provider-specific [review packet](inlet-creative-review-packet-20261011.md)
+for provisional written feedback. Do not approve release from this incomplete
+packet. Each of the following needs its own pass/fail and concrete correction:
+
+| Human decision | Recommended standard | Engineering that does not need to wait |
+| --- | --- | --- |
+| Are the facts and metrics right? | Accept only if the chosen conversion event, dates, currency and missing-data limits are clear and correct. | Verify exact numeric/source bindings and prepare the missing combined-platform artifact. |
+| Is the advice useful for this campaign? | Accept only if a customer can locate the campaign and follow specific steps, or understand why to leave it alone. | Improve traceable targets and surface prerequisites; collect reviewer corrections. |
+| Does the budget make sense? | Accept only if each alternative separately fits the approved ceiling and its tradeoffs are understandable. | Verify exact allocation/reserve arithmetic and keep alternatives separate. |
+| Is the reasoning honest? | Accept only if evidence, assumptions and uncertainty are distinguishable and no unsupported performance promise appears. | Check evidence links, timestamps and uncertainty labels. |
+| Can the creative actually be produced? | Accept only if the plan uses supplied facts and available capacity, with missing assets/permissions clearly identified. | Test input preservation, asset ownership and production-required labels; do not infer usage rights or visual quality. |
+| Are progress labels truthful? | Accept only if customer reports, observed provider data and proven outcomes remain distinct. | Test history/currentness and manual-action labels; prevent unverified success claims. |
+
+The owner or nominated expert supplies the judgments; automated tests cannot do so.
+The PostgreSQL conflict investigation, performance measurement, missing review
+artifacts and acceptance fixes can all proceed independently. Provisioning live
+services, selecting commercial terms, pilots, merge and deployment are separate
+future owner decisions. No credentials, spending or advertising writes are needed
+for the current review and engineering work.

@@ -36,6 +36,7 @@ from app.planning_documents.creative_plan_document import (
 )
 from app.planning_documents.creative_production_contracts import CreativeCompositionV1
 from app.planning_documents.creative_retained_proof import CreativeRetainedProofV1
+from app.planning_documents.empty_catalog_validation import validate_empty_catalog_proposals
 from app.planning_documents.fields import ProposedField
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
@@ -154,6 +155,19 @@ class PlanVersion(NoAuthority):
             self.selected_reporting_proof.assert_inputs(self.inputs, privacy)
         elif self.selected_reporting_proof is not None:
             raise ValueError("selected retained proof requires the exact v4 policy pair")
+        if creative_policy:
+            assert self.creative_composition is not None
+            assert self.selected_reporting_proof is not None
+            validate_empty_catalog_proposals(
+                inputs=self.inputs,
+                proposals=self.creative_composition.proposals,
+                actions=self.actions,
+                evidence=self.evidence,
+                sources=tuple(p.source_fence for p in self.selected_reporting_proof.accounts),
+                generated_at=self.generated_at,
+                valid_until=self.valid_until,
+                privacy_revision=self.evidence[0].privacy_revision,
+            )
         if (self.version == 1) != (self.parent_digest is None):
             raise ValueError("version ancestry required")
         created = (

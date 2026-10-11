@@ -27,6 +27,7 @@ from app.planning_documents.creative_plan_bundle import CreativePairedEvidenceV1
 from app.planning_documents.creative_plan_document import creative_basis_reference
 from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.empty_catalog_validation import assert_empty_catalog_bindings
 from app.planning_documents.events import CustomerDecision, ManualAssertion
 from app.planning_documents.generation_ports import GenerationEvidence
 from app.planning_documents.models import (
@@ -535,6 +536,11 @@ def save_generation(
     ):
         raise changed("candidate target differs from actual owned catalog")
     check_allocations(ticket.inputs, actual.catalogs)
+    if candidate.creative_composition is not None:
+        try:
+            assert_empty_catalog_bindings(candidate.creative_composition.proposals, actual.catalogs)
+        except ValueError as error:
+            raise changed("empty catalog witness differs from actual collected evidence") from error
     paid_work(db, wid, now)
     check_goal(db, ticket.inputs, now)
     check_accounts(db, ticket.inputs)

@@ -67,7 +67,11 @@ class RetainedSourceWitness(Frozen):
     connection_id: Positive | None
     store_id: Id | None
     kind: Literal[
-        "local_reporting_v1", "local_reporting_v2", "local_reporting_v3", "local_commerce_v1"
+        "local_reporting_v1",
+        "local_reporting_v2",
+        "local_reporting_v3",
+        "local_commerce_v1",
+        "local_creative_basis_v1",
     ]
     source_binding_digest: Digest
     document_digest: Digest
@@ -88,6 +92,14 @@ class RetainedSourceWitness(Frozen):
                 or self.evidence_key != f"local:reporting:{self.account_id}"
             ):
                 raise ValueError("exact reporting proof scope required")
+        elif self.kind == "local_creative_basis_v1":
+            if (
+                self.account_id is not None
+                or self.connection_id is not None
+                or self.store_id is not None
+                or self.evidence_key != "local:creative:basis"
+            ):
+                raise ValueError("exact creative proof scope required")
         elif (
             self.account_id is not None
             or self.connection_id is not None

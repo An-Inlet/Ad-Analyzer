@@ -1,4 +1,4 @@
-"""Historical v4 integrity only; callers retain current viewer/lifecycle authority.
+"""Historical v4/v5 integrity only; callers retain current viewer/lifecycle authority.
 
 No current source, selection head, session, or observation TTL is consulted here.
 Opaque original aggregate/map commitments are bound, not reconstructed as facts.
@@ -18,11 +18,8 @@ from app.planning_documents.common import MAX_ACCOUNTS, MAX_EVIDENCE
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow, PlanVersionRow
 from app.planning_documents.retained_sources import RetainedSourceWitness, _row
-from app.planning_documents.selected_inputs import (
-    SELECTED_GENERATOR_VERSION,
-    SELECTED_POLICY_VERSION,
-)
 from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
+from app.planning_documents.selected_policy_contract import selected_policy_contract
 from app.planning_documents.selected_traffic_reader import validate_historical_raw_range_traffic
 from app.planning_documents.storage import document_for_row
 from app.shopify.security import utc
@@ -51,17 +48,20 @@ def validate_selected_historical_dependencies(
 ) -> tuple[SelectedPlanPinV1, ...]:
     """Validate the complete saved dependency set; returned pins still need SQL checks."""
     document = PlanVersion.model_validate(document)
+    contract = selected_policy_contract(document.policy_version, document.generator_version)
     proof = document.selected_reporting_proof
-    if (
-        (document.policy_version, document.generator_version)
-        != (SELECTED_POLICY_VERSION, SELECTED_GENERATOR_VERSION)
-        or proof is None
-        or len(dependencies) > MAX_EVIDENCE + MAX_ACCOUNTS + 1
+    if proof is None or len(dependencies) > MAX_EVIDENCE + MAX_ACCOUNTS + 1 + int(
+        contract.requires_creative
     ):
         raise ValueError("selected historical proof required")
     rows = {row.evidence_key: _row(row) for row in dependencies}
     if len(rows) != len(dependencies):
         raise ValueError("duplicate historical dependency")
+    if contract.requires_creative:
+        from app.planning_documents.creative_history import validate_creative_local_dependency
+
+        validate_creative_local_dependency(document, dependencies)
+        rows.pop("local:creative:basis")
     common: dict[str, Any] = dict(
         workspace_id=document.inputs.workspace_id,
         plan_id=document.inputs.plan_id,
@@ -158,6 +158,7 @@ def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
     )
     if row is None or document_for_row("planning_document_versions", dict(row)) != document:
         raise ValueError("exact retained selected plan required")
+    contract = selected_policy_contract(document.policy_version, document.generator_version)
     dependencies = tuple(
         db.scalars(
             select(PlanDependencyRow)
@@ -166,7 +167,7 @@ def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
                 PlanDependencyRow.plan_id == document.inputs.plan_id,
                 PlanDependencyRow.version == document.version,
             )
-            .limit(MAX_EVIDENCE + MAX_ACCOUNTS + 2)
+            .limit(MAX_EVIDENCE + MAX_ACCOUNTS + 2 + int(contract.requires_creative))
             .execution_options(populate_existing=True)
         )
     )

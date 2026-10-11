@@ -41,10 +41,11 @@ from app.planning_documents.retained_sources import (
     capture_retained_sources,
     recheck_retained_sources,
 )
+from app.planning_documents.selected_paired_evidence import SelectedPairedEvidenceV1
 from app.planning_documents.storage import canonical, document_for_row
 from app.planning_documents.window_evidence import WindowEvidenceBundleV1
 from app.publication import customer_intents
-from app.shopify.security import ShopifyError
+from app.shopify.security import ShopifyError, utc
 
 
 def changed(reason: str) -> HTTPException:
@@ -295,7 +296,7 @@ def save_event(
     if not retracting:
         if (
             version_row.privacy_revision != workspace_export_revision(db, event.workspace_id)
-            or now >= document.valid_until
+            or utc(now) >= utc(document.valid_until)
         ):
             raise changed("plan evidence expired or changed")
         check_goal(db, document.inputs, now)
@@ -339,7 +340,7 @@ def save_event(
         if not isinstance(old, ManualAssertion) or old.assertion != "customer_reports_applied":
             raise changed("manual report already retracted")
     authority.final(current, fact)
-    if not retracting and max(now, database_utc_now(db)) >= document.valid_until:
+    if not retracting and max(utc(now), database_utc_now(db)) >= utc(document.valid_until):
         raise changed("plan evidence expired")
     sequence = expected_sequence + 1
     updated = db.scalar(
@@ -417,7 +418,11 @@ def save_generation(
     except ValueError as error:
         raise changed("unknown planning policy or generator") from error
     expected_bundle = (
-        WindowEvidenceBundleV1 if capability.mode == "presence_requested_window" else EvidenceBundle
+        SelectedPairedEvidenceV1
+        if capability.mode == "selected_requested_window"
+        else WindowEvidenceBundleV1
+        if capability.mode == "presence_requested_window"
+        else EvidenceBundle
     )
     if capability != candidate_capability or not isinstance(bundle, expected_bundle):
         raise changed("planning evidence policy differs")
@@ -455,22 +460,30 @@ def save_generation(
         _, prior_version = version(db, plan)
         if prior_version.digest() != ticket.expected_parent_digest:
             raise changed("generation parent changed")
+    actual = bundle.selected if isinstance(bundle, SelectedPairedEvidenceV1) else bundle
+    if (
+        isinstance(bundle, SelectedPairedEvidenceV1)
+        and candidate.selected_reporting_proof != bundle.selected.reporting_proof
+    ):
+        raise changed("candidate selected proof differs from actual read bundle")
     refs = (
-        [item.reference for item in bundle.catalogs]
-        + [item.reference for item in bundle.performance]
-        + [item.reference for item in bundle.context]
+        [item.reference for item in actual.catalogs]
+        + [item.reference for item in actual.performance]
+        + [item.reference for item in actual.context]
     )
-    if bundle.commerce is not None:
-        refs.append(bundle.commerce.reference)
+    if actual.commerce is not None:
+        refs.append(actual.commerce.reference)
+    if isinstance(bundle, SelectedPairedEvidenceV1):
+        refs.extend(item.reference for item in bundle.traffic)
     if (
         {ref.key: ref for ref in candidate.evidence} != {ref.key: ref for ref in refs}
         or any(ref.privacy_revision != ticket.privacy_revision for ref in candidate.evidence)
-        or candidate.valid_until > min(ref.expires_at for ref in refs)
+        or utc(candidate.valid_until) > min(utc(ref.expires_at) for ref in refs)
     ):
         raise changed("candidate evidence differs from actual read bundle")
     actual_targets = {
         target.canonical_entity_key: target
-        for catalog in bundle.catalogs
+        for catalog in actual.catalogs
         for target in targets(catalog)
     }
     proposed_targets = [action.target for action in candidate.actions]
@@ -496,7 +509,7 @@ def save_generation(
     except RetainedSourcesChanged as error:
         raise changed(error.reason) from error
     authority.final(current, fact)
-    if max(now, database_utc_now(db)) >= candidate.valid_until:
+    if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
     updated = db.scalar(
         update(PlanRow)
@@ -567,5 +580,7 @@ def save_generation(
         )
     )
     db.flush()
+    if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
+        raise changed("generation evidence expired")
     authority.final(current, fact)
     return candidate

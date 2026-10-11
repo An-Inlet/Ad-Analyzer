@@ -36,7 +36,10 @@ from app.planning_documents.models import (
     PlanRow,
     PlanVersionRow,
 )
-from app.planning_documents.policy_capabilities import ticket_reporting_capability
+from app.planning_documents.policy_capabilities import (
+    reporting_capability,
+    ticket_reporting_capability,
+)
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.progress_contracts import PlanSalesProgressV1, project_sales_progress
 from app.planning_documents.requests import (
@@ -57,7 +60,11 @@ from app.planning_documents.responses import (
     VersionResult,
 )
 from app.planning_documents.retained_sources import RetainedSourcesChanged, recheck_retained_sources
+from app.planning_documents.selected_composer import SelectedPlanComposer
 from app.planning_documents.selected_inputs import reject_legacy_selected
+from app.planning_documents.selected_paired_evidence import SelectedPairedEvidenceV1
+from app.planning_documents.selected_paired_local import recheck_selected_paired_sources
+from app.planning_documents.selected_paired_reader import OwnedSelectedPairedReader
 from app.planning_documents.storage import document_for_row
 from app.planning_documents.window_adapter import OwnedWindowEvidenceReader
 from app.planning_documents.window_composer import WindowPlanComposer
@@ -98,15 +105,27 @@ class PlanningDocumentService:
         engine: Engine,
         provider: IdentityProvider,
         clock: Callable[[], datetime] = utc_now,
+        *,
+        policy: PlanningCompositionPolicy | None = None,
     ) -> None:
         self.engine = engine
         self.provider = provider
         self.clock = clock
-        self.policy = PlanningCompositionPolicy(
-            version="inlet.descriptive-review.v3", generator_version="inlet.descriptive-planning.v3"
+        self.policy = (
+            PlanningCompositionPolicy.model_validate(policy)
+            if policy is not None
+            else PlanningCompositionPolicy(
+                version="inlet.descriptive-review.v3",
+                generator_version="inlet.descriptive-planning.v3",
+            )
         )
+        if reporting_capability(
+            self.policy.version, self.policy.generator_version
+        ) != ticket_reporting_capability(self.policy.version, self.policy.digest()):
+            raise ValueError("exact canonical planning policy required")
         self.composer = DescriptivePlanComposer()
         self.window_composer = WindowPlanComposer()
+        self.selected_composer = SelectedPlanComposer()
 
     def create(self, principal: CustomerPrincipal, wid: int, request: CreatePlan) -> InputResult:
         request = CreatePlan.model_validate(request)
@@ -129,6 +148,12 @@ class PlanningDocumentService:
                 self.policy.version,
                 self.policy.generator_version,
             )
+            if (
+                reporting_capability(self.policy.version, self.policy.generator_version).mode
+                == "selected_requested_window"
+                and request.inputs.selected_reporting is None
+            ):
+                raise ValueError("explicit selected reporting selectors required")
         except ValueError as error:
             raise repository.changed(str(error)) from error
         operation = "revise" if isinstance(request, EditPlan) else "create"
@@ -292,6 +317,12 @@ class PlanningDocumentService:
                 reject_legacy_selected(
                     inputs.selected_reporting, self.policy.version, self.policy.generator_version
                 )
+                if (
+                    reporting_capability(self.policy.version, self.policy.generator_version).mode
+                    == "selected_requested_window"
+                    and inputs.selected_reporting is None
+                ):
+                    raise ValueError("explicit selected reporting selectors required")
             except ValueError as error:
                 raise repository.changed(str(error)) from error
 
@@ -320,7 +351,9 @@ class PlanningDocumentService:
         except ValueError as error:
             raise repository.changed("unknown configured planning policy") from error
         reader_type = (
-            OwnedWindowEvidenceReader
+            OwnedSelectedPairedReader
+            if capability.mode == "selected_requested_window"
+            else OwnedWindowEvidenceReader
             if capability.mode == "presence_requested_window"
             else OwnedPlanningEvidenceReader
         )
@@ -331,9 +364,16 @@ class PlanningDocumentService:
             policy=self.policy,
             clock=self.clock,
         )
-        bundle = reader.collect(ticket)
+        try:
+            bundle = reader.collect(ticket)
+        except (ValueError, RetainedSourcesChanged) as error:
+            if capability.mode != "selected_requested_window":
+                raise
+            raise repository.changed("selected reporting integrity unavailable") from error
         expected_bundle = (
-            WindowEvidenceBundleV1
+            SelectedPairedEvidenceV1
+            if capability.mode == "selected_requested_window"
+            else WindowEvidenceBundleV1
             if capability.mode == "presence_requested_window"
             else EvidenceBundle
         )
@@ -344,7 +384,13 @@ class PlanningDocumentService:
         except ValueError as error:
             raise repository.changed("planning evidence does not match generation") from error
         try:
-            if capability.mode == "presence_requested_window":
+            if capability.mode == "selected_requested_window":
+                if not isinstance(bundle, SelectedPairedEvidenceV1):
+                    raise repository.changed("selected paired evidence required")
+                candidate = self.selected_composer.compose(
+                    ticket=ticket, evidence=bundle, policy=self.policy, generated_at=self.clock()
+                )
+            elif capability.mode == "presence_requested_window":
                 if not isinstance(bundle, WindowEvidenceBundleV1):
                     raise repository.changed("requested-window evidence required")
                 candidate = self.window_composer.compose(
@@ -378,26 +424,43 @@ class PlanningDocumentService:
             actual_bundle: GenerationEvidence,
             now: datetime,
         ) -> None:
-            if isinstance(actual_bundle, WindowEvidenceBundleV1):
+            if isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
 
                 def authorize(db: Session, workspace_id: int, actor: str) -> None:
                     if actor != current.user.id:
                         raise repository.changed("original generation actor changed")
                     authority.lock(db, current, workspace_id, fact)
 
-                recheck_window_sources(
-                    db,
-                    principal=current,
-                    ticket=actual_ticket,
-                    bundle=actual_bundle,
-                    authorize=authorize,
-                    clock=self.clock,
-                )
+                if isinstance(actual_bundle, SelectedPairedEvidenceV1):
+                    try:
+                        recheck_selected_paired_sources(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            bundle=actual_bundle,
+                            authorize=authorize,
+                            clock=self.clock,
+                        )
+                    except (ValueError, RetainedSourcesChanged) as error:
+                        raise repository.changed(
+                            "selected reporting integrity unavailable"
+                        ) from error
+                    actual_catalogs = actual_bundle.selected.catalogs
+                else:
+                    recheck_window_sources(
+                        db,
+                        principal=current,
+                        ticket=actual_ticket,
+                        bundle=actual_bundle,
+                        authorize=authorize,
+                        clock=self.clock,
+                    )
+                    actual_catalogs = actual_bundle.catalogs
                 recheck_saved_input_receipts(
                     db,
                     principal=current,
                     ticket=actual_ticket,
-                    catalogs=actual_bundle.catalogs,
+                    catalogs=actual_catalogs,
                     now=self.clock(),
                 )
             else:
@@ -633,7 +696,7 @@ class PlanningDocumentService:
                         "input_changed",
                         ("Current plan inputs differ from this version.",),
                     )
-                elif self.clock() >= document.valid_until:
+                elif utc(self.clock()) >= utc(document.valid_until):
                     freshness, reasons = (
                         "expired",
                         ("The retained source observation has expired.",),
@@ -673,7 +736,7 @@ class PlanningDocumentService:
             if (
                 document is not None
                 and freshness == "current"
-                and max(self.clock(), database_utc_now(db)) >= document.valid_until
+                and max(utc(self.clock()), database_utc_now(db)) >= utc(document.valid_until)
             ):
                 freshness, reasons = "expired", ("The retained source observation has expired.",)
             return PlanReadResult.model_validate(

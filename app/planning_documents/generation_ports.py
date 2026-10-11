@@ -3,9 +3,10 @@
 from typing import Protocol
 
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket
+from app.planning_documents.selected_paired_evidence import SelectedPairedEvidenceV1
 from app.planning_documents.window_evidence import WindowEvidenceBundleV1
 
-GenerationEvidence = EvidenceBundle | WindowEvidenceBundleV1
+GenerationEvidence = EvidenceBundle | WindowEvidenceBundleV1 | SelectedPairedEvidenceV1
 
 
 class GenerationEvidenceReader(Protocol):

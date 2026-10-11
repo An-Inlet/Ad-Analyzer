@@ -1,4 +1,4 @@
-"""Selector-only foundation: no v4 capability or selected-evidence qualification."""
+"""Selector contracts preserve legacy rejection and explicit v4 recognition."""
 
 import hashlib
 import json
@@ -118,7 +118,7 @@ def test_invalid_selectors_rejected_even_unsafe_copy(kind: str) -> None:
 
 
 @pytest.mark.parametrize("version", [1, 2, 3])
-def test_legacy_rejects_even_explicit_empty_and_v4_still_unavailable(version: int) -> None:
+def test_legacy_rejects_even_explicit_empty_and_v4_is_explicit(version: int) -> None:
     with pytest.raises(ValueError, match="selected reporting"):
         reject_legacy_selected(
             (), f"inlet.descriptive-review.v{version}", f"inlet.descriptive-planning.v{version}"
@@ -126,8 +126,9 @@ def test_legacy_rejects_even_explicit_empty_and_v4_still_unavailable(version: in
     reject_legacy_selected(
         None, f"inlet.descriptive-review.v{version}", f"inlet.descriptive-planning.v{version}"
     )
-    with pytest.raises(ValueError, match="unknown"):
-        reporting_capability(SELECTED_POLICY_VERSION, SELECTED_GENERATOR_VERSION)
+    capability = reporting_capability(SELECTED_POLICY_VERSION, SELECTED_GENERATOR_VERSION)
+    assert capability.mode == "selected_requested_window"
+    assert capability.local_witness_kind == "local_reporting_v3"
 
 
 def test_direct_legacy_composers_reject_selectors() -> None:

@@ -22,8 +22,9 @@ default policy fields/digest. This does not register v5 in existing capability
 dispatch. Every supplied catalog must validate, belong to an exact input account
 and have a unique account/key. References cannot collide with catalog keys.
 Missing account catalogs remain explicit limitations, never fallback identities.
-Require basis workspace, currency and privacy to agree with inputs and every
-supplied catalog privacy revision. All nested values are revalidated.
+Require basis workspace and currency to agree with inputs, and basis privacy
+revision to agree with every supplied catalog privacy revision. Inputs do not
+themselves carry a privacy revision. All nested values are revalidated.
 
 ## Output Contracts
 

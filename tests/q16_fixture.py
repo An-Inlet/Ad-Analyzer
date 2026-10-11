@@ -1,6 +1,7 @@
 """Explicit dated Q16 fixture; actual services/HTTP, no execution or ready-made plans."""
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -171,6 +172,8 @@ def prepare_q16_basis(
     branch: Literal["privacy", "progress"],
     native_calls: list[str],
     generation_stage: Literal["nov3", "october"] = "nov3",
+    native_account_factory: Callable[[Engine, int, pytest.MonkeyPatch, list[str]], int]
+    | None = None,
 ) -> Q16Basis:
     now = datetime.now(UTC)
     assert now < NOV3 and now.year == 2026 and now.month == 10
@@ -238,7 +241,7 @@ def prepare_q16_basis(
     )
     assert confirmed.status_code == 200, confirmed.text
     generation_at = NOV3 if generation_stage == "nov3" else datetime.now(UTC)
-    aid = native_account(engine, wid, patch, native_calls)
+    aid = (native_account_factory or native_account)(engine, wid, patch, native_calls)
     paid(engine, wid, generation_at, patch)
     with Session(engine) as db:
         if generation_stage == "nov3":

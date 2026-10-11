@@ -66,12 +66,38 @@ Frozen `9d7aa2e1193ec627b33088764210f94e49cf504d` remains separately qualified b
 JUnit and database-dump checks remain preserved. This predecessor qualification
 does not automatically qualify successor code. [Exact W1 result](inlet-w1-validation-result-20261011.md).
 
+## Latest Private Service Checkpoint
+
+Integrated through `b16dc15`: genuine creative history, combined owned collection,
+retained currentness and atomic private service are review-closed. `4100fe5` admits
+exact canonical V5 only with an explicit private MediaStore; default V3 is unchanged.
+V4/V5 are internal policy/generator contracts, not product release milestones.
+
+- `dc15f7b`, `e478b4b`, `b861f77`: genuine upload/input/generation/history/export/
+  correction/erasure and precise rollback; final normal28 both-database cases passed
+  in319.863s. Query reuse preserves independent fresh passes. Earlier timeout remains
+  recorded; measured SQL reduction is not a latency-improvement claim.
+- `db4a220`: actual six-second delay after retained capture rejected on both
+  databases with no generation effects; unchanged five-second authority limit.
+- `21d525b` (author `cddb289`): Common Basis24 both-database/new-and-preservation
+  cases passed215.890s. Twenty new genuine synthetic document/export artifacts have
+  independently verified byte hashes and strict document digests. Positive10, zero
+  and missing Google conversions remain distinct; Meta/TikTok creative production
+  uses typed product/price/image evidence without inventing supported reporting.
+- Root whole Ruff and configured mypy passed1,411 files. These focused checks are
+  not an exhaustive successor qualification or a live, browser or expert verdict.
+
+[Runtime ledger](inlet-creative-runtime-qualification-20261011.md),
+[Common Basis ledger](inlet-creative-common-basis-package-20261011.md), and
+[six owner quality decisions](inlet-owner-quality-gates-20261011.md) record the
+checks, preserved failures, artifacts and remaining judgments.
+
 ## Remaining Work And Holds
 
 - Complete expert review of the actual Q01/Q02 artifacts. Mechanical assertions
-  now use the unchanged frozen Common Basis. Image ownership/integrity in the
-  fixture does not mean the current planner consumes a typed media witness or
-  understands its pixels. Production creative usefulness remains unqualified.
+  now use the unchanged frozen Common Basis. The private V5 planner consumes
+  typed owned image witnesses and verifies bytes, but does not assess visual
+  suitability or rights. Production creative usefulness remains unqualified.
 - Preserve and complete Q03–Q16 provider-alone, cross-platform, native-budget,
   constraints, corrections/reconnect, progress and privacy acceptance. No selected
   event or comparable-attribution semantics are invented for unsupported sources.
@@ -86,10 +112,10 @@ does not automatically qualify successor code. [Exact W1 result](inlet-w1-valida
 No new pull request or remote push occurred in this continuation. Prior draft PRs
 remain recorded in historical ledgers; remote status was not refreshed during the
 hold. Hosted runs/retries, pushes, merge and deployment remain held. Routine offline
-engineering continues without package-by-package approval. Next packages are the
-complete creative history dependencies, owned combined collection and atomic
-retention/currentness for Q03/Q04. Private image pins, exact policy contract,
-retained proof, SQL recheck and genuine pure v5 document/composer are now implemented
-and independently reviewed; the customer service still refuses v5 registration.
-[Exact creative integration](inlet-creative-proof-integration-20261011.md) records
-all package commits, checks and retained failures. No default activation is implied.
+engineering continues without package-by-package approval. Next is the bounded
+private portal capability/product/image flow and actual browser qualification.
+The existing portal rejects the V5 capability and omits creative input; the API
+qualification does not claim that gap is closed. The portal design is under review,
+with PNG/JPEG scope matching the existing server contract. Default activation,
+public webpage work and live release remain separate. No human expert gate is
+closed by these internal technical versions or by automated test passes.

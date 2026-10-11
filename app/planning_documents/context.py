@@ -215,6 +215,7 @@ class EvidenceRef(Frozen):
         "shopify_measurement",
         "planning_policy",
         "customer_context",
+        "creative_basis",
     ]
     account: AccountRef | None
     document_schema: Title

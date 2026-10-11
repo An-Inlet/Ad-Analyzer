@@ -118,7 +118,9 @@ def test_reserved_v5_cannot_parse_an_unproved_creative_document() -> None:
             "generator_version": "inlet.descriptive-planning.v5",
         }
     )
-    with pytest.raises(ValidationError, match="creative document proof"):
+    with pytest.raises(
+        ValidationError, match="complete creative document proof and composition required"
+    ):
         reserved.digest()
 
 

@@ -25,7 +25,17 @@ from app.planning_documents.common import (
     unique,
 )
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
-from app.planning_documents.creative_inputs import validate_creative_policy
+from app.planning_documents.creative_inputs import (
+    CREATIVE_GENERATOR_VERSION,
+    CREATIVE_POLICY_VERSION,
+    validate_creative_policy,
+)
+from app.planning_documents.creative_plan_document import (
+    creative_instant,
+    validate_creative_document,
+)
+from app.planning_documents.creative_production_contracts import CreativeCompositionV1
+from app.planning_documents.creative_retained_proof import CreativeRetainedProofV1
 from app.planning_documents.fields import ProposedField
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
@@ -56,18 +66,78 @@ class PlanVersion(NoAuthority):
     quality_status: Literal["not_expert_qualified"] = "not_expert_qualified"
     selected_reporting_proof: SelectedRetainedProofV1 | None = None
 
+    creative_proof: CreativeRetainedProofV1 | None = None
+    creative_composition: CreativeCompositionV1 | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def creative_instants(cls, value: Any) -> Any:
+        # Normalize only the new v5 path, before nested EvidenceRef's legacy
+        # wall-clock comparisons. Existing policy serialization is untouched.
+        if isinstance(value, cls):
+            raw = dict(value.__dict__)
+        elif isinstance(value, dict):
+            raw = dict(value)
+        else:
+            return value
+        if (raw.get("policy_version"), raw.get("generator_version")) != (
+            CREATIVE_POLICY_VERSION,
+            CREATIVE_GENERATOR_VERSION,
+        ):
+            return value
+        for key in ("generated_at", "valid_until"):
+            if key in raw:
+                raw[key] = creative_instant(raw[key])
+        if isinstance(raw.get("evidence"), (list, tuple)):
+            refs = []
+            for ref in raw["evidence"]:
+                if not isinstance(ref, (EvidenceRef, dict)):
+                    refs.append(ref)
+                    continue
+                item = ref.model_dump() if isinstance(ref, EvidenceRef) else dict(ref)
+                for key in ("observation_started_at", "observed_at", "expires_at"):
+                    if key in item:
+                        item[key] = creative_instant(item[key])
+                refs.append(item)
+            raw["evidence"] = tuple(refs)
+        return raw
+
     @model_serializer(mode="wrap")
     def serialize_selected_proof(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         result: dict[str, Any] = handler(self)
         if self.selected_reporting_proof is None:
             result.pop("selected_reporting_proof", None)
+        if self.creative_proof is None:
+            result.pop("creative_proof", None)
+        if self.creative_composition is None:
+            result.pop("creative_composition", None)
         return result
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
         validate_creative_policy(self.inputs.creative, self.policy_version, self.generator_version)
-        if self.inputs.creative is not None:
-            raise ValueError("typed creative document proof is not yet available")
+        creative_policy = (self.policy_version, self.generator_version) == (
+            CREATIVE_POLICY_VERSION,
+            CREATIVE_GENERATOR_VERSION,
+        )
+        if creative_policy:
+            if self.creative_proof is None or self.creative_composition is None:
+                raise ValueError("complete creative document proof and composition required")
+            validate_creative_document(
+                inputs=self.inputs,
+                proof=self.creative_proof,
+                composition=self.creative_composition,
+                evidence=self.evidence,
+                actions=self.actions,
+                briefs=self.briefs,
+                valid_until=self.valid_until,
+            )
+        elif (
+            self.creative_proof is not None
+            or self.creative_composition is not None
+            or any(ref.kind == "creative_basis" for ref in self.evidence)
+        ):
+            raise ValueError("creative document evidence requires exact v5 policy")
         reject_legacy_selected(
             self.inputs.selected_reporting, self.policy_version, self.generator_version
         )
@@ -75,7 +145,7 @@ class PlanVersion(NoAuthority):
             SELECTED_POLICY_VERSION,
             SELECTED_GENERATOR_VERSION,
         )
-        if selected_policy:
+        if selected_policy or creative_policy:
             if self.selected_reporting_proof is None:
                 raise ValueError("selected planning requires retained proof")
             privacy = self.evidence[0].privacy_revision
@@ -86,7 +156,10 @@ class PlanVersion(NoAuthority):
             raise ValueError("selected retained proof requires the exact v4 policy pair")
         if (self.version == 1) != (self.parent_digest is None):
             raise ValueError("version ancestry required")
-        if not self.inputs.created_at <= self.generated_at < self.valid_until:
+        created = (
+            creative_instant(self.inputs.created_at) if creative_policy else self.inputs.created_at
+        )
+        if not created <= self.generated_at < self.valid_until:
             raise ValueError("ordered document validity required")
         for values, label in (
             (tuple(e.key for e in self.evidence), "evidence"),

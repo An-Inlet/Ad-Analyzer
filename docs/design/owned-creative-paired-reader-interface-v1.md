@@ -43,3 +43,10 @@ plan/version/receipt, and no capability registration. Unexpected provider/storag
 clock errors preserve the reviewed underlying boundaries. Run whole Ruff/configured
 mypy; coordinate PostgreSQL. This is not actual customer v5 API generation or full
 frozen Q03/Q04 acceptance, which still needs atomic service/history wiring.
+
+Review clarification: after the final context exits, resample the strict aware UTC
+clock. Require it no earlier than ticket preparation, selected collection and all
+image observations, and strictly before every original catalog/performance/commerce/
+context/traffic reference expiry. Context-exit SQL may itself wait; an earlier
+recheck is insufficient. Do not extend deadlines. Test exit delay crossing the
+earliest expiry. Unexpected clock callback errors still propagate unchanged.

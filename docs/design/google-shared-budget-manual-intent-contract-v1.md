@@ -277,3 +277,15 @@ strict owner/intent/currentness plus zero-compatible period checks; **this stand
 slice does not qualify that setting**. No default automatic code or spend authority.
 The future exact-positive-advice gap is a concrete product/evidence constraint, not
 an owner permission request to proceed with independently useful proof engineering.
+
+Recognized coverage clarification: native campaign AND metadata campaign entries
+must each be exactly `complete`, `provider_campaigns`, no reasons, and their counts
+must equal their actual represented campaign rows. The overall EvidenceRef may
+remain `partial` because unrelated native adgroups are unavailable; do not require
+whole-reference completeness or infer native child settings. For every owner member,
+metadata status must equal its native ENABLED/PAUSED/REMOVED status. Contradictions
+or unknown statuses reject; membership then follows the explicit collector predicate
+and retains removed observations separately. Budget must be ENABLED/STANDARD/DAILY
+in micros with total_amount_micros exactly None. Actual save compares the full
+canonical original catalog despite opaque inventory hashes; self-consistent hashes
+alone never establish authentic acquisition.

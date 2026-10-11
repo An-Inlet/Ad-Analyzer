@@ -224,46 +224,73 @@ class SelectedTrafficWindowV1(Frozen):
 def project_raw_range_traffic(
     graph: RawRangeTrafficGraphV1, *, campaign_id: int, requested_window: ReportingWindow
 ) -> SelectedTrafficWindowV1:
-    graph = RawRangeTrafficGraphV1.model_validate(graph)
-    requested_window = _window(requested_window)
-    mapping = {x.campaign_id: x.native_campaign_id for x in graph.campaigns}
-    if type(campaign_id) is not int or campaign_id not in mapping:
-        raise ValueError("traffic campaign absent from mapping")
-    starts, ends = selected_local_days(
-        requested_window, time_zone=graph.header.time_zone, completed_at=graph.header.completed_at
-    )
-    if not graph.receipt.requested_starts_on <= starts <= ends <= graph.receipt.requested_ends_on:
-        raise ValueError("traffic window outside captured interval")
-    rows = [
-        x for x in graph.facts if x.campaign_id == campaign_id and starts <= x.metric_date <= ends
-    ]
-    days = (ends - starts).days + 1
+    return PreparedRawRangeTrafficProjection(graph).read(campaign_id, requested_window)
 
-    def summary(name: str) -> TrafficMetricSummaryV1:
-        return TrafficMetricSummaryV1(
-            value=sum(getattr(x, name).value for x in rows) if rows else None,
-            present_days=len(rows),
-            missing_days=days - len(rows),
-            unsupported_days=0,
-            legacy_unknown_days=0,
-            coverage="observed_requested_days"
-            if len(rows) == days
-            else "partial"
-            if rows
-            else "unavailable",
+
+class PreparedRawRangeTrafficProjection:
+    """Validate and index the immutable graph once; caller still owns SQL authority."""
+
+    def __init__(self, graph: RawRangeTrafficGraphV1) -> None:
+        self._graph = RawRangeTrafficGraphV1.model_validate(graph)
+        self._pin = self._graph._pin()
+        self._mapping = {x.campaign_id: x.native_campaign_id for x in self._graph.campaigns}
+        self._rows: dict[int, list[ReportedMetricPresenceV1]] = {}
+        for fact in self._graph.facts:
+            self._rows.setdefault(fact.campaign_id, []).append(fact)
+
+    @property
+    def pin(self) -> SelectedTrafficPinV1:
+        return self._pin
+
+    def snapshot(self) -> RawRangeTrafficGraphV1:
+        return self._graph
+
+    def read(self, campaign_id: int, requested_window: ReportingWindow) -> SelectedTrafficWindowV1:
+        graph = self._graph
+        mapping = self._mapping
+        requested_window = _window(requested_window)
+        if type(campaign_id) is not int or campaign_id not in mapping:
+            raise ValueError("traffic campaign absent from mapping")
+        starts, ends = selected_local_days(
+            requested_window,
+            time_zone=graph.header.time_zone,
+            completed_at=graph.header.completed_at,
         )
+        if (
+            not graph.receipt.requested_starts_on
+            <= starts
+            <= ends
+            <= graph.receipt.requested_ends_on
+        ):
+            raise ValueError("traffic window outside captured interval")
+        rows = [x for x in self._rows.get(campaign_id, ()) if starts <= x.metric_date <= ends]
+        days = (ends - starts).days + 1
 
-    return SelectedTrafficWindowV1(
-        pin=graph._pin(),
-        requested_window=requested_window,
-        campaign_id=campaign_id,
-        native_campaign_id=mapping[campaign_id],
-        starts_on=starts,
-        ends_on=ends,
-        requested_days=days,
-        returned_days=len(rows),
-        missing_calendar_days=days - len(rows),
-        impressions=summary("impressions"),
-        clicks=summary("clicks"),
-        spend_micros=summary("spend_micros"),
-    )
+        def summary(name: str) -> TrafficMetricSummaryV1:
+            return TrafficMetricSummaryV1(
+                value=sum(getattr(x, name).value for x in rows) if rows else None,
+                present_days=len(rows),
+                missing_days=days - len(rows),
+                unsupported_days=0,
+                legacy_unknown_days=0,
+                coverage="observed_requested_days"
+                if len(rows) == days
+                else "partial"
+                if rows
+                else "unavailable",
+            )
+
+        return SelectedTrafficWindowV1(
+            pin=self._pin,
+            requested_window=requested_window,
+            campaign_id=campaign_id,
+            native_campaign_id=mapping[campaign_id],
+            starts_on=starts,
+            ends_on=ends,
+            requested_days=days,
+            returned_days=len(rows),
+            missing_calendar_days=days - len(rows),
+            impressions=summary("impressions"),
+            clicks=summary("clicks"),
+            spend_micros=summary("spend_micros"),
+        )

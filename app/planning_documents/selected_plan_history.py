@@ -15,13 +15,14 @@ from app.campaign_performance.selected_contracts import selected_capture_digest
 from app.campaign_performance.selected_storage import historical_capture
 from app.planning_documents.common import MAX_ACCOUNTS, MAX_EVIDENCE
 from app.planning_documents.documents import PlanVersion
-from app.planning_documents.models import PlanDependencyRow
+from app.planning_documents.models import PlanDependencyRow, PlanVersionRow
 from app.planning_documents.retained_sources import RetainedSourceWitness, _row
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
     SELECTED_POLICY_VERSION,
 )
 from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
+from app.planning_documents.storage import document_for_row
 from app.shopify.security import utc
 
 
@@ -142,6 +143,19 @@ def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
         or db.deleted
     ):
         raise ValueError("clean historical read transaction required")
+    row = (
+        db.execute(
+            select(PlanVersionRow.__table__).where(
+                PlanVersionRow.workspace_id == document.inputs.workspace_id,
+                PlanVersionRow.plan_id == document.inputs.plan_id,
+                PlanVersionRow.version == document.version,
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None or document_for_row("planning_document_versions", dict(row)) != document:
+        raise ValueError("exact retained selected plan required")
     dependencies = tuple(
         db.scalars(
             select(PlanDependencyRow)

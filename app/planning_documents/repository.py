@@ -92,6 +92,13 @@ def version(
         raise HTTPException(404, "plan version not found")
     result = document_for_row(row.__tablename__, values(row))
     assert isinstance(result, PlanVersion)
+    if result.selected_reporting_proof is not None:
+        from app.planning_documents.selected_plan_history import validate_selected_plan_history
+
+        try:
+            validate_selected_plan_history(db, result)
+        except ValueError as error:
+            raise changed("selected plan historical integrity unavailable") from error
     return row, result
 
 

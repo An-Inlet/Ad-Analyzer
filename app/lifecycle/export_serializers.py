@@ -671,6 +671,17 @@ def serialize(
             raise ValueError("receipt export requires scoped database validation")
         return export_receipt_row(db, table, row), []
     if table in PLANNING_TABLES:
+        if table == "planning_document_versions":
+            from app.planning_documents.documents import PlanVersion
+            from app.planning_documents.selected_plan_history import validate_selected_plan_history
+            from app.planning_documents.storage import document_for_row
+
+            selected_document = document_for_row(table, row)
+            assert isinstance(selected_document, PlanVersion)
+            if selected_document.selected_reporting_proof is not None:
+                if db is None:
+                    raise ValueError("selected plan export requires owned snapshot")
+                validate_selected_plan_history(db, selected_document)
         if table == "planning_input_revisions" and db is not None:
             from app.planning_documents.catalog_receipt_export import validate_input_receipt_export
 

@@ -2,8 +2,9 @@
 
 Design only, based on integrated pure slice `e8c7600`, the reviewed V6 design,
 and retained-port interface `0ea8854`. No code, capability activation or tests in
-this commit. Implementation waits for the retained author's frozen ports and
-independent closure. This completes the existing private V6 path, not a new version.
+this commit. Isolated source-only implementation may proceed against the reviewed
+ports. Integration, qualification and capability exposure wait for the retained
+author's frozen implementation and independent closure. This completes the existing private V6 path, not a new version.
 
 ## Ownership and exact configured capability
 
@@ -143,7 +144,8 @@ runtime getter replacement or clock extension. Existing V5 helpers/defaults rema
 unchanged. Share a new helper with the retained author if their tests need the
 actual saved input, but no circular fixture import or shared-file race.
 
-SQLite first, then an agreed bounded both-DB cohort, normal clocks and -x:
+Run disjoint SQLite cases first, then their PostgreSQL counterparts, with normal
+clocks and -x; do not repeat passed SQLite cases unless a source repair requires it:
 
 - Nonempty owner hypothesis and explicit empty tuple: actual create, generate,
   current read, versions, export and exact completed replay. Assert full original

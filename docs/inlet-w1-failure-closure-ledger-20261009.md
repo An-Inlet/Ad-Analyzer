@@ -1183,3 +1183,16 @@ Evidence: `w1-corrected-9d7aa2e/aggregate.result.json`,
 `terminal-reconciliation.json`, `supplemental-durable-verified.json` under the
 20261010 evidence directory. No restart, duplicate, remote write or hosted retry.
 Next: diagnose cumulative memory pressure before proposing a capacity remedy.
+
+
+## 2026-10-11 — Exhaustive Local W1 Validation Passed
+
+Frozen `9d7aa2e1193ec627b33088764210f94e49cf504d`: 7,011 passed / 83 unchanged
+skips across all 7,094 parents; separately 404 passed / 3 allowed skips across
+407 historical children in 19 batches. Exact disjoint union, archives, database
+dumps, manifest hashes, original evidence and all 15 preflight groups verified.
+52 completed partitions; no active validation process. No OOM; minimum sampled
+memory headroom 3.10 GiB. Original failed/interrupted attempts remain preserved.
+[Final result and limits](inlet-w1-validation-result-20261011.md).
+Local branch `codex/inlet-w1-followup`; pushes/hosted retries held; no live calls,
+ad mutations, merge or deployment. Q01–Q16 partial; six human release gates unmet.

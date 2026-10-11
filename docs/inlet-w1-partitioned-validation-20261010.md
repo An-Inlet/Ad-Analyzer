@@ -1,5 +1,7 @@
 # W1 Resource Diagnosis And Isolated Validation
 
+**Final status:** all 52 partitions qualified locally on 2026-10-11: 7,011 parent passes / 83 unchanged skips; separately 404 historical child passes / 3 allowed skips. See [final result](inlet-w1-validation-result-20261011.md). Earlier checkpoints below are historical.
+
 Frozen source remains `9d7aa2e1193ec627b33088764210f94e49cf504d`.
 The interrupted aggregate is immutable: 1,554 passes, 26 skips, 5,514 unreported.
 It supplies no completion credit to the replacement partition execution.
@@ -58,9 +60,9 @@ the already completed frozen preflight. Until then this remains partial validati
 
 Evidence and executable local harness:
 `/workspace/inlet-evidence/20261010/w1-partitioned-9d7aa2e-c/`.
-The continuation controller is running in tool session `46704`; `started.json` identifies its
-process. Never launch another copy. Consult `progress.json`, `controller-stopped.json`
-or `combined-parent-result.json` before taking further action.
+The continuation controller exited zero; no validation process remains active.
+`qualification.json` is the terminal authority. Do not restart completed tests.
+`progress.json` and `combined-parent-result.json` retain the completed execution record.
 
 No application, test assertion, frozen checkout or CI workflow changed. No hosted
 retry, purchase, budget increase, deployment, provider call or advertising write.

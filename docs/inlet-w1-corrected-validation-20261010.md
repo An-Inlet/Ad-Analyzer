@@ -92,9 +92,9 @@ claimed from this run. All archive hashes were independently reverified.
 
 At the liveness check, durable disk had about 1.59 GiB free, scratch about 4.10 GiB,
 and memory about 3.08 GiB of headroom after shutdown. Both frozen worktrees remain
-clean. There is no running aggregate, restart or duplicate. Diagnose cumulative
-memory pressure and prepare a concrete capacity remedy before proposing another
-run; do not relax the reserve or infer a full pass from partial results.
+clean. There is no running aggregate, restart or duplicate. The subsequent resource diagnosis and isolated partition strategy are now complete;
+see [the final local validation result](inlet-w1-validation-result-20261011.md).
+The interrupted single-process result above remains unchanged and is not a pass.
 A local pass would not establish hosted CI capacity: CI still has its 90-minute
 pytest and 120-minute job limits. Node 24 locally differs from CI Node 22, and
 existing offline dependencies were reused rather than freshly installed.

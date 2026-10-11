@@ -1,5 +1,9 @@
 # Inlet Current Acceptance Matrix
 
+Latest dated status: [October 11 acceptance checkpoint](inlet-acceptance-20261011.md).
+The planning-only scope and current selected-reporting evidence there supersede
+older runtime/execution claims below. Original criteria and evidence remain retained.
+
 > Historical October6 snapshot. The [October7 acceptance checkpoint](inlet-acceptance-20261007.md)
 > supersedes the current-status claims below, including local Full results and
 > configured runtime availability. Original criteria and historical evidence remain

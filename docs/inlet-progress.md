@@ -1,6 +1,7 @@
 # Inlet Build Progress
 
-Current status entry point: [Inlet Current Acceptance Matrix](inlet-current-acceptance.md).
+Current status entry point: [October 11 acceptance checkpoint](inlet-acceptance-20261011.md).
+The [earlier matrix](inlet-current-acceptance.md) and entries below retain historical evidence.
 This ledger retains chronological package and validation evidence; older entries do
 not describe later code or qualify a different artifact.
 

@@ -1,3 +1,4 @@
+import {clearSelectedCaptures,renderSelectedCaptures} from './plan-selected-captures.mjs';
 import {minuteValue,reportingPeriods} from './plan-periods.mjs';
 import {clearPlanSalesProgress,renderPlanSalesProgress} from './plan-progress.mjs';
 import {clearPlanDocument,renderPlanDocument} from './plan-document.mjs';
@@ -16,6 +17,7 @@ const say=value=>$('message').textContent=value;
 let epoch=0,busy=false,operation=null,user=null,workspaces=[],wid='',role='',planId='',read=null;
 let listCursor=null,versionCursor=null,eventCursor=null,eventSequence=0,displayCookies=null,expiryTimer=null;
 let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[],editWindow=null,editComparison=null,editExpected=null;
+let captureHandle=null;
 let scenarioHandle=null,targetPickers=[],targetTimer=null,targetScope=null,requiresReselection=false,targetReadRequired=false;
 class Stale extends Error{}
 function clearTargets(){clearPlanScenarios($('scenarios'));scenarioHandle=null;if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;for(const item of targetPickers)clearPlanTargetPicker(item.host);targetPickers=[];targetScope=null;$('targets').replaceChildren();}
@@ -27,7 +29,7 @@ const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
 function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
-function clearEditor(){clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
+function clearEditor(){captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
 function invalidate(){epoch++;busy=false;clearPlan();clearEditor();enable();}
 function enable(){
@@ -114,6 +116,7 @@ function goalSummary(){const goal=goals.find(g=>g.id===$('goal').value);$('goal-
 async function editor(turn,isEdit=false){
   clearEditor();editing=isEdit;
   const allGoals=await api(`/workspaces/${wid}/goals`,turn),catalog=await api(`/workspaces/${wid}/planning/accounts`,turn);
+  const capability=await api(root()+'/capabilities',turn);await session(turn);check(turn);
   if(!Array.isArray(allGoals)||catalog.complete!==true||!Array.isArray(catalog.accounts))throw Error('The goal and account choices could not be verified.');
   goals=allGoals.filter(g=>g.workspace_id===Number(wid)&&g.confirmation_recorded===true&&g.confirmed_at!==null&&g.definition);accounts=catalog.accounts;
   options($('goal'),goals,g=>`${g.definition.milestone??'Confirmed Goal'} · Revision ${g.revision}`,g=>g.id);
@@ -126,6 +129,7 @@ async function editor(turn,isEdit=false){
     $('milestone').value=input.milestone;$('product').value=input.product_offer??'';$('constraints').value=input.constraints.join('\n');$('assumptions').value=input.assumptions.map(a=>a.statement).join('\n');
     $('start').value=minuteValue(input.reporting_window.starts_at);$('end').value=minuteValue(input.reporting_window.ends_at_exclusive);$('creative').value=input.maximum_creative_assets===null?'':String(input.maximum_creative_assets);editWindow=input.reporting_window;editComparison=input.comparison_window;$('comparison-enabled').checked=editComparison!==null;if(editComparison){$('comparison-start').value=minuteValue(editComparison.starts_at);$('comparison-end').value=minuteValue(editComparison.ends_at_exclusive);}comparisonControls();
   }
+  captureHandle=renderSelectedCaptures($('selected-captures'),{capability,workspaceId:Number(wid),accounts,saved:isEdit?read.inputs.selected_reporting??null:null});
   $('editor-title').textContent=isEdit?'Edit Plan Inputs':'Prepare A New Plan';goalSummary();$('editor').hidden=false;say('Review the goal, accounts, milestone and reporting period before saving.');
 }
 function lines(value){const values=value.split('\n').map(v=>v.trim()).filter(Boolean);if(values.length>30||values.some(v=>v.length>2000))throw Error('Use at most 30 entries, each no longer than 2,000 characters.');return values;}
@@ -142,7 +146,8 @@ function inputs(){
   if(requiresReselection&&(!targetPickers.length||!$('replace-targets').checked))throw Error('Read targets and explicitly confirm your replacement target choices for this revision.');
   if(exclusions.length>100||fixed_allocations.length>100||fixed_allocations.reduce((sum,a)=>sum+BigInt(a.amount_micros),0n)>BigInt(goal.definition.budget_micros))throw Error('Keep at most 100 exclusions and allocations, within the confirmed total budget ceiling.');
   for(const scenario of scenario_intents){if(scenario.allocations.some(a=>exclusions.some(e=>e.canonical_entity_key===a.target.canonical_entity_key))||fixed_allocations.some(f=>!scenario.allocations.some(a=>a.target.canonical_entity_key===f.target.canonical_entity_key&&a.amount_micros===f.amount_micros)))throw Error('Each alternative must preserve every fixed allocation and omit excluded targets.');}
-  return{goal_id:goal.id,goal_revision:goal.revision,account_ids,...periods,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents,maximum_creative_assets};
+  const selected_reporting=captureHandle?.readIntent(account_ids);
+  return{...(selected_reporting===undefined?{}:{selected_reporting}),goal_id:goal.id,goal_revision:goal.revision,account_ids,...periods,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents,maximum_creative_assets};
 }
 async function mutate(turn,operationName,path,body){
   if(pending)throw Error('Check the previous request result before another save.');

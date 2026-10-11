@@ -9,8 +9,10 @@ from sqlalchemy.orm import object_session
 
 from app.customers.access import CustomerPrincipal, Database, MutationPrincipal, Principal, Provider
 from app.customers.identity import IdentityProvider
+from app.planning_documents.capabilities_view import PlanningCapabilitiesV1
 from app.planning_documents.common import Id
 from app.planning_documents.comparison import VersionComparison, compare_versions
+from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.progress_contracts import PlanSalesProgressV1
 from app.planning_documents.requests import (
     AssertionIntent,
@@ -56,6 +58,28 @@ def service(
 
 def no_store(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
+
+
+@router.get("/capabilities", response_model=PlanningCapabilitiesV1)
+def planning_capabilities(
+    workspace_id: int,
+    principal: Principal,
+    provider: Provider,
+    db: Database,
+    response: Response,
+) -> PlanningCapabilitiesV1:
+    no_store(response)
+    configured = service(db, provider, principal)
+    with configured._read_session(principal, workspace_id):
+        capability = ticket_reporting_capability(
+            configured.policy.version, configured.policy.digest()
+        )
+        return PlanningCapabilitiesV1(
+            workspace_id=workspace_id,
+            policy_version=configured.policy.version,
+            generator_version=configured.policy.generator_version,
+            selected_reporting_available=capability.mode == "selected_requested_window",
+        )
 
 
 @router.post("", response_model=InputResult, status_code=201)

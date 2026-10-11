@@ -17,7 +17,9 @@ from tests.test_customer_portal import portal_executable
 from tests.test_planning_metadata_binding import bundle
 
 
-@pytest.mark.parametrize("driver", ["plan_target_picker_dom", "plan_scenarios_dom"])
+@pytest.mark.parametrize(
+    "driver", ["plan_target_picker_dom", "plan_scenarios_dom", "plan_selected_captures_dom"]
+)
 def test_target_picker_exact_choices_revocation_expiry_and_bounds(
     tmp_path: Path, driver: str
 ) -> None:
@@ -27,7 +29,12 @@ def test_target_picker_exact_choices_revocation_expiry_and_bounds(
         for platform in ("google", "meta", "tiktok")
     ]
     (tmp_path / "catalogs.json").write_text(json.dumps(catalogs))
-    for name in ("plan-target-picker.mjs", "native-targets.mjs", "plan-scenarios.mjs"):
+    for name in (
+        "plan-target-picker.mjs",
+        "native-targets.mjs",
+        "plan-scenarios.mjs",
+        "plan-selected-captures.mjs",
+    ):
         shutil.copy(Path("app/portal/static") / name, tmp_path / name)
     (tmp_path / "index.html").write_text(
         '<div id="host"></div><pre id="result"></pre><script type="module" src="test.mjs"></script>'

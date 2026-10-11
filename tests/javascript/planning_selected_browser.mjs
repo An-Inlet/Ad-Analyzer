@@ -1,0 +1,25 @@
+const inputs=__INPUTS__,$=id=>document.getElementById('planning-'+id),assert=(v,m)=>{if(!v)throw Error(m);};
+const until=async(fn,m)=>{const end=Date.now()+15000;while(!fn()){if(Date.now()>end)throw Error(m+' · '+$('message').textContent);await new Promise(r=>setTimeout(r,20));}};
+const change=(name,value)=>{$(name).value=value;$(name).dispatchEvent(new Event('change'));},settled=()=>!$('list-refresh').disabled;
+const native=window.fetch.bind(window),json=async response=>{assert(response.ok,'HTTP '+response.status);return response.json();};
+try{
+ await json(await native('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'goal-progress:browser'})}));
+ await import('/app/assets/planning.mjs');await until(()=>settled()&&$('workspace').options.length>1,'workspace');change('workspace',String(inputs.workspace_id));await until(()=>settled()&&!$('new').hidden,'plans');
+ $('new').click();await until(()=>settled()&&!$('editor').hidden,'editor');assert(!$('selected-captures').hidden,'actual configured selected capability');
+ change('goal',inputs.goal.goal_id);$('accounts').querySelector('input').checked=true;$('milestone').value='Review selected purchase observations';$('product').value='Reusable bottle';
+ $('start').value=new Date(inputs.reporting_window.starts_at).toISOString().slice(0,16);$('end').value=new Date(inputs.reporting_window.ends_at_exclusive).toISOString().slice(0,16);
+ $('comparison-enabled').checked=true;$('comparison-enabled').dispatchEvent(new Event('change'));$('comparison-start').value=new Date(inputs.comparison_window.starts_at).toISOString().slice(0,16);$('comparison-end').value=new Date(inputs.comparison_window.ends_at_exclusive).toISOString().slice(0,16);
+ const selector=inputs.selected_reporting[0],field=$('selected-captures').querySelector('input');assert(Number(field.dataset.captureAccount)===selector.account_id,'exact accountfield');field.value=selector.capture_id;
+ let creates=0;
+ window.fetch=async(...args)=>{const response=await native(...args);if(String(args[0]).endsWith('/planning/plans')&&args[1]?.method==='POST'){creates++;assert(JSON.stringify(JSON.parse(args[1].body).inputs.selected_reporting)===JSON.stringify(inputs.selected_reporting),'exact submitted selector');if(creates===1){assert(response.ok,'committed input');throw TypeError('lost committed input response');}}return response;};
+ $('save').click();await until(()=>settled()&&!$('pending').hidden,'unknown save');$('recover').click();await until(()=>settled()&&$('pending').hidden&&!$('current').hidden,'actual input recovery');assert(creates===1,'recovery never reposts');
+ $('generate').click();await until(()=>settled()&&!$('document').hidden,'selected generation');assert($('document').textContent.includes('selected count 10'),'actual selected count');assert($('document').textContent.includes('100 observed clicks'),'actual traffic');
+ const root='/api/customer/v1/workspaces/'+inputs.workspace_id+'/planning/plans',list=await json(await native(root)),path=root+'/'+list.items[0].plan_id;
+ const first=await json(await native(path+'/export?version=1'));assert(first.document.selected_reporting_proof.accounts[0].traffic_pin,'persisted traffic proof');assert(first.inputs.selected_reporting[0].capture_id===selector.capture_id,'persisted exact capture');
+ $('edit').click();await until(()=>settled()&&!$('editor').hidden,'edit');assert($('selected-captures').querySelector('input').value===selector.capture_id,'saved capture preserved');$('milestone').value='Review the same captured evidence again';$('save').click();await until(()=>settled()&&$('editor').hidden,'revision');$('generate').click();await until(()=>settled()&&$('document').textContent.includes('Plan Version 2'),'second selected version');
+ const archived=await json(await native(path+'/export?version=1'));assert(archived.document_digest===first.document_digest,'immutable chosen capture archive');
+ await native('/__fixture__/legacy-planner');$('edit').click();await until(()=>settled()&&$('message').textContent.includes('currently unavailable'),'policy change refuses selector loss');assert($('editor').hidden,'no legacy rewrite editor');
+ await native('/__fixture__/selected-planner');let rotated=false;window.fetch=async(...args)=>{const response=await native(...args);if(String(args[0]).endsWith('/capabilities')&&!rotated){rotated=true;await json(await native('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'goal-progress:replacement'})}));}return response;};
+ $('edit').click();await until(()=>rotated&&$('editor').hidden&&$('current').hidden,'same owner session replacement during capability read');assert($('selected-captures').hidden&&!$('selected-captures').textContent,'no stale capture editor');
+ await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',capture:selector.capture_id})});
+}catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message})});}

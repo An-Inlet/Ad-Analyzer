@@ -5,7 +5,7 @@ import socket
 import subprocess
 import threading
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse, Response
 from starlette.types import Receive, Scope, Send
 
-from tests import test_customer_identity
+from tests import test_customer_identity, test_selected_customer_api
 from tests.planning_target_inventory_fixture import Platform, install_inventory_scenario
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import customer_engine as customer_engine
@@ -38,7 +38,7 @@ pytestmark = pytest.mark.planning_boundary
 
 @pytest.mark.parametrize(
     ("journey", "platform"),
-    [("documents", "google_ads"), ("targets", "google_ads"),
+    [("documents", "google_ads"), ("selected", "google_ads"), ("targets", "google_ads"),
      ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
      ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads"),
      ("target_disappearance", "google_ads"), ("target_disappearance", "meta_ads"),
@@ -61,6 +61,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
+    configure_selected: Callable[[bool], None] | None = None
     window_source = None
     if journey == "windows":
         from tests.test_window_service_api import require_default_v3
@@ -71,6 +72,29 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         )
         ticket, calls = window_source.ticket, window_source.native_calls
         require_default_v3(monkeypatch)
+    elif journey == "selected":
+        from functools import partial
+
+        from app.api import customer_planning_documents as planning_api
+        from app.planning_documents.service import PlanningDocumentService
+
+        from tests.selected_range_plan_fixture import prepared_range_plan
+
+        # This helper module can be cached from the preceding database case.
+        # Match the actual local TLS origin; retain the normal CSRF/origin guard.
+        monkeypatch.setattr(test_selected_customer_api, "ORIGIN", origin)
+        selected_reader, ticket, _, _, calls = prepared_range_plan(
+            customer_engine, configuration, replicas, monkeypatch
+        )
+        def configure_selected_policy(enabled: bool) -> None:
+            monkeypatch.setattr(
+                planning_api, "PlanningDocumentService",
+                partial(PlanningDocumentService, policy=selected_reader.policy)
+                if enabled else PlanningDocumentService,
+            )
+
+        configure_selected = configure_selected_policy
+        configure_selected(True)
     else:
         _, ticket, _, calls = setup_evidence(
             customer_engine, configuration, replicas, monkeypatch, platform
@@ -109,6 +133,12 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
         path = scope.get("path", "")
+        if configure_selected is not None and path in {
+            "/__fixture__/legacy-planner", "/__fixture__/selected-planner"
+        }:
+            configure_selected(path.endswith("selected-planner"))
+            await JSONResponse({"ok": True})(scope, receive, send)
+            return
         if path == "/__fixture__/start":
             html = (
                 Path("app/portal/static/planning.html")

@@ -622,7 +622,6 @@ def fold_ready(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, Any]:
     from zoneinfo import ZoneInfo
 
     from tests import test_selected_plan_bundle as fixture
-
     from tests.test_planning_metadata_binding import bundle
 
     original = bundle

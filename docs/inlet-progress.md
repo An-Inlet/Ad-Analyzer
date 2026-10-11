@@ -7153,3 +7153,10 @@ TikTok generic-presence parsers; zero/missing/unsupported retained.204focused te
 passed1.65s, full Ruff and mypy1276files passed. [Package/recovery ledger](inlet-selected-raw-package-20261011.md).
 No runtime import or plan activation yet. Durable-selection/publication interface
 review is next; all remote/hosted/live/release holds remain.
+
+## 2026-10-11 — Selected Summary Preparation
+
+Pure whole-graph selected summary added; sparse/missing evidence cannot qualify full-
+window zero.13new cases;156combinedpassed0.88s; Ruff/mypy1278pass; independent review
+closed. [Package ledger](inlet-selected-summary-package-20261011.md). Customer-plan
+activation awaits owned storage/import integration; no live or remote operation.

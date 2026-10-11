@@ -101,6 +101,18 @@ but only2 observed members), never editing downstream receipts/proofs. If the fr
 runtime fixture does not expose that option, define a narrow additive test-only
 acquisition parameter *before* use; do not change production or shared helper silently.
 
+Read-only prerequisite review against `4aff7d9` confirmed the additive contract:
+keyword-only `partial: bool = False` on `ready_inputs` and `configured_owner_review`,
+forwarded to actual acquisition. Preserve default output and the four-value return.
+Both discovery checks must branch before indexing an owner/intent. Partial acquisition
+requires HTTP200, status `unavailable`, empty owners, reason
+`google_budget_owner_unavailable` and the fixed recovery text; retain ordinary baseline
+scenarios and explicit `google_daily_budget_intents=[]`. The fixture saves no input or
+plan. Discovery must add no provider calls. Alias the existing `functools.partial`
+import in the runtime fixture so the new boolean cannot shadow the service factory.
+The browser still performs its own fresh read, discovery and submission. These are
+source-reviewed fixture requirements; no partial browser behavior is yet qualified.
+
 ## Bounded Qualification Sequence For Review
 
 Component tests first: legacy returned flags/request omission byte checks; exactV6[];

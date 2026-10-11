@@ -7399,3 +7399,22 @@ execution remains separately gated on an exact frozen source/manifest and stops
 at the first unexpected failure. No customer browser/API journey is claimed yet.
 All original incident, human usefulness, remote/hosted-CI, live, merge and deployment
 holds remain unchanged. Public website work stays owner-managed.
+
+## 2026-10-11 — First Owner Browser Qualification Failure
+
+TLS01 stopped at its first SQLite complete-discovery journey: **0 passed, 1 failed,
+3 unrun**. Actual discovery, input creation, receipt recovery, generation and
+current/history reads succeeded. The customer display then rejected the genuine
+V6 creative proof because `plan-creative-basis.mjs` accepted only the exact V5
+policy/generator pair. This is a concrete renderer compatibility defect; no
+authority expiry was observed. No retry was performed.
+
+Original XML, log, bounded route observations and exact unrun IDs are preserved in
+`/workspace/inlet-evidence/20261011/owner-planning-browser/tls01-summary.json`
+(SHA256 `d4c72755` prefix). Independent review verified all 14 evidence hashes and
+confirmed completed, untruncated route observations. Generation's total elapsed
+time is not authority-fact age. No successful TLS journey or export is claimed.
+
+Next is a narrow V5/V6 creative-renderer compatibility repair with focused
+regression coverage, followed by separately frozen browser qualification. The
+original failure and all existing live/release/human-quality holds remain.

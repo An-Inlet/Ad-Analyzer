@@ -39,7 +39,8 @@ amount inspection and stop on any mismatch, with no CAS or prevention guarantee.
 - `schema_version: Literal['inlet.google-daily-budget-intent.v1']`;
 - `account_id: Positive`;
 - `owner_selection_id: Digest` (server-derived opaque selection, not native ID);
-- `expected_observation_digest: Digest`;
+- `expected_observation_digest: Digest` (discovery/input provenance only);
+- `expected_owner_facts_digest: Digest` (fresh-read semantic comparison);
 - `scenario_key: Key` (exact supplied customer alternative);
 - `currency: strict /^[A-Z]{3}$/`;
 - `cadence: Literal['daily']`;
@@ -49,7 +50,7 @@ amount inspection and stop on any mismatch, with no CAS or prevention guarantee.
 `ResolvedGoogleDailyBudgetIntentV1` adds `owner_key: Digest`,
 `representative_canonical_key: Digest`, `observed_amount_micros: Amount` and
 `source_binding_digest: Digest`, all resolved by the server from the selected full
-catalog. It retains the original selector/digest/scenario/currency/cadence/request.
+catalog. It retains the original selector/observation digest/owner-facts digest/scenario/currency/cadence/request.
 No client-supplied resolved object, account generation or affected set is accepted.
 This module cannot import context/ports/documents, avoiding PlanInputRevision cycles.
 
@@ -208,3 +209,71 @@ expiry/size, stale discovery/session/CAS, save witness substitution/atomic rollb
 legacy bytes and retained historical graph after later changed membership. No full
 positive Q06 claim follows from this conservative review-only slice. The remaining
 exact-native-edit/economic-compatibility gap must remain explicit in readiness.
+
+
+## Root Review Refinements: Binding Across Separate Reads
+
+First implementation scope is **standalone** primitive intent classes, full owner
+observation class and pure derivation/commitment helpers only. No existing context,
+request, action, capability, composer, API or persistence field changes in that
+slice. Future consumer fields above are proposals requiring separate review. Keep
+primitive intent imports common-only; full witness imports CatalogEvidence/TargetRef
+but must never be imported by context. No broad AccountRef extraction is proposed.
+
+`owner_facts_digest(witness: GoogleDailyBudgetOwnerWitnessV1) -> Digest` first strictly
+revalidates and derives a canonical object with exactly:
+
+- schema/profile literal `inlet.google-daily-budget-owner-facts.v1`;
+- workspace, account, connection, platform, connection_version and source_binding;
+- owner_key, currency, time_zone, budget amount/absent-total/period/status/type,
+  explicitly_shared and reference_count;
+- ordered **all represented owner campaign rows**, including REMOVED rows, with full
+  advertiser/native reference, canonical key, name/name_status, metadata status and
+  entity_type, and their exact full projected GoogleSettingsV1 values;
+- ordered active affected canonical campaign identities; removed policy literal
+  `collector_status_not_removed_v1`;
+- recognized native/metadata campaign coverage status/scope/reasons/counts.
+
+Use existing domain-separated canonical hashing, strict primitives, and no ordering
+by display name. Include mutable represented metadata because a newly renamed or
+status-changed member must be reselected under this conservative first profile.
+Exclude observation timestamps/expiry, source request/composite/inventory digests,
+selection keys (which include those digests), and ref keys. They belong to their
+original full witness, not stable facts. Source/privacy/reporting window still must
+be checked separately and exactly on every boundary; excluding them from this facts
+projection never waives those checks. Full raw query semantics unavailable in the
+projection are not manufactured. Children are not owner members; exclusion checks
+must independently use the entire fresh catalog's parentage.
+
+Discovery binds its original full witness digest AND this facts digest into its
+opaque session-bound selection. At input save, compare the requested discovery
+observation exactly with its original owned receipt and persist original full
+witness provenance. At later generation, collect a **new** witness and require its
+owner_facts_digest to equal the resolved input's expected_owner_facts_digest, with
+current source/privacy/reporting/expiry independently valid. The new full witness
+is embedded in the generated review; never demand equal observation/composite
+hashes across these separate acquisitions and never restamp or reuse an expired
+old envelope. Save-time comparison remains full canonical equality with that
+same generation's actual collected witness.
+
+Existing CatalogReceiptRow retains full projected catalog JSON and scoped
+InputCatalogReceiptRow links. The future consumer must resolve whether those exact
+receipts plus a canonical derived witness commitment suffice for original input
+provenance, or whether an explicit separate owned input-proof record is required.
+No lossy primitive field or dangling digest may substitute for the retained original
+witness. This storage seam is **not** part of standalone implementation approval;
+freeze its exact shape and lifecycle behavior before adding any context field.
+
+Exactly one new review action per `(account, owner)` is required even for identical
+amounts. Existing legacy setting() only rejects contradictions and is not a
+sufficient uniqueness gate. Apply the stricter invariant only when the new proof is
+present, leaving all old document semantics/bytes untouched.
+
+Root-approved economic boundary: positive DAILY requests remain customer hypotheses
+with unqualified period-ceiling compatibility and produce no actionable NativeBudget.
+A manual review prerequisite cannot certify economics. A requested zero may become
+an exact manual zero-setting only after separately reviewed provider-validity and
+strict owner/intent/currentness plus zero-compatible period checks; **this standalone
+slice does not qualify that setting**. No default automatic code or spend authority.
+The future exact-positive-advice gap is a concrete product/evidence constraint, not
+an owner permission request to proceed with independently useful proof engineering.

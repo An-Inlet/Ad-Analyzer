@@ -1,6 +1,6 @@
 # Inlet Acceptance Checkpoint — October 11
 
-Reviewed local code through `0ed1cec` on `codex/inlet-w1-followup`. This dated
+Reviewed local code through `f495eed` on `codex/inlet-w1-followup`. This dated
 checkpoint supersedes current-status claims in the October 6/7 snapshots without
 rewriting their evidence. Inlet is **not a live-qualified, purchasable release**.
 The approved MVP is comprehensive planning with **zero advertising-platform writes**,
@@ -43,10 +43,12 @@ or public v4 activation is claimed.
 | `acf1c67` | Actual input API→generation→persistence/currentness/replay:31 cases passed; final10 atomic negatives,14 compatibility/expiry checks and119 pure checks passed in separate overlapping cohorts. Failed generation leaves no partial version/head/dependencies/receipt. [Consumer](inlet-selected-runtime-consumer-package-20261011.md). |
 | `cdaf956` | Four real TLS v3/v4 browser cases passed on SQLite/PostgreSQL, plus4 capability API and3 Chromium component cases. Preserved initial origin-fixture failure. [Portal](inlet-selected-planning-portal-package-20261011.md). |
 | `0ed1cec` | Four actual API-generated lifecycle/history scenarios passed on each database: exact archive after direct SQL metric changes, missing retained graphs rejected, semantic erasure and prepared authority revocation. This is not qualification of a subsequent provider sync. [Lifecycle](inlet-selected-runtime-lifecycle-package-20261011.md). |
+| `8622bb9` | Actual corrected provider responses→range publication→explicit event confirmation/capture→V2:2 SQLite/PostgreSQL cases passed, 50.379s. Selected count changes10→4 with unchanged100clicks/$100; stale decisions denied, V1 history/export/event preserved, exact successor lineage/comparison. Bounded Q11 subset. [Correction](inlet-selected-runtime-correction-package-20261011.md). |
+| `f495eed` (author `bb3b5f1`) | Exact-owned native-parent child locations added to v4 campaign steps;64 focused pure/legacy cases passed. No child metrics or changes inferred; capacity overflow fails explicitly. [Child locations](inlet-selected-child-locations-package-20261011.md). |
 
 All packages above received independent source review with no remaining P1/P2
 findings in their stated scope. Whole Ruff and configured no-path mypy passed on
-integration through `0ed1cec` (1363 files). These targeted cohorts overlap and are
+integration through `f495eed` (1365 files). These targeted cohorts overlap and are
 not summed as unique or exhaustive current-head coverage. No new exhaustive run
 or hosted CI is claimed.
 
@@ -66,8 +68,9 @@ does not automatically qualify successor code. [Exact W1 result](inlet-w1-valida
   constraints, corrections/reconnect, progress and privacy acceptance. No selected
   event or comparable-attribution semantics are invented for unsupported sources.
   Q01–Q16 remain partial; six human expert usefulness criteria remain outstanding.
-- Qualify actual subsequent correction/reconnect→successor plan lineage; direct SQL
-  historical-integrity tests are not a substitute for that provider acquisition path.
+- Extend the now-qualified actual selected-count correction→successor path to the
+  frozen Common Basis, reconnect and refund corrections. Direct SQL integrity
+  checks and bounded actual acquisition tests establish different scopes.
 - Customer activation, configured identity/payment/media/provider operations,
   commercial choices, independent real pilots and release approval remain unverified.
   No live calls, credentials/grants/IAM, charges, purchases, ad changes or deployment.

@@ -16,7 +16,7 @@ citation. It explicitly disclaims child metrics and child changes. There are no 
 child actions, performance facts, budget advice or write authority. At most15 child
 steps fit the existing20-step capacity; overflow or a step over2,000 characters fails
 composition explicitly instead of truncating. No qualified children adds no steps.
-Legacy composers and the default v4 policy setting are untouched.
+Legacy composers and the default v3 policy setting are untouched.
 
 ## Checks
 

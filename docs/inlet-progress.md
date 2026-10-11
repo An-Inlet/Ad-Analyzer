@@ -7461,3 +7461,23 @@ and partial PostgreSQL artifacts. Shared daily settings remain investigation-onl
 not qualified native edits or period-ceiling guarantees. Next: bounded actual API
 coverage of the existing duplicate-owner request rejection. Human quality gates,
 original reliability findings and all remote/live/release holds remain unchanged.
+
+## 2026-10-11 — Duplicate Owner Request Boundary
+
+Integrated test-only `4196689` as `2ea7f6e`. Four distinct actual API cases passed:
+identical and conflicting hypotheses for the same opaque owner on SQLite and
+PostgreSQL. The request validator's existing whole-request uniqueness rule returns
+the production generic 422 response; a bounded test-only wrapper verifies the
+exact internal reason while calling the original error handler once. Exact plan,
+receipt, financial, provider-call and original-session state remains unchanged.
+
+[Qualification ledger](inlet-q06-repeated-owner-qualification-20261011.md) records
+the disjoint two-case runs (SQLite 8.456 seconds, PostgreSQL 22.340 seconds). Root
+and independent review verified two frozen source and 19 evidence hashes and the
+four exact XML identities. Root whole Ruff and configured no-path mypy passed
+(1,486 files). Production code is unchanged; native-owner alias collisions and
+period-ceiling compatibility are not qualified by these request-level cases.
+
+Next is the reviewed complete-to-fresh-partial browser recovery variant, preserving
+the immutable original plan and requiring explicit stale-review removal. Existing
+human, incident and release limits remain unchanged.

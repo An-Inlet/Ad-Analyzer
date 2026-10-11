@@ -7792,3 +7792,43 @@ are separately authorized on preserved candidate `9fd75ab`, SQLite then PostgreS
 only after original-success/source/resource/XML/cleanup gates. This independent
 text-handling slice need not wait for a performance repair, but cannot qualify the
 whole diagnostic base or close any reliability incident. No outcome is claimed yet.
+
+
+## Q15 Literal Text Candidate Qualified
+
+[Test source](inlet-q15-owner-literal-text-20261011.md) is committed as `12bf09b`
+on `codex/inlet-q15-owner-literal-text`, directly after preserved `9fd75ab`.
+Docs-only successor `9ef5ca9` clarifies the current two-pass result and labels
+earlier preparation statements historical. The original tested commit and frozen
+packet remain unchanged. Root has not integrated this diagnostic-base candidate.
+
+Both new actual TLS browser cases passed once, with no skip or failure. SQLite
+XML case22.796s / pytest25.99s / process28.939s; PostgreSQL case36.835s /
+pytest40.18s / process42.667s. Whole Ruff, configured mypy (1,492 files), JavaScript
+syntax and exact two-node collection passed. The initial optional-product mypy
+finding was corrected before execution and remains in evidence. No existing
+variant or source-identical integration test was repeated.
+
+The test-only fixture preserves hostile-looking native names through real catalog
+reads, explicit inclusion, saved owner proof, rendered text and JSON export.
+Structural DOM checks accompany an execution sentinel. Customer milestone,
+restriction and formula-like scenario title survive exactly. The actual JSON
+attachment headers and strict document/digest match; no CSV-safety claim. Existing
+session/lifetime, read-only transport and six financial-counter assertions pass.
+
+Root and independent review verified six tested source and24 evidence hashes,
+all four strict original/export documents, exact literals/digests,20 successful
+bounded routes and complete untruncated browser shutdowns. Root additionally
+verified the docs-only successor and unchanged original freeze. A root verification
+script initially rejected legal XML properties metadata; corrected inspection
+checks failure/error/skip elements and confirms both original passes, without
+rerunning tests. Final packet:
+`/workspace/inlet-evidence/20261011/q15-owner-literal/freeze-9ef5ca9.json`
+SHA `862b8917ed4f11d57a780991f3788f45e36385ca343ed84a61b66d8d7eb0d0a7`.
+
+This completes only the assembled V6 literal-text TLS/JSON slice. Full Q15, human
+quality decisions, reconnect retention, production/runtime qualification and
+original R01–R03 stay open. Next engineering package is the bounded selected-current
+residual investigation already documented; no further measurement is currently
+authorized. No active test/heavy process, push, hosted CI, merge, deployment, live
+provider/model call, advertising change or spending occurred in this package.

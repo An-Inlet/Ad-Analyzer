@@ -251,3 +251,20 @@ def test_projection_builds_one_validated_index_per_complete_capture(
     monkeypatch.setattr(selected_plan_evidence, "SelectedSummaryContext", Counted)
     proof = SelectedPlanProjectionV1(captures=(whole,), windows=windows)
     assert len(proof.windows) == 2 and len(calls) == 1
+
+
+def test_prepared_reader_validates_input_and_exposes_only_immutable_values() -> None:
+    from app.planning_documents.selected_plan_evidence import PreparedSelectedPlanProjection
+
+    original = graph()
+    prepared = PreparedSelectedPlanProjection(original)
+    assert prepared.pin == original.pin()
+    assert prepared.snapshot() == original
+    assert prepared.read(5, window()).summary.conversions.value == 10
+    with pytest.raises(ValueError):
+        PreparedSelectedPlanProjection(original.model_copy(update={"campaigns": ()}))
+    with pytest.raises(AttributeError):
+        setattr(prepared, "pin", original.pin())
+    changed = original.model_copy(update={"capture": capture(value="1")})
+    assert changed != prepared.snapshot()
+    assert prepared.read(5, window()).summary.conversions.value == 10

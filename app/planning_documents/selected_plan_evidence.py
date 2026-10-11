@@ -139,31 +139,39 @@ def project_selected_plan_window(
     graph: SelectedPlanCaptureV1, *, campaign_id: int, requested_window: ReportingWindow
 ) -> SelectedPlanWindowV1:
     graph = SelectedPlanCaptureV1.model_validate(graph)
-    return _PreparedProjection(graph).read(campaign_id, requested_window)
+    return PreparedSelectedPlanProjection(graph).read(campaign_id, requested_window)
 
 
-class _PreparedProjection:
-    """Internal validated graph/index reuse, never accepts public authority."""
+class PreparedSelectedPlanProjection:
+    """Validate a private immutable graph once; SQL authority remains caller-owned."""
 
     def __init__(self, graph: SelectedPlanCaptureV1) -> None:
-        self.graph = graph
-        self.pin = graph._pin()
-        self.campaigns = {x.campaign_id: x.native_campaign_id for x in graph.campaigns}
-        self.summaries = SelectedSummaryContext(
+        graph = SelectedPlanCaptureV1.model_validate(graph)
+        self._graph = graph
+        self._pin = graph._pin()
+        self._campaigns = {x.campaign_id: x.native_campaign_id for x in graph.campaigns}
+        self._summaries = SelectedSummaryContext(
             graph.capture, graph.capture.request.aggregate, graph.capture.request.selection
         )
 
+    @property
+    def pin(self) -> SelectedPlanPinV1:
+        return self._pin
+
+    def snapshot(self) -> SelectedPlanCaptureV1:
+        return self._graph
+
     def read(self, campaign_id: int, requested_window: ReportingWindow) -> SelectedPlanWindowV1:
-        native = self.campaigns.get(campaign_id)
+        native = self._campaigns.get(campaign_id)
         if type(campaign_id) is not int or native is None:
             raise ValueError("selected campaign absent from exact mapping")
-        capture = self.graph.capture
+        capture = self._graph.capture
         starts, ends = selected_local_days(
             requested_window,
             time_zone=capture.request.aggregate.scope.time_zone,
             completed_at=capture.completed_at,
         )
-        summary = self.summaries.read(
+        summary = self._summaries.read(
             campaign_id=campaign_id,
             native_campaign_id=native,
             starts_on=starts,
@@ -187,7 +195,9 @@ class SelectedPlanProjectionV1(NoAuthority):
         by_account = {x.source_fence.account: x for x in self.captures}
         if len(by_account) != len(self.captures):
             raise ValueError("one explicit selected capture per account required")
-        prepared = {account: _PreparedProjection(graph) for account, graph in by_account.items()}
+        prepared = {
+            account: PreparedSelectedPlanProjection(graph) for account, graph in by_account.items()
+        }
         slots: set[tuple[int, int, datetime, datetime]] = set()
         for window in self.windows:
             graph = by_account.get(window.pin.account)

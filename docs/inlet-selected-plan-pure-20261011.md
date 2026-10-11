@@ -31,3 +31,10 @@ Evidence under `/workspace/inlet-evidence/20261011/`:
 The evidence is local and pure. Original-session selected reads, current retained
 witnesses, commerce/catalog collection, composer integration, actual browser-to-plan
 flow and human usefulness qualification remain separate dependent work.
+
+Owned-reader interface follow-up: `PreparedSelectedPlanProjection(graph)` validates
+its full input at construction, exposes immutable `pin`/`snapshot()` values and
+reuses the bounded internal index across `read(campaign_id, requested_window)`.
+It is not a currentness or SQL authority cache. `selected-plan-pure05` records the
+49-case overlapping follow-up, plus whole Ruff/mypy1316 checks and unsafe-input /
+read-only property coverage.

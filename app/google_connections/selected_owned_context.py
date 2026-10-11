@@ -1,5 +1,6 @@
 """Original-session, independently scoped reporting contexts; no factory or writes."""
 
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -47,6 +48,8 @@ class OwnedGoogleReportingContext:
         oauth: GoogleHTTPRead,
         vault: Vault,
         clock: Callable[[], datetime],
+        *,
+        expected_grant: tuple[str, str | None] | None = None,
     ) -> None:
         if (
             type(oauth) is not GoogleHTTPRead
@@ -71,7 +74,21 @@ class OwnedGoogleReportingContext:
         )
         self._catalog: GoogleReportingCatalogRequestV1 | None = None
         self._selected: SelectedCaptureRequestV1 | None = None
-        self._grant: tuple[str, str | None] | None = None
+        if expected_grant is not None and (
+            type(expected_grant) is not tuple
+            or len(expected_grant) != 2
+            or type(expected_grant[0]) is not str
+            or not expected_grant[0]
+            or (
+                expected_grant[1] is not None
+                and (
+                    type(expected_grant[1]) is not str
+                    or re.fullmatch(r"[0-9]{10}", expected_grant[1]) is None
+                )
+            )
+        ):
+            raise ValueError("invalid private reporting grant binding")
+        self._grant = expected_grant
         self._check_time()
 
     def _now(self) -> datetime:

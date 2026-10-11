@@ -64,3 +64,18 @@ Final review run40passed onSQLite/PostgreSQL,0skips32.80s; wholeRuff/mypy1297 an
 diffcheckpass. Evidence review-final-both-db.xml/.log, review-final-ruff.log,
 review-final-mypy.log. Earlier review-both-db log preserves4 test-only missing type
 import failures (36passed), repaired before final run. No tests deselected in final.
+
+## Trusted Preparation-To-Resolver Grant Pin
+
+Added backward-compatible keyword expected_grant=(encrypted ciphertext, private
+login customer ID or null). Trusted callers capture it during initial preparation;
+resolver compares before its first snapshot instead of adopting a changed grant.
+No plaintext getter/public DTO/repr or customer service edits. Finalization still
+must compare the same original pin under its own SQL lock; root owns that late-race
+fix. Same-source proof remains separately bound to exact request scope.
+
+Final pin suite46passed0skips onSQLite/scopedPostgreSQL,63.73s. WholeRuff and mypy1297
+pass; diffcheckpass. Durable pin-both-db.xml/.log, pin-ruff.log, pin-mypy.log and
+pin-diff.log retain evidence. Pre-first-snapshot grant and login mutations deny with
+zero OAuth calls; unchanged pin succeeds. Prior40case regression coverage retained.
+Final observed workspace1259MiB/scratch5847MiB available, reserves preserved.

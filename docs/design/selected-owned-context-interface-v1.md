@@ -23,6 +23,7 @@ Constructor, trusted composition only:
         oauth: GoogleHTTPRead,
         vault: Vault,
         clock: Callable[[], datetime],
+        *, expected_grant: tuple[str, str | None] | None = None,
     )
 
 Capture original user ID, issuer, subject, session digest/authenticated_at and expiry
@@ -167,3 +168,15 @@ Snapshot copies loaded user status and session user_id/revoked_at as well as ide
 fields; no lazy SQL during refresh. Callers must release preparation transactions.
 After context exit's final authority guard and SQL close, resolver samples operation
 deadline again before returning scope or pinning grant. Vault/OAuth remain outsideSQL.
+
+## Trusted Initial Grant Pin
+
+Optional keyword expected_grant is an encrypted-grant ciphertext/private-login-ID
+pair captured by the trusted customer service during its initial owned preparation.
+Resolver pins this pair before its first snapshot and rejects intervening changes;
+it never adopts a newly changed grant on first read when the pin is supplied. No
+plaintext grant getter, serialized field or repr output is introduced. None retains
+backward-compatible first-snapshot pinning for callers with no earlier preparation.
+Source identity remains bound by exact owned request scope. Caller must independently
+compare its original private pin inside final SQL transaction: the resolver does not
+close the post-last-HTTP/pre-finalization race on the caller's behalf.

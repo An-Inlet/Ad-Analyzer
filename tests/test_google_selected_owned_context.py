@@ -487,3 +487,42 @@ def test_deadline_after_context_exit_not_only_inside_body(
         assert not f.calls
     finally:
         event.remove(customer_engine, "rollback", closing_wait)
+
+
+@pytest.mark.parametrize("change", [None, "grant", "login"])
+def test_private_initial_grant_pin_cannot_adopt_changed_source(
+    customer_engine: Engine, configured: None, change: str | None
+) -> None:
+    f = Fixture(customer_engine)
+    with Session(customer_engine) as db:
+        source = db.get(GoogleCustomerConnection, f.source_id)
+        assert source and source.encrypted_grant
+        pin = (source.encrypted_grant, source.login_customer_id)
+    resolver = OwnedGoogleReportingContext(
+        lambda: Session(customer_engine),
+        f.principal,
+        f.identity,
+        f.wid,
+        f.aid,
+        f.oauth,
+        Vault(),
+        lambda: f.clock,
+        expected_grant=pin,
+    )
+    if change is not None:
+        with Session(customer_engine) as db:
+            source = db.get(GoogleCustomerConnection, f.source_id)
+            assert source
+            if change == "grant":
+                source.encrypted_grant = Vault().seal(f.wid, source.id, "different-fixture-refresh")
+            else:
+                source.login_customer_id = "9999999999"
+            db.commit()
+        with pytest.raises(HTTPException, match="grant changed"):
+            resolver.catalog_request()
+        assert not f.calls
+    else:
+        request = resolver.catalog_request()
+        context = resolver.catalog_context(request)
+        assert context.request_digest == request.digest()
+        assert pin[0] not in repr(resolver) + context.model_dump_json()

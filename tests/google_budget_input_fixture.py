@@ -9,7 +9,10 @@ from app.api import customer_planning_budget_owners
 from app.settings import Settings
 from sqlalchemy import Engine
 
-from tests.google_budget_owner_discovery_fixture import acquired_owner_catalog
+from tests.google_budget_owner_discovery_fixture import (
+    OwnerCatalogResponseControl,
+    acquired_owner_catalog,
+)
 from tests.test_customer_optimization_api import headers
 
 
@@ -21,9 +24,10 @@ def ready_inputs(
     path: Path,
     *,
     partial: bool = False,
+    response_control: OwnerCatalogResponseControl | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     fixture, catalog, calls = acquired_owner_catalog(
-        engine, config, replicas, patch, path, partial=partial
+        engine, config, replicas, patch, path, partial=partial, response_control=response_control
     )
     alice, _, _ = replicas
     alice.app.include_router(customer_planning_budget_owners.router)

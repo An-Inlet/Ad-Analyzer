@@ -12,6 +12,7 @@ from app.settings import Settings
 from sqlalchemy import Engine
 
 from tests.google_budget_input_fixture import ready_inputs
+from tests.google_budget_owner_discovery_fixture import OwnerCatalogResponseControl
 
 
 def configured_owner_review(
@@ -22,11 +23,18 @@ def configured_owner_review(
     tmp_path: Path,
     *,
     partial: bool = False,
+    response_control: OwnerCatalogResponseControl | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     # Existing helper obtains uploaded image, aggregate/selected capture and original
     # catalog/discovery receipts via real APIs. It does not save any input or plan.
     fixture, body, calls, catalog = ready_inputs(
-        engine, configuration, replicas, monkeypatch, tmp_path, partial=partial
+        engine,
+        configuration,
+        replicas,
+        monkeypatch,
+        tmp_path,
+        partial=partial,
+        response_control=response_control,
     )
     monkeypatch.setattr(
         api,

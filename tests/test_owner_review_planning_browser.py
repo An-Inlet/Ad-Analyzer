@@ -20,6 +20,8 @@ from app.customers.identity import get_identity_provider
 from app.customers.models import CustomerSession
 from app.database.session import get_db
 from app.main import app
+from app.planning_catalog.contracts import GoogleSettingsV1
+from app.planning_catalog.metadata_contracts import TargetCatalogV2
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanInputRow, PlanRow, PlanVersionRow
 from app.settings import Settings, settings
@@ -31,6 +33,8 @@ from starlette.types import Message, Receive, Scope, Send
 
 from tests import test_customer_identity, test_customer_optimization_api, test_selected_customer_api
 from tests.creative_browser_observer import fixed_detail, route_class
+from tests.creative_q07_fixture import planning_snapshot
+from tests.google_budget_owner_discovery_fixture import OwnerCatalogResponseControl
 from tests.owner_review_runtime_fixture import configured_owner_review
 from tests.test_creative_common_basis import financial_counts
 from tests.test_customer_browser_api_journey import localhost_certificate
@@ -42,7 +46,7 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("journey", ["positive", "partial"])
+@pytest.mark.parametrize("journey", ["positive", "partial", "complete_to_partial"])
 def test_actual_owner_review_planning_browser(
     customer_engine: Engine,
     request: pytest.FixtureRequest,
@@ -62,6 +66,7 @@ def test_actual_owner_review_planning_browser(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
+    response_control = OwnerCatalogResponseControl() if journey == "complete_to_partial" else None
     fixture, body, calls, _ = configured_owner_review(
         customer_engine,
         configuration,
@@ -69,6 +74,7 @@ def test_actual_owner_review_planning_browser(
         monkeypatch,
         tmp_path,
         partial=journey == "partial",
+        response_control=response_control,
     )
     basis = fixture.basis
     original_cookie = replicas[0].cookies[SESSION_COOKIE]
@@ -128,9 +134,21 @@ def test_actual_owner_review_planning_browser(
     observations: list[dict[str, Any]] = []
     artifacts: list[dict[str, Any]] = []
     truncated = False
+    active_requests = 0
+    input_posts = 0
+    switched_snapshot: tuple[tuple[str, ...], ...] | None = None
+    blocked_save_verified = False
+
+    async def forward(scope: Scope, receive: Receive, send: Send) -> None:
+        nonlocal active_requests
+        active_requests += 1
+        try:
+            await app(scope, receive, send)
+        finally:
+            active_requests -= 1
 
     async def harness(scope: Scope, receive: Receive, send: Send) -> None:
-        nonlocal truncated, session_posts
+        nonlocal truncated, session_posts, switched_snapshot, input_posts, blocked_save_verified
         path = scope.get("path", "")
         if path == "/api/customer/v1/session" and scope.get("method") == "POST":
             session_posts += 1
@@ -138,6 +156,38 @@ def test_actual_owner_review_planning_browser(
             incoming = Request(scope).cookies.get(SESSION_COOKIE, "")
             if not hmac.compare_digest(incoming, original_cookie):
                 raise AssertionError("Original authenticated session changed")
+        if path == "/__fixture__/make-partial":
+            checkpoint = Request(scope)
+            if (
+                response_control is None
+                or scope.get("method") != "POST"
+                or checkpoint.headers.get("origin") != origin
+                or not hmac.compare_digest(
+                    checkpoint.cookies.get(SESSION_COOKIE, ""), original_cookie
+                )
+                or not hmac.compare_digest(
+                    checkpoint.headers.get("x-csrf-token", ""), original_csrf
+                )
+            ):
+                raise AssertionError("Invalid native-response checkpoint")
+            assert active_requests == 0 and switched_snapshot is None and input_posts == 0
+            message = await receive()
+            assert not message.get("body", b"") and not message.get("more_body", False)
+            switched_snapshot = planning_snapshot(customer_engine)
+            assert financial_counts(customer_engine) == counts
+            response_control.make_partial()
+            await JSONResponse({"ok": True}, headers={"Cache-Control": "no-store"})(
+                scope, receive, send
+            )
+            return
+        if path.endswith("/inputs") and scope.get("method") == "POST":
+            if response_control is not None:
+                assert switched_snapshot is not None and input_posts == 0
+                assert response_control.partial_responses > 0
+                assert planning_snapshot(customer_engine) == switched_snapshot
+                assert financial_counts(customer_engine) == counts
+                blocked_save_verified = True
+            input_posts += 1
         if path == "/__fixture__/start":
             messages: list[Message] = []
 
@@ -193,7 +243,7 @@ def test_actual_owner_review_planning_browser(
             return
         label = route_class(path, scope.get("method", ""))
         if label is None:
-            await app(scope, receive, send)
+            await forward(scope, receive, send)
             return
         status = 0
         error_body = bytearray()
@@ -210,7 +260,7 @@ def test_actual_owner_review_planning_browser(
         started = time.monotonic()
         completed = False
         try:
-            await app(scope, receive, observed_send)
+            await forward(scope, receive, observed_send)
             completed = True
         finally:
             try:
@@ -285,7 +335,7 @@ def test_actual_owner_review_planning_browser(
         assert document.policy_version == "inlet.descriptive-review.v6"
         assert document.google_budget_owner_review is not None
         reviews = document.google_budget_owner_review.reviews
-        assert len(reviews) == (1 if journey == "positive" else 0)
+        assert len(reviews) == (0 if journey == "partial" else 1)
         if reviews:
             review = reviews[0]
             assert review.intent.requested_amount_micros == 5_000_000
@@ -312,6 +362,62 @@ def test_actual_owner_review_planning_browser(
             assert db.scalar(select(func.count()).select_from(PlanInputRow)) == (
                 2 if reviews else 1
             )
+        if response_control is not None:
+            assert blocked_save_verified and input_posts == 1
+            assert response_control.partial_responses > 0
+            transition = result["transition"]
+            before_catalog = TargetCatalogV2.model_validate(transition["complete_catalog"])
+            after_catalog = TargetCatalogV2.model_validate(transition["partial_catalog"])
+            assert before_catalog.composite_digest != after_catalog.composite_digest
+            for catalog, expected_count in ((before_catalog, 2), (after_catalog, 3)):
+                native = catalog.native_observation
+                member_rows = [
+                    row
+                    for row in native.targets
+                    if row.kind == "campaign"
+                    and row.budget_owner_key == reviews[0].witness.owner_key
+                ]
+                assert len(member_rows) == 2
+                assert all(
+                    isinstance(row.settings, GoogleSettingsV1)
+                    and row.settings.budget_reference_count == expected_count
+                    for row in member_rows
+                )
+                coverage = [
+                    row for row in catalog.metadata_observation.coverage if row.kind == "campaign"
+                ]
+                assert len(coverage) == 1
+                assert (coverage[0].status, coverage[0].scope, coverage[0].count) == (
+                    "complete",
+                    "provider_campaigns",
+                    3,
+                )
+            before_discovery = transition["complete_discovery"]
+            after_discovery = transition["partial_discovery"]
+            assert (
+                before_discovery["status"] == "available" and len(before_discovery["owners"]) == 1
+            )
+            assert after_discovery["status"] == "unavailable" and after_discovery["owners"] == []
+            assert after_discovery["reason"] == "google_budget_owner_unavailable"
+            assert transition["blocked_input_posts"] == 0
+            assert transition["final_input_posts"] == 1
+            assert transition["historical"]["document"] == result["document"]
+            assert transition["historical_export"]["document"] == result["document"]
+            assert transition["historical"]["document_digest"] == document.digest()
+            assert transition["historical_export"]["document_digest"] == document.digest()
+            for name in (
+                "complete_catalog",
+                "complete_discovery",
+                "partial_catalog",
+                "partial_discovery",
+                "historical",
+                "historical_export",
+            ):
+                path = tmp_path / (name + ".json")
+                path.write_text(json.dumps(transition[name], sort_keys=True, indent=2) + "\n")
+                artifacts.append(
+                    dict(name=name, sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+                )
         for name, value in (("document", result["document"]), ("export", exported)):
             path = tmp_path / (name + ".json")
             path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")

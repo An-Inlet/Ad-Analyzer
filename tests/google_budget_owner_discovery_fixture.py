@@ -1,6 +1,9 @@
 """Actual shared-owner topology and planning rejection; no native-edit qualification."""
 
+import copy
+import hmac
 import json
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +23,41 @@ from tests.test_google_native_inventory import PREFIX, key, payloads
 from tests.test_shopify_sales import configuration as configuration
 
 
+class OwnerCatalogResponseControl:
+    """One-way native-response fixture switch; never changes retained evidence."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._partial = False
+        self._partial_responses = 0
+
+    @property
+    def partial_responses(self) -> int:
+        with self._lock:
+            return self._partial_responses
+
+    def make_partial(self) -> None:
+        with self._lock:
+            if self._partial:
+                raise ValueError("Native response already switched")
+            self._partial = True
+
+    def _budget_rows(self, original: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = copy.deepcopy(original)
+            shared = [
+                row["campaignBudget"]
+                for row in rows
+                if row["campaignBudget"]["resourceName"] == PREFIX + "campaignBudgets/2"
+            ]
+            assert len(shared) == 1 and shared[0]["referenceCount"] == "2"
+            if self._partial:
+                assert self._partial_responses < 20
+                shared[0]["referenceCount"] = "3"
+                self._partial_responses += 1
+            return rows
+
+
 def acquired_owner_catalog(
     customer_engine: Engine,
     configuration: Settings,
@@ -27,7 +65,11 @@ def acquired_owner_catalog(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     partial: bool = False,
+    *,
+    response_control: OwnerCatalogResponseControl | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]]]:
+    if partial and response_control is not None:
+        raise ValueError("Static partial and response controller are mutually exclusive")
     fixture = prepare_creative_common_basis(
         customer_engine,
         configuration,
@@ -107,7 +149,10 @@ def acquired_owner_catalog(
                 },
             )
         else:
-            rows = data[key(query)]
+            query_key = key(query)
+            rows = data[query_key]
+            if query_key == "campaign_budget" and response_control is not None:
+                rows = response_control._budget_rows(rows)
         return httpx.Response(200, json={"results": rows})
 
     monkeypatch.setattr(
@@ -124,5 +169,6 @@ def acquired_owner_catalog(
         ),
     )
     assert response.status_code == 200, response.text
-    assert alice.cookies[SESSION_COOKIE] == original_session
+    if not hmac.compare_digest(alice.cookies[SESSION_COOKIE], original_session):
+        raise AssertionError("Original authenticated session changed")
     return fixture, response.json(), calls

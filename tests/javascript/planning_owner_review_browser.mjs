@@ -6,17 +6,20 @@ const until=async(fn,message)=>{const end=Date.now()+35000;while(!fn()){if(Date.
 const change=(node,value,event='change')=>{assert(node,'control exists');node.value=value;node.dispatchEvent(new Event(event));};
 const checked=(node,value)=>{assert(node,'checkbox exists');node.checked=value;node.dispatchEvent(new Event('change'));};
 const role=(host,name)=>host.querySelector(`[data-role="${name}"]`);
+const canonical=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
 const settled=()=>!$('list-refresh').disabled;
 const root=`/api/customer/v1/workspaces/${cfg.workspace_id}/planning`;
 const owner=()=>document.getElementById('google-owner-inputs');
 let catalog=null,discovery=null,created=null,generated=null,downloaded=null,revision=null;
-let createPosts=0,generatePosts=0,freshReads=0;
+let createPosts=0,generatePosts=0,freshReads=0,inputPosts=0,transition=null;
 let originalCreateBody=null,originalGenerateBody=null;
 try{
  await json(await native('/api/customer/v1/session'));
  const sessionCookies=document.cookie;
  window.fetch=async(...args)=>{
-  const path=String(args[0]),method=args[1]?.method??'GET',response=await native(...args);
+  const path=String(args[0]),method=args[1]?.method??'GET';
+  if(path.endsWith('/inputs')&&method==='POST')inputPosts++;
+  const response=await native(...args);
   if(path===root+'/target-catalog-v2'&&method==='POST'&&response.ok){catalog=await response.clone().json();freshReads++;}
   if(path===root+'/google-budget-owners'&&method==='POST'&&response.ok)discovery=await response.clone().json();
   if(path===root+'/plans'&&method==='POST'){
@@ -77,8 +80,8 @@ try{
  await until(()=>settled()&&$('editor').hidden&&!$('current').hidden,'owned saved inputs');
  assert(createPosts===1,'one create with stable receipt recovery');
  assert(Array.isArray(originalCreateBody.inputs.google_daily_budget_intents),'explicit V6 field');
- assert(originalCreateBody.inputs.google_daily_budget_intents.length===(cfg.journey==='positive'?1:0),'exact explicit inclusion');
- if(cfg.journey==='positive'){
+ assert(originalCreateBody.inputs.google_daily_budget_intents.length===(cfg.journey==='partial'?0:1),'exact explicit inclusion');
+ if(cfg.journey!=='partial'){
   const sent=originalCreateBody.inputs.google_daily_budget_intents[0],option=discovery.owners[0];
   for(const key of ['account_id','owner_selection_id','expected_observation_digest','expected_owner_facts_digest','currency','cadence','unit'])assert(sent[key]===option[key],'exact discovered owner field '+key);
   assert(sent.account_id===cfg.account_id&&sent.scenario_key==='alternative_1'&&sent.requested_amount_micros===5000000,'explicit account alternative and daily hypothesis');
@@ -88,8 +91,8 @@ try{
  assert(generatePosts===1,'one original generation');
  const documentValue=generated.document;assert(documentValue.policy_version==='inlet.descriptive-review.v6','exact private policy');
  const savedReviews=documentValue.google_budget_owner_review.reviews;
- assert(savedReviews.length===(cfg.journey==='positive'?1:0),'exact saved owner count');
- if(cfg.journey==='positive'){
+ assert(savedReviews.length===(cfg.journey==='partial'?0:1),'exact saved owner count');
+ if(cfg.journey!=='partial'){
   const saved=savedReviews[0].intent,sent=originalCreateBody.inputs.google_daily_budget_intents[0];
   for(const key of Object.keys(sent))assert(saved[key]===sent[key],'saved original primitive '+key);
   const actualMembers=savedReviews[0].witness.affected_campaigns;
@@ -98,7 +101,7 @@ try{
  }
  const proof=document.getElementById('google-owner-review');assert(proof&&!proof.hidden,'saved owner panel');
  assert(![...proof.querySelectorAll('button')].some(b=>/apply/i.test(b.textContent)),'no apply control');
- if(cfg.journey==='positive')assert(proof.textContent.includes('Review Required — Not Qualified Against The Period Ceiling')&&proof.textContent.includes('Inlet will not apply these changes.')&&proof.textContent.includes('Mug Campaign 2'),'saved investigation and affected member');
+ if(cfg.journey!=='partial')assert(proof.textContent.includes('Review Required — Not Qualified Against The Period Ceiling')&&proof.textContent.includes('Inlet will not apply these changes.')&&proof.textContent.includes('Mug Campaign 2'),'saved investigation and affected member');
  const plan=root+'/plans/'+created.plan_id;
  $('export').click();await until(()=>settled()&&downloaded!==null,'actual export');
  assert(downloaded.document_digest===generated.document_digest,'exact saved export');
@@ -113,6 +116,42 @@ try{
   $('save').click();await until(()=>settled()&&$('editor').hidden&&revision!==null,'explicit V6 empty correction');
   assert(revision.input_revision===2,'CAS creates second input only');
  }
+ if(cfg.journey==='complete_to_partial'){
+  const originalDocument=canonical(documentValue),originalDigest=generated.document_digest;
+  $('edit').click();await until(()=>settled()&&!$('editor').hidden,'saved owner edit for recovery');
+  assert(owner().textContent.includes('Saved Or Changed Review — Reselect Before Saving'),'historical entry begins unready');
+  role(owner(),'owner-remove').click();await readAlternative();
+  discovery=null;role(owner(),'owner-discover').click();
+  await until(()=>settled()&&discovery?.status==='available'&&role(owner(),'owner-option')?.options.length>1,'fresh complete discovery');
+  const completeCatalog=structuredClone(catalog),completeDiscovery=structuredClone(discovery);
+  change(role(owner(),'owner-option'),'0');change(role(owner(),'owner-scenario'),'alternative_1');
+  change(role(owner(),'owner-requested'),'5','input');role(owner(),'owner-include').click();
+  assert(owner().textContent.includes('Included Review')&&!owner().textContent.includes('Saved Or Changed Review'),'fresh unsaved review truly ready');
+  assert(inputPosts===0,'no intermediate input save');
+  const csrf=document.cookie.split('; ').find(v=>v.startsWith('__Host-inlet_csrf='));
+  assert(csrf,'existing CSRF transport');
+  await json(await native('/__fixture__/make-partial',{method:'POST',headers:{'X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))}}));
+  await readAlternative();discovery=null;role(owner(),'owner-discover').click();
+  await until(()=>settled()&&discovery?.status==='unavailable'&&role(owner(),'owner-status').textContent.includes('Read fresh targets and review the full affected campaigns.'),'fresh partial discovery settled');
+  assert(discovery.reason==='google_budget_owner_unavailable'&&discovery.owners.length===0,'exact partial owner refusal');
+  assert(!role(owner(),'owner-include')||role(owner(),'owner-include').disabled,'incomplete owner cannot be included');
+  assert(catalog.composite_digest!==completeCatalog.composite_digest,'fresh catalog commitment');
+  for(const field of ['workspace_id','account_id','connection_id','connection_version','platform'])assert(catalog.native_observation[field]===completeCatalog.native_observation[field],'same owned native scope '+field);
+  assert(owner().textContent.includes('Saved Or Changed Review — Reselect Before Saving')&&owner().textContent.includes('Requested Daily Hypothesis USD 5.000000 Per Day'),'previous live choice retained and invalidated');
+  assert(owner().textContent.includes('Mug Campaign 1')&&owner().textContent.includes('Mug Campaign 2'),'original affected member labels retained');
+  checked($('replace-targets'),true);$('save').click();
+  await until(()=>settled()&&$('message').textContent.includes('Saved owner reviews require explicit removal and current reselection.'),'owner-specific save refusal');
+  assert(!$('editor').hidden&&inputPosts===0,'blocked owner save has zero input POSTs');
+  transition={complete_catalog:completeCatalog,complete_discovery:completeDiscovery,partial_catalog:structuredClone(catalog),partial_discovery:structuredClone(discovery),blocked_input_posts:inputPosts};
+  role(owner(),'owner-remove').click();$('save').click();
+  await until(()=>settled()&&$('editor').hidden&&revision!==null,'explicit removal after partial recovery');
+  assert(inputPosts===1&&revision.input_revision===2,'only explicit removal commits one revision');
+  const old=await json(await native(plan+'/versions/1'));
+  const oldExport=await json(await native(plan+'/export?version=1'));
+  assert(old.document_digest===originalDigest&&oldExport.document_digest===originalDigest,'historical digest immutable');
+  assert(canonical(old.document)===originalDocument&&canonical(oldExport.document)===originalDocument,'original complete V1 document immutable');
+  transition.historical=old;transition.historical_export=oldExport;transition.final_input_posts=inputPosts;
+ }
  assert(document.cookie===sessionCookies,'original browser session retained');
- await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads})});
+ await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads,transition})});
 }catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:String(error.message)})});}

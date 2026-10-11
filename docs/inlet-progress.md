@@ -7851,3 +7851,22 @@ The next authorized investigation extends the unchanged `9fd75ab` measurement
 source with bounded ordinary assertion/start/receipt/goal spans, retaining prior
 failures and all caps. Independent Q13/Q14/Q16 source-gap proposals proceed
 without changing pending retention, sharing or human quality decisions.
+
+
+## Selected Assertion Attribution
+
+Observer04 on unchanged application/tests `9fd75ab` completed its one scoped
+normal PostgreSQL observation: one pass, original exit 0, 235 frames and 34 save
+final checks, no accounting/truncation/restoration flags. Save elapsed 3.792293s
+with 2,385 SQL executions. Root and independent review verified exact disjoint
+wall/SQL sums and all sixteen assertion spans had zero inclusive SQL. Paired
+exclusive 0.196226s plus selected exclusive 0.488626s is 0.684852s of domain
+assertion work across the save; this is a measured target, not removable-time
+or capacity evidence. Selected-current residual remains 0.583250s/300 SQL.
+
+Author ledger `1408194` and freeze `06852e6795c911c5341db01acc5d99947f75f4eb73de78db89bfefbc9c6d347c`
+preserve one source and twelve evidence hashes. See
+`inlet-v6-selected-residual-measurement04-20261011.md`. Next: review a same-call
+validation repair with public validation and all after-SQL checks preserved.
+No production repair yet; prior failed occurrences remain unresolved. Q14
+label repair and Q13 historical report/retraction tests proceed independently.

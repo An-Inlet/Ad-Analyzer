@@ -21,9 +21,15 @@ Checks in `/workspace/inlet-evidence/20261011/creative-plan-composer/`:
 - Final combined03:138 passed,0 skips/errors/failures,21.714seconds. Includes
  22 composer cases, creative document contract, v4 selected/child location cases,
   reserved input and legacy serialization/digest regressions.
-- google04: strengthened overlapping positive Google case passed. Original
-  selected proof retained;100 observed clicks/$100 observed spend produce retain,
-  no observed-zero/no-conversions finding, and exact raw-traffic references remain.
+- google04: the strengthened overlapping Google case failed because its assertion
+  incorrectly forbade a correct observed-zero statement for the separate complete
+  comparison window. Production correctly distinguishes the positive primary
+  window from the zero comparison window. The follow-up assertion scopes positive
+  conversion denial to the primary window and explicitly preserves comparison zero.
+  google05 passed this corrected case. The first follow-up Ruff run caught one long
+  assertion line; formatting fixed it and final Ruff/mypy06 passed. The earlier
+  a19f1a2 ledger incorrectly called google04 a pass before its log was inspected;
+  this correction preserves the failed evidence and fixes that record explicitly.
 - Whole Ruff and configured no-path mypy passed for1,393 source files; diff clean.
 
 Coverage includes supplied/empty images, Meta/TikTok typed output identity,

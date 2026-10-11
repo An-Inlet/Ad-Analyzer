@@ -313,7 +313,10 @@ def test_genuine_google_v5_preserves_positive_selected_traffic() -> None:
     assert "spend without conversions" not in text
     assert "100 observed clicks" in doc.actions[0].rationale
     assert "100 USD observed spend" in doc.actions[0].rationale
-    assert "Observed zero selected conversions" not in doc.actions[0].rationale
+    assert (
+        "Observed zero selected conversions" not in doc.actions[0].rationale.split("Comparison")[0]
+    )
+    assert "Observed zero selected conversions" in doc.actions[0].rationale.split("Comparison")[1]
     assert doc.actions[0].kind == "retain"
     assert {item.reference.key for item in paired.traffic} <= set(doc.actions[0].evidence_keys)
     assert doc.creative_composition is not None and not doc.creative_composition.proposals

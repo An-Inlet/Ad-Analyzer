@@ -7363,3 +7363,39 @@ The service/storage branch is assembling this commit with the independently revi
 canonical-once storage-pair change for16pure and28actualAPI checks on changed source.
 Service remains unintegrated pending that qualification. All live/remote/release
 holds, human usefulness gaps and original reliability findings remain explicit.
+
+## 2026-10-11 — Local Owner Service And Customer Flow Integration
+
+Successor service qualification is now integrated. The two-file owner-domain
+derivation refactor retained strict public validation/serialization and fresh
+checks across SQL boundaries; its pure cohort passed194 cases. The actual service
+matrix covers all28 planned IDs across disjoint runs: six initial SQLite passes,
+one separately corrected substitution-fixture pass, and21 remaining SQLite/PG
+passes. The original invalid-fixture failure and earlier authority-expiry failures
+are preserved. This is not one28-pass run or a measured latency margin.
+
+[Service integration ledger](inlet-owner-service-integration-20261011.md) records
+code head1e2d1da, source identity, root Ruff/mypy1479 and independently verified
+source/evidence/artifact hashes. Default V3, legacy V5 boundaries, original-session
+receipts, atomic rollback and no advertising authority remain enforced.
+
+The [browser prerequisite package](inlet-owner-browser-prerequisites-20261011.md)
+integrated87d052d:29 fixed-route diagnostic cases plus four genuine complete/partial
+acquisition fixtures passed. Root Ruff/mypy1481 passed. These are not TLS journeys.
+
+The [customer UI package](inlet-google-owner-review-portal-20261011.md) integrated
+9952ff8 (integration ledger7c60866). Three distinct Chromium checks passed across
+two runs: owner component and legacy document display, then actual controller
+compatibility. The UI preserves primitive input projection, exact amounts and
+full-member provenance, asynchronous invalidation, saved-proof honesty and no
+silent legacy-input upgrade. Root Ruff/mypy1483 passed;14-source/19-evidence
+hashes were independently verified. No existing passing cohort was repeated just
+for source-identical integration.
+
+Next is the source-reviewed four-case authenticated original-session TLS matrix:
+SQLite complete/partial then PostgreSQL complete/partial, using actual browser
+target reads, discovery, input submission, generation, history and export. Its
+execution remains separately gated on an exact frozen source/manifest and stops
+at the first unexpected failure. No customer browser/API journey is claimed yet.
+All original incident, human usefulness, remote/hosted-CI, live, merge and deployment
+holds remain unchanged. Public website work stays owner-managed.

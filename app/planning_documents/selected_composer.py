@@ -39,6 +39,43 @@ def bounded_text(value: str) -> str:
     return value
 
 
+def observed_child_steps(
+    target: TargetRef | AccountTarget,
+    observed: tuple[TargetRef, ...],
+    excluded_keys: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Location-only projection from an already validated owned catalog, never metrics."""
+    if not isinstance(target, TargetRef) or target.kind != "campaign":
+        return ()
+    children = sorted(
+        (
+            child
+            for child in observed
+            if child.kind in {"adgroup", "adset"}
+            and child.account == target.account
+            and child.catalog_evidence_key == target.catalog_evidence_key
+            and child.provider_reference.platform == target.provider_reference.platform
+            and child.provider_reference.advertiser_id == target.provider_reference.advertiser_id
+            and child.provider_reference.parent_campaign_id == target.provider_reference.entity_id
+            and child.canonical_entity_key not in excluded_keys
+        ),
+        key=lambda child: child.canonical_entity_key,
+    )
+    if len(children) > 15 or len({child.canonical_entity_key for child in children}) != len(
+        children
+    ):
+        raise PlanCompositionUnavailable(
+            "complete observed child locations exceed document capacity"
+        )
+    return tuple(
+        bounded_text(
+            f"Observed catalog location only: {location(child)}. "
+            "Campaign metrics are not child metrics; no child change is proposed."
+        )
+        for child in children
+    )
+
+
 def instants(window: ReportingWindow) -> tuple[datetime, datetime]:
     return window.starts_at.astimezone(UTC), window.ends_at_exclusive.astimezone(UTC)
 
@@ -409,6 +446,9 @@ class SelectedPlanComposer:
                             "customer constraints; continued delivery is not assumed affordable.",
                             "Clarify the constraints shown in this plan before making changes; "
                             "record any change you choose to make outside Inlet.",
+                        )
+                        + observed_child_steps(
+                            target, targets(catalog), inputs.excluded_entity_keys
                         ),
                         expected_effect="Improve decision evidence; sales effect is unknown.",
                         limitations=tuple(limitations[:2]),

@@ -40,6 +40,7 @@ from app.planning_documents.models import (
 )
 from app.planning_documents.owner_review_generation import assert_owner_review_generation_bundle
 from app.planning_documents.policy_capabilities import (
+    ReportingCapability,
     reporting_capability,
     ticket_reporting_capability,
 )
@@ -328,10 +329,9 @@ def save_event(
     ):
         raise changed("event actor or plan inputs changed")
     if not retracting:
-        if (
-            version_row.privacy_revision != workspace_export_revision(db, event.workspace_id)
-            or utc(now) >= utc(document.valid_until)
-        ):
+        if version_row.privacy_revision != workspace_export_revision(db, event.workspace_id) or utc(
+            now
+        ) >= utc(document.valid_until):
             raise changed("plan evidence expired or changed")
         check_goal(db, document.inputs, now)
         check_accounts(db, document.inputs)
@@ -427,21 +427,9 @@ def save_event(
     return sequence, event
 
 
-def save_generation(
-    db: Session,
-    *,
-    principal: CustomerPrincipal,
-    fact: IdentityFact,
-    ticket: GenerationTicket,
-    bundle: GenerationEvidence,
-    candidate: PlanVersion,
-    request_key: str,
-    request_digest: str,
-    now: datetime,
-    recheck: Callable[
-        [Session, CustomerPrincipal, GenerationTicket, GenerationEvidence, datetime], None
-    ],
-) -> PlanVersion:
+def _generation_entry(
+    ticket: GenerationTicket, bundle: GenerationEvidence, candidate: PlanVersion
+) -> tuple[GenerationTicket, PlanVersion, ReportingCapability]:
     ticket = GenerationTicket.model_validate(ticket)
     candidate = PlanVersion.model_validate(candidate)
     try:
@@ -473,36 +461,12 @@ def save_generation(
         *(utc(image.observed_at) for image in bundle.creative.basis.images),
     ):
         raise changed("candidate generation predates original creative collection")
-    wid, plan_id = ticket.inputs.workspace_id, ticket.inputs.plan_id
-    current = authority.lock(db, principal, wid, fact)
-    if ticket.actor_id != current.user.id or ticket.session_digest != current.session.digest:
-        raise changed("original generation session changed")
-    prior = receipt(db, wid, current.user.id, "generate", request_key, request_digest)
-    plan = owned(db, wid, plan_id)
-    if prior is not None:
-        if prior.plan_id != plan_id:
-            raise changed("request key belongs to another plan")
-        _, result = version(db, plan, prior.version)
-        authority.final(current, fact)
-        return result
-    if (
-        plan.input_head != ticket.inputs.revision
-        or plan.version_head != ticket.expected_version
-        or inputs(db, plan).digest() != ticket.inputs.digest()
-    ):
-        raise changed("generation input or version changed")
-    if (
-        candidate.inputs.digest() != ticket.inputs.digest()
-        or candidate.version != ticket.expected_version + 1
-        or candidate.parent_digest != ticket.expected_parent_digest
-        or candidate.generated_by != current.user.id
-        or candidate.policy_version != ticket.policy_version
-    ):
-        raise changed("candidate does not match generation")
-    if ticket.expected_version:
-        _, prior_version = version(db, plan)
-        if prior_version.digest() != ticket.expected_parent_digest:
-            raise changed("generation parent changed")
+    return ticket, candidate, capability
+
+
+def _generation_actual_bindings(
+    ticket: GenerationTicket, bundle: GenerationEvidence, candidate: PlanVersion
+) -> None:
     reporting = bundle.reporting if isinstance(bundle, CreativePairedEvidenceV1) else bundle
     actual = reporting.selected if isinstance(reporting, SelectedPairedEvidenceV1) else reporting
     if (
@@ -553,10 +517,68 @@ def save_generation(
             assert_empty_catalog_bindings(candidate.creative_composition.proposals, actual.catalogs)
         except ValueError as error:
             raise changed("empty catalog witness differs from actual collected evidence") from error
+
+
+def _generation_owner_binding(
+    ticket: GenerationTicket,
+    bundle: GenerationEvidence,
+    candidate: PlanVersion,
+    capability: ReportingCapability,
+) -> None:
     if capability.mode == "owner_review_creative_selected_requested_window":
         if not isinstance(bundle, CreativePairedEvidenceV1):
             raise changed("creative paired evidence required")
         assert_owner_review_generation_bundle(ticket=ticket, candidate=candidate, bundle=bundle)
+
+
+def save_generation(
+    db: Session,
+    *,
+    principal: CustomerPrincipal,
+    fact: IdentityFact,
+    ticket: GenerationTicket,
+    bundle: GenerationEvidence,
+    candidate: PlanVersion,
+    request_key: str,
+    request_digest: str,
+    now: datetime,
+    recheck: Callable[
+        [Session, CustomerPrincipal, GenerationTicket, GenerationEvidence, datetime], None
+    ],
+) -> PlanVersion:
+    ticket, candidate, capability = _generation_entry(ticket, bundle, candidate)
+    wid, plan_id = ticket.inputs.workspace_id, ticket.inputs.plan_id
+    current = authority.lock(db, principal, wid, fact)
+    if ticket.actor_id != current.user.id or ticket.session_digest != current.session.digest:
+        raise changed("original generation session changed")
+    prior = receipt(db, wid, current.user.id, "generate", request_key, request_digest)
+    plan = owned(db, wid, plan_id)
+    if prior is not None:
+        if prior.plan_id != plan_id:
+            raise changed("request key belongs to another plan")
+        _, result = version(db, plan, prior.version)
+        authority.final(current, fact)
+        return result
+    if (
+        plan.input_head != ticket.inputs.revision
+        or plan.version_head != ticket.expected_version
+        or inputs(db, plan).digest() != ticket.inputs.digest()
+    ):
+        raise changed("generation input or version changed")
+    if (
+        candidate.inputs.digest() != ticket.inputs.digest()
+        or candidate.version != ticket.expected_version + 1
+        or candidate.parent_digest != ticket.expected_parent_digest
+        or candidate.generated_by != current.user.id
+        or candidate.policy_version != ticket.policy_version
+    ):
+        raise changed("candidate does not match generation")
+    if ticket.expected_version:
+        _, prior_version = version(db, plan)
+        if prior_version.digest() != ticket.expected_parent_digest:
+            raise changed("generation parent changed")
+    _generation_actual_bindings(ticket, bundle, candidate)
+    _generation_owner_binding(ticket, bundle, candidate, capability)
     paid_work(db, wid, now)
     check_goal(db, ticket.inputs, now)
     check_accounts(db, ticket.inputs)

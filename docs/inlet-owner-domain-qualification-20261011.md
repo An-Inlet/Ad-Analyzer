@@ -29,3 +29,26 @@ a fresh process, against genuinely changed frozen source; first unexpected failu
 stops the cohort. Pure results establish no service timing margin. The service and
 customer UI remain unqualified until their own acceptance criteria pass. Remote,
 hosted-CI, merge, deployment and live-operation holds remain unchanged.
+
+## Acceptance09 Partial Result
+
+The once-only uninstrumented API cohort on `f4e3b72` stopped with **six passed,
+one failed and 21 unrun**. SQLite zero, owner, empty, unselected-Meta and mixed-Meta
+generation/history/export/replay journeys passed, as did explicit-owner-tuple refusal.
+The seventh case failed while constructing its purportedly valid substituted
+document, before repository save or its expected HTTP assertion. It changed a
+campaign inside the complete witness catalog while retaining the original intent
+observation digest. The pre-kernel public resolver also binds that entire witness;
+this outcome does not establish a production regression or authority timeout.
+
+Independent source diagnosis requires correcting the fixture while preserving its
+intended actual-catalog save-boundary assertion. No unchanged retry occurred. The six
+passing cases will remain distinct from any reviewed successor selection, and the
+original failure remains immutable. Full service acceptance and UI work remain held.
+
+Root and reviewer verified 28 source and 35 evidence hashes, plus ten copied synthetic
+document/export artifacts against their originals. Summary:
+`/workspace/inlet-evidence/20261011/google-owner-v6-runtime/acceptance-09-summary.json`
+SHA-256 `1d47287f9c0393f1b98fc83fc67207be8d51efc0d996c93575fd8fbe1d39949d`.
+These local successes do not establish a timing margin, explain earlier failures,
+or provide live verification.

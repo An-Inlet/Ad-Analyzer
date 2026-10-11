@@ -1,6 +1,7 @@
 # Private V5 Runtime Qualification — 2026-10-11
 
-Qualification is in progress against service commit `4100fe5`. The default customer
+Normal qualification passed after service `4100fe5` and performance slice `e478b4b`.
+Earlier failed attempts and the unresolved timeout cause remain recorded. The default customer
 service remains V3. V5 requires the exact canonical server policy and an explicit
 private media store. No live provider, advertising write, hosted CI, push, merge or
 deployment is part of this work.
@@ -92,3 +93,8 @@ identity interval used 2,217 calls versus 2,627, but its age was 3.693 seconds v
 query reduction is verified; elapsed-time improvement is not. No retry or expanded
 optimization is justified from this measurement alone. The original timeout cause
 remains unproven. `runtime-qualification.json` retains attempt counts and XML hashes.
+
+The real-clock expiry regression is integrated at `db4a220` and independently
+review-closed. SQLite passed in 15.774s and PostgreSQL in 20.758s: after genuine
+retained capture, one six-second delay triggers the original five-second guard
+and leaves no generation writes. See the [expiry package](inlet-creative-authority-delay-package-20261011.md).

@@ -7190,3 +7190,14 @@ but an earlier PostgreSQL generation exceeded the five-second authority limit.
 The limit remains unchanged; reviewed first-slice performance work is underway.
 [Exact attempts, test repairs and remaining gate](inlet-creative-runtime-qualification-20261011.md).
 Default customer service remains V3. No live/hosted/release qualification claimed.
+
+## 2026-10-11 — Private V5 Normal Runtime Checks Complete
+
+Reviewed same-pass SQL reuse `e478b4b` preserves every independent fresh proof pass.
+Normal API/lifecycle suite passed all28 cases on both databases in319.863s;
+whole Ruff/mypy1408 passed. SQL counts decreased in bounded diagnostics, but
+elapsed time did not improve; original timeout cause remains unproven.
+Real six-second-delay regression `db4a220` passed SQLite/PostgreSQL and review,
+proving unchanged five-second authority rejection with no generation writes;
+its whole Ruff/mypy1409 passed. [Runtime ledger](inlet-creative-runtime-qualification-20261011.md).
+Common Basis actual V5 review artifacts are next; expert/live/release gates remain.

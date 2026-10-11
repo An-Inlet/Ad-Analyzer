@@ -11,6 +11,7 @@ from app.campaign_performance.range_receipt_models import RangeReceiptRow
 from app.lifecycle.export_serializers import serialize
 from app.planning_documents import repository
 from app.planning_documents import selected_plan_retained as retained
+from app.planning_documents import selected_traffic_reader as traffic_reader
 from app.planning_documents.actions import BudgetScenario
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow, PlanInputRow, PlanRow, PlanVersionRow
@@ -59,16 +60,17 @@ def test_current_proof_contains_actual_traffic_and_second_read_guards(
         )
         assert absent.traffic_pin is None and "traffic_pin" not in absent.model_dump()
     calls = 0
+    original_traffic = traffic_reader._traffic_for_selected
 
     def race(db: Session, **kwargs: Any) -> Any:
         nonlocal calls
-        value = load_raw_range_traffic(db, **kwargs)
+        value = original_traffic(db, **kwargs)
         calls += 1
         if calls == 1:
             db.execute(delete(RangeReceiptRow if damage == "receipt" else MetricPresenceRow))
         return value
 
-    monkeypatch.setattr(retained, "load_raw_range_traffic", race)
+    monkeypatch.setattr(traffic_reader, "_traffic_for_selected", race)
     with Session(customer_engine) as db, db.begin():
         with pytest.raises((HTTPException, ValueError, RetainedSourcesChanged)):
             retained.capture_selected_reporting_pin(

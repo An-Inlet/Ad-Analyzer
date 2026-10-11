@@ -23,9 +23,8 @@ from app.planning_documents.selected_plan_proof import (
     SelectedHeadProofV1,
     SelectedRetainedAccountProofV1,
 )
-from app.planning_documents.selected_plan_reader import load_selected_plan_graph
 from app.planning_documents.selected_traffic import RawRangeTrafficGraphV1
-from app.planning_documents.selected_traffic_reader import load_raw_range_traffic
+from app.planning_documents.selected_traffic_reader import _read_selected_traffic_pass
 from app.planning_documents.source_contracts import SourceFence
 from app.shopify.security import utc
 from app.sources.models import SourceConnection
@@ -131,18 +130,11 @@ def capture_selected_reporting_pin(
             privacy_revision=privacy,
         )
         head = _head(db, account)
-        pin = (
-            None
+        pin, traffic = (
+            (None, None)
             if selector is None
-            else load_selected_plan_graph(
+            else _read_selected_traffic_pass(
                 db, account=account, expected_source=fence, capture_id=selector.capture_id
-            ).pin()
-        )
-        traffic = (
-            None
-            if pin is None
-            else load_raw_range_traffic(
-                db, account=account, expected_source=fence, selected_pin=pin
             )
         )
         return SelectedRetainedAccountProofV1(

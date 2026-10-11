@@ -1,9 +1,11 @@
 """Caller-owned SQL traffic reads; no identity/provider IO, commits or runtime factory."""
 
-from typing import Annotated, Literal
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
 from app.ads.models import AdvertisingAccount, Campaign
@@ -21,6 +23,7 @@ from app.planning_documents.selected_plan_contracts import (
     SelectedCampaignBindingV1,
     SelectedPlanPinV1,
 )
+from app.planning_documents.selected_plan_evidence import SelectedPlanCaptureV1
 from app.planning_documents.selected_plan_reader import load_selected_plan_graph
 from app.planning_documents.selected_traffic import PROFILE, RawRangeTrafficGraphV1
 from app.planning_documents.selected_traffic_contracts import SelectedTrafficPinV1
@@ -113,77 +116,169 @@ def load_raw_range_traffic(
             )
             if selected.pin() != pin:
                 raise changed()
-            if account.platform != "google_ads":
-                return _gap(account, pin, "unsupported_traffic_profile")
-            completion = db.get(
-                PerformanceCompletion, pin.aggregate.completion_id, populate_existing=True
+            return _traffic_for_selected(
+                db, account=account, source=source, selected=selected, pin=pin
             )
-            if completion is None:
+    except (ValueError, KeyError, TypeError):
+        raise changed() from None
+
+
+def _traffic_for_selected(
+    db: Session,
+    *,
+    account: AccountRef,
+    source: SourceFence,
+    selected: SelectedPlanCaptureV1,
+    pin: SelectedPlanPinV1,
+) -> RawRangeTrafficGraphV1 | KnownTrafficGap:
+    # Private factoring only. Both callers load selected themselves in this invocation.
+    if account.platform != "google_ads":
+        return _gap(account, pin, "unsupported_traffic_profile")
+    completion = db.get(PerformanceCompletion, pin.aggregate.completion_id, populate_existing=True)
+    if completion is None:
+        raise changed()
+    present = read_presence(db, completion)
+    if present is not None and present[0].producer_contract != PROFILE:
+        raise changed()
+    ids = db.scalars(
+        select(RangeReceiptRow.request_id)
+        .where(
+            RangeReceiptRow.workspace_id == account.workspace_id,
+            RangeReceiptRow.account_id == account.account_id,
+            RangeReceiptRow.completion_id == pin.aggregate.completion_id,
+        )
+        .limit(2)
+    ).all()
+    if len(ids) > 1:
+        raise changed()
+    if not ids:
+        return _gap(account, pin, "range_traffic_provenance_unavailable")
+    receipt = read_range_receipt(db, account.workspace_id, account.account_id, ids[0])
+    # Validate exact parent even before a legitimate missing-sidecar gap.
+    if (
+        receipt.final_scope != pin.aggregate.scope
+        or receipt.manifest_digest != pin.aggregate.manifest_digest
+        or receipt.requested_starts_on != pin.aggregate.starts_on
+        or receipt.requested_ends_on != pin.aggregate.ends_on
+    ):
+        raise changed()
+    if present is None:
+        return _gap(account, pin, "range_traffic_provenance_unavailable")
+    header, facts = present
+    if header.producer_contract != PROFILE:
+        raise changed()  # Unknown present provenance is not a convenient absence.
+    graph = RawRangeTrafficGraphV1(
+        receipt=receipt,
+        header=header,
+        facts=facts,
+        campaigns=selected.campaigns,
+        source_fence=source,
+    )
+    traffic = graph.pin()
+    if traffic.aggregate != pin.aggregate or traffic.campaign_map_digest != pin.campaign_map_digest:
+        raise changed()
+    owned = db.get(AdvertisingAccount, account.account_id, populate_existing=True)
+    if owned is None:
+        raise changed()
+    digest, rows = manifest(db, owned, receipt.requested_starts_on, receipt.requested_ends_on)
+    actual = {
+        (x.campaign_id, x.metric_date): (x.impressions, x.clicks, x.cost_micros) for x in rows
+    }
+    observed = {
+        (x.campaign_id, x.metric_date): (
+            x.impressions.value,
+            x.clicks.value,
+            x.spend_micros.value,
+        )
+        for x in facts
+    }
+    if digest != receipt.manifest_digest or len(actual) != len(rows) or actual != observed:
+        raise changed()
+    return graph
+
+
+_PASS_KEY = "inlet.selected-traffic-proof-pass.v1"
+
+
+@contextmanager
+def _proof_pass_guard(db: Session) -> Iterator[Callable[[], None]]:
+    """One invocation only; retain event evidence even after a swallowed flush failure."""
+    _clean(db)
+    if _PASS_KEY in db.info:
+        # Poison the outer invocation even if an injected callback swallows this error.
+        db.info[_PASS_KEY] = None
+        raise changed()
+    token = object()
+    root = db.get_transaction()
+    if root is None or not root.is_active:
+        raise changed()
+    connection = db.connection()
+    transaction = connection.get_transaction()
+    invalid = False
+    hooks: list[tuple[str, Callable[..., None]]] = []
+
+    def invalidate(*args: Any, **kwargs: Any) -> None:
+        nonlocal invalid
+        invalid = True
+        raise changed()
+
+    def check() -> None:
+        _clean(db)
+        if (
+            invalid
+            or db.info.get(_PASS_KEY) is not token
+            or root is None
+            or not root.is_active
+            or db.get_transaction() is not root
+            or connection.closed
+            or db.connection() is not connection
+            or transaction is None
+            or not transaction.is_active
+            or connection.get_transaction() is not transaction
+            or connection.in_nested_transaction()
+        ):
+            raise changed()
+
+    db.info[_PASS_KEY] = token
+    try:
+        for name in (
+            "before_flush",
+            "after_flush",
+            "after_transaction_create",
+            "after_transaction_end",
+        ):
+            event.listen(db, name, invalidate)
+            hooks.append((name, invalidate))
+        check()
+        yield check
+        check()
+    finally:
+        for name, callback in reversed(hooks):
+            event.remove(db, name, callback)
+        db.info.pop(_PASS_KEY, None)
+
+
+def _read_selected_traffic_pass(
+    db: Session, *, account: AccountRef, expected_source: SourceFence, capture_id: str
+) -> tuple[SelectedPlanPinV1, RawRangeTrafficGraphV1 | KnownTrafficGap]:
+    """Fresh SQL each call. No supplied graph/cache; private guard never escapes."""
+    try:
+        account = AccountRef.model_validate(account)
+        source = SourceFence.model_validate(expected_source)
+        with _proof_pass_guard(db) as check, db.no_autoflush:
+            if source.account != account or _source(db, account) != source:
                 raise changed()
-            present = read_presence(db, completion)
-            if present is not None and present[0].producer_contract != PROFILE:
-                raise changed()
-            ids = db.scalars(
-                select(RangeReceiptRow.request_id)
-                .where(
-                    RangeReceiptRow.workspace_id == account.workspace_id,
-                    RangeReceiptRow.account_id == account.account_id,
-                    RangeReceiptRow.completion_id == pin.aggregate.completion_id,
-                )
-                .limit(2)
-            ).all()
-            if len(ids) > 1:
-                raise changed()
-            if not ids:
-                return _gap(account, pin, "range_traffic_provenance_unavailable")
-            receipt = read_range_receipt(db, account.workspace_id, account.account_id, ids[0])
-            # Validate exact parent even before a legitimate missing-sidecar gap.
-            if (
-                receipt.final_scope != pin.aggregate.scope
-                or receipt.manifest_digest != pin.aggregate.manifest_digest
-                or receipt.requested_starts_on != pin.aggregate.starts_on
-                or receipt.requested_ends_on != pin.aggregate.ends_on
-            ):
-                raise changed()
-            if present is None:
-                return _gap(account, pin, "range_traffic_provenance_unavailable")
-            header, facts = present
-            if header.producer_contract != PROFILE:
-                raise changed()  # Unknown present provenance is not a convenient absence.
-            graph = RawRangeTrafficGraphV1(
-                receipt=receipt,
-                header=header,
-                facts=facts,
-                campaigns=selected.campaigns,
-                source_fence=source,
+            selected = load_selected_plan_graph(
+                db, account=account, expected_source=source, capture_id=capture_id
             )
-            traffic = graph.pin()
-            if (
-                traffic.aggregate != pin.aggregate
-                or traffic.campaign_map_digest != pin.campaign_map_digest
-            ):
-                raise changed()
-            owned = db.get(AdvertisingAccount, account.account_id, populate_existing=True)
-            if owned is None:
-                raise changed()
-            digest, rows = manifest(
-                db, owned, receipt.requested_starts_on, receipt.requested_ends_on
+            check()
+            pin = selected.pin()
+            traffic = _traffic_for_selected(
+                db, account=account, source=source, selected=selected, pin=pin
             )
-            actual = {
-                (x.campaign_id, x.metric_date): (x.impressions, x.clicks, x.cost_micros)
-                for x in rows
-            }
-            observed = {
-                (x.campaign_id, x.metric_date): (
-                    x.impressions.value,
-                    x.clicks.value,
-                    x.spend_micros.value,
-                )
-                for x in facts
-            }
-            if digest != receipt.manifest_digest or len(actual) != len(rows) or actual != observed:
-                raise changed()
-            return graph
+            check()
+            result = (pin, traffic)
+        return result
     except (ValueError, KeyError, TypeError):
         raise changed() from None
 

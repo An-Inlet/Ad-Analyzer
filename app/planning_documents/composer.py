@@ -19,6 +19,7 @@ from app.planning_documents.ports import (
     PerformanceEvidence,
     PlanningCompositionPolicy,
 )
+from app.planning_documents.selected_inputs import reject_legacy_selected
 
 LEGACY_GENERATOR_VERSION = "inlet.descriptive-planning.v1"
 LEGACY_POLICY_VERSION = "inlet.descriptive-review.v1"
@@ -151,6 +152,13 @@ class DescriptivePlanComposer:
         inputs = PlanInputRevision.model_validate(inputs)
         evidence = EvidenceBundle.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
+        try:
+            reject_legacy_selected(
+                inputs.selected_reporting, policy.version, policy.generator_version
+            )
+        except ValueError as error:
+            raise PlanCompositionUnavailable(str(error)) from error
+
         if (policy.version, policy.generator_version) not in {
             (POLICY_VERSION, GENERATOR_VERSION),
             (LEGACY_POLICY_VERSION, LEGACY_GENERATOR_VERSION),

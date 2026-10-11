@@ -4,7 +4,14 @@ from datetime import date
 from typing import Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from app.goals.schemas import GoalDefinition
 from app.planning_catalog.metadata_contracts import ProviderReferenceV1
@@ -23,6 +30,10 @@ from app.planning_documents.common import (
     Title,
     fingerprint,
     unique,
+)
+from app.planning_documents.selected_inputs import (
+    SelectedCaptureSelectorV1,
+    validate_selected_accounts,
 )
 
 
@@ -114,11 +125,24 @@ class PlanInputRevision(NoAuthority):
     fixed_allocations: tuple["FixedAllocation", ...] = Field(max_length=100)
     scenario_intents: tuple["CustomerScenarioIntent", ...] = Field(max_length=8)
     maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
+    selected_reporting: tuple[SelectedCaptureSelectorV1, ...] | None = Field(
+        default=None, max_length=20
+    )
     created_by: Id
     created_at: AwareDatetime
 
+    @model_serializer(mode="wrap")
+    def serialize_selected(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.selected_reporting is None:
+            result.pop("selected_reporting", None)
+        return result
+
     @model_validator(mode="after")
     def linked(self) -> "PlanInputRevision":
+        validate_selected_accounts(
+            self.selected_reporting, tuple(a.account_id for a in self.accounts)
+        )
         definition = self.goal.definition
         if (
             self.goal.workspace_id != self.workspace_id

@@ -57,6 +57,7 @@ from app.planning_documents.responses import (
     VersionResult,
 )
 from app.planning_documents.retained_sources import RetainedSourcesChanged, recheck_retained_sources
+from app.planning_documents.selected_inputs import reject_legacy_selected
 from app.planning_documents.storage import document_for_row
 from app.planning_documents.window_adapter import OwnedWindowEvidenceReader
 from app.planning_documents.window_composer import WindowPlanComposer
@@ -122,6 +123,14 @@ class PlanningDocumentService:
     def _save_inputs(
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: CreatePlan | EditPlan
     ) -> InputResult:
+        try:
+            reject_legacy_selected(
+                request.inputs.selected_reporting,
+                self.policy.version,
+                self.policy.generator_version,
+            )
+        except ValueError as error:
+            raise repository.changed(str(error)) from error
         operation = "revise" if isinstance(request, EditPlan) else "create"
         expected_input = request.expected_input_revision if isinstance(request, EditPlan) else 0
         expected_version = request.expected_version if isinstance(request, EditPlan) else 0
@@ -279,6 +288,13 @@ class PlanningDocumentService:
             ):
                 raise repository.changed("generation input or version changed")
             inputs = repository.inputs(db, plan)
+            try:
+                reject_legacy_selected(
+                    inputs.selected_reporting, self.policy.version, self.policy.generator_version
+                )
+            except ValueError as error:
+                raise repository.changed(str(error)) from error
+
             repository.check_goal(db, inputs, self.clock())
             sources = resolve_source_fences(
                 db, principal=current, accounts=inputs.accounts, now=self.clock()

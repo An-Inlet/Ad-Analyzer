@@ -19,6 +19,7 @@ from app.planning_documents.context import (
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
+from app.planning_documents.selected_inputs import reject_legacy_selected
 from app.planning_documents.window_evidence import (
     WindowEvidenceBundleV1,
     WindowPerformanceEvidenceV1,
@@ -189,6 +190,13 @@ class WindowPlanComposer:
         ticket = GenerationTicket.model_validate(ticket)
         evidence = WindowEvidenceBundleV1.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
+        try:
+            reject_legacy_selected(
+                ticket.inputs.selected_reporting, policy.version, policy.generator_version
+            )
+        except ValueError as error:
+            raise PlanCompositionUnavailable(str(error)) from error
+
         if (policy.version, policy.digest()) != (ticket.policy_version, ticket.policy_digest):
             raise PlanCompositionUnavailable("configured policy differs from genuine ticket")
         if (

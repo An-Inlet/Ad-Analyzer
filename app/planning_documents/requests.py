@@ -1,8 +1,14 @@
 """Customer intent DTOs, never trusted evidence or complete plan documents."""
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from app.planning_documents.common import (
     Amount,
@@ -16,6 +22,10 @@ from app.planning_documents.common import (
     unique,
 )
 from app.planning_documents.context import ReportingWindow
+from app.planning_documents.selected_inputs import (
+    SelectedCaptureSelectorV1,
+    validate_selected_accounts,
+)
 
 
 class TargetSelector(Frozen):
@@ -50,9 +60,20 @@ class CustomerInputs(Frozen):
     fixed_allocations: tuple[AllocationIntent, ...] = Field(max_length=100)
     scenario_intents: tuple[ScenarioIntent, ...] = Field(max_length=8)
     maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
+    selected_reporting: tuple[SelectedCaptureSelectorV1, ...] | None = Field(
+        default=None, max_length=20
+    )
+
+    @model_serializer(mode="wrap")
+    def serialize_selected(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.selected_reporting is None:
+            result.pop("selected_reporting", None)
+        return result
 
     @model_validator(mode="after")
     def selected(self) -> "CustomerInputs":
+        validate_selected_accounts(self.selected_reporting, self.account_ids)
         unique(self.account_ids, "selected account")
         targets = (
             *self.exclusions,

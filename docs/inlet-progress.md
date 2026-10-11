@@ -7168,3 +7168,14 @@ server revalidation, expiry/stream deadlines and no runtime default.84MockHTTP/r
 cases passed0.63s; Ruff/mypy1280pass; independent review closed after two deadline
 repairs. [Package ledger](inlet-google-selected-read-package-20261011.md). No live
 qualification, source-job publication or customer-plan activation is claimed.
+
+## 2026-10-11 — Selected Storage And Catalog Integrated
+
+Reviewed migration0091 owned storage/CAS/invalidation/privacy/export and injected
+Google event catalog integrated locally through9ed8fbb. Root combined226cases passed
+70.324s across SQLite/PostgreSQL; catalog/pure cohort194passed0.896s (overlapping,
+not additive); zero failures/skips. WholeRuff/mypy1295/diff passed. Both independent
+reviews closed. [Integration ledger](inlet-selected-integration-20261011.md).
+Original-session resolver and customer confirmation are next; strict refreshed-
+aggregate proof is a caller obligation. No public activation/live qualification,
+push/hosted/main merge/deploy; frozen exhaustive baseline remains untouched.

@@ -44,6 +44,10 @@ new confirmation in the same transaction or automatically choose the replacement
 Retries against the same invalidated head are idempotent. A genuinely refreshed
 aggregate and new discovery/confirmation are required before replacing that head.
 Old immutable selection bytes remain historical, never restamped as current.
+At replacement commit, verify the actual current aggregate completion and recomputed
+manifest carry the post-invalidation privacy revision. Checking only current source
+scope and the invalidated head is insufficient: the internal selection storage port
+does not itself require an aggregate refresh.
 
 The receipt confirms a choice only: selection ID/digest, account, confirmation time,
 fresh display label, explicit family/API version, and `spending_authorized=false`.

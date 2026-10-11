@@ -58,7 +58,7 @@ The earlier browser Generate action performed POST generate, GET current, GET ve
 its generic409 did not retain which request or exact detail failed. It must not be
 reported as a confirmed generation POST or authority-expiry failure. The separate
 original-order five-case diagnostic passed, with all three route classes successful.
-This cost probe also passed. Neither resolves the original transient failure or
+This cost probe also passed. Neither resolves the original failure or
 licenses a silent retry. Further optimization, if justified by a future bounded
 query-shape assessment and actual acceptance evidence, requires a separate review.
 

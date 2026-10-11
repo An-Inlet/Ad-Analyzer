@@ -6,11 +6,13 @@ from pydantic import (
     AwareDatetime,
     Field,
     SerializerFunctionWrapHandler,
+    TypeAdapter,
     model_serializer,
     model_validator,
 )
 
 from app.planning_documents.actions import BudgetScenario, CreativeBrief, ManualAction, NativeBudget
+from app.planning_documents.catalog_evidence import CatalogEvidence
 from app.planning_documents.common import (
     MAX_ACTIONS,
     MAX_BRIEFS,
@@ -39,6 +41,12 @@ from app.planning_documents.creative_retained_proof import CreativeRetainedProof
 from app.planning_documents.empty_catalog_validation import validate_empty_catalog_proposals
 from app.planning_documents.fields import ProposedField
 from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
+from app.planning_documents.google_budget_owner_contracts import _originals
+from app.planning_documents.google_budget_owner_review_contracts import (
+    GoogleBudgetOwnerReviewProofV1,
+)
+from app.planning_documents.owner_review_plan_document import validate_owner_review_document
+from app.planning_documents.owner_review_policy import is_owner_review_policy
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
     SELECTED_POLICY_VERSION,
@@ -71,6 +79,11 @@ class PlanVersion(NoAuthority):
     creative_proof: CreativeRetainedProofV1 | None = None
     creative_composition: CreativeCompositionV1 | None = None
 
+    google_budget_owner_review: GoogleBudgetOwnerReviewProofV1 | None = None
+    google_budget_input_catalogs: tuple[CatalogEvidence, ...] | None = Field(
+        default=None, max_length=20
+    )
+
     @model_validator(mode="before")
     @classmethod
     def creative_instants(cls, value: Any) -> Any:
@@ -85,8 +98,10 @@ class PlanVersion(NoAuthority):
         if (raw.get("policy_version"), raw.get("generator_version")) != (
             CREATIVE_POLICY_VERSION,
             CREATIVE_GENERATOR_VERSION,
-        ):
+        ) and not is_owner_review_policy(raw.get("policy_version"), raw.get("generator_version")):
             return value
+        if is_owner_review_policy(raw.get("policy_version"), raw.get("generator_version")):
+            _originals(raw.get("google_budget_input_catalogs"))
         for key in ("generated_at", "valid_until"):
             if key in raw:
                 raw[key] = creative_instant(raw[key])
@@ -106,23 +121,55 @@ class PlanVersion(NoAuthority):
 
     @model_serializer(mode="wrap")
     def serialize_selected_proof(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        result: dict[str, Any] = handler(self)
+        checked = self
+        if (
+            self.policy_version == "inlet.descriptive-review.v6"
+            or self.generator_version == "inlet.descriptive-planning.v6"
+            or self.google_budget_owner_review is not None
+            or self.google_budget_input_catalogs is not None
+            or self.inputs.google_daily_budget_intents is not None
+        ):
+            checked = type(self).model_validate(self)
+        result: dict[str, Any] = handler(checked)
         if self.selected_reporting_proof is None:
             result.pop("selected_reporting_proof", None)
         if self.creative_proof is None:
             result.pop("creative_proof", None)
         if self.creative_composition is None:
             result.pop("creative_composition", None)
+        if self.google_budget_owner_review is None:
+            result.pop("google_budget_owner_review", None)
+        if self.google_budget_input_catalogs is None:
+            result.pop("google_budget_input_catalogs", None)
         return result
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
-        reject_google_budget_generation(self.inputs.google_daily_budget_intents)
+        owner_policy = is_owner_review_policy(self.policy_version, self.generator_version)
+        if not owner_policy and (
+            self.policy_version == "inlet.descriptive-review.v6"
+            or self.generator_version == "inlet.descriptive-planning.v6"
+        ):
+            raise ValueError("reserved owner review identifiers require the exact v6 pair")
+        if owner_policy:
+            if (
+                self.inputs.google_daily_budget_intents is None
+                or self.google_budget_owner_review is None
+                or self.google_budget_input_catalogs is None
+            ):
+                raise ValueError("complete explicit owner review document required")
+        else:
+            reject_google_budget_generation(self.inputs.google_daily_budget_intents)
+            if (
+                self.google_budget_owner_review is not None
+                or self.google_budget_input_catalogs is not None
+            ):
+                raise ValueError("owner review document requires exact v6 policy")
         validate_creative_policy(self.inputs.creative, self.policy_version, self.generator_version)
         creative_policy = (self.policy_version, self.generator_version) == (
             CREATIVE_POLICY_VERSION,
             CREATIVE_GENERATOR_VERSION,
-        )
+        ) or owner_policy
         if creative_policy:
             if self.creative_proof is None or self.creative_composition is None:
                 raise ValueError("complete creative document proof and composition required")
@@ -168,6 +215,19 @@ class PlanVersion(NoAuthority):
                 sources=tuple(p.source_fence for p in self.selected_reporting_proof.accounts),
                 generated_at=self.generated_at,
                 valid_until=self.valid_until,
+                privacy_revision=self.evidence[0].privacy_revision,
+            )
+        if owner_policy:
+            assert self.google_budget_owner_review is not None
+            assert self.google_budget_input_catalogs is not None
+            assert self.selected_reporting_proof is not None
+            validate_owner_review_document(
+                inputs=self.inputs,
+                actions=self.actions,
+                proof=self.google_budget_owner_review,
+                catalogs=self.google_budget_input_catalogs,
+                evidence=self.evidence,
+                sources=tuple(p.source_fence for p in self.selected_reporting_proof.accounts),
                 privacy_revision=self.evidence[0].privacy_revision,
             )
         if (self.version == 1) != (self.parent_digest is None):
@@ -344,6 +404,24 @@ class PlanVersion(NoAuthority):
                 or brief_action.target != brief.target
             ):
                 raise ValueError("brief must bind exact creative action target")
-        if len(self.model_dump_json().encode()) > MAX_DOCUMENT_BYTES:
+        if owner_policy:
+            # Serialize already validated child values, not this document's checked
+            # serializer: invoking it here would recursively validate this node.
+            omitted = {
+                "selected_reporting_proof",
+                "creative_proof",
+                "creative_composition",
+                "google_budget_owner_review",
+                "google_budget_input_catalogs",
+            }
+            payload = {
+                key: getattr(self, key)
+                for key in type(self).model_fields
+                if key not in omitted or getattr(self, key) is not None
+            }
+            size = len(TypeAdapter(dict[str, Any]).dump_json(payload))
+        else:
+            size = len(self.model_dump_json().encode())
+        if size > MAX_DOCUMENT_BYTES:
             raise ValueError("plan exceeds operational document size")
         return self

@@ -13,6 +13,7 @@ from app.planning_documents.google_budget_intents import (
 )
 from app.planning_documents.google_budget_owner_contracts import (
     GoogleDailyBudgetOwnerWitnessV1,
+    _meta_schedule_node,
     _originals,
     derive_google_daily_budget_owner,
     resolve_google_daily_budget_intent,
@@ -47,7 +48,10 @@ def _times(value: Any) -> None:
         value = value.__dict__
     if isinstance(value, dict):
         for key, item in value.items():
-            if key in _TIME_FIELDS:
+            if key in {"starts_at", "ends_at"} and _meta_schedule_node(value):
+                if item is not None:
+                    _instant(item)
+            elif key in _TIME_FIELDS:
                 _instant(item)
             _times(item)
     elif isinstance(value, (tuple, list)):

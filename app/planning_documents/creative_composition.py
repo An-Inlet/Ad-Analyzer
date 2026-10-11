@@ -14,6 +14,7 @@ from app.planning_documents.creative_production_contracts import (
     CreativeShotV1,
 )
 from app.planning_documents.empty_catalog_contracts import EmptyDeclaredCatalogWitnessV1
+from app.planning_documents.owner_review_policy import is_owner_review_policy
 from app.planning_documents.ports import CatalogEvidence, PlanningCompositionPolicy
 
 
@@ -36,7 +37,13 @@ class CreativeCompositionReferencesV1(NoAuthority):
     @model_validator(mode="after")
     def exact(self) -> "CreativeCompositionReferencesV1":
         unique((self.basis_key, self.customer_key, self.policy_key), "creative evidence key")
-        canonical = canonical_creative_policy()
+        canonical = (
+            PlanningCompositionPolicy(
+                version=self.policy.version, generator_version=self.policy.generator_version
+            )
+            if is_owner_review_policy(self.policy.version, self.policy.generator_version)
+            else canonical_creative_policy()
+        )
         if self.policy != canonical or self.policy_digest != canonical.digest():
             raise ValueError("exact standalone canonical v5 policy required")
         return self

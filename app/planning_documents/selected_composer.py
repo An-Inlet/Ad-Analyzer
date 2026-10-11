@@ -28,6 +28,9 @@ from app.planning_documents.creative_plan_document import creative_basis_referen
 from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.google_budget_generation_guard import reject_google_budget_generation
+from app.planning_documents.google_budget_owner_review import compose_google_budget_owner_reviews
+from app.planning_documents.owner_review_plan_document import linked_owner_input_catalogs
+from app.planning_documents.owner_review_policy import is_owner_review_policy
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
@@ -314,18 +317,44 @@ class SelectedPlanComposer:
         *,
         creative: CollectedCreativeBasisV1 | None = None,
     ) -> PlanVersion:
-        ticket = GenerationTicket.model_validate(ticket)
         reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
+        if is_owner_review_policy(policy.version, policy.generator_version):
+            raise PlanCompositionUnavailable("owner review requires its genuine composer")
+        return self._compose_document(ticket, paired, policy, generated_at, creative=creative)
+
+    def _compose_document(
+        self,
+        ticket: GenerationTicket,
+        paired: SelectedPairedEvidenceV1,
+        policy: PlanningCompositionPolicy,
+        generated_at: datetime,
+        *,
+        creative: CollectedCreativeBasisV1 | None = None,
+    ) -> PlanVersion:
+        ticket = GenerationTicket.model_validate(ticket)
+        owner_policy = is_owner_review_policy(policy.version, policy.generator_version)
+        if owner_policy:
+            if ticket.inputs.google_daily_budget_intents is None or creative is None:
+                raise PlanCompositionUnavailable("complete genuine owner review inputs required")
+        else:
+            reject_google_budget_generation(ticket.inputs.google_daily_budget_intents)
+        contract = assert_selected_composition_policy(
+            policy,
+            ticket_policy_version=ticket.policy_version,
+            ticket_policy_digest=ticket.policy_digest,
+        )
+        if (creative is not None) != contract.requires_creative:
+            raise PlanCompositionUnavailable("exact policy creative presence required")
+        paired.assert_ticket(ticket)
+        if (
+            type(generated_at) is not datetime
+            or generated_at.tzinfo is None
+            or generated_at.utcoffset() is None
+        ):
+            raise PlanCompositionUnavailable("aware generation time required")
+        generated_at = generated_at.astimezone(UTC)
         if creative is not None:
             creative = CollectedCreativeBasisV1.model_validate(creative)
-            contract = assert_selected_composition_policy(
-                policy,
-                ticket_policy_version=ticket.policy_version,
-                ticket_policy_digest=ticket.policy_digest,
-            )
-            if not contract.requires_creative:
-                raise PlanCompositionUnavailable("creative collection requires canonical v5")
-            paired.assert_ticket(ticket)
             assert_creative_collection_time(creative, ticket, generated_at)
         evidence = paired.selected
         inputs = ticket.inputs
@@ -592,6 +621,18 @@ class SelectedPlanComposer:
                     ),
                 )
             )
+        owner_proof = None
+        owner_catalogs = None
+        if owner_policy:
+            owner_catalogs = linked_owner_input_catalogs(inputs, evidence.catalogs)
+            owner_actions, owner_proof = compose_google_budget_owner_reviews(
+                inputs=inputs,
+                catalogs=owner_catalogs,
+                sources=ticket.sources,
+                privacy_revision=ticket.privacy_revision,
+                first_priority=len(actions) + 1,
+            )
+            actions.extend(owner_actions)
         if creative is not None:
             creative_composition = compose_creative_proposals(
                 inputs,
@@ -667,6 +708,8 @@ class SelectedPlanComposer:
                 ),
             )
         return PlanVersion(
+            google_budget_owner_review=owner_proof,
+            google_budget_input_catalogs=owner_catalogs,
             creative_proof=creative_proof,
             creative_composition=creative_composition,
             selected_reporting_proof=evidence.reporting_proof,

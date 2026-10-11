@@ -1,0 +1,20 @@
+{
+  "source_head": "b7f71639afa8a04ce8dd7f864e98539396b75cdf",
+  "documents": {
+    "v4": {
+      "json_sha256": "10c6247bd05c8f4bf979649e540261aaf7418b94832309e1465ec0be43c1cb48",
+      "digest": "adf8d4289d4efa83ff195dd83ad9280dedf6c54863ad074145c1f530b7c1d18b",
+      "descriptor": "{\"policy_version\":\"inlet.descriptive-review.v4\",\"generator_version\":\"inlet.descriptive-planning.v4\",\"requires_creative\":false,\"reporting_witness_kind\":\"local_reporting_v3\"}"
+    },
+    "v5meta": {
+      "json_sha256": "ee6cd6103e505968a589b6e63168023d7ad97e6428fd2ec41ff57934db58c0b6",
+      "digest": "e59b4db50ec6d5c7afd31ef3c0065aafc25e883d112d399c8c6d814618a50f25",
+      "descriptor": "{\"policy_version\":\"inlet.descriptive-review.v5\",\"generator_version\":\"inlet.descriptive-planning.v5\",\"requires_creative\":true,\"reporting_witness_kind\":\"local_reporting_v3\"}"
+    },
+    "v5tiktok": {
+      "json_sha256": "a05763a2752fefc810954988c2c2b63144694b928aeb97bee353d2755b33629d",
+      "digest": "4a8a119a32a7a3eb0e0ac7e55105370b75b4ee06e177bed336a6c93ea9f08610",
+      "descriptor": "{\"policy_version\":\"inlet.descriptive-review.v5\",\"generator_version\":\"inlet.descriptive-planning.v5\",\"requires_creative\":true,\"reporting_witness_kind\":\"local_reporting_v3\"}"
+    }
+  }
+}

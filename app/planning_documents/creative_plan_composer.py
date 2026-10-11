@@ -36,7 +36,7 @@ class CreativePlanComposer:
                 ticket_policy_version=ticket.policy_version,
                 ticket_policy_digest=ticket.policy_digest,
             )
-            if not contract.requires_creative:
+            if not contract.requires_creative or contract.requires_owner_review:
                 raise ValueError("exact canonical creative policy required")
             evidence.assert_ticket(ticket)
             assert_creative_collection_time(evidence.creative, ticket, generated_at)

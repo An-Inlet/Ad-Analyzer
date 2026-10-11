@@ -21,9 +21,14 @@ class SelectedPolicyContractV1(Frozen):
         if (self.policy_version, self.generator_version, self.requires_creative) not in (
             ("inlet.descriptive-review.v4", "inlet.descriptive-planning.v4", False),
             ("inlet.descriptive-review.v5", "inlet.descriptive-planning.v5", True),
+            ("inlet.descriptive-review.v6", "inlet.descriptive-planning.v6", True),
         ):
             raise ValueError("exact selected policy descriptor required")
         return self
+
+    @property
+    def requires_owner_review(self) -> bool:
+        return self.policy_version == "inlet.descriptive-review.v6"
 
 
 def selected_policy_contract(
@@ -34,7 +39,8 @@ def selected_policy_contract(
     return SelectedPolicyContractV1(
         policy_version=policy_version,
         generator_version=generator_version,
-        requires_creative=policy_version == "inlet.descriptive-review.v5",
+        requires_creative=policy_version
+        in ("inlet.descriptive-review.v5", "inlet.descriptive-review.v6"),
     )
 
 
@@ -45,7 +51,7 @@ def assert_selected_ticket_policy(
 
     if type(policy_version) is not str or type(policy_digest) is not str:
         raise ValueError("exact policy version and digest strings required")
-    for version in (4, 5):
+    for version in (4, 5, 6):
         policy = PlanningCompositionPolicy(
             version=f"inlet.descriptive-review.v{version}",
             generator_version=f"inlet.descriptive-planning.v{version}",

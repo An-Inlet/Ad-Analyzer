@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.planning_catalog.contracts import MetaSettingsV1
 from app.planning_documents.catalog_evidence import CatalogEvidence
 from app.planning_documents.common import Amount, Currency, Digest, NoAuthority, fingerprint
 from app.planning_documents.context import TargetRef
@@ -39,12 +40,22 @@ def _instant(value: Any) -> datetime:
     return value.astimezone(UTC)
 
 
+def _meta_schedule_node(value: dict[str, Any]) -> bool:
+    # Native schedule absence is distinct from required observation/report times.
+    # Exact fields prevent a report envelope with a forged platform discriminator
+    # from obtaining this exception; the owning model is still validated afterward.
+    return value.get("platform") == "meta_ads" and set(value) == set(MetaSettingsV1.model_fields)
+
+
 def _originals(value: Any) -> None:
     if isinstance(value, BaseModel):
         value = value.__dict__
     if isinstance(value, dict):
         for key, item in value.items():
-            if key in _TIME_FIELDS:
+            if key in {"starts_at", "ends_at"} and _meta_schedule_node(value):
+                if item is not None:
+                    _instant(item)
+            elif key in _TIME_FIELDS:
                 _instant(item)
             if key in {"atomic_snapshot", "advertising_writes_enabled"} and item is not False:
                 raise ValueError("exact false authority flag required")

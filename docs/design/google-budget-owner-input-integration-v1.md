@@ -66,11 +66,15 @@ add a process-global principal or weaken the existing resolve signature implicit
 
 ## Atomic create/edit and final receipt binding
 
-`service._save_inputs` retains its two exact receipt replay branches before new
-lookup. Exact completed replay returns the original immutable input even after
-catalogTTL passes; changed request-key payload or cross-plan replay still fails.
-After replay, enforce configured privateV5 admission, ordinary goal confirmation,
-input/version CAS and media/source guards before resolution. The first SQL phase
+`service._save_inputs` retains its existing creative/selected capability prechecks
+before receipt replay. Add the new nonNone owner-input canonical privateV5 guard
+beside those prechecks, also before replay; do not move legacy gates. Thus an exact
+owner-input replay requires the same supported privateV5 configuration, while all
+existingNone replay behavior is unchanged. Within that supported configuration,
+its two exact receipt replay branches remain before new receipt lookup and return
+the original immutable input even after catalogTTL passes. Changed request-key
+payload or cross-plan replay still fails. After replay enforce ordinary goal
+confirmation, input/version CAS and media/source guards before resolution. The first SQL phase
 supplies real full-account fences and privacy to the pure binding. Its existing
 created_at is the actual original admission instant, after original catalog
 observation; never restamp it to make an old receipt fit.

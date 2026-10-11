@@ -48,7 +48,12 @@ Durable evidence: `/workspace/inlet-evidence/20261011/selected-q01-q02`.
   Q16 progress/semantic-erasure preservation cases across SQLite/PostgreSQL.
 - `ruff02` retained a long assertion-line failure; literal split without semantic
   change, then whole Ruff passed. Configured mypy passed 1,366 source files.
-- Final artifact cohort and static outputs are recorded alongside these files.
+- `artifacts01`: final six both-DB cases passed, zero skips, 56.88s; 12 actual
+  document/export packets retained with SHA256 manifest.
+- Final whole Ruff, configured mypy (1,366 files), and diff checks passed.
+- First artifact-copy glob matched no files because pytest truncated its directory
+  name; assertion refused the incomplete copy. Corrected directory enumeration
+  copied all 12 files and wrote the manifest; no test/source change.
 
 Actual bounded test commands use `/workspace/inlet-venv/bin/pytest`, explicit
 unique `/tmp/inlet-q01-q02-*` basetemps, durable JUnit paths and `--durations=20`.

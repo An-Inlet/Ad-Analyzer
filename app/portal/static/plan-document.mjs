@@ -1,3 +1,4 @@
+import {appendCreativeBasis} from './plan-creative-basis.mjs';
 // Display-only immutable planning artifact. Authorization and source validation are server-owned.
 const platforms = {google_ads: 'Google Ads', meta_ads: 'Meta Ads', tiktok_ads: 'TikTok Ads'};
 const statuses = {current: 'Current Evidence', expired: 'Expired Evidence', source_changed: 'Source Changed', goal_changed: 'Goal Changed', input_changed: 'Inputs Changed'};
@@ -49,6 +50,7 @@ export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, 
   if (inputs.product_offer) fragment.append(text(doc, 'p', `Customer Product Facts: ${inputs.product_offer}`));
   list(doc, fragment, 'Customer Constraints', inputs.constraints);
   list(doc, fragment, 'Customer Assumptions', inputs.assumptions.map(item => `${item.key}: ${item.statement}`));
+  appendCreativeBasis(fragment,plan);
   fragment.append(text(doc, 'h3', 'Manual Actions'));
   for (const action of [...plan.actions].sort((a, b) => a.priority - b.priority)) {
     const section = doc.createElement('section');

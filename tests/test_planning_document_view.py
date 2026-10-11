@@ -89,7 +89,13 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     comparison = compare_versions(plan, successor)
     (tmp_path / "comparison.json").write_text(comparison.model_dump_json())
     shutil.copy("app/portal/static/plan-comparison.mjs", tmp_path / "plan-comparison.mjs")
-    shutil.copy("app/portal/static/plan-document.mjs", tmp_path / "plan-document.mjs")
+    for module in (
+        "plan-document.mjs",
+        "plan-creative-basis.mjs",
+        "plan-creative-inputs.mjs",
+        "plan-capability.mjs",
+    ):
+        shutil.copy(Path("app/portal/static") / module, tmp_path / module)
     (tmp_path / "index.html").write_text(
         '<!doctype html><main id="host"></main><output id="result">RUNNING</output>'
         '<script type="module" src="/test.mjs"></script>'

@@ -1,11 +1,10 @@
+import {planningCapability} from './plan-capability.mjs';
 // Exact customer choices only. Availability is descriptive; the server revalidates every save.
 const active=new WeakMap();
 export function clearSelectedCaptures(host){active.delete(host);host.replaceChildren();host.hidden=true;}
 export function renderSelectedCaptures(host,{capability,workspaceId,accounts,saved=null}){
   clearSelectedCaptures(host);const token={};active.set(host,token);const current=()=>{if(active.get(host)!==token)throw Error('Capture choices changed. Review the current editor.');};
-  const canonical=capability?.policy_version==='inlet.descriptive-review.v4'&&capability?.generator_version==='inlet.descriptive-planning.v4';
-  if(capability?.schema_version!=='inlet.planning-capabilities.v1'||capability.workspace_id!==workspaceId||capability.advertising_writes_enabled!==false||capability.spending_authority!=='none'||typeof capability.selected_reporting_available!=='boolean'||capability.selected_reporting_available!==canonical)throw Error('Planning availability could not be verified.');
-  if(![1,2,3,4].some(v=>capability.policy_version===`inlet.descriptive-review.v${v}`&&capability.generator_version===`inlet.descriptive-planning.v${v}`))throw Error('Unknown planning policy.');
+  const canonical=planningCapability(capability,workspaceId).selected;
   if(!Array.isArray(accounts)||accounts.length>20||accounts.some(a=>!Number.isSafeInteger(a.id)||a.id<=0)||new Set(accounts.map(a=>a.id)).size!==accounts.length)throw Error('Account choices could not be verified.');
   if(!canonical){if(saved!==null&&saved!==undefined)throw Error('This saved plan requires selected reporting, which is currently unavailable.');return{readIntent:()=>{current();return undefined;}};}
   if(saved!==null&&(!Array.isArray(saved)||saved.length>20))throw Error('Saved capture choices could not be verified.');

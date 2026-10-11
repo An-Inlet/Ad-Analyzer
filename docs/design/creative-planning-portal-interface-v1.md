@@ -1,6 +1,8 @@
 # Private V5 Planning Portal — Proposed Interface
 
-Status: design only, awaiting review. No implementation, tests or activation.
+Status: approved interface; bounded implementation is recorded in
+[the package ledger](../inlet-creative-planning-portal-package-20261011.md).
+No production activation. The current-state section below records the original gap.
 Independent branch based on reviewed private v5 service/reuse and actual API fixture.
 Default policy remains v3. Owner-managed Squarespace/public webpage is out of scope.
 

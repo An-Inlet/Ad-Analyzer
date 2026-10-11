@@ -34,6 +34,10 @@ def test_target_picker_exact_choices_revocation_expiry_and_bounds(
         "native-targets.mjs",
         "plan-scenarios.mjs",
         "plan-selected-captures.mjs",
+        "plan-capability.mjs",
+        "plan-creative-inputs.mjs",
+        "plan-creative-basis.mjs",
+        "plan-media-request.mjs",
     ):
         shutil.copy(Path("app/portal/static") / name, tmp_path / name)
     (tmp_path / "index.html").write_text(

@@ -7979,3 +7979,31 @@ source map before any further repair; preserve separate SQL rereads, historical
 dependency graphs, original receipt validation and every final authority check.
 Do not promote a small canonical-factor change as a sufficient deadline fix.
 The existing15 unrun database cases remain held for a justified changed candidate.
+
+
+## Version Row Admission: Reviewed Interface And Baseline Regression
+
+The successor reliability repair is limited to a one-use immutable row admission
+proof within a single repository.version invocation. The first full decoder stays;
+the second fresh SQL read stays. Only exact complete row and current lossless typed
+value snapshots can replace the second decoder/equality check. Unsupported or
+changed values take the original decoder. Model validation prefixes, dependency,
+owner, receipt, privacy and authority checks remain. No model, cross-request or
+authority cache is introduced. The reviewed interface is frozen externally at
+VERSION-ROW-ADMISSION-INTERFACE-V1.md, SHA256
+f7e8c63a8902ae71dd2c14654a5c6e374327f252ac2ed9c8e38bebeb4b34775b.
+Fold-sensitive ZoneInfo values fall back; admission burns before matcher work and
+closes on every exit. Source implementation and parity review remain pending.
+
+A focused regression on unchanged9c6b96c completed its expected baseline failure:
+SQLite returned the same JSON, digest and canonical bytes, then the exact named
+decoder assertion observed ['repository', 'history'] instead of ['repository'].
+Original pytest exit1, one failure in9.20s at test line66. The second invocation
+and final provider-count assertion were not reached. Targeted Ruff and collection
+exited0; all app/test hashes stayed unchanged. No baseline retry or PostgreSQL
+duplicate was run. Evidence: version-row-admission-red/red01-freeze.json, SHA256
+5734333f8d8502148ec45ca5ae1c1bfd4c52e64e987cce8348a31d0fd9970537.
+This proves the redundant decoder operation, not that it caused the earlier
+deadline failure. A changed-source pass, fallback/lifecycle parity and realistic
+normal-assertion multi-version qualification on both databases are still required.
+Root production remains4c8e28f; all remote, hosted, live and release holds remain.

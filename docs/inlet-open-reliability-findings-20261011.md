@@ -102,3 +102,30 @@ query-path proposal may address the observed statement count without weakening
 authority, ownership, privacy or source revalidation. Original Q09 source stays
 isolated/unqualified. Exact report, XML, manifest and successful document/export
 are retained under `creative-q09-baseline/probe04*`.
+
+## R03 — Private V6 SQLite Generate Authority Expiry: Open
+
+The new service integration's first actual SQLite owner-review case stopped at
+POST generate with exact409 `planning_authority_expired`. `sqlite-01.xml` records
+one failed case and no passes; 25 other API cases were not run. The first failure
+source and logs are preserved under
+`/workspace/inlet-evidence/20261011/google-owner-v6-runtime/`. The source subsequently
+froze as diagnostic-only `d594cb9`: two production formatting changes and test-only
+typing repairs, no behavioral fix. It is not integrated into the root branch.
+
+A separately reviewed, explicitly authorized single diagnostic ran the same node
+on that clean freeze with unchanged observers `7a5bd4...` and `6adaed...`, normal
+clocks and unchanged limits. It passed; first generation took7.652052s with6363
+successful SQL statements, including save3.854336s/2385statements. Maximum observed
+final fact age was3.854484s, with about28789s remaining on the session. Replay took
+1.934163s/30statements. No event truncation occurred. Save's measured SQL duration
+was0.044450s; its census-exclusive wall3.186895s includes unwrapped work and observer
+overhead and cannot identify a specific expensive function. Inclusive/exclusive
+and nested timing values must not be added together.
+
+This successful observation does not explain the original failure, qualify the
+held service matrix, or close R01/R02. R03 tracks a separate new source/database
+incident. There is no evidence-supported failing invocation or predicate yet.
+Further work must preserve these failures, avoid unchanged-case pass chasing, and
+retain original-session, fresh-source, privacy and five-second checks. The existing
+portal implementation remains dependent on service qualification.

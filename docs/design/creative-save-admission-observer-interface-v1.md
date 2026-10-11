@@ -109,3 +109,14 @@ Avoid two concurrent probe suites and avoid duplicating source wrappers in two p
 Root approval is required before any observer code or test execution. Original evidence
 and application sources remain unchanged; retain every outcome including unavailable
 metrics, failed requests and unexpected observer errors.
+
+## Conservative Attribution Refinement Before Execution
+
+Review found that a direct repository `Frozen.digest` call may be for SQL-loaded
+input or a historical PlanVersion rather than the candidate. The observer therefore
+excludes **every standalone digest span** from movable cost unless it is nested
+inside an already eligible pure admission span. This also excludes genuine standalone
+candidate digest cost: it remains measured but unqualified, without additional object
+identity tracking. No preparatory benefit is inferred from ambiguous model type or
+call-site proximity. The executable observer is retained outside production source
+under `/workspace/inlet-evidence/20261011/creative-save-admission-observer/`.

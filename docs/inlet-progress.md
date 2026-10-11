@@ -7418,3 +7418,18 @@ time is not authority-fact age. No successful TLS journey or export is claimed.
 Next is a narrow V5/V6 creative-renderer compatibility repair with focused
 regression coverage, followed by separately frozen browser qualification. The
 original failure and all existing live/release/human-quality holds remain.
+
+## 2026-10-11 — Creative Renderer Compatibility Repair
+
+Integrated `d7f91ca` as `4278a5d`: the saved creative-basis renderer accepts exact
+V5 and V6 policy/generator pairs. Existing basis checks and mixed/unsupported-pair
+refusals are unchanged. One real Chromium regression passed (3.170 seconds), using
+genuine composed V5, V6 and empty-owner V6 documents through the complete renderer
+and checking invalid combinations. Root whole Ruff and configured no-path mypy
+passed (1,484 files); the application/test trees match the qualified author exactly.
+Root verified four frozen source and ten evidence hashes.
+
+[Repair ledger](inlet-owner-creative-renderer-repair-20261011.md) records the initial
+test-import typing finding and correction. TLS01's original failure remains
+preserved. The separately frozen TLS02 successor will test all four original
+journeys on changed source; none is claimed passing from this component result.

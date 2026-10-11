@@ -46,7 +46,7 @@ from tests.test_shopify_sales import configuration as configuration
 pytestmark = pytest.mark.planning_boundary
 
 
-@pytest.mark.parametrize("journey", ["positive", "partial", "complete_to_partial"])
+@pytest.mark.parametrize("journey", ["positive", "partial", "complete_to_partial", "literal_text"])
 def test_actual_owner_review_planning_browser(
     customer_engine: Engine,
     request: pytest.FixtureRequest,
@@ -66,6 +66,18 @@ def test_actual_owner_review_planning_browser(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
+    literal: dict[str, Any] | None = (
+        {
+            "names": {
+                "1": 'Mug <img src=x onerror="window.q15Injected=true"> A',
+                "2": 'Mug <svg onload="window.q15Injected=true"> B',
+            },
+            "milestone": 'Review <script>window.q15Injected=true</script> sales',
+            "scenario": '=HYPERLINK("inert", "Customer Alternative")',
+            "restriction": 'No <img src=x onerror="window.q15Injected=true"> claims',
+        }
+        if journey == "literal_text" else None
+    )
     response_control = OwnerCatalogResponseControl() if journey == "complete_to_partial" else None
     fixture, body, calls, _ = configured_owner_review(
         customer_engine,
@@ -75,6 +87,7 @@ def test_actual_owner_review_planning_browser(
         tmp_path,
         partial=journey == "partial",
         response_control=response_control,
+        native_names=literal["names"] if literal else None,
     )
     basis = fixture.basis
     original_cookie = replicas[0].cookies[SESSION_COOKIE]
@@ -128,6 +141,7 @@ def test_actual_owner_review_planning_browser(
         media_sha256=basis.media_sha256,
         form=form,
         journey=journey,
+        literal=literal,
     )
     complete = threading.Event()
     results: list[dict[str, Any]] = []
@@ -345,6 +359,17 @@ def test_actual_owner_review_planning_browser(
                 "1",
                 "2",
             }
+        if literal:
+            assert result["literal_checks"] is True
+            assert document.inputs.milestone == literal["milestone"]
+            assert document.inputs.scenario_intents[0].title == literal["scenario"]
+            assert document.inputs.creative is not None
+            assert document.inputs.creative.product is not None
+            assert document.inputs.creative.product.restrictions == (literal["restriction"],)
+            assert {
+                m.provider_reference.entity_id: m.display_name
+                for m in reviews[0].witness.affected_campaigns
+            } == literal["names"]
         assert document.inputs.total_ceiling_micros == 1_000_000_000
         assert document.inputs.scenario_intents[0].allocations[0].amount_micros == 100_000_000
         assert document.inputs.scenario_intents[0].unallocated_micros == 900_000_000
@@ -360,7 +385,7 @@ def test_actual_owner_review_planning_browser(
                 raise AssertionError("Original session lifetime or identity changed")
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == 1
             assert db.scalar(select(func.count()).select_from(PlanInputRow)) == (
-                2 if reviews else 1
+                2 if journey in {"positive", "complete_to_partial"} else 1
             )
         if response_control is not None:
             assert blocked_save_verified and input_posts == 1

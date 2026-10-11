@@ -13,6 +13,14 @@ const owner=()=>document.getElementById('google-owner-inputs');
 let catalog=null,discovery=null,created=null,generated=null,downloaded=null,revision=null;
 let createPosts=0,generatePosts=0,freshReads=0,inputPosts=0,transition=null;
 let originalCreateBody=null,originalGenerateBody=null;
+let literalChecks=false;
+const memberName=id=>cfg.literal?.names[id]??`Mug Campaign ${id}`;
+function safeLiteral(host,values){
+ assert(host&&values.every(value=>host.textContent.includes(value)),'exact literal text present');
+ assert(!host.querySelector('img,svg,script,iframe,object,embed,a'),'no injected elements in text host');
+ assert([...host.querySelectorAll('*')].every(node=>[...node.attributes].every(a=>!/^on/i.test(a.name))),'no injected event attributes');
+ assert(window.q15Injected===undefined,'literal text never executed');
+}
 try{
  await json(await native('/api/customer/v1/session'));
  const sessionCookies=document.cookie;
@@ -30,7 +38,10 @@ try{
   if(path.endsWith('/generate')&&method==='POST'){
    generatePosts++;originalGenerateBody=JSON.parse(args[1].body);if(response.ok)generated=await response.clone().json();
   }
-  if(path.includes('/export?version=1')&&response.ok)downloaded=await response.clone().json();
+  if(path.includes('/export?version=1')&&response.ok){
+   if(cfg.literal){assert(response.headers.get('content-type')?.startsWith('application/json'),'real JSON export');assert(response.headers.get('x-content-type-options')==='nosniff'&&response.headers.get('cache-control')==='no-store','safe export headers');assert(response.headers.get('content-disposition')?.startsWith('attachment;'),'download attachment');}
+   downloaded=await response.clone().json();
+  }
   if(path.endsWith('/inputs')&&method==='POST'&&response.ok){revision=await response.clone().json();assert(JSON.parse(args[1].body).inputs.google_daily_budget_intents.length===0,'explicit removal request');}
   return response;
  };
@@ -41,23 +52,27 @@ try{
  assert(owner()&&!owner().hidden,'private V6 controls');
  const input=cfg.form;
  change($('goal'),input.goal_id);checked($('accounts').querySelector(`input[value="${cfg.account_id}"]`),true);
- $('milestone').value=input.milestone;$('product').value=input.product_offer;$('creative').value='1';
+ $('milestone').value=cfg.literal?.milestone??input.milestone;$('product').value=input.product_offer;$('creative').value='1';
  change($('start'),new Date(input.reporting_window.starts_at).toISOString().slice(0,16));
  change($('end'),new Date(input.reporting_window.ends_at_exclusive).toISOString().slice(0,16));
  checked($('comparison-enabled'),true);
  change($('comparison-start'),new Date(input.comparison_window.starts_at).toISOString().slice(0,16));
  change($('comparison-end'),new Date(input.comparison_window.ends_at_exclusive).toISOString().slice(0,16));
  const capture=$('selected-captures').querySelector('input');assert(Number(capture.dataset.captureAccount)===cfg.account_id,'owned selected account');capture.value=input.selected_reporting[0].capture_id;
- checked($('include-product'),true);$('product-name').value='Reusable travel mug';$('list-price').value='25';$('price-currency').value='USD';$('product-restrictions').value='No approved health claims or testimonials.';
+ checked($('include-product'),true);$('product-name').value='Reusable travel mug';$('list-price').value='25';$('price-currency').value='USD';$('product-restrictions').value=cfg.literal?.restriction??'No approved health claims or testimonials.';
  const image=$('image-library').querySelector(`[data-planning-media-id="${cfg.media_id}"] input[type=checkbox]`);checked(image,true);
  async function readAlternative(){
   const before=freshReads;$('targets-read').click();await until(()=>settled()&&freshReads===before+1&&role($('scenarios'),'scenario-add'),'fresh actual target catalog');
   assert(catalog.targets.length===6,'complete projected target list');
   const index=catalog.targets.findIndex(t=>t.entity.kind==='campaign'&&t.entity.reference.entity_id==='1');assert(index>=0,'exact observed campaign A');
   role($('scenarios'),'scenario-add').click();
-  change(role($('scenarios'),'scenario-title'),'Owner Review Alternative','input');
+  change(role($('scenarios'),'scenario-title'),cfg.literal?.scenario??'Owner Review Alternative','input');
   change(role($('scenarios'),'scenario-reserve'),'900','input');
   role($('scenarios'),'scenario-row-add').click();
+  if(cfg.literal){
+   for(const id of ['1','2']){const target=catalog.targets.find(t=>t.entity.kind==='campaign'&&t.entity.reference.entity_id===id);assert(target?.entity.name===memberName(id),'actual metadata name preserved');}
+   safeLiteral(role($('scenarios'),'scenario-target'),Object.values(cfg.literal.names));
+  }
   change(role($('scenarios'),'scenario-target'),String(index));
   change(role($('scenarios'),'scenario-amount'),'100','input');
  }
@@ -73,7 +88,8 @@ try{
   assert(option.affected_campaigns.every(t=>t.account.account_id===cfg.account_id),'exact account members');
   change(role(owner(),'owner-option'),'0');change(role(owner(),'owner-scenario'),'alternative_1');
   change(role(owner(),'owner-requested'),'5','input');role(owner(),'owner-include').click();
-  assert(owner().textContent.includes('Mug Campaign 1')&&owner().textContent.includes('Mug Campaign 2'),'both member labels');
+  assert(owner().textContent.includes(memberName('1'))&&owner().textContent.includes(memberName('2')),'both member labels');
+  if(cfg.literal){assert(option.affected_campaigns.every(m=>m.display_name===memberName(m.provider_reference.entity_id)),'actual discovered names preserved');safeLiteral(owner(),Object.values(cfg.literal.names));}
  }
  $('save').click();
  if(cfg.journey==='positive'){await until(()=>settled()&&!$('pending').hidden,'unknown committed create');$('recover').click();}
@@ -101,10 +117,19 @@ try{
  }
  const proof=document.getElementById('google-owner-review');assert(proof&&!proof.hidden,'saved owner panel');
  assert(![...proof.querySelectorAll('button')].some(b=>/apply/i.test(b.textContent)),'no apply control');
- if(cfg.journey!=='partial')assert(proof.textContent.includes('Review Required — Not Qualified Against The Period Ceiling')&&proof.textContent.includes('Inlet will not apply these changes.')&&proof.textContent.includes('Mug Campaign 2'),'saved investigation and affected member');
+ if(cfg.journey!=='partial')assert(proof.textContent.includes('Review Required — Not Qualified Against The Period Ceiling')&&proof.textContent.includes('Inlet will not apply these changes.')&&proof.textContent.includes(memberName('2')),'saved investigation and affected member');
  const plan=root+'/plans/'+created.plan_id;
  $('export').click();await until(()=>settled()&&downloaded!==null,'actual export');
  assert(downloaded.document_digest===generated.document_digest,'exact saved export');
+ if(cfg.literal){
+  safeLiteral(proof,[...Object.values(cfg.literal.names),cfg.literal.scenario]);
+  safeLiteral($('creative-basis'),[cfg.literal.restriction]);
+  safeLiteral($('document'),[cfg.literal.milestone]);
+  assert(documentValue.inputs.milestone===cfg.literal.milestone&&documentValue.inputs.scenario_intents[0].title===cfg.literal.scenario,'saved customer text exact');
+  assert(canonical(downloaded.document)===canonical(documentValue),'literal export full document equality');
+  assert(documentValue.inputs.creative.product.restrictions.length===1&&documentValue.inputs.creative.product.restrictions[0]===cfg.literal.restriction,'saved literal restriction');
+  literalChecks=true;
+ }
  // Endpoint receipt replays use the exact original keys, never another generation.
  const receipt=await json(await native(root+'/plans/requests/generate/'+originalGenerateBody.request_key));
  assert(receipt.document_digest===generated.document_digest,'exact generation receipt');
@@ -153,5 +178,5 @@ try{
   transition.historical=old;transition.historical_export=oldExport;transition.final_input_posts=inputPosts;
  }
  assert(document.cookie===sessionCookies,'original browser session retained');
- await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads,transition})});
+ await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads,transition,literal_checks:literalChecks})});
 }catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:String(error.message)})});}

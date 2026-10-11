@@ -7832,3 +7832,22 @@ original R01–R03 stay open. Next engineering package is the bounded selected-c
 residual investigation already documented; no further measurement is currently
 authorized. No active test/heavy process, push, hosted CI, merge, deployment, live
 provider/model call, advertising change or spending occurred in this package.
+
+
+## Q15 Test Overlay Integrated
+
+The owner authorized continuing from `8956b93` and integrating reviewed Q15 when
+compatible. Root and independent source review confirmed that all five touched
+test files had identical bases on root and `9fd75ab`, and that Q15 does not depend
+on the unqualified diagnostic production changes. Root now carries the exact
+`12bf09b` test overlay plus the already retained `9ef5ca9` ledger. Whole root Ruff,
+configured mypy (1,489 files), JavaScript syntax and diff checks pass; the five
+files are byte-identical to the tested author source. No duplicate TLS cases ran
+just to land tests. The two existing passes remain tied to runtime `9fd75ab`;
+no whole-runtime equivalence is claimed. A future changed combined-runtime
+milestone requires its own focused qualification.
+
+The next authorized investigation extends the unchanged `9fd75ab` measurement
+source with bounded ordinary assertion/start/receipt/goal spans, retaining prior
+failures and all caps. Independent Q13/Q14/Q16 source-gap proposals proceed
+without changing pending retention, sharing or human quality decisions.

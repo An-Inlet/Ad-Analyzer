@@ -25,9 +25,11 @@ def ready_inputs(
     *,
     partial: bool = False,
     response_control: OwnerCatalogResponseControl | None = None,
+    native_names: dict[str, str] | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     fixture, catalog, calls = acquired_owner_catalog(
-        engine, config, replicas, patch, path, partial=partial, response_control=response_control
+        engine, config, replicas, patch, path, partial=partial, response_control=response_control,
+        native_names=native_names
     )
     alice, _, _ = replicas
     alice.app.include_router(customer_planning_budget_owners.router)

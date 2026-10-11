@@ -67,7 +67,17 @@ def acquired_owner_catalog(
     partial: bool = False,
     *,
     response_control: OwnerCatalogResponseControl | None = None,
+    native_names: dict[str, str] | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]]]:
+    # Copy once before bootstrap; callers cannot mutate later acquisition responses.
+    names = {} if native_names is None else dict(native_names)
+    if any(
+        type(key) is not str or key not in {"1", "2", "3"}
+        or type(value) is not str or not 1 <= len(value) <= 160
+        or any(ord(char) < 32 or ord(char) > 126 for char in value)
+        for key, value in names.items()
+    ):
+        raise ValueError("Invalid synthetic native campaign names")
     if partial and response_control is not None:
         raise ValueError("Static partial and response controller are mutually exclusive")
     fixture = prepare_creative_common_basis(
@@ -90,7 +100,7 @@ def acquired_owner_catalog(
                 **original,
                 "resourceName": PREFIX + f"campaigns/{native}",
                 "campaignBudget": PREFIX + f"campaignBudgets/{budget}",
-                "name": f"Mug Campaign {native}",
+                "name": names.get(native, f"Mug Campaign {native}"),
             }
         }
         for native, budget in (("1", "2"), ("2", "2"), ("3", "4"))

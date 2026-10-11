@@ -24,6 +24,7 @@ def configured_owner_review(
     *,
     partial: bool = False,
     response_control: OwnerCatalogResponseControl | None = None,
+    native_names: dict[str, str] | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     # Existing helper obtains uploaded image, aggregate/selected capture and original
     # catalog/discovery receipts via real APIs. It does not save any input or plan.
@@ -35,6 +36,7 @@ def configured_owner_review(
         tmp_path,
         partial=partial,
         response_control=response_control,
+        native_names=native_names,
     )
     monkeypatch.setattr(
         api,

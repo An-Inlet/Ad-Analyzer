@@ -7765,3 +7765,30 @@ facts are already batch-loaded. Do not remove a pass, cache SQL facts, renew
 authority, or select a small validation edit without a concrete sufficient mechanism.
 Runtime repair and combined-source acceptance remain outstanding; Q15 source is
 ready but unrun. All production/live/remote/owner decision gates remain unchanged.
+
+
+The separately reviewed observer03 adds five fixed ordinary-function families;
+the sole PostgreSQL case passed with206frames/34save-final calls and all accounting
+flags clear. XML case26.892s, suite28.957s, process31.578949s. Root and independent
+review verified one source/12 evidence hashes, freeze
+`8e708168f712d94de138c6a1d10a74a5b3fb2164adc190d85d9a373a06f11158`.
+[Disjoint family table](inlet-v6-selected-family-measurement03-20261011.md) sums
+exactly to3.419896s and2,385 SQL executions. No application code changed.
+
+Twelve historical reads totaled0.140599s;78 scope checks0.301648s. Neither finding
+justifies a sufficient repair by removing the small duplicated canonical-value
+computations. Selected-current exclusive residual remains1.410895s/726SQL, covering
+unwrapped mixed validation/source/receipt/goal work. No pure-CPU, contention,
+removable-cost or reliable-margin claim follows. [The next bounded boundary](design/selected-current-residual-next-boundary-v1.md)
+identifies ordinary paired/selected `assert_ticket`, selected-start, saved-catalog
+and goal-progress methods for possible localization. No further probe or repair
+is authorized by that proposal itself. Preserve independent after-SQL rechecks
+and public copied/raw/subclass validator behavior in any later kernel design.
+
+Q15 source/statics/collection preflight passed: whole Ruff, configured mypy1,492
+files, JavaScript syntax and exact two new IDs. Initial test-only product-null
+narrowing finding was corrected and retained. The two new actual browser cases
+are separately authorized on preserved candidate `9fd75ab`, SQLite then PostgreSQL
+only after original-success/source/resource/XML/cleanup gates. This independent
+text-handling slice need not wait for a performance repair, but cannot qualify the
+whole diagnostic base or close any reliability incident. No outcome is claimed yet.

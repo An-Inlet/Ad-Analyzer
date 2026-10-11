@@ -174,7 +174,11 @@ def export_section(
                 export_row,
             )
 
-            if name in SELECTED_TABLES:
+            if name == "google_reporting_range_receipts":
+                from app.campaign_performance.range_receipts import export_range_receipt
+
+                projected = export_range_receipt(db, dict(row))
+            elif name in SELECTED_TABLES:
                 projected = selected_context.export(name, dict(row))
             elif name in PRESENCE_TABLES:
                 projected = presence_context.export(name, dict(row))

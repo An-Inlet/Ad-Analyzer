@@ -2031,3 +2031,20 @@ PRIVATE_STAGING_TABLES = frozenset(
         "meta_presence_stage_contexts",
     }
 )
+
+
+TABLES["google_reporting_range_receipts"] = TablePolicy(
+    "workspace",
+    (
+        "request_id",
+        "workspace_id",
+        "account_id",
+        "connection_id",
+        "completion_id",
+        "job_id",
+        "initiating_customer_id",
+        "canonical_json",
+        "payload_digest",
+        "payload_bytes",
+    ),
+)

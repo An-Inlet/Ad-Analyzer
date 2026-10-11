@@ -637,6 +637,15 @@ def serialize(
     from app.campaign_performance.selected_storage import TABLES as SELECTED_TABLES
     from app.planning_documents.storage import CATALOG_RECEIPT_TABLES, PLANNING_TABLES, export_row
 
+    if table == "google_reporting_range_receipts":
+        from app.campaign_performance.range_receipts import export_range_receipt
+
+        if db is None:
+            raise ValueError("range receipt export requires owned snapshot")
+        return export_range_receipt(
+            db, {k: v for k, v in row.items() if k != "_export_oversized"}
+        ), []
+
     if table in SELECTED_TABLES:
         if db is None:
             raise ValueError("selected export requires owned snapshot")

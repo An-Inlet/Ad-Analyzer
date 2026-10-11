@@ -19,13 +19,20 @@ from app.planning_documents.google_budget_intents import (
 )
 from app.planning_documents.google_budget_owner_contracts import (
     GoogleDailyBudgetOwnerWitnessV1,
+    _checked_witness_eligible,
+    _exact_model_graph,
     _originals,
+    _resolve_owner_intent_checked,
     resolve_google_daily_budget_intent,
 )
 
 
 def owner_review_action_key(witness: GoogleDailyBudgetOwnerWitnessV1) -> str:
     witness = GoogleDailyBudgetOwnerWitnessV1.model_validate(witness)
+    return _owner_review_action_key_checked(witness)
+
+
+def _owner_review_action_key_checked(witness: GoogleDailyBudgetOwnerWitnessV1) -> str:
     return "owner-review:" + fingerprint(
         "inlet.google-budget-owner-review-action.v1",
         dict(
@@ -63,10 +70,20 @@ class GoogleBudgetOwnerReviewV1(NoAuthority):
         request = GoogleDailyBudgetIntentV1.model_validate(
             {k: getattr(self.intent, k) for k in GoogleDailyBudgetIntentV1.model_fields}
         )
-        resolved = resolve_google_daily_budget_intent(request, self.witness)
+        checked = _review_checked_eligible(self)
+        resolved = (
+            _resolve_owner_intent_checked(request, self.witness)
+            if checked
+            else resolve_google_daily_budget_intent(request, self.witness)
+        )
         if resolved.model_dump_json() != self.intent.model_dump_json():
             raise ValueError("review intent differs from exact owner witness")
-        if self.action_key != owner_review_action_key(self.witness):
+        action_key = (
+            _owner_review_action_key_checked(self.witness)
+            if checked
+            else owner_review_action_key(self.witness)
+        )
+        if self.action_key != action_key:
             raise ValueError("exact owner review action key required")
         return self
 
@@ -114,7 +131,12 @@ class GoogleBudgetOwnerReviewProofV1(NoAuthority):
             advertising_writes_enabled=self.advertising_writes_enabled,
             spending_authority=self.spending_authority,
             input_digest=self.input_digest,
-            reviews=[r.model_dump(mode="json") for r in self.reviews],
+            reviews=[
+                _owner_review_payload_checked(r)
+                if _review_checked_eligible(r)
+                else r.model_dump(mode="json")
+                for r in self.reviews
+            ],
         )
         if (
             len(
@@ -126,3 +148,63 @@ class GoogleBudgetOwnerReviewProofV1(NoAuthority):
         ):
             raise ValueError("owner review proof exceeds document byte bound")
         return self
+
+
+_REVIEW_FIELDS = frozenset(
+    {
+        "schema_version",
+        "advertising_writes_enabled",
+        "spending_authority",
+        "action_key",
+        "intent",
+        "witness",
+        "disposition",
+        "period_spending_compatibility",
+        "provider_edit_validity",
+        "application",
+    }
+)
+_RESOLVED_FIELDS = frozenset(
+    {
+        "schema_version",
+        "account_id",
+        "owner_selection_id",
+        "expected_observation_digest",
+        "expected_owner_facts_digest",
+        "scenario_key",
+        "currency",
+        "cadence",
+        "unit",
+        "requested_amount_micros",
+        "owner_key",
+        "representative_canonical_key",
+        "observed_amount_micros",
+        "source_binding_digest",
+    }
+)
+
+
+def _review_checked_eligible(review: GoogleBudgetOwnerReviewV1) -> bool:
+    return (
+        frozenset(GoogleBudgetOwnerReviewV1.model_fields) == _REVIEW_FIELDS
+        and frozenset(ResolvedGoogleDailyBudgetIntentV1.model_fields) == _RESOLVED_FIELDS
+        and type(review.intent) is ResolvedGoogleDailyBudgetIntentV1
+        and _checked_witness_eligible(review.witness)
+        and _exact_model_graph(review, GoogleBudgetOwnerReviewV1)
+    )
+
+
+def _owner_review_payload_checked(review: GoogleBudgetOwnerReviewV1) -> dict[str, Any]:
+    """Default JSON payload only, from this validator's already checked exact child."""
+    return dict(
+        schema_version=review.schema_version,
+        advertising_writes_enabled=review.advertising_writes_enabled,
+        spending_authority=review.spending_authority,
+        action_key=review.action_key,
+        intent=review.intent.model_dump(mode="json"),
+        witness=review.witness.model_dump(mode="json"),
+        disposition=review.disposition,
+        period_spending_compatibility=review.period_spending_compatibility,
+        provider_edit_validity=review.provider_edit_validity,
+        application=review.application,
+    )

@@ -1,7 +1,7 @@
 """Retained projected Google owner facts; no authenticity, total cap or write authority."""
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -26,6 +26,83 @@ _TIME_FIELDS = frozenset(
         "ends_at_exclusive",
     }
 )
+
+
+_WITNESS_FIELDS = frozenset(
+    {
+        "schema_version",
+        "advertising_writes_enabled",
+        "spending_authority",
+        "catalog_evidence",
+        "owner_key",
+        "representative",
+        "affected_campaigns",
+        "current_amount_micros",
+        "currency",
+        "cadence",
+        "unit",
+        "reference_count",
+        "explicitly_shared",
+        "budget_status",
+        "budget_type",
+        "atomic_snapshot",
+    }
+)
+_INTENT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "account_id",
+        "owner_selection_id",
+        "expected_observation_digest",
+        "expected_owner_facts_digest",
+        "scenario_key",
+        "currency",
+        "cadence",
+        "unit",
+        "requested_amount_micros",
+    }
+)
+
+
+def _exact_model_graph(value: BaseModel, expected: type[BaseModel]) -> bool:
+    """Reject subtype-specific validation/serialization from checked lexical paths."""
+    if type(value) is not expected:
+        return False
+    declared: set[type[BaseModel]] = set()
+
+    def schema(annotation: Any) -> None:
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            if annotation in declared:
+                return
+            declared.add(annotation)
+            for field in annotation.model_fields.values():
+                schema(field.annotation)
+        else:
+            for arg in get_args(annotation):
+                schema(arg)
+
+    schema(expected)
+
+    def exact(item: Any) -> bool:
+        if isinstance(item, BaseModel):
+            return (
+                type(item) in declared
+                and set(item.__dict__) == set(type(item).model_fields)
+                and all(exact(child) for child in item.__dict__.values())
+            )
+        if isinstance(item, dict):
+            return all(exact(child) for child in item.values())
+        if isinstance(item, (tuple, list)):
+            return all(exact(child) for child in item)
+        return True
+
+    return exact(value)
+
+
+def _checked_witness_eligible(witness: "GoogleDailyBudgetOwnerWitnessV1") -> bool:
+    return frozenset(
+        GoogleDailyBudgetOwnerWitnessV1.model_fields
+    ) == _WITNESS_FIELDS and _exact_model_graph(witness, GoogleDailyBudgetOwnerWitnessV1)
 
 
 class GoogleBudgetOwnerUnavailable(RuntimeError):
@@ -294,6 +371,14 @@ def derive_google_daily_budget_owner(
 
 def owner_facts_digest(witness: GoogleDailyBudgetOwnerWitnessV1) -> str:
     current = GoogleDailyBudgetOwnerWitnessV1.model_validate(witness)
+    return _owner_facts_digest_checked(current)
+
+
+def _owner_witness_digest_checked(witness: GoogleDailyBudgetOwnerWitnessV1) -> str:
+    return fingerprint(witness.schema_version, witness.model_dump(mode="json"))
+
+
+def _owner_facts_digest_checked(current: GoogleDailyBudgetOwnerWitnessV1) -> str:
     catalog = current.catalog_evidence
     native, metadata = catalog.catalog.native_observation, catalog.catalog.metadata_observation
     _, settings, rows = _parts(catalog, current.owner_key)
@@ -326,12 +411,38 @@ def resolve_google_daily_budget_intent(
     """Pure value binding only; opaque selection needs independent owned-session resolution."""
     intent = GoogleDailyBudgetIntentV1.model_validate(intent)
     witness = GoogleDailyBudgetOwnerWitnessV1.model_validate(witness)
+    if (
+        type(intent) is GoogleDailyBudgetIntentV1
+        and frozenset(GoogleDailyBudgetIntentV1.model_fields) == _INTENT_FIELDS
+        and _checked_witness_eligible(witness)
+    ):
+        return _resolve_owner_intent_checked(intent, witness)
     account = witness.representative.account
     if (
         intent.account_id != account.account_id
         or intent.currency != witness.currency
         or intent.expected_observation_digest != witness.digest()
         or intent.expected_owner_facts_digest != owner_facts_digest(witness)
+    ):
+        raise ValueError("intent requires exact owner observation and currency")
+    return ResolvedGoogleDailyBudgetIntentV1(
+        **intent.model_dump(mode="python"),
+        owner_key=witness.owner_key,
+        representative_canonical_key=witness.representative.canonical_entity_key,
+        observed_amount_micros=witness.current_amount_micros,
+        source_binding_digest=witness.catalog_evidence.reference.source_binding_digest,
+    )
+
+
+def _resolve_owner_intent_checked(
+    intent: GoogleDailyBudgetIntentV1, witness: GoogleDailyBudgetOwnerWitnessV1
+) -> ResolvedGoogleDailyBudgetIntentV1:
+    account = witness.representative.account
+    if (
+        intent.account_id != account.account_id
+        or intent.currency != witness.currency
+        or intent.expected_observation_digest != _owner_witness_digest_checked(witness)
+        or intent.expected_owner_facts_digest != _owner_facts_digest_checked(witness)
     ):
         raise ValueError("intent requires exact owner observation and currency")
     return ResolvedGoogleDailyBudgetIntentV1(

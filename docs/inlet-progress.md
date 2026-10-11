@@ -7180,3 +7180,13 @@ reviews closed. [Integration ledger](inlet-selected-integration-20261011.md).
 Original-session resolver and customer confirmation are next; strict refreshed-
 aggregate proof is a caller obligation. No public activation/live qualification,
 push/hosted/main merge/deploy; frozen exhaustive baseline remains untouched.
+
+## 2026-10-11 — Private Creative Runtime Qualification
+
+Private V5 service `4100fe5` and actual API/lifecycle fixture are implemented.
+Eighteen strengthened negative/lifecycle cases passed on SQLite and PostgreSQL;
+whole Ruff/mypy1,407 passed. Positive journeys passed across recorded cohorts,
+but an earlier PostgreSQL generation exceeded the five-second authority limit.
+The limit remains unchanged; reviewed first-slice performance work is underway.
+[Exact attempts, test repairs and remaining gate](inlet-creative-runtime-qualification-20261011.md).
+Default customer service remains V3. No live/hosted/release qualification claimed.

@@ -107,7 +107,7 @@ def test_exact_61_day_paginated_queries_and_aggregate_not_selected() -> None:
     assert result.expires_at == NOW + timedelta(seconds=60)
     assert "b" * 64 not in result.model_dump_json()
     assert result.digest() == GoogleAggregateRangeV1.model_validate(result).digest()
-    assert descriptor(reader) is None  # No automatic publication registration.
+    assert descriptor(reader) == reader.performance_contract
     assert (
         reader.performance_contract.query_version
         == "google.v24.campaign-day.metrics-conversions.v1"
@@ -323,3 +323,16 @@ def test_closed_range_and_context_reject_before_http(kind: str) -> None:
         context = bad_context
     with pytest.raises(GoogleAggregateRangeUnavailable):
         adapter(lambda wire: pytest.fail("invalid request issued HTTP"), context=context)(req)
+
+
+def test_publication_descriptor_rejects_duck_types_and_subclasses() -> None:
+    class Lookalike:
+        performance_contract = adapter(
+            lambda req: httpx.Response(200, json=raw(""))
+        ).performance_contract
+
+    class Derived(GoogleAggregateRangeHTTP):
+        pass
+
+    assert descriptor(Lookalike()) is None
+    assert descriptor(object.__new__(Derived)) is None

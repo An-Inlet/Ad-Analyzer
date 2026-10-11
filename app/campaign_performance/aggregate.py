@@ -51,9 +51,12 @@ def descriptor(transport: object) -> ReportingDescriptor | None:
     # Only concrete server adapters carry these verified query mappings. Duck-typed
     # properties/browser data do not qualify an arbitrary importer implementation.
     from app.google_connections.http import GoogleHTTPRead
+    from app.google_connections.range_http import GoogleAggregateRangeHTTP
     from app.tiktok.http import TikTokHTTPRead
 
     if type(transport) is GoogleHTTPRead:
+        return transport.performance_contract
+    if type(transport) is GoogleAggregateRangeHTTP:
         return transport.performance_contract
     if type(transport) is TikTokHTTPRead:
         return transport.performance_contract

@@ -7144,3 +7144,12 @@ Ruff and mypy1272files passed. [Package ledger](inlet-selected-contract-package-
 and [Q01–Q16/human gate work matrix](inlet-quality-next-packages-20261011.md).
 Pure contract only; storage/import/customer consumer not yet activated. Frozen W1
 qualification preserved; all remote/hosted/live/release holds remain.
+
+## 2026-10-11 — Resume And Raw Observation Parsing
+
+Recovered exactdb4574c checkpoint;3drafts/14backups/52baselinearchives/52JUnit files
+hash-verified. Completed independently reviewed pure Google selected-action and
+TikTok generic-presence parsers; zero/missing/unsupported retained.204focused tests
+passed1.65s, full Ruff and mypy1276files passed. [Package/recovery ledger](inlet-selected-raw-package-20261011.md).
+No runtime import or plan activation yet. Durable-selection/publication interface
+review is next; all remote/hosted/live/release holds remain.

@@ -183,3 +183,25 @@ existing synthetic `FakeMeasurement` source data and current observation time
 before the control preview. It must complete normally, without directly editing
 last_sync, backdating clocks, extending freshness limits or changing primary
 sources. Revised source and execution evidence remain separately reviewed.
+
+
+## Second Fixture Failure And Shared Helper Amendment
+
+Reconsent02 also stopped before consent: zero passes, one SQLite failure,
+PostgreSQL unrun. Fresh control commerce and goal confirmation succeeded, then
+both workspaces' Meta bootstrap used external account ID `123`, violating the
+intentional `uq_meta_external_account_owner` constraint. Original source and
+failure packet remain at `reconsent02-failure-summary.json` in the same evidence
+directory (SHA256 `2ab6375c50c41accad9f21001e95cbcddb47cd074b7abe1ece97ebfb4bdde072`).
+No reconnect outcome or authority-expiry cause was observed.
+
+Independent review approved one narrow shared-helper amendment:
+`_social_account(..., *, currency=..., external_id: str = "123")` in
+`tests/creative_q05_fixture.py`. Propagate the explicit ID consistently to the
+advertising account, native connection and Meta Vault associated-data binding;
+preserve all defaults, keys, integration identifiers and currency behavior.
+Only the other-workspace control passes `"456"`. Assert the primary retains 123,
+the control account/connection bind 456 and its owned encrypted bundle opens
+under that identity. No uniqueness constraint, production code, native response,
+clock or authorization is changed. This replaces duplicated bootstrap code with
+an explicit fixture input. The primary case still exercises the old default.

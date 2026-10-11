@@ -7316,3 +7316,29 @@ A [bounded diagnostic census](design/q09-next-milestone-helper-census-v1.md) is
 source-reviewed for that later new milestone; it has not run. R01/R02 remain
 unresolved, original Q09 incomplete, and six human judgments open. No unchanged
 probe retry, live/remote/release action or external sharing occurred.
+
+## 2026-10-11 — Original-Receipt V6 Current And Historical Reads
+
+Integrated independently reviewed `b336e9b` as `fca7178` on the local
+`codex/inlet-w1-followup` branch. Exact V6 retained reads now validate original
+authenticated owner input receipts, full linked catalogs, owner proof and complete
+reporting/commerce/creative dependencies. Public V5 entry points retain their prior
+policy and error boundaries. No service registration, default change or advertising
+authority is introduced by this package.
+
+[Package ledger](inlet-owner-review-retained-20261011.md) records 26 distinct passing
+cases: 24 SQLite/PostgreSQL retained-component cases and two direct wrapper
+regressions. The overlapping smoke is not added to the total. The initial immutable
+receipt UPDATE fixture failure is preserved; only its fault-injection seam changed.
+Two warnings came from deliberate Connection transaction replacement cleanup.
+Root independently checked all 10 source hashes, 14 evidence hashes and three XML
+reports; independent review CLOSED. Root whole Ruff and configured no-path mypy
+passed (1470 files). Evidence is local under
+`/workspace/inlet-evidence/20261011/owner-review-retained/`.
+
+The fixture performs genuine discovery/input/media/read/composition but explicitly
+stores the resulting version/dependencies for retained-port checks. This does not
+qualify actual generation/save or the final five-second authority interval. Next:
+reviewed exact-V6 service integration with 13 disjoint actual API cases per database,
+then the existing customer portal. R01/R02, human usefulness judgments and all
+remote/live/release/sharing holds remain unchanged.

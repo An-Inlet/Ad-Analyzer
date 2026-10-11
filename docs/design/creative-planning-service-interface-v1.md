@@ -87,7 +87,7 @@ qualification. No browser-selected policy/store or new public configuration sett
 
 - Create/revise: exact v5 requires explicit typed creative input and explicit
   selected_reporting, including deliberate empty selections. Existing prepared
-  source/catalog receipts, owned media-reference admission, budgets, confirmed goal,
+  source/catalog receipts, budgets, confirmed goal,
   actor scope, request digests, input-head CAS and paid/privacy guards remain.
   The saved creative input must survive its canonical digest and subsequent reads.
 - Generate preparation: preserve original issuer/subject/user/session/authenticated
@@ -227,3 +227,26 @@ Run bounded coordinated SQLite/PostgreSQL tests, whole Ruff/configured mypy and
 independent review. No Full, live/provider calls, push, hosted checks or deployment
 are implied by this proposal. Human creative-quality assessment, actual browser v5
 journeys and production store/live qualifications remain separate later packages.
+
+## Addendum: New Owned Media Metadata Admission
+
+This package adds admission; existing input preparation does not establish media
+ownership. For new v5 create/revise requests, validate the typed creative input and
+check every media selection against a MediaObject row with the exact workspace ID,
+media ID and expected SHA-256. Acquire rows in sorted ID order under the existing
+workspace/owner transaction locks. Missing, foreign or changed hashes produce one
+fixed 409 without disclosing foreign metadata. Empty selections require no media
+rows but retain all ordinary input authorization checks.
+
+Perform this bounded SQL-only check in both input-save transactions: immediately
+after the exact completed-request receipt early return and before new work in the
+first transaction, and again after that early return before final save. Exact
+completed replay therefore survives later metadata deletion or mutation. No blob
+reads, decoding, image observation, suitability or fresh media proof is implied;
+generation still requires actual owned image collection and final metadata proof.
+
+The repository helper is private to this admission boundary and accepts the current
+Session, owned workspace ID and typed CreativeInputV1. It never commits or catches
+unexpected database errors. Existing v1-v4 input behavior is unchanged. Focused
+tests cover owned/empty admission, missing/foreign/hash-changed rejection, final-save
+races and exact replay after metadata loss.

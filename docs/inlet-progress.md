@@ -7562,3 +7562,25 @@ open, and an owner decision was requested asynchronously with a recommendation
 to retain existing privacy erasure for the MVP. Next independent package is a
 reviewed actual reconnect-route erasure/no-resurrection acceptance proposal.
 Six human judgments and R01/R02/R03 remain open; no live, hosted or sharing action.
+
+
+## 2026-10-11 — Remaining Provider Connection Explanations
+
+Integrated `6d027c0` as `5e9e39c`: existing Meta, TikTok, Klaviyo, HubSpot,
+Omnisend and Shopify notices now disclose workspace-derived planning erasure.
+Meta's warning applies to an account already saved in the workspace; Shopify
+keeps its distinct imported-data deletion and verified-first-binding behavior.
+Existing authorization, controls, APIs, backend and privacy policy are unchanged.
+
+All 14 selected existing browser cases passed once (seven SQLite, seven
+PostgreSQL), no failures or skips. Root and independent review verified 11 source
+and 69 evidence hashes and exact XML identities. Root whole Ruff and configured
+no-path mypy passed (1,487 files); app/tests exactly match the qualified author.
+See [provider copy ledger](inlet-provider-connection-copy-20261011.md).
+
+Actual Google reconsent acceptance remains separate. Its first SQLite attempt
+stopped before consent because the other-workspace goal used stale historical
+commerce evidence; PostgreSQL was unrun. The reviewed test-only repair refreshes
+that control through the ordinary synthetic commerce import path using real time.
+No production freshness or privacy rule was changed. The contrary Q11 reconnect
+history requirement, six human judgments and all live/release gates remain open.

@@ -91,7 +91,9 @@ fields. Do not silently copy between those and structured creative fields.
   customer-selected order. Payload contains only each actual selected media_id and
   expected_sha256 from the scoped library/upload receipt. No image bytes, inferred
   content, credentials or browser-generated source/authority fields in plan inputs.
-- MIME allowlist PNG/JPEG/WebP; image bytes<=8MiB, positive dimensions<=16million
+- MIME allowlist PNG/JPEG only, matching OwnedPlanningImageV1.mime. Explicitly
+  reject WebP library/upload results (and video); the broader media library does
+  not broaden creative-basis support. Image bytes<=8MiB, positive dimensions<=16million
   pixels. Existing library128MiB quota remains server-enforced. Upload size/name/MIME
   hints are not decoding proof; validate the actual upload response before selection.
   A returned video is never accepted as a planning image.

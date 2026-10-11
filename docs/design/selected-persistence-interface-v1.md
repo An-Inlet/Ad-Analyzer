@@ -76,3 +76,30 @@ transition retry UX; immutable August/September range provenance; customer plan
 consumer and comparator. Storage fixtures are not Q01/Q02/provider qualification.
 No publication/ad-account mutations, live calls, spending authority or changes to
 existing recommendation/forecast/budget semantics are introduced.
+
+## Implemented Explicit Invalidation Transition (0091)
+
+The mutable current head has an exact boolean `invalidated` flag. Under the
+workspace→account fence, `invalidate_selected_account(db, workspace_id, account_id)`
+changes an active head to invalidated, erases its captures and account calibration
+outputs, and advances the existing workspace export/privacy counter transactionally.
+Repeated invalidation is a no-op. The caller commits this transition before a real
+aggregate refresh and explicit new confirmation; a failed confirmation must not roll
+back the already requested invalidation. Old immutable choice bytes are not rewritten.
+
+Replacing the head requires its exact previous ID/digest, an invalidated head, and a
+new selection ID whose canonical scope matches the actual current privacy counter,
+owned account and active integration/source generation. Database predicates enforce
+these conditions independently of the service: raw active A→B and stale A→B→A are
+rejected. Deleting a head erases its capture graph and fences prepared exports.
+Historical export labels retained choices/captures as historical, never current.
+
+Internal storage does not authenticate a browser session. Future public callers must
+hold/recheck the actual original session and owner membership using existing customer
+access fences; `confirmed_by_customer_id` alone is not authentication. No caller may
+use these ports as a replacement for an owned event catalog or provider capability.
+
+Export validates each complete capture once per read-only snapshot transaction,
+then indexes its bounded facts. It retains only one capture index, rejects a changed
+transaction, and uses primary-key capture ordering. Delivery still passes the existing
+workspace privacy guard. No retention period or expiration policy is introduced.

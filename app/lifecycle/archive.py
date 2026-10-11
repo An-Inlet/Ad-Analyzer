@@ -15,6 +15,7 @@ from sqlalchemy import Engine, Text, case, cast, func, literal, select
 from sqlalchemy.orm import Session
 
 from app.campaign_performance.presence_export import PresenceExportContext
+from app.campaign_performance.selected_export import SelectedExportContext
 from app.campaign_review.contracts import MAX_LIBRARY_BYTES, MAX_MEDIA_BYTES, MediaStore
 from app.database.session import Base
 from app.lifecycle.contracts import LifecycleScopeV1
@@ -93,6 +94,7 @@ def build(
                     privacy = capture_privacy(snapshot)
                     scope = LifecycleScopeV1(workspace_id=wid)
                     presence_context = PresenceExportContext(snapshot)
+                    selected_context = SelectedExportContext(snapshot)
                     for name, policy in TABLES.items():
                         checkpoint()
                         if policy.scope in {"identity_global", "platform_global", "unclassified"}:
@@ -157,6 +159,7 @@ def build(
                                         dict(row),
                                         db=snapshot,
                                         presence_context=presence_context,
+                                        selected_context=selected_context,
                                     )
                                     unsupported.update(missing)
                                     data = encoded(projected) + b"\n"

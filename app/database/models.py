@@ -18,6 +18,7 @@ MODEL_MODULES = (
     "app.campaign_review.models",
     "app.campaign_performance.models",
     "app.campaign_performance.presence_models",
+    "app.campaign_performance.selected_models",
     "app.commerce.models",
     "app.commerce.acquisition_models",
     "app.crm.models",

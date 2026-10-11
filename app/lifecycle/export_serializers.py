@@ -17,6 +17,7 @@ from app.billing.offers import (
     digest as offer_digest,
 )
 from app.campaign_performance.presence_export import PresenceExportContext
+from app.campaign_performance.selected_export import SelectedExportContext
 from app.campaign_review.contracts import ReviewArtifact
 from app.commerce.evidence import digest as assessment_digest
 from app.commerce.publication_contracts import MANIFEST, ManifestBasis, bind_manifest
@@ -334,6 +335,10 @@ def fields(table: str) -> tuple[str, ...]:
 
 def validation_fields(table: str) -> tuple[str, ...]:
     """Internal scalar lineage needed for validation, never added to export fields."""
+    if table == "selected_reporting_captures":
+        # This is the selected reporting document commitment, not a customer
+        # idempotency/session secret. Validate the complete stored row explicitly.
+        return ("request_digest",)
     return ("fence", "request_digest") if table == "google_original_completions" else ()
 
 
@@ -626,9 +631,21 @@ def serialize(
     *,
     db: Session | None = None,
     presence_context: PresenceExportContext | None = None,
+    selected_context: SelectedExportContext | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     from app.campaign_performance.presence_storage import TABLES as PRESENCE_TABLES
+    from app.campaign_performance.selected_storage import TABLES as SELECTED_TABLES
     from app.planning_documents.storage import CATALOG_RECEIPT_TABLES, PLANNING_TABLES, export_row
+
+    if table in SELECTED_TABLES:
+        if db is None:
+            raise ValueError("selected export requires owned snapshot")
+        context_selected = selected_context or SelectedExportContext(db)
+        if context_selected.db is not db:
+            raise ValueError("selected export session mismatch")
+        return context_selected.export(
+            table, {key: value for key, value in row.items() if key != "_export_oversized"}
+        ), []
 
     if table in PRESENCE_TABLES:
         if db is None:

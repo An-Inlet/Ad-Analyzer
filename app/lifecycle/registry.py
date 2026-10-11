@@ -1966,6 +1966,64 @@ TABLES: dict[str, TablePolicy] = {
 }
 
 
+# Reviewed explicit selected-reporting export allowlists.
+TABLES["customer_event_selections"] = TablePolicy(
+    "workspace",
+    (
+        "id",
+        "confirmed_by_customer_id",
+        "workspace_id",
+        "account_id",
+        "connection_id",
+        "canonical_json",
+        "payload_digest",
+        "payload_bytes",
+    ),
+)
+TABLES["customer_event_selection_current"] = TablePolicy(
+    "workspace",
+    (
+        "account_id",
+        "selection_id",
+        "selection_digest",
+        "workspace_id",
+        "connection_id",
+        "invalidated",
+    ),
+)
+TABLES["selected_reporting_captures"] = TablePolicy(
+    "workspace",
+    (
+        "id",
+        "selection_id",
+        "selection_digest",
+        "completion_id",
+        "request_digest",
+        "fact_count",
+        "workspace_id",
+        "account_id",
+        "connection_id",
+        "canonical_json",
+        "payload_digest",
+        "payload_bytes",
+    ),
+)
+TABLES["selected_reporting_facts"] = TablePolicy(
+    "workspace",
+    (
+        "capture_id",
+        "campaign_id",
+        "metric_date",
+        "workspace_id",
+        "account_id",
+        "native_campaign_id",
+        "canonical_json",
+        "payload_digest",
+        "payload_bytes",
+    ),
+)
+
+
 PRIVATE_STAGING_TABLES = frozenset(
     {
         "commerce_acquisition_checkpoints",

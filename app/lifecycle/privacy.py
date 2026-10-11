@@ -42,11 +42,13 @@ def bump_workspace_export_revision(db: Session, workspace_id: int) -> None:
     """
     _lock_workspace(db, workspace_id)
     from app.campaign_performance.presence_storage import erase_workspace_presence
+    from app.campaign_performance.selected_storage import erase_workspace_selected
     from app.initial_planning.invalidation import erase_workspace_observations
     from app.meta.presence_staging import erase_workspace_staging
     from app.optimization_candidates.invalidation import erase_workspace_candidates
     from app.planning_documents.invalidation import erase_workspace_plans
 
+    erase_workspace_selected(db, workspace_id)
     erase_workspace_staging(db, workspace_id)
     erase_workspace_presence(db, workspace_id)
     erase_workspace_plans(db, workspace_id)

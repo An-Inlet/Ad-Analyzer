@@ -7949,3 +7949,10 @@ were repeated for formatting. See the two selected-kernel ledgers. Root producti
 remains4c8e28f; next work is bounded full authority-window attribution on the
 failed repeated-generation scenario, retaining original guards/facts/deadlines.
 No push, merge, deployment, live provider activity or spending occurred.
+
+
+Observer preparation provenance correction: the preserved measurement04 external
+Ruff log also contains inherited S110/RUF100 despite its ledger's pass claim.
+The ledger now explicitly corrects that statement; original source/logs/freeze and
+measurements are retained. The Q13 observer has not run and is held until its
+comment-only lint fix and original-exit check record pass independent review.

@@ -46,3 +46,16 @@ All save descendant exclusive spans sum exactly to3.792293s; inclusive rows over
 The evidence supports reviewing a model-specific same-call strict-validation/kernel contract for the two ticket assertion domains. It does not support removing an assertion after SQL, either fresh selected pass, privacy/session/goal/paid checks, or changing the original deadline. The0.684852s is the full assertion budget, not promised savings. No production edit or repair execution is authorized by this result.
 
 Evidence `/workspace/inlet-evidence/20261011/v6-normal-save-subphases04/`: manifestd84bc3b0/plugin d9685ffb/runner f78eee22; XML/log/result/report/summary retained. External Ruff/compile passed before run; no redundant post-outcome checks. Earlier outcomes and failures stay separate.
+
+
+## Correction To External Lint Provenance
+
+Subsequent Q13 observer review found that the preserved `ruff01.log` for this
+measurement contains S110 and RUF100 at the report-write fallback: the S110
+suppression was placed on `pass` instead of the enclosing `except`. The earlier
+statement that external Ruff passed is incorrect. The original log and immutable
+freeze remain untouched. This is an external diagnostic source-style finding;
+the measured result, exact observer source and accounting limits remain preserved,
+but this preparation must not be described as lint-clean. The successor observer
+corrects comment placement with unchanged executable AST and retains individually
+captured check exit codes before any new execution.

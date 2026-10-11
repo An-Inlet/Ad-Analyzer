@@ -11,6 +11,7 @@ from app.campaign_performance.service import Authorize
 from app.customers.access import CustomerPrincipal
 from app.goals.progress import _read_goal_progress_locked
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.evidence_local import (
     changed,
     check_goal,
@@ -19,16 +20,12 @@ from app.planning_documents.evidence_local import (
 )
 from app.planning_documents.ports import (
     GenerationTicket,
-    PlanningCompositionPolicy,
-)
-from app.planning_documents.selected_inputs import (
-    SELECTED_GENERATOR_VERSION,
-    SELECTED_POLICY_VERSION,
 )
 from app.planning_documents.selected_plan_bundle import SelectedPlanEvidenceBundleV1
 from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 from app.planning_documents.selected_plan_reader import load_selected_plan_graph
 from app.planning_documents.selected_plan_retained import capture_selected_reporting_pin
+from app.planning_documents.selected_policy_contract import assert_selected_ticket_policy
 from app.planning_documents.window_local import requested_windows as requested_windows
 from app.planning_documents.window_local import saved_catalogs as saved_catalogs
 from app.shopify.security import utc
@@ -42,13 +39,15 @@ def check_selected_start(
     authorize: Authorize,
     clock: Callable[[], datetime],
 ) -> None:
-    policy = PlanningCompositionPolicy(
-        version=SELECTED_POLICY_VERSION, generator_version=SELECTED_GENERATOR_VERSION
-    )
-    if ticket.inputs.selected_reporting is None or (
-        ticket.policy_version,
-        ticket.policy_digest,
-    ) != (policy.version, policy.digest()):
+    try:
+        ticket = GenerationTicket.model_validate(ticket)
+        contract = assert_selected_ticket_policy(ticket.policy_version, ticket.policy_digest)
+        validate_creative_policy(
+            ticket.inputs.creative, contract.policy_version, contract.generator_version
+        )
+    except ValueError:
+        raise changed() from None
+    if ticket.inputs.selected_reporting is None:
         raise changed()
     if (principal.user.id, principal.session.digest) != (ticket.actor_id, ticket.session_digest):
         raise changed()

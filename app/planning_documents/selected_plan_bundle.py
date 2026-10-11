@@ -25,17 +25,13 @@ from app.planning_documents.context import (
     ReportingWindow,
     TargetRef,
 )
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.ports import (
     CatalogEvidence,
     CommerceEvidence,
     ContextEvidence,
     EvidenceGap,
     GenerationTicket,
-    PlanningCompositionPolicy,
-)
-from app.planning_documents.selected_inputs import (
-    SELECTED_GENERATOR_VERSION,
-    SELECTED_POLICY_VERSION,
 )
 from app.planning_documents.selected_plan_evidence import (
     SelectedPlanCaptureV1,
@@ -43,6 +39,7 @@ from app.planning_documents.selected_plan_evidence import (
     SelectedPlanWindowV1,
 )
 from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
+from app.planning_documents.selected_policy_contract import assert_selected_ticket_policy
 from app.planning_documents.window_evidence import _target, _window_instants
 from app.publication.contracts import fingerprint as source_fingerprint
 
@@ -201,11 +198,12 @@ class SelectedPlanEvidenceBundleV1(NoAuthority):
     def assert_ticket(self, ticket: GenerationTicket) -> None:
         self = type(self).model_validate(self)
         ticket = GenerationTicket.model_validate(ticket)
-        policy = PlanningCompositionPolicy(
-            version=SELECTED_POLICY_VERSION, generator_version=SELECTED_GENERATOR_VERSION
+        contract = assert_selected_ticket_policy(ticket.policy_version, ticket.policy_digest)
+        validate_creative_policy(
+            ticket.inputs.creative, contract.policy_version, contract.generator_version
         )
-        if (ticket.policy_version, ticket.policy_digest) != (policy.version, policy.digest()):
-            raise ValueError("exact canonical v4 policy required")
+        if ticket.inputs.selected_reporting is None:
+            raise ValueError("explicit selected reporting required")
         if (
             self.operation_id != ticket.operation_id
             or self.input_digest != ticket.inputs.digest()

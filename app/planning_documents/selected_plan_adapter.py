@@ -15,6 +15,7 @@ from app.planning_catalog.projection_v2 import project_v2
 from app.planning_documents.common import MAX_EVIDENCE, fingerprint
 from app.planning_documents.composer import targets
 from app.planning_documents.context import EvidenceRef, ReportingWindow, TargetRef
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.evidence_local import changed, commerce_binding
 from app.planning_documents.ports import (
     CatalogEvidence,
@@ -48,6 +49,7 @@ from app.planning_documents.selected_plan_reader import (
     OwnedSelectedPlanContext,
     load_selected_plan_graph,
 )
+from app.planning_documents.selected_policy_contract import assert_selected_composition_policy
 from app.publication import customer_intents
 
 
@@ -66,8 +68,18 @@ class OwnedSelectedEvidenceReader:
 
     def collect(self, ticket: GenerationTicket) -> SelectedPlanEvidenceBundleV1:
         ticket = GenerationTicket.model_validate(ticket)
-        policy = PlanningCompositionPolicy.model_validate(self.policy)
-        if (ticket.policy_version, ticket.policy_digest) != (policy.version, policy.digest()):
+        try:
+            contract = assert_selected_composition_policy(
+                self.policy,
+                ticket_policy_version=ticket.policy_version,
+                ticket_policy_digest=ticket.policy_digest,
+            )
+            validate_creative_policy(
+                ticket.inputs.creative, contract.policy_version, contract.generator_version
+            )
+        except ValueError:
+            raise changed() from None
+        if ticket.inputs.selected_reporting is None:
             raise changed()
         wid, actor = ticket.inputs.workspace_id, ticket.actor_id
         reads = PlanningReadContexts(self.sessions, self.principal, self.provider, wid, actor)

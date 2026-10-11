@@ -20,6 +20,7 @@ from app.planning_documents.common import (
 )
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
 from app.planning_documents.fields import ProposedField
+from app.planning_documents.selected_inputs import reject_legacy_selected
 
 
 class PlanVersion(NoAuthority):
@@ -44,6 +45,9 @@ class PlanVersion(NoAuthority):
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
+        reject_legacy_selected(
+            self.inputs.selected_reporting, self.policy_version, self.generator_version
+        )
         if (self.version == 1) != (self.parent_digest is None):
             raise ValueError("version ancestry required")
         if not self.inputs.created_at <= self.generated_at < self.valid_until:

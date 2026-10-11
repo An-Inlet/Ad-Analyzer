@@ -16,7 +16,7 @@ from app.planning_documents.selected_inputs import (
     SelectedCaptureSelectorV1,
     reject_legacy_selected,
 )
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from tests.test_planning_document_contracts import packet
 from tests.test_planning_documents_api import create_body
@@ -43,6 +43,10 @@ GOLDEN = {
         "b7ce14c9e80225038121301b02e08a090ccdb07b285140e9a60b51c2bc10488d",
     ),
 }
+
+
+class NestedInput(BaseModel):
+    inputs: PlanInputRevision
 
 
 def models() -> tuple[PlanVersion, PlanInputRevision, CreatePlan]:
@@ -81,7 +85,7 @@ def test_explicit_selector_preserved_nested_and_changes_commitments(items: Any) 
     for value in (
         changed,
         intent,
-        plan.model_copy(update={"inputs": changed}),
+        NestedInput(inputs=changed),
         request.model_copy(update={"inputs": intent}),
     ):
         assert '"selected_reporting":' in value.model_dump_json()
@@ -149,3 +153,23 @@ def test_direct_legacy_composers_reject_selectors() -> None:
             policy=policy(),
             generated_at=windows.collected_at + timedelta(seconds=1),
         )
+
+
+@pytest.mark.parametrize("version", [1, 2, 3])
+@pytest.mark.parametrize("nonempty", [False, True])
+def test_legacy_plan_document_cannot_adopt_selectors(version: int, nonempty: bool) -> None:
+    plan, inputs, _ = models()
+    items = (SelectedCaptureSelectorV1(account_id=1, capture_id="f" * 32),) if nonempty else ()
+    changed = plan.model_copy(
+        update={
+            "inputs": inputs.model_copy(update={"selected_reporting": items}),
+            "policy_version": f"inlet.descriptive-review.v{version}",
+            "generator_version": f"inlet.descriptive-planning.v{version}",
+        }
+    )
+    with pytest.raises(ValidationError, match="selected reporting"):
+        PlanVersion.model_validate(changed)
+    with pytest.raises(ValidationError, match="selected reporting"):
+        PlanVersion.model_validate_json(changed.model_dump_json())
+    with pytest.raises(ValidationError, match="selected reporting"):
+        changed.digest()

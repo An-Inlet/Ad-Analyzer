@@ -46,3 +46,14 @@ After the publisher released PostgreSQL, `pg06` passed both PostgreSQL cases
 with zero skips or failures. The final package has108 pure cases plus4 actual
 SQLite/PostgreSQL API and internal persistence cases passing. The slot was
 released after completion.
+
+## Independent typed-document review repair
+
+The reviewer found that service/composer rejection alone left the typed legacy
+PlanVersion parser able to accept selected inputs. The document validator now
+rejects non-None selectors for every exact legacy v1/v2/v3 pair, including
+historical/export parsing and unsafe-copy digest calls. Draft input persistence
+remains allowed; the nested serialization positive uses a non-authorizing input
+wrapper rather than an invalid legacy plan. Six Python/JSON/digest negatives and
+all legacy golden/composer tests pass in `review07` (114 cases). Whole Ruff and
+mypy1310 pass in `*07.log`. No database/runtime interfaces changed in this repair.

@@ -21,6 +21,7 @@ from app.campaign_performance.presence_contracts import Frozen, Id, Positive, _d
 from app.campaign_performance.range_receipt_contracts import RangeReceiptV1
 from app.campaign_performance.range_receipt_models import RangeReceiptRow
 from app.campaign_performance.range_receipts import read_range_receipt, store_range_receipt
+from app.campaign_performance.raw_range_traffic import store_raw_range_traffic
 from app.campaign_performance.selected_contracts import ReportingScopeV1
 from app.campaign_performance.selected_storage import current_scope
 from app.google_connections.models import GoogleCustomerConnection
@@ -300,6 +301,12 @@ def acquire_range(service: SelectedCustomerService, intent: RangeIntent) -> Rang
             if _receipt_id_collision(error):
                 raise unavailable() from None
             raise
+        store_raw_range_traffic(
+            db,
+            receipt=receipt,
+            result=result,
+            campaign_mapping={native: campaign.id for native, campaign in mapped.items()},
+        )
         retained = read_range_receipt(db, service.wid, intent.account_id, intent.request_id)
         if retained != receipt or source_pin(db, service.wid, intent.account_id) != initial.grant:
             raise unavailable()

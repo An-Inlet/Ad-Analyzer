@@ -38,6 +38,8 @@ def test_target_picker_exact_choices_revocation_expiry_and_bounds(
         "plan-creative-inputs.mjs",
         "plan-creative-basis.mjs",
         "plan-media-request.mjs",
+        "plan-google-owner-inputs.mjs",
+        "plan-google-owner-review.mjs",
     ):
         shutil.copy(Path("app/portal/static") / name, tmp_path / name)
     (tmp_path / "index.html").write_text(

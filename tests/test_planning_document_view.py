@@ -92,6 +92,10 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     for module in (
         "plan-document.mjs",
         "plan-creative-basis.mjs",
+        "plan-google-owner-inputs.mjs",
+        "plan-google-owner-review.mjs",
+        "plan-target-picker.mjs",
+        "native-targets.mjs",
         "plan-creative-inputs.mjs",
         "plan-capability.mjs",
     ):

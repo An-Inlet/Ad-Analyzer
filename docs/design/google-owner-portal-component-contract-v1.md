@@ -53,3 +53,13 @@ limitations remain distinct from period planning allocations.
 Browser lane owns fixtures/observer/TLS tests. Its customer actions must read fresh
 catalogs/discovery and enter alternatives/hypotheses; fixture bodies are not posted
 behind the browser. Partial unavailable discovery never becomes a selectable owner.
+
+## Legacy Edit Compatibility
+
+The actual planning controller checks edit compatibility immediately after the
+verified capability and before media reads or editor population. Editing null or
+omitted saved owner inputs under V6 refuses with read-history/create-new guidance;
+it never silently converts legacy input mode to an explicit V6 empty list. V5
+under V5, explicit V6 `[]` under V6, and new V6 plans remain available. The separate
+controlled-Fetch Chromium controller test verifies this actual call-site behavior;
+it does not claim authenticated API qualification.

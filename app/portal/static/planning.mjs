@@ -1,3 +1,4 @@
+import {renderGoogleOwnerInputs} from './plan-google-owner-inputs.mjs';
 import {planningCapability} from './plan-capability.mjs';
 import {clearCreativeInputs,renderCreativeInputs} from './plan-creative-inputs.mjs';
 import {planningMediaRequest} from './plan-media-request.mjs';
@@ -20,10 +21,10 @@ const say=value=>$('message').textContent=value;
 let epoch=0,busy=false,operation=null,user=null,workspaces=[],wid='',role='',planId='',read=null;
 let listCursor=null,versionCursor=null,eventCursor=null,eventSequence=0,displayCookies=null,expiryTimer=null;
 let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[],editWindow=null,editComparison=null,editExpected=null;
-let captureHandle=null,creativeHandle=null;
+let captureHandle=null,creativeHandle=null,ownerHandle=null;
 let scenarioHandle=null,targetPickers=[],targetTimer=null,targetScope=null,requiresReselection=false,targetReadRequired=false;
 class Stale extends Error{}
-function clearTargets(){clearPlanScenarios($('scenarios'));scenarioHandle=null;if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;for(const item of targetPickers)clearPlanTargetPicker(item.host);targetPickers=[];targetScope=null;$('targets').replaceChildren();}
+function clearTargets(){ownerHandle?.invalidateChoices();clearPlanScenarios($('scenarios'));scenarioHandle=null;if(targetTimer!==null)clearTimeout(targetTimer);targetTimer=null;for(const item of targetPickers)clearPlanTargetPicker(item.host);targetPickers=[];targetScope=null;$('targets').replaceChildren();}
 function comparisonControls(){const enabled=$('comparison-enabled').checked;$('comparison-fields').hidden=!enabled;for(const name of ['comparison-start','comparison-end']){$(name).required=enabled;$(name).disabled=busy||!enabled;}}
 function changedTargetScope(){clearTargets();$('target-status').textContent='Goal, account or reporting choices changed. Read targets again before selecting exclusions or allocations.';}
 
@@ -32,12 +33,13 @@ const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
 function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
-function clearEditor(){creativeHandle=null;clearCreativeInputs($('creative-inputs'));captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
+function clearEditor(){ownerHandle?.clear();ownerHandle=null;creativeHandle=null;clearCreativeInputs($('creative-inputs'));captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
 function invalidate(){epoch++;busy=false;clearPlan();clearEditor();enable();}
 function enable(){
   for(const node of document.querySelectorAll('button,input,select,textarea'))node.disabled=busy;
   creativeHandle?.setBusy(busy);
+  ownerHandle?.setBusy(busy);
   $('refresh').disabled=false;$('workspace').disabled=false;comparisonControls();
   for(const name of ['save','generate','edit','new','record'])$(name).disabled=busy||pending!==null;
   $('generate').disabled=busy||pending!==null||!$('editor').hidden;
@@ -121,7 +123,8 @@ async function editor(turn,isEdit=false){
   clearEditor();editing=isEdit;
   const allGoals=await api(`/workspaces/${wid}/goals`,turn),catalog=await api(`/workspaces/${wid}/planning/accounts`,turn);
   const capability=await api(root()+'/capabilities',turn);
-  const privateCreative=planningCapability(capability,Number(wid)).creative;
+  const verifiedCapability=planningCapability(capability,Number(wid)),privateCreative=verifiedCapability.creative;
+  if(isEdit&&verifiedCapability.ownerReview===true&&read.inputs.google_daily_budget_intents==null)throw Error('This saved plan predates shared budget reviews. Read its history or prepare a new plan; its saved inputs have not been upgraded.');
   const library=privateCreative?await api(`/workspaces/${wid}/media`,turn):[];await session(turn);check(turn);
   if(!Array.isArray(allGoals)||catalog.complete!==true||!Array.isArray(catalog.accounts))throw Error('The goal and account choices could not be verified.');
   goals=allGoals.filter(g=>g.workspace_id===Number(wid)&&g.confirmation_recorded===true&&g.confirmed_at!==null&&g.definition);accounts=catalog.accounts;
@@ -140,6 +143,9 @@ async function editor(turn,isEdit=false){
   const currentEditor=()=>{if(wid!==editorWorkspace||document.cookie!==editorCookies||$('editor').hidden)throw new Stale();};
   const mediaRequest=async(fileOrMetadata,signal)=>{let result,completed=false;await guarded(async t=>{currentEditor();result=await planningMediaRequest({workspaceId:Number(editorWorkspace),value:fileOrMetadata,signal,cookies:operation.cookies,check:()=>{check(t);currentEditor();}});await session(t);check(t);currentEditor();completed=true;});if(!completed)throw Error('Workspace image request unavailable. Review the current session and library before retrying.');return result;};
   creativeHandle=renderCreativeInputs($('creative-inputs'),{capability,workspaceId:Number(wid),saved:isEdit?read.inputs.creative??null:null,library,uploadImage:mediaRequest,readImage:mediaRequest,current:currentEditor});
+  const ownerContext=()=>{currentEditor();const goal=goals.find(g=>g.id===$('goal').value);if(!goal)throw Error('Choose a confirmed goal.');return{catalogs:targetPickers.map(({account,catalog})=>({account,catalog})),reportingWindow:reportingPeriods({start:$('start').value,end:$('end').value,comparisonEnabled:$('comparison-enabled').checked,comparisonStart:$('comparison-start').value,comparisonEnd:$('comparison-end').value,savedPrimary:editWindow,savedComparison:editComparison}).reporting_window,currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros,scenarios:scenarioHandle?.readIntent()??[],exclusions:targetPickers.flatMap(item=>item.handle.readIntent().exclusions)};};
+  const discoverOwner=async request=>{let result,completed=false;await guarded(async t=>{currentEditor();result=await api(`/workspaces/${editorWorkspace}/planning/google-budget-owners`,t,'POST',request);await session(t);check(t);currentEditor();completed=true;});if(!completed)throw Error('Shared budget discovery unavailable. Review your session and choices before retrying.');return result;};
+  ownerHandle=renderGoogleOwnerInputs(document.getElementById('google-owner-inputs'),{capability,workspaceId:Number(wid),saved:isEdit?read.inputs.google_daily_budget_intents??null:null,context:ownerContext,discover:discoverOwner,current:currentEditor});
   $('editor-title').textContent=isEdit?'Edit Plan Inputs':'Prepare A New Plan';goalSummary();$('editor').hidden=false;say('Review the goal, accounts, milestone and reporting period before saving.');
 }
 function lines(value){const values=value.split('\n').map(v=>v.trim()).filter(Boolean);if(values.length>30||values.some(v=>v.length>2000))throw Error('Use at most 30 entries, each no longer than 2,000 characters.');return values;}
@@ -156,8 +162,8 @@ function inputs(){
   if(requiresReselection&&(!targetPickers.length||!$('replace-targets').checked))throw Error('Read targets and explicitly confirm your replacement target choices for this revision.');
   if(exclusions.length>100||fixed_allocations.length>100||fixed_allocations.reduce((sum,a)=>sum+BigInt(a.amount_micros),0n)>BigInt(goal.definition.budget_micros))throw Error('Keep at most 100 exclusions and allocations, within the confirmed total budget ceiling.');
   for(const scenario of scenario_intents){if(scenario.allocations.some(a=>exclusions.some(e=>e.canonical_entity_key===a.target.canonical_entity_key))||fixed_allocations.some(f=>!scenario.allocations.some(a=>a.target.canonical_entity_key===f.target.canonical_entity_key&&a.amount_micros===f.amount_micros)))throw Error('Each alternative must preserve every fixed allocation and omit excluded targets.');}
-  const selected_reporting=captureHandle?.readIntent(account_ids),creative=creativeHandle?.readIntent();
-  return{...(creative===undefined?{}:{creative}),...(selected_reporting===undefined?{}:{selected_reporting}),goal_id:goal.id,goal_revision:goal.revision,account_ids,...periods,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents,maximum_creative_assets};
+  const selected_reporting=captureHandle?.readIntent(account_ids),creative=creativeHandle?.readIntent(),google_daily_budget_intents=ownerHandle?.readIntents();
+  return{...(google_daily_budget_intents===undefined?{}:{google_daily_budget_intents}),...(creative===undefined?{}:{creative}),...(selected_reporting===undefined?{}:{selected_reporting}),goal_id:goal.id,goal_revision:goal.revision,account_ids,...periods,milestone:$('milestone').value.trim(),product_offer:$('product').value.trim()||null,constraints:lines($('constraints').value),assumptions:lines($('assumptions').value),exclusions,fixed_allocations,scenario_intents,maximum_creative_assets};
 }
 async function mutate(turn,operationName,path,body){
   if(pending)throw Error('Check the previous request result before another save.');
@@ -190,23 +196,24 @@ $('workspace').onchange=()=>{invalidate();wid=$('workspace').value;role=workspac
 $('list-refresh').onclick=()=>guarded(t=>listPlans(t));$('list-next').onclick=()=>guarded(t=>listPlans(t,listCursor));
 $('new').onclick=()=>{clearPlan();guarded(t=>editor(t));};$('cancel').onclick=()=>{clearEditor();enable();};$('goal').onchange=()=>{goalSummary();changedTargetScope();};
 for(const name of ['start','end'])$(name).oninput=changedTargetScope;
-$('comparison-enabled').onchange=comparisonControls;
+$('comparison-enabled').onchange=()=>{comparisonControls();ownerHandle?.invalidateChoices();};
+for(const name of ['comparison-start','comparison-end'])$(name).oninput=()=>ownerHandle?.invalidateChoices();
 $('targets-read').onclick=()=>guarded(async turn=>{
   clearTargets();
   // Validate the form scope without requiring the old revision replacement confirmation.
-  const replacing=requiresReselection;let intent;try{requiresReselection=false;targetReadRequired=false;intent=inputs();}finally{requiresReselection=replacing;targetReadRequired=true;}
+  const replacing=requiresReselection;let intent;const previousOwner=ownerHandle;try{requiresReselection=false;targetReadRequired=false;ownerHandle=null;intent=inputs();}finally{ownerHandle=previousOwner;requiresReselection=replacing;targetReadRequired=true;}
   const goal=goals.find(g=>g.id===intent.goal_id),period={starts_at:intent.reporting_window.starts_at,ends_at:intent.reporting_window.ends_at_exclusive};
   try{for(const accountId of intent.account_ids){
     const account=accounts.find(a=>a.id===accountId),catalog=await api(`/workspaces/${wid}/planning/target-catalog-v2`,turn,'POST',{account_id:accountId,...period});
     await session(turn);check(turn);const host=document.createElement('section');$('targets').append(host);
-    const handle=renderPlanTargetPicker(host,catalog,{workspaceId:Number(wid),account,period,currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros},()=>{$('replace-targets').checked=false;});
+    const handle=renderPlanTargetPicker(host,catalog,{workspaceId:Number(wid),account,period,currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros},()=>{$('replace-targets').checked=false;ownerHandle?.invalidateChoices();});
     targetPickers.push({host,handle,catalog,account});
   }
   for(const item of targetPickers)item.handle.readIntent();
   targetScope=JSON.stringify({goal:goal.id,revision:goal.revision,account_ids:intent.account_ids,starts_at:period.starts_at,ends_at_exclusive:period.ends_at});
   $('replace-targets').checked=false;$('target-status').textContent='Choose exclusions or fixed planning allocations below. These are customer budget hypotheses and never change advertising.';
   const expires=Math.min(...targetPickers.map(item=>Date.parse(item.handle.expiresAt)));
-  scenarioHandle=renderPlanScenarios($('scenarios'),{currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros,expiresAt:new Date(expires).toISOString(),targets:targetPickers.flatMap(item=>item.catalog.targets.map(target=>({selector:{account_id:item.account.id,canonical_entity_key:target.canonical_entity_key,selection_key:target.selection_key},label:`${item.account.name} · ${target.entity.name??'Name Unavailable'} · ${target.entity.kind} ${target.entity.reference.entity_id}`})))},()=>{$('replace-targets').checked=false;});
+  scenarioHandle=renderPlanScenarios($('scenarios'),{currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros,expiresAt:new Date(expires).toISOString(),targets:targetPickers.flatMap(item=>item.catalog.targets.map(target=>({selector:{account_id:item.account.id,canonical_entity_key:target.canonical_entity_key,selection_key:target.selection_key},label:`${item.account.name} · ${target.entity.name??'Name Unavailable'} · ${target.entity.kind} ${target.entity.reference.entity_id}`})))},()=>{$('replace-targets').checked=false;ownerHandle?.invalidateChoices();});
   targetTimer=setTimeout(()=>{clearTargets();$('target-status').textContent='The target observations expired. Read again and explicitly reselect your choices.';},Math.min(2147483647,Math.max(0,expires-Date.now())));
   }catch(error){clearTargets();throw error;}
 });

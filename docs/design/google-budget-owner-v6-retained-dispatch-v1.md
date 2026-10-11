@@ -26,13 +26,16 @@ bypass it through an alternative read path.
 
 `catalog_receipts.validate_retained_input_receipts(db, inputs) -> None` already
 validates original rows and owner opaque commitments via
-`google_budget_input_receipts`. It currently returns no evidence. The reviewed
-new `load_retained_owner_input_evidence(db, inputs)` therefore requires an actual
-refactor, not a caller inventing catalogs/sources or a fake historical principal.
+`google_budget_input_receipts`. The closed slice-one implementation (b7f7163, integrated3007e90) already
+supplies `_validated_retained_input_receipts` and the immutable
+`load_retained_owner_input_evidence(db, inputs)` port. Reuse those reviewed ports
+unchanged; do not reconstruct their proof, invent catalogs/sources or fabricate
+a historical principal.
 
 ## Frozen Proposed Ports And Responsibility Split
 
-**Retained lane** owns new `google_budget_owner_retained.py`, narrow extraction in
+**Retained lane** extends the existing slice-one `google_budget_owner_retained.py`,
+owns selected_plan_history exact V6 dispatch, and narrow extraction in
 creative_retained_sources/creative_currentness/creative_history, the two top-level
 retained_sources dispatch branches and new focused tests. Exact public new ports:
 
@@ -55,23 +58,23 @@ may accept the already frozen canonical selected-policy descriptor requiring
 creative, with full exact document validation and owner semantics checked by V6
 wrapper. No future-version permissive `>=5` predicate. Revalidate copied models.
 
-**Receipt/history lane** (may be same author sequentially) owns catalog_receipts
-internal validated-pair extraction and selected_plan_history's exact V6 dispatch.
-Return frozen `RetainedOwnerInputEvidence(catalogs:tuple[CatalogEvidence,...],
-sources:tuple[SourceFence,...])`, max20 each, no ORM/session/scalars. Before returning,
-validate unchanged original input row, complete link graph, original actor, exact
+**Existing slice-one receipt port** remains unchanged and outside slice-three file
+ownership unless a separately evidenced gap is reviewed. It already returns frozen `RetainedOwnerInputEvidence(catalogs:tuple[CatalogEvidence,...],
+sources:tuple[SourceFence,...])`, max20 each, no ORM/session/scalars. Its existing validation checks
+unchanged original input row, complete link graph, original actor, exact
 receipt payload/selection membership and original owner selection commitment from
-retained session/authenticated scalars. Keep public validator behavior unchanged.
-No current session, epoch or receipt TTL invented for history.
+retained session/authenticated scalars. Consume that evidence without reimplementing or unnecessarily requalifying the
+loader. Keep public validator behavior unchanged. No current session, epoch or
+receipt TTL is invented for history.
 
 **Integration lane** owns service.py/repository.save_generation, generation_ports,
 policy_capabilities, server constructor/factory/API capabilities and actual API
-fixtures. It consumes these ports after both retained and pure packages freeze.
+fixtures. It consumes these ports after retained orchestration and the pure package freeze.
 No independent change to defaults or registry by retained lane. `repository.version`
 can keep its existing selected-history entry point if that exact dispatcher owns
 V6; avoid double-recursive history calls. Use local imports to preserve current
-retained_sources/selected-history cycles. Authors agree shared file ownership before
-parallel work, never both edit selected_plan_history or catalog_receipts.
+retained_sources/selected-history cycles. The retained lane owns selected_plan_history; integration waits for its complete
+ports and does not edit that file in parallel. catalog_receipts stays untouched.
 
 ## Current, Save And Historical Semantics
 

@@ -165,3 +165,21 @@ requirements/retention review. Ordinary corrections with immutable history are a
 separate already existing path. No retention weakening or owner decision is needed
 to test current behavior, but any later history-preserving reconsent behavior needs
 its own explicit authority/privacy design decision.
+
+
+## First Execution And Control Freshness Repair
+
+Reconsent01 stopped on its first SQLite case before fresh consent: zero passes,
+one failure, PostgreSQL unrun. The primary real V5 plan, accepted decision and
+same-workspace Meta draft succeeded. The second-workspace goal preview refused
+`baseline_unavailable` with `stale_source`: its existing seed had October 5
+commerce provenance. Original exit1 and all evidence are retained in
+`/workspace/inlet-evidence/20261011/q11-google-reconsent/reconsent01-failure-summary.json`
+(SHA256 `9fb7fd6bc5c63a692418c1ed6938e76bc486b486005b2a03250d5c1220dcb459`).
+No reconnect outcome or authority-expiry cause was observed.
+
+The bounded fixture repair uses an actual `CommerceSyncService.page` import with
+existing synthetic `FakeMeasurement` source data and current observation time
+before the control preview. It must complete normally, without directly editing
+last_sync, backdating clocks, extending freshness limits or changing primary
+sources. Revised source and execution evidence remain separately reviewed.

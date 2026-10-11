@@ -60,7 +60,7 @@ composition cases, not repetitions of old repository tests.
 ## Deterministic Race Boundary
 
 Wrap the existing `PlanningDocumentService.revise` method test-locally only for
-these two known request keys. At method entry, before delegating unchanged to the
+these two known request keys. At method entry, before identity refresh or locks and before delegating unchanged to the
 original method, record each arrival and wait at `threading.Barrier(2)` with a
 bounded failure timeout. Run each HTTP request from its own client/thread. This
 boundary is before input resolution and workspace/session locks: never place the
@@ -92,10 +92,12 @@ Restore the wrapper after the race so replay/successor calls do not enter it.
    full owner member identities/observed amount and customer creative/media input.
    Current observations may have new timestamps; immutable V1 remains unchanged.
 6. Submit the obsolete V1 decision using a new request key and the current event
-   sequence, isolating obsolete version/digest refusal from a sequence conflict.
-   Separately forge the current action digest with current version/document/sequence
-   to isolate changed-action refusal. Both return the exact service-defined409
-   reason and add no events/receipts; do not accept arbitrary authorization errors.
+   sequence1, isolating obsolete version refusal from a sequence conflict. Assert
+   exact409 `plan version or event sequence changed`. Separately forge the current
+   action digest with current V2 version/document and sequence1: assert exact409
+   `plan version or action binding changed`. These are the distinct branches of
+   `repository.save_event`; both add no events/receipts. Do not accept arbitrary
+   authorization errors or use an obsolete event sequence for either assertion.
 7. Comparison identifies only the intended customer change plus legitimate refreshed
    evidence metadata; `decisions_carried_over=false`. V1's singleton accepted event
    is still exactly bound to V1. V2 has no automatically accepted decision. Read,
@@ -114,9 +116,12 @@ Check no orphan revision2/catalog links on loser rollback and no third input or
 extra version after replay/key conflict. Preserve exact V1 snapshot before and
 after successor; compare rejection snapshots before further intended mutations.
 
-Assert zero ProviderExecutionRun, ProviderExecutionAttempt and
-ProviderExposureReservation, plus no new production mandate/consent/obligation
-relative to setup. MockHTTP must remain the actual bounded read-only fixture;
+Reuse `tests.test_creative_common_basis.financial_counts` and compare its exact
+six-model baseline before/after: ProviderExecutionRun, ProviderExecutionAttempt,
+ProviderExecutionApproval, ProviderExposureReservation, ProviderReviewApproval
+and SocialConfigurationApproval. Require zero run/attempt/reservation counts and
+no additions to any of these six tables. This proves no new effects in the queried
+models only; do not claim separate mandate/consent/obligation-table qualification. MockHTTP must remain the actual bounded read-only fixture;
 no mutation endpoint is allowed. Store synthetic customer document/comparison/
 event/export and per-stage scoped graph evidence for review, without raw provider
 payloads, cookies or tokens.

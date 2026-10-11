@@ -7517,3 +7517,15 @@ using the existing private V5 service on SQLite/PostgreSQL. Source preparation
 and static checks are complete; pytest qualification remains pending. Reconnect
 currently invokes semantic erasure and requires a separate lifecycle contract
 reconciliation. Human judgments and all remote/live holds remain unchanged.
+
+## 2026-10-11 — Reconnect Requirements Review
+
+[Source-backed review](design/q11-reconnect-lifecycle-review-v1.md) confirms that
+same-advertiser fresh consent and explicit disconnect invoke workspace-wide
+semantic planning erasure. Ordinary token refresh and exact selection replay are
+different operations. The frozen Q11 preserved-history reconnect requirement is
+unresolved; it will not be silently replaced by correction evidence.
+
+Independent review confirmed misleading Google history wording. A bounded copy
+repair is authorized within existing UI mechanics; privacy and backend behavior
+remain unchanged. Actual reconnect acceptance will be separately qualified.

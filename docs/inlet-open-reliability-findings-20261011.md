@@ -236,3 +236,15 @@ Independent review and root verification checked the 11 evidence hashes in
 unqualified and isolated from the integration branch. Next work is source-only
 review of validation handoffs and query boundaries; no further observation or
 unchanged retry is authorized, and the five-second guard remains unchanged.
+
+
+## Current Successor And Diagnostic Boundary
+
+The earlier failed-source sections remain historical evidence. The current
+[service integration](inlet-owner-service-integration-20261011.md) qualifies the
+exact disjoint 6+1+21 API union; later browser cohorts are separate. These passes
+do not close R01/R02/R03 or establish timing margin. The updated
+[definition and critical path](inlet-reliability-critical-path-20261011.md) separates
+the original unknown R03 predicate from later located fact-age failures and
+identifies a new actual V6 post-flush authority-rollback coverage gap. No unchanged
+diagnostic rerun or retention-policy change follows from this review.

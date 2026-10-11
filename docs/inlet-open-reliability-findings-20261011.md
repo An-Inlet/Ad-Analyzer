@@ -129,3 +129,22 @@ incident. There is no evidence-supported failing invocation or predicate yet.
 Further work must preserve these failures, avoid unchanged-case pass chasing, and
 retain original-session, fresh-source, privacy and five-second checks. The existing
 portal implementation remains dependent on service qualification.
+
+### R03 Instrumented Zero-Ceiling Occurrence
+
+The reviewed continuation ran only previously unrun nodes, with one observer process
+per node to avoid the base observer's ten-report retention limit. SQLite explicit
+empty passed; the next zero-ceiling case failed and stopped the remaining23 cases.
+At `repository.save_generation:572`, after retained-source capture and before CAS
+or version writes, the original fact's measured age bracket was5.028596–5.028617s,
+with28785.66s remaining on the session. The prior authority-lock return measured
+2.752946s. This occurrence therefore exceeded the fact-age limit, rather than
+session expiry. No events were truncated. Save inclusive wall5.028442s/CPU5.021001s
+included2379successful statements/0.073374s SQL time.
+
+The retained interval needs narrower stage attribution before a repair. The separately
+reviewed canonical storage-pair proposal applies after CAS and was never reached
+here; it cannot repair this occurrence. No deadline, refresh, source pass or cache
+has changed. The original SQLite-owner failure and R01/R02 remain unexplained.
+Evidence: `google-owner-v6-runtime/remaining-04/02-sqlite-observer.json`. The four
+changed pure registry cases passed separately; they do not qualify actual generation.

@@ -39,8 +39,8 @@ Explicit mismatched None/discriminator pairs reject. Unsafe model_copy paths rev
 ## Recognized scope: freeze code-derived tuple, confirm against baseline
 
 Only Meta, exact native+metadata schemas already emitted by the collectors:
-`inlet.planning-target-catalog.v1`, `inlet.planning-target-catalog.v2` and the existing
-PlanningMetadataV1 schema. Pin its actual literal in code, not a guessed version.
+`inlet.planning-target-catalog.v1`, `inlet.planning-target-catalog.v2` and
+`inlet.planning-entity-metadata.v1`.
 
 Native coverage must contain exactly campaign and adset, each with:
 status=partial, scope=sdk_known_effective_statuses, observed_count=0,
@@ -55,8 +55,9 @@ child, nonempty array or exclusion-filtered nonempty catalog is ineligible.
 These tuples are from projection.py and metadata_http.py. The actual native and
 metadata HTTP requests share CAMPAIGN_STATUSES ACTIVE,PAUSED,ARCHIVED,DELETED,
 IN_PROCESS,WITH_ISSUES; adsets additionally CAMPAIGN_PAUSED. Both use the existing
-read-only v26.0 paths, pagination completion and owned source context. Freeze the
-baseline observed tuple before implementation. The projected DTO does **not** retain
+read-only v26.0 paths, pagination completion and owned source context. The separate author
+reported an actual passing SQLite baseline matching these exact tuples; its frozen
+both-database artifact will provide the final receipt reference before implementation. The projected DTO does **not** retain
 all raw query parameters or a reconstructible raw inventory: request/inventory
 hashes are commitments, not a self-contained proof of a specific HTTP transcript.
 Do not add a fabricated query-profile field or claim the witness proves unseen

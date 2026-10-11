@@ -38,6 +38,10 @@ from app.planning_documents.documents import PlanVersion
 from app.planning_documents.evidence_local import ordinary_meta
 from app.planning_documents.models import PlanDependencyRow
 from app.planning_documents.policy_capabilities import reporting_capability
+from app.planning_documents.selected_inputs import (
+    SELECTED_GENERATOR_VERSION,
+    SELECTED_POLICY_VERSION,
+)
 from app.publication import customer_intents
 from app.publication.contracts import fingerprint as source_fingerprint
 from app.shopify.security import ShopifyError, utc
@@ -306,6 +310,23 @@ def capture_retained_sources(
     db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
 ) -> tuple[RetainedSourceWitness, ...]:
     document = PlanVersion.model_validate(document)
+    if (document.policy_version, document.generator_version) == (
+        SELECTED_POLICY_VERSION,
+        SELECTED_GENERATOR_VERSION,
+    ):
+        # Local imports keep the selected witness -> legacy primitives cycle closed.
+        from app.planning_documents.selected_plan_witnesses import capture_selected_retained_sources
+
+        try:
+            return capture_selected_retained_sources(
+                db, principal=principal, document=document, now=now
+            )
+        except HTTPException as error:
+            if error.status_code != 409:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
     try:
         capability = reporting_capability(document.policy_version, document.generator_version)
     except ValueError as error:
@@ -465,6 +486,17 @@ def _recheck(
     now: datetime,
 ) -> None:
     document = PlanVersion.model_validate(document)
+    if (document.policy_version, document.generator_version) == (
+        SELECTED_POLICY_VERSION,
+        SELECTED_GENERATOR_VERSION,
+    ):
+        from app.planning_documents.selected_plan_witnesses import recheck_selected_retained_sources
+
+        recheck_selected_retained_sources(
+            db, principal=principal, document=document, dependencies=dependencies, now=now
+        )
+        return
+    reporting_capability(document.policy_version, document.generator_version)
     if len(dependencies) > MAX_EVIDENCE + MAX_ACCOUNTS + 1:
         raise RetainedSourcesChanged("proof_unavailable")
     rows = {row.evidence_key: _row(row) for row in dependencies}

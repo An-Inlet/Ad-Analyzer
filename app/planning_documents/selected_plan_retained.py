@@ -24,6 +24,8 @@ from app.planning_documents.selected_plan_proof import (
     SelectedRetainedAccountProofV1,
 )
 from app.planning_documents.selected_plan_reader import load_selected_plan_graph
+from app.planning_documents.selected_traffic import RawRangeTrafficGraphV1
+from app.planning_documents.selected_traffic_reader import load_raw_range_traffic
 from app.planning_documents.source_contracts import SourceFence
 from app.shopify.security import utc
 from app.sources.models import SourceConnection
@@ -136,11 +138,19 @@ def capture_selected_reporting_pin(
                 db, account=account, expected_source=fence, capture_id=selector.capture_id
             ).pin()
         )
+        traffic = (
+            None
+            if pin is None
+            else load_raw_range_traffic(
+                db, account=account, expected_source=fence, selected_pin=pin
+            )
+        )
         return SelectedRetainedAccountProofV1(
             source_fence=fence,
             legacy_reporting_digest=reporting,
             selection_head=head,
             capture_pin=pin,
+            traffic_pin=traffic.pin() if isinstance(traffic, RawRangeTrafficGraphV1) else None,
         )
 
     with db.no_autoflush:

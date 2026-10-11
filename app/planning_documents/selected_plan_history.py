@@ -8,6 +8,7 @@ This port does not register v4 or activate archive delivery.
 from collections.abc import Sequence
 from typing import Any
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ from app.planning_documents.selected_inputs import (
     SELECTED_POLICY_VERSION,
 )
 from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
+from app.planning_documents.selected_traffic_reader import validate_historical_raw_range_traffic
 from app.planning_documents.storage import document_for_row
 from app.shopify.security import utc
 
@@ -170,5 +172,15 @@ def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
     )
     for pin in validate_selected_historical_dependencies(document, dependencies):
         validate_selected_historical_pin(db, pin)
+    proof = document.selected_reporting_proof
+    assert proof is not None  # Exact row and full dependency validation above requires it.
+    for account in proof.accounts:
+        if account.traffic_pin is not None:
+            try:
+                validate_historical_raw_range_traffic(db, expected_pin=account.traffic_pin)
+            except HTTPException as error:
+                if error.status_code != 409:
+                    raise
+                raise ValueError("historical traffic integrity unavailable") from None
     if db.get_transaction() is not transaction or not transaction.is_active:
         raise ValueError("historical read transaction changed")

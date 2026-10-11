@@ -182,12 +182,16 @@ def test_actual_save_rejects_strict_valid_substituted_linked_catalog(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    from app.planning_documents import repository
+    from app.planning_documents.catalog_evidence import CatalogEvidence
+    from app.planning_documents.owner_review_generation import assert_owner_review_generation_bundle
     from app.planning_documents.owner_review_plan_composer import OwnerReviewPlanComposer
 
     fixture, body, _, _ = configured_owner_review(
         customer_engine, configuration, replicas, monkeypatch, tmp_path
     )
     alice, _, _ = replicas
+    meta_id = add_owned_meta(customer_engine, alice, fixture, body, monkeypatch, linked=True)
     root = f"/api/customer/v1/workspaces/{fixture.basis.workspace_id}/planning/plans"
     saved = alice.post(root, headers=headers(alice), json=body)
     assert saved.status_code == 201, saved.text
@@ -200,35 +204,71 @@ def test_actual_save_rejects_strict_valid_substituted_linked_catalog(
         document = original(self, **kwargs)
         assert document.google_budget_input_catalogs is not None
         raw = document.model_dump(mode="python")
-        reviews = raw["google_budget_owner_review"]["reviews"]
-        assert len(reviews) == 1
-        owner = reviews[0]["witness"]["owner_key"]
-        catalogs = [
-            raw["google_budget_input_catalogs"][0],
-            reviews[0]["witness"]["catalog_evidence"],
+        before_ticket = kwargs["ticket"].model_dump_json()
+        before_evidence = kwargs["evidence"].model_dump_json()
+        assert document.google_budget_owner_review is not None
+        assert len(document.google_budget_owner_review.reviews) == 1
+        before_owner = document.google_budget_owner_review.model_dump_json()
+        before_inputs = document.inputs.model_dump_json()
+        original_catalogs = tuple(
+            c.model_dump_json() for c in document.google_budget_input_catalogs
+        )
+        matches = [
+            (index, catalog)
+            for index, catalog in enumerate(raw["google_budget_input_catalogs"])
+            if catalog["reference"]["account"]["account_id"] == meta_id
+            and catalog["reference"]["account"]["workspace_id"] == fixture.basis.workspace_id
+            and catalog["reference"]["account"]["platform"] == "meta_ads"
         ]
-        for catalog in catalogs:
-            # The independent campaign is outside this shared owner, but remains in
-            # the complete original catalog. The inventory commitment is opaque.
-            candidates = [
-                t
-                for t in catalog["catalog"]["native_observation"]["targets"]
-                if t["kind"] == "campaign" and t["budget_owner_key"] != owner
-            ]
-            assert len(candidates) == 1
-            candidates[0]["settings"]["starts_native"] = "2099-01-01"
+        assert len(matches) == 1
+        index, catalog = matches[0]
+        campaign_rows = [
+            row
+            for row in catalog["catalog"]["native_observation"]["targets"]
+            if row["kind"] == "campaign"
+        ]
+        assert len(campaign_rows) == 2
+        settings = campaign_rows[0]["settings"]
+        assert settings["platform"] == "meta_ads"
+        old_cap = settings["spend_cap_native"]
+        settings["spend_cap_native"] = 1 if old_cap is None else old_cap + 1
+        checked_catalog = CatalogEvidence.model_validate(catalog)
+        assert checked_catalog.model_dump_json() != original_catalogs[index]
         candidate = PlanVersion.model_validate(raw)
         assert candidate.digest() != document.digest()
+        assert candidate.inputs.model_dump_json() == before_inputs
+        assert candidate.google_budget_owner_review is not None
+        assert candidate.google_budget_owner_review.model_dump_json() == before_owner
+        assert candidate.google_budget_input_catalogs is not None
+        assert all(
+            c.model_dump_json() == original_catalogs[i]
+            for i, c in enumerate(candidate.google_budget_input_catalogs)
+            if i != index
+        )
+        # Revert the sole changed leaf and require exact full-document equality.
+        settings["spend_cap_native"] = old_cap
+        assert PlanVersion.model_validate(raw).model_dump_json() == document.model_dump_json()
+        assert kwargs["ticket"].model_dump_json() == before_ticket
+        assert kwargs["evidence"].model_dump_json() == before_evidence
         assert (
-            kwargs["evidence"].reporting.selected.catalogs[0].model_dump_json()
-            == document.google_budget_input_catalogs[0].model_dump_json()
+            tuple(c.model_dump_json() for c in kwargs["evidence"].reporting.selected.catalogs)
+            == original_catalogs
         )
         changed.append(True)
         return candidate
 
+    reached: list[bool] = []
+    actual_binding = assert_owner_review_generation_bundle
+
+    def check_actual(**kwargs: Any) -> None:
+        reached.append(True)
+        actual_binding(**kwargs)
+
+    monkeypatch.setattr(repository, "assert_owner_review_generation_bundle", check_actual)
     monkeypatch.setattr(OwnerReviewPlanComposer, "compose", substitute)
     response = alice.post(url + "/generate", headers=headers(alice), json=generation())
     assert changed == [True]
+    assert reached == [True]
     assert response.status_code == 409, response.text
     assert response.json()["detail"] == "owner review differs from actual collected evidence"
     assert (planning_snapshot(customer_engine), financial_counts(customer_engine)) == before

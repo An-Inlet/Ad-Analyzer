@@ -32,6 +32,8 @@ current completion before committing. Failure rolls back all row/pointer/job eff
 Calibration invalidation during publication may advance privacy. The resulting
 completion and receipt use that final privacy, never a rewritten old selection.
 Only privacy may differ from the initial scope as a result of that known transaction.
+Final privacy must be greater than or equal to original privacy, with any advance
+coming from the actual invalidation in this transaction, never an arbitrary restamp.
 Fresh event confirmation after acquisition must use the actual resulting scope.
 
 ## Receipt0092
@@ -49,6 +51,11 @@ query version, completed time, row count, acquisition result commitment and job 
 Require original/final scopes equal except privacy, and final scope/completion
 metadata exactly agree. The initiating actor is factual audit metadata; replay
 still requires the currently authenticated original-session owner.
+Validate the job's exact workspace/account/integration, Google platform, succeeded
+state and dedicated `google_customer_range_read` type in addition to its FK. Compare
+all completion fields including query, completion time, row count, dates, source
+generation and units. The acquisition commitment is an audit hash, never a substitute
+for actual acquired data and atomic publication proof.
 
 Internal ports `store_range_receipt(db, receipt)` and
 `read_range_receipt(db, workspace_id, account_id, request_id, require_current=True)`

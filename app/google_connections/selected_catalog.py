@@ -1,6 +1,7 @@
 """Injected reporting-only Google catalog. DTOs are not customer authorization."""
 
 import hashlib
+import json
 import re
 import unicodedata
 from collections.abc import Callable
@@ -13,7 +14,7 @@ from pydantic import AwareDatetime, Field, SecretStr, field_validator, model_val
 
 from app.campaign_performance.presence_contracts import Digest, Frozen, Id, _canonical
 from app.campaign_performance.raw_cells import exact_json
-from app.campaign_performance.selected_contracts import ReportingScopeV1
+from app.campaign_performance.selected_contracts import ReportingScopeV1, _instant, _utc
 from app.executors.social_http import _private_http
 from app.google_connections.selected_presence import query_profile_digest
 
@@ -26,9 +27,12 @@ class GoogleReportingCatalogRequestV1(Frozen):
     )
     scope: ReportingScopeV1
     actor_id: Id
-    original_session_digest: Digest = Field(repr=False)
+    original_session_digest: Digest = Field(exclude=True, repr=False)
     started_at: AwareDatetime
     api_version: Literal["v24"] = "v24"
+
+    _started = field_validator("started_at", mode="before")(_instant)
+    _started_utc = field_validator("started_at")(_utc)
 
     @model_validator(mode="after")
     def google(self) -> "GoogleReportingCatalogRequestV1":
@@ -36,17 +40,30 @@ class GoogleReportingCatalogRequestV1(Frozen):
             raise ValueError("Google reporting scope required")
         return self
 
+    def _commitment(self, *, include_time: bool) -> bytes:
+        """Private domain input; normal serialization deliberately cannot reconstruct it."""
+        checked = GoogleReportingCatalogRequestV1.model_validate(self)
+        public = checked.model_dump(mode="json", exclude=set() if include_time else {"started_at"})
+        return (
+            b"inlet.google-reporting-session-binding.v1\0"
+            + checked.original_session_digest.encode("ascii")
+            + b"\0"
+            + json.dumps(
+                public, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+            ).encode("utf-8")
+        )
+
     def digest(self) -> str:
         return hashlib.sha256(
-            b"inlet.google-reporting-catalog-request.v1\0" + _canonical(self)
+            b"inlet.google-reporting-catalog-request.v1\0" + self._commitment(include_time=True)
         ).hexdigest()
 
 
 class GoogleReportingOptionV1(Frozen):
     resource_name: Annotated[
-        str, Field(pattern=r"^customers/[0-9]{10}/conversionActions/[0-9]{1,32}$")
+        str, Field(strict=True, pattern=r"^customers/[0-9]{10}/conversionActions/[0-9]{1,32}$")
     ]
-    owner_customer_id: Annotated[str, Field(pattern=r"^[0-9]{10}$")]
+    owner_customer_id: Annotated[str, Field(strict=True, pattern=r"^[0-9]{10}$")]
     label: Annotated[str, Field(strict=True, min_length=1, max_length=160)]
     status: Literal["ENABLED"]
     category: Annotated[str, Field(strict=True, min_length=1, max_length=100)]
@@ -75,9 +92,11 @@ class GoogleReportingOptionV1(Frozen):
         option = GoogleReportingOptionV1.model_validate(self)
         if option.owner_customer_id != req.scope.native_account_id:
             raise ValueError("foreign reporting option")
-        stable = req.model_copy(update={"started_at": datetime(2000, 1, 1, tzinfo=UTC)})
         return hashlib.sha256(
-            b"inlet.google-reporting-option.v1\0" + _canonical(stable) + b"\0" + _canonical(option)
+            b"inlet.google-reporting-option.v1\0"
+            + req._commitment(include_time=False)
+            + b"\0"
+            + _canonical(option)
         ).hexdigest()
 
 
@@ -92,6 +111,9 @@ class GoogleReportingCatalogV1(Frozen):
     pagination_complete: Literal[True] = True
     page_count: Annotated[int, Field(strict=True, ge=1, le=100)]
     options: tuple[GoogleReportingOptionV1, ...] = Field(max_length=2000)
+
+    _times = field_validator("observed_at", "expires_at", mode="before")(_instant)
+    _times_utc = field_validator("observed_at", "expires_at")(_utc)
 
     @field_validator("pagination_complete", mode="before")
     @classmethod
@@ -143,6 +165,9 @@ class GoogleReportingCatalogContext(Frozen):
         default=None, exclude=True, repr=False
     )
 
+    _expiry = field_validator("expires_at", mode="before")(_instant)
+    _expiry_utc = field_validator("expires_at")(_utc)
+
 
 class GoogleReportingCatalogUnavailable(RuntimeError):
     pass
@@ -160,12 +185,18 @@ class GoogleReportingCatalogHTTP:
         self.context_reader, self.revalidate = context_reader, revalidate
         self.transport, self.clock = transport, clock
 
+    def _now(self) -> datetime:
+        value = self.clock()
+        if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("aware clock required")
+        return value.astimezone(UTC)
+
     def __call__(self, request: GoogleReportingCatalogRequestV1) -> GoogleReportingCatalogV1:
         private = _private_http.set(True)
         try:
             req = GoogleReportingCatalogRequestV1.model_validate(request)
             deadline = monotonic() + 60
-            limit = self.clock() + timedelta(seconds=60)
+            limit = self._now() + timedelta(seconds=60)
             self.revalidate(req)
             ctx = GoogleReportingCatalogContext.model_validate(self.context_reader(req))
             if ctx.request_digest != req.digest() or not (
@@ -175,7 +206,7 @@ class GoogleReportingCatalogHTTP:
             limit = min(limit, ctx.expires_at)
 
             def time_check() -> None:
-                if not req.started_at <= self.clock() < limit or monotonic() >= deadline:
+                if not req.started_at <= self._now() < limit or monotonic() >= deadline:
                     raise ValueError("catalog deadline")
 
             def check() -> None:
@@ -297,7 +328,7 @@ class GoogleReportingCatalogHTTP:
             result = GoogleReportingCatalogV1(
                 request=req,
                 request_digest=req.digest(),
-                observed_at=self.clock(),
+                observed_at=self._now(),
                 expires_at=limit,
                 page_count=_page_count,
                 options=tuple(sorted(options, key=lambda x: (x.resource_name, x.metric_family))),

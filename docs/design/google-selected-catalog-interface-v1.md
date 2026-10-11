@@ -37,3 +37,19 @@ is restored. No claim of atomic provider snapshot across pagination.
 
 Dependent work must implement actual original-session ownership/vault resolution,
 fresh rediscovery confirmation+0091CAS, lifecycle/privacy and customer API separately.
+
+## Review Clarifications
+
+The original-session digest is excluded from ordinary request and nested catalog
+serialization as well as repr. Private request `_commitment` explicitly combines
+its domain-separated session binding with canonical public fields; option IDs use
+that binding without acquisition time. Normal JSON intentionally cannot reconstruct
+the private request/catalog: the required session field is absent and validation
+must fail. Trusted callers retain the validated in-memory object or explicitly
+rebuild it using independently authenticated original session data. No permissive
+missing-session default or public deserialization fallback is provided.
+
+Request, context and result instants accept aware datetime/ISO instants only, reject
+numeric/date/naive coercion, normalize to UTC before comparison and commitment.
+Injected clock values must be actual aware datetimes and normalize to UTC before
+arithmetic, including DST folds. Native resource/owner identifiers are strict strings.

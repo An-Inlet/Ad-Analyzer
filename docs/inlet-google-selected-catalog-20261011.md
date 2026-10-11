@@ -33,3 +33,19 @@ Separate customer confirmation/invalidation+0091CAS and full aggregate-range
 acquisition/selected capture finalization/consumer work remain. No Q01/Q02 acceptance
 or provider snapshot atomicity is claimed. Root's separate explicit invalidation
 contract supersedes earlier same-request privacy transition proposal.
+
+## Review Repairs
+
+Parent found the private session digest still serialized and same-ZoneInfo wall-time
+comparisons were unsafe across DST folds. Both are repaired: excluded serialization
+with explicit private domain commitment, strict aware instants normalized to UTC,
+and UTC-normalized injected clock. Normal JSON cannot reconstruct private DTOs without
+independently authenticated session data. Reviewer also found native resource/owner
+strings accepted copied bytes; both now strict and regression-covered.
+
+Latest focused run: 52 passed, no skips (catalog+existing selected HTTP); scoped
+Ruff/mypy (2 files) and diff check pass. Evidence review-freeze.xml/.log,
+review-freeze-mypy.log and review-fix-ruff.log in the same durable directory.
+Original f3f7f9 evidence remains intact. Intermediate review-fix.log retains one
+regression-test missing-UTC-import failure, repaired before final run. No runtime
+activation, external calls, customer routes or storage changes.

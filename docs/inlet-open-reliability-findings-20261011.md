@@ -248,3 +248,31 @@ do not close R01/R02/R03 or establish timing margin. The updated
 the original unknown R03 predicate from later located fact-age failures and
 identifies a new actual V6 post-flush authority-rollback coverage gap. No unchanged
 diagnostic rerun or retention-policy change follows from this review.
+
+
+## New Successor Occurrence — Diagnostics01 PostgreSQL
+
+Diagnostic-only candidate `d99b0ea` introduces fixed route/phase/predicate events
+without customer identifiers, request/response bodies, raw paths or exception text.
+The first exact 32-case cohort stopped with 29 passes, 1 failure and 2 sales-progress
+cases unrun. Twenty-eight focused/ASGI cases and the changed-source SQLite V6
+post-flush rollback passed. PostgreSQL failed before the deliberately delayed
+publication flush; neither its reach nor deliberate-refusal marker was set.
+
+The retained event is exactly generate / pre_cas / fact_age_outside_window /
+session_predicate=not_evaluated, HTTP409. This identifies the original age-predicate
+branch after retained capture, before CAS. No exact age or session lifetime was
+recorded; do not infer a positive session lifetime or particular elapsed duration.
+Logger dispatch occurs after this predicate already fails, so that dispatch cannot
+cause the same rejection. Earlier context/keyword/test-wrapper overhead remains
+unmeasured and no performance cause is attributed.
+
+Root and independent review verified eight source and 26 evidence hashes at
+freeze `91908645f0a7367eefd5225160e02e6d108509449e58a74f6665b3ad5cc34629`.
+Whole Ruff/mypy passed (1,491 files). The candidate is preserved, not integrated
+or fully qualified. Original 2-database rollback passes at `8c0d1b0` stay separate.
+Original R01/R02/R03 remain unresolved. No unchanged retry or limit/clock change
+followed. Independent Q12 cases may qualify on this explicitly labeled candidate;
+the two unrun sales cases are disjoint compatibility work. Neither can erase this
+failure. Further cost attribution requires a concrete source-backed measurement
+proposal, not a guessed expensive helper or a rerun until green.

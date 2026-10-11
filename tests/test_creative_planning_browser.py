@@ -29,6 +29,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from tests import test_customer_identity, test_customer_optimization_api, test_selected_customer_api
 from tests.creative_browser_capture import capture_saved_basis
+from tests.creative_browser_observer import fixed_detail, route_class
 from tests.creative_common_basis_fixture import Platform, prepare_creative_common_basis
 from tests.q16_fixture import IMAGE
 from tests.test_creative_common_basis import financial_counts
@@ -193,7 +194,8 @@ def test_actual_creative_planning_browser(
             ("/media", "/generate", "/planning/plans")
         ):
             mutation_requests.append(path)
-        if path.endswith("/generate") and scope.get("method") == "POST":
+        observed_route = route_class(path, scope.get("method", ""))
+        if observed_route is not None:
             status = 0
             error_body = bytearray()
 
@@ -202,21 +204,26 @@ def test_actual_creative_planning_browser(
                 if message["type"] == "http.response.start":
                     status = message["status"]
                 elif message["type"] == "http.response.body" and status >= 400:
-                    error_body.extend(message.get("body", b""))
-                    assert len(error_body) <= 8192
+                    error_body.extend(message.get("body", b"")[: max(0, 8192 - len(error_body))])
                 await send(message)
 
             started = time.monotonic()
             await app(scope, receive, observed_send)
             elapsed = time.monotonic() - started
-            detail = json.loads(error_body).get("detail") if error_body else None
-            generation_outcomes.append(
-                {
-                    "status": status,
-                    "detail": detail if isinstance(detail, str) else None,
-                    "elapsed_seconds": round(elapsed, 6),
-                }
-            )
+            try:
+                detail = json.loads(error_body).get("detail") if error_body else None
+            except (ValueError, AttributeError):
+                detail = "unlisted_server_detail"
+            if len(generation_outcomes) < 100:
+                generation_outcomes.append(
+                    {
+                        "ordinal": len(generation_outcomes) + 1,
+                        "route": observed_route,
+                        "status": status,
+                        "detail": fixed_detail(detail),
+                        "elapsed_seconds": round(elapsed, 6),
+                    }
+                )
         else:
             await app(scope, receive, send)
 

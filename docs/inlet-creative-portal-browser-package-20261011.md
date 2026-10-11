@@ -158,3 +158,28 @@ Remaining blocker: original `both-02` PostgreSQL409 has no captured fixed detail
 and no proved cause. Subsequent passes and observational timings do not resolve it.
 No blanket all-green cohort, default-v5 activation, live advertising, expert
 quality assessment, or full Q01–Q16 acceptance is claimed.
+
+### Correction to original route inference and ordered diagnostic
+
+The original generic409 occurred during the Generate **user action**, which calls
+POST generate, GET current plan and GET versions. The old harness captured none of
+their statuses; prior wording “generation returned409” was an unsupported route
+inference. The original cause and route remain unknown. Failed PostgreSQL schema
+was dropped by normal fixture teardown; server/browser streams were discarded.
+No authentication-bearing browser profile was inspected. A detailed source-site map
+is retained in evidence `original-409-analysis.md`.
+
+The independently reviewed route observer now captures only those three fixed
+route classes, ordinal/status/allowlisted fixed detail/elapsed, at most100 records
+and8192 transient error bytes. No identifiers, auth data or success body is retained.
+It forwards the original ASGI messages unchanged. Unknown error text is redacted.
+
+`ordered-08` ran the original order once: four SQLite journeys, then PostgreSQL
+Google, with -x and no stage plugin or screenshot. All five passed, zero skips,
+failures or errors,73.511 seconds. All observed route responses were200, including
+both PostgreSQL generation requests and subsequent current/history GETs. Durable
+XML/log and fixed records are retained. This does not explain the original409;
+no immediate retry or production repair followed. Diagnostic costs are not a
+performance benchmark or a substitute for future integrated qualification.
+Observer successor static checks: whole Ruff passed; configured mypy passed1415
+source files; diff check passed. No production changes or additional pytest runs.

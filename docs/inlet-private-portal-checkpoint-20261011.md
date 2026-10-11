@@ -20,9 +20,27 @@ message did not retain its exact server detail. Its cause is unknown. A subseque
 single-case PostgreSQL diagnostic passed with two HTTP 200 generation responses;
 it does not resolve or explain the failed cohort. Both attempts remain retained.
 
-The seven previously unrun cases are being executed separately with bounded
-status/error-detail/elapsed capture. No fresh whole-cohort success is claimed.
-Screenshot capture is deferred while the functional conflict is investigated.
+The seven previously unrun cases subsequently passed in `remaining-04` (120.261s)
+with bounded status/error-detail/elapsed capture. The isolated PostgreSQL diagnostic
+passed in 42.332s. All twelve distinct cases now have passing observations across
+separate attempts; the original five-case attempt (95.039s, one failure) remains
+unresolved. No fresh whole-cohort success is claimed.
+Independent source review found a safety-test ordering gap: cleared editor assertions
+could execute before replacement login and late response completion. The safety
+observations were superseded by strengthened completion assertions and targeted
+both-database qualification: `safety-05` passed both cases. Independent source review
+accepted the synchronization repair. This was an evidence gap, not an established
+production defect.
+A single instrumented PostgreSQL Google diagnostic (`stage-06`) subsequently passed.
+Maximum sampled fact ages were 3.583s and 3.946s; save-generation intervals were
+3.582s/3.946s with 2,276/2,293 SQL calls. Nested stage timings overlap and must not
+be summed. This measures current costs without explaining the original 409.
+The separate single SQLite `capture-07` journey passed. Root inspected the actual
+PNG pixels: saved product price USD 25.000000, one PNG, original observation and
+rights/claim/unassessed notices are legible; the Google action shows selected count
+10, 100 clicks and USD 100 spend. No visual defect was seen at that captured
+viewport. This is neither an expert-quality nor mobile/rights approval. No
+full-cohort retry is claimed.
 
 The separate API `final06` failure did record `planning_authority_expired`.
 Successful API timing observations before/after query reduction measured maximum

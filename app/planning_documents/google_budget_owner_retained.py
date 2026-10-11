@@ -182,9 +182,19 @@ def capture_owner_review_retained_sources(
         _capture_creative_retained_sources,
         _Context,
     )
+    from app.planning_documents.owner_review_policy import (
+        OWNER_REVIEW_GENERATOR_VERSION,
+        OWNER_REVIEW_POLICY_VERSION,
+    )
 
-    document = _owner_document(document)
-    context = _Context(db, principal, document, now)
+    context = _Context(
+        db,
+        principal,
+        document,
+        now,
+        required_pair=(OWNER_REVIEW_POLICY_VERSION, OWNER_REVIEW_GENERATOR_VERSION),
+    )
+    document = context.document
     with db.no_autoflush:
         context.guard()
         original = _owner_evidence(db, document)
@@ -211,12 +221,22 @@ def recheck_owner_review_retained_sources(
         _Context,
         _recheck_creative_retained_sources,
     )
+    from app.planning_documents.owner_review_policy import (
+        OWNER_REVIEW_GENERATOR_VERSION,
+        OWNER_REVIEW_POLICY_VERSION,
+    )
     from app.planning_documents.selected_plan_history import (
         validate_selected_historical_dependencies,
     )
 
-    document = _owner_document(document)
-    context = _Context(db, principal, document, now)
+    context = _Context(
+        db,
+        principal,
+        document,
+        now,
+        required_pair=(OWNER_REVIEW_POLICY_VERSION, OWNER_REVIEW_GENERATOR_VERSION),
+    )
+    document = context.document
     validate_selected_historical_dependencies(document, dependencies)
     context.clean()
     with db.no_autoflush:

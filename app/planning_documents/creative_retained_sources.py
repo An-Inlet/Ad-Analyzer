@@ -29,9 +29,23 @@ from app.shopify.security import utc
 
 class _Context:
     def __init__(
-        self, db: Session, principal: CustomerPrincipal, document: PlanVersion, now: datetime
+        self,
+        db: Session,
+        principal: CustomerPrincipal,
+        document: PlanVersion,
+        now: datetime,
+        *,
+        required_pair: tuple[str, str] | None = None,
     ) -> None:
         self.document = PlanVersion.model_validate(document)
+        if required_pair is not None and (
+            type(required_pair) is not tuple
+            or len(required_pair) != 2
+            or any(type(value) is not str for value in required_pair)
+            or (self.document.policy_version, self.document.generator_version) != required_pair
+        ):
+            raise ValueError("exact owner review document required")
+        document = self.document
         if (
             not selected_policy_contract(
                 document.policy_version, document.generator_version

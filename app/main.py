@@ -31,6 +31,7 @@ from app.api.customer_meta import router as customer_meta_router
 from app.api.customer_optimization import router as customer_optimization_router
 from app.api.customer_outcomes import router as customer_outcomes_router
 from app.api.customer_plan_review import router as customer_plan_review_router
+from app.api.customer_planning_budget_owners import router as customer_planning_budget_owners_router
 from app.api.customer_planning_catalog import router as customer_planning_catalog_router
 from app.api.customer_planning_documents import router as customer_planning_documents_router
 from app.api.customer_planning_target_catalog import (
@@ -212,6 +213,7 @@ app.include_router(customer_budget_mandates_router)
 app.include_router(customer_reported_feedback_router)
 app.include_router(customer_account_diagnostics_router)
 app.include_router(customer_planning_target_catalog_router)
+app.include_router(customer_planning_budget_owners_router)
 app.include_router(customer_session_automation_router)
 app.include_router(customer_social_review_router)
 

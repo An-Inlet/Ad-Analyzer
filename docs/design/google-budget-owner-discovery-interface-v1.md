@@ -35,7 +35,7 @@ read_google_budget_owners(configured: PlanningDocumentService,
 The helper validates the witness and uses domain
 `inlet.google-budget-owner-selection.v1`. Its payload includes exact workspace,
 account, connection, full AccountRef, source revision/binding/privacy, actor,
-original session digest and authenticated UTC instant, original composite digest,
+original session digest and authenticated epoch value (existing strict integer session field), original composite digest,
 full witness digest, owner key and both reporting-window UTC instants. Source,
 account, and witness reference must match exactly. Private inputs are neither
 returned nor logged. Observation digest is the full original witness digest.

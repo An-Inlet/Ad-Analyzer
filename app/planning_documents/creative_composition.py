@@ -5,7 +5,7 @@ from pydantic import model_validator
 from app.planning_documents.actions import CreativeBrief, ManualAction
 from app.planning_documents.common import MAX_ACTIONS, Digest, Key, NoAuthority, unique
 from app.planning_documents.composer import PlanCompositionUnavailable, location, targets
-from app.planning_documents.context import PlanInputRevision, TargetRef
+from app.planning_documents.context import AccountTarget, PlanInputRevision, TargetRef
 from app.planning_documents.creative_basis import CreativeBasisV1, CustomerProductV1
 from app.planning_documents.creative_production_contracts import (
     CreativeCompositionV1,
@@ -13,6 +13,7 @@ from app.planning_documents.creative_production_contracts import (
     CreativeProposalV1,
     CreativeShotV1,
 )
+from app.planning_documents.empty_catalog_contracts import EmptyDeclaredCatalogWitnessV1
 from app.planning_documents.ports import CatalogEvidence, PlanningCompositionPolicy
 
 
@@ -270,6 +271,164 @@ def _proposal(
     )
 
 
+def _empty_scope(catalog: CatalogEvidence) -> bool:
+    """Recognized ineligible queries defer; witness construction still validates integrity."""
+    native, metadata = catalog.catalog.native_observation, catalog.catalog.metadata_observation
+    return (
+        catalog.reference.coverage == "partial"
+        and not native.targets
+        and not metadata.entities
+        and not catalog.catalog.targets
+        and {(c.kind, c.status, c.scope, c.observed_count, c.reasons) for c in native.coverage}
+        == {
+            (
+                kind,
+                "partial",
+                "sdk_known_effective_statuses",
+                0,
+                ("effective_status_scope_limited",),
+            )
+            for kind in ("campaign", "adset")
+        }
+        and {(c.kind, c.status, c.scope, c.count, c.reasons) for c in metadata.coverage}
+        == {
+            (kind, "partial", "sdk_known_effective_statuses", 0, ("native_scope_limited",))
+            for kind in ("campaign", "adset")
+        }
+    )
+
+
+def _account_preparation_proposal(
+    target: AccountTarget,
+    witness: EmptyDeclaredCatalogWitnessV1,
+    basis: CreativeBasisV1,
+    refs: CreativeCompositionReferencesV1,
+    product: CustomerProductV1,
+    priority: int,
+) -> CreativeProposalV1:
+    image = basis.images[0]
+    offer = _offer(product)
+    restrictions = (
+        "Customer restrictions (verbatim):\n" + "\n".join(product.restrictions)
+        if product.restrictions
+        else "Ask the customer to confirm product restrictions."
+    )
+    image_step = (
+        f"Inspect owned source image {image.media_id}, "
+        f"observed at {image.observed_at.isoformat()}. "
+        "Confirm the product depiction and rights; visual suitability and rights are not assessed."
+    )
+    limitation = (
+        "No campaigns were observed in this declared query; other provider scopes and past "
+        "delivery remain unknown. Missing history is not zero conversions or a failing campaign."
+    )
+    key = f"creative:account_{target.account.account_id}"
+    action = ManualAction(
+        key=key,
+        priority=priority,
+        kind="creative_review",
+        target=target,
+        proposed_fields=(),
+        conflicts=(),
+        measurement_criterion=(
+            "Record unanswered event, attribution and closed-window questions; use later "
+            "supported observations for learning, without inferring performance from absence."
+        ),
+        title="Prepare An Image Concept Without Paid Distribution",
+        rationale=f"Prepare a factual introduction to {product.name}; performance is unknown.",
+        evidence_keys=(
+            refs.customer_key,
+            refs.basis_key,
+            witness.catalog_evidence.reference.key,
+            refs.policy_key,
+        ),
+        assumption_keys=(),
+        prerequisites=(witness.prerequisite_action_key,),
+        manual_steps=(
+            f"Complete the account measurement prerequisite {witness.prerequisite_action_key}.",
+            limitation,
+            f"Verify the declared product and offer: {offer}",
+            image_step,
+            (
+                f"Draft one image concept introducing {product.name}, "
+                "using only substantiated supplied facts."
+            ),
+            restrictions,
+            (
+                "Manually check the intended product destination and current offer; "
+                "retain the concept for review."
+            ),
+            (
+                "Record measurement questions and evidence still needed. "
+                "Do not estimate CPA, conversion rate or sales from absent history."
+            ),
+            (
+                "Do not buy distribution, launch or activate a campaign. "
+                "The zero advertising ceiling does not cover or authorize "
+                "labor or production costs."
+            ),
+        ),
+        expected_effect=(
+            "A reviewable preparation concept; no delivery or sales effect is predicted."
+        ),
+        limitations=(
+            limitation,
+            "Preparation only; no publication, visual suitability or rights qualification.",
+        ),
+        native_budget=None,
+    )
+    brief = CreativeBrief(
+        key=f"brief:account_{target.account.account_id}",
+        action_key=key,
+        target=target,
+        product_facts=product.customer_asserted_facts
+        or (f"Customer-declared product: {product.name}",),
+        hypotheses=(
+            "A factual product introduction can be reviewed before considering "
+            "any paid distribution; "
+            "no improvement is predicted.",
+        ),
+        placement="No placement prescribed; verify requirements before any later use.",
+        format="Image concept preparation",
+        asset_gaps=("Finished image creative requires production and review.",),
+        landing_page_constraints=(
+            "Verify the product destination and exact current offer.",
+            restrictions,
+        ),
+        objective=f"Prepare one factual introduction to {product.name} without paid distribution.",
+        audience="Customer must confirm audience; no sensitive traits inferred.",
+        offer=offer,
+        claim_evidence_keys=(refs.customer_key,),
+        assumption_keys=(),
+        hooks=(f"Meet {product.name}.",),
+        copy_directions=(
+            "Use only customer-declared substantiated facts and verify the offer.",
+            restrictions,
+        ),
+        visual_directions=(image_step,),
+        required_assets=("One reviewed image concept; production remains required.",),
+        customer_review_checklist=(
+            restrictions,
+            "Confirm claims, rights, destination and legibility; keep this concept for review.",
+        ),
+        measurement_plan=action.measurement_criterion,
+    )
+    return CreativeProposalV1(
+        action=action,
+        brief=brief,
+        production=CreativeProductionV1(
+            source_images=basis.requested.media_selections,
+            selected_image_id=image.media_id,
+            source_image_status="owned_bytes_observed",
+            deliverable="image_creative",
+            basis_evidence_key=refs.basis_key,
+            storyboard=(),
+        ),
+        target_basis="observed_empty_account",
+        empty_catalog_witness=witness,
+    )
+
+
 def compose_creative_proposals(
     inputs: PlanInputRevision,
     catalogs: tuple[CatalogEvidence, ...],
@@ -277,6 +436,7 @@ def compose_creative_proposals(
     references: CreativeCompositionReferencesV1,
     *,
     first_priority: int,
+    account_prerequisites: tuple[ManualAction, ...] = (),
 ) -> CreativeCompositionV1:
     inputs = PlanInputRevision.model_validate(inputs)
     basis = CreativeBasisV1.model_validate(basis)
@@ -286,6 +446,10 @@ def compose_creative_proposals(
     if type(catalogs) is not tuple:
         raise ValueError("explicit catalog tuple required")
     catalogs = tuple(CatalogEvidence.model_validate(c) for c in catalogs)
+    if type(account_prerequisites) is not tuple:
+        raise ValueError("explicit prerequisite tuple required")
+    account_prerequisites = tuple(ManualAction.model_validate(a) for a in account_prerequisites)
+    unique(tuple(a.key for a in account_prerequisites), "account prerequisite key")
     unique(tuple(c.reference.account for c in catalogs), "catalog account")
     unique(tuple(c.reference.key for c in catalogs), "catalog key")
     if (
@@ -335,7 +499,43 @@ def compose_creative_proposals(
             key=lambda t: t.canonical_entity_key,
         )
         if not included:
-            limitations.append(prefix + "no included campaign; deferred without account fallback.")
+            prerequisite_key = f"review:account_{account.account_id}"
+            prerequisite = next(
+                (a for a in account_prerequisites if a.key == prerequisite_key), None
+            )
+            if (
+                account.platform == "meta_ads"
+                and _empty_scope(catalog)
+                and inputs.total_ceiling_micros == 0
+                and not inputs.constraints
+                and product is not None
+                and basis.images
+                and capacity is not None
+                and len(proposals) < capacity
+                and prerequisite is not None
+                and prerequisite.target == AccountTarget(account=account)
+                and prerequisite.kind == "investigate"
+                and prerequisite.native_budget is None
+                and not prerequisite.proposed_fields
+                and catalog.reference.key in prerequisite.evidence_keys
+            ):
+                witness = EmptyDeclaredCatalogWitnessV1(
+                    catalog_evidence=catalog, prerequisite_action_key=prerequisite.key
+                )
+                priority = first_priority + len(proposals)
+                if priority > MAX_ACTIONS:
+                    raise PlanCompositionUnavailable(
+                        "creative priorities exceed complete document capacity"
+                    )
+                proposals.append(
+                    _account_preparation_proposal(
+                        AccountTarget(account=account), witness, basis, refs, product, priority
+                    )
+                )
+            else:
+                limitations.append(
+                    prefix + "no included campaign; deferred without account fallback."
+                )
         elif inputs.constraints:
             limitations.append(
                 prefix + "unresolved customer constraints; creative production deferred."
@@ -358,4 +558,7 @@ def compose_creative_proposals(
         basis_digest=basis.digest(), proposals=tuple(proposals), limitations=tuple(limitations)
     )
     result.assert_basis(basis)
+    from app.planning_documents.empty_catalog_validation import assert_empty_catalog_bindings
+
+    assert_empty_catalog_bindings(result.proposals, catalogs)
     return result

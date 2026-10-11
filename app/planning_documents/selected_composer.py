@@ -603,6 +603,7 @@ class SelectedPlanComposer:
                     policy=policy,
                 ),
                 first_priority=len(actions) + 1,
+                account_prerequisites=tuple(actions),
             )
             actions.extend(proposal.action for proposal in creative_composition.proposals)
             briefs.extend(proposal.brief for proposal in creative_composition.proposals)

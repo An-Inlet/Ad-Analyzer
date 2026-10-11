@@ -4,6 +4,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Generator
@@ -31,6 +32,7 @@ from tests import test_customer_identity, test_customer_optimization_api, test_s
 from tests.creative_browser_capture import capture_saved_basis
 from tests.creative_browser_observer import fixed_detail, route_class
 from tests.creative_common_basis_fixture import Platform, prepare_creative_common_basis
+from tests.creative_q08_fixture import prepare_creative_q08_basis
 from tests.q16_fixture import IMAGE
 from tests.test_creative_common_basis import financial_counts
 from tests.test_customer_browser_api_journey import localhost_certificate
@@ -50,6 +52,7 @@ pytestmark = pytest.mark.planning_boundary
         ("meta", "meta_ads"),
         ("tiktok", "tiktok_ads"),
         ("safety", "google_ads"),
+        ("q08", "meta_ads"),
     ],
 )
 def test_actual_creative_planning_browser(
@@ -72,15 +75,20 @@ def test_actual_creative_planning_browser(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
-    fixture = prepare_creative_common_basis(
-        customer_engine,
-        configuration,
-        replicas,
-        monkeypatch,
-        tmp_path / "media",
-        platform=platform,
-        selected_value="10" if platform == "google_ads" else None,
-    )
+    if journey == "q08":
+        fixture = prepare_creative_q08_basis(
+            customer_engine, configuration, replicas, monkeypatch, tmp_path / "media"
+        )
+    else:
+        fixture = prepare_creative_common_basis(
+            customer_engine,
+            configuration,
+            replicas,
+            monkeypatch,
+            tmp_path / "media",
+            platform=platform,
+            selected_value="10" if platform == "google_ads" else None,
+        )
     basis = fixture.basis
     # Only workspace ownership fixture rows; never seed plans, proofs or execution.
     bob = login(replicas[1], "creative-foreign-owner:initial")
@@ -277,9 +285,6 @@ def test_actual_creative_planning_browser(
     )
     try:
         assert complete.wait(120), "Creative browser did not report completion"
-        (tmp_path / "generation-outcomes.json").write_text(
-            json.dumps(generation_outcomes, indent=2)
-        )
         assert results and results[0]["status"] == "passed", (results, generation_outcomes)
         assert financial_counts(customer_engine) == counts
         assert fixture.calls and all(":mutate" not in call for call in fixture.calls)
@@ -297,6 +302,18 @@ def test_actual_creative_planning_browser(
                 assert doc.inputs.creative.product.name == "Reusable travel mug"
                 assert doc.inputs.creative.product.list_price is not None
                 assert doc.inputs.creative.product.list_price.micros == 25_000_000
+                if journey == "q08":
+                    assert doc.inputs.total_ceiling_micros == 0
+                    assert doc.inputs.goal.revision == basis.goal_revision
+                    assert doc.inputs.goal.confirmation_reference == basis.confirmation_id
+                    assert doc.creative_composition is not None
+                    assert len(doc.creative_composition.proposals) == 1
+                    proposal = doc.creative_composition.proposals[0]
+                    assert proposal.target_basis == "observed_empty_account"
+                    assert proposal.empty_catalog_witness is not None
+                    assert proposal.empty_catalog_witness.catalog_evidence.catalog.targets == ()
+                    assert all(s.ceiling_micros == s.unallocated_micros == 0 for s in doc.scenarios)
+                    assert all(not s.allocations and s.forecast is None for s in doc.scenarios)
         (tmp_path / "creative-browser-result.json").write_text(
             json.dumps(
                 {
@@ -310,12 +327,30 @@ def test_actual_creative_planning_browser(
             )
         )
     finally:
-        browser.terminate()
+        original_failure = sys.exception() is not None
         try:
-            browser.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            browser.kill()
-            browser.wait(timeout=5)
-        server.should_exit = True
-        thread.join(timeout=10)
-        listener.close()
+            browser.terminate()
+            try:
+                browser.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                browser.kill()
+                browser.wait(timeout=5)
+        finally:
+            try:
+                server.should_exit = True
+                thread.join(timeout=10)
+            finally:
+                listener.close()
+                request.node.user_properties.append(
+                    ("route_observer_shutdown_complete", not thread.is_alive())
+                )
+                try:
+                    (tmp_path / "generation-outcomes.json").write_text(
+                        json.dumps(tuple(generation_outcomes)[:100], indent=2)
+                    )
+                except OSError:
+                    request.node.user_properties.append(("route_observer_persistence", "failed"))
+                    if not original_failure:
+                        raise AssertionError(
+                            "Bounded route observations were not persisted"
+                        ) from None

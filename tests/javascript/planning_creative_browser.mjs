@@ -88,7 +88,24 @@ try{
    const production=first.document.creative_composition.proposals[0].production;
    assert(production.deliverable_status==='production_required'&&production.visual_assessment==='not_assessed','production and visual boundaries');
    assert(production.storyboard.length===(cfg.journey==='tiktok'?3:0),'reviewable social production');
-   assert(JSON.stringify(first.document).includes('unsupported_selected_mapping'),'social report gap retained');
+   if(cfg.journey!=='q08')assert(JSON.stringify(first.document).includes('unsupported_selected_mapping'),'social report gap retained');
+   if(cfg.journey==='q08'){
+    const doc=first.document,proposal=doc.creative_composition.proposals[0],proof=proposal.empty_catalog_witness;
+    assert(doc.inputs.total_ceiling_micros===0,'confirmed zero ceiling retained');
+    assert(doc.evidence.every(ref=>ref.kind!=='reported_metrics')&&doc.selected_reporting_proof.accounts.every(account=>account.capture_pin===null),'unavailable reporting is not measured zero');
+    assert($('document').textContent.includes('Planning ceiling: USD 0'),'zero ceiling displayed');
+    assert(doc.inputs.goal.revision===cfg.body.inputs.goal_revision,'actual confirmed goal revision');
+    assert(proposal.target_basis==='observed_empty_account'&&proof,'retained empty query proof');
+    assert(proof.catalog_evidence.catalog.targets.length===0&&proof.catalog_evidence.catalog.native_observation.targets.length===0&&proof.catalog_evidence.catalog.metadata_observation.entities.length===0,'all observed query arrays empty');
+    const prerequisite=doc.actions.find(action=>action.key===proof.prerequisite_action_key);
+    assert(prerequisite?.kind==='investigate'&&proposal.action.prerequisites.includes(prerequisite.key),'real measurement prerequisite');
+    assert(proposal.action.target.scope==='account'&&proposal.action.target.account.account_id===cfg.account_id,'same owned account preparation');
+    assert(doc.scenarios.every(s=>s.ceiling_micros===0&&s.unallocated_micros===0&&s.allocations.length===0&&s.forecast===null),'no paid allocation or forecast');
+    assert(doc.actions.every(a=>a.native_budget===null&&a.proposed_fields.length===0),'no native mutation proposal');
+    assert($('document').textContent.includes(proposal.action.title)&&$('document').textContent.includes(proposal.action.manual_steps[0]),'account preparation displayed');
+    assert($('document').textContent.includes(prerequisite.title),'measurement prerequisite displayed');
+    const historical=await json(await native(path+'/export?version=1'));assert(historical.document_digest===first.document_digest,'exact zero-ceiling history export');
+   }
   }
   assert(document.cookie===originalCookies,'original browser session preserved');
   await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',journey:cfg.journey,upload_posts:uploadPosts,creates})});

@@ -57,7 +57,8 @@ Unique owner identity is full account plus the server-bound owner option, not a
 campaign name. Existing scenario selectors provide the representative selection;
 server admission remains authoritative for native parentage/exclusions.
 
-`parsePlanningMicros` is the existing exact micros parser to inspect/reuse; do not
+`parsePlanningMicros` already rejects exponent notation/extra precision and returns
+bounded BigInt micros from up to six decimal places; reuse it. Do not
 reuse the document's two-decimal `money()` for native observations/hypotheses.
 Render up to six fractional digits, no rounding. Submitted amounts never derive
 from period allocations. Requested amount must be nonnegative/no more than observed;
@@ -133,8 +134,9 @@ and GETversions; it cannot identify owner discovery/save/export failures. Preser
 those classes and add closed regex/method matches for `owner_discovery` (POST
 planning/google-budget-owners), `create` (POSTplanning/plans), `revise` (POST
 plans/{id}/inputs), `version` (GETplans/{id}/versions/{positive}), `export` (GET
-plans/{id}/export), and `request_receipt` using the exact frozen existing route after
-source confirmation. Do not classify arbitrary paths or log captured IDs/query strings.
+plans/{id}/export), and `request_receipt` (GETplanning/plans/requests/{operation}/{request_key}),
+with operation constrained to the existing Operation literal and key constrained to
+the existing 8–128-character `[A-Za-z0-9_-]` RequestKey. Do not classify arbitrary paths or log captured IDs/query strings.
 Add only the exact frozen owner refusal literal to fixed_detail; unlisted strings,
 structured422 payloads and arbitrary exception texts remain `unlisted_server_detail`.
 Pure tests cover precise methods, malformed IDs/paths and safe fallback.
@@ -153,3 +155,8 @@ reviewed helper census is a separate external observer, still requires a parent-
 authorized exact new milestone/source/observer manifest and sole test slot; no
 execution or optimization is authorized by this plan. Preserve normal clocks,
 five-second facts, all fresh passes and failed outcomes without pass-chasing.
+
+Dependency status: the service lane reported its first SQLite owner generation
+failed with `planning_authority_expired` before a completed case. Its remaining
+qualification is held. This proposal authorizes no UI implementation or run while
+that dependency is unresolved; route/census diagnosis belongs to the parent.

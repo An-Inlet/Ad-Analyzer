@@ -7134,3 +7134,13 @@ memory headroom 3.10 GiB. Original failed/interrupted attempts remain preserved.
 [Final result and limits](inlet-w1-validation-result-20261011.md).
 Local branch `codex/inlet-w1-followup`; pushes/hosted retries held; no live calls,
 ad mutations, merge or deployment. Q01–Q16 partial; six human release gates unmet.
+
+## 2026-10-11 — Shared Selected-Event Contract
+
+Implemented and independently reviewed immutable customer-selection/capture DTOs,
+separate from aggregate metrics, with whole-source correction/privacy/generation
+binding, strict presence and DST-safe instants.140focused tests passed; repository
+Ruff and mypy1272files passed. [Package ledger](inlet-selected-contract-package-20261011.md)
+and [Q01–Q16/human gate work matrix](inlet-quality-next-packages-20261011.md).
+Pure contract only; storage/import/customer consumer not yet activated. Frozen W1
+qualification preserved; all remote/hosted/live/release holds remain.

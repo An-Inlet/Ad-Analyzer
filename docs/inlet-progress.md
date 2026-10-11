@@ -7529,3 +7529,36 @@ unresolved; it will not be silently replaced by correction evidence.
 Independent review confirmed misleading Google history wording. A bounded copy
 repair is authorized within existing UI mechanics; privacy and backend behavior
 remain unchanged. Actual reconnect acceptance will be separately qualified.
+
+## 2026-10-11 — Creative Correction And Accurate Google Warnings Integrated
+
+Integrated warning repair `274c3ae` as `f18c0b0` and Q11 correction qualification
+`7a9f82f` as `e1c027c` on `codex/inlet-w1-followup`. Google callback/disconnect
+copy now distinguishes workspace-wide erased plans/decisions/selected evidence
+from retained imported reporting/goals. Existing authorization and privacy
+behavior are unchanged. The two existing browser cases passed separately on
+SQLite (6.37s) and PostgreSQL (7.58s).
+
+Two new genuine private-V5 API cases passed: SQLite 19.91s and PostgreSQL 32.02s.
+Actual reporting correction changes selected conversions from 10 to 4 while
+retaining 100 clicks/$100, customer product/image inputs and accepted V1 history.
+V2 has exact parent/source lineage and no decision carryover. Run02's original
+incorrect expected refusal assertion remains frozen: zero passes, one failure,
+PostgreSQL unrun. The revised assertion checks the exact integrity refusal and
+current-view reason; backend behavior was not changed or broadly relaxed.
+
+Root and independent review verified five warning sources/21 evidence files,
+two Q11 sources/22 evidence files, exact XML identities, and six strict Q11
+original/current/export documents and digests. Root whole Ruff and configured
+no-path mypy passed (1,487 files). Integration contains the exact qualified source
+union; no identical pytest cases were rerun. A read-only evidence inspection
+initially assumed a mapping instead of the recorded list; corrected inspection
+verified all 21 warning evidence files without altering or rerunning tests.
+
+See [warning ledger](inlet-google-reconnect-copy-20261011.md) and
+[correction ledger](inlet-q11-creative-source-correction-20261011.md). Reconnect
+history preservation is not qualified: the explicit requirements review remains
+open, and an owner decision was requested asynchronously with a recommendation
+to retain existing privacy erasure for the MVP. Next independent package is a
+reviewed actual reconnect-route erasure/no-resurrection acceptance proposal.
+Six human judgments and R01/R02/R03 remain open; no live, hosted or sharing action.

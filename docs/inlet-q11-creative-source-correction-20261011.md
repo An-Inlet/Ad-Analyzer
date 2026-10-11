@@ -1,4 +1,4 @@
-# Q11 Creative Source Correction — Source Preparation
+# Q11 Creative Source Correction — Qualified Offline Slice
 
 Base `ba5be52`; isolated branch `codex/inlet-q11-creative-source-correction`.
 Only new `tests/test_creative_runtime_source_correction.py` and this record change.
@@ -25,7 +25,7 @@ Google reselect currently invokes semantic erasure of the planning/event graph,
 which cannot support the frozen history-preserving reconnect expectation without
 reviewing that lifecycle distinction. No direct generation updates are substituted.
 
-Validation status: source preparation only; pytest has not been launched. Whole
+At initial source preparation, pytest had not been launched. Whole
 `ruff check .` passed. Configured no-path `mypy` passed (1,487 source files), using
 a fresh `/tmp` cache; tool session 18220 exited 0. `git diff --check` passed.
 After reviewer-requested exact metric/event/media assertions, whole Ruff and mypy
@@ -33,8 +33,8 @@ passed again. Collection-only exited 0 with exactly two cases; log:
 `/workspace/inlet-evidence/20261011/q11-creative-source/collection-01.log`.
 Each eventual case saves synthetic customer document/comparison/events/export JSON
 under its isolated test directory. Independent source/selection closure and
-execution authorization remain pending.
-No commit is made before the required test qualification.
+execution authorization were pending at that preparation checkpoint.
+The final commit followed the changed-source qualification recorded below.
 
 
 ## First Execution Preserved
@@ -51,7 +51,7 @@ current-read reason assertion change; no broader409 acceptance/backend change.
 
 Immutable original packet: `/workspace/inlet-evidence/20261011/q11-creative-source/failure-run02-freeze.json`
 SHA256 `65fa2cc7005fddb985c23c32abf9e23e17a7a3b0c64c1e46ca72c5dcffcf2771`.
-Changed-source run03 preparation is authorized; test execution remains held.
+At that checkpoint, changed-source run03 preparation was authorized and execution remained held; run03 was never executed.
 
 
 ## Changed-Source Qualification

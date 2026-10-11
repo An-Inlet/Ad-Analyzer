@@ -103,3 +103,16 @@ The [shared-budget human decision packet](inlet-shared-budget-human-review-20261
 now adds the actual complete-to-fresh-partial recovery evidence, preserved V1 and
 explicit distinction between input revision 2 and a generated successor. It has
 six unfilled human verdict fields; automated passes do not fill them.
+
+
+## Source Correction With Retained Creative Evidence
+
+The bounded private-V5 [Q11 correction ledger](inlet-q11-creative-source-correction-20261011.md)
+now includes passing SQLite/PostgreSQL actual API correction journeys. The
+[PostgreSQL customer evidence](/workspace/inlet-evidence/20261011/q11-creative-source/customer-evidence-04-postgres.json)
+contains original/current documents, field comparison, the original accepted
+decision and historical export. Selected conversions change from 10 to 4 with
+100 clicks/$100 unchanged; customer product/image basis remains the same. V1
+remains historical, V2 has a distinct source capture and exact parent, and the
+original decision is not carried over. This is reporting correction evidence,
+not reconnect preservation, refund correction or a human usefulness judgment.

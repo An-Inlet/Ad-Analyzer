@@ -32,8 +32,9 @@ backend review repairs before final qualification. No schema or default runtime.
    event facts. No optimistic receipt or locally manufactured completion.
 5. Explicit **Discover Events** POSTs `event-options`. Render named options with
    metric-family labels using textContent; no first-option default. **Confirm Event**
-   POSTs the opaque option ID and expected null selection pair after invalidation.
-   A conflict requires a fresh state read; never silently replace another choice.
+   POSTs the opaque option ID and exact latest GET/invalidation receipt selection
+   ID/digest pair; an invalidated current pointer retains that pair. Only a
+   never-selected state uses the null pair. A conflict requires a fresh state read; never silently replace another choice.
 6. POST `captures` only after successful confirmation, binding exact selection
    ID/digest and the same inclusive range. Generate a separate stable request ID;
    apply the same unknown/retry policy as range acquisition. Display the actual

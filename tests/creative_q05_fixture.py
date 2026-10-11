@@ -42,7 +42,12 @@ class CreativeQ05Basis:
 
 
 def _social_account(
-    engine: Engine, wid: int, platform: str, *, currency: Literal["USD", "EUR"] = "USD"
+    engine: Engine,
+    wid: int,
+    platform: str,
+    *,
+    currency: Literal["USD", "EUR"] = "USD",
+    external_id: str = "123",
 ) -> int:
     # Fixture-owned connection bootstrap only, using keys initialized once below.
     now = datetime.now(UTC)
@@ -62,7 +67,7 @@ def _social_account(
             workspace_id=wid,
             connection_id=integration.id,
             platform=AdvertisingPlatform(platform),
-            external_account_id="123",
+            external_account_id=external_id,
             name="Mug " + platform,
             currency_code=currency,
             time_zone="America/New_York",
@@ -75,8 +80,8 @@ def _social_account(
                     workspace_id=wid,
                     workspace_integration_id=integration.id,
                     account_id=account.id,
-                    external_account_id="123",
-                    encrypted_credentials=MetaVault(settings).seal(wid, "123", bundle),
+                    external_account_id=external_id,
+                    encrypted_credentials=MetaVault(settings).seal(wid, external_id, bundle),
                     conversion_action_type="purchase",
                 )
             )
@@ -89,7 +94,7 @@ def _social_account(
                     integration_id=integration.id,
                     account_id=account.id,
                     provider=platform,
-                    external_id="123",
+                    external_id=external_id,
                     status="connected",
                     generation=1,
                     window_start=date(2026, 8, 1),

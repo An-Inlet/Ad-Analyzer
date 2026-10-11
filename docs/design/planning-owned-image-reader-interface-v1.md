@@ -42,6 +42,9 @@ Bound total collection to60seconds using monotonic elapsed time, with checks
 before/after storage and inspection and after final authority. Reject a backwards
 monotonic clock or image observation clock. This deadline is an operational bound,
 not a new provider freshness lifetime; it does not authorize extending plan expiry.
+These are cooperative checks around blocking private reads/decodes, not a hard
+cancellation guarantee. An empty selection still performs both authority/goal/
+privacy checks and the final post-context elapsed check.
 No SQL commit, file mutation, upload, advertising access or media deletion occurs.
 
 ## Failures And Limits

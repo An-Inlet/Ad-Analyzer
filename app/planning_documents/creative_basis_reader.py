@@ -19,11 +19,14 @@ from app.campaign_review.service import inspect_media
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
 from app.lifecycle.privacy import workspace_export_revision
-from app.planning_documents.common import Frozen, Id
 from app.planning_documents.creative_basis import (
     CreativeBasisV1,
     CreativeInputV1,
     OwnedPlanningImageV1,
+)
+from app.planning_documents.creative_image_collection import (
+    CollectedCreativeBasisV1,
+    PlanningImageRowPinV1,
 )
 from app.planning_documents.ports import GenerationTicket
 from app.planning_documents.read_context import PlanningReadContexts, snapshot
@@ -44,14 +47,6 @@ def _validated[Model: BaseModel](model: type[Model], value: Any) -> Model:
         raise PlanningImageUnavailable() from None
 
 
-class _Row(Frozen):
-    witness: OwnedPlanningImageV1
-    created_by: Id
-
-    def identity(self) -> dict[str, object]:
-        return dict(self.witness.model_dump(exclude={"observed_at"}), created_by=self.created_by)
-
-
 class OwnedPlanningImageReader:
     def __init__(
         self,
@@ -66,6 +61,21 @@ class OwnedPlanningImageReader:
         self.provider, self.store, self.clock = provider, store, clock
 
     def collect(self, ticket: GenerationTicket, requested: CreativeInputV1) -> CreativeBasisV1:
+        return self._collect(ticket, requested, pinned=False).basis
+
+    def collect_pinned(
+        self, ticket: GenerationTicket, requested: CreativeInputV1
+    ) -> CollectedCreativeBasisV1:
+        # Reject unsaved/substituted intent before any identity-provider or storage IO.
+        ticket = _validated(GenerationTicket, ticket)
+        requested = _validated(CreativeInputV1, requested)
+        if ticket.inputs.creative is None or ticket.inputs.creative != requested:
+            raise PlanningImageUnavailable()
+        return self._collect(ticket, requested, pinned=True)
+
+    def _collect(
+        self, ticket: GenerationTicket, requested: CreativeInputV1, *, pinned: bool
+    ) -> CollectedCreativeBasisV1:
         started = last_tick = monotonic()
         last_wall: datetime | None = None
 
@@ -109,7 +119,7 @@ class OwnedPlanningImageReader:
                     raise
                 raise PlanningImageUnavailable() from None
 
-        def rows() -> tuple[_Row, ...]:
+        def rows() -> tuple[PlanningImageRowPinV1, ...]:
             with reads.open() as db:
                 paid_work(db, wid, checkpoint())
                 goal(db)
@@ -127,7 +137,7 @@ class OwnedPlanningImageReader:
                         raise PlanningImageUnavailable()
                     result.append(
                         _validated(
-                            _Row,
+                            PlanningImageRowPinV1,
                             dict(
                                 created_by=row.created_by,
                                 witness=dict(
@@ -199,5 +209,15 @@ class OwnedPlanningImageReader:
         if tuple(row.identity() for row in original) != tuple(row.identity() for row in final):
             raise PlanningImageUnavailable()
         result = _validated(CreativeBasisV1, basis.model_copy(update={"images": tuple(images)}))
+        pins = tuple(
+            _validated(PlanningImageRowPinV1, dict(witness=image, created_by=row.created_by))
+            for image, row in zip(result.images, original, strict=True)
+        )
+        envelope = _validated(
+            CollectedCreativeBasisV1,
+            dict(basis=result, rows=pins, ticket_digest=ticket.digest()),
+        )
+        if pinned:
+            envelope.assert_ticket(ticket)
         checkpoint()
-        return result
+        return envelope

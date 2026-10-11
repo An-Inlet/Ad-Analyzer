@@ -28,6 +28,24 @@ work. See [the discovery ledger](inlet-google-budget-owner-discovery-20261011.md
 browser409 remains unknown; subsequent fixes do not explain it. All original
 failures and frozen qualification remain preserved.
 
+## Current Shared-Budget Review Checkpoint
+
+The later [service integration](inlet-owner-service-integration-20261011.md) and
+[authenticated browser package](inlet-owner-planning-browser-20261011.md) now
+implement the input/history/customer-flow work described as remaining at the
+earlier discovery checkpoint. Four complete/partial SQLite/PostgreSQL journeys
+passed after the narrowly qualified creative-renderer repair. The original failed
+journey remains preserved. [Duplicate-owner request coverage](inlet-q06-repeated-owner-qualification-20261011.md)
+adds four actual API refusal cases with no persisted effects.
+
+Q06 remains partial: the shared daily setting is an investigation-only customer
+hypothesis, not a qualified native edit or proof of compatibility with a period
+spending ceiling. The next bounded engineering join is complete-to-fresh-partial
+membership recovery with explicit removal and unchanged historical documents,
+defined in the [reviewed contract](design/q06-complete-to-partial-recovery-v1.md).
+No new schema or advertising authority is proposed. Human usefulness judgments
+and all live/release gates remain separate.
+
 ## Engineering That Can Continue Without Another Approval
 
 | Case | Concrete next deliverable | Acceptance evidence still needed |

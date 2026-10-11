@@ -28,15 +28,17 @@ Mandatory ordering before touching db or principal:
 
 1. Run `PlanVersion.model_validate(document)` unconditionally once and retain its
    returned value as `self.document`; unsafe copied/nested values are still validated.
-2. Inspect only that checked document for the existing exact canonical selected
-   descriptor, require its creative flag (closed V5/V6 pairs), and perform the
-   existing strict aware-now validation. Unknown/mixed/future pairs still refuse.
-3. If a restriction is supplied, require exact tuple shape/length and strict string
+2. If a restriction is supplied, require exact tuple shape/length and strict string
    primitives, and compare the checked policy/generator pair to it. A mismatch raises
    the same bounded `ValueError("exact owner review document required")` used by
-   the owner port today. This is an extra AND condition: it never authorizes a pair,
-   skips a validator, renews time, or chooses a bypass mode. None preserves existing
-   private-context behavior; even a supplied unknown pair cannot pass the descriptor.
+   the owner port today, before now/context checks as in the original owner gate.
+   This is an extra AND condition: it never authorizes a pair, skips a validator,
+   renews time, or chooses a bypass mode.
+3. Inspect only the checked document for the existing exact canonical selected
+   descriptor, require its creative flag (closed V5/V6 pairs), and perform the
+   existing strict aware-now validation. Unknown/mixed/future pairs still refuse.
+   None preserves existing private-context behavior; even a supplied unknown pair
+   cannot pass the descriptor.
 4. Only then obtain and check the same clean Session/Connection transaction roots
    and initialize existing timing/authority state, unchanged.
 

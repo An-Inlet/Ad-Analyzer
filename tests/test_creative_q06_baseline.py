@@ -11,7 +11,12 @@ import pytest
 from app.api import customer_planning_target_catalog
 from app.collectors import account_diagnostics
 from app.customers.access import SESSION_COOKIE
+from app.planning_documents.catalog_evidence import CatalogEvidence
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.google_budget_owner_contracts import (
+    GoogleBudgetOwnerUnavailable,
+    derive_google_daily_budget_owner,
+)
 from app.settings import Settings
 from sqlalchemy import Engine
 
@@ -157,6 +162,7 @@ def test_actual_v5_q06_shared_owner_baseline(
         row = settings_by_key[target["native_settings_key"]]
         assert row["budget_owner_key"] == target["budget_owner_key"]
         value = row["settings"]
+        assert target["entity"]["status"] == value["status"] == "ENABLED"
         assert tuple(
             value[field]
             for field in (
@@ -244,6 +250,16 @@ def test_actual_v5_q06_shared_owner_baseline(
     assert generated.status_code == 200, generated.text
     document = generated.json()["document"]
     doc = PlanVersion.model_validate(document)
+    collected = CatalogEvidence.model_validate(
+        dict(reference=next(e for e in doc.evidence if e.kind == "native_catalog"), catalog=catalog)
+    )
+    if partial:
+        with pytest.raises(GoogleBudgetOwnerUnavailable, match="coverage_unavailable"):
+            derive_google_daily_budget_owner(collected, targets["1"]["budget_owner_key"])
+    else:
+        witness = derive_google_daily_budget_owner(collected, targets["1"]["budget_owner_key"])
+        assert {t.provider_reference.entity_id for t in witness.affected_campaigns} == {"1", "2"}
+        assert witness.reference_count == 2 and witness.current_amount_micros == 10_000_000
     alternative = next(s for s in doc.scenarios if s.customer_intent_key == "owner_split")
     assert [a.target.provider_reference.entity_id for a in alternative.allocations] == ["1", "3"]
     for allocation in alternative.allocations:

@@ -206,13 +206,16 @@ def _read(
             return data
 
         if isinstance(inventory, GoogleNativeInventory):
-            for row in google_rows("SELECT campaign.resource_name, campaign.name FROM campaign"):
+            for row in google_rows(
+                "SELECT campaign.resource_name, campaign.name, campaign.status FROM campaign"
+            ):
                 campaign = row["campaign"]
                 entity(
                     "campaign",
                     google_id(campaign["resourceName"], "campaigns"),
                     None,
                     campaign.get("name"),
+                    campaign.get("status"),
                 )
             for row in google_rows(
                 "SELECT ad_group.resource_name, ad_group.name, ad_group.status, "

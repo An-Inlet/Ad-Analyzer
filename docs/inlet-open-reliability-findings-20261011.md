@@ -49,3 +49,32 @@ are retained in `/workspace/inlet-evidence/20261011/q08-browser-integration/`.
 No historical cause was established. R01 remains OPEN; no extra retry is planned
 from this successful observation. Normal-path artifact persistence was exercised;
 forced-timeout persistence remains source-reviewed, not runtime demonstrated.
+
+## R02 — Q09 PostgreSQL Generate Authority Expiry: Open
+
+The local `creative-q09-baseline/both03` cohort stopped after two passing SQLite
+cases when the PostgreSQL complete case's POST generate returned409 with the exact
+fixed reason `planning_authority_expired`. The fourth PostgreSQL partial case did
+not run under `-x`. XML records2passed/1failed,54.719s. The earlier corrected
+SQLite-only cohort passed2; neither that success nor this narrower failure qualifies
+the planned four-case Q09 baseline. Tests used the integrated owner-input consumer,
+real local customer API/database paths, and mocked provider acquisition.
+
+Logs/XML, exact source hashes and successful SQLite document/export artifacts are
+retained in `/workspace/inlet-evidence/20261011/creative-q09-baseline/`. An earlier
+fixture failure parsed a capture header as a full document; it was corrected to the
+existing strict historical_capture reader, with the failed attempt retained. That
+fixture correction is not a runtime authority repair.
+
+No retry or authority-limit change followed the PostgreSQL failure. Read-only
+failure-specific diagnosis is authorized: identify the exact failing phase from
+available facts, inspect the unchanged five-second boundary and previous measured
+costs, then propose bounded safe phase instrumentation before another execution.
+Any diagnostic execution requires review of that concrete proposal; use normal
+clocks, unchanged authority limits, no concurrent DB job and retained failure output.
+No inferred performance cause is established by the fixed error alone.
+
+R02 has a known route/reason and is tracked separately from R01's original generic
+browser action409. It does not retroactively explain R01. No broader Q09, live,
+provider, hosted or release qualification is claimed. Independent standalone owner
+review-contract work can proceed while diagnosis is prepared.

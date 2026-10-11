@@ -22,6 +22,7 @@ from app.planning_documents.common import (
     unique,
 )
 from app.planning_documents.context import ReportingWindow
+from app.planning_documents.creative_basis import CreativeInputV1
 from app.planning_documents.selected_inputs import (
     SelectedCaptureSelectorV1,
     validate_selected_accounts,
@@ -60,6 +61,7 @@ class CustomerInputs(Frozen):
     fixed_allocations: tuple[AllocationIntent, ...] = Field(max_length=100)
     scenario_intents: tuple[ScenarioIntent, ...] = Field(max_length=8)
     maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
+    creative: CreativeInputV1 | None = None
     selected_reporting: tuple[SelectedCaptureSelectorV1, ...] | None = Field(
         default=None, max_length=20
     )
@@ -69,6 +71,8 @@ class CustomerInputs(Frozen):
         result: dict[str, Any] = handler(self)
         if self.selected_reporting is None:
             result.pop("selected_reporting", None)
+        if self.creative is None:
+            result.pop("creative", None)
         return result
 
     @model_validator(mode="after")

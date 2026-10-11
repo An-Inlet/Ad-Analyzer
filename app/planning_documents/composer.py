@@ -12,6 +12,7 @@ from app.campaign_performance.presence_report import (
 from app.planning_documents.actions import Allocation, BudgetScenario, CreativeBrief, ManualAction
 from app.planning_documents.common import MAX_ACTIONS, MAX_BRIEFS, MAX_SCENARIOS
 from app.planning_documents.context import AccountTarget, PlanInputRevision, TargetRef
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.ports import (
     CatalogEvidence,
@@ -153,6 +154,7 @@ class DescriptivePlanComposer:
         evidence = EvidenceBundle.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
         try:
+            validate_creative_policy(inputs.creative, policy.version, policy.generator_version)
             reject_legacy_selected(
                 inputs.selected_reporting, policy.version, policy.generator_version
             )

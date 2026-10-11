@@ -17,6 +17,7 @@ from app.planning_documents.context import (
     ReportingWindow,
     TargetRef,
 )
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_inputs import (
@@ -268,6 +269,12 @@ class SelectedPlanComposer:
         ticket = GenerationTicket.model_validate(ticket)
         evidence = SelectedPairedEvidenceV1.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
+        try:
+            validate_creative_policy(
+                ticket.inputs.creative, policy.version, policy.generator_version
+            )
+        except ValueError as error:
+            raise PlanCompositionUnavailable(str(error)) from error
         canonical = PlanningCompositionPolicy(
             version=SELECTED_POLICY_VERSION, generator_version=SELECTED_GENERATOR_VERSION
         )

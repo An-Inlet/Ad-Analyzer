@@ -29,6 +29,11 @@ unsupported policy admission and incompatible saved generation use the existing
 409 conflict handling, consistently with selected inputs. No new public
 configuration or service policy acceptance is enabled.
 
+The reservation does not supply document proof: `PlanVersion` additionally rejects
+non-null creative inputs even for the reserved v5 pair until genuine v5 creative
+proof validation is integrated. Input DTOs may carry the reserved value; an
+incomplete creative document may not pass validation.
+
 Validate legacy Python/JSON and digest goldens; null omission versus explicit
 empty/value; copied-model and currency failures; exact policy-pair gating; actual
 customer API rejection before persistence/native reads on both databases. Preserve

@@ -25,6 +25,7 @@ from app.planning_documents.common import (
     unique,
 )
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.fields import ProposedField
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
@@ -64,6 +65,9 @@ class PlanVersion(NoAuthority):
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
+        validate_creative_policy(self.inputs.creative, self.policy_version, self.generator_version)
+        if self.inputs.creative is not None:
+            raise ValueError("typed creative document proof is not yet available")
         reject_legacy_selected(
             self.inputs.selected_reporting, self.policy_version, self.generator_version
         )

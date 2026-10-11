@@ -95,6 +95,7 @@ def prepare(
         fixed_allocations=(),
         scenario_intents=(),
         maximum_creative_assets=intent.maximum_creative_assets,
+        creative=intent.creative,
         selected_reporting=intent.selected_reporting,
         created_by=actor_id,
         created_at=now,
@@ -111,6 +112,8 @@ def resolve(
     intent = CustomerInputs.model_validate(intent)
     if prepared.selected_reporting != intent.selected_reporting:
         raise ValueError("prepared selected reporting differs")
+    if prepared.creative != intent.creative:
+        raise ValueError("prepared creative inputs differ")
     available = {
         (target.account.account_id, target.canonical_entity_key, target.selection_key): target
         for catalog in catalogs

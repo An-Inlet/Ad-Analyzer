@@ -31,6 +31,7 @@ from app.planning_documents.common import (
     fingerprint,
     unique,
 )
+from app.planning_documents.creative_basis import CreativeInputV1
 from app.planning_documents.selected_inputs import (
     SelectedCaptureSelectorV1,
     validate_selected_accounts,
@@ -125,6 +126,7 @@ class PlanInputRevision(NoAuthority):
     fixed_allocations: tuple["FixedAllocation", ...] = Field(max_length=100)
     scenario_intents: tuple["CustomerScenarioIntent", ...] = Field(max_length=8)
     maximum_creative_assets: int | None = Field(default=None, strict=True, ge=0, le=30)
+    creative: CreativeInputV1 | None = None
     selected_reporting: tuple[SelectedCaptureSelectorV1, ...] | None = Field(
         default=None, max_length=20
     )
@@ -136,6 +138,8 @@ class PlanInputRevision(NoAuthority):
         result: dict[str, Any] = handler(self)
         if self.selected_reporting is None:
             result.pop("selected_reporting", None)
+        if self.creative is None:
+            result.pop("creative", None)
         return result
 
     @model_validator(mode="after")
@@ -144,6 +148,13 @@ class PlanInputRevision(NoAuthority):
             self.selected_reporting, tuple(a.account_id for a in self.accounts)
         )
         definition = self.goal.definition
+        if (
+            self.creative is not None
+            and self.creative.product is not None
+            and self.creative.product.list_price is not None
+            and self.creative.product.list_price.currency != definition.target_window.currency
+        ):
+            raise ValueError("creative price currency must match confirmed goal")
         if (
             self.goal.workspace_id != self.workspace_id
             or any(a.workspace_id != self.workspace_id for a in self.accounts)

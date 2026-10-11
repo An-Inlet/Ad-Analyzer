@@ -16,6 +16,7 @@ from app.planning_documents.context import (
     ReportingWindow,
     TargetRef,
 )
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
@@ -191,6 +192,9 @@ class WindowPlanComposer:
         evidence = WindowEvidenceBundleV1.model_validate(evidence)
         policy = PlanningCompositionPolicy.model_validate(policy)
         try:
+            validate_creative_policy(
+                ticket.inputs.creative, policy.version, policy.generator_version
+            )
             reject_legacy_selected(
                 ticket.inputs.selected_reporting, policy.version, policy.generator_version
             )

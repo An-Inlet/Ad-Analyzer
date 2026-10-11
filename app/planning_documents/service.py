@@ -25,6 +25,7 @@ from app.planning_documents.composer import (
     DescriptivePlanComposer,
     PlanCompositionUnavailable,
 )
+from app.planning_documents.creative_inputs import validate_creative_policy
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
@@ -143,6 +144,9 @@ class PlanningDocumentService:
         self, principal: CustomerPrincipal, wid: int, plan_id: str, request: CreatePlan | EditPlan
     ) -> InputResult:
         try:
+            validate_creative_policy(
+                request.inputs.creative, self.policy.version, self.policy.generator_version
+            )
             reject_legacy_selected(
                 request.inputs.selected_reporting,
                 self.policy.version,
@@ -314,6 +318,9 @@ class PlanningDocumentService:
                 raise repository.changed("generation input or version changed")
             inputs = repository.inputs(db, plan)
             try:
+                validate_creative_policy(
+                    inputs.creative, self.policy.version, self.policy.generator_version
+                )
                 reject_legacy_selected(
                     inputs.selected_reporting, self.policy.version, self.policy.generator_version
                 )

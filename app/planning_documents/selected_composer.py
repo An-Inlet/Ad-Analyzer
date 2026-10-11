@@ -17,7 +17,15 @@ from app.planning_documents.context import (
     ReportingWindow,
     TargetRef,
 )
+from app.planning_documents.creative_composition import (
+    CreativeCompositionReferencesV1,
+    compose_creative_proposals,
+)
+from app.planning_documents.creative_image_collection import CollectedCreativeBasisV1
 from app.planning_documents.creative_inputs import validate_creative_policy
+from app.planning_documents.creative_plan_bundle import assert_creative_collection_time
+from app.planning_documents.creative_plan_document import creative_basis_reference
+from app.planning_documents.creative_retained_proof import creative_proof_from_collection
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.ports import GenerationTicket, PlanningCompositionPolicy
 from app.planning_documents.selected_inputs import (
@@ -32,6 +40,7 @@ from app.planning_documents.selected_plan_bundle import (
     SelectedPlanEvidenceBundleV1,
     SelectedWindowEvidenceV1,
 )
+from app.planning_documents.selected_policy_contract import assert_selected_composition_policy
 
 
 def bounded_text(value: str) -> str:
@@ -300,7 +309,20 @@ class SelectedPlanComposer:
         paired: SelectedPairedEvidenceV1,
         policy: PlanningCompositionPolicy,
         generated_at: datetime,
+        *,
+        creative: CollectedCreativeBasisV1 | None = None,
     ) -> PlanVersion:
+        if creative is not None:
+            creative = CollectedCreativeBasisV1.model_validate(creative)
+            contract = assert_selected_composition_policy(
+                policy,
+                ticket_policy_version=ticket.policy_version,
+                ticket_policy_digest=ticket.policy_digest,
+            )
+            if not contract.requires_creative:
+                raise PlanCompositionUnavailable("creative collection requires canonical v5")
+            paired.assert_ticket(ticket)
+            assert_creative_collection_time(creative, ticket, generated_at)
         evidence = paired.selected
         inputs = ticket.inputs
         version, parent_digest = ticket.expected_version + 1, ticket.expected_parent_digest
@@ -330,6 +352,13 @@ class SelectedPlanComposer:
         if len(references) > MAX_EVIDENCE:
             raise PlanCompositionUnavailable("complete evidence set exceeds document capacity")
         valid_until = min(ref.expires_at.astimezone(UTC) for ref in references)
+        creative_proof = None
+        creative_composition = None
+        if creative is not None:
+            creative_proof = creative_proof_from_collection(creative, ticket)
+            references.append(creative_basis_reference(creative_proof, inputs, valid_until))
+            if len(references) > MAX_EVIDENCE:
+                raise PlanCompositionUnavailable("complete evidence set exceeds document capacity")
         if generated_at >= valid_until:
             raise PlanCompositionUnavailable("evidence expired before composition")
         if any(
@@ -464,6 +493,8 @@ class SelectedPlanComposer:
                 )
             if catalog.reference.coverage != "complete_in_declared_scope":
                 section_limits.append(f"Account {account.account_id}: catalog coverage is partial.")
+            if creative is not None:
+                continue
             if inputs.constraints:
                 continue
             if not inputs.product_offer or len(briefs) >= capacity:
@@ -557,7 +588,26 @@ class SelectedPlanComposer:
                     ),
                 )
             )
-        if len(actions) > MAX_ACTIONS or len(section_limits) > 30:
+        if creative is not None:
+            creative_composition = compose_creative_proposals(
+                inputs,
+                evidence.catalogs,
+                creative.basis,
+                CreativeCompositionReferencesV1(
+                    basis_key="creative:basis",
+                    basis_digest=creative.basis.digest(),
+                    customer_key=customer_key,
+                    customer_input_digest=inputs.digest(),
+                    policy_key=policy_key,
+                    policy_digest=policy.digest(),
+                    policy=policy,
+                ),
+                first_priority=len(actions) + 1,
+            )
+            actions.extend(proposal.action for proposal in creative_composition.proposals)
+            briefs.extend(proposal.brief for proposal in creative_composition.proposals)
+            section_limits.extend(creative_composition.limitations)
+        if len(actions) > MAX_ACTIONS or len(briefs) > MAX_BRIEFS or len(section_limits) > 30:
             raise PlanCompositionUnavailable("complete plan exceeds current document capacity")
 
         scenarios = []
@@ -612,6 +662,8 @@ class SelectedPlanComposer:
                 ),
             )
         return PlanVersion(
+            creative_proof=creative_proof,
+            creative_composition=creative_composition,
             selected_reporting_proof=evidence.reporting_proof,
             inputs=inputs,
             version=version,

@@ -9,6 +9,7 @@ from sqlalchemy.orm import object_session
 
 from app.customers.access import CustomerPrincipal, Database, MutationPrincipal, Principal, Provider
 from app.customers.identity import IdentityProvider
+from app.planning_documents.authority_diagnostics import PlanningDiagnosticRoute
 from app.planning_documents.capabilities_view import PlanningCapabilitiesV1
 from app.planning_documents.common import Id
 from app.planning_documents.comparison import VersionComparison, compare_versions
@@ -34,7 +35,9 @@ from app.planning_documents.service import PlanningDocumentService
 from app.publication.customer_runtime import utc_now
 
 router = APIRouter(
-    prefix="/api/customer/v1/workspaces/{workspace_id}/planning/plans", tags=["customer"]
+    prefix="/api/customer/v1/workspaces/{workspace_id}/planning/plans",
+    tags=["customer"],
+    route_class=PlanningDiagnosticRoute,
 )
 Cursor = Annotated[str | None, Query(max_length=256)]
 Limit = Annotated[int, Query(ge=1, le=100)]

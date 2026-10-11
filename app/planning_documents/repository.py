@@ -557,7 +557,7 @@ def save_generation(
         if prior.plan_id != plan_id:
             raise changed("request key belongs to another plan")
         _, result = version(db, plan, prior.version)
-        authority.final(current, fact)
+        authority.final(current, fact, diagnostic_phase="replay")
         return result
     if (
         plan.input_head != ticket.inputs.revision
@@ -591,7 +591,7 @@ def save_generation(
         )
     except RetainedSourcesChanged as error:
         raise changed(error.reason) from error
-    authority.final(current, fact)
+    authority.final(current, fact, diagnostic_phase="pre_cas")
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
     updated = db.scalar(
@@ -666,5 +666,5 @@ def save_generation(
     db.flush()
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
-    authority.final(current, fact)
+    authority.final(current, fact, diagnostic_phase="post_flush")
     return candidate

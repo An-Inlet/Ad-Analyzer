@@ -7285,3 +7285,34 @@ Connection-fault cleanup warnings and repaired test-only mypy findings are retai
 No document field, registry, generation, service or UI activation in this slice.
 Next is reviewed slice2 genuine V6 pure document/composition; runtime remains gated.
 R01/R02, incomplete Q09 and six human judgments remain open. All work local only.
+
+## 2026-10-11 — Coherent Manual Flow And Genuine Pure V6
+
+The reviewed [customer milestone](design/q06-manual-owner-flow-milestone.md)
+(`beccf61`) binds remaining work to one existing-portal journey, using the already
+reserved V6 pair. The [portal contract](design/google-budget-owner-portal-interface-v1.md)
+(`bc2c56b`) distinguishes explicit empty V6 hypotheses from absent legacy inputs,
+shows all affected members, and labels the editable value a requested hypothesis.
+No additional policy generation or default switch is proposed.
+
+Pure composition integrated `e8c7600` (author `18027ee`), independently CLOSED.
+234 distinct passing cases comprise61new and173legacy across preserved attempts;
+the final compatibility cohort177 passed15.850s. Three earlier failures are retained:
+two synthetic fixture inconsistencies and a real Meta optional-schedule mismatch.
+The narrow reviewed fix permits absent native Meta schedules only in their exact
+settings shape; required reporting times remain strict. Root16source/21evidence
+hashes/fiveXML verified; integrated Ruff and configured mypy1,467 passed.
+[Exact source/result limits](inlet-google-owner-v6-pure-20261011.md).
+
+New full linked-catalog fields, genuine composer and checked V6 serialization are
+pure only. Old V1–V5 refusals and output goldens remain; no registry/service/SQL/UI
+activation or authority-window qualification is claimed. Retained current/history
+implementation now proceeds under reviewed `0ea8854`, reusing the existing receipt
+loader; service/registry/save integration planning is separate with shared ports
+frozen first. Next acceptance is complete private API wiring, then the reviewed
+portal and one frozen integration milestone.
+
+A [bounded diagnostic census](design/q09-next-milestone-helper-census-v1.md) is
+source-reviewed for that later new milestone; it has not run. R01/R02 remain
+unresolved, original Q09 incomplete, and six human judgments open. No unchanged
+probe retry, live/remote/release action or external sharing occurred.

@@ -7956,3 +7956,26 @@ Ruff log also contains inherited S110/RUF100 despite its ledger's pass claim.
 The ledger now explicitly corrects that statement; original source/logs/freeze and
 measurements are retained. The Q13 observer has not run and is held until its
 comment-only lint fix and original-exit check record pass independent review.
+
+
+## Q13 Successor Runtime Attribution Recorded
+
+One authorized instrumented SQLite journey on isolated9c6b96c completed with
+originalexit0 and complete two-operation accounting. First/save successor wall
+was2.355453/2.928040seconds with2385/2406SQLcalls. Successor prior-version loading
+was0.663120seconds inclusive with21SQL; this is mixed validation/history work,
+not removable pure overhead or the net generation delta. All34 final checks per
+save returned; exact disjoint wall/SQL sums and clean flags were verified.
+Freeze02aca37575 binds1799sources/25evidence, root+independent CLOSED.
+
+This observation used plain assertions; normal acceptance used rewrite. Source
+inspection has not demonstrated a heavy rewritten save-time callback. The mode
+and environmental differences remain explicit, and this pass does not replace
+the failed normal SQLite qualification or explain its age failure. No runtime
+code was integrated and no additional acceptance cases were run.
+
+Next package: review measured successor history/serialization costs and the
+source map before any further repair; preserve separate SQL rereads, historical
+dependency graphs, original receipt validation and every final authority check.
+Do not promote a small canonical-factor change as a sufficient deadline fix.
+The existing15 unrun database cases remain held for a justified changed candidate.

@@ -60,3 +60,21 @@ input V4 consumer remains an independently integrated package.
 - Whole Ruff passed; configured mypy passed **1,319 files**.
 - Both new JavaScript modules passed `node --check`; `git diff --check` passed.
 - No Full, hosted checks, push, merge, deployment or live provider calls.
+
+## Original-Session Display Fence Repair
+
+Independent review identified a same-owner session replacement gap between UI
+operations: replacing operation cookies could adopt a new browser session while
+retaining the prior session's displayed selection, range or pending body. The page
+now retains a separate display-origin cookie fence. Ordinary work rejects a changed
+fence and clears all owned state before any request; explicit Refresh Session is
+required to establish a new display origin. Trailing session awaits are followed
+immediately by synchronous checks before state/options/confirmation/invalidation
+rendering, as well as receipt rendering and preflight action dispatch.
+
+The actual browser journey now signs into the same owner again between operations
+without a focus event and proves no old capture intent is issued. After explicit
+refresh, a microtask cookie rotation following the trailing session response proves
+old choice data cannot render. Both SQLite/PostgreSQL browsers passed **2 cases,
+zero skips, 23.46 seconds** (`portal-origin-repair.xml` / `.log`). Whole Ruff and
+configured mypy (1,319 files), JavaScript syntax and diff checks passed.

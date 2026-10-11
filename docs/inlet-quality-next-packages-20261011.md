@@ -22,7 +22,9 @@ Q08 baseline, retained proof, composer and document/save consumers are now revie
 and implemented locally; four API and seven browser cases passed. The actual Q06
 shared-owner baseline also passed four both-database cases. See
 [the integrated checkpoint](inlet-q08-q06-checkpoint-20261011.md). Q06
-native-setting production interfaces are not yet frozen. The original
+standalone owner and receipt-backed discovery interfaces are now reviewed and
+implemented; the input/history port and native-setting output remain separate
+work. See [the discovery ledger](inlet-google-budget-owner-discovery-20261011.md). The original
 browser409 remains unknown; subsequent fixes do not explain it. All original
 failures and frozen qualification remain preserved.
 

@@ -7212,3 +7212,20 @@ exact native-edit and recovery outputs remain unimplemented. Integrated whole Ru
 and mypy1,433 passed. [Checkpoint and next package](inlet-q08-q06-checkpoint-20261011.md).
 R01 remains open, six human judgments remain pending, and all remote/live/release
 holds remain. Artifacts are local only.
+
+## 2026-10-11 — Original Shared-Owner Evidence And Discovery
+
+Standalone Q06 owner/intent contracts are integrated and reviewed. Actual original
+Google catalogs exposed missing metadata status; narrow query/parser retention
+now supplies observed status without modifying historical receipts.54 focused pure
+and4 both-database API cases passed; old missing-status catalogs still refuse.
+[Metadata prerequisite](inlet-google-owner-metadata-status-20261011.md).
+
+Read-only private V5 owner discovery integrated79ff5fc/checkpoint9e77ab8:26 actual
+API cases across both databases and7 separate pure cases passed; final independent
+review CLOSED. Root verified8 artifacts/four strict catalog+view pairs and whole
+Ruff/mypy1,443. [Exact evidence and retained failed attempts](inlet-google-budget-owner-discovery-20261011.md).
+No input/native-setting output or public UI activation. Pure input binding and
+explicit historical provenance design continue; unselected account source fences
+cannot be invented from current state. Q06 remains partial. Original R01 and six
+human gates remain open; no remote/live/release/upload operation occurred.

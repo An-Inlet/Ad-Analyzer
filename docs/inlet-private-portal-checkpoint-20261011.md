@@ -89,3 +89,12 @@ schema was cleaned up by the fixture, so no original database state survives.
 Earlier references to a "generation 409" describe the user action only. Retain the
 failure without attributing it to a particular route. The next bounded diagnostic
 must capture fixed route classes/status/error detail for all three requests.
+
+The single approved ordered reproduction `ordered-08` passed all five cases in
+73.511s, without the timing plugin or screenshot capture. It preserved the original
+SQLite Google/Meta/TikTok/safety then PostgreSQL Google ordering; all observed
+request classes returned HTTP 200. This does not diagnose or repair `both-02`.
+The [safe diagnostic analysis](/workspace/inlet-evidence/20261011/creative-portal-browser/original-409-analysis.md)
+records candidate conflict sites and surviving evidence limits. No further original
+sequence retry was started. A separate pure-admission cost probe is being prepared;
+no optimization has been implemented or claimed to fix the original action conflict.

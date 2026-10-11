@@ -7265,3 +7265,23 @@ Q09 qualification remain open; no second probe or guard change followed. Evidenc
 is local in `creative-q09-baseline/probe04*`. Next work is a reviewed private V6
 integration contract and separate source-only query-path investigation proposal.
 All remote/live/release/sharing holds and six pending human judgments remain.
+
+## 2026-10-11 — Historical Owner Review Ports
+
+Reviewed V6 design `dee53c4` explicitly retains complete linked catalogs for
+ordinary cross-account allocations and exclusions; owner witnesses alone cannot
+cover that graph. No catalog is fabricated for an unselected owned account.
+Historical slice1 integrated `3007e90` (author `b7f7163`), independently CLOSED.
+Eight new pure cases, ten SQLite, ten PostgreSQL and29 unchanged active regressions
+passed without duplicated SQLite cases. Root verified5 source hashes/14 evidence
+hashes/three XML files; integrated Ruff and configured mypy1,460 passed.
+[Exact results and limits](inlet-google-owner-retained-slice-20261011.md).
+
+The retained helper returns validated immutable catalog/source values, preserving
+original input links and opaque scalar commitments. Existing active full-source
+validation and public None-returning receipt validation remain intact. Clean-root
+checks do not claim sticky flush detection or natural-expiry qualification. Expected
+Connection-fault cleanup warnings and repaired test-only mypy findings are retained.
+No document field, registry, generation, service or UI activation in this slice.
+Next is reviewed slice2 genuine V6 pure document/composition; runtime remains gated.
+R01/R02, incomplete Q09 and six human judgments remain open. All work local only.

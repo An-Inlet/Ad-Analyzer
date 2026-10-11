@@ -7694,3 +7694,26 @@ unchanged pass-chasing. Q13 independent field-observation production, Q14 topolo
 duplicate names and Q15 assembled malicious-text coverage remain independent
 gaps. Retention/sharing/human decisions and all live/remote/release/budget holds
 are unchanged. Original R01/R02/R03 and exhaustive `9d7aa2e` remain separate.
+
+
+## Normal Generation Measurement And Q15 Source Work
+
+The [bounded subphase observer](design/v6-normal-generation-subphase-observer-v1.md)
+has root and independent source-design review. Implementation is authorized;
+execution still requires the exact plugin/source/manifest review. One existing
+normal PostgreSQL owner-generation case will measure disjoint save phases and
+nested retained-source work using real clocks. This is separate from the failed
+injected-delay test. The original five-second deadline, fresh SQL/proof checks,
+exceptions and rollback stay unchanged. Additional implementation requirements:
+read only the exact resident IdentityFact scalar and flag inconsistent accounting
+instead of silently clamping negative exclusive durations. No measured dominance
+or performance repair is claimed.
+
+The independent [Q15 literal-text journey](design/q15-v6-literal-text-journey-v1.md)
+is approved for test-only source implementation. Its optional native-name map is
+copied and validated once, keeps metadata/name agreement, and affects owner
+acquisition and subsequent fresh reads; earlier common bootstrap may be benign.
+Two new SQLite/PostgreSQL variants will join actual V6 native/customer text to
+browser structural checks and JSON export. Legitimate restriction-driven creative
+deferral remains valid; no CSV-safety claim. Tests await source and runtime-base
+review. Neither package changes the pending owner retention/sharing decisions.

@@ -7921,3 +7921,31 @@ No runtime production code changed for characterization. The repair must still
 qualify custom-timezone callback parity and non-null legacy nested behavior,
 retain public validation, and retain all assertions after SQL. See
 `inlet-selected-ticket-characterization-20261011.md`.
+
+
+## Selected Runtime Repair: Pure Qualification, Database Failure Preserved
+
+The isolated four-file same-call validation repair e3de241 has 37 distinct pure
+passes (17 original successes plus20 corrected/unrun), unchanged document bytes,
+error/callback parity and verified removal of immediate duplicate parsing. Two
+fixture-construction failures remain preserved. Whole author Ruff/mypy1494 passed;
+root and independent review verified finalfreeze1a85a66e, seven sources and57
+evidence hashes. This is not a runtime latency or reliability qualification.
+
+The explicit local union69b346a preserves rootQ14/Q15, adds diagnostics/Q12/Q13
+and the repair, and passed wholeRuff/mypy1496 and exact20 collection. Four pure
+authority boundaries passed. Its first SQLite case failed at the second Q13
+generation with409planning_authority_expired; the fixed diagnostic identifies
+routegenerate, phasepre_cas, causefact_age_outside_window and sessionpredicate
+not_evaluated. No numeric age or underlying CPU/SQL cause was measured. The
+remaining seven SQLite and eight PostgreSQL cases are unrun, with no retry.
+The repair is insufficient for this runtime acceptance; it remains isolated.
+Docs-only successor9c6b96c preserves unchanged attempted app/tests and all evidence.
+
+The union lint check also corrected an earlier inaccurate Q13 Ruff-pass claim:
+its shell command masked an E501 exit. The original logs remain; the assertion
+line-wrap fix is AST-identical and final wholeRuff exited0. No unrelated tests
+were repeated for formatting. See the two selected-kernel ledgers. Root production
+remains4c8e28f; next work is bounded full authority-window attribution on the
+failed repeated-generation scenario, retaining original guards/facts/deadlines.
+No push, merge, deployment, live provider activity or spending occurred.

@@ -7246,3 +7246,22 @@ verified, no resets or duplicate tests. Q09 baseline qualification proceeds on t
 new input consumer. Its exactMeta-lead/TikTok-attribution case remains unsupported;
 no missing semantics are invented. Owner output remains a separate design, and
 all live/remote/release/sharing holds remain.
+
+## 2026-10-11 — Standalone Owner Review And R02 Observation
+
+Standalone investigation-only contracts/composer/validator integrated `91171a2`
+(author `072f6c3`), independently reviewed CLOSED.37 focused pure tests passed
+5.457s, including legacy bytes and all seven existing generation refusals. Root
+verified11 evidence hashes/XML; whole Ruff and configured mypy1,458 passed.
+No existing document field, runtime policy, history path or UI was activated.
+[Package evidence](inlet-google-budget-owner-review-pure-20261011.md).
+
+Exactly one reviewed external observer ran the frozen Q09 PostgreSQL complete case
+(source `0b6fd79`):1 passed21.668s. All observed authority checks returned; maximum
+fact age3.042576s with session lifetime remaining. Full generation recorded8,628
+SQL statements; save was an inclusive3,146-statement subset. These observations
+do not establish the cause of the earlier failure. R02 and the original four-case
+Q09 qualification remain open; no second probe or guard change followed. Evidence
+is local in `creative-q09-baseline/probe04*`. Next work is a reviewed private V6
+integration contract and separate source-only query-path investigation proposal.
+All remote/live/release/sharing holds and six pending human judgments remain.

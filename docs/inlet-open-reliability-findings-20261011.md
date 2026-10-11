@@ -82,3 +82,23 @@ R02 has a known route/reason and is tracked separately from R01's original gener
 browser action409. It does not retroactively explain R01. No broader Q09, live,
 provider, hosted or release qualification is claimed. Independent standalone owner
 review-contract work can proceed while diagnosis is prepared.
+
+### R02 Single Observation — Probe04
+
+The reviewed plugin `7a5bd4ca025fbcfdf322bb7f78823ad43025de71a0d20afd0e7a0171c8b41a38`
+ran exactly once on frozen `0b6fd79`, one PostgreSQL complete node with normal
+clocks and unchanged guards.1 passed21.668s; no retries. Both generation calls
+(including replay) returned; no events truncated. Maximum observed final fact age
+was3.042576s at repository save line640, session remaining28,782.63s. First
+generation wall9.233794s included8,628 SQL statements/2.349233s measured SQL time;
+save inclusive wall3.042459s included3,146 statements/0.656306s SQL. Replay wall
+0.093005s included26 statements. Nested times overlap; failed SQL duration is
+excluded. CPU/wall differences do not identify lock contention.
+
+The original failing run had no such observations. This success does not explain
+it or close R02, and the PostgreSQL partial case remains unexecuted. No optimization
+or deadline increase is justified as an incident fix. A separate source-only
+query-path proposal may address the observed statement count without weakening
+authority, ownership, privacy or source revalidation. Original Q09 source stays
+isolated/unqualified. Exact report, XML, manifest and successful document/export
+are retained under `creative-q09-baseline/probe04*`.

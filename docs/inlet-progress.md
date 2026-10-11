@@ -7646,3 +7646,51 @@ change follows without that decision. Artifact sharing and six human judgments
 remain pending; all evidence remains local. Next work is bounded Q12–Q16
 acceptance-gap reconciliation and exact integration selection after source settles,
 without invented Q09 social semantics or repeated incident pass-chasing.
+
+
+## 2026-10-11 — Diagnostic Candidate And Q12 HTTP Concurrency
+
+[Q12–Q16 reconciliation](inlet-q12-q16-gap-reconciliation-20261011.md) identifies
+current coverage and remaining joins without rewriting frozen cases. The new
+diagnostic-only candidate `d99b0ea` records fixed route/phase/expiry cause, never
+customer identities, payloads, paths or exception text. It preserves original
+clock evaluation, authority guards and exceptions, including logging failure.
+
+Diagnostics01 stopped at 29 passed / 1 PostgreSQL failure / 2 unrun. New retained
+evidence identified generate/pre_cas/fact_age_outside_window before the intended
+post-flush delay; no exact age or session lifetime was measured. Separately, the
+two previously unrun sales cases passed once on the same production source. The
+32-ID union is 31 distinct successes and one preserved failure, not an all-pass
+cohort. Whole Ruff/mypy passed (1,491 files). Root and independent review verified
+eight source/26 original evidence hashes and the later disjoint two-pass packet.
+No failed case was retried. The [source-only census](design/planning-pre-cas-validation-census-v1.md)
+identifies validation boundaries, not their runtime costs or a sufficient repair.
+
+Candidate `9fd75ab` adds only the Q12 test/ledger to `d99b0ea`. Both new actual
+customer API cases passed: SQLite sequential parity and PostgreSQL overlapping
+requests from independent clients sharing the original session. One edit wins;
+replay is exact; changed-key reuse and obsolete/changed-action decisions refuse
+with their exact reasons. Genuine V6 owner/creative evidence, V1 history/decision
+and V2 lineage remain bound, and provider calls/six financial counters do not
+change. Initial test-only mypy label typing was corrected before execution;
+final whole Ruff/mypy passed (1,492 files). Runner01 remained unexecuted; reviewed
+runner02 added bound authorization and post-run source checks.
+
+Root verified two Q12 source and 19 evidence hashes, exact XML/original exits,
+six strict original/current/export documents and digests, both parent links and
+singleton original decisions. SQLite XML case time31.388s, PostgreSQL43.345s;
+these are not performance qualifications. All customer artifacts remain local at
+`/workspace/inlet-evidence/20261011/q12-owner-cas/`; frozen packet SHA
+`f33502cacedbe319c526847485b1ec235df9a79496da02a302abdd967ee9ae6a`.
+
+The bounded coherent source candidate is `9fd75ab` on
+`codex/inlet-q12-owner-cas-candidate`; it is NOT integrated or fully qualified.
+Root keeps its previously qualified code while retaining these candidates and
+all failures. The pre-CAS runtime margin remains an engineering qualification
+blocker; current observations cannot attribute cost to a particular subphase.
+Next cause-oriented package must establish a bounded measurement hypothesis
+from the census before execution; no guessed small fix, deadline renewal or
+unchanged pass-chasing. Q13 independent field-observation production, Q14 topology/
+duplicate names and Q15 assembled malicious-text coverage remain independent
+gaps. Retention/sharing/human decisions and all live/remote/release/budget holds
+are unchanged. Original R01/R02/R03 and exhaustive `9d7aa2e` remain separate.

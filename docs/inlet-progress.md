@@ -8007,3 +8007,25 @@ This proves the redundant decoder operation, not that it caused the earlier
 deadline failure. A changed-source pass, fallback/lifecycle parity and realistic
 normal-assertion multi-version qualification on both databases are still required.
 Root production remains4c8e28f; all remote, hosted, live and release holds remain.
+
+
+The first repaired-source mechanism run also stopped at the same decoder-count
+assertion: originalexit1, one SQLite failure in11.97s, with prior document parity
+passing. All1,488 app/test hashes stayed unchanged. No remaining parity/database
+cases ran and no unchanged retry occurred. Freeze green01 at
+version-row-admission-green/green01-freeze.json, SHA256
+828479a0403d05f12e3d0560aa49544cddfb42ec28cd3580d6e18c4e06228219,
+was independently verified across18 evidence files. This establishes that the
+fast path did not match, not which eligibility branch prevented it.
+
+Whole Ruff and configured mypy1498 passed before that run. Earlier checker failures
+are retained:23 scalar narrowing errors plus2 test implicit-export errors, followed
+by2 constant-getattr lint findings. Precise post-guard casts and test-only module
+casts repaired them. The regression assertions are unchanged; its full source hash
+differs from the original red because of those type-checking access corrections.
+
+Source diagnosis identified a concrete candidate cause: SQLAlchemy treats the
+history SELECT as ORM because its WHERE clauses use mapped attributes, even though
+it selects the table. The new ORM-listener safeguard can therefore invalidate its
+own intended read. A one-use exact-statement permit is under review; no SQL,
+validation or deadline change is proposed, and this is not yet a proven sole cause.

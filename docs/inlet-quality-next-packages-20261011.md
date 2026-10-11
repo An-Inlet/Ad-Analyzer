@@ -18,10 +18,13 @@ bounded mechanical results, not closure of the frozen cases or human gates.
 
 Q07 currency/ceiling and Q10 constraint joins now have reviewed, bounded actual API
 coverage; see the [integrated checkpoint](inlet-q07-q10-checkpoint-20261011.md).
-Next is the approved Q08 zero-budget owned-empty-catalog baseline, before production
-account-level creative changes. Its retained empty-catalog witness contract remains
-under design review. The original browser409 remains unknown; subsequent fixes do
-not explain it. All original failures and frozen qualification remain preserved.
+Q08 baseline, retained proof, composer and document/save consumers are now reviewed
+and implemented locally; actual API/browser qualification is in progress. See
+[the consumer checkpoint](inlet-q08-document-consumer-20261011.md). Q06 next has
+[a reviewed shared-owner baseline design](design/creative-q06-shared-owner-interface-20261011.md);
+its proposed native-setting production interfaces are not yet frozen. The original
+browser409 remains unknown; subsequent fixes do not explain it. All original
+failures and frozen qualification remain preserved.
 
 ## Engineering That Can Continue Without Another Approval
 

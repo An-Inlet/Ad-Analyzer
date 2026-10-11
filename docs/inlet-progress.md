@@ -7717,3 +7717,24 @@ Two new SQLite/PostgreSQL variants will join actual V6 native/customer text to
 browser structural checks and JSON export. Legitimate restriction-driven creative
 deferral remains valid; no CSV-safety claim. Tests await source and runtime-base
 review. Neither package changes the pending owner retention/sharing decisions.
+
+
+The first normal-generation measurement passed its sole PostgreSQL case (26.446s
+XML case; 30.779793s process), with unchanged application source. Its observer
+hit the 512-frame and 128-final-call limits: operation one contains 375 automatic
+flush frames and 128 authority frames, exhausting coverage before retained-source
+work and final save guards. The report correctly flags truncation and incomplete
+accounting. This is not complete cost attribution, reliable margin, acceptance
+or resolution of any historical incident. [Outcome](inlet-v6-normal-save-measurement-20261011.md)
+is frozen locally; root and independent review verified one source and 22 evidence
+hashes, freeze `15f4161723e13323398b38bb79ef741418d0aeed50938b5f68dd943ac44d4b18`.
+
+A reviewed observer-only correction removes flush instrumentation and limits
+detailed authority timing to save-active calls. Original calls, clocks, deadline
+and all record caps remain unchanged. New execution requires its own frozen
+manifest; the original measurement is retained. Q15's five test-file changes plus
+ledger passed root/independent source review on separate branch
+`codex/inlet-q15-owner-literal-text`; no test body or statics have run there.
+The source inventory is local at `/workspace/inlet-design/Q15-LITERAL-TEXT-SOURCE-INVENTORY.json`
+(SHA `d0178b080e028e01b5ee47e4c1aae8301272ef36fbfc3267afacf48865af72bf`).
+The Q12 branch still points to `9fd75ab`; production and all owner gates are unchanged.

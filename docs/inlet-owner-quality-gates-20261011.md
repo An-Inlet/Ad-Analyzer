@@ -24,8 +24,9 @@ The new [Common Basis artifact manifest](/workspace/inlet-evidence/20261011/crea
 contains 20 genuine synthetic API document/export artifacts. Root independently
 verified every byte hash and strict document digest. They cover Google positive,
 zero and missing selected conversions, Meta-only and TikTok-only flows. They are
-review material, not expert verdicts. The new private portal browser flow and the
-complete three-platform packet remain separate work; Q01–Q16 stay partial.
+review material, not expert verdicts. The bounded private portal browser result and the new four-file three-platform
+artifact are linked from the [review packet](inlet-creative-review-packet-20261011.md).
+They provide mechanical evidence; Q01–Q16 stay partial.
 
 Separate operational release decisions also remain: authorized live identity,
 payment, storage and provider setup; settled commercial terms; representative

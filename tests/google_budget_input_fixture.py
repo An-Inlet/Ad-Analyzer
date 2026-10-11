@@ -14,12 +14,21 @@ from tests.test_customer_optimization_api import headers
 
 
 def ready_inputs(
-    engine: Engine, config: Settings, replicas: Any, patch: pytest.MonkeyPatch, path: Path
+    engine: Engine,
+    config: Settings,
+    replicas: Any,
+    patch: pytest.MonkeyPatch,
+    path: Path,
+    *,
+    partial: bool = False,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
-    fixture, catalog, calls = acquired_owner_catalog(engine, config, replicas, patch, path)
+    fixture, catalog, calls = acquired_owner_catalog(
+        engine, config, replicas, patch, path, partial=partial
+    )
     alice, _, _ = replicas
     alice.app.include_router(customer_planning_budget_owners.router)
     root = f"/api/customer/v1/workspaces/{fixture.basis.workspace_id}/planning"
+    before_calls = len(calls)
     discovery = alice.post(
         root + "/google-budget-owners",
         headers=headers(alice),
@@ -30,10 +39,19 @@ def ready_inputs(
         ),
     )
     assert discovery.status_code == 200, discovery.text
-    option = discovery.json()["owners"][0]
-    target = option["representative"]
+    assert len(calls) == before_calls
     body = copy.deepcopy(fixture.body)
     body["request_key"] = "google-owner-input-create"
+    if partial:
+        view = discovery.json()
+        assert view["status"] == "unavailable" and view["owners"] == []
+        assert view["reason"] == "google_budget_owner_unavailable"
+        assert view["recovery"] == "Read fresh targets and review the full affected campaigns."
+        body["inputs"]["google_daily_budget_intents"] = []
+        return fixture, body, calls, catalog
+    assert discovery.json()["status"] == "available"
+    option = discovery.json()["owners"][0]
+    target = option["representative"]
     body["inputs"]["scenario_intents"] = [
         dict(
             key="owner-test",

@@ -7,6 +7,24 @@ _ROUTE = re.compile(
     r"(?P<suffix>/generate|/versions)?$"
 )
 
+_ROOT = r"/api/customer/v1/workspaces/[0-9]+/planning"
+_PLAN = _ROOT + r"/plans/[a-f0-9]{32}"
+_EXTRA_ROUTES = (
+    ("POST", re.compile(_ROOT + r"/google-budget-owners"), "owner_discovery"),
+    ("POST", re.compile(_ROOT + r"/plans"), "create"),
+    ("POST", re.compile(_PLAN + r"/inputs"), "revise"),
+    ("GET", re.compile(_PLAN + r"/versions/[1-9][0-9]*"), "version"),
+    ("GET", re.compile(_PLAN + r"/export"), "export"),
+    (
+        "GET",
+        re.compile(
+            _ROOT + r"/plans/requests/(?:create|revise|generate|decide|assert_applied)"
+            r"/[A-Za-z0-9_-]{8,128}"
+        ),
+        "request_receipt",
+    ),
+)
+
 FIXED_DETAILS = frozenset(
     (
         "Account diagnostics could not be completed. Check your connection and try again.",
@@ -61,6 +79,7 @@ FIXED_DETAILS = frozenset(
         "planning evidence policy differs",
         "planning input source changed",
         "planning_authority_expired",
+        "owner review differs from actual collected evidence",
         "request key belongs to another plan",
         "request key is bound to different input",
         "requested-window evidence required",
@@ -78,7 +97,11 @@ FIXED_DETAILS = frozenset(
 def route_class(path: str, method: str) -> str | None:
     match = _ROUTE.fullmatch(path)
     if match is None:
-        return None
+        return next(
+            (label for verb, pattern, label in _EXTRA_ROUTES
+             if method == verb and pattern.fullmatch(path)),
+            None,
+        )
     suffix = match.group("suffix")
     if method == "POST" and suffix == "/generate":
         return "generate"

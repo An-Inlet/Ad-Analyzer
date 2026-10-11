@@ -1,6 +1,6 @@
 """Genuine original-session input/catalog/upload path with an explicit private V6 factory."""
 
-from functools import partial
+from functools import partial as partial_factory
 from pathlib import Path
 from typing import Any
 
@@ -20,16 +20,18 @@ def configured_owner_review(
     replicas: Any,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    *,
+    partial: bool = False,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     # Existing helper obtains uploaded image, aggregate/selected capture and original
     # catalog/discovery receipts via real APIs. It does not save any input or plan.
     fixture, body, calls, catalog = ready_inputs(
-        engine, configuration, replicas, monkeypatch, tmp_path
+        engine, configuration, replicas, monkeypatch, tmp_path, partial=partial
     )
     monkeypatch.setattr(
         api,
         "PlanningDocumentService",
-        partial(
+        partial_factory(
             PlanningDocumentService,
             policy=PlanningCompositionPolicy(
                 version="inlet.descriptive-review.v6",
@@ -53,11 +55,19 @@ def configured_owner_review(
         ),
     )
     assert discovery.status_code == 200, discovery.text
-    assert any(
-        option["owner_selection_id"]
-        == body["inputs"]["google_daily_budget_intents"][0]["owner_selection_id"]
-        for option in discovery.json()["owners"]
-    )
+    if partial:
+        view = discovery.json()
+        assert view["status"] == "unavailable" and view["owners"] == []
+        assert view["reason"] == "google_budget_owner_unavailable"
+        assert view["recovery"] == "Read fresh targets and review the full affected campaigns."
+        assert body["inputs"]["google_daily_budget_intents"] == []
+    else:
+        assert discovery.json()["status"] == "available"
+        assert any(
+            option["owner_selection_id"]
+            == body["inputs"]["google_daily_budget_intents"][0]["owner_selection_id"]
+            for option in discovery.json()["owners"]
+        )
     capability = alice.get(root + "/plans/capabilities")
     assert capability.status_code == 200, capability.text
     assert capability.json()["policy_version"] == "inlet.descriptive-review.v6"

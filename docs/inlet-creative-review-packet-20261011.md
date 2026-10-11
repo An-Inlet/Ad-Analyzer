@@ -76,3 +76,25 @@ replace the original packets. No upload or external sharing has been performed.
 
 The six human decisions still require separate judgments. Further offline acceptance
 work proceeds independently; external artifact delivery requires owner approval.
+
+## Shared Google Daily Setting Review
+
+The following genuine browser-generated PostgreSQL artifacts supplement Q06.
+The customer selected a shared owner covering two campaigns, entered a daily
+hypothesis, and saved/generated the plan through the existing application.
+
+- Complete discovery: [Document](/workspace/inlet-evidence/20261011/owner-planning-browser/tls02-03-document.json) · [Export](/workspace/inlet-evidence/20261011/owner-planning-browser/tls02-03-export.json).
+- Incomplete membership: [Document](/workspace/inlet-evidence/20261011/owner-planning-browser/tls02-04-document.json) · [Export](/workspace/inlet-evidence/20261011/owner-planning-browser/tls02-04-export.json).
+- [Artifact manifest](/workspace/inlet-evidence/20261011/owner-planning-browser/tls02-artifact-copies.json) · [Qualification ledger](inlet-owner-planning-browser-20261011.md).
+
+Complete discovery retains one owner review with its entire observed affected set.
+The requested daily amount is a customer hypothesis: disposition is investigation
+only, application unavailable, and compatibility with the period spending ceiling
+is not assessed. Incomplete discovery offers ordinary planning with no owner
+review. Neither artifact authorizes a native edit or proves a daily-to-period
+spending calculation. The original product/image observations remain included.
+
+All four SQLite/PostgreSQL document/export pairs were strictly parsed and their
+domain digests independently verified. Four browser journeys passed on the repaired
+source; the earlier renderer failure is preserved. These artifacts support human
+assessment, not a completed Q06 or expert usefulness verdict.

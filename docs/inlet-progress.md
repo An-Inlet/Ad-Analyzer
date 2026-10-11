@@ -7433,3 +7433,31 @@ Root verified four frozen source and ten evidence hashes.
 test-import typing finding and correction. TLS01's original failure remains
 preserved. The separately frozen TLS02 successor will test all four original
 journeys on changed source; none is claimed passing from this component result.
+
+## 2026-10-11 — Authenticated Shared-Budget Review Journey
+
+Integrated browser qualification `944b65e` and its ledger clarification `0097660`
+as `a4abb3c` / `65b087e`. TLS02 passed all four original-session journeys: complete
+and partial discovery on SQLite and PostgreSQL. The original TLS01 renderer
+failure remains preserved; the unchanged browser scaffold passed after the
+qualified renderer repair. No unchanged retry-to-green was performed.
+
+The actual local browser exercises target reads, owner discovery, customer input
+submission, lost-response receipt recovery, generation, current/history, export,
+and explicit owner removal. Partial discovery uses an explicit empty owner list.
+Provider responses are synthetic; no advertising writes or extra provider reads
+during receipt/save/generate/read operations were introduced. This qualifies an
+already-authenticated original session, not a fresh browser login or live provider.
+
+[Browser ledger](inlet-owner-planning-browser-20261011.md) records four passing
+cases (101.601 seconds summed XML suites), 50 successful bounded routes with
+complete observers, and four strictly validated document/export pairs. Root and
+independent review verified three frozen source and 56 evidence hashes. Root
+whole Ruff and configured no-path mypy passed (1,485 files); no identical pytest
+cohort was repeated for integration. The app/test tree matches the frozen author.
+
+The [review packet](inlet-creative-review-packet-20261011.md) now links complete
+and partial PostgreSQL artifacts. Shared daily settings remain investigation-only,
+not qualified native edits or period-ceiling guarantees. Next: bounded actual API
+coverage of the existing duplicate-owner request rejection. Human quality gates,
+original reliability findings and all remote/live/release holds remain unchanged.

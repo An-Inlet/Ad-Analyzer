@@ -1,6 +1,7 @@
 # Creative Generation Save Preparation — Proposed Internal Interface
 
-Status: design only; independent review required before implementation. Inspected
+Status: design reviewed; implementation deferred after the
+[bounded cost assessment](../inlet-creative-save-cost-assessment-20261011.md). Inspected
 production `226841a` / documentation `3675480`. No source/test execution, authority
 change, runtime activation or claim that a failure has been explained.
 

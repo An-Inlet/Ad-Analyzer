@@ -115,3 +115,14 @@ snapshot unchanged, in addition to the owner-specific UI error. This test-only
 read-only checkpoint substantiates intermediate no-effects; final counts alone do
 not. Require the controller's counter to show that a real subsequent shared-budget
 response used referenceCount3. No fixture may mutate stored proof or receipt rows.
+
+## Execution Sequencing Amendment
+
+Root approved one two-node sequential qualification, replacing the manual
+inter-phase authorization sentence above. PostgreSQL may start automatically only
+after SQLite exits zero and its XML records exactly the intended single passing
+case with no failures, errors or skips. Source/head/WIP, resource floors, sole
+pytest and fresh output checks run before each case. Any failure stops the sequence
+and preserves the unrun remainder; no retries. This changes internal sequencing
+only, not scope or customer authority. The exact manifest still requires review
+and authorization before either case runs.

@@ -137,9 +137,10 @@ or dropped fresh pass remains an owner authority-architecture choice, not an imp
 fallback. No such choice is requested while this concrete domain-level design is under
 review, and no new implementation is authorized by this document alone.
 
-## Optional Same-Package Bound-Review Comparison (Explicit Additional Scope)
+## Deferred Bound-Review Comparison (Not In First Package)
 
-Root also identified `_validate_bound_review` in `google_budget_owner_review.py`: it
+This optional third-file extension is NOT authorized in the first two-production-file
+package. It remains a separate future review item. Root also identified `_validate_bound_review` in `google_budget_owner_review.py`: it
 strictly validates `proof`, then `proof.model_dump_json()` invokes that proof's checked
 serializer and validates it again; `expected.model_dump_json()` independently validates
 the constructor-built expected proof. A third-file extension is reviewable without

@@ -2,7 +2,8 @@
 
 Design only, based on integrated discovery `79ff5fc` and pure binding interface
 `8f5b60b`. No implementation, test execution, input/API enablement or policy change
-is included. This design has one unresolved historical-proof decision below.
+is included. The separate historical linked-receipt strategy below is parent-selected, pending
+review of its exact pure port before implementation.
 
 ## Additive data and byte preservation
 
@@ -88,7 +89,7 @@ binding on actual original loaded catalogs/fullticket sources/privacy. Even thou
 generation is refused in this slice, retained current input reads must never
 silently downgrade missing owner proof to primitive hypotheses.
 
-## Historical proof decision: unresolved, not fabricated
+## Historical proof decision: explicit separate linked-receipt port
 
 Actual `validate_retained_input_receipts` reconstructs CatalogEvidence from each
 linked immutable CatalogReceiptRow plus its exact retained input AccountRef.
@@ -105,17 +106,30 @@ current source state, guessed privacy, or duplicated selected-account sources wo
 fabricate evidence and is prohibited. Reducing inputs.accounts in a temporary
 copy would also change the exact historical input and is prohibited.
 
-Preferred review proposal (requires pure-author/root approval): add a separate
-`validate_retained_google_daily_budget_input_bindings` with the same immutable
-input/intents/catalogs but **exact linked-receipt sources**, derived only from original
-validated rows. It shares the strict owner/scenario/exclusion kernel; it validates
+Parent selected the separate historical port, leaving active validation unchanged:
+
+```
+validate_retained_google_daily_budget_input_bindings(
+    *, inputs: PlanInputRevision,
+    intents: tuple[ResolvedGoogleDailyBudgetIntentV1,...],
+    catalogs: tuple[CatalogEvidence,...], sources: tuple[SourceFence,...],
+) -> tuple[GoogleDailyBudgetOwnerWitnessV1,...]
+```
+
+There is deliberately no privacy argument that could invite a fabricated value.
+The SQL caller derives **exact linked-receipt sources** only from original validated
+rows, then the pure port derives their single unanimous privacy value. Inputs,
+accounts and goal stay unchanged. It shares the strict owner/scenario/exclusion kernel; it validates
 all retained full AccountRefs but makes no claim of original source commitments
 for unselected accounts. Require one exact catalog/source for every owner-intent
 account, unique sources exactlymatching linkedcatalog accounts, uniform retained
 privacy across those rows, original input/receipt admission-time joins, and no
 current clock/session/provider read. Nonempty intents necessarily have a linked
 catalog, hence a real retained epoch. For explicitempty with no linked catalogs,
-validate exact immutable input/link graph and no-owner semantics without claiming
+require intents empty, catalogs empty, sources empty and no ordinary selected targets
+(fixed/scenario/excluded); the SQL wrapper first validates its exact immutable
+input/link graph through existing `_bindings`. Return empty witnesses as an explicit
+no-owner-evidence result without claiming
 an unrecorded privacy epoch. Current admission keeps the stronger full-source
 validator unchanged. This is a distinct historical contract, not a mode flag that
 can weaken active admission.
@@ -124,7 +138,7 @@ Alternative if full-account historical fences are required: introduce a separate
 reviewed private immutable input-revision source proof with all original fences and
 privacy, retention/erasure/export bindings and a schema plan. Do not smuggle this
 into public input JSON or modify old receipt payloads. No such storage is currently
-approved. Implementation must wait for the historical decision; the discovery
+approved. Implementation must wait for review of this exact historical signature; the discovery
 endpoint remains useful independently.
 
 ## Generation refusal at every boundary

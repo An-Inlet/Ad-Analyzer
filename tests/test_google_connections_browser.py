@@ -260,6 +260,16 @@ def test_google_navigation_selection_cancel_retry_and_current_role(
         begin()
         browser.evaluate("document.getElementById('consent-approve').click()")
         browser.wait("document.getElementById('google-account')?.options.length === 2")
+        callback_warning = browser.evaluate(
+            "document.getElementById('google-selection').textContent"
+        )
+        assert "If this account was previously connected to this workspace" in callback_warning
+        assert "recorded decisions and selected reporting evidence across the entire workspace" in (
+            callback_warning
+        )
+        assert "including plans for other connected advertising accounts" in callback_warning
+        assert "Imported reporting and goal history remain" in callback_warning
+        assert "erased plans and decisions are not restored" in callback_warning
         assert "Unsupported manager" not in browser.evaluate("document.body.textContent")
         assert browser.evaluate("location.search") == ""
         # Role changed in another session while the selection page is open.
@@ -332,9 +342,20 @@ def test_google_navigation_selection_cancel_retry_and_current_role(
         browser.evaluate(
             f"document.getElementById('google-disconnect-account').value='{cid}';document.getElementById('google-disconnect-open').click()"
         )
-        assert "does not delete Google data" in browser.evaluate(
+        disconnect_warning = browser.evaluate(
             "document.getElementById('google-disconnect-effects').textContent"
         )
+        assert "does not delete Google data" in disconnect_warning
+        assert (
+            "recorded decisions and selected reporting evidence across this entire workspace"
+            in disconnect_warning
+        )
+        assert "including plans for other connected advertising accounts" in disconnect_warning
+        assert "goal history and audit records remain" in disconnect_warning
+        acknowledgment = browser.evaluate(
+            "document.getElementById('google-disconnect-consent').parentElement.textContent"
+        )
+        assert "across this workspace will be erased; running ads are unchanged" in acknowledgment
         browser.evaluate("document.getElementById('google-disconnect-confirm').click()")
         browser.wait(
             "document.getElementById('message').textContent.includes('confirm the data effects')"
@@ -366,6 +387,11 @@ def test_google_navigation_selection_cancel_retry_and_current_role(
             "document.getElementById('message').textContent.includes('Google Ads disconnected') && "
             "!document.getElementById('retry').disabled"
         )
+        result_text = browser.evaluate("document.getElementById('message').textContent")
+        assert "selected reporting evidence across this workspace were erased" in result_text
+        assert "Imported reporting and goal history remain" in result_text
+        assert "before creating a new plan" in result_text
+        assert "Running campaigns and spending are unchanged" in result_text
         assert (
             browser.evaluate("document.getElementById('google-disconnect-account').options.length")
             == 1

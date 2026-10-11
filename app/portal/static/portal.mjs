@@ -365,7 +365,7 @@ if (typeof document !== 'undefined') {
     if (!googleSetup?.can_manage || !selected || !$('google-disconnect-consent').checked) throw new Error('Select an account and confirm the data effects before disconnecting Google Ads.');
     await api(root() + '/google/connections/' + encodeURIComponent(selected.id), 'DELETE');
     await loadWorkspace();
-    say('Google Ads disconnected. Historical data remains; imports have stopped. Running campaigns and spending are unchanged.');
+    say('Google Ads disconnected. Imports have stopped. Saved plans, their recorded decisions and selected reporting evidence across this workspace were erased. Imported reporting and goal history remain. Reconnect, import fresh data and select reporting evidence again before creating a new plan. Running campaigns and spending are unchanged.');
   });
   for (const [provider,name] of Object.entries(crmProviders)) {
     const cancel = () => { $(provider+'-disconnect-consent').checked = false; show(provider+'-disconnect-review',false); };

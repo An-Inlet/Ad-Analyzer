@@ -7584,3 +7584,33 @@ commerce evidence; PostgreSQL was unrun. The reviewed test-only repair refreshes
 that control through the ordinary synthetic commerce import path using real time.
 No production freshness or privacy rule was changed. The contrary Q11 reconnect
 history requirement, six human judgments and all live/release gates remain open.
+
+
+## 2026-10-11 — Actual Google Fresh-Consent Lifecycle
+
+Integrated author `3765a06` as `f3c06ce`. Two new actual-route acceptance
+cases passed, one SQLite and one PostgreSQL, with no skips. Existing accepted
+private V5 plans and an unrelated same-workspace draft are erased after fresh
+same-advertiser consent; old lookups refuse access, prepared exports are fenced,
+and consumed-selection replay cannot resurrect data. Goals, imported commerce
+and campaign observations and the other workspace remain intact. Six zero
+financial counters establish no new execution effects, not preservation of
+nonempty liabilities. OAuth is synthetic and read-only; no live consent occurred.
+
+Root and independent review verified three source and 79 evidence hashes, exact
+XML identities/original exits, and original document/export equality. Ten durable
+artifacts were copied before erasure; they are not post-erasure API exports.
+SQLite XML suite/case times were 26.414/23.523 seconds; PostgreSQL 43.248/39.647.
+Three prior stopped SQLite failures remain documented, with PostgreSQL unrun in
+each: stale control commerce, a duplicated Meta fixture account, and an incorrect
+exact-plus-one privacy-fence expectation. Each received a source-backed test
+repair. Production privacy and freshness behavior did not change.
+
+Root whole Ruff and configured no-path mypy passed (1,488 source files); no
+source-identical pytest rerun. See [lifecycle ledger](inlet-q11-reconsent-lifecycle-20261011.md).
+This qualifies current erasure behavior, not Q11 preserved-history reconnect.
+The owner requirements decision and six human judgments remain pending.
+Original R01/R02/R03 incidents, broader Q01–Q16 gaps, and all live/remote/release
+holds remain open. Next bounded work is acceptance-gap triage against the frozen
+requirements, keeping ordinary reporting correction and privacy-erasing fresh
+consent distinct; do not silently redefine Q11 or broaden selected-provider facts.

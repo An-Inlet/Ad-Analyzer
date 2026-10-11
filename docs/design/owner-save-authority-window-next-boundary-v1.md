@@ -189,16 +189,63 @@ receipt TTL/opaque commitments; retained capture and every dependency; CAS, writ
 flush, final evidence expiry and final original-fact checks. No historical SQL document
 may be treated as covered by the prepared original bundle.
 
-To preserve exact completed replay/error precedence, the factory immediately raises
-only validation failures which the existing public function raises before its first
-SQL lock. For checks currently after receipt/head checks, retain bounded **typed
-expected-domain failure descriptors**, not exception objects/tracebacks or arbitrary
-text, in separate phase results. Consume re-emits the same fixed domain error only at
-that check's former position if replay has not returned. Unexpected validator failures
-are never reclassified as a domain error; no broad `ValueError` over callbacks/SQL.
-This phase/error mapping must be enumerated in implementation review before factoring;
-if an existing error cannot be represented without changing observable behavior, keep
-that check inside the transaction. No new permission to move callbacks or SQL follows.
+Expected preparation failures must never precede the service's existing final identity
+refresh. Even the former repository pre-lock checks occur **after** that provider call.
+Use the exact phase inventory below. This replaces the earlier incorrect instruction
+to raise pre-lock validation errors immediately in the factory.
+
+#### Closed Error Descriptors And Phase Inventory
+
+An internal descriptor is a fixed enum only, with no caller text, exception, traceback,
+SQL object, principal or arbitrary status payload. The enum maps to the exact fixed
+status/detail below. A phase stores success or the first descriptor in existing order;
+subsequent phase failures cannot override it. Factory results do not raise those errors.
+Only consumption after the existing refresh can emit a descriptor at its original site.
+
+| Phase / existing position | Closed descriptor → exact status and detail |
+| --- | --- |
+| ENTRY: after final refresh, at repository entry, before authority lock | `UNKNOWN_POLICY` → 409 `unknown planning policy or generator`; `POLICY_EVIDENCE` → 409 `planning evidence policy differs`; `TICKET_EVIDENCE` → 409 `planning evidence does not match generation`; `EARLY_CREATIVE` → 409 `candidate generation predates original creative collection`. |
+| CANDIDATE: after authority lock, original session check, exact receipt replay, plan/input-head checks; before prior-version SQL | `CANDIDATE_TICKET` → 409 `candidate does not match generation`. |
+| SELECTED: after prior-version SQL/digest check | `SELECTED_PROOF` → 409 `candidate selected proof differs from actual read bundle`. |
+| CREATIVE: at existing creative-proof comparison | `CREATIVE_PROOF` → 409 `candidate creative proof differs from actual read bundle`. |
+| REFS: at existing full reference comparison | `EVIDENCE_REFS` → 409 `candidate evidence differs from actual read bundle`. |
+| TARGETS: after existing target derivation | `OWNED_TARGET` → 409 `candidate target differs from actual owned catalog`. |
+| ALLOCATIONS: existing `check_allocations` site, in its original iteration order | `AMBIGUOUS_CATALOG` → 409 `Selected target catalog is ambiguous. Read the current catalog again.`; `CHANGED_TARGET` → 409 `Selected target changed. Read the current catalog and select again.`; `ALLOCATION_CURRENCY` → 422 `Planning allocations must use the confirmed goal currency.` |
+| EMPTY: after allocation validation | `EMPTY_CATALOG` → 409 `empty catalog witness differs from actual collected evidence`. |
+| OWNER: after empty-catalog validation and before paid/goal checks | `OWNER_BUNDLE` → 409 `owner review differs from actual collected evidence`. |
+
+This table enumerates possible fixed domain outputs, **not permission to catch every
+ValueError or every HTTPException from the containing function**. Extraction must
+identify the exact predicate or already documented expected-domain branch producing
+each descriptor. A different status/detail is never serialized into the packet.
+Neither provider errors nor clock, SQL, callback or arbitrary validator exceptions
+are converted into these enums.
+
+Unrepresentable checks remain in their existing call positions and are not executed
+speculatively before refresh. In particular, raw `GenerationTicket.model_validate` and
+`PlanVersion.model_validate` failures are not assigned new fixed409 meanings. Preserve
+their current entry behavior after refresh. Any validator whose unexpected failure
+cannot be distinguished without broad capture remains at its original site; a pure
+function label alone does not justify moving it. Private strict ownership construction
+must therefore have a non-throwing closed structural preflight: unsupported/corrupt
+original graph selects an unprepared fallback, which invokes original public validation
+after refresh. It must not silently coerce a copied graph into valid input. No arbitrary
+user-defined property, serializer or validator runs in this structural preflight.
+
+The prepared route may reuse only checks actually and safely completed under this
+closed contract. Retained checks are not marked prevalidated. This narrows the potential
+savings and must be reported; implementation must not enlarge the hoisted set merely
+to hit the deadline. Full original validation remains mandatory, either in a separately
+reviewed safely preparable branch or at original entry. The structural fallback is not
+an authority-bearing packet and cannot skip any work.
+
+Before implementing, a check-by-check source diff must mark each entry as safely
+prepared or retained in place. Until such a branch is proven, the conservative default
+is retained. Exact replay bypasses only the post-replay phases it already bypasses;
+ENTRY still executes first, and provider revocation/failure precedes every ENTRY result.
+Tests must combine provider revocation/failure with invalid packet, invalid packet with
+completed replay, head mismatch with later allocation422, and a valid replay with later
+metadata loss. No phase may change which original failure wins.
 
 ### One Use, Callback Isolation And Late Mutation
 

@@ -159,11 +159,13 @@ permitted; an untrusted caller cannot choose a prevalidated boolean.
 | Request | Exact request key/digest; bind additionally to ticket operation/actor/session/workspace/plan, not just document digest. |
 | Derived | Exact canonical document UTF-8/digest, original input commitment, full type-aware structural commitments, expected complete evidence/target bindings. No SQL row, principal, fact, callback, clock, currentness result or live Session is stored. |
 
-The factory strictly validates the supplied original graphs before reconstructing them.
-It recursively copies **every declared field**, including fields omitted by public
-serialization, into independent model instances/tuples; no shared mutable model or
-container with callers. Revalidate reconstructed graphs and reject unsupported private
-attributes or types rather than silently discard them. Field inventory must be asserted
+The factory must not call arbitrary strict validators before refresh merely to obtain
+an owned copy. Its structural preflight copies **every declared field**, including
+fields omitted by public serialization, into independent bounded internal data; no
+shared mutable model or container with callers. Unsupported private attributes/types
+select the unprepared fallback. A structural snapshot is not a validated model. Full
+model reconstruction/revalidation stays after refresh unless a separately reviewed
+closed validation branch can preserve the exact error phases below. Field inventory must be asserted
 against actual `model_fields` in tests so a future field addition cannot escape copying
 or commitment. Runtime data is bounded by existing graph limits.
 
@@ -177,8 +179,9 @@ factory seal and consumed state; Python reflection is not claimed as a sandbox.
 
 ### Pure Versus Current Map And Error Order
 
-Factory can compute all original-graph checks listed in steps 1/2 above, including
-`assert_owner_review_generation_bundle` on original collected catalogs. It **cannot**
+Only closed original-graph predicates explicitly mapped below are candidates for
+preparation. The full `assert_owner_review_generation_bundle` call is not automatically
+hoistable: it contains nested validators whose exception boundaries need source review. It **cannot**
 replace `recheck_owner_review_input_receipts`'s `_linked` call after actual receipt
 loads, nor any nested validation consuming data after a SQL/callback boundary.
 

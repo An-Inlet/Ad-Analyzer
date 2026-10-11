@@ -114,8 +114,23 @@ objects remain unchanged.
 ## Independent Review Clarifications
 
 The two-node source contract was independently reviewed. Qualification must assert
-the exact source_changed decision refusal with no event delta, bounded exact
+the exact retained-source decision refusal with no event delta, bounded exact
 100-click/4-conversion/100-USD evidence, unchanged media/input identities while
 allowing refreshed observation timestamps, and preserved accepted V1 history.
 No production or helper changes are included. Reconnect semantic erasure remains
 a separate lifecycle decision; this correction slice cannot qualify it.
+
+## First Execution And Error-Contract Correction
+
+Run 02 stopped on SQLite: zero passes, one failed assertion, PostgreSQL unrun.
+The test incorrectly expected the decision error to equal the broad current-view
+freshness label. Corrected reporting replaces the current completion; validation
+of the old selected capture then refuses with source_integrity_unavailable.
+The current-view wrapper reports freshness source_changed and preserves the
+specific reason separately; the decision route returns that specific reason.
+Independent source review confirmed the mapping. The revised test must assert
+both exact fields and unchanged history/events, without accepting arbitrary 409s
+or changing backend behavior. Original source/log/XML/exit are preserved in
+/workspace/inlet-evidence/20261011/q11-creative-source/failure-run02-freeze.json
+(SHA256 65fa2cc7005fddb985c23c32abf9e23e17a7a3b0c64c1e46ca72c5dcffcf2771).
+This is not closure of an original reliability incident.

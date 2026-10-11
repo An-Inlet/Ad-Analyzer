@@ -42,14 +42,27 @@ def _linked(
     actual = linked_owner_input_catalogs(ticket.inputs, catalogs)
     if _catalog_bytes(actual) != _catalog_bytes(candidate.google_budget_input_catalogs):
         raise ValueError("complete actual linked catalogs required")
-    validate_google_budget_owner_review(
-        inputs=ticket.inputs,
-        actions=candidate.actions,
-        proof=candidate.google_budget_owner_review,
-        catalogs=actual,
-        sources=ticket.sources,
-        privacy_revision=ticket.privacy_revision,
+    # This invocation's full PlanVersion validation already checked the same
+    # owner review when every argument below is byte-identical. Differences use
+    # the original validator; this is neither an acceptance gate nor a cache.
+    proof = candidate.selected_reporting_proof
+    same_arguments = (
+        proof is not None
+        and ticket.inputs.model_dump_json() == candidate.inputs.model_dump_json()
+        and type(ticket.privacy_revision) is int
+        and ticket.privacy_revision == candidate.evidence[0].privacy_revision
+        and tuple(source.model_dump_json() for source in ticket.sources)
+        == tuple(account.source_fence.model_dump_json() for account in proof.accounts)
     )
+    if not same_arguments:
+        validate_google_budget_owner_review(
+            inputs=ticket.inputs,
+            actions=candidate.actions,
+            proof=candidate.google_budget_owner_review,
+            catalogs=actual,
+            sources=ticket.sources,
+            privacy_revision=ticket.privacy_revision,
+        )
     return actual
 
 

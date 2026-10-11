@@ -102,3 +102,20 @@ BEFORE dependency rollback; constructor captures detached original identity/sess
 scalars. Then options(intent)/confirm(intent) own their sessions. State and invalidate
 methods accept the caller DB, and API commits invalidate after its final local guard.
 The resolver receives that detached original principal, never refreshed ORM identity.
+
+## Final Authority Correction
+
+`SelectedCustomerService(..., sessions:Callable[[],Session]|None=None)` takes a
+trusted request-engine session factory even when runtime is unavailable. Constructor
+uses planning `snapshot` before dependency rollback. `open(account_id, read=True)`
+refreshes the original external identity **before opening SQL**, then binds the
+5-second `IdentityFact` to exactly one Session/root transaction. `guard` performs
+only DB-local authority.lock/final, exact original expiry/authentication comparison,
+owner/account and optional paid/sync checks. Another Session/transaction cannot reuse
+that fact. Catalog resolver receives this same request-engine factory.
+
+All reads guard before accepting output; mutators guard after flush immediately
+before committing. Context exit only clears the fact/closes its Session, and never
+performs provider IO or starts authorization SQL after a successful commit. State and
+invalidation use `open(..., read=False)` with no billing/sync requirement. The older
+initial Principal dependency is not globally refactored or claimed IO-free here.

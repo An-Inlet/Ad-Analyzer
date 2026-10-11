@@ -165,3 +165,28 @@ that could blur primitive types. Keep the existing fixed rejection and `_validat
 action checks, source derivation and byte bounds. If full encoding parity is not
 established, leave this comparison untouched; the Proof.complete change stands alone.
 No public include/exclude/alias/roundtrip behavior is implemented privately or changed.
+
+## Exact Concrete Types And Compatibility Fallback (Required)
+
+Checked kernels are permitted only for exact concrete base request/witness/review/proof
+and child types with the frozen field inventory, after their normal validation. A
+subclass or inventory mismatch is not a new error: use the original public call or
+child.model_dump path at that site. No base-model conversion strips subclass fields,
+custom validators or custom serializers. The compatibility fallback remains inside the
+same lexical call and does not cache a result.
+
+Specifically: public witness.digest preserves `type(self).model_validate(self)` and its
+original `fingerprint(self.schema_version, checked.model_dump(mode='json'))` semantics
+for subclasses. Public resolver/action helper preserves original subclass validation
+and method dispatch. Review.exact uses original resolver/action helpers if request,
+witness or intent is not the exact supported type. Proof.complete uses the original
+review.model_dump for any non-exact review, witness or intent or inventory mismatch.
+The optional bound-proof comparison uses original public serialization unless both
+proofs and their entire relevant child type/inventory checks satisfy the fast path;
+do not eagerly inspect/validate expected before actual serialization's original point.
+
+Tests must include a review/witness subclass with an extra field/custom serializer and
+subclass validator refusal; serialized bytes, errors and digest dispatch must match the
+original implementation. These join the unsafe copied primitive tests. New model fields
+must force compatibility fallback, not silent omission or rejection of previously
+accepted graphs. Public wrap serializers and Frozen remain entirely unchanged.

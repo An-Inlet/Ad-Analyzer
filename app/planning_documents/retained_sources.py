@@ -62,7 +62,9 @@ class RetainedSourceWitness(Frozen):
     account_id: Positive | None
     connection_id: Positive | None
     store_id: Id | None
-    kind: Literal["local_reporting_v1", "local_reporting_v2", "local_commerce_v1"]
+    kind: Literal[
+        "local_reporting_v1", "local_reporting_v2", "local_reporting_v3", "local_commerce_v1"
+    ]
     source_binding_digest: Digest
     document_digest: Digest
     source_revision: Title
@@ -74,7 +76,7 @@ class RetainedSourceWitness(Frozen):
     def scoped(self) -> "RetainedSourceWitness":
         if self.observed_at >= self.expires_at:
             raise ValueError("ordered local proof time required")
-        if self.kind in {"local_reporting_v1", "local_reporting_v2"}:
+        if self.kind in {"local_reporting_v1", "local_reporting_v2", "local_reporting_v3"}:
             if (
                 self.account_id is None
                 or self.connection_id is None
@@ -349,6 +351,26 @@ def capture_retained_sources(
                 source_revision=ref.connection_version,
             )
         )
+    values.append(
+        commerce_witness(db, principal=principal, document=document, common=common, now=now)
+    )
+    _guard(db, principal, wid, principal.user.id)
+    if max(utc(now), database_utc_now(db)) >= document.valid_until:
+        raise RetainedSourcesChanged("source_changed")
+    return tuple(values)
+
+
+def commerce_witness(
+    db: Session,
+    *,
+    principal: CustomerPrincipal,
+    document: PlanVersion,
+    common: dict[str, Any],
+    now: datetime,
+) -> RetainedSourceWitness:
+    """Shared unchanged commerce commitment; caller owns goal/privacy/authority guards."""
+    wid = document.inputs.workspace_id
+    privacy = common["privacy_revision"]
     store = lock_store(db, document.inputs.goal.definition.store_id, wid)
     progress = _read_goal_progress_locked(
         db,
@@ -389,25 +411,19 @@ def capture_retained_sources(
             }
         ),
     )
-    values.append(
-        RetainedSourceWitness(
-            **common,
-            evidence_key=f"local:commerce:{store.id}",
-            kind="local_commerce_v1",
-            account_id=None,
-            connection_id=None,
-            store_id=store.id,
-            source_binding_digest=binding,
-            document_digest=fingerprint(
-                "inlet.local-commerce-state.v1", {"binding": binding, "progress": stable}
-            ),
-            source_revision=str(store.revision),
-        )
+    return RetainedSourceWitness(
+        **common,
+        evidence_key=f"local:commerce:{store.id}",
+        kind="local_commerce_v1",
+        account_id=None,
+        connection_id=None,
+        store_id=store.id,
+        source_binding_digest=binding,
+        document_digest=fingerprint(
+            "inlet.local-commerce-state.v1", {"binding": binding, "progress": stable}
+        ),
+        source_revision=str(store.revision),
     )
-    _guard(db, principal, wid, principal.user.id)
-    if max(utc(now), database_utc_now(db)) >= document.valid_until:
-        raise RetainedSourcesChanged("source_changed")
-    return tuple(values)
 
 
 def _row(row: PlanDependencyRow) -> dict[str, Any]:

@@ -7507,3 +7507,13 @@ judgments, not another redundant same-path test. Recommend an owner or nominated
 advertising/ecommerce reviewer; no verdict is presumed. Native-budget/period-cap
 qualification, broader Q01–Q16 work, original reliability incidents and all
 live/release gates remain open. No new push, PR, merge or deployment occurred.
+
+## 2026-10-11 — Creative Source Correction Contract
+
+The [reviewed Q11 contract](design/q11-creative-source-correction-v1.md) adds the
+missing join between actual selected-reporting correction, retained creative
+evidence and an accepted historical decision. Two new API cases are planned,
+using the existing private V5 service on SQLite/PostgreSQL. Source preparation
+and static checks are complete; pytest qualification remains pending. Reconnect
+currently invokes semantic erasure and requires a separate lifecycle contract
+reconciliation. Human judgments and all remote/live holds remain unchanged.

@@ -136,3 +136,32 @@ helper there. Do not weaken primitives/size checks to hit timing. A longer/renew
 or dropped fresh pass remains an owner authority-architecture choice, not an implicit
 fallback. No such choice is requested while this concrete domain-level design is under
 review, and no new implementation is authorized by this document alone.
+
+## Optional Same-Package Bound-Review Comparison (Explicit Additional Scope)
+
+Root also identified `_validate_bound_review` in `google_budget_owner_review.py`: it
+strictly validates `proof`, then `proof.model_dump_json()` invokes that proof's checked
+serializer and validates it again; `expected.model_dump_json()` independently validates
+the constructor-built expected proof. A third-file extension is reviewable without
+changing public serialization:
+
+    _owner_proof_payload_checked(proof: GoogleBudgetOwnerReviewProofV1)
+        -> dict[str, Any]
+
+It emits exact schema/no-authority/input_digest/ordered reviews using the checked review
+payload above. In `_validate_bound_review`, retain actual proof full model_validate;
+explicitly fully validate `expected` at the exact point its public serialization would
+first validate it. Then compare exact default JSON bytes derived from the two checked
+payloads. Preserve left-to-right order: produce actual checked bytes first, validate
+expected second, produce expected bytes third. Do not assume expected is valid because
+another function constructed it. Public actual/expected model serializers remain
+unchanged for every other caller.
+
+This extension owns only that existing comparison site in the third file. It must prove
+byte equality with default model_dump_json for complete full witness/native settings,
+Unicode, aware dates, Decimal values, zero and all nullable fields. Use JSON-mode nested
+values and exact compact UTF-8 settings, never a reduced proof/hash or Python equality
+that could blur primitive types. Keep the existing fixed rejection and `_validate_bound_review`
+action checks, source derivation and byte bounds. If full encoding parity is not
+established, leave this comparison untouched; the Proof.complete change stands alone.
+No public include/exclude/alias/roundtrip behavior is implemented privately or changed.

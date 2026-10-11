@@ -7229,3 +7229,20 @@ No input/native-setting output or public UI activation. Pure input binding and
 explicit historical provenance design continue; unselected account source fences
 cannot be invented from current state. Q06 remains partial. Original R01 and six
 human gates remain open; no remote/live/release/upload operation occurred.
+
+## 2026-10-11 — Owner Hypothesis Inputs And Original History
+
+Reviewed standalone active/history bindings and scalar commitment are integrated.
+Atomic input consumer `cd65fdd` retains original receipt commitments through
+create/edit, read, request recovery, replay and export. All non-null owner inputs
+(includingempty) remain refused by generation; no budget mutation/output activation.
+Final36 SQLite/PostgreSQL cases passed163.240s, plus separate15pure/golden checks;
+initial overlapping SQLite cohorts are documented. Root16evidencehashes/fourXML
+verified, wholeRuff/mypy1,455 passed; independentreview CLOSED.
+[Exact qualification and limitations](inlet-google-budget-owner-inputs-20261011.md).
+
+The15:52 shell disconnect recovered after one harmlessretry; savedwork/evidence
+verified, no resets or duplicate tests. Q09 baseline qualification proceeds on the
+new input consumer. Its exactMeta-lead/TikTok-attribution case remains unsupported;
+no missing semantics are invented. Owner output remains a separate design, and
+all live/remote/release/sharing holds remain.

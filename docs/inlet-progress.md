@@ -7160,3 +7160,11 @@ Pure whole-graph selected summary added; sparse/missing evidence cannot qualify 
 window zero.13new cases;156combinedpassed0.88s; Ruff/mypy1278pass; independent review
 closed. [Package ledger](inlet-selected-summary-package-20261011.md). Customer-plan
 activation awaits owned storage/import integration; no live or remote operation.
+
+## 2026-10-11 — Injected Google Selected Read
+
+Added exact account/action-metadata + selected-report HTTP reader with mandatory
+server revalidation, expiry/stream deadlines and no runtime default.84MockHTTP/raw
+cases passed0.63s; Ruff/mypy1280pass; independent review closed after two deadline
+repairs. [Package ledger](inlet-google-selected-read-package-20261011.md). No live
+qualification, source-job publication or customer-plan activation is claimed.

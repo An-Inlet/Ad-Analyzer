@@ -50,9 +50,13 @@ or public v4 activation is claimed.
 | `43bc763` (author `405a0d0`) | Standalone typed customer product/image-selection and server image-basis contracts:53 pure cases passed. Exact ordered ownership/digest/privacy/currency binding, image bounds and UTC timestamps; no reader/runtime integration yet. [Creative contracts](inlet-creative-basis-dto-package-20261011.md). |
 | `4359f2e` (author `b3495ee`) | Actual Meta/TikTok Common Basis catalog→private-v4 plan/export fixtures:8 both-database cases passed including Q16 preservation. Partial native catalogs and unavailable social selected reporting remain explicit; eight generated artifacts retained and hash-verified. No media consumption or full Q03/Q04 creative-quality claim. [Social fixtures](inlet-social-common-basis-package-20261011.md). |
 
+| `cb6421b` | Reserved typed creative plan inputs preserve legacy bytes/digests and reject unsupported admission/generation. Final34 pure,8 both-database API and2 overlapping strengthened saved-generation cases passed. [Input reservation](inlet-creative-plan-inputs-package-20261011.md). |
+| `e053aa3`, `d9e7f40` (author `a19bacc`, `ced8c26`) | Original-session owned PNG/JPEG reader validates paid/goal/privacy/metadata and decoded exact bytes outside SQL, then rechecks original authority and complete row identity. Repaired exception boundary preserves unexpected failures;46 affected both-database cases passed. No runtime consumer. [Image reader](inlet-owned-planning-images-package-20261011.md). |
+| `e94aba5` (author `9f18f4b`) | Standalone bound Meta image/TikTok three-shot production proposals, exact product/price/restrictions, ordered image witnesses, global capacity and output bounds.117 combined then46 overlapping final composition cases passed. No visual/rights assessment or runtime activation. [Creative proposals](inlet-creative-production-package-20261011.md). |
+
 All packages above received independent source review with no remaining P1/P2
 findings in their stated scope. Whole Ruff and configured no-path mypy passed on
-integration through `4359f2e` (1371 files). These targeted cohorts overlap and are
+integration through `e94aba5` (1379 files). These targeted cohorts overlap and are
 not summed as unique or exhaustive current-head coverage. No new exhaustive run
 or hosted CI is claimed.
 
@@ -83,7 +87,8 @@ No new pull request or remote push occurred in this continuation. Prior draft PR
 remain recorded in historical ledgers; remote status was not refreshed during the
 hold. Hosted runs/retries, pushes, merge and deployment remain held. Routine offline
 engineering continues without package-by-package approval. Next packages are the
-owned-image reader under the reviewed original-session/storage boundary, then
-typed media retention and substantive creative composition for Q03/Q04. The
-standalone contracts and provider-alone fixture seams are complete; no default
-policy activation is implied.
+private complete image-row collection pins and the shared exact canonical selected
+policy validator, followed by typed creative proof, atomic retention/currentness,
+history and genuine v5 composition for Q03/Q04. The standalone reader and production
+proposals are implemented; creative-bearing PlanVersion remains rejected until
+proof integration. No default policy activation is implied.

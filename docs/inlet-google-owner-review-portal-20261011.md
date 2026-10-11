@@ -75,3 +75,14 @@ package; service qualification elsewhere must not be relabeled UI qualification.
 No live integration, purchase readiness, provider-edit validity, remaining-spend
 assurance or period-spending compatibility is claimed. Website work remains paused;
 manual review does not resolve the outstanding launch/human gates.
+
+## Local Integration
+
+Integrated as `9952ff8` on `codex/inlet-w1-followup`. Root and independent review
+verified all fourteen frozen source hashes and nineteen evidence hashes, including
+the exact disjoint 2 + 1 XML cases. The fourteen-path overlay matches the candidate
+and preserves newer root prerequisite files. Root whole Ruff and configured no-path
+mypy passed (1,483 files); no identical component/controller tests were repeated.
+Immutable packet: `owner-portal-components/freeze-a4f32d8.json`, SHA-256
+`02d6aed54baab7ca9203aaf55c9642240a4ed7249f76a23da5c5e925c3d2950c`.
+The four authenticated original-session TLS journeys are the next qualification.

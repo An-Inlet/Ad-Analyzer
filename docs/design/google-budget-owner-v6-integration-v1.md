@@ -22,10 +22,13 @@ exact canonical recognition. No fake V5 ticket, policy, stripped input or docume
 GenerationEvidence needs no duplicate shape/union member when this same validated
 bundle is used; the distinct capability dispatch selects the V6 composer.
 
-PlanVersion adds omitted-by-default `google_budget_owner_review:
-GoogleBudgetOwnerReviewProofV1 | None`. Exact V6 requires explicit non-null input
-owner tuple and complete non-null proof, even when both are empty. Other pairs
-reject non-null owner inputs and proof exactly as today. V6 requires all existing
+PlanVersion adds two omitted-by-default fields:
+`google_budget_owner_review: GoogleBudgetOwnerReviewProofV1 | None` and
+`google_budget_input_catalogs: tuple[CatalogEvidence, ...] | None` (maximum20).
+Exact V6 requires explicit non-null input owner tuple, complete non-null proof and
+complete linked input catalogs, even when the owner tuple/proof is empty. The
+catalog tuple may be empty only if there are no ordinary linked selectors. Other pairs
+reject non-null owner inputs, proof and new catalog field; their absent bytes remain exact. V6 requires all existing
 selected, traffic, commerce, creative proof and composition fields; the owner proof
 is additional, never a substitute. The document schema remains the extensible
 `inlet.plan-version.v1`; the exact generator/policy pair carries the new semantics.
@@ -35,7 +38,7 @@ Normalize V6 instant comparisons to UTC without restamping any original value.
 ## Pure document validation and genuine composition
 
 The new document invariant calls the reviewed active full-source owner validator
-with actual input, all document actions, owner proof, the embedded linked catalogs,
+with actual input, all document actions, owner proof, the complete new input catalog tuple,
 and every SourceFence from selected_reporting_proof.accounts. Derive privacy only
 from that complete retained proof; reject mixed or missing epochs. This checks
 structural joins, not authenticity of opaque session commitments. The SQL boundary
@@ -55,7 +58,8 @@ New `GoogleOwnerReviewPlanComposer.compose(*, ticket, evidence:
 CreativePairedEvidenceV1, policy, generated_at) -> PlanVersion` accepts only exact
 canonical V6. It validates the complete original ticket/bundle, composes owner
 investigations from actual `evidence.reporting.selected.catalogs` and ticket.sources,
-and builds a genuine V6 document. The standalone owner proof functions stay unchanged.
+and builds a genuine V6 document with the complete original linked catalog tuple.
+The standalone owner proof functions stay unchanged.
 
 Current SelectedPlanComposer._compose constructs the final document and is also a
 direct old-version entry point with a refusal guard. Extract its shared section/
@@ -76,6 +80,29 @@ PlanVersion canonical byte size against the existing 1MiB bound, not merely the
 standalone owner subset. Overflow is a fixed refusal without partial persistence.
 One owner-setting review per full account/owner; no NativeBudget/proposed field or
 Apply/pause promise. Ordinary measurement diagnostics remain separately identifiable.
+
+
+The catalog tuple is necessary, not redundant scope metadata: an owner scenario
+may also allocate to Meta/TikTok, and exclusions may reference another account.
+An owner witness alone embeds only its owner's catalog and cannot validate those
+other references. Keep the active kernel unchanged. Retain every original linked
+input catalog exactly once, ordered by full account ID, including ordinary fixed,
+scenario and exclusion selectors even without an owner intent on that account.
+No source-only/unselected account needs an invented catalog. Require exact normal
+target reference/catalog joins and unique exclusion resolution; reject missing,
+duplicate or unused extra catalogs. Each embedded owner witness catalog must be
+byte-identical to its entry in this complete tuple.
+
+Final SQL save compares this exact tuple with validated InputCatalogReceiptRow
+catalogs and with corresponding actual generation-bundle catalogs, not all fresh
+unselected-account catalogs. The historical loader returns exactly the same linked
+set. Empty owner tuples still retain whatever catalogs ordinary input selectors
+require. All catalogs remain full CatalogEvidence values, not guessed summaries.
+The witness currently repeats its catalog, so this explicit complete set adds byte
+cost; retain strict standalone contracts and the 1MiB full-document limit, refusing
+oversize output. Do not truncate members or silently drop non-owner accounts to fit.
+A deduplicated witness format would be a separately reviewed future schema, not an
+unchecked interpretation of the existing witness.
 
 ## Separate active and historical owner validation ports
 

@@ -168,8 +168,14 @@ class SelectedPairedEvidenceV1(NoAuthority):
             if (
                 ref.observation_started_at.astimezone(UTC) != completed
                 or ref.observed_at.astimezone(UTC) != completed
-                or not ref.observed_at <= self.selected.collected_at < ref.expires_at
-                or ref.expires_at > min(pair.reference.expires_at, catalog.reference.expires_at)
+                or not ref.observed_at.astimezone(UTC)
+                <= self.selected.collected_at.astimezone(UTC)
+                < ref.expires_at.astimezone(UTC)
+                or ref.expires_at.astimezone(UTC)
+                > min(
+                    pair.reference.expires_at.astimezone(UTC),
+                    catalog.reference.expires_at.astimezone(UTC),
+                )
             ):
                 raise ValueError("traffic publication observation or deadline changed")
             all_refs.append(ref)

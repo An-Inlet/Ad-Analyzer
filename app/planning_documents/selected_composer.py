@@ -244,7 +244,7 @@ class SelectedPlanComposer:
             raise PlanCompositionUnavailable("aware generation time required")
         try:
             with localcontext(Context(prec=50)):
-                return self._compose(ticket, evidence, policy, generated_at)
+                return self._compose(ticket, evidence, policy, generated_at.astimezone(UTC))
         except ValidationError as error:
             raise PlanCompositionUnavailable(
                 "complete plan violates document bounds or invariants"
@@ -261,7 +261,10 @@ class SelectedPlanComposer:
         inputs = ticket.inputs
         version, parent_digest = ticket.expected_version + 1, ticket.expected_parent_digest
         generated_by = ticket.actor_id
-        if evidence.input_digest != inputs.digest() or evidence.collected_at > generated_at:
+        if (
+            evidence.input_digest != inputs.digest()
+            or evidence.collected_at.astimezone(UTC) > generated_at
+        ):
             raise PlanCompositionUnavailable("composition input/time mismatch")
         contexts = {entry.reference.kind: entry for entry in evidence.context}
         if (
@@ -282,7 +285,7 @@ class SelectedPlanComposer:
             raise PlanCompositionUnavailable("a current owned catalog is required")
         if len(references) > MAX_EVIDENCE:
             raise PlanCompositionUnavailable("complete evidence set exceeds document capacity")
-        valid_until = min(ref.expires_at for ref in references)
+        valid_until = min(ref.expires_at.astimezone(UTC) for ref in references)
         if generated_at >= valid_until:
             raise PlanCompositionUnavailable("evidence expired before composition")
         if any(

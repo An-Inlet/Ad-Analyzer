@@ -615,3 +615,100 @@ def test_positive_selected_counts_do_not_override_zero_ceiling() -> None:
     )
     assert all(s.ceiling_micros == 0 for s in result.scenarios)
     assert "selected count 10" in result.actions[0].rationale
+
+
+def fold_ready(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, Any]:
+    from datetime import UTC, datetime
+    from zoneinfo import ZoneInfo
+
+    from tests import test_selected_plan_bundle as fixture
+
+    from tests.test_planning_metadata_binding import bundle
+
+    original = bundle
+    expiry = datetime(2026, 11, 1, 1, 45, tzinfo=ZoneInfo("America/New_York"), fold=0)
+    observed = expiry.astimezone(UTC) - timedelta(minutes=4)
+
+    def native(platform: str) -> Any:
+        inventory, metadata = original(platform)
+        inventory = type(inventory).model_validate(
+            inventory.model_copy(
+                update={
+                    "observation_started_at": observed,
+                    "observed_at": observed,
+                    "expires_at": expiry,
+                }
+            )
+        )
+        metadata = type(metadata).model_validate(
+            metadata.model_copy(
+                update={
+                    "observation_started_at": observed,
+                    "observed_at": observed,
+                    "expires_at": expiry,
+                    "native_inventory_digest": inventory.digest(),
+                }
+            )
+        )
+        return inventory, metadata
+
+    monkeypatch.setattr(fixture, "native_bundle", native)
+    return ready()
+
+
+def test_fold_traffic_deadline_cannot_exceed_selected_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    ticket, evidence, _ = fold_ready(monkeypatch)
+    later = datetime(2026, 11, 1, 1, 15, tzinfo=ZoneInfo("America/New_York"), fold=1)
+    assert later < evidence.selected.catalogs[0].reference.expires_at
+    evidence = evidence.model_copy(
+        update={
+            "traffic": tuple(
+                x.model_copy(
+                    update={"reference": x.reference.model_copy(update={"expires_at": later})}
+                )
+                for x in evidence.traffic
+            )
+        }
+    )
+    with pytest.raises(ValueError, match="deadline changed"):
+        evidence.assert_ticket(ticket)
+
+
+def test_fold_generation_after_expiry_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from app.planning_documents.composer import PlanCompositionUnavailable
+
+    ticket, evidence, policy = fold_ready(monkeypatch)
+    generated = datetime(2026, 11, 1, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=1)
+    assert generated < evidence.selected.catalogs[0].reference.expires_at
+    with pytest.raises(PlanCompositionUnavailable, match="expired"):
+        SelectedPlanComposer().compose(
+            ticket=ticket, evidence=evidence, policy=policy, generated_at=generated
+        )
+
+
+def test_offset_equivalent_generation_is_identical(monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import UTC, timezone
+
+    ticket, evidence, policy = fold_ready(monkeypatch)
+    expiry = evidence.selected.catalogs[0].reference.expires_at
+    generated = expiry.astimezone(UTC) - timedelta(minutes=1)
+    first = SelectedPlanComposer().compose(
+        ticket=ticket,
+        evidence=evidence,
+        policy=policy,
+        generated_at=generated.astimezone(timezone(timedelta(hours=9))),
+    )
+    second = SelectedPlanComposer().compose(
+        ticket=ticket, evidence=evidence, policy=policy, generated_at=generated
+    )
+    assert first.model_dump(mode="json") == second.model_dump(mode="json")
+    assert first.digest() == second.digest()
+    assert first.valid_until == expiry.astimezone(UTC)

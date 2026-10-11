@@ -71,3 +71,25 @@ own public module fixed it. No application failure was suppressed.
 Root owns current/history traffic-proof reconstruction and the future owned
 paired collector/service wiring. This commit supplies runnable pure composition,
 not registered production v4 generation. Existing gates remain unchanged.
+
+## Independent review correction: UTC instant ordering
+
+Review of `62b3dd3` found same-ZoneInfo fold comparisons could misorder paired
+expiry bounds and composer evidence deadlines. The follow-up compares observed,
+collected, generated and expiry instants in UTC; the composer normalizes generated
+entry time and chooses its minimum deadline in UTC. Existing reference documents
+remain unchanged.
+
+Three regressions use a valid reconstructed native/catalog fixture around the
+2026-11-01 America/New_York fold: a later instant with an earlier wall-clock label
+cannot extend paired evidence, generation after the actual expiry is refused, and
+equivalent generation offsets produce identical documents/digests with a UTC
+valid-until value. `fold-final`: **32 passed, 0 skipped, 8.69s**. Whole Ruff and
+mypy **1352 source files** pass (`ruff-fold-final2.log`, `mypy-fold-final2.log`);
+`git diff --check` passes. No database/Full/runtime registration was run or changed.
+
+Retained `fold01`/`fold02` failures are test fixture construction failures: changing
+only catalog reference expiry, then neglecting native observation-start rebinding,
+correctly failed exact catalog validation. `fold03` then passed all three targeted
+regressions. The test-only explicit import repair is recorded by the retained
+`mypy-fold-final.log`; no type exemption or application guard was added.

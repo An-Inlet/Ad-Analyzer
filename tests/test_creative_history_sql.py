@@ -1,5 +1,6 @@
 """Standalone v5 history over real reporting/media; direct storage, no v5 runtime."""
 
+import io
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ from app.planning_documents.retained_sources import commerce_witness
 from app.planning_documents.selected_paired_reader import OwnedSelectedPairedReader
 from app.planning_documents.storage import canonical
 from app.settings import Settings
+from PIL import Image
 from sqlalchemy import Engine, delete, func, select, update
 from sqlalchemy.orm import Session
 
@@ -42,22 +44,33 @@ def stored(
     patch: pytest.MonkeyPatch,
     path: Path,
     request: pytest.FixtureRequest,
+    *,
+    image_count: int = 1,
 ) -> Any:
     old, ticket, f, _, _ = prepared_range_plan(engine, config, replicas, patch)
     request.addfinalizer(f.alice.close)
     request.addfinalizer(f.bob.close)
     store = LocalMediaStore(path)
-    with Session(engine) as db:
-        media = upload(
-            db, ticket.inputs.workspace_id, ticket.actor_id, png(), store, datetime.now(UTC)
-        )
-        selection = PlanningMediaSelectionV1(media_id=media.id, expected_sha256=media.sha256)
+    selections = []
+    for index in range(image_count):
+        data = png()
+        if index:
+            stream = io.BytesIO()
+            Image.new("RGB", (4, 4), (index, 100, 0)).save(stream, "PNG")
+            data = stream.getvalue()
+        with Session(engine) as db:
+            media = upload(
+                db, ticket.inputs.workspace_id, ticket.actor_id, data, store, datetime.now(UTC)
+            )
+            selections.append(
+                PlanningMediaSelectionV1(media_id=media.id, expected_sha256=media.sha256)
+            )
     policy = canonical_creative_policy()
     ticket = GenerationTicket.model_validate(
         ticket.model_copy(
             update={
                 "inputs": ticket.inputs.model_copy(
-                    update={"creative": CreativeInputV1(media_selections=(selection,))}
+                    update={"creative": CreativeInputV1(media_selections=tuple(selections))}
                 ),
                 "policy_version": policy.version,
                 "policy_digest": policy.digest(),

@@ -8,8 +8,12 @@ from app.planning_documents.common import MAX_ACTIONS, MAX_DOCUMENT_BYTES, uniqu
 from app.planning_documents.context import PlanInputRevision, TargetRef
 from app.planning_documents.google_budget_input_bindings import (
     validate_google_daily_budget_input_bindings,
+    validate_retained_google_daily_budget_input_bindings,
 )
-from app.planning_documents.google_budget_owner_contracts import _originals
+from app.planning_documents.google_budget_owner_contracts import (
+    GoogleDailyBudgetOwnerWitnessV1,
+    _originals,
+)
 from app.planning_documents.google_budget_owner_review_contracts import (
     GoogleBudgetOwnerReviewProofV1,
     GoogleBudgetOwnerReviewV1,
@@ -40,6 +44,12 @@ def _proof(
         sources=sources,
         privacy_revision=privacy_revision,
     )
+    return _review_proof(inputs, witnesses)
+
+
+def _review_proof(
+    inputs: PlanInputRevision, witnesses: tuple[GoogleDailyBudgetOwnerWitnessV1, ...]
+) -> tuple[PlanInputRevision, GoogleBudgetOwnerReviewProofV1]:
     inputs = PlanInputRevision.model_validate(inputs)
     assert inputs.google_daily_budget_intents is not None
     return inputs, GoogleBudgetOwnerReviewProofV1(
@@ -149,12 +159,42 @@ def validate_google_budget_owner_review(
     sources: tuple[SourceFence, ...],
     privacy_revision: int,
 ) -> None:
+    inputs, expected = _proof(inputs, catalogs, sources, privacy_revision)
+    _validate_bound_review(inputs, actions, proof, expected)
+
+
+def validate_retained_google_budget_owner_review(
+    *,
+    inputs: PlanInputRevision,
+    actions: tuple[ManualAction, ...],
+    proof: GoogleBudgetOwnerReviewProofV1,
+    catalogs: tuple[CatalogEvidence, ...],
+    sources: tuple[SourceFence, ...],
+) -> None:
+    """Original linked subset only; SQL caller authenticates receipt provenance separately."""
+    if inputs.google_daily_budget_intents is None:
+        raise ValueError("explicit owner input tuple required")
+    witnesses = validate_retained_google_daily_budget_input_bindings(
+        inputs=inputs,
+        intents=inputs.google_daily_budget_intents,
+        catalogs=catalogs,
+        sources=sources,
+    )
+    inputs, expected = _review_proof(inputs, witnesses)
+    _validate_bound_review(inputs, actions, proof, expected)
+
+
+def _validate_bound_review(
+    inputs: PlanInputRevision,
+    actions: tuple[ManualAction, ...],
+    proof: GoogleBudgetOwnerReviewProofV1,
+    expected: GoogleBudgetOwnerReviewProofV1,
+) -> None:
     if type(actions) is not tuple or len(actions) > MAX_ACTIONS:
         raise ValueError("bounded action tuple required")
     _originals(actions)
     actions = tuple(ManualAction.model_validate(a) for a in actions)
     proof = GoogleBudgetOwnerReviewProofV1.model_validate(proof)
-    inputs, expected = _proof(inputs, catalogs, sources, privacy_revision)
     if proof.model_dump_json() != expected.model_dump_json():
         raise ValueError("owner review differs from actual input/catalog evidence")
     unique(tuple(a.key for a in actions), "action key")

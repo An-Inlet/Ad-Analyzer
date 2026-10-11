@@ -875,6 +875,14 @@ def cleanup_expired_unused_receipts(
 
 def validate_retained_input_receipts(db: Session, inputs: PlanInputRevision) -> None:
     """No source/TTL/session refresh: validate historical exact input and complete links."""
+    _validated_retained_input_receipts(db, inputs)
+
+
+def _validated_retained_input_receipts(
+    db: Session,
+    inputs: PlanInputRevision,
+) -> tuple[tuple[CatalogReceiptRow, CatalogEvidence], ...]:
+    """Private validated original rows; only scoped callers may convert these to values."""
     inputs = PlanInputRevision.model_validate(inputs)
     _saved_input(db, inputs)
     links = _input_links(db, inputs)
@@ -936,6 +944,7 @@ def validate_retained_input_receipts(db: Session, inputs: PlanInputRevision) -> 
             validate_historical_owner_receipts(inputs, loaded)
         except (ValueError, GoogleBudgetOwnerUnavailable) as error:
             raise CatalogReceiptUnavailable("integrity_unavailable") from error
+    return tuple(loaded)
 
 
 def _check_current_owner_receipts(

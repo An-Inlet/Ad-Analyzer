@@ -68,7 +68,7 @@ expected GoogleAuthorization changes from protected records. In-memory encrypted
 values may be compared through Boolean-only checks; they must not enter artifacts.
 
 - Same GoogleCustomerConnection id/account_id/integration_id/external advertiser;
-  generation increases exactly1 and workspace export_privacy_revision exactly1;
+  generation increases exactly1 and workspace export_privacy_revision strictly advances;
   status connected, new grant present, staged/cursor reset. No manual state edit.
 - Workspace `PlanRequestRow`, `PlanEventRow`, `InputCatalogReceiptRow`,
   `PlanDependencyRow`, `PlanVersionRow`, `PlanInputRow`, `PlanRow`,
@@ -205,3 +205,23 @@ the control account/connection bind 456 and its owned encrypted bundle opens
 under that identity. No uniqueness constraint, production code, native response,
 clock or authorization is changed. This replaces duplicated bootstrap code with
 an explicit fixture input. The primary case still exercises the old default.
+
+
+## Privacy Fence Assertion Correction
+
+Reconsent03 reached all actual fresh-consent routes (200), the exact three
+synthetic HTTP exchanges and native generation +1. It stopped at an incorrect
+privacy-counter expectation: the observed revision advanced from 1 to 67, rather
+than exactly once. Zero passes, one SQLite failure, PostgreSQL unrun; source and
+failure summary remain preserved (SHA256
+`971ab62e9d6e4b03af8f7143b0cbb148dabd260d05cbcb688313115db20e34b2`).
+
+Independent review traced both database implementations in migrations 0091/0092:
+AFTER DELETE triggers for selected-reporting and range rows advance the privacy
+fence, in addition to the explicit semantic-bump increment. The revision is an
+invalidation fence, not a count of customer operations. Correct qualification
+requires strict advancement, saves the actual committed post-erasure revision,
+and requires exactly that value after consumed-selection replay. Native source
+generation remains exactly +1; graph erasure, prepared-export refusal, unrelated
+workspace equality and no extra provider exchanges remain mandatory. Do not
+hardcode 67, alter triggers or weaken erasure. Remaining assertions were unrun.

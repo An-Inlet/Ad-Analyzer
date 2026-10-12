@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from app.campaign_performance.selected_reconstruction import generation_reconstruction
 from app.campaign_review.contracts import MediaStore
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
@@ -655,6 +656,7 @@ class PlanningDocumentService:
                 Session(self.engine) as db,
                 db.begin(),
                 use_prepared(preparation, db) as active_preparation,
+                generation_reconstruction(db),
             ):
                 document = repository.save_generation(
                     db,

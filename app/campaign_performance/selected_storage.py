@@ -331,32 +331,14 @@ def fact_values(value: SelectedCampaignDayV1, wid: int, aid: int) -> dict[str, A
     )
 
 
-def historical_capture(db: Session, wid: int, aid: int, capture_id: str) -> SelectedCaptureV1:
-    header = db.get(SelectedCaptureRow, capture_id, populate_existing=True)
-    if header is None or (header.workspace_id, header.account_id) != (wid, aid):
-        raise SelectedReportingUnavailable("selected capture unavailable")
-    rows = list(
-        db.scalars(
-            select(SelectedFactRow)
-            .where(SelectedFactRow.capture_id == capture_id)
-            .order_by(SelectedFactRow.campaign_id, SelectedFactRow.metric_date)
-            .limit(MAX_SELECTED_FACTS + 1)
-            .execution_options(populate_existing=True)
-        )
-    )
-    if len(rows) != header.fact_count or len(rows) > MAX_SELECTED_FACTS:
-        raise SelectedReportingUnavailable("selected facts incomplete")
-    campaigns = {
-        c.id: c
-        for c in db.scalars(
-            select(Campaign)
-            .join(SelectedFactRow, SelectedFactRow.campaign_id == Campaign.id)
-            .where(SelectedFactRow.capture_id == capture_id)
-            .distinct()
-            .limit(MAX_SELECTED_FACTS + 1)
-            .execution_options(populate_existing=True)
-        )
-    }
+def _reconstruct_capture(
+    header: SelectedCaptureRow,
+    rows: list[SelectedFactRow],
+    campaigns: dict[int, Campaign],
+    wid: int,
+    aid: int,
+) -> SelectedCaptureV1:
+    """Pure reconstruction at the original position, before dependency SQL."""
     body = json.loads(header.canonical_json)
     facts = []
     measured = len(header.canonical_json.encode())
@@ -384,6 +366,38 @@ def historical_capture(db: Session, wid: int, aid: int, capture_id: str) -> Sele
     value = SelectedCaptureV1.model_validate_json(canonical(body))
     if capture_values(value) != {k: getattr(header, k) for k in capture_values(value)}:
         raise SelectedReportingUnavailable("selected capture integrity unavailable")
+    return value
+
+
+def historical_capture(db: Session, wid: int, aid: int, capture_id: str) -> SelectedCaptureV1:
+    header = db.get(SelectedCaptureRow, capture_id, populate_existing=True)
+    if header is None or (header.workspace_id, header.account_id) != (wid, aid):
+        raise SelectedReportingUnavailable("selected capture unavailable")
+    rows = list(
+        db.scalars(
+            select(SelectedFactRow)
+            .where(SelectedFactRow.capture_id == capture_id)
+            .order_by(SelectedFactRow.campaign_id, SelectedFactRow.metric_date)
+            .limit(MAX_SELECTED_FACTS + 1)
+            .execution_options(populate_existing=True)
+        )
+    )
+    if len(rows) != header.fact_count or len(rows) > MAX_SELECTED_FACTS:
+        raise SelectedReportingUnavailable("selected facts incomplete")
+    campaigns = {
+        c.id: c
+        for c in db.scalars(
+            select(Campaign)
+            .join(SelectedFactRow, SelectedFactRow.campaign_id == Campaign.id)
+            .where(SelectedFactRow.capture_id == capture_id)
+            .distinct()
+            .limit(MAX_SELECTED_FACTS + 1)
+            .execution_options(populate_existing=True)
+        )
+    }
+    from app.campaign_performance.selected_reconstruction import reconstruct
+
+    value, promote = reconstruct(db, header, rows, campaigns, wid, aid, _reconstruct_capture)
     selection = db.get(EventSelectionRow, header.selection_id, populate_existing=True)
     completion = db.get(PerformanceCompletion, header.completion_id, populate_existing=True)
     dep = value.request.aggregate
@@ -419,6 +433,7 @@ def historical_capture(db: Session, wid: int, aid: int, capture_id: str) -> Sele
         )
     ):
         raise SelectedReportingUnavailable("selected historical dependency unavailable")
+    promote()
     return value
 
 
@@ -480,3 +495,17 @@ def erase_workspace_selected(db: Session, workspace_id: int) -> None:
         )
     )
     db.execute(delete(EventSelectionRow).where(EventSelectionRow.workspace_id == workspace_id))
+
+
+# Replaying a pure result is disabled if its reconstruction helpers are replaced.
+_PURE_RECONSTRUCTION = tuple(
+    (name, globals()[name])
+    for name in (
+        "_reconstruct_capture",
+        "canonical",
+        "hashed",
+        "capture_values",
+        "fact_values",
+        "selected_capture_digest",
+    )
+)

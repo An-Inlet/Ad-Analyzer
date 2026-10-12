@@ -27,7 +27,9 @@ from tests.test_google_aggregate_range_http import campaign, metric
 
 class GoogleAssembly:
     def __init__(
-        self, engine: Engine, config: Settings, replicas: Any, patch: pytest.MonkeyPatch, path: Path
+        self, engine: Engine, config: Settings, replicas: Any,
+        patch: pytest.MonkeyPatch, path: Path,
+        *, configured: bool = False,
     ) -> None:
         if engine.dialect.name == "sqlite":
             with engine.connect() as connection:
@@ -69,17 +71,18 @@ class GoogleAssembly:
             f"/api/customer/v1/workspaces/{self.wid}/planning/plans/capabilities"
         )
         assert default.status_code == 200 and not default.json()["selected_reporting_available"]
-        patch.setattr(
-            planning_api,
-            "PlanningDocumentService",
-            partial(
-                PlanningDocumentService,
-                policy=PlanningCompositionPolicy(
-                    version="inlet.descriptive-review.v4",
-                    generator_version="inlet.descriptive-planning.v4",
+        if not configured:
+            patch.setattr(
+                planning_api,
+                "PlanningDocumentService",
+                partial(
+                    PlanningDocumentService,
+                    policy=PlanningCompositionPolicy(
+                        version="inlet.descriptive-review.v4",
+                        generator_version="inlet.descriptive-planning.v4",
+                    ),
                 ),
-            ),
-        )
+            )
         owner = self
 
         class Transport(httpx.MockTransport):

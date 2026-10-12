@@ -8523,3 +8523,35 @@ while retaining v3/private-v4–v6 gates. Owner decisions, human quality judgmen
 Q13 verification and historical uncertainty remain open. No push/PR/hosted CI/merge/
 deployment/live calls/credential changes/spend. Branch `codex/inlet-w1-followup`;
 predecessor `076695d`.
+
+
+## Customer Planning Runtime Composition — 2026-10-12
+
+Baseline `5ee2a00`; branch `codex/inlet-w1-followup`. Added exact
+`INLET_CUSTOMER_PLANNING_POLICY=v3|v4` selection to real API composition. Missing
+configuration and the example retain v3; explicit v4 selects the canonical
+selected-event requested-window planner. Invalid environment values fail Settings;
+defensive invalid runtime values return fixed 503 before planner work. No reporting
+flag, real provider access, media store or advertising/spending authority enabled.
+Policy v5/v6 remain private and incomplete pending creative/media/review composition.
+Historical outer PlanVersion v1/v2/v3 readers and digest rules are unchanged.
+
+39 exact cases passed (19 component,10 SQLite,10 PostgreSQL), including real-config
+customer browser journeys for absent/explicit v3 and Google positive/zero/missing
+plus Meta positive under v4. Constructor identity assertions ensure these journeys
+use the real planner rather than private partial overrides. Twelve artifact sets
+retain 36 PlanVersion payloads. Full Ruff, configured no-path mypy (1,540 files), exact
+collection and diff passed. Two static-check failures and test-only corrections
+remain preserved; all acceptance cases ran fresh in attempt03, no carryforward.
+
+[Package record](inlet-planning-composition-20261012.md),
+[contract](design/planning-runtime-composition-v1.md), and
+[targeted TikTok research question](inlet-tiktok-count-research-handoff-20261012.md).
+Evidence/freeze/review/commit binding:
+`/workspace/inlet-evidence/20261012/planning-composition-attempt03/`.
+No push/PR/hosted CI/merge/deployment, real credential/provider/model operation,
+customer advertising change or spend. Lifespan-off fixture browsers do not prove
+startup/readiness/live behavior. Existing owner decisions, six quality judgments,
+Q13 verification and historical R01–R03 uncertainty remain open. Next dependency:
+explicit creative planning media composition/review qualification; TikTok count
+producer still requires exact official report-combination evidence.

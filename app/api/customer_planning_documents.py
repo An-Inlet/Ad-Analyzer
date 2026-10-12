@@ -31,8 +31,10 @@ from app.planning_documents.responses import (
     VersionPage,
     VersionResult,
 )
+from app.planning_documents.runtime_policy import configured_policy
 from app.planning_documents.service import PlanningDocumentService
 from app.publication.customer_runtime import utc_now
+from app.settings import settings
 
 router = APIRouter(
     prefix="/api/customer/v1/workspaces/{workspace_id}/planning/plans",
@@ -48,6 +50,7 @@ RequestKey = Annotated[str, Path(min_length=8, max_length=128, pattern=r"^[A-Za-
 def service(
     db: Database, provider: IdentityProvider, principal: CustomerPrincipal
 ) -> PlanningDocumentService:
+    policy = configured_policy(settings)
     bind = db.get_bind()
     engine = bind if isinstance(bind, Engine) else bind.engine
     # The authenticated principal must not expire on rollback and issue a lazy SELECT
@@ -56,7 +59,9 @@ def service(
         if object_session(row) is db:
             db.expunge(row)
     db.rollback()
-    return PlanningDocumentService(engine, provider, clock=utc_now)
+    if policy is None:
+        return PlanningDocumentService(engine, provider, clock=utc_now)
+    return PlanningDocumentService(engine, provider, clock=utc_now, policy=policy)
 
 
 def no_store(response: Response) -> None:

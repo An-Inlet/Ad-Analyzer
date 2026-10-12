@@ -149,6 +149,7 @@ def prepare_social_common_basis(
     *,
     platform: Platform,
     owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
+    configure_planning: bool = True,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     calls: list[str] = []
     basis = prepare_q16_basis(
@@ -163,16 +164,17 @@ def prepare_social_common_basis(
         owned_image_upload=owned_image_upload,
         native_account_factory=partial(social_account, platform=platform),
     )
-    patch.setattr(
-        planning,
-        "PlanningDocumentService",
-        partial(
-            PlanningDocumentService,
-            policy=PlanningCompositionPolicy(
-                version="inlet.descriptive-review.v4",
-                generator_version="inlet.descriptive-planning.v4",
+    if configure_planning:
+        patch.setattr(
+            planning,
+            "PlanningDocumentService",
+            partial(
+                PlanningDocumentService,
+                policy=PlanningCompositionPolicy(
+                    version="inlet.descriptive-review.v4",
+                    generator_version="inlet.descriptive-planning.v4",
+                ),
             ),
-        ),
-    )
+        )
     basis.body["inputs"]["selected_reporting"] = []
     return basis, basis.body, calls

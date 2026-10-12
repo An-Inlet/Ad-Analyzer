@@ -36,15 +36,8 @@ class Assembly:
         self.app = app
         # The existing fixture configures the actual canonical private v4 constructor.
         # Also prove that the unchanged production v3 default does not advertise it.
-        with patch.context() as scoped:
-            scoped.setattr(planning_api, "PlanningDocumentService", PlanningDocumentService)
-            default = self.alice.get(
-                f"/api/customer/v1/workspaces/{f.wid}/planning/plans/capabilities"
-            )
-            assert (
-                default.status_code == 200
-                and default.json()["selected_reporting_available"] is False
-            )
+        if settings.customer_planning_policy == "v3":
+            self.check_default(patch)
 
         owner = self
 
@@ -58,6 +51,17 @@ class Assembly:
             return Transport(f.wire)
 
         patch.setattr(selected_runtime, "network_transport", network)
+
+    def check_default(self, patch: pytest.MonkeyPatch) -> None:
+        with patch.context() as scoped:
+            scoped.setattr(planning_api, "PlanningDocumentService", PlanningDocumentService)
+            default = self.alice.get(
+                f"/api/customer/v1/workspaces/{self.f.wid}/planning/plans/capabilities"
+            )
+            assert (
+                default.status_code == 200
+                and default.json()["selected_reporting_available"] is False
+            )
 
     def post(self, path: str, body: dict[str, Any]) -> Any:
         return self.alice.post(self.f.root + path, headers=headers(self.alice), json=body)

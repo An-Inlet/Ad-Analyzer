@@ -30,7 +30,9 @@ from tests.test_meta_connection import campaign, insight, page
 
 class MetaFixture:
     def __init__(
-        self, engine: Engine, config: Settings, replicas: Any, patch: pytest.MonkeyPatch, path: Path
+        self, engine: Engine, config: Settings, replicas: Any,
+        patch: pytest.MonkeyPatch, path: Path,
+        *, configure_planning: bool = True,
     ) -> None:
         if engine.dialect.name == "sqlite":
             with engine.connect() as connection:
@@ -38,7 +40,8 @@ class MetaFixture:
                 assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 1
         self.engine, self.patch = engine, patch
         self.basis, self.body, self.native_calls = prepare_social_common_basis(
-            engine, config, replicas, patch, path, platform="meta_ads"
+            engine, config, replicas, patch, path, platform="meta_ads",
+            configure_planning=configure_planning
         )
         self.alice, self.bob, self.provider = replicas
         self.wid, self.aid = self.basis.workspace_id, self.basis.account_id

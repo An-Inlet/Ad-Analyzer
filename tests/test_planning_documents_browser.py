@@ -327,6 +327,16 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         assert complete.wait(55), "Browser did not report completion"
         assert results and results[0]["status"] == "passed", results
         assert calls
+        if journey == "windows":
+            from app.planning_documents.documents import PlanVersion
+
+            for name in ("first", "second", "old"):
+                item = results[0][name]
+                doc = PlanVersion.model_validate(item["document"])
+                assert doc.digest() == item["document_digest"]
+                assert doc.policy_version == "inlet.descriptive-review.v3"
+                assert not doc.advertising_writes_enabled and doc.spending_authority == "none"
+            (tmp_path / "assembled-default-plan.json").write_text(json.dumps(results[0], indent=2))
         if journey == "capture_handoff":
             from app.planning_documents.documents import PlanVersion
 

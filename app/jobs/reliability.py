@@ -8,10 +8,11 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, select, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
@@ -31,6 +32,7 @@ from app.automation import AutomationControlKey, master_control_enabled
 from app.collectors.google_ads import GoogleAdsRateLimitError
 from app.imports.scope import AdvertisingImportScope, google_scope, validate_advertising_scope
 from app.settings import Settings
+from app.workspaces.locking import lock_workspace_row
 
 logger = logging.getLogger(__name__)
 
@@ -279,13 +281,69 @@ def _safe_failure_summary(exc: BaseException, attempts: int) -> str:
     return f"Google Ads read-only sync failed ({type(exc).__name__}; attempts={attempts})"[:120]
 
 
+@dataclass(frozen=True)
+class _FailedJobIdentity:
+    """Original committed job binding; never rebuilt from a failed ORM transaction."""
+
+    id: int
+    workspace_id: int
+    connection_id: int | None
+    account_id: int | None
+    platform: AdvertisingPlatform
+    job_name: str
+    started_at: datetime
+    created_at: datetime
+
+    @classmethod
+    def capture(cls, job: JobRun) -> "_FailedJobIdentity":
+        return cls(
+            job.id,
+            job.workspace_id,
+            job.connection_id,
+            job.account_id,
+            job.platform,
+            job.job_name,
+            job.started_at,
+            job.created_at,
+        )
+
+
 def _finalize_failed_job_run(
-    session: Session, job_run: JobRun, exc: BaseException, attempts: int
+    session: Session, identity: _FailedJobIdentity, exc: BaseException, attempts: int
 ) -> None:
     commit_started = False
     try:
+        # This helper owns the replacement transaction. Never merge a failed/stale
+        # collector object: that could overwrite a terminal row or recreate deletion.
         session.rollback()
-        job_run = session.merge(job_run)
+        if session.get_bind().dialect.name == "sqlite":
+            session.execute(text("BEGIN IMMEDIATE"))
+        # Historical bookkeeping remains possible after closure/revocation, but
+        # acquires the same workspace gate as current source readers and writers.
+        if lock_workspace_row(session, identity.workspace_id) is None:
+            session.rollback()
+            return
+        with session.no_autoflush:
+            job_run = session.scalar(
+                select(JobRun)
+                .where(
+                    JobRun.id == identity.id,
+                    JobRun.workspace_id == identity.workspace_id,
+                    JobRun.connection_id == identity.connection_id,
+                    JobRun.account_id == identity.account_id,
+                    JobRun.platform == identity.platform,
+                    JobRun.job_name == identity.job_name,
+                    JobRun.started_at == identity.started_at,
+                    JobRun.created_at == identity.created_at,
+                    JobRun.status == JobRunStatus.RUNNING,
+                    JobRun.finished_at.is_(None),
+                )
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        if job_run is None:
+            session.rollback()
+            return
         AdvertisingMetricsRepository(session).finish_job_run(
             job_run,
             status=JobRunStatus.FAILED,
@@ -308,7 +366,7 @@ def _finalize_failed_job_run(
 
 
 def _finalize_failed_job_run_on_engine(
-    engine: Engine, job_run_id: int, exc: BaseException, attempts: int
+    engine: Engine, identity: _FailedJobIdentity, exc: BaseException, attempts: int
 ) -> None:
     with engine.connect() as connection:
         session = sessionmaker(
@@ -318,9 +376,7 @@ def _finalize_failed_job_run_on_engine(
             expire_on_commit=False,
         )()
         try:
-            job_run = session.get(JobRun, job_run_id)
-            if job_run is not None:
-                _finalize_failed_job_run(session, job_run, exc, attempts)
+            _finalize_failed_job_run(session, identity, exc, attempts)
         finally:
             session.close()
 
@@ -383,6 +439,7 @@ def run_cycle(
     lock = PostgreSQLAdvisoryLock(connection, scoped_lock_key)
     session: Session | None = None
     job_run: JobRun | None = None
+    job_identity: _FailedJobIdentity | None = None
     last_attempt = 0
     finalization_completed = False
     finalization_outcome_unknown = False
@@ -491,7 +548,7 @@ def run_cycle(
                 connection.invalidate()
             raise finalize_exc
         if lock_ownership_lost(finalize_exc):
-            if job_run is None:
+            if job_identity is None:
                 raise finalize_exc
             lock.acquired = False
             connection.invalidate()
@@ -500,7 +557,7 @@ def run_cycle(
             if session is not None:
                 session.close()
             try:
-                _finalize_failed_job_run_on_engine(engine, job_run.id, original_exc, attempts)
+                _finalize_failed_job_run_on_engine(engine, job_identity, original_exc, attempts)
                 finalization_completed = True
             except BaseException as replacement_exc:
                 if unknown_commit_outcome(replacement_exc):
@@ -533,11 +590,12 @@ def run_cycle(
         )
         session = session_factory()
         job_run = _create_authoritative_job_run(session, scope)
+        job_identity = _FailedJobIdentity.capture(job_run)
         try:
             _raise_if_stop_requested(stop_requested)
         except BaseException as stop_exc:
             try:
-                _finalize_failed_job_run(session, job_run, stop_exc, 0)
+                _finalize_failed_job_run(session, job_identity, stop_exc, 0)
                 finalization_completed = True
             except BaseException as finalize_exc:
                 handle_failed_finalization_error(finalize_exc, stop_exc, 0)
@@ -579,14 +637,14 @@ def run_cycle(
                     connection.invalidate()
                     session.close()
                     _finalize_failed_job_run_on_engine(
-                        engine, job_run.id, AdvisoryLockLostError(), attempt
+                        engine, job_identity, AdvisoryLockLostError(), attempt
                     )
                     finalization_completed = True
                     raise AdvisoryLockLostError(LOCK_LOST_SYNC_ERROR) from None
                 retryable = isinstance(exc, Exception) and is_transient_failure(exc)
                 if attempt >= settings.sync_max_attempts or not retryable:
                     try:
-                        _finalize_failed_job_run(session, job_run, exc, attempt)
+                        _finalize_failed_job_run(session, job_identity, exc, attempt)
                         finalization_completed = True
                     except BaseException as finalize_exc:
                         handle_failed_finalization_error(finalize_exc, exc, attempt)
@@ -613,7 +671,7 @@ def run_cycle(
                         primary_error = wait_exc
                         raise
                     try:
-                        _finalize_failed_job_run(session, job_run, wait_exc, attempt)
+                        _finalize_failed_job_run(session, job_identity, wait_exc, attempt)
                         finalization_completed = True
                     except BaseException as finalize_exc:
                         handle_failed_finalization_error(finalize_exc, wait_exc, attempt)
@@ -626,10 +684,14 @@ def run_cycle(
                 lock.acquired = False
                 connection.invalidate()
             raise
-        if job_run is not None and not finalization_completed and not finalization_outcome_unknown:
+        if (
+            job_identity is not None
+            and not finalization_completed
+            and not finalization_outcome_unknown
+        ):
             assert session is not None
             try:
-                _finalize_failed_job_run(session, job_run, exc, last_attempt)
+                _finalize_failed_job_run(session, job_identity, exc, last_attempt)
                 finalization_completed = True
             except BaseException as finalize_exc:
                 handle_failed_finalization_error(finalize_exc, exc, last_attempt)

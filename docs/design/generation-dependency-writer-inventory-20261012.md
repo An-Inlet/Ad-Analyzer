@@ -212,3 +212,22 @@ writer or privileged SQL path. Keep receipt membership plus mutable JobRun/compl
 checks fresh. The first concrete writer-closure follow-up is the failed-finalizer
 scope contract (including closing workspaces and legacy jobs) and parent deletion paths;
 it is not permission to start a prepared-source cache.
+
+## Failed-Finalizer Follow-Up
+
+The previously identified reliability rollback/merge gap is repaired in the narrow
+[failed-job finalization package](failed-job-finalization-fence-20261012.md): original
+committed identity, workspace-first locking, SQLite physical reservation, current
+RUNNING-only mutation, terminal/deletion preservation and unchanged commit uncertainty.
+22 focused tests and final statics pass; earlier fixture failures remain preserved.
+This does not close every low-level finish_job_run caller or parent/generic writer.
+
+Additional reviewed parent edges: CatalogReceipt actor_id is not a CustomerUser FK;
+user deletion cannot be assumed to cascade that receipt. Input deletion cascades links
+only if retained PlanVersion RESTRICT dependencies permit it. Account/workspace
+CASCADE edges coexist with restrictive dependencies. Completion update immutability
+is migration0074-only, not metadata-registered. The restore verification script deletes
+completion rows inside a rolled-back privileged-maintenance transaction. Normal alias
+helper erasure enters through workspace-locked privacy invalidation and ordered plan
+graph deletion; cleanup excludes linked catalog receipts. These source findings await
+bounded cascade qualification and do not authorize removing current rereads.

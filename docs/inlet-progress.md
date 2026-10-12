@@ -8336,3 +8336,22 @@ historicalR01–R03 uncertainty remain. No remote/live/deployment/spending actio
 Independent completion CLOSED:224evidence/1726source hashes,12exactTLS passes,
 five static checks and all30new-artifact document digests verified. No local
 commit blocker; no human/live/fullQ14 or historical incident closure claimed.
+
+## 2026-10-12 — Social Selected-Event Contract Preparation
+
+After Q14 local `ab9473a`, recorded the parent's recovered official-source handoff
+and [bounded candidate mappings](design/social-selected-event-semantics-v1.md).
+No producer implementation. Meta changelog overrides ignored report-time flags and
+retired view windows; request/effective attribution remain separate. TikTok website
+payment count is distinct from app unique/total purchases; documented value-key
+spelling does not establish monetary units/scaling. Campaign/custom-event rows
+cannot prove pixel identity; absent metrics never imply zero.
+
+Next is three finite pure profile/request-effective contracts, not a generic
+reporting framework. Exact version/field/grain availability and lossless historical
+request retention must be qualified before durable producers. This executor's
+additional public-doc fetch remained inaccessible, so evidence is explicitly the
+parent's independent official research, not duplicate retrieval or live verification.
+Documentation-only preparation; Q14 test/source evidence remains unchanged.
+Independent docs-only design review CLOSED after those limitations were made
+explicit. No production/runtime capability or human/live gate is conferred.

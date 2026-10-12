@@ -8062,3 +8062,16 @@ The stricter snapshot is safe and unchanged. Failure freeze
 preserves the original test/log/exit and33pure+47database cases remain unrun.
 The test-only correction is reviewed; next selection is34corrected/unrun pure
 cases, excluding the passed private-state case. No unchanged retry occurred.
+
+
+The corrected/unrun pure selection passed34/34, giving35 distinct pure passes
+with the earlier private-state case. SQLite parity then passed23/23, original
+exit0, no skips/errors:210.08s pytest /216.159050s process. All1,493 sources
+remained unchanged and independent review closed exact ordered XML applicability.
+The intentional underlying-Connection-transaction fault produced a retained
+rollback SAWarning; this is not Connection-object replacement coverage.
+Manifest parity03 SHA256044474b0fc049956e28fa8c889825658d2dab0934666b77a4356ce9da7b53af1
+binds these checks. PostgreSQL24 is now separately authorized and running.
+Normal-assertion runtime16 (actual V1/edit/V2/report/retraction/export and original
+authority/source mutation cases) remains gated on all parity phases. No runtime
+reliability, capacity, release or historical-incident closure is claimed.

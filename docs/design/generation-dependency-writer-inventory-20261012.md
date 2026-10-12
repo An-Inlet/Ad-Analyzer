@@ -231,3 +231,15 @@ completion rows inside a rolled-back privileged-maintenance transaction. Normal 
 helper erasure enters through workspace-locked privacy invalidation and ordered plan
 graph deletion; cleanup excludes linked catalog receipts. These source findings await
 bounded cascade qualification and do not authorize removing current rereads.
+
+## Bounded Parent Cascade Qualification
+
+The [parent-cascade package](generation-parent-cascades-20261012.md) adds four passing
+SQLite/PostgreSQL cases over published range evidence and actual catalog DDL. It
+qualifies exact affected child counts, FK refusal, rollback/privacy behavior, current
+range-reader refusal and ordered semantic erasure. An initial workspace-wide deletion
+oracle failed and was corrected to preserve unrelated history; original evidence is
+retained. Neither all transitive tables nor concurrent generation/cascade blocking are
+claimed. Catalog deletion still has no intrinsic privacy increment. The next concrete
+family is cross-store aliases/identity markers and their indirect writers, retaining
+workspace-wide query membership and all current reconstruction.

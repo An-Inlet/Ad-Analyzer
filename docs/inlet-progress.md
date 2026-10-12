@@ -8597,3 +8597,26 @@ human quality judgments, Q13 verification and historical R01–R03 uncertainty r
 No live activation/provider/model/credential/access operations, push/PR/hosted CI,
 merge/deployment, advertising changes or spend. Local_dev fixture qualification is
 not GCS/live readiness or proof of physical blob erasure.
+
+## TikTok Pure Count Parser — 2026-10-12
+
+Baseline `a2b8ca51`, branch `codex/inlet-w1-followup`. Added bounded exact website
+purchase count query/page/parser and unpersisted proof DTOs, preserving old profiles,
+unknown attribution, unsupported money, explicit zero versus missing/dash and strict
+owned campaign/day/pagination checks. Throttle presence is unqualified; absence does
+not prove uncapped reporting. Positive complete captures remain impossible by design.
+
+64 exact pure tests passed; full Ruff, configured no-path mypy (1,546 files), collection
+and diff passed. Import/type-check failures and original unrun dispositions preserved;
+no behavioral failure or repeated behavioral run. Identical source hashes justify
+carrying four static results into the exact-node behavioral manifest. No database,
+browser, HTTP or live verification claimed. [Checkpoint](inlet-tiktok-count-parser-20261012.md),
+[contract](design/tiktok-count-producer-v1.md); evidence/review/commit binding under
+`/workspace/inlet-evidence/20261012/tiktok-count-attempt04/`.
+
+Precise blocker to durable capture: documented, validated positive evidence that the
+query is uncapped under TikTok's synchronous 20,000-ad limit. Complete pagination and
+absent warnings are insufficient. Retained proof/capture schema and historical reader
+floor must be reviewed before persistence; none changed here. Runtime/defaults and all
+owner/live/execution restrictions remain unchanged. Next: targeted evidence for that
+predicate, then durable proof qualification only if justified.

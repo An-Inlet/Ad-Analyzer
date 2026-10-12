@@ -1,3 +1,4 @@
+import {captureHandoff} from './plan-capture-handoff.mjs';
 import {renderGoogleOwnerInputs} from './plan-google-owner-inputs.mjs';
 import {planningCapability} from './plan-capability.mjs';
 import {clearCreativeInputs,renderCreativeInputs} from './plan-creative-inputs.mjs';
@@ -11,6 +12,8 @@ const clearPlanComparison=host=>{host.replaceChildren();host.hidden=true;};
 import {clearPlanScenarios,renderPlanScenarios} from './plan-scenarios.mjs';
 import {clearPlanTargetPicker,renderPlanTargetPicker} from './plan-target-picker.mjs';
 import {clearPlanEvents,renderPlanEvents} from './plan-events.mjs';
+const handoff=captureHandoff(window.location.hash,document.cookie);
+if(window.location.hash)history.replaceState(history.state,'',window.location.pathname+window.location.search);
 const $=id=>document.getElementById('planning-'+id),base='/api/customer/v1';
 const platforms={google_ads:'Google Ads',meta_ads:'Meta Ads',tiktok_ads:'TikTok Ads'};
 const id=value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value);
@@ -33,9 +36,9 @@ const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
 function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
-function clearEditor(){ownerHandle?.clear();ownerHandle=null;creativeHandle=null;clearCreativeInputs($('creative-inputs'));captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
+function clearEditor(){$('capture-handoff').hidden=true;$('capture-hint').textContent='';ownerHandle?.clear();ownerHandle=null;creativeHandle=null;clearCreativeInputs($('creative-inputs'));captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
-function invalidate(){epoch++;busy=false;clearPlan();clearEditor();enable();}
+function invalidate(keepHandoff=false){if(!keepHandoff)handoff.revoke();epoch++;busy=false;clearPlan();clearEditor();enable();}
 function enable(){
   for(const node of document.querySelectorAll('button,input,select,textarea'))node.disabled=busy;
   creativeHandle?.setBusy(busy);
@@ -86,6 +89,7 @@ async function loadSession(turn){
   clearPlan();clearEditor();wid='';role='';user=null;listCursor=null;$('plans').replaceChildren();$('selection').hidden=true;
   const current=await api('/session',turn);user=current.user_id;if(pending&&pending.user!==user)pending=null;
   workspaces=await api('/workspaces',turn);if(!Array.isArray(workspaces)||workspaces.some(w=>!positive(w.id)||typeof w.name!=='string'))throw Error('The workspace list could not be verified.');
+  handoff.bind(workspaces,document.cookie);
   options($('workspace'),workspaces,w=>w.name,w=>w.id);$('selection').hidden=false;$('logout').hidden=false;say('Choose a workspace to review its plans.');
 }
 async function listPlans(turn,cursor=null){
@@ -120,7 +124,7 @@ async function events(turn,cursor=null){
 }
 function goalSummary(){const goal=goals.find(g=>g.id===$('goal').value);$('goal-summary').textContent=goal?`Confirmed Goal Revision ${goal.revision} · ${goal.definition.target_window.currency} ${(goal.definition.budget_micros/1e6).toFixed(2)} Budget Ceiling · ${goal.definition.aggressiveness} Aggressiveness. This does not increase spending permission.`:'';}
 async function editor(turn,isEdit=false){
-  clearEditor();editing=isEdit;
+  clearEditor();editing=isEdit;if(isEdit)handoff.revoke();
   const allGoals=await api(`/workspaces/${wid}/goals`,turn),catalog=await api(`/workspaces/${wid}/planning/accounts`,turn);
   const capability=await api(root()+'/capabilities',turn);
   const verifiedCapability=planningCapability(capability,Number(wid)),privateCreative=verifiedCapability.creative;
@@ -146,6 +150,7 @@ async function editor(turn,isEdit=false){
   const ownerContext=()=>{currentEditor();const goal=goals.find(g=>g.id===$('goal').value);if(!goal)throw Error('Choose a confirmed goal.');return{catalogs:targetPickers.map(({account,catalog})=>({account,catalog})),reportingWindow:reportingPeriods({start:$('start').value,end:$('end').value,comparisonEnabled:$('comparison-enabled').checked,comparisonStart:$('comparison-start').value,comparisonEnd:$('comparison-end').value,savedPrimary:editWindow,savedComparison:editComparison}).reporting_window,currency:goal.definition.target_window.currency,totalCeilingMicros:goal.definition.budget_micros,scenarios:scenarioHandle?.readIntent()??[],exclusions:targetPickers.flatMap(item=>item.handle.readIntent().exclusions)};};
   const discoverOwner=async request=>{let result,completed=false;await guarded(async t=>{currentEditor();result=await api(`/workspaces/${editorWorkspace}/planning/google-budget-owners`,t,'POST',request);await session(t);check(t);currentEditor();completed=true;});if(!completed)throw Error('Shared budget discovery unavailable. Review your session and choices before retrying.');return result;};
   ownerHandle=renderGoogleOwnerInputs(document.getElementById('google-owner-inputs'),{capability,workspaceId:Number(wid),saved:isEdit?read.inputs.google_daily_budget_intents??null:null,context:ownerContext,discover:discoverOwner,current:currentEditor});
+  const hint=handoff.offered(Number(wid),document.cookie);if(hint){const account=accounts.find(a=>a.id===hint.accountId&&a.platform==='google_ads');if(!isEdit&&verifiedCapability.selected&&account){$('capture-hint').textContent=`${account.name} · Account ${account.id} · Capture ${hint.captureId}`;$('capture-handoff').hidden=false;}else handoff.revoke();}
   $('editor-title').textContent=isEdit?'Edit Plan Inputs':'Prepare A New Plan';goalSummary();$('editor').hidden=false;say('Review the goal, accounts, milestone and reporting period before saving.');
 }
 function lines(value){const values=value.split('\n').map(v=>v.trim()).filter(Boolean);if(values.length>30||values.some(v=>v.length>2000))throw Error('Use at most 30 entries, each no longer than 2,000 characters.');return values;}
@@ -192,9 +197,9 @@ $('review-form').onsubmit=event=>{event.preventDefault();guarded(async turn=>{
   $('review-form').reset();await readPlan(turn,version);await events(turn);say('Your customer record was saved. No advertising change was made.');
 });};
 $('refresh').onclick=()=>{invalidate();guarded(loadSession,false);};
-$('workspace').onchange=()=>{invalidate();wid=$('workspace').value;role=workspaces.find(w=>String(w.id)===wid)?.role??'';$('new').hidden=role!=='owner';$('plans').replaceChildren();listCursor=null;if(wid)guarded(t=>listPlans(t));};
+$('workspace').onchange=()=>{const first=wid==='';handoff.choose(Number($('workspace').value),document.cookie);invalidate(first);wid=$('workspace').value;role=workspaces.find(w=>String(w.id)===wid)?.role??'';$('new').hidden=role!=='owner';$('plans').replaceChildren();listCursor=null;if(wid)guarded(t=>listPlans(t));};
 $('list-refresh').onclick=()=>guarded(t=>listPlans(t));$('list-next').onclick=()=>guarded(t=>listPlans(t,listCursor));
-$('new').onclick=()=>{clearPlan();guarded(t=>editor(t));};$('cancel').onclick=()=>{clearEditor();enable();};$('goal').onchange=()=>{goalSummary();changedTargetScope();};
+$('new').onclick=()=>{clearPlan();guarded(t=>editor(t));};$('cancel').onclick=()=>{handoff.revoke();clearEditor();enable();};$('goal').onchange=()=>{goalSummary();changedTargetScope();};
 for(const name of ['start','end'])$(name).oninput=changedTargetScope;
 $('comparison-enabled').onchange=()=>{comparisonControls();ownerHandle?.invalidateChoices();};
 for(const name of ['comparison-start','comparison-end'])$(name).oninput=()=>ownerHandle?.invalidateChoices();
@@ -217,6 +222,8 @@ $('targets-read').onclick=()=>guarded(async turn=>{
   targetTimer=setTimeout(()=>{clearTargets();$('target-status').textContent='The target observations expired. Read again and explicitly reselect your choices.';},Math.min(2147483647,Math.max(0,expires-Date.now())));
   }catch(error){clearTargets();throw error;}
 });
+$('dismiss-capture').onclick=()=>{handoff.revoke();$('capture-handoff').hidden=true;$('capture-hint').textContent='';};
+$('apply-capture').onclick=()=>guarded(async turn=>{const hint=handoff.offered(Number(wid),document.cookie);if(!hint||editing||$('editor').hidden||!captureHandle?.applyHint)throw Error('This capture hint is no longer available. Return to Reporting Reads.');const handle=captureHandle,capability=await api(root()+'/capabilities',turn);await session(turn);check(turn);if(handle!==captureHandle||!planningCapability(capability,Number(wid)).selected){handoff.revoke();$('capture-handoff').hidden=true;throw Error('Selected reporting is currently unavailable.');}handle.applyHint(hint,[...$('accounts').querySelectorAll('input:checked')].map(n=>Number(n.value)));handoff.revoke();$('capture-handoff').hidden=true;$('capture-hint').textContent='';say('Capture applied to the editor. Review the goal, accounts and periods before saving.');});
 $('edit').onclick=()=>guarded(async t=>{await readPlan(t);await editor(t,true);});
 $('form').onsubmit=event=>{event.preventDefault();guarded(async turn=>{const intent=inputs(),result=await mutate(turn,editing?'revise':'create',editing?selected()+'/inputs':root(),{inputs:intent,...(editing?editExpected:{})});if(!id(result.plan_id)||!noAuthority(result))throw Error('The saved result could not be verified.');planId=result.plan_id;clearEditor();await readPlan(turn);await versions(turn);say('Plan inputs saved. Generate a version when ready.');});};
 $('read').onclick=()=>guarded(async t=>{await readPlan(t);await versions(t);});

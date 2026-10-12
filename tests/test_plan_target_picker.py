@@ -18,7 +18,8 @@ from tests.test_planning_metadata_binding import bundle
 
 
 @pytest.mark.parametrize(
-    "driver", ["plan_target_picker_dom", "plan_scenarios_dom", "plan_selected_captures_dom"]
+    "driver", ["plan_target_picker_dom", "plan_scenarios_dom",
+               "plan_selected_captures_dom", "plan_capture_handoff_dom"]
 )
 def test_target_picker_exact_choices_revocation_expiry_and_bounds(
     tmp_path: Path, driver: str
@@ -34,6 +35,7 @@ def test_target_picker_exact_choices_revocation_expiry_and_bounds(
         "native-targets.mjs",
         "plan-scenarios.mjs",
         "plan-selected-captures.mjs",
+        "plan-capture-handoff.mjs",
         "plan-capability.mjs",
         "plan-creative-inputs.mjs",
         "plan-creative-basis.mjs",

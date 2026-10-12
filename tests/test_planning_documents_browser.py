@@ -38,7 +38,8 @@ pytestmark = pytest.mark.planning_boundary
 
 @pytest.mark.parametrize(
     ("journey", "platform"),
-    [("documents", "google_ads"), ("selected", "google_ads"), ("targets", "google_ads"),
+    [("capture_handoff", "google_ads"), ("documents", "google_ads"),
+     ("selected", "google_ads"), ("targets", "google_ads"),
      ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
      ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads"),
      ("target_disappearance", "google_ads"), ("target_disappearance", "meta_ads"),
@@ -61,6 +62,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
     monkeypatch.setattr(settings, "customer_app_origin", origin)
     for client in replicas[:2]:
         client.base_url = origin
+    reporting_fixture = None
     configure_selected: Callable[[bool], None] | None = None
     window_source = None
     if journey == "windows":
@@ -72,7 +74,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         )
         ticket, calls = window_source.ticket, window_source.native_calls
         require_default_v3(monkeypatch)
-    elif journey == "selected":
+    elif journey in {"selected", "capture_handoff"}:
         from functools import partial
 
         from app.api import customer_planning_documents as planning_api
@@ -83,7 +85,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         # This helper module can be cached from the preceding database case.
         # Match the actual local TLS origin; retain the normal CSRF/origin guard.
         monkeypatch.setattr(test_selected_customer_api, "ORIGIN", origin)
-        selected_reader, ticket, _, _, calls = prepared_range_plan(
+        selected_reader, ticket, reporting_fixture, _, calls = prepared_range_plan(
             customer_engine, configuration, replicas, monkeypatch
         )
         def configure_selected_policy(enabled: bool) -> None:
@@ -128,6 +130,12 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             get_identity_provider: lambda: provider,
         },
     )
+    if journey == "capture_handoff":
+        from app.api.customer_reporting import get_selected_customer_runtime
+
+        assert reporting_fixture is not None
+        selected_runtime = reporting_fixture.runtime
+        app.dependency_overrides[get_selected_customer_runtime] = lambda: selected_runtime
     complete = threading.Event()
     results: list[dict[str, Any]] = []
 
@@ -139,7 +147,20 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             configure_selected(path.endswith("selected-planner"))
             await JSONResponse({"ok": True})(scope, receive, send)
             return
-        if path == "/__fixture__/start":
+        if journey == "capture_handoff" and path == "/__fixture__/start":
+            html = Path("app/portal/static/reporting.html").read_text().replace(
+                "/app/assets/reporting.mjs", "/__fixture__/reporting-driver.mjs"
+            )
+            await Response(html, media_type="text/html")(scope, receive, send)
+            return
+        if journey == "capture_handoff" and path == "/__fixture__/reporting-driver.mjs":
+            script = Path("tests/javascript/reporting_handoff_browser.mjs").read_text()
+            script = script.replace("__INPUTS__", json.dumps(browser_inputs))
+            await Response(script, media_type="text/javascript")(scope, receive, send)
+            return
+        if path == "/__fixture__/start" or (
+            journey == "capture_handoff" and path == "/app/planning"
+        ):
             html = (
                 Path("app/portal/static/planning.html")
                 .read_text()
@@ -265,6 +286,10 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             "--no-sandbox",
             "--disable-gpu",
             "--disable-background-networking",
+            # Navigation retains no earlier page for this transient-hint journey.
+            # Bound renderer memory without changing application or API behavior.
+            *(["--disable-features=BackForwardCache", "--renderer-process-limit=1"]
+              if journey == "capture_handoff" else []),
             "--no-first-run",
             "--disable-extensions",
             "--ignore-certificate-errors",
@@ -279,6 +304,24 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         assert complete.wait(55), "Browser did not report completion"
         assert results and results[0]["status"] == "passed", results
         assert calls
+        if journey == "capture_handoff":
+            from app.planning_documents.documents import PlanVersion
+
+            for name in ("first", "archived"):
+                exported = results[0][name]
+                document = PlanVersion.model_validate_json(json.dumps(exported["document"]))
+                assert document.digest() == exported["document_digest"]
+                assert document.inputs.selected_reporting is not None
+                assert document.inputs.selected_reporting[0].capture_id == results[0]["capture"]
+                assert document.advertising_writes_enabled is False
+                assert document.spending_authority == "none"
+                assert "spend without conversions" not in document.model_dump_json().lower()
+            assert results[0]["first"]["document_digest"] == (
+                results[0]["archived"]["document_digest"]
+            )
+            (tmp_path / "capture-handoff-artifacts.json").write_text(
+                json.dumps(results[0], indent=2)
+            )
         if inventory is not None:
             assert inventory.phase == "replacement"
             assert len(generation_counts) == 2 and all(a == b for a, b in generation_counts)

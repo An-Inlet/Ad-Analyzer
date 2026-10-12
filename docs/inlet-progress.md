@@ -8202,3 +8202,33 @@ Next unresolved planning work is Q01–Q16 evidence reconciliation, particularly
 source-qualified social selected-event/known-attribution producers; do not invent
 provider semantics. Owner retention and artifact-sharing/human judgments remain
 pending. No pushes/hosted/mainmerge/deploy/livecalls/ads/spend occurred.
+
+## 2026-10-12 — Reporting → Planning Capture Handoff
+
+After local `c4224ce`, implemented the next dependency-ready Q01/Q02 customer workflow
+join: completed reporting capture → transient scoped hint → explicit new-plan
+application → actual save/generate/export. Default V3 and manual entry preserved;
+no automatic account/goal/period selection, capture overwrite, save or generation.
+Q01–Q16 mechanical coverage/gaps reconciled without marking human quality complete.
+
+Final checks: 11 distinct tests passed (2 component, 5 actual-controller, 4 TLS API/DB
+cases across SQLite/PostgreSQL), exact original exits 0/no skips/errors; whole Ruff
+and configured mypy 1,505 files passed. Actual V1 exports before/after V2 validate
+against PlanVersion and exact digests/capture ID. Provider IO remains synthetic.
+
+Original runner/setup/type errors, two memory-guard -15/no-XML interruptions and one
+browser-driver wait failure are preserved; specific fixes only, with passing tests
+carried through verified source continuity. No lowered floors or retroactive R01–R03
+explanation. Local archival of inactive synthetic browser profiles preserved file
+hashes and freed sufficient memory for the TLS run. BFCache restoration not qualified.
+
+Details, exact evidence hashes, remaining decisions and next Q09 comparability package:
+[Reporting Capture Handoff Checkpoint](inlet-capture-handoff-20261012.md).
+Branch `codex/inlet-w1-followup`; local commit binding in final evidence directory.
+No new PR/push/hosted CI/main merge/deployment/live providers/spend. Owner retention,
+artifact-sharing decisions and six human quality judgments remain pending.
+
+Independent evidence closure: `failure_review` verified the completion-freeze hash,
+all 198 evidence hashes and 1,711 app/test source hashes, exact 11 unique passing
+XML/result identities and unchanged-source applicability of the seven carried cases.
+No blocker to local commit; original failures and all remaining gates preserved.

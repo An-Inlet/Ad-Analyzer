@@ -1,0 +1,11 @@
+const inputs=__INPUTS__,$=id=>document.getElementById('report-'+id),assert=(v,m)=>{if(!v)throw Error(m);};
+const until=async(fn,m)=>{const end=Date.now()+15000;while(!fn()){if(Date.now()>end)throw Error(m+' · '+$('message').textContent);await new Promise(r=>setTimeout(r,20));}};
+const change=(name,value)=>{$(name).value=value;$(name).dispatchEvent(new Event('change'));},settled=()=>!$('account').disabled;
+const native=window.fetch.bind(window);
+try{
+ const login=await native('/api/customer/v1/session',{method:'POST',headers:{'Content-Type':'application/json','X-Inlet-Request':'1'},body:JSON.stringify({id_token:'goal-progress:browser'})});assert(login.ok,'real login');
+ await import('/app/assets/reporting.mjs');await until(()=>!$('controls').hidden,'reporting session');change('workspace',String(inputs.workspace_id));await until(()=>settled()&&$('account').options.length>1,'account choices');change('account',String(inputs.accounts[0].account_id));await until(()=>settled()&&!$('invalidate').hidden,'existing event');
+ $('invalidate').click();await until(()=>settled()&&!$('range').disabled,'explicit fresh range');$('start').value='2026-08-01';$('end').value='2026-09-30';$('range').click();await until(()=>settled()&&!$('range-result').hidden,'actual range');$('discover').click();await until(()=>settled()&&!$('events').hidden,'event options');
+ const option=[...$('option').options].find(o=>o.textContent.endsWith(' · conversions'));assert(option,'conversion family');change('option',option.value);$('confirm').click();await until(()=>settled()&&!$('capture').hidden,'confirmed event');$('capture').click();await until(()=>settled()&&!$('capture-result').hidden,'completed capture');assert(!$('use-capture').disabled,'handoff available');
+ await native('/__fixture__/legacy-planner');$('use-capture').click();await until(()=>settled()&&$('message').textContent.includes('not available'),'legacy handoff refusal');assert(location.pathname==='/__fixture__/start','no legacy navigation');await native('/__fixture__/selected-planner');$('use-capture').click();
+}catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message})});}

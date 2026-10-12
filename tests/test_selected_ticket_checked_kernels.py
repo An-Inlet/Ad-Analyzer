@@ -490,7 +490,7 @@ SCHEMA_CLASSES = (
     "app.planning_documents.selected_traffic_contracts.SelectedTrafficPinV1",
     "app.planning_documents.source_contracts.SourceFence",
 )
-SCHEMA_SHA256 = "39ff12333d36b8104f660b099e20d16f7337e49e53f775db59b3f03a2ed05b72"
+SCHEMA_SHA256 = "46fcc2d85f7ef58fe58c6bc1700197ec93a0d553aaa6b26f5c1dd62555452c41"
 
 
 def test_declared_field_and_revalidation_configuration_inventory() -> None:

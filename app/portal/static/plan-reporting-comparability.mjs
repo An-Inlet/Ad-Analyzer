@@ -20,6 +20,7 @@ function captureSettings(p,scope){
   const profiles={
     'google.conversions.campaign-day.v1':['google_ads','v24','conversions','selected_action_count',null],
     'google.all-conversions.campaign-day.v1':['google_ads','v24','all_conversions','selected_action_count',null],
+    'meta.website-purchase-count.campaign-day.v1':['meta_ads','v26.0','actions','website_purchase_actions','offsite_conversion.fb_pixel_purchase'],
     'meta.website-purchase.campaign-day.v1':['meta_ads','v26.0','actions','website_purchase_actions','offsite_conversion.fb_pixel_purchase'],
     'meta.website-lead.campaign-day.v1':['meta_ads','v26.0','actions','website_lead_actions','offsite_conversion.fb_pixel_lead'],
     'tiktok.website-payment.campaign-day.v1':['tiktok_ads','v1.3','event_count','website_purchase_actions','complete_payment'],
@@ -31,6 +32,8 @@ function captureSettings(p,scope){
   if(scope.platform!=='meta_ads'&&(r.action_report_time!==null||r.use_unified_attribution_setting!==null||r.action_attribution_windows.length))fail();
   if(scope.platform==='google_ads'){
     if(s.report_support!=='existing_google_contract'||s.value_unit!=='account_currency_major'||p.producer_contract!=='google.v24.campaign-day.selected-action.v1')fail();
+  }else if(s.profile==='meta.website-purchase-count.campaign-day.v1'){
+    if(s.report_support!=='documented_meta_count'||s.value_unit!=='unknown'||p.producer_contract!=='meta.v26.campaign-day.website-purchase-count.v1'||r.action_report_time!==null||r.use_unified_attribution_setting!==null||r.action_attribution_windows.length)fail();
   }else if(!['unverified','unsupported'].includes(s.report_support)||s.value_unit!=='unknown'||p.producer_contract!=='unverified.'+s.profile||p.capability!==(s.report_support==='unsupported'?'unsupported':'unknown'))fail();
   return s;
 }
@@ -115,6 +118,7 @@ export function appendReportingComparability(host,plan,{freshness,now}){
         add(accountSection,'p',`Requested Settings: action_report_time=${r.action_report_time??'Not Sent'} · use_unified_attribution_setting=${r.use_unified_attribution_setting??'Not Sent'} · action_attribution_windows=${r.action_attribution_windows.join(', ')||'Not Sent'}. Requests are not effective settings.`);
         add(accountSection,'p','Effective Settings: Unknown. Click/View Windows And Report Time Are Unverified; Requested Values Are Not Substituted.');
         if(a.platform==='meta_ads')add(accountSection,'p','Meta ignores action_report_time and use_unified_attribution_setting under its current contract. Retired 7d_view/28d_view requests return no data, not zero.');
+        if(s.profile==='meta.website-purchase-count.campaign-day.v1')add(accountSection,'p','Exact Website-Purchase Action Count Only. Counting Mode And Campaign Status Completeness Are Unverified. Missing Days Are Not Zero; Money Is Unsupported.');
         if(s.value_unit==='unknown')add(accountSection,'p','Monetary Value: Unavailable Until Units And Scaling Are Verified.');
       }else add(accountSection,'p','Requested Settings: Not Retained By This Historical Capture; Absence Is Not Inferred.');
     }else add(accountSection,'p','Typed Event And Attribution Metadata: Unavailable In This Version. Original explanations below remain unchanged; no metadata is reconstructed from their wording.');

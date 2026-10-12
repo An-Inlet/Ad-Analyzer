@@ -112,7 +112,10 @@ class SelectedObservationProvenanceV1(Frozen):
                 query_digest=value.query_profile_digest,
                 attribution=value.attribution,
             )
-            if value.settings.report_support != "existing_google_contract" and value.capability != (
+            if value.settings.report_support in {
+                "unverified",
+                "unsupported",
+            } and value.capability != (
                 "unsupported" if value.settings.report_support == "unsupported" else "unknown"
             ):
                 raise ValueError("retained settings capability mismatch")

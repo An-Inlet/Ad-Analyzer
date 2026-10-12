@@ -11,6 +11,7 @@ Profile = Literal[
     "google.conversions.campaign-day.v1",
     "google.all-conversions.campaign-day.v1",
     "meta.website-purchase.campaign-day.v1",
+    "meta.website-purchase-count.campaign-day.v1",
     "meta.website-lead.campaign-day.v1",
     "tiktok.website-payment.campaign-day.v1",
 ]
@@ -43,7 +44,9 @@ class CaptureSettingsV1(Frozen):
     count_meaning: Literal[
         "selected_action_count", "website_purchase_actions", "website_lead_actions"
     ]
-    report_support: Literal["existing_google_contract", "unverified", "unsupported"]
+    report_support: Literal[
+        "existing_google_contract", "documented_meta_count", "unverified", "unsupported"
+    ]
     value_unit: Literal["account_currency_major", "unknown"]
     requested: RequestedAttributionV1
     effective: AttributionBasisV1
@@ -67,6 +70,14 @@ class CaptureSettingsV1(Frozen):
                 or self.count_meaning != "selected_action_count"
             ):
                 raise ValueError("existing Google profile mismatch")
+        elif self.profile == "meta.website-purchase-count.campaign-day.v1":
+            if (
+                self.report_support != "documented_meta_count"
+                or self.value_unit != "unknown"
+                or self.count_meaning != "website_purchase_actions"
+                or self.requested != no_requested_overrides()
+            ):
+                raise ValueError("bounded Meta count profile mismatch")
         elif (
             self.report_support not in {"unverified", "unsupported"}
             or self.value_unit != "unknown"
@@ -87,6 +98,8 @@ class CaptureSettingsV1(Frozen):
     def producer(self) -> str:
         if self.profile.startswith("google."):
             return "google.v24.campaign-day.selected-action.v1"
+        if self.profile == "meta.website-purchase-count.campaign-day.v1":
+            return "meta.v26.campaign-day.website-purchase-count.v1"
         return "unverified." + self.profile
 
     def query_digest(self) -> str:
@@ -98,6 +111,10 @@ class CaptureSettingsV1(Frozen):
                 if self.profile == "google.conversions.campaign-day.v1"
                 else "all_conversions"
             )
+        if self.profile == "meta.website-purchase-count.campaign-day.v1":
+            from app.meta.selected_profile import query_profile_digest as meta_query_digest
+
+            return meta_query_digest()
         return hashlib.sha256(
             b"inlet.capture-settings-profile.v1\x00" + _canonical(self)
         ).hexdigest()
@@ -123,6 +140,12 @@ class CaptureSettingsV1(Frozen):
                 "v24",
                 "all_conversions",
                 None,
+            ),
+            "meta.website-purchase-count.campaign-day.v1": (
+                "meta_ads",
+                "v26.0",
+                "actions",
+                "offsite_conversion.fb_pixel_purchase",
             ),
             "meta.website-purchase.campaign-day.v1": (
                 "meta_ads",

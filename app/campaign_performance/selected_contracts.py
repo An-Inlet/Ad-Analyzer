@@ -298,7 +298,7 @@ class SelectedCaptureV1(Frozen):
         if self.schema_version.rsplit(".", 1)[1] != self.request.schema_version.rsplit(".", 1)[1]:
             raise ValueError("capture and request versions differ")
         settings = self.request.settings
-        if settings is not None and settings.report_support != "existing_google_contract":
+        if settings is not None and settings.report_support in {"unverified", "unsupported"}:
             expected = "unsupported" if settings.report_support == "unsupported" else "unknown"
             if self.capability != expected:
                 raise ValueError(
@@ -310,6 +310,12 @@ class SelectedCaptureV1(Frozen):
             and any(fact.selected_value_micros.presence == "present" for fact in self.facts)
         ):
             raise ValueError("unknown value units cannot supply monetary observations")
+        if (
+            settings is not None
+            and settings.profile == "meta.website-purchase-count.campaign-day.v1"
+            and any(f.selected_value_micros.presence != "unsupported" for f in self.facts)
+        ):
+            raise ValueError("count-only profile cannot provide money")
         if self.request_digest != capture_request_digest(self.request):
             raise ValueError("capture request digest mismatch")
         if self.completed_at < self.request.started_at:

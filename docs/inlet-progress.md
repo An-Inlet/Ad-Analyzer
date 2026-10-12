@@ -8384,3 +8384,36 @@ Next: source-qualify exact social report combinations and units before any produ
 Both owner retention/artifact-sharing decisions, six human quality judgments,
 Q13 independent verification, historicalR01–R03 uncertainty and all remote/live/
 deployment/spend holds remain. Local branch `codex/inlet-w1-followup`; no PR/push.
+
+## 2026-10-12 — Bounded Meta Website Purchase Count Producer
+
+Implemented one internal, injected Meta v26 campaign/day count reader for exact
+`offsite_conversion.fb_pixel_purchase`. Missing stays missing, zero stays zero,
+generic/app purchase totals never substitute, money stays unsupported, and effective
+attribution/counting mode/status completeness remain unknown. Existing unverified
+profiles and historical bytes remain unchanged. No public picker/default network
+activation. [Contract](design/meta-purchase-count-producer-v1.md) and
+[checkpoint](inlet-meta-purchase-count-20261012.md) distinguish documented inference,
+fixture-qualified behavior and live verification.
+
+Owned acquisition rechecks original customer session, connection/grant, selection,
+aggregate, privacy and campaign mapping before atomic persistence. Final-guard tests
+exposed and fixed SQLite savepoint durability; a physical outer BEGIN now encloses
+storage. A borrowed transport preserves caller ownership across pages. Existing
+read contexts remain unchanged.
+
+102 exact cases passed: 84 component, nine SQLite, nine PostgreSQL. Full Ruff,
+configured mypy (1,523 files), collection, diff and three JS syntax checks passed.
+Thirty-five unaffected component passes were retained across a checked four-file
+boundary; changed Meta transport/write paths were requalified. Original failures,
+launcher stop and unrun evidence remain preserved; no aggregate rerun. Completion
+freeze `a238de999cb968d08ea9e83b2fa17f04476e3ccc4b8780bb8ca88c45591cb8d3`
+binds 524 evidence files and 1,832 source files. Independent evidence closure and
+local commit binding are recorded alongside it.
+
+Next package: customer-owned Meta selection/acquisition service interface and route
+using this exact producer; custom events, money, TikTok report combinations and
+verified attribution remain distinct gaps. Owner retention/artifact-sharing decisions,
+six human quality judgments, Q13 verification and historical R01–R03 uncertainty
+remain open. All remote/hosted/live/release/spend holds remain. Local branch
+`codex/inlet-w1-followup`; no push or PR in this package.

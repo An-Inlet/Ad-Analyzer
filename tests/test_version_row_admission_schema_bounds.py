@@ -207,6 +207,7 @@ _SCHEMA_MODELS = (
 )
 
 _HELPER_MODULES = (
+    "app.meta.selected_profile",
     "app.collectors.account_diagnostic_contracts",
     "app.planning_documents.creative_plan_document",
     "app.planning_documents.creative_inputs",
@@ -218,7 +219,7 @@ _HELPER_MODULES = (
     "app.publication.contracts",
 )
 
-_INVENTORY_SHA256 = "10acf3194c71e1322bbe7825da51447859c7c7e15ba8ce33e4d1d2b6f7596858"
+_INVENTORY_SHA256 = "d456b8e0fd167212705da02f6f0868da2f51122ed676bc06747e69790f90703f"
 
 
 def test_declared_schema_and_config_inventory_is_complete() -> None:

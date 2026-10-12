@@ -71,3 +71,34 @@ class PlanningReadContexts:
                 self.authorize(db, self.workspace_id, self.actor)
             finally:
                 self.active = None
+
+    @contextmanager
+    def write(self, before_commit: Callable[[], None]) -> Iterator[Session]:
+        """One atomic write: final original authority and deadline precede commit.
+
+        Read contexts retain their after-body check. This separate write boundary
+        cannot report an authorization failure after making the write durable.
+        The caller's final deadline callback runs under the same SQL locks.
+        """
+        if self.active is not None:
+            raise HTTPException(409, "nested planning read context unavailable")
+        fact = authority.refresh(self.principal, self.provider)
+        with self.sessions() as db:
+            # SQLite legacy mode does not BEGIN for SELECT or SAVEPOINT. The
+            # storage savepoint must remain inside a physical outer transaction.
+            if db.get_bind().dialect.name == "sqlite":
+                connection = db.connection()
+                driver = connection.connection.driver_connection
+                assert driver is not None
+                if not driver.in_transaction:
+                    connection.exec_driver_sql("BEGIN")
+            self.active = (db, fact)
+            try:
+                self.authorize(db, self.workspace_id, self.actor)
+                yield db
+                db.flush()
+                self.authorize(db, self.workspace_id, self.actor)
+                before_commit()
+                db.commit()
+            finally:
+                self.active = None

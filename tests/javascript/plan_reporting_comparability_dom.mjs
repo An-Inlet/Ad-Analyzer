@@ -1,4 +1,5 @@
 import {renderPlanDocument,clearPlanDocument} from './plan-document.mjs';
+import {appendReportingComparability} from './plan-reporting-comparability.mjs';
 const host=document.querySelector('#host'),assert=(v,m)=>{if(!v)throw Error(m);};
 const opts=p=>({workspaceId:p.inputs.workspace_id,planId:p.inputs.plan_id,freshness:'current'});
 const render=(p,extra={},now=Date.parse(p.generated_at))=>renderPlanDocument(host,p,{...opts(p),...extra},now);
@@ -19,8 +20,20 @@ try{
    assert(pane.textContent.includes('Recorded Selected Event: customers/')&&pane.textContent.includes('Recorded Attribution: Click Unavailable · View Unavailable'),'typed event and explicit unknown attribution');
    const known=structuredClone(plan),pin=known.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin,p=pin.observation_provenance;
    p.attribution={click_window_days:7,view_window_days:0,report_time_basis:'interaction',provenance:'verified_request_contract',producer_contract:p.producer_contract};
-   render(known);assert(host.textContent.includes('Click 7 Days · View 0 Days')&&host.textContent.includes('no cross-account comparability is granted'),'presentation-only known windows keep zero literal');
-   const missing=structuredClone(plan);delete missing.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance;let missingRefused=false;try{render(missing);}catch{missingRefused=true;}assert(missingRefused&&host.hidden,'v2 cannot lose required metadata');
+   if(p.settings){let blocked=false;try{render(known);}catch{blocked=true;}assert(blocked&&host.hidden,'requested/effective contract refuses invented known settings');render(plan);assert(host.textContent.includes('Requested Settings: action_report_time=Not Sent')&&host.textContent.includes('Effective Settings: Unknown.'),'separate original request and unknown effective settings');}
+   else {render(known);assert(host.textContent.includes('Click 7 Days · View 0 Days')&&host.textContent.includes('no cross-account comparability is granted'),'legacy presentation-only known windows keep zero literal');}
+   if(p.settings){
+    // Presentation-only adversarial DTO: not a qualified Meta report or saved producer artifact.
+    const social=structuredClone(plan),replacePlatform=x=>{if(!x||typeof x!=='object')return;for(const k of Object.keys(x)){if(k==='platform'&&x[k]==='google_ads')x[k]='meta_ads';else replacePlatform(x[k]);}};replacePlatform(social);
+    const meta=social.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance;
+    Object.assign(meta,{event_namespace:'meta_action_type',native_event_id:'offsite_conversion.fb_pixel_purchase',metric_family:'actions',api_version:'v26.0',capability:'unknown',producer_contract:'unverified.meta.website-purchase.campaign-day.v1'});
+    meta.attribution={click_window_days:null,view_window_days:null,report_time_basis:'unknown',provenance:'provider_default_unknown',producer_contract:meta.producer_contract};
+    Object.assign(meta.settings,{profile:'meta.website-purchase.campaign-day.v1',count_meaning:'website_purchase_actions',report_support:'unverified',value_unit:'unknown',effective:structuredClone(meta.attribution),requested:{action_report_time:'conversion',use_unified_attribution_setting:true,action_attribution_windows:['7d_click','7d_view','28d_view']}});
+    const display=document.createElement('div');appendReportingComparability(display,social,{freshness:'current',now:Date.parse(plan.generated_at)});
+    assert(display.textContent.includes('action_report_time=conversion')&&display.textContent.includes('Meta ignores action_report_time')&&display.textContent.includes('Effective Settings: Unknown.')&&display.textContent.includes('Monetary Value: Unavailable')&&!display.textContent.includes('Click 7 Days'),'ignored and retired requests never effective windows or known money units');
+    for(const corrupt of [m=>m.settings.value_unit='account_currency_major',m=>m.settings.report_support='existing_google_contract',m=>m.settings.effective.report_time_basis='conversion',m=>m.capability='supported']){const bad=structuredClone(social);corrupt(bad.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance);let refused=false;try{appendReportingComparability(document.createElement('div'),bad,{freshness:'current',now:Date.parse(plan.generated_at)});}catch{refused=true;}assert(refused,'unverified social presentation fails closed');}
+   }
+   const missing=structuredClone(plan);delete missing.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance;let missingRefused=false;try{render(missing);}catch{missingRefused=true;}assert(missingRefused&&host.hidden,'versioned plan cannot lose required metadata');
    for(const corrupt of [p=>p.native_event_owner_id='9999999999',p=>p.native_event_id='generic_total',p=>p.started_at=p.requested_ends_on+'T00:00:00Z']){const bad=structuredClone(plan);corrupt(bad.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance);let refused=false;try{render(bad);}catch{refused=true;}assert(refused&&host.hidden,'malformed typed event or unclosed capture refused');}
    p.attribution.provenance='provider_default_unknown';let refused=false;try{render(known);}catch{refused=true;}assert(refused&&host.hidden,'unknown cannot carry windows');render(plan);
   }

@@ -3,6 +3,7 @@
 import json
 from dataclasses import replace
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
@@ -24,7 +25,9 @@ from tests.test_selected_customer_api import CustomerFixture
 from tests.test_selected_customer_api import customer as customer
 
 
-def prepare(f: CustomerFixture, value: str | None = "10") -> dict[str, Any]:
+def prepare(
+    f: CustomerFixture, value: str | None = "10", wire: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     for client in (f.alice, f.bob):
         cast(FastAPI, client.app).include_router(router)
     options = f.post("/event-options", {"account_id": f.aid})
@@ -54,6 +57,8 @@ def prepare(f: CustomerFixture, value: str | None = "10") -> dict[str, Any]:
             )
         if "segments.conversion_action" in query:
             f.calls.append("selected-search")
+            if wire is not None:
+                wire.append({"body": body, "query_params": dict(request.url.params)})
             return httpx.Response(
                 200,
                 json={
@@ -89,10 +94,11 @@ def prepare(f: CustomerFixture, value: str | None = "10") -> dict[str, Any]:
 
 @pytest.mark.parametrize("value", ["10", "0", None])
 def test_real_acquisition_retained_replay_and_presence(
-    customer: CustomerFixture, value: str | None
+    customer: CustomerFixture, value: str | None, tmp_path: Path
 ) -> None:
     f = customer
-    body = prepare(f, value)
+    wire: list[dict[str, Any]] = []
+    body = prepare(f, value, wire)
     response = f.post("/captures", body)
     assert response.status_code == 200, response.text
     receipt = response.json()
@@ -105,6 +111,38 @@ def test_real_acquisition_retained_replay_and_presence(
     assert len(f.calls) == calls
     with Session(f.engine) as db:
         assert db.scalar(select(func.count()).select_from(SelectedCaptureRow)) == 1
+        from app.campaign_performance.capture_settings import no_requested_overrides
+        from app.campaign_performance.selected_export import export_selected
+        from app.campaign_performance.selected_storage import historical_capture
+
+        capture = historical_capture(db, f.wid, f.aid, body["request_id"])
+        assert capture.schema_version == "inlet.selected-capture.v2"
+        assert capture.request.schema_version == "inlet.selected-capture-request.v2"
+        settings = capture.request.settings
+        assert settings is not None and settings.requested == no_requested_overrides()
+        assert settings.effective == capture.request.attribution
+        assert settings.effective.provenance == "provider_default_unknown"
+        assert settings.effective.report_time_basis == "unknown"
+        assert wire and all(set(w["body"]) == {"query", "pageToken"} for w in wire)
+        assert all(not w["query_params"] for w in wire)
+        assert all("metrics.conversions" in w["body"]["query"] for w in wire)
+        assert all("action_report_time" not in w["body"]["query"] for w in wire)
+        row = db.get(SelectedCaptureRow, body["request_id"])
+        assert row is not None and row.payload_bytes == len(row.canonical_json.encode()) <= 16384
+        values = {c.name: getattr(row, c.name) for c in row.__table__.columns}
+        exported = export_selected(db, row.__tablename__, values)
+        assert exported["document"]["request"]["settings"] == settings.model_dump(mode="json")
+        assert exported["document"] == capture.model_dump(mode="json", exclude={"facts"})
+        (tmp_path / "capture-settings-artifact.json").write_text(
+            json.dumps(
+                {
+                    "wire": wire,
+                    "capture": capture.model_dump(mode="json"),
+                    "export": exported,
+                },
+                indent=2,
+            )
+        )
         facts = list(db.scalars(select(SelectedFactRow)))
         assert len(facts) == (0 if value is None else 1)
         if facts:

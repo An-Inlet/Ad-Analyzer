@@ -22,6 +22,7 @@ from app.settings import Settings
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
+from tests.capture_settings_reader_fixture import assert_prior_plan_reader
 from tests.creative_q05_fixture import prepare_creative_q05_basis
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -154,8 +155,10 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
     original = generated.json()
     document = PlanVersion.model_validate(original["document"])
     assert document.schema_version == (
-        "inlet.plan-version.v1" if legacy else "inlet.plan-version.v2"
+        "inlet.plan-version.v1" if legacy else "inlet.plan-version.v3"
     )
+    if not legacy:
+        assert_prior_plan_reader(document, tmp_path)
     assert document.selected_reporting_proof
     pin = next(p.capture_pin for p in document.selected_reporting_proof.accounts if p.capture_pin)
     assert (pin.observation_provenance is None) is legacy
@@ -165,6 +168,22 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
             assert pin.observation_provenance
             metadata = pin.observation_provenance
             assert metadata.attribution.provenance == "provider_default_unknown"
+            assert metadata.schema_version == "inlet.selected-observation-provenance.v2"
+            assert metadata.settings is not None
+            assert metadata.settings.effective == metadata.attribution
+            assert metadata.settings.requested.action_report_time is None
+            for old_tag in ("inlet.plan-version.v1", "inlet.plan-version.v2"):
+                with pytest.raises(ValueError, match="require plan-version.v3"):
+                    PlanVersion.model_validate(
+                        document.model_copy(update={"schema_version": old_tag})
+                    )
+            stripped = metadata.model_copy(
+                update={"schema_version": "inlet.selected-observation-provenance.v1"}
+            )
+            with pytest.raises(ValueError, match="settings version mismatch"):
+                SelectedPlanPinV1.model_validate(
+                    pin.model_copy(update={"observation_provenance": stripped})
+                )
             for field, value in (
                 ("native_event_id", metadata.native_event_id + "9"),
                 ("query_profile_digest", "f" * 64),
@@ -182,7 +201,11 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
                 ),
             ):
                 bad = metadata.model_copy(update={field: value})
-                with pytest.raises(ValueError, match="commitment mismatch"):
+                expected_error = {
+                    "query_profile_digest": "settings request binding mismatch",
+                    "attribution": "effective settings mismatch",
+                }.get(field, "commitment mismatch")
+                with pytest.raises(ValueError, match=expected_error):
                     validate_selected_historical_pin(
                         db, pin.model_copy(update={"observation_provenance": bad})
                     )
@@ -224,7 +247,7 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
         second = alice.post(path + "/generate", headers=headers(alice), json=next_intent)
         assert second.status_code == 200, second.text
         next_document = PlanVersion.model_validate(second.json()["document"])
-        assert next_document.schema_version == "inlet.plan-version.v2"
+        assert next_document.schema_version == "inlet.plan-version.v3"
         assert next_document.parent_digest == document.digest() and next_document.version == 2
         old_export = alice.get(path + "/export?version=1")
         old_replay = alice.post(path + "/generate", headers=headers(alice), json=intent)

@@ -14,3 +14,12 @@ read-only compatibility. Document digest `a8b52c7cda6f3de5a812100238c36b2def9459
 The two .py.txt sources are exact PlanVersion and selected pin definitions from
 0b9962a, used in an isolated Python reader with unchanged transitive validation helpers.
 This tests actual strict prior DTO readers, not a deployed old-image restoration.
+
+Pre-settings fixtures (source548c351): `pre-settings-capture-v1.json` was serialized
+from the existing pure graph fixture before production edits, not from a live/old
+persisted row. `pre-settings-plan-v2.json` is the complete actual earlier SQLite
+API-generated document from provenance-version-boundary-attempt03's first typed
+artifact. Fixed byte/document digests are in test_capture_settings_contract.py.
+Exact prior selected-contract and PlanVersion DTO sources are retained as
+pre-settings-*.py.txt for old-reader refusal checks; this is not a full old-image
+restore/rollback exercise. No fixture is rewritten to new versions on read.

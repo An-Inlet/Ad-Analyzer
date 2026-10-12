@@ -406,6 +406,8 @@ def test_invariant_ast_matches_original_prechange_body(
 
 # Test-only frozen field/config inventory; never used by production dispatch.
 SCHEMA_CLASSES = (
+    "app.campaign_performance.capture_settings.CaptureSettingsV1",
+    "app.campaign_performance.capture_settings.RequestedAttributionV1",
     "app.campaign_performance.presence_contracts.AttributionBasisV1",
     "app.campaign_performance.presence_contracts.CountCellV1",
     "app.campaign_performance.presence_contracts.Frozen",
@@ -488,7 +490,7 @@ SCHEMA_CLASSES = (
     "app.planning_documents.selected_traffic_contracts.SelectedTrafficPinV1",
     "app.planning_documents.source_contracts.SourceFence",
 )
-SCHEMA_SHA256 = "068061f81df21ad23a92beaaa7482e2db8eaa49a04cbe8dfb7e91fa7638ff447"
+SCHEMA_SHA256 = "39ff12333d36b8104f660b099e20d16f7337e49e53f775db59b3f03a2ed05b72"
 
 
 def test_declared_field_and_revalidation_configuration_inventory() -> None:

@@ -1,0 +1,86 @@
+{
+  "schema_version": "inlet.selected-capture.v1",
+  "request": {
+    "schema_version": "inlet.selected-capture-request.v1",
+    "capture_id": "dddddddddddddddddddddddddddddddd",
+    "aggregate": {
+      "completion_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "manifest_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "scope": {
+        "workspace_id": 1,
+        "connection_id": 2,
+        "account_id": 3,
+        "platform": "google_ads",
+        "source_connection_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "generation": 1,
+        "privacy_revision": 0,
+        "native_account_id": "1234567890",
+        "currency": "USD",
+        "time_zone": "America/New_York"
+      },
+      "starts_on": "2026-09-29",
+      "ends_on": "2026-09-30"
+    },
+    "selection": {
+      "schema_version": "inlet.customer-event-selection.v1",
+      "selection_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scope": {
+        "workspace_id": 1,
+        "connection_id": 2,
+        "account_id": 3,
+        "platform": "google_ads",
+        "source_connection_ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "generation": 1,
+        "privacy_revision": 0,
+        "native_account_id": "1234567890",
+        "currency": "USD",
+        "time_zone": "America/New_York"
+      },
+      "confirmed_by_customer_id": "44444444444444444444444444444444",
+      "confirmed_at": "2026-10-01T10:00:00Z",
+      "event_namespace": "google_conversion_action",
+      "native_event_owner_id": "1234567890",
+      "native_event_id": "customers/1234567890/conversionActions/123",
+      "metric_family": "conversions",
+      "api_version": "v24",
+      "query_profile_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "selection_digest": "f4407294c01bdf22f84be6add8d8b175c5b986d0672b3402d02253aaa8bd2998",
+    "requested_starts_on": "2026-09-29",
+    "requested_ends_on": "2026-09-30",
+    "started_at": "2026-10-01T12:00:00Z",
+    "producer_contract": "fixture.action.v1",
+    "query_profile_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "attribution": {
+      "click_window_days": null,
+      "view_window_days": null,
+      "report_time_basis": "unknown",
+      "provenance": "provider_default_unknown",
+      "producer_contract": "fixture.action.v1"
+    }
+  },
+  "request_digest": "a509831fa064698a9d9e425935d89e90133faee23ae41d5e4cf2976c8876756c",
+  "completed_at": "2026-10-01T12:01:00Z",
+  "capability": "supported",
+  "pagination_complete": true,
+  "page_count": 1,
+  "facts": [
+    {
+      "schema_version": "inlet.selected-campaign-day.v1",
+      "capture_id": "dddddddddddddddddddddddddddddddd",
+      "request_digest": "a509831fa064698a9d9e425935d89e90133faee23ae41d5e4cf2976c8876756c",
+      "campaign_id": 5,
+      "native_campaign_id": "555",
+      "metric_date": "2026-09-30",
+      "selected_conversions": {
+        "presence": "present",
+        "value": "10"
+      },
+      "selected_value_micros": {
+        "presence": "unsupported",
+        "value": null
+      }
+    }
+  ],
+  "spending_authorized": false
+}

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.ads.models import Campaign
+from app.campaign_performance.capture_settings import google_capture_settings
 from app.campaign_performance.models import CurrentPerformance, PerformanceCompletion
 from app.campaign_performance.presence_contracts import (
     AttributionBasisV1,
@@ -169,7 +170,16 @@ def acquire_selected(service: SelectedCustomerService, supplied: CaptureIntent) 
         pin = source_pin(db, service.wid, intent.account_id)
         if pin.source_id != choice.scope.source_connection_ref:
             raise unavailable()
+        attribution = AttributionBasisV1(
+            click_window_days=None,
+            view_window_days=None,
+            report_time_basis="unknown",
+            provenance="provider_default_unknown",
+            producer_contract=PRODUCER,
+        )
         request = SelectedCaptureRequestV1(
+            schema_version="inlet.selected-capture-request.v2",
+            settings=google_capture_settings(choice.metric_family, attribution),
             capture_id=intent.request_id,
             aggregate=dependency,
             selection=choice,
@@ -179,13 +189,7 @@ def acquire_selected(service: SelectedCustomerService, supplied: CaptureIntent) 
             started_at=service.now(),
             producer_contract=PRODUCER,
             query_profile_digest=choice.query_profile_digest,
-            attribution=AttributionBasisV1(
-                click_window_days=None,
-                view_window_days=None,
-                report_time_basis="unknown",
-                provenance="provider_default_unknown",
-                producer_contract=PRODUCER,
-            ),
+            attribution=attribution,
         )
         service.guard(db, intent.account_id, read=True)
     context = OwnedGoogleReportingContext(

@@ -96,6 +96,11 @@ def collect_google_selected_capture(
             if not following:
                 completed = check()
                 result = SelectedCaptureV1(
+                    schema_version=(
+                        "inlet.selected-capture.v2"
+                        if req.settings is not None
+                        else "inlet.selected-capture.v1"
+                    ),
                     request=req,
                     request_digest=expected,
                     completed_at=completed,

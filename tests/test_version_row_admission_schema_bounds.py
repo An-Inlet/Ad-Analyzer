@@ -130,6 +130,8 @@ def test_unknown_container_and_repeated_model_alias_fall_back() -> None:
 # config, intrinsic validators/serializers or their fixed helper changes. This
 # is test-only and never becomes a production registry/cache.
 _SCHEMA_MODELS = (
+    "app.campaign_performance.capture_settings.CaptureSettingsV1",
+    "app.campaign_performance.capture_settings.RequestedAttributionV1",
     "app.campaign_performance.presence_contracts.AttributionBasisV1",
     "app.campaign_performance.presence_contracts.Frozen",
     "app.campaign_performance.selected_contracts.AggregateDependencyV1",
@@ -216,7 +218,7 @@ _HELPER_MODULES = (
     "app.publication.contracts",
 )
 
-_INVENTORY_SHA256 = "a5fb280bf5b193f2bad4c9cf936a4f8dc722b372d0c3a2ce6d7ba4830ba079c7"
+_INVENTORY_SHA256 = "10acf3194c71e1322bbe7825da51447859c7c7e15ba8ce33e4d1d2b6f7596858"
 
 
 def test_declared_schema_and_config_inventory_is_complete() -> None:

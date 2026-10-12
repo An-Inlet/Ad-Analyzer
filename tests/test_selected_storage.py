@@ -429,9 +429,13 @@ def test_actual0091_and_frozen_metadata_parity(
     from app.campaign_performance.selected_triggers import statements
 
     module = importlib.import_module("migrations.versions.20261011_0091_selected_reporting")
+    forward = importlib.import_module("migrations.versions.20261012_0093_capture_settings")
     for name in module.TABLES:
         for ddl in statements(name, customer_engine.dialect.name):
-            assert ddl in module.SQL[customer_engine.dialect.name]
+            assert (
+                ddl in module.SQL[customer_engine.dialect.name]
+                or ddl in forward.SQL[customer_engine.dialect.name]
+            )
     with customer_engine.begin() as connection:
         monkeypatch.setattr(module, "op", Operations(MigrationContext.configure(connection)))
         module.downgrade()

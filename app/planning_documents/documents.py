@@ -56,9 +56,9 @@ from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 
 
 class PlanVersion(NoAuthority):
-    schema_version: Literal["inlet.plan-version.v1", "inlet.plan-version.v2"] = (
-        "inlet.plan-version.v1"
-    )
+    schema_version: Literal[
+        "inlet.plan-version.v1", "inlet.plan-version.v2", "inlet.plan-version.v3"
+    ] = "inlet.plan-version.v1"
     inputs: PlanInputRevision
     version: Positive
     parent_digest: Digest | None
@@ -147,7 +147,23 @@ class PlanVersion(NoAuthority):
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
-        if self.schema_version == "inlet.plan-version.v2":
+        captures = (
+            tuple(
+                proof.capture_pin
+                for proof in self.selected_reporting_proof.accounts
+                if proof.capture_pin is not None
+            )
+            if self.selected_reporting_proof is not None
+            else ()
+        )
+        has_settings = any(
+            pin.observation_provenance is not None
+            and pin.observation_provenance.settings is not None
+            for pin in captures
+        )
+        if (self.schema_version == "inlet.plan-version.v3") != has_settings:
+            raise ValueError("request/effective settings require plan-version.v3")
+        if self.schema_version in {"inlet.plan-version.v2", "inlet.plan-version.v3"}:
             captures = (
                 tuple(
                     item.capture_pin
@@ -158,7 +174,7 @@ class PlanVersion(NoAuthority):
                 else ()
             )
             if not captures or any(pin.observation_provenance is None for pin in captures):
-                raise ValueError("v2 requires typed provenance for every selected capture")
+                raise ValueError("v2/v3 requires typed provenance for every selected capture")
         # V1 is retained unchanged, including the interim unreleased enriched format.
         # New enriched v1 is refused by the canonical repository write boundary.
         owner_policy = is_owner_review_policy(self.policy_version, self.generator_version)

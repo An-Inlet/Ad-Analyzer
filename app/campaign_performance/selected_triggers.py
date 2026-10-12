@@ -1,6 +1,6 @@
 # ruff: noqa: E501
 # mypy: disable-error-code=no-untyped-call
-"""DB immutable rows and raw-erasure export fencing; frozen into0091."""
+"""DB immutable rows and raw-erasure fences; capture binding advanced by0093."""
 
 from sqlalchemy import DDL, Table, event
 
@@ -53,7 +53,23 @@ def binding(name: str, dialect: str) -> str:
             else "(h.canonical_json::jsonb #>> '{request,aggregate,scope,platform}')"
         )
         predicate += f" AND EXISTS(SELECT 1 FROM selected_reporting_captures h JOIN campaigns c ON c.id=NEW.campaign_id AND c.account_id=NEW.account_id WHERE h.id=NEW.capture_id AND CAST(c.platform AS TEXT)={platform})"
-    predicate += f" AND {cell('schema_version')}='{schema}'"
+    if name == "selected_reporting_captures":
+        settings_type = (
+            "json_type(NEW.canonical_json, '$.request.settings')"
+            if dialect == "sqlite"
+            else "jsonb_typeof(NEW.canonical_json::jsonb #> '{request,settings}')"
+        )
+        predicate += (
+            f" AND (({cell('schema_version')}='inlet.selected-capture.v1'"
+            f" AND {cell('request.schema_version')}='inlet.selected-capture-request.v1'"
+            f" AND {settings_type} IS NULL) OR ("
+            f"{cell('schema_version')}='inlet.selected-capture.v2'"
+            f" AND {cell('request.schema_version')}='inlet.selected-capture-request.v2'"
+            f" AND {settings_type}='object'"
+            f" AND {cell('request.settings.schema_version')}='inlet.capture-settings.v1'))"
+        )
+    else:
+        predicate += f" AND {cell('schema_version')}='{schema}'"
     for col, path in paths.items():
         predicate += f" AND CAST({cell(path)} AS TEXT)=CAST(NEW.{col} AS TEXT)"
     return predicate

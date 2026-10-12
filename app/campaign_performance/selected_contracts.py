@@ -11,8 +11,16 @@ from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
+from app.campaign_performance.capture_settings import CaptureSettingsV1
 from app.campaign_performance.presence_contracts import (
     AttributionBasisV1,
     CountCellV1,
@@ -159,9 +167,9 @@ class AggregateDependencyV1(Frozen):
 
 
 class SelectedCaptureRequestV1(Frozen):
-    schema_version: Literal["inlet.selected-capture-request.v1"] = (
-        "inlet.selected-capture-request.v1"
-    )
+    schema_version: Literal[
+        "inlet.selected-capture-request.v1", "inlet.selected-capture-request.v2"
+    ] = "inlet.selected-capture-request.v1"
     capture_id: Id
     aggregate: AggregateDependencyV1
     selection: CustomerEventSelectionV1
@@ -172,6 +180,14 @@ class SelectedCaptureRequestV1(Frozen):
     producer_contract: Descriptor
     query_profile_digest: Digest
     attribution: AttributionBasisV1
+    settings: CaptureSettingsV1 | None = None
+
+    @model_serializer(mode="wrap")
+    def omit_legacy_settings(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.settings is None:
+            result.pop("settings", None)
+        return result
 
     _dates = field_validator("requested_starts_on", "requested_ends_on", mode="before")(_date)
     _started = field_validator("started_at", mode="before")(_instant)
@@ -179,6 +195,23 @@ class SelectedCaptureRequestV1(Frozen):
 
     @model_validator(mode="after")
     def binding(self) -> "SelectedCaptureRequestV1":
+        if (self.schema_version == "inlet.selected-capture-request.v2") != (
+            self.settings is not None
+        ):
+            raise ValueError("capture request settings version mismatch")
+        if self.settings is not None:
+            choice = self.selection
+            self.settings.assert_binding(
+                platform=choice.scope.platform,
+                api=choice.api_version,
+                event=choice.native_event_id,
+                family=choice.metric_family,
+                owner=choice.native_event_owner_id,
+                advertiser=choice.scope.native_account_id,
+                producer=self.producer_contract,
+                query_digest=self.query_profile_digest,
+                attribution=self.attribution,
+            )
         if self.aggregate.scope != self.selection.scope:
             raise ValueError("selection and aggregate scope mismatch")
         if self.selection_digest != selection_digest(self.selection):
@@ -235,7 +268,9 @@ class SelectedCampaignDayV1(Frozen):
 
 
 class SelectedCaptureV1(Frozen):
-    schema_version: Literal["inlet.selected-capture.v1"] = "inlet.selected-capture.v1"
+    schema_version: Literal["inlet.selected-capture.v1", "inlet.selected-capture.v2"] = (
+        "inlet.selected-capture.v1"
+    )
     request: SelectedCaptureRequestV1
     request_digest: Digest
     completed_at: AwareDatetime
@@ -260,6 +295,21 @@ class SelectedCaptureV1(Frozen):
 
     @model_validator(mode="after")
     def graph(self) -> "SelectedCaptureV1":
+        if self.schema_version.rsplit(".", 1)[1] != self.request.schema_version.rsplit(".", 1)[1]:
+            raise ValueError("capture and request versions differ")
+        settings = self.request.settings
+        if settings is not None and settings.report_support != "existing_google_contract":
+            expected = "unsupported" if settings.report_support == "unsupported" else "unknown"
+            if self.capability != expected:
+                raise ValueError(
+                    "unverified report combination cannot supply supported observations"
+                )
+        if (
+            settings is not None
+            and settings.value_unit == "unknown"
+            and any(fact.selected_value_micros.presence == "present" for fact in self.facts)
+        ):
+            raise ValueError("unknown value units cannot supply monetary observations")
         if self.request_digest != capture_request_digest(self.request):
             raise ValueError("capture request digest mismatch")
         if self.completed_at < self.request.started_at:

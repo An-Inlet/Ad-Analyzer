@@ -8355,3 +8355,32 @@ parent's independent official research, not duplicate retrieval or live verifica
 Documentation-only preparation; Q14 test/source evidence remains unchanged.
 Independent docs-only design review CLOSED after those limitations were made
 explicit. No production/runtime capability or human/live gate is conferred.
+
+
+## 2026-10-12 — Capture Request And Effective Settings Retention
+
+From `548c351`, implemented the concrete missing readable-request retention in the
+existing Google acquisition flow: finite versioned settings through captures, typed
+saved-plan provenance, history/export/replay and customer review. Exact no-override
+requests remain separate from effective unknown attribution. Social producers remain
+held; ignored Meta flags cannot qualify effective settings, unverified combinations
+cannot yield supported observations, and unknown money units cannot yield values.
+
+Forward0093 preserves historical rows/fences and admits exact capture/request schema
+pairs; it refuses downgrade while new-format captures remain. New wire formats are
+capture2/provenance2/plan3, not changes to planning policyV3/privateV4–V6.
+
+134 exact cases passed (106component,14SQLite,14PostgreSQL), plus full Ruff,
+configuredmypy1516, collection, JSsyntax and diffcheck.108 unaffected passes retained
+from04;26 corrected/previously unrun cases passed05 with the sole test-file change
+hash-checked. Original failures and unrun evidence preserved. No aggregate rerun.
+[Checkpoint and exact source gaps](inlet-capture-settings-retention-20261012.md).
+Freeze4578c4cb3cfb2e8f917ba680da48080426254f98e70cf6568b0bb6461ee8513e
+binds546evidence/1825sources. Final independent evidence review CLOSED: all hashes,
+134 exact identities, retained plan/capture/export/wire commitments and carryforward
+source boundary independently verified. No local commit blocker.
+
+Next: source-qualify exact social report combinations and units before any producer.
+Both owner retention/artifact-sharing decisions, six human quality judgments,
+Q13 independent verification, historicalR01–R03 uncertainty and all remote/live/
+deployment/spend holds remain. Local branch `codex/inlet-w1-followup`; no PR/push.

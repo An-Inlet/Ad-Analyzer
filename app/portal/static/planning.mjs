@@ -1,3 +1,4 @@
+import {validateBudgetEvent} from './plan-budget-observations.mjs';
 import {captureHandoff} from './plan-capture-handoff.mjs';
 import {renderGoogleOwnerInputs} from './plan-google-owner-inputs.mjs';
 import {planningCapability} from './plan-capability.mjs';
@@ -24,6 +25,7 @@ const say=value=>$('message').textContent=value;
 let epoch=0,busy=false,operation=null,user=null,workspaces=[],wid='',role='',planId='',read=null;
 let listCursor=null,versionCursor=null,eventCursor=null,eventSequence=0,displayCookies=null,expiryTimer=null;
 let goals=[],accounts=[],editing=false,pending=null,currentView=false,eventItems=[],editWindow=null,editComparison=null,editExpected=null;
+let budgetMode='unavailable';
 let captureHandle=null,creativeHandle=null,ownerHandle=null;
 let scenarioHandle=null,targetPickers=[],targetTimer=null,targetScope=null,requiresReselection=false,targetReadRequired=false;
 class Stale extends Error{}
@@ -34,7 +36,7 @@ function changedTargetScope(){clearTargets();$('target-status').textContent='Goa
 const root=()=>`/workspaces/${encodeURIComponent(wid)}/planning/plans`;
 const selected=()=>`${root()}/${planId}`;
 function options(host,values,label,value){const empty=text('option','Choose…');empty.value='';host.replaceChildren(empty,...values.map(item=>{const option=text('option',label(item));option.value=String(value(item));return option;}));}
-function clearDocument(){if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
+function clearDocument(){budgetMode='unavailable';$('budget-observation').hidden=true;$('budget-confirm').checked=false;options($('budget-action'),[],v=>v,v=>v);if(expiryTimer!==null)clearTimeout(expiryTimer);expiryTimer=null;clearPlanDocument($('document'));clearPlanComparison($('comparison'));clearPlanSalesProgress($('progress'));$('progress-read').hidden=true;}
 function clearPlan(){clearDocument();clearPlanEvents($('events'));read=null;planId='';eventItems=[];$('review').hidden=true;$('review-form').reset();options($('action'),[],v=>v,v=>v);options($('prior'),[],v=>v,v=>v);$('head').textContent='';$('plan-title').textContent='Selected Plan';versionCursor=eventCursor=null;eventSequence=0;$('current').hidden=$('events-controls').hidden=true;options($('version'),[],v=>v,v=>v);}
 function clearEditor(){$('constraint-help').hidden=true;$('constraint-help').textContent='';$('capture-handoff').hidden=true;$('capture-hint').textContent='';ownerHandle?.clear();ownerHandle=null;creativeHandle=null;clearCreativeInputs($('creative-inputs'));captureHandle=null;clearSelectedCaptures($('selected-captures'));clearTargets();requiresReselection=false;targetReadRequired=false;$('target-status').textContent='';$('editor').hidden=true;$('form').reset();goals=[];accounts=[];editing=false;editWindow=null;editComparison=null;editExpected=null;comparisonControls();options($('goal'),[],v=>v,v=>v);$('accounts').replaceChildren();$('goal-summary').textContent='';}
 function clearSessionChoices(){workspaces=[];$('plans').replaceChildren();options($('workspace'),[],v=>v,v=>v);$('new').hidden=true;}
@@ -58,6 +60,8 @@ function enable(){
   $('retry').hidden=!pending?.absent||pending.user!==user||pending.workspace!==wid;$('retry').disabled=busy;
   const withdrawing=$('record-type').value==='retracted';
   $('record').disabled=busy||pending!==null||!$('editor').hidden||!read?.document||!$('confirm-review').checked||(withdrawing?!$('prior').value:(!currentView||read.freshness!=='current'||Date.now()>=Date.parse(read.document.valid_until)));
+  $('budget-observation').hidden=budgetMode!=='injected_fixture'||role!=='owner'||!currentView||!read?.document||!$('editor').hidden||read.freshness!=='current'||Date.now()>=Date.parse(read.document.valid_until)||$('budget-action').options.length<2;
+  $('budget-request').disabled=busy||pending!==null||!$('budget-confirm').checked||!$('budget-action').value;
   $('review').hidden=!$('editor').hidden||role!=='owner'||!read?.document;
 }
 function check(turn){if(turn!==epoch)throw new Stale();if(!operation||operation.turn!==turn||document.cookie!==operation.cookies)throw Object.assign(Error('Your session changed. Refresh your session before continuing.'),{status:401});}
@@ -111,7 +115,12 @@ function showRead(value){
   }else say('Inputs are saved. Generate a version when ready; no advertising data has been read for generation yet.');
 }
 async function readPlan(turn,version=null){
-  const value=await api(selected()+(version===null?'':`/versions/${version}`),turn);await session(turn);check(turn);validateRead(value,version);currentView=version===null;showRead(value);$('version').value=String(value.version);
+  const value=await api(selected()+(version===null?'':`/versions/${version}`),turn);
+  const capability=value.document?.google_budget_owner_review?await api(root()+'/capabilities',turn):null;
+  await session(turn);check(turn);validateRead(value,version);currentView=version===null;showRead(value);$('version').value=String(value.version);
+  if(capability){planningCapability(capability,Number(wid));budgetMode=capability.google_budget_observation??'unavailable';if(!['unavailable','injected_fixture'].includes(budgetMode))throw Error('Synthetic observation availability could not be verified.');
+    const keys=new Set(value.document.google_budget_owner_review.reviews.map(r=>r.action_key));options($('budget-action'),value.document.actions.filter(a=>keys.has(a.key)),a=>a.title,a=>a.key);
+  }
 }
 async function versions(turn,cursor=null){
   const page=await api(selected()+`/versions?limit=20${cursor===null?'':'&cursor='+encodeURIComponent(cursor)}`,turn);
@@ -174,9 +183,23 @@ function inputs(){
 async function mutate(turn,operationName,path,body){
   if(pending)throw Error('Check the previous request result before another save.');
   const key=crypto.randomUUID().replaceAll('-','');pending={user,workspace:wid,operation:operationName,key,path,body:{...body,request_key:key},absent:false};enable();
-  try{const result=await api(path,turn,'POST',{...body,request_key:key});const resultPlan=result.plan_id??result.event?.plan_id;if(!noAuthority(result)||!id(resultPlan)||(operationName!=='create'&&resultPlan!==planId))throw Error('The saved response could not be verified. Check the recorded result.');pending=null;return result;}
+  try{const result=await api(path,turn,'POST',{...body,request_key:key});const resultPlan=result.plan_id??result.event?.plan_id;if(!noAuthority(result)||!id(resultPlan)||(operationName!=='create'&&resultPlan!==planId))throw Error('The saved response could not be verified. Check the recorded result.');if(operationName==='budget_observe')validateBudgetResult(result,pending);pending=null;return result;}
   catch(error){if(error.status&&error.status<500&&error.status!==401)pending=null;throw error;}
 }
+function validateBudgetResult(value,saved){
+  const e=value?.event,b=saved?.body;
+  if(!b||!noAuthority(value)||!positive(value.event_sequence)||e?.schema_version!=='inlet.google-budget-observation.v1'||e.actor_id!==saved.user||e.workspace_id!==Number(saved.workspace)||e.plan_id!==saved.path.split('/').at(-2)||e.version!==b.expected_version||e.document_digest!==b.document_digest||e.action_key!==b.action_key||e.action_digest!==b.action_digest||value.event_sequence!==b.expected_event_sequence+1)throw Error('The synthetic observation response did not match the request. Check its recorded result.');
+  validateBudgetEvent(e);
+}
+$('budget-confirm').onchange=enable;
+$('budget-action').onchange=()=>{$('budget-confirm').checked=false;enable();};
+$('budget-request').onclick=()=>guarded(async turn=>{
+  if(budgetMode!=='injected_fixture'||!currentView||!read?.document||!$('editor').hidden||!$('budget-confirm').checked||$('budget-observation').hidden)throw Error('Review the current synthetic observation request first.');
+  const action=read.document.actions.find(a=>a.key===$('budget-action').value);
+  if(!action||!read.document.google_budget_owner_review.reviews.some(r=>r.action_key===action.key))throw Error('Choose a shared daily budget hypothesis.');
+  await mutate(turn,'budget_observe',selected()+'/budget-observations',{expected_version:read.version,expected_event_sequence:read.event_sequence,document_digest:read.document_digest,action_key:action.key,action_digest:read.action_digests[action.key]});
+  await readPlan(turn);await events(turn);say('Synthetic comparison recorded. This is not live provider verification or an implementation report.');
+});
 function reviewChoices(){
   const kind=$('record-type').value,manual=['customer_reports_applied','retracted'].includes(kind);
   const matching=eventItems.filter(row=>row.event.version===read?.version&&row.event.action_key===$('action').value&&(manual?Object.hasOwn(row.event,'assertion'):Object.hasOwn(row.event,'decision')));
@@ -234,7 +257,7 @@ $('versions-next').onclick=()=>guarded(t=>versions(t,versionCursor));
 $('events-refresh').onclick=()=>guarded(t=>events(t));$('events-next').onclick=()=>guarded(t=>events(t,eventCursor));
 $('compare').onclick=()=>guarded(async turn=>{const version=read.version,old=await api(selected()+`/versions/${version-1}`,turn),value=await api(selected()+`/comparisons/${version-1}/${version}`,turn);await session(turn);check(turn);renderPlanComparison($('comparison'),value,{previous_version:version-1,current_version:version,previous_digest:old.document_digest,current_digest:read.document_digest});});
 $('export').onclick=()=>guarded(async turn=>{const version=read.version,value=await api(selected()+`/export?version=${version}`,turn);await session(turn);check(turn);validateRead(value,version);const blob=new Blob([JSON.stringify(value,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`inlet-plan-${planId}-version-${version}-artifact.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);say('Downloaded the selected version artifact. Customer event history is separate.');});
-async function recovered(turn,value){const resultPlan=value.plan_id??value.event?.plan_id;if(!noAuthority(value)||!id(resultPlan))throw Error('The recorded result could not be verified.');pending=null;planId=resultPlan;clearEditor();await readPlan(turn);await versions(turn);say('The earlier request completed. Its saved plan is displayed.');}
+async function recovered(turn,value){const budget=pending?.operation==='budget_observe';if(budget)validateBudgetResult(value,pending);const resultPlan=value.plan_id??value.event?.plan_id;if(!noAuthority(value)||!id(resultPlan))throw Error('The recorded result could not be verified.');pending=null;planId=resultPlan;clearEditor();await readPlan(turn);await versions(turn);if(budget)await events(turn);say(budget?'The earlier synthetic comparison completed. Its historical result is displayed; current reliance is not assessed.':'The earlier request completed. Its saved plan is displayed.');}
 $('recover').onclick=()=>guarded(async turn=>{
   if(!pending||pending.user!==user||pending.workspace!==wid)throw Error('Choose the original customer and workspace to check this request.');
   const saved=pending;let value;

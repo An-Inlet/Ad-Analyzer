@@ -253,6 +253,9 @@ class Settings(BaseSettings):
     customer_google_reporting_enabled: bool = Field(
         default=False, validation_alias="INLET_CUSTOMER_GOOGLE_REPORTING_ENABLED"
     )
+    customer_google_budget_observation_mode: Literal["disabled", "injected_fixture"] = Field(
+        default="disabled", validation_alias="INLET_CUSTOMER_GOOGLE_BUDGET_OBSERVATION_MODE"
+    )
     customer_meta_reporting_enabled: bool = Field(
         default=False, validation_alias="INLET_CUSTOMER_META_REPORTING_ENABLED"
     )

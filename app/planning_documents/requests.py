@@ -30,6 +30,15 @@ from app.planning_documents.selected_inputs import (
 )
 
 
+class BudgetObservationIntent(Frozen):
+    expected_version: Positive
+    expected_event_sequence: int = Field(strict=True, ge=0)
+    document_digest: Digest
+    action_key: Key
+    action_digest: Digest
+    request_key: str = Field(strict=True, min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+
 class TargetSelector(Frozen):
     account_id: Positive
     canonical_entity_key: Digest

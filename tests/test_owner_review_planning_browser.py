@@ -83,7 +83,7 @@ def test_actual_owner_review_planning_browser(
         if journey == "literal_text" else None
     )
     response_control = OwnerCatalogResponseControl() if journey == "complete_to_partial" else None
-    fixture, body, calls, _ = configured_owner_review(
+    fixture, body, calls, fixture_catalog = configured_owner_review(
         customer_engine,
         configuration,
         replicas,
@@ -98,6 +98,13 @@ def test_actual_owner_review_planning_browser(
         ),
     )
     basis = fixture.basis
+    if journey == "budget_observation":
+        from tests.google_budget_runtime_fixture import install_fixture
+
+        install_fixture(
+            customer_engine, monkeypatch, basis.workspace_id, basis.account_id,
+            fixture_catalog["native_observation"]["time_zone"],
+        )
     original_cookie = replicas[0].cookies[SESSION_COOKIE]
     original_csrf = replicas[0].cookies[CSRF_COOKIE]
     session_digest = digest(original_cookie)
@@ -174,6 +181,16 @@ def test_actual_owner_review_planning_browser(
             incoming = Request(scope).cookies.get(SESSION_COOKIE, "")
             if not hmac.compare_digest(incoming, original_cookie):
                 raise AssertionError("Original authenticated session changed")
+        if path == "/__fixture__/disable-budget":
+            checkpoint = Request(scope)
+            assert journey == "budget_observation" and scope.get("method") == "POST"
+            assert checkpoint.headers.get("origin") == origin
+            assert hmac.compare_digest(checkpoint.cookies.get(SESSION_COOKIE, ""), original_cookie)
+            assert hmac.compare_digest(checkpoint.headers.get("x-csrf-token", ""), original_csrf)
+            assert active_requests == 0
+            monkeypatch.setattr(settings, "customer_google_budget_observation_mode", "disabled")
+            await JSONResponse({"ok": True})(scope, receive, send)
+            return
         if path == "/__fixture__/make-partial":
             checkpoint = Request(scope)
             if (
@@ -347,6 +364,11 @@ def test_actual_owner_review_planning_browser(
         assert session_posts == 0
         assert financial_counts(customer_engine) == counts
         result = results[0]
+        if journey == "budget_observation":
+            assert result["budget_checks"] is True
+            (tmp_path / "budget-browser-result.json").write_text(
+                json.dumps(result["budget_result"])
+            )
         document = PlanVersion.model_validate(result["document"])
         exported = result["export"]
         assert PlanVersion.model_validate(exported["document"]).digest() == document.digest()

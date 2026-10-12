@@ -1,4 +1,4 @@
-"""Private injected fixture service; no route, network default or activation factory."""
+"""Injected fixture service; no network default or advertising execution authority."""
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -88,8 +88,14 @@ class GoogleBudgetObservationService:
         provider: IdentityProvider,
         search: InjectedGoogleSearch,
         clock: Callable[[], datetime] = utc_now,
+        runtime_guard: Callable[[], None] | None = None,
     ) -> None:
         self.engine, self.provider, self.search, self.clock = engine, provider, search, clock
+        self.runtime_guard = runtime_guard
+
+    def _guard(self) -> None:
+        if self.runtime_guard is not None:
+            self.runtime_guard()
 
     def _replay(
         self, db: Session, principal: CustomerPrincipal, request: BudgetReadIntent, operation: str
@@ -160,11 +166,14 @@ class GoogleBudgetObservationService:
             return result
 
     def observe(self, principal: CustomerPrincipal, request: BudgetReadIntent) -> EventResult:
+        self._guard()
         request = BudgetReadIntent.model_validate(request)
         try:
             return self._observe(principal, request)
         except _ReplayNeeded:
-            return self._recover(principal, request, "budget_observe")
+            result = self._recover(principal, request, "budget_observe")
+            self._guard()
+            return result
 
     def _observe(self, principal: CustomerPrincipal, request: BudgetReadIntent) -> EventResult:
         request = BudgetReadIntent.model_validate(request)
@@ -213,6 +222,7 @@ class GoogleBudgetObservationService:
             repository.check_goal(db, document.inputs, now)
             authority.final(current, fact)
         # No SQL connection/transaction is held across the injected search port.
+        self._guard()
         acquired = read_google_budget(ticket, self.search, self.clock)
         witness = budget_read_witness(acquired, review.witness.owner_key)
         compared = self.clock()
@@ -264,10 +274,12 @@ class GoogleBudgetObservationService:
             ):
                 raise repository.changed("budget observation source, plan or deadline changed")
             repository.check_goal(db, document.inputs, self.clock())
+            self._guard()
             result = self._append(db, current, request, event, raw, digest, None, "budget_observe")
             if max(self.clock(), database_utc_now(db)) >= ticket.expires_at:
                 raise repository.changed("budget observation expired before commit")
             authority.final(current, fact)
+            self._guard()
             return result
 
     def invalidate_source_change(

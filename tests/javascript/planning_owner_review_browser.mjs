@@ -13,6 +13,7 @@ const owner=()=>document.getElementById('google-owner-inputs');
 let catalog=null,discovery=null,created=null,generated=null,downloaded=null,revision=null;
 let createPosts=0,generatePosts=0,freshReads=0,inputPosts=0,transition=null;
 let originalCreateBody=null,originalGenerateBody=null;
+let budgetChecks=false,budgetResult=null;
 let literalChecks=false,duplicateChecks=false,excludedKeys=[],duplicateLabels=[];
 const memberName=id=>cfg.duplicate_names?'Mug Campaign':cfg.literal?.names[id]??`Mug Campaign ${id}`;
 function safeLiteral(host,values){
@@ -213,6 +214,41 @@ try{
   assert(canonical(old.document)===originalDocument&&canonical(oldExport.document)===originalDocument,'original complete V1 document immutable');
   transition.historical=old;transition.historical_export=oldExport;transition.final_input_posts=inputPosts;
  }
+ if(cfg.journey==='budget_observation'){
+  assert(!$('budget-observation').hidden&&$('budget-request').disabled,'fixture control requires explicit acknowledgement');
+  assert($('budget-observation').textContent.includes('not a live advertising account'),'synthetic limits visible');
+  change($('budget-action'),documentValue.google_budget_owner_review.reviews[0].action_key);
+  checked($('budget-confirm'),true);assert(!$('budget-request').disabled,'explicit fixture request enabled');
+  const previousFetch=window.fetch;let observationPosts=0,recoveryGets=0,requestBody=null;
+  window.fetch=async(path,init={})=>{
+   if(String(path).endsWith('/budget-observations')&&init.method==='POST'){
+    observationPosts++;requestBody=JSON.parse(init.body);const response=await previousFetch(path,init);
+    budgetResult=await json(response.clone());const forged=structuredClone(budgetResult);forged.event.advertising_writes_enabled=true;return new Response(JSON.stringify(forged),{status:200,headers:{'Content-Type':'application/json'}});
+   }
+   if(String(path).includes('/requests/budget_observe/')){
+    recoveryGets++;const response=await previousFetch(path,init);
+    if(recoveryGets===1){await response.json();throw Error('lost receipt response');}
+    if(recoveryGets===2){const forged=await response.json();forged.event.actor_id='f'.repeat(32);return new Response(JSON.stringify(forged),{status:200,headers:{'Content-Type':'application/json'}});}
+    return response;
+   }
+   return previousFetch(path,init);
+  };
+  $('budget-request').click();await until(()=>settled()&&!$('pending').hidden,'ambiguous request retained');
+  assert(observationPosts===1&&requestBody.request_key&&budgetResult.event.provenance==='injected_fixture','one real synthetic observation committed');
+  assert($('message').textContent.includes('could not be verified'),'malformed POST authority rejected');
+  $('recover').click();await until(()=>settled()&&recoveryGets===1,'lost receipt response settled');
+  assert(!$('pending').hidden&&$('retry').hidden,'lost response preserves key without automatic retry');
+  $('recover').click();await until(()=>settled()&&recoveryGets===2,'forged receipt settled');
+  assert(!$('pending').hidden&&$('message').textContent.includes('did not match'),'foreign receipt actor rejected with key retained');
+  const csrf=document.cookie.split('; ').find(v=>v.startsWith('__Host-inlet_csrf='));
+  await json(await native('/__fixture__/disable-budget',{method:'POST',headers:{'X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))}}));
+  $('recover').click();await until(()=>settled()&&$('pending').hidden&&!$('events').hidden,'receipt recovery while disabled');
+  assert(observationPosts===1&&$('budget-observation').hidden,'no reacquisition after disable');
+  assert($('events').textContent.includes('Injected Fixture Evidence')&&$('events').textContent.includes('Current reliance is not assessed'),'strict historical fixture display');
+  const replay=await native(plan+'/budget-observations',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))},body:JSON.stringify(requestBody)});
+  assert(replay.status===503,'stale browser POST replay refuses when disabled');
+  window.fetch=previousFetch;budgetChecks=true;
+ }
  assert(document.cookie===sessionCookies,'original browser session retained');
- await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads,transition,literal_checks:literalChecks,duplicate_checks:duplicateChecks,excluded_keys:excludedKeys})});
+ await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',budget_checks:budgetChecks,budget_result:budgetResult,document:documentValue,export:downloaded,create_posts:createPosts,generate_posts:generatePosts,fresh_reads:freshReads,transition,literal_checks:literalChecks,duplicate_checks:duplicateChecks,excluded_keys:excludedKeys})});
 }catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:String(error.message)})});}

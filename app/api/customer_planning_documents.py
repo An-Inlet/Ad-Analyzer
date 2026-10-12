@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Path, Query, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import Engine
 from sqlalchemy.orm import object_session
@@ -13,10 +13,15 @@ from app.planning_documents.authority_diagnostics import PlanningDiagnosticRoute
 from app.planning_documents.capabilities_view import PlanningCapabilitiesV1
 from app.planning_documents.common import Id
 from app.planning_documents.comparison import VersionComparison, compare_versions
+from app.planning_documents.google_budget_events import BudgetReadIntent
+from app.planning_documents.google_budget_fixture_runtime import configured_fixture, require_fixture
+from app.planning_documents.google_budget_observation_service import GoogleBudgetObservationService
+from app.planning_documents.google_budget_read import GoogleBudgetReadTicketV1
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
 from app.planning_documents.progress_contracts import PlanSalesProgressV1
 from app.planning_documents.requests import (
     AssertionIntent,
+    BudgetObservationIntent,
     CreatePlan,
     DecisionIntent,
     EditPlan,
@@ -88,6 +93,7 @@ def no_store(response: Response) -> None:
 @router.get("/capabilities", response_model=PlanningCapabilitiesV1)
 def planning_capabilities(
     workspace_id: int,
+    request: Request,
     principal: Principal,
     provider: Provider,
     db: Database,
@@ -96,6 +102,7 @@ def planning_capabilities(
     no_store(response)
     configured = service(db, provider, principal)
     with configured._read_session(principal, workspace_id):
+        fixture = configured_fixture(request)
         capability = ticket_reporting_capability(
             configured.policy.version, configured.policy.digest()
         )
@@ -103,6 +110,11 @@ def planning_capabilities(
             workspace_id=workspace_id,
             policy_version=configured.policy.version,
             generator_version=configured.policy.generator_version,
+            google_budget_observation=(
+                "injected_fixture"
+                if fixture is not None and fixture.workspace_id == workspace_id
+                else "unavailable"
+            ),
             selected_reporting_available=capability.mode
             in (
                 "selected_requested_window",
@@ -110,6 +122,42 @@ def planning_capabilities(
                 "owner_review_creative_selected_requested_window",
             ),
         )
+
+
+@router.post("/{plan_id}/budget-observations", response_model=EventResult)
+def observe_budget(
+    workspace_id: int,
+    plan_id: Id,
+    body: BudgetObservationIntent,
+    request: Request,
+    principal: MutationPrincipal,
+    provider: Provider,
+    db: Database,
+    response: Response,
+) -> EventResult:
+    no_store(response)
+    fixture = require_fixture(request)
+    configured = service(db, provider, principal)
+
+    def guard() -> None:
+        require_fixture(request, fixture)
+
+    def search(ticket: GoogleBudgetReadTicketV1, query: str, cursor: str | None) -> str:
+        guard()
+        return fixture.search(ticket, query, cursor)
+
+    runtime = GoogleBudgetObservationService(
+        configured.engine, provider, search, clock=utc_now, runtime_guard=guard
+    )
+    try:
+        return runtime.observe(principal, BudgetReadIntent(
+            workspace_id=workspace_id, plan_id=plan_id, version=body.expected_version,
+            expected_event_sequence=body.expected_event_sequence,
+            document_digest=body.document_digest, action_key=body.action_key,
+            action_digest=body.action_digest, request_key=body.request_key,
+        ))
+    except ValueError as error:
+        raise HTTPException(409, "Synthetic budget evidence could not be compared.") from error
 
 
 @router.post("", response_model=InputResult, status_code=201)

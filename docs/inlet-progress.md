@@ -8990,3 +8990,30 @@ Default V3, V6/V7 release holds and INLET-REL-20261012-01 remain unchanged. This
 qualify concurrent generation or live provider evidence. Next package: review remaining
 provenance/activation prerequisites for this narrow flow before broadening fields or
 platforms. No push, PR, hosted CI, merge, deployment, live provider/model call or spend.
+
+
+## Q13 Customer Fixture Request And Recovery — 2026-10-12
+
+From ac4b62ab, closed the assembled-app gap between the injected observation service
+and customer request/status recovery. Added a strict scoped POST and an immutable,
+source-bound canned-page runtime requiring explicit fixture mode, exact V6 and an
+installed bundle. Default/example mode remains disabled. Guards refuse configuration
+changes during reads and after insert; historical GET recovery remains available.
+The separate browser control labels synthetic comparisons, preserves ambiguous request
+keys and validates event authority/actor before accepting POST or recovered results.
+Customer reports, original observations, erasure and legacy readers remain distinct.
+
+Final frozen q13-fixture-entry03: whole Ruff, mypy (1,584 files), exact collection/diff,
+24 selected tests across 28 commands pass, no skips. Two component tests, then eleven
+SQLite and eleven PostgreSQL cases cover retained security/history, actual assembled
+API configuration fences and Chromium forged/lost-response recovery, plus V3/V6 browser
+and V7 customer-report regressions. All 1,901 code/test hashes verified; 12 synthetic
+artifacts retained with hashes. Earlier lint/type failures and unrun phases preserved.
+Independent source review closed; final evidence/docs review is bound to the local commit.
+See [package evidence, launch blockers and next scope](inlet-q13-fixture-observation-entry-20261012.md).
+
+This is local fixture qualification, not live read provenance or a purchasable release.
+V3 default, V6/V7 release holds, six expert-quality decisions and INLET-REL-20261012-01
+remain. Next single package: scoped read-only retained-observation status across source
+changes and paginated invalidations, without rewriting historical findings or implying
+provider freshness/implementation. No push/PR/hosted CI/merge/deploy/live action/spend.

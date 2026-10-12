@@ -13,6 +13,7 @@ const same=(a,b)=>['workspace_id','plan_id','version','document_digest','action_
 const fail=()=>{throw Error('The historical budget evidence could not be verified.');};
 export const isBudgetEvent=e=>e?.schema_version===observed||e?.schema_version===invalidated;
 export function validateBudgetEvent(e){
+  if(!noAuthority(e)||!positive(e.workspace_id)||!id(e.plan_id)||!positive(e.version)||!id(e.event_id)||!digest(e.document_digest)||!digest(e.action_digest)||typeof e.action_key!=='string'||!(/^[a-z][a-z0-9_:-]{0,95}$/).test(e.action_key))fail();
   const extra=e.schema_version===observed?['comparison','proof','finding']:['observation_event_id','observation_digest','observation_sequence','observation_recorded_at','reason','original_source_digest','current_account','current_source_digest','privacy_revision'];
   if(!isBudgetEvent(e)||Object.keys(e).length!==base.length+extra.length||[...base,...extra].some(k=>!Object.hasOwn(e,k))||!id(e.actor_id)||!time(e.recorded_at)||e.provenance!=='injected_fixture'||e.current_reliance!=='not_assessed'||e.implementation!=='not_assessed')fail();
   if(e.schema_version===invalidated){

@@ -115,9 +115,11 @@ def prepare_creative_q05_basis(
     artifacts: Path,
     *,
     meta_currency: Literal["USD", "EUR"] = "USD",
+    missing_selected_day: date | None = None,
 ) -> CreativeQ05Basis:
     creative = prepare_creative_common_basis(
-        engine, config, replicas, patch, artifacts, platform="google_ads", selected_value="10"
+        engine, config, replicas, patch, artifacts, platform="google_ads", selected_value="10",
+        missing_selected_day=missing_selected_day,
     )
     basis = creative.basis
     alice, _, _ = replicas

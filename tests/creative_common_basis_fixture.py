@@ -2,6 +2,7 @@
 
 import hashlib
 from dataclasses import dataclass
+from datetime import date
 from functools import partial
 from pathlib import Path
 from typing import Any, Literal
@@ -47,6 +48,7 @@ def prepare_creative_common_basis(
     *,
     platform: Platform,
     selected_value: Literal["10", "0"] | None = None,
+    missing_selected_day: date | None = None,
 ) -> CreativeCommonBasis:
     if platform != "google_ads" and selected_value is not None:
         raise ValueError("social fixtures cannot adopt Google selected observations")
@@ -79,6 +81,7 @@ def prepare_creative_common_basis(
             patch,
             artifacts,
             value=selected_value,
+            missing_selected_day=missing_selected_day,
             owned_image_upload=upload,
         )
     else:

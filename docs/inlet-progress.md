@@ -8232,3 +8232,27 @@ Independent evidence closure: `failure_review` verified the completion-freeze ha
 all 198 evidence hashes and 1,711 app/test source hashes, exact 11 unique passing
 XML/result identities and unchanged-source applicability of the seven carried cases.
 No blocker to local commit; original failures and all remaining gates preserved.
+
+## 2026-10-12 — Saved Reporting Comparability
+
+From local `08573f2`, added separate-account saved evidence review before Manual
+Actions: source/capture lineage, currency/time zone, reporting periods, coverage/freshness
+and original measurement explanations. Unknown attribution/event equivalence remain
+explicit. No aggregation, causal claim, persistence changes or advertising authority.
+
+Whole Ruff/configured mypy (1,507 files) and exact 11 focused tests passed: five
+component/controller plus three SQLite and three PostgreSQL API/TLS cases. All original
+exits 0/no errors/skips, verified source continuity, no qualification failure. Freeze
+a37b32fd4a31a8c801c6823f47119813b2b79fb5b943652ec8a0a3ff3e40954d binds 100 evidence
+files and 1,716 app/test sources. Post-test executor disconnect recovered; no test reruns.
+
+[Checkpoint and limits](inlet-reporting-comparability-20261012.md). Full Q09 remains
+incomplete pending genuine social selected producers and retained typed event/attribution
+contracts. Historical R01–R03, six human judgments, retention/sharing decisions and all
+live/remote/release holds remain. Branch `codex/inlet-w1-followup`, local only.
+
+Independent completion review CLOSED: all 100 evidence and 1,716 source hashes,
+11 exact XML passes and all 14 original exits verified. Reviewer independently
+recomputed every retained PlanVersion-domain digest across six API/TLS artifact files;
+recorded document views match, advertising writes remain disabled and spending authority
+is none. No blocker to local commit; qualification limits and human gates unchanged.

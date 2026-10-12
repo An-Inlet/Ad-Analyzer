@@ -38,6 +38,7 @@ def prepare_selected_common_basis(
     artifacts: Path,
     *,
     value: str | None,
+    missing_selected_day: date | None = None,
     owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     if engine.dialect.name == "sqlite":
@@ -112,6 +113,8 @@ def prepare_selected_common_basis(
             if value is not None:
                 for offset in range(61):
                     day = date(2026, 8, 1) + timedelta(days=offset)
+                    if day == missing_selected_day:
+                        continue
                     rows.append(
                         {
                             "campaign": {

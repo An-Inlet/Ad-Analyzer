@@ -20,4 +20,8 @@ def test_saved_creative_policy_accepts_exact_v5_v6_and_refuses_mixed(tmp_path: P
     ):
         (tmp_path / f"creative-v{version}.json").write_text(document.model_dump_json())
     shutil.copy("app/portal/static/plan-document.mjs", tmp_path / "plan-document.mjs")
+    shutil.copy(
+        "app/portal/static/plan-reporting-comparability.mjs",
+        tmp_path / "plan-reporting-comparability.mjs",
+    )
     run_component(tmp_path, "plan_google_owner_creative_policy_dom")

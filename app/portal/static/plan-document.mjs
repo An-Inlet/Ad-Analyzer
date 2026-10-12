@@ -1,3 +1,4 @@
+import {appendReportingComparability} from './plan-reporting-comparability.mjs';
 import {appendGoogleOwnerReview} from './plan-google-owner-review.mjs';
 import {appendCreativeBasis} from './plan-creative-basis.mjs';
 // Display-only immutable planning artifact. Authorization and source validation are server-owned.
@@ -53,6 +54,7 @@ export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, 
   list(doc, fragment, 'Customer Assumptions', inputs.assumptions.map(item => `${item.key}: ${item.statement}`));
   appendCreativeBasis(fragment,plan);
   appendGoogleOwnerReview(fragment,plan);
+  appendReportingComparability(fragment,plan,{freshness:displayFreshness,now});
   fragment.append(text(doc, 'h3', 'Manual Actions'));
   for (const action of [...plan.actions].sort((a, b) => a.priority - b.priority)) {
     const section = doc.createElement('section');

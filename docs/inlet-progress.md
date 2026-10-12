@@ -8029,3 +8029,36 @@ history SELECT as ORM because its WHERE clauses use mapped attributes, even thou
 it selects the table. The new ORM-listener safeguard can therefore invalidate its
 own intended read. A one-use exact-statement permit is under review; no SQL,
 validation or deadline change is proposed, and this is not yet a proven sole cause.
+
+
+## October 12 Recovery And Row-Admission Mechanism Checkpoint
+
+Recovery verified environment access, no remaining pytest/mypy/Ruff process,
+local disposable PostgreSQL availability, and a clean root at ef5d916. Relative
+to8f6bd7a, only two progress-document commits exist; production remains4c8e28f.
+The isolated four-file repair and six test files are uncommitted. No usage-limit
+error persisted during recovery. Reconnect retention and sample attachment sharing
+remain undecided; all local-only/live/hosted/push/deploy/spending holds remain.
+
+The interrupted changed-source SQLite mechanism run completed: originalexit0,
+one pass in12.02s (case9.574s; process15.553117s). Both independent version reads
+decoded only the original row, preserving JSON/digest/canonical bytes and provider
+calls. All1,488 tested sources and both prior failure freezes were verified.
+Recovered freeze green02c992e4b4b4857ffdad07033dba68b358bb178553dfb6d3342cced1a6cfbc6745
+records that result; it is not a generation-deadline or lifecycle qualification.
+The source fix permits the exact original statement once; a no-database check
+confirmed mapped WHERE predicates make it ORM-classified. The intended SQL and
+all authority/source/owner/privacy checks remain unchanged.
+
+Expanded tests passed whole Ruff and configured mypy1503 after test-only typing
+and formatting fixes; original checker failures are retained. Exact collection
+contains83 cases. The hardened runner excludes the earlier SQLite pass and gates
+35pure,23SQLite,24PostgreSQL. The first pure cohort stopped after1pass/1failure:
+a test incorrectly assumed absent versus empty extra state differs under Pydantic
+equality. Installed Pydantic explicitly normalizes extra state via `or {}`; private
+state does remain distinct. Earlier review's extra-state equality claim was wrong.
+The stricter snapshot is safe and unchanged. Failure freeze
+0de1dc1890fec63b870384d9e03d161063ece21300841eee70a94127e1f9a717
+preserves the original test/log/exit and33pure+47database cases remain unrun.
+The test-only correction is reviewed; next selection is34corrected/unrun pure
+cases, excluding the passed private-state case. No unchanged retry occurred.

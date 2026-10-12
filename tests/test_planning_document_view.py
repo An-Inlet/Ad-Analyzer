@@ -13,10 +13,12 @@ from pathlib import Path
 from app.planning_documents.common import fingerprint
 from app.planning_documents.comparison import compare_versions
 from app.planning_documents.events import CustomerDecision, ManualAssertion
+from app.planning_documents.field_comparison import FieldSnapshotV1, compare_fields
 from app.planning_documents.responses import EventPage, EventResult
 
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_composer import compose, fixture
+from tests.test_planning_field_comparison import admission, document, snapshot_data
 
 
 def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
@@ -69,7 +71,53 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
         next_cursor="more-history",
     )
     (tmp_path / "events.json").write_text(page.model_dump_json())
+    observed_document = document()
+    context = admission(observed_document)
+    matching = compare_fields(
+        observed_document,
+        context,
+        FieldSnapshotV1.model_validate(snapshot_data(observed_document)),
+    )
+    conflicting = compare_fields(
+        observed_document,
+        context.model_copy(update=dict(event_id="d" * 32)),
+        FieldSnapshotV1.model_validate(
+            snapshot_data(observed_document, [dict(field="delivery_status", value="enabled")])
+        ),
+    )
+    missing = compare_fields(
+        observed_document, context.model_copy(update=dict(event_id="f" * 32)), None
+    )
+    customer_reports = tuple(
+        type(e).model_validate(
+            {
+                **e.model_dump(mode="python"),
+                **context.binding.model_dump(mode="python"),
+            }
+        )
+        for e in (decision, assertion, retraction)
+    )
+    mixed = EventPage(
+        items=tuple(
+            EventResult(event_sequence=i, event=e)
+            for i, e in enumerate((*customer_reports, matching, conflicting, missing), start=1)
+        ),
+        next_cursor=None,
+    )
+    (tmp_path / "observations.json").write_text(mixed.model_dump_json())
+    values = []
+    for field in ("landing_page", "country_targets"):
+        field_document = document(field)
+        values.append(
+            compare_fields(
+                field_document,
+                admission(field_document),
+                FieldSnapshotV1.model_validate(snapshot_data(field_document)),
+            ).model_dump(mode="json")
+        )
+    (tmp_path / "observation-values.json").write_text(json.dumps(values))
     shutil.copy("app/portal/static/plan-events.mjs", tmp_path / "plan-events.mjs")
+    shutil.copy("app/portal/static/plan-observations.mjs", tmp_path / "plan-observations.mjs")
     changed_goal = inputs.goal.model_dump(mode="python")
     changed_definition = inputs.goal.definition.model_copy(update=dict(target_micros=12000000000))
     changed_goal.update(
@@ -184,6 +232,118 @@ try {
                   {...eventOptions,afterSequence:2});
  assert(host.textContent.includes('Continuation after event 2'),'continuation context');
  assert(host.textContent.includes('End of the returned history'),'page ending');
+ const observations=await (await fetch('/observations.json')).json();
+ const observationOptions={workspaceId:observations.items[0].event.workspace_id,
+                           planId:observations.items[0].event.plan_id};
+ const mixedResult=renderPlanEvents(host,observations,observationOptions);
+ assert(mixedResult.lastSequence===6&&mixedResult.nextCursor===null,'mixed history sequence');
+ for(const label of ['Customer Reports Applied','Customer Report Retracted',
+     'Observed Match — Supported Fields Only','Observed Conflict','Observation Unavailable',
+     'Causality Not Assessed','Historical Source Interval','Evidence Expiry',
+     'does not recompute their digests','Expected: paused','Observed: enabled','Unavailable:'])
+   assert(host.textContent.includes(label),'missing observation label '+label);
+ assert(!host.textContent.includes('Invalid Date'),'no invented observation recorded time');
+ const items=host.querySelectorAll('li');
+ assert(!items[3].textContent.includes('Customer ID')&&
+        !items[3].textContent.includes('Replaces Event'),'no invented actor or supersession');
+ assert(items[1].textContent.includes('Not Independently Verified'),
+        'matching observation does not verify customer report');
+ // Historical comparison is valid even though its source has expired by viewing time.
+ assert(observations.items[3].event.observed_at==='2026-10-01T01:20:00Z','historical fixture');
+ const values=await (await fetch('/observation-values.json')).json();
+ for(const event of values){
+   renderPlanEvents(host,{...observations,items:[{...observations.items[3],event}]},
+                    observationOptions);
+   const expected=event.comparisons[0].expected.value;
+   assert(host.textContent.includes(Array.isArray(expected)?expected.join(', '):expected),
+          'typed field values visible');
+   assert(!host.querySelector('a,button,input'),'values do not create links or controls');
+ }
+ const precise=structuredClone(observations);
+ precise.items[3].event.observed_at='2026-10-01T01:20:00.000002Z';
+ const preciseSource=precise.items[3].event.comparisons[0].evidence.source;
+ preciseSource.observation_started_at='2026-10-01T01:20:00.000001Z';
+ preciseSource.observed_at='2026-10-01T02:20:00.000001+01:00';
+ preciseSource.expires_at='2026-10-01T01:20:00.000003Z';
+ renderPlanEvents(host,precise,observationOptions);
+ assert(host.textContent.includes('Observed Match'),'valid microsecond and offset history');
+ const legacy=structuredClone(observations);
+ legacy.items[5].event.comparisons[0].evidence=structuredClone(
+   observations.items[3].event.comparisons[0].evidence);
+ renderPlanEvents(host,legacy,observationOptions);
+ assert(host.textContent.includes('Observation Unavailable'),'legacy missing value with evidence');
+ const literal=structuredClone(observations);
+ literal.items[3].event.limitations[0]='<img src=x onerror="window.injected=true">';
+ literal.items[3].event.comparisons[0].evidence.target.display_name='<script>bad</script>';
+ renderPlanEvents(host,literal,observationOptions);
+ assert(host.textContent.includes('<img src=x')&&host.textContent.includes('<script>bad'),
+        'literal observation text');
+ assert(!host.querySelector('img,script,a,button,input')&&!window.injected,'safe observation DOM');
+ for(const alter of [
+   e=>{e.workspace_id=999999;},e=>{e.plan_id='9'.repeat(32);},
+   e=>{e.advertising_writes_enabled=true;},e=>{e.spending_authority='approved';},
+   e=>{e.actor_id='a'.repeat(32);},e=>{e.recorded_at=e.observed_at;},
+   e=>{e.supersedes_event_id=null;},e=>{e.decision='deferred';},
+   e=>{e.assertion='customer_reports_applied';},e=>{e.causality='confirmed';},
+   e=>{e.applied_by='inlet';},e=>{e.status='conflicting';},
+   e=>{e.observed_at='not a date';},e=>{e.observed_at='2026-10-01T01:20:00';},
+   e=>{e.comparisons[0].expected.value='active';},
+   e=>{e.comparisons[0].observed.field='landing_page';},
+   e=>{e.comparisons[0].observed=null;},
+   e=>{e.comparisons[0].unavailable_reason='Missing';},
+   e=>{e.comparisons[0].evidence=null;},
+   e=>{e.comparisons.push(structuredClone(e.comparisons[0]));},
+   e=>{e.limitations=[];},e=>{e.limitations=['x'.repeat(2001)];},
+   e=>{e.comparisons[0].evidence.source.workspace_id=99;},
+   e=>{e.comparisons[0].evidence.source.account.account_id=99;},
+   e=>{e.comparisons[0].evidence.source.account.connection_version='foreign';},
+   e=>{e.comparisons[0].evidence.target.provider_reference.platform='meta_ads';},
+   e=>{e.comparisons[0].evidence.target.provider_reference.parent_campaign_id='1';},
+   e=>{e.comparisons[0].evidence.source.kind='reported_metrics';},
+   e=>{e.comparisons[0].evidence.source.coverage='unavailable';},
+   e=>{e.comparisons[0].evidence.source.key='foreign';},
+   e=>{e.comparisons[0].evidence.source.document_digest='not-a-digest';},
+   e=>{e.comparisons[0].evidence.source.observed_at='2026-10-01T01:21:00Z';},
+   e=>{e.comparisons[0].evidence.source.expires_at=e.observed_at;},
+   e=>{e.comparisons[0].evidence.source.observation_started_at='2099-01-01T00:00:00Z';},
+   e=>{e.comparisons[0].evidence.source.observation_started_at='2026-02-30T00:00:00Z';},
+   e=>{e.observed_at='2026-10-01T01:20:00.000001Z';
+       e.comparisons[0].evidence.source.observed_at='2026-10-01T01:20:00.000002Z';},
+   e=>{e.comparisons[0].evidence.source.observation_started_at='2026-10-01T01:16:00.000002Z';
+       e.comparisons[0].evidence.source.observed_at='2026-10-01T01:16:00.000001Z';},
+   e=>{e.comparisons[0].evidence.extra=true;},
+   e=>{e.comparisons[0].evidence.source.extra=true;},
+   e=>{e.comparisons[0].evidence.target.extra=true;},
+   e=>{e.comparisons[0].evidence.target.provider_reference.extra=true;},
+   e=>{delete e.comparisons[0].evidence.source.reporting_window;},
+   e=>{delete e.comparisons[0].evidence.target.budget_owner_key;},
+   e=>{delete e.comparisons[0].evidence.target.provider_reference.parent_campaign_id;},
+   e=>{e.comparisons[0].evidence.source.reporting_window={
+       starts_at:'2024-01-01T00:00:00Z',ends_at_exclusive:'2026-01-01T00:00:00Z'};},
+   e=>{e.comparisons[0].evidence.source.reporting_window={
+       starts_at:'2026-01-01T00:00:00Z',ends_at_exclusive:'2026-02-01T00:00:00Z',extra:true};},
+ ]){
+   const invalid=structuredClone(observations);alter(invalid.items[3].event);
+   renderPlanEvents(host,observations,observationOptions);
+   try{renderPlanEvents(host,invalid,observationOptions);throw Error('accepted observation');}
+   catch(error){assert(error.message!=='accepted observation','observation rejection');}
+   assert(host.hidden&&!host.childNodes.length,'entire mixed page cleared');
+ }
+ for(const alter of [
+   p=>{p.items[4].event_sequence=4;},
+   p=>{p.items[4].event.event_id=p.items[3].event.event_id;},
+   p=>{p.items[5].event.comparisons[0].unavailable_reason=null;},
+   p=>{p.items[0].event.observed_at=p.items[3].event.observed_at;},
+   p=>{p.next_cursor='';},
+ ]){
+   const invalid=structuredClone(observations);alter(invalid);
+   try{renderPlanEvents(host,invalid,observationOptions);throw Error('accepted mixed page');}
+   catch(error){assert(error.message!=='accepted mixed page','mixed page rejection');}
+   assert(host.hidden&&!host.childNodes.length,'mixed page atomic rejection');
+ }
+ renderPlanEvents(host,{...observations,items:observations.items.slice(3)},
+                  {...observationOptions,afterSequence:3});
+ assert(host.textContent.includes('Continuation after event 3'),'observation continuation');
  clearPlanEvents(host);assert(host.hidden&&!host.childNodes.length,'history clear');
  document.querySelector('#result').textContent='PASS';
 } catch(error) {document.querySelector('#result').textContent='FAIL '+error.stack;}

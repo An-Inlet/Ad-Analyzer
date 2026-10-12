@@ -8844,3 +8844,19 @@ Next: read-only observation renderer, then qualified producer/service joins when
 their prerequisites exist. Q13 overall remains incomplete. Local-only branch
 `codex/inlet-w1-followup`; no push, PR, activation or advertising action.
 See [package evidence and remaining limits](inlet-q13-field-comparison-20261012.md).
+
+## Q13 Observation History Display — 2026-10-12
+
+Pure comparison checkpoint saved locally as `4209cb0`. Continued with a separate
+observation history variant: typed values, historical evidence and limitations stay
+distinct from customer reports/retractions. Strict nested shapes, microsecond/calendar
+chronology and all-or-nothing mixed-page validation protect display; URLs stay text.
+No provider proof, actor, implementation time or causality is inferred.
+
+Final q13-renderer02 passed whole Ruff, configured mypy (1,560 files), exact collection,
+diff and two runtime cases: actual Chromium DOM plus asset-route compatibility, no
+skips. Attempt01's mypy fixture collision and unrun runtime remain preserved. This
+is synthetic display compatibility, not observation API/database/live acceptance.
+Full Q13 and the v6 reliability incident remain open. Next independent package: Q10
+explicit constrained-creative interpretation with existing policy behavior protected.
+See [display package evidence and limits](inlet-q13-observation-history-20261012.md).

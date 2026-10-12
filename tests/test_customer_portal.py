@@ -33,6 +33,7 @@ def test_customer_shell_has_strict_headers_and_no_inline_code(path: str) -> None
 def test_assets_and_existing_routes_are_separate() -> None:
     with TestClient(app) as client:
         assert client.get("/app/assets/portal.mjs").status_code == 200
+        assert client.get("/app/assets/plan-observations.mjs").status_code == 200
         assert client.get("/app/assets/portal.css").status_code == 200
         assert client.get("/app/assets/../router.py").status_code == 404
         assert client.get("/app/unknown").status_code == 404

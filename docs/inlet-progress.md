@@ -8790,3 +8790,17 @@ failure-safe evidence, fixed bounds and stop-on-first-failure behavior. No more 
 green diagnostics are planned. No new runtime tests were needed for these documentation
 updates; earlier frozen checks remain the candidate's test evidence.
 See [candidate and incident](inlet-v6-candidate-and-reliability-incident-20261012.md).
+
+## Candidate Saved; TikTok Completeness Admission Contract — 2026-10-12
+
+Saved local candidate commit `ae9c007bb562cd37babb6709fd9e4d3dec8bd0e7` after
+independent source and documentation review. No push or promotion. The open reliability
+incident and future-only bounded concurrency plan are committed with the repairs.
+
+Continued the independent TikTok gap with a concrete completeness admission/lifecycle/
+fixture contract. Official SDK interfaces do not provide terminal output or uncapped
+coverage semantics; readable versioned endpoint evidence remains unavailable. Inventory
+has no demonstrated historical-superset/snapshot guarantee. Preserve the parser refusal;
+no async producer, invented positive proof, live task or capability promotion. Targeted
+research stopped after bounded official reads failed to supply the required semantics.
+See [admission contract](design/tiktok-completeness-admission-contract-20261012.md).

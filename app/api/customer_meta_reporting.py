@@ -29,7 +29,9 @@ router = APIRouter(
 
 
 def get_meta_reporting_runtime() -> MetaCustomerRuntime | None:
-    return None
+    from app.meta.selected_runtime import configured_runtime
+
+    return configured_runtime()
 
 
 Runtime = Annotated[MetaCustomerRuntime | None, Depends(get_meta_reporting_runtime)]

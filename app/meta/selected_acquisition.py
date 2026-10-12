@@ -53,6 +53,7 @@ def acquire_selected(
     transport: httpx.BaseTransport,
     clock: Callable[[], datetime],
     expected_grant_digest: str | None = None,
+    runtime_available: Callable[[], bool] | None = None,
 ) -> SelectedCaptureV1:
     try:
         req = SelectedCaptureRequestV1.model_validate(request)
@@ -68,6 +69,8 @@ def acquire_selected(
             return value.astimezone(UTC)
 
         def guard(db: Session) -> MetaConnection:
+            if runtime_available is not None and not runtime_available():
+                raise ValueError("reporting runtime disabled")
             contexts.authorize(db, wid, actor)
             original = contexts.principal.session
             current = db.get(CustomerSession, original.digest, populate_existing=True)
@@ -169,6 +172,8 @@ def acquire_selected(
         capture = collect_meta_selected_capture(req, owned_mapping, reader, revalidate, clock)
 
         def final_deadline() -> None:
+            if runtime_available is not None and not runtime_available():
+                raise ValueError("reporting runtime disabled")
             if not req.started_at <= now() < req.started_at + timedelta(seconds=60):
                 raise ValueError("request expired")
 

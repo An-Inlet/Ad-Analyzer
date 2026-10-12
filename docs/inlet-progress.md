@@ -8447,3 +8447,41 @@ custom events, money and effective attribution remain separate gaps. Owner reten
 artifact-sharing decisions, six human quality judgments, Q13 verification and
 historical R01–R03 uncertainty remain open. All remote/hosted/live/release/spend holds
 remain. Local branch `codex/inlet-w1-followup`; no push or PR in this package.
+
+
+## 2026-10-12 — Opt-In Meta Runtime And Assembled Browser Qualification
+
+Implemented actual application reporting composition through existing Vault/grant
+interfaces with a false-by-default dedicated switch, lazy fixed-origin GET-only
+transport and final availability guards. Invalidation remains possible while
+reporting is disabled. No credentials, grants or live activation changed.
+[Contract](design/meta-reporting-runtime-v1.md) and
+[checkpoint](inlet-meta-reporting-runtime-20261012.md) document the boundaries.
+
+72 exact cases passed: 12 component, 30 SQLite and 30 PostgreSQL. All six actual-app
+browser journeys (positive/zero/missing on both databases) passed under explicitly
+configured fixture-private v4. Production-default v3 remains unchanged and does not
+advertise selected reporting. Full Ruff, configured mypy (1,534 files), exact
+collection, diff and seven JavaScript syntax checks passed. Twelve browser/API
+artifact sets preserve current/history/export content and digest checks.
+
+Attempt 03's PostgreSQL browser case was interrupted below the 512 MiB memory floor;
+original exit -15, runner exit 241, incomplete XML and clean teardown are preserved.
+Independently reviewed recovery removed only 64,916 relocated regenerable bytecode
+files after cache/source hash validation, preserving all unique evidence and the one
+source-unavailable file. Headroom increased to 1,271,828,480 bytes. A fresh reviewed
+manifest ran only the interrupted and 20 unrun cases; all passed with unchanged
+source, runner and resource floors. No verified completed case was rerun.
+
+Evidence `/workspace/inlet-evidence/20261012/meta-runtime-attempt04/` reconciles
+72 unique XML identities and original exits, retained source boundaries, artifacts
+and final source integrity. Recovery provenance and review are under
+`/workspace/inlet-evidence/20261012/meta-runtime-recovery/`. Final independent
+closure and local commit binding are recorded beside the completion freeze.
+
+Next dependency-ready package: explicit canonical selected-planning composition
+while preserving default v3 and private v4–v6 gates. Google reporting composition,
+TikTok exact report qualification, custom events, money and verified attribution
+remain separate. Existing owner decisions, human quality judgments, Q13 and
+historical uncertainty remain. No push/PR/hosted CI/merge/deployment/live calls/spend.
+Branch `codex/inlet-w1-followup`, predecessor `bb79dbf`.

@@ -165,6 +165,7 @@ class MetaCustomerRuntime:
     configuration: Settings
     transport: Callable[[], httpx.BaseTransport]
     clock: Callable[[], datetime]
+    available: Callable[[], bool] | None = None
 
 
 def unavailable() -> HTTPException:
@@ -194,6 +195,12 @@ class MetaCustomerService:
             raise unavailable()
         return value.astimezone(UTC)
 
+    def require_runtime(self) -> None:
+        if self.runtime is None or (
+            self.runtime.available is not None and not self.runtime.available()
+        ):
+            raise HTTPException(503, "meta_reporting_runtime_unavailable")
+
     def guard(self, db: Session, aid: int, *, read: bool = False) -> None:
         self.contexts.authorize(db, self.wid, self.actor)
         original = self.contexts.principal.session
@@ -206,8 +213,8 @@ class MetaCustomerService:
         if lock_scope(db, self.wid, aid).platform.value != "meta_ads":
             raise unavailable()
         if read:
-            if self.runtime is None:
-                raise HTTPException(503, "meta_reporting_runtime_unavailable")
+            self.require_runtime()
+            assert self.runtime is not None
             paid_work(db, self.wid, self.now())
             controls = AutomationControlService(db)
             if (
@@ -359,7 +366,7 @@ class MetaCustomerService:
             )
 
     def confirm(self, intent: MetaSelectionIntent) -> MetaSelectionView:
-        with self.contexts.write(lambda: None) as db:
+        with self.contexts.write(self.require_runtime) as db:
             dependency, grant = self.check_basis(db, intent)
             self.cas(db, intent)
             if intent.option_id != intent.basis_digest:
@@ -503,5 +510,6 @@ class MetaCustomerService:
                 transport=transport,
                 clock=self.runtime.clock,
                 expected_grant_digest=grant,
+                runtime_available=self.runtime.available,
             )
         return self.capture_receipt(value)

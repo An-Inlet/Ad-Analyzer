@@ -9017,3 +9017,26 @@ V3 default, V6/V7 release holds, six expert-quality decisions and INLET-REL-2026
 remain. Next single package: scoped read-only retained-observation status across source
 changes and paginated invalidations, without rewriting historical findings or implying
 provider freshness/implementation. No push/PR/hosted CI/merge/deploy/live action/spend.
+
+
+## Q13 Mocked V24 HTTP Protocol — 2026-10-12
+
+From 467a32b4, prioritized the read transport prerequisite over the proposed status-only
+projection. Added immutable v24 owned-source/privacy tickets, fixed query/endpoint/body
+binding and complete bounded raw-response/page transcripts. Explicit mock_http provenance,
+not_verified authentication and disabled default prevent live claims. Existing v22 event,
+history, browser and export admission remains unchanged. No network/credential factory.
+
+Frozen q13-http-v2401: whole Ruff, mypy (1,587 files), exact collection/diff and all 44
+selected tests passed across 10 commands; no skips/retries/interruption. Includes 39
+new transport tests, existing Chromium renderer, then assembled API/browser recovery
+regressions on SQLite and PostgreSQL. All 1,904 source hashes verified; six retained
+synthetic artifacts hashed. Independent source review closed. Environment-disconnect
+notifications did not interrupt the active run; no completed checks were repeated.
+See [exact evidence and launch gates](inlet-q13-budget-http-v24-20261012.md).
+
+Next offline package is explicit v24 reader-version/service admission through storage,
+history, receipts and exports, preserving mock provenance and all current authority
+fences. Real provider authentication/transport remain unqualified. V3 default, V6/V7
+release holds, six expert decisions and INLET-REL-20261012-01 remain unchanged. No push,
+PR, hosted CI, merge, deployment, live call, credential operation, ad write or spend.

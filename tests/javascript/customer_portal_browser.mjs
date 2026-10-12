@@ -2,6 +2,7 @@ const browserFetch = globalThis.fetch;
 // Local browser fixture: no external provider, database, or advertising traffic.
 const calls = [];
 const goalId = 'g'.repeat(32), storeId = 's'.repeat(32);
+let billingFailure = 503, billingReady = false, deferBilling = false, releaseBilling = null;
 let goals = [], creates = 0, principal = 'A', failWorkspaces = false, loseGoal = true;
 let releaseProgress = null, deferProgress = false;
 let releaseGoals = null, deferGoals = false, unauthorized = false, rejectCreate = false, lossStatus = null;
@@ -10,7 +11,13 @@ Object.defineProperty(document, 'cookie', {get: () => '__Host-inlet_csrf=' + 'a'
 globalThis.fetch = async (path, options) => {
   calls.push({path, options});
   const body = options.body ? JSON.parse(options.body) : null;
-  if (unauthorized && path.endsWith('/billing')) return {ok:false,status:401};
+  if (path.endsWith('/billing')) {
+    const failure = billingFailure;
+    if (deferBilling) await new Promise(resolve => { releaseBilling = resolve; });
+    if (unauthorized) return {ok:false,status:401};
+    if (failure === 'network') throw new TypeError('private network detail');
+    if (failure) return {ok:false,status:failure};
+  }
   if (options.method !== 'GET' && options.headers['X-CSRF-Token'] !== 'a'.repeat(43)) throw Error('CSRF missing');
   let value = [];
   if (path.endsWith('/session')) value = {email:'fixture@example.test'};
@@ -20,7 +27,7 @@ globalThis.fetch = async (path, options) => {
     else if (principal === 'B') value = [];
     else value = [{id:1,name:'<img src=x onerror=alert(1)>',role:'owner'}];
   } else if (path.endsWith('/commerce/stores')) value = [{id:storeId,status:'active',currency:'USD',time_zone:'America/New_York'}];
-  else if (path.endsWith('/billing')) value = {status:'unconfigured',mode:'unavailable'};
+  else if (path.endsWith('/billing')) value = billingReady ? {status:'active',mode:'stripe_test',can_checkout:true,can_manage:true,verification_current:true} : {status:'unconfigured',mode:'unavailable'};
   else if (path.includes('/progress?')) value = {schema_version:'inlet.goal-sales-progress.v1',metric:'shopify_merchandise_net_sales_v1',workspace_id:1,goal_id:goals[0].id,revision:goals[0].revision,status:'unavailable',target_window:null,target_micros:null,net_sales_micros:null,coverage:null,source_watermark:null,as_of:'2026-10-07T00:00:00Z',reasons:['goal_not_confirmed'],goal_achievement:'not_assessed',attribution:'unavailable',spending_authorized:false};
   else if (path.endsWith('/preview')) value = {preview_id:'p'.repeat(32),snapshot_id:'b'.repeat(32),revision:goals[0].revision};
   else if (path.includes('/commerce/snapshots/')) value = {quality:'complete',net_sales_micros:1000000000,currency:'USD',orders:10,window:{start:'2026-01-01',end:'2026-02-01',time_basis:'calendar_month'},reasons:[]};
@@ -52,7 +59,19 @@ try {
   assert(creates === 1,'Workspace created');
   $('workspace').value = '1'; $('workspace').dispatchEvent(new Event('change')); await wait();
   assert(!$('workspace-content').hidden,'Workspace visible');
-  assert($('checkout').hidden,'Unavailable checkout hidden');
+  assert($('checkout').hidden && $('management').hidden,'Unavailable checkout hidden');
+  assert($('billing').textContent === 'Billing Status Unavailable' && !$('billing-refresh').hidden, 'Billing failure retains explicit retry');
+  assert($('connections').textContent.includes('Google Ads') && $('store').options.length === 1, 'Independent authorized workspace data remains available');
+  const billingStart = calls.length;
+  billingFailure = null; billingReady = true; $('billing-refresh').click(); await wait();
+  assert(!$('checkout').hidden && !$('management').hidden && $('billing').textContent.startsWith('Active'), 'Successful explicit retry restores server-offered controls');
+  for (const failure of [500, 429, 'network']) {
+    billingFailure = failure; $('billing-refresh').click(); await wait();
+    assert(!$('workspace-content').hidden && !$('billing-refresh').hidden && $('checkout').hidden && $('management').hidden, 'Transient refresh removes old purchase controls without losing workspace');
+    assert($('billing').textContent === 'Billing Status Unavailable' && !$('billing-detail').textContent.includes('private'), 'Safe unavailable state replaces prior active status');
+  }
+  assert(calls.slice(billingStart).every(c => c.options.method === 'GET' && c.path.endsWith('/billing')), 'Status recovery never purchases or invokes another endpoint');
+  billingFailure = null; billingReady = false; $('billing-refresh').click(); await wait();
   const values = {target:'10000',target_month:'2027-01',baseline_month:'2026-01',budget:'100',budget_start:'2027-01-01',budget_end:'2027-02-01'};
   for (const [name,value] of Object.entries(values)) $('goal-form').elements.namedItem(name).value = value;
   $('goal-form').dispatchEvent(new Event('submit',{cancelable:true})); await wait();
@@ -118,6 +137,22 @@ try {
   releaseGoals(); await wait();
   assert($('workspace-content').hidden && $('billing').textContent === '' && $('goal').options.length === 0, 'Late old-customer response cannot repopulate new session');
   deferGoals = false; principal = 'A'; $('retry').onclick(); await wait();
+  $('workspace').value = '1'; $('workspace').onchange(); await wait();
+  for (const denied of [403, 404]) {
+    billingFailure = denied; $('billing-refresh').onclick(); await wait();
+    assert($('workspace-content').hidden && $('billing').textContent === '' && $('checkout').hidden, 'Billing scope denial clears the workspace');
+    billingFailure = null; $('workspace').value = '1'; $('workspace').onchange(); await wait();
+  }
+  for (const delayedFailure of [503, null, 401, 403, 404]) {
+    billingFailure = delayedFailure; deferBilling = true; releaseBilling = null;
+    $('billing-refresh').onclick(); await wait();
+    assert(releaseBilling, 'Old billing read pending');
+    principal = 'B'; $('retry').onclick(); await wait();
+    releaseBilling(); await wait();
+    assert($('workspace-content').hidden && $('billing').textContent === '' && $('billing-refresh').hidden, 'Late old-session billing outcome cannot repopulate recovery controls');
+    deferBilling = false; billingFailure = null; principal = 'A'; $('retry').onclick(); await wait();
+    $('workspace').value = '1'; $('workspace').onchange(); await wait();
+  }
   unauthorized = true; $('workspace').value = '1'; $('workspace').onchange(); await wait();
   assert($('application').hidden && $('goal-detail').textContent === '' && $('workspace').options.length === 0, '401 clears entire customer state');
   document.body.dataset.testResult = 'passed';

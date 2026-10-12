@@ -8804,3 +8804,25 @@ has no demonstrated historical-superset/snapshot guarantee. Preserve the parser 
 no async producer, invented positive proof, live task or capability promotion. Targeted
 research stopped after bounded official reads failed to supply the required semantics.
 See [admission contract](design/tiktok-completeness-admission-contract-20261012.md).
+
+## Whole Planning Dependency Review And Billing Recovery — 2026-10-12
+
+Reviewed P01–P07 against current source and dated evidence from clean8eb68c4. Signup,
+atomic provisioning, scoped/revocable sessions, strict offer entitlement and checkout
+recovery already exist; their external qualification is not a missing-API claim.
+Selected a concrete customer recovery defect: a temporary billing GET failure hid
+Check Billing Status and aborted all workspace rendering.
+
+Implemented independent billing-unavailable state and explicit GET retry, clearing
+old purchase controls and preserving authentication/scope/epoch guards. No entitlement
+or provider behavior changed. Final packet billing-status-recovery03 passed whole
+Ruff, configured mypy1,558files, exact collection, diff check and six portal cases,
+including actual Chromium DOM and Node contracts. Tests use synthetic fetch, not real
+payments/database/provider calls. Independent source review closed both continuation
+race guards; earlier attempts remain preserved separately. No push or activation.
+
+V6 remains default-off/selectable and unqualified with INLET-REL-20261012-01 open.
+TikTok completeness is blocked on source semantics; expert usefulness, commercial
+inputs and intended-environment/live release gates remain. Next independent larger
+planning work is Q13 exact field-observation comparison or Q10 typed constrained-
+creative interpretation. See [dependency review and package evidence](inlet-planning-dependency-review-20261012.md).

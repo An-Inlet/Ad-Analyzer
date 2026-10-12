@@ -291,7 +291,7 @@ if (typeof document !== 'undefined') {
     clearWorkspace(); const turn = epoch;
     if (!$('workspace').value) return;
     const path = root();
-    const result = await Promise.all([api(path + '/commerce/stores'), api(path + '/goals'), api(path + '/mandates'), api(path + '/billing')]);
+    const result = await Promise.all([api(path + '/commerce/stores'), api(path + '/goals'), api(path + '/mandates'), readBilling(path)]);
     if (turn !== epoch) throw new StaleRequest();
     [stores, goals] = result;
     $('store').replaceChildren(...stores.filter(s => s.status === 'active').map((s, i) => option(s.id, `Shopify Store ${i + 1} · ${s.currency} · ${s.time_zone}`)));
@@ -424,7 +424,23 @@ if (typeof document !== 'undefined') {
     location.assign(shopifyDestination(result, shop));
   }); };
   window.addEventListener('pageshow', event => { if (event.persisted) guarded(session); });
+  async function readBilling(path) {
+    try { return await api(path + '/billing'); }
+    catch (error) {
+      if (error instanceof StaleRequest || !(
+        error instanceof TypeError || error.status === 429 ||
+        (error.status >= 500 && error.status <= 599)
+      )) throw error;
+      return null;
+    }
+  }
   function renderBilling(billing) {
+    if (billing === null) {
+      $('billing').textContent = 'Billing Status Unavailable';
+      $('billing-detail').replaceChildren(textNode('p', 'Billing status could not be checked. Try Check Billing Status again. This does not confirm payment or access to paid features.'));
+      show('checkout', false); show('management', false); show('billing-refresh', true);
+      return;
+    }
     $('billing').textContent = `${label(billing.status)} · ${billing.mode === 'stripe_test' ? 'Test Billing Only' : billing.mode === 'stripe_live' ? 'Live Billing' : 'Purchasing Unavailable'}`;
     $('billing-detail').replaceChildren();
     for (const message of [
@@ -444,11 +460,18 @@ if (typeof document !== 'undefined') {
     show('billing-refresh', true);
   }
   async function refreshBilling() {
-    try { renderBilling(await api(root() + '/billing')); }
+    const turn = epoch, path = root();
+    try {
+      const billing = await readBilling(path);
+      if (turn !== epoch) throw new StaleRequest();
+      renderBilling(billing);
+    }
     catch (error) {
+      if (turn !== epoch) throw new StaleRequest();
       if (error instanceof StaleRequest) throw error;
       $('billing').textContent = ''; $('billing-detail').replaceChildren();
       show('checkout', false); show('management', false);
+      if ([403, 404].includes(error.status)) clearWorkspace();
       throw error;
     }
   }

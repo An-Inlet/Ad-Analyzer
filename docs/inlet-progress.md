@@ -8620,3 +8620,173 @@ absent warnings are insufficient. Retained proof/capture schema and historical r
 floor must be reviewed before persistence; none changed here. Runtime/defaults and all
 owner/live/execution restrictions remain unchanged. Next: targeted evidence for that
 predicate, then durable proof qualification only if justified.
+
+## Configured V6 Candidate Blocked — 2026-10-12
+
+Baseline79f15fc5 on codex/inlet-w1-followup; uncommitted source candidate only. Added
+explicitv6 configuration and existing lazy media adapter, configured fixture chain
+and actualapp browser/API coverage. Defaultv3 unchanged; no composer/authority/schema
+change. Four static checks passed (mypy1,547files),19 components passed. First SQLite
+positive browser failed generation409 planning_authority_expired (route11.545954s);
+remaining12SQLite/all13PostgreSQL unrun. Acceptance remains failed.
+
+One independently reviewed, separately frozen diagnostic with sole additive passive
+logger test failed similarly (route12.952750s), retaining one event: generate/pre_cas/
+fact_age_outside_window/session-not-evaluated. Four fresh static checks passed
+(mypy1,548files); no lost events, logger/observer restored, source and cleanup verified.
+It is not an acceptance rerun or causal closure. [Checkpoint](inlet-owner-composition-blocker-20261012.md)
+and evidence under `/workspace/inlet-evidence/20261012/owner-composition-attempt02/`
+and `owner-diagnostic-attempt01/` preserve original failures, source, XML/logs and unrun
+list. Next: separately reviewed configured-path subphase measurement; no deadline,
+refresh, witness or cache workaround. No further invocation or commit/promotion.
+
+[TikTok options](design/tiktok-uncapped-evidence-options-20261012.md) evaluates owned
+all-status ad inventory and asynchronous exports using official SDK interfaces.
+Neither proves uncapped completeness; exact official questions and minimal contracts
+are recorded. This is an engineering evidence gap, not owner approval. Parser79f15fc5
+unchanged. All live/push/hosted/deploy/spend, owner and manual-only restrictions remain.
+
+## Selected Projection Repair — 2026-10-12
+
+The separately reviewed phase diagnostic found repeated pure capture digest/provenance
+work; its single pass does not qualify v6 or explain the original expiry. A frozen
+regression reproduced two capture validations for one pin projection. The narrow
+same-call repair reduces eligible adjacent projections to one mandatory validation,
+preserving public validation, custom callback/error order and all fresh SQL/source/
+owner/session checks. No deadline or cache change. The earlier row-admission repair
+and historical R01–R03 uncertainty remain intact.
+
+139 focused cases passed (135 component,2 SQLite,2 PostgreSQL), plus whole Ruff,
+configured mypy1,550files, exact collection and diff. Original failures and unrun
+dispositions remain preserved. [Repair and evidence](inlet-selected-projection-repair-20261012.md).
+Candidate remains uncommitted; fresh configured-v6 acceptance is next. No live or
+remote action. This is deterministic duplicate-work repair, not an expiry-cause claim.
+
+## Configured V6 Still Blocked After Repair — 2026-10-12
+
+Fresh configured acceptance reached34passes,1failure,10unrun. All13SQLite cases and
+PostgreSQL positive/partial browsers passed; PostgreSQL complete-to-partial returned
+generation409 planning_authority_expired (route11.978648s, XML testcase49.870s,
+process55.351007s). Exact original phase/age/session predicate unavailable. The
+ceiling-tampering test's pre-HTTP KeyError and subsequent sanitized-response correction
+are preserved;26unaffected cases were independently approved for retention.
+
+One reviewed diagnostic of that exact PostgreSQL journey stopped on the existing
+512MiB memory reserve:536113152bytes available,757760belowfloor, originalexit-15,
+no XML/phase report, clean children/source. No unchanged retry. Evidence:
+`owner-composition-after-projection01/`, `owner-composition-after-projection03/`,
+`owner-postgres-timing-attempt01/` under `/workspace/inlet-evidence/20261012/`.
+The139focused repair passes stand; configured v6 remains unqualified and uncommitted.
+Next: reviewed headroom remedy, then targeted ownership/aggregate-read profiling
+without skipping fresh boundaries or relaxing freshness. No push/PR/hosted CI,
+merge/deployment, provider/model/credential operation, advertising change or spending.
+
+## PostgreSQL Expiry Phase Measured — 2026-10-12
+
+Reviewed removal of 162 obsolete mypy cache files recovered 462,249,984 bytes of
+measured cgroup headroom; source/evidence/artifact/sibling hashes were preserved.
+After a separately preserved missing-scratch-parent setup error, one unchanged-source
+diagnostic reproduced `generate/pre_cas/fact_age_outside_window`, with fact-age
+brackets 6.208320–6.211215 seconds. Save took6.210866s, final source checks3.907922s,
+retained evidence1.339669s. No reserve interruption or observer accounting error.
+Exit1, XML testcase55.816s, process63.452385s; source and cleanup verified.
+
+Moving only entry/actual/owner pure validation before the final refresh would still
+leave5.392172s in this observation, before preparation overhead. Main composition is
+already before refresh. No timer relaxation or speculative source-check removal.
+Next: independently reviewed preparation/final-snapshot design and mutation/race/
+rollback tests, then targeted qualification. Original configured34/1/10 remains;
+no full-suite duplication or acceptance credit. See
+[measured phases and restart checkpoint](inlet-postgres-authority-timing-20261012.md).
+
+## Prepared Generation Repair — Blocked Concurrency Checkpoint, 2026-10-12
+
+Implemented the independently reviewed exact-v6 pure preparation boundary before
+final identity refresh. Bounded immutable snapshots are single-use and transaction
+bound; all current SQL/source, ownership, authority, media, receipt, publication and
+rollback checks remain. Both source passes retain 701 statements in the positive
+fixture on each database. No timer or default-v3 change.
+
+54 focused cases passed: 22 component, 16 SQLite and 16 PostgreSQL. Real six-second
+expiry at pre-CAS and post-flush preserves complete rollback. Independently reviewed
+retention preserves original test-expectation and typing failures. Measured positive
+save times of 1.747804s SQLite / 3.451020s PostgreSQL are individual observations only.
+
+Concurrency adds three passes (SQLite sequential same/different-key parity and
+PostgreSQL confirmed-blocking different-key conflict) and one failure: PostgreSQL
+same-key first response 409 planning_authority_expired, original exit 1, process
+41.261497s. Original phase/second response unknown; subsequent rollback assertions
+did not run. One separately reviewed diagnostic passed 200/200 with winner save
+3.044591s and loser lock 3.320771s/save 4.062781s; it does not establish the original
+cause or earn acceptance. No unchanged retry. Latest four static checks pass,
+configured mypy 1,555 files.
+
+Configured v6 remains unqualified/uncommitted on 79f15fc5; all 47 fresh configured
+regression cases remain unrun. No remote/live/deploy/spend action. See the complete
+[prepared-generation checkpoint](inlet-prepared-generation-checkpoint-20261012.md)
+for manifests, exact coverage, preserved failures, durable artifacts and next gate.
+
+## Authority Lock Investigation — 2026-10-12 Follow-up
+
+Reviewed the complete lock/transaction sequence: lock waiting, deterministic
+validation, fresh sources and replay share the original final fact's five-second
+age. No production behavior changed. One expanded PostgreSQL diagnostic passed
+200/200 (winner post-flush age2.315811s; waiter replay age3.241299s), but did not
+reproduce or close the original winner failure. Static annotation failure retained.
+
+Added two real PostgreSQL guard regressions: confirmed six-second workspace wait
+returns exact lock-phase409, and committed original-session revocation during that
+wait returns401. Both preserve the original fact, one final refresh, unchanged
+planning/financial state and closed preparation. Both passed, plus whole Ruff,
+configured mypy1,556files, exact collection and diff check. Preserved earlier unrun
+manifest correction and Ruff failure. Evidence: `prepared-concurrency-diagnostic03`
+and `prepared-lock-expiry03` under `/workspace/inlet-evidence/20261012/`.
+
+Current focused inventory59pass/1unresolved; two diagnostics receive no acceptance
+credit. All47configured cases remain unrun. Independent review supports no causal
+repair yet and no external-resource attribution. Next: retain both outcomes/fixed
+expiry events on contention failure, diagnose reproduced phase, then causal repair
+and fresh contention acceptance before configured cohort. Local uncommitted branch
+`codex/inlet-w1-followup`, HEAD79f15fc5; no push/PR/live/deploy/provider/spend action.
+See [continued checkpoint](inlet-prepared-generation-checkpoint-20261012.md).
+
+## Independent Coverage Completed; Contention Evidence Preserved — 2026-10-12
+
+The owner released independent cases from the earlier 47-case hold. All 47 passed
+on frozen source: 19 components, 14 SQLite, 14 PostgreSQL, including PostgreSQL
+complete-to-partial. Retained 74 work artifacts and exact exits/XML/source checks;
+independent review closed this coverage.
+
+Implemented bounded, finally-persisted contention evidence for both outcomes,
+original fact ages at every guard, phase/lock/coordinator timings and shared resource
+samples. All 13 recorder tests passed, covering actual ASGI context, original
+exceptions, sampling/write failures, redaction/bounds and both fixed native event
+schemas. The initial instrumented SQLite case body passed 200/409 but observation
+failed on a legitimate route-conflict schema; original exit 1 and the full artifact
+are preserved. The exact schema correction and regressions were verified.
+
+Corrected instrumented SQLite 2/PostgreSQL 2 all passed, with complete evidence and
+unchanged acceptance assertions. PostgreSQL same-key winner post-flush age was
+2.361759s, waiter lock duration 2.591468s (including authorization), replay age
+3.297751s and coordinator duration 0.028948s. Zero CPU-throttle and memory-event counter increments do not establish historical
+cause or capacity. Historical winner expiry remains
+unexplained; overall qualification is withheld.
+
+The prior focused 59-pass/one-failure ledger is separate from the current 47 serial
+and four instrumented results. Four static checks passed at each final packet;
+configured mypy checked 1,558 files. Application bytes are unchanged in this follow-up.
+No commit, push, PR, live verification, deployment, provider or spending action.
+Branch `codex/inlet-w1-followup`, HEAD `79f15fc5`.
+See [current results and remaining risk](inlet-contention-evidence-and-independent-results-20261012.md).
+
+## Local Candidate Preservation And Open Reliability Incident — 2026-10-12
+
+The owner authorized preserving a local candidate after supported-default source review.
+Independent review found v3/v4/v5 protected and no source blocker to that checkpoint.
+V6 is explicitly selectable but default-off, not an inaccessible private feature;
+release qualification and activation remain withheld. Recorded the unexplained original
+expiry as INLET-REL-20261012-01 and defined a finite future concurrency matrix with
+failure-safe evidence, fixed bounds and stop-on-first-failure behavior. No more unchanged
+green diagnostics are planned. No new runtime tests were needed for these documentation
+updates; earlier frozen checks remain the candidate's test evidence.
+See [candidate and incident](inlet-v6-candidate-and-reliability-incident-20261012.md).

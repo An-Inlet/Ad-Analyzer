@@ -1,7 +1,7 @@
 """Customer planning orchestration; provider reads never span local transactions."""
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager, nullcontext
 from datetime import datetime
 from uuid import uuid4
 
@@ -56,6 +56,7 @@ from app.planning_documents.policy_capabilities import (
     ticket_reporting_capability,
 )
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket, PlanningCompositionPolicy
+from app.planning_documents.prepared_generation import prepare_generation_checks, use_prepared
 from app.planning_documents.progress_contracts import PlanSalesProgressV1, project_sales_progress
 from app.planning_documents.requests import (
     AssertionIntent,
@@ -529,82 +530,104 @@ class PlanningDocumentService:
             self.policy.generator_version,
         ):
             raise repository.changed("configured planning generator changed")
-        fact = authority.refresh(principal, self.provider)
+        preparation = prepare_generation_checks(ticket, bundle, candidate)
+        with closing(preparation) if preparation is not None else nullcontext():
+            fact = authority.refresh(principal, self.provider)
 
-        def final_sources(
-            db: Session,
-            current: CustomerPrincipal,
-            actual_ticket: GenerationTicket,
-            actual_bundle: GenerationEvidence,
-            now: datetime,
-        ) -> None:
-            if isinstance(actual_bundle, CreativePairedEvidenceV1):
+            def final_sources(
+                db: Session,
+                current: CustomerPrincipal,
+                actual_ticket: GenerationTicket,
+                actual_bundle: GenerationEvidence,
+                now: datetime,
+            ) -> None:
+                if isinstance(actual_bundle, CreativePairedEvidenceV1):
 
-                def creative_authorize(db: Session, workspace_id: int, actor: str) -> None:
-                    if actor != current.user.id:
-                        raise repository.changed("original generation actor changed")
-                    authority.lock(db, current, workspace_id, fact)
+                    def creative_authorize(db: Session, workspace_id: int, actor: str) -> None:
+                        if actor != current.user.id:
+                            raise repository.changed("original generation actor changed")
+                        authority.lock(db, current, workspace_id, fact)
 
-                try:
-                    recheck_selected_paired_sources(
-                        db,
-                        principal=current,
-                        ticket=actual_ticket,
-                        bundle=actual_bundle.reporting,
-                        authorize=creative_authorize,
-                        clock=self.clock,
-                    )
-                    proof = recheck_collected_creative(
-                        db,
-                        principal=current,
-                        ticket=actual_ticket,
-                        collection=actual_bundle.creative,
-                        now=self.clock(),
-                        authorize=creative_authorize,
-                    )
-                    if (
-                        proof
-                        != creative_proof_from_collection(actual_bundle.creative, actual_ticket)
-                        or proof != candidate.creative_proof
-                    ):
-                        raise repository.changed("creative proof differs from collected evidence")
-                    recheck_selected_paired_sources(
-                        db,
-                        principal=current,
-                        ticket=actual_ticket,
-                        bundle=actual_bundle.reporting,
-                        authorize=creative_authorize,
-                        clock=self.clock,
-                    )
-                except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
-                    raise repository.changed("creative planning evidence unavailable") from error
-                if capability.mode == "owner_review_creative_selected_requested_window":
-                    recheck_owner_review_input_receipts(
-                        db,
-                        principal=current,
-                        ticket=actual_ticket,
-                        candidate=candidate,
-                        catalogs=actual_bundle.reporting.selected.catalogs,
-                        now=self.clock(),
-                    )
-                else:
-                    recheck_saved_input_receipts(
-                        db,
-                        principal=current,
-                        ticket=actual_ticket,
-                        catalogs=actual_bundle.reporting.selected.catalogs,
-                        now=self.clock(),
-                    )
-            elif isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
-
-                def authorize(db: Session, workspace_id: int, actor: str) -> None:
-                    if actor != current.user.id:
-                        raise repository.changed("original generation actor changed")
-                    authority.lock(db, current, workspace_id, fact)
-
-                if isinstance(actual_bundle, SelectedPairedEvidenceV1):
                     try:
                         recheck_selected_paired_sources(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            bundle=actual_bundle.reporting,
+                            authorize=creative_authorize,
+                            clock=self.clock,
+                            prepared=active_preparation,
+                        )
+                        proof = recheck_collected_creative(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            collection=actual_bundle.creative,
+                            now=self.clock(),
+                            authorize=creative_authorize,
+                        )
+                        if (
+                            proof
+                            != creative_proof_from_collection(actual_bundle.creative, actual_ticket)
+                            or proof != candidate.creative_proof
+                        ):
+                            raise repository.changed(
+                                "creative proof differs from collected evidence"
+                            )
+                        recheck_selected_paired_sources(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            bundle=actual_bundle.reporting,
+                            authorize=creative_authorize,
+                            clock=self.clock,
+                            prepared=active_preparation,
+                        )
+                    except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
+                        raise repository.changed(
+                            "creative planning evidence unavailable"
+                        ) from error
+                    if capability.mode == "owner_review_creative_selected_requested_window":
+                        recheck_owner_review_input_receipts(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            candidate=candidate,
+                            catalogs=actual_bundle.reporting.selected.catalogs,
+                            now=self.clock(),
+                        )
+                    else:
+                        recheck_saved_input_receipts(
+                            db,
+                            principal=current,
+                            ticket=actual_ticket,
+                            catalogs=actual_bundle.reporting.selected.catalogs,
+                            now=self.clock(),
+                        )
+                elif isinstance(actual_bundle, (WindowEvidenceBundleV1, SelectedPairedEvidenceV1)):
+
+                    def authorize(db: Session, workspace_id: int, actor: str) -> None:
+                        if actor != current.user.id:
+                            raise repository.changed("original generation actor changed")
+                        authority.lock(db, current, workspace_id, fact)
+
+                    if isinstance(actual_bundle, SelectedPairedEvidenceV1):
+                        try:
+                            recheck_selected_paired_sources(
+                                db,
+                                principal=current,
+                                ticket=actual_ticket,
+                                bundle=actual_bundle,
+                                authorize=authorize,
+                                clock=self.clock,
+                            )
+                        except (ValueError, RetainedSourcesChanged) as error:
+                            raise repository.changed(
+                                "selected reporting integrity unavailable"
+                            ) from error
+                        actual_catalogs = actual_bundle.selected.catalogs
+                    else:
+                        recheck_window_sources(
                             db,
                             principal=current,
                             ticket=actual_ticket,
@@ -612,45 +635,36 @@ class PlanningDocumentService:
                             authorize=authorize,
                             clock=self.clock,
                         )
-                    except (ValueError, RetainedSourcesChanged) as error:
-                        raise repository.changed(
-                            "selected reporting integrity unavailable"
-                        ) from error
-                    actual_catalogs = actual_bundle.selected.catalogs
-                else:
-                    recheck_window_sources(
+                        actual_catalogs = actual_bundle.catalogs
+                    recheck_saved_input_receipts(
                         db,
                         principal=current,
                         ticket=actual_ticket,
-                        bundle=actual_bundle,
-                        authorize=authorize,
-                        clock=self.clock,
+                        catalogs=actual_catalogs,
+                        now=self.clock(),
                     )
-                    actual_catalogs = actual_bundle.catalogs
-                recheck_saved_input_receipts(
-                    db,
-                    principal=current,
-                    ticket=actual_ticket,
-                    catalogs=actual_catalogs,
-                    now=self.clock(),
-                )
-            else:
-                recheck_generation_sources(db, current, actual_ticket, actual_bundle, now)
+                else:
+                    recheck_generation_sources(db, current, actual_ticket, actual_bundle, now)
 
-        with Session(self.engine) as db, db.begin():
-            document = repository.save_generation(
-                db,
-                principal=principal,
-                fact=fact,
-                ticket=ticket,
-                bundle=bundle,
-                candidate=candidate,
-                request_key=request.request_key,
-                request_digest=request.digest(),
-                now=self.clock(),
-                recheck=final_sources,
-            )
-            return VersionResult(plan_id=plan_id, version=document.version, document=document)
+            with (
+                Session(self.engine) as db,
+                db.begin(),
+                use_prepared(preparation, db) as active_preparation,
+            ):
+                document = repository.save_generation(
+                    db,
+                    principal=principal,
+                    fact=fact,
+                    ticket=ticket,
+                    bundle=bundle,
+                    candidate=candidate,
+                    request_key=request.request_key,
+                    request_digest=request.digest(),
+                    now=self.clock(),
+                    recheck=final_sources,
+                    prepared=active_preparation,
+                )
+                return VersionResult(plan_id=plan_id, version=document.version, document=document)
 
     @contextmanager
     def _read_session(

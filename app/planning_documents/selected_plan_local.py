@@ -21,6 +21,7 @@ from app.planning_documents.evidence_local import (
 from app.planning_documents.ports import (
     GenerationTicket,
 )
+from app.planning_documents.prepared_generation import PreparedGenerationChecks, require_prepared
 from app.planning_documents.selected_plan_bundle import (
     SelectedPlanEvidenceBundleV1,
     _validate_selected_ticket_pair,
@@ -78,9 +79,14 @@ def recheck_selected_sources(
     bundle: SelectedPlanEvidenceBundleV1,
     authorize: Authorize,
     clock: Callable[[], datetime],
+    prepared: PreparedGenerationChecks | None = None,
 ) -> None:
     """Reconstruct all reports/gaps locally; never assert current provider absence."""
-    bundle, ticket = _validate_selected_ticket_pair(bundle, ticket)
+    if prepared is None:
+        bundle, ticket = _validate_selected_ticket_pair(bundle, ticket)
+    else:
+        require_prepared(prepared, db)
+        prepared.selected(db, ticket, bundle)
     check_selected_start(db, principal=principal, ticket=ticket, authorize=authorize, clock=clock)
     if not bundle.catalogs or len(bundle.context) != 2 or bundle.commerce is None:
         raise changed()
@@ -118,7 +124,10 @@ def recheck_selected_sources(
                 raise changed()
     # Strict bundle validation reconstructs all success/gap slots against these
     # actual whole graphs, including chosen accounts lacking a native catalog.
-    bundle.assert_ticket(ticket)
+    if prepared is None:
+        bundle.assert_ticket(ticket)
+    else:
+        prepared.selected(db, ticket, bundle)
     commerce = bundle.commerce
     current_goal = _read_goal_progress_locked(
         db,

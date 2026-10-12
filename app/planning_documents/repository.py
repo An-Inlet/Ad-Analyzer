@@ -45,6 +45,7 @@ from app.planning_documents.policy_capabilities import (
     ticket_reporting_capability,
 )
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket
+from app.planning_documents.prepared_generation import PreparedGenerationChecks, require_prepared
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
     capture_retained_sources,
@@ -557,8 +558,14 @@ def save_generation(
     recheck: Callable[
         [Session, CustomerPrincipal, GenerationTicket, GenerationEvidence, datetime], None
     ],
+    prepared: PreparedGenerationChecks | None = None,
 ) -> PlanVersion:
-    ticket, candidate, capability = _generation_entry(ticket, bundle, candidate)
+    if prepared is None:
+        ticket, candidate, capability = _generation_entry(ticket, bundle, candidate)
+    else:
+        require_prepared(prepared, db)
+        prepared.generation(db, ticket, bundle, candidate)
+        capability = ticket_reporting_capability(ticket.policy_version, ticket.policy_digest)
     wid, plan_id = ticket.inputs.workspace_id, ticket.inputs.plan_id
     current = authority.lock(db, principal, wid, fact)
     if ticket.actor_id != current.user.id or ticket.session_digest != current.session.digest:
@@ -589,20 +596,27 @@ def save_generation(
         _, prior_version = version(db, plan)
         if prior_version.digest() != ticket.expected_parent_digest:
             raise changed("generation parent changed")
-    _generation_actual_bindings(ticket, bundle, candidate)
-    _generation_owner_binding(ticket, bundle, candidate, capability)
+    if prepared is None:
+        _generation_actual_bindings(ticket, bundle, candidate)
+        _generation_owner_binding(ticket, bundle, candidate, capability)
+    else:
+        prepared.generation(db, ticket, bundle, candidate)
     paid_work(db, wid, now)
     check_goal(db, ticket.inputs, now)
     check_accounts(db, ticket.inputs)
     if workspace_export_revision(db, wid) != ticket.privacy_revision:
         raise changed("generation privacy changed")
     recheck(db, current, ticket, bundle, now)
+    if prepared is not None:
+        prepared.generation(db, ticket, bundle, candidate)
     try:
         witnesses = capture_retained_sources(
             db, principal=current, document=candidate, now=max(now, database_utc_now(db))
         )
     except RetainedSourcesChanged as error:
         raise changed(error.reason) from error
+    if prepared is not None:
+        prepared.publication(db, ticket, bundle, candidate)
     authority.final(current, fact, diagnostic_phase="pre_cas")
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
@@ -678,5 +692,7 @@ def save_generation(
     db.flush()
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
+    if prepared is not None:
+        prepared.generation(db, ticket, bundle, candidate)
     authority.final(current, fact, diagnostic_phase="post_flush")
     return candidate

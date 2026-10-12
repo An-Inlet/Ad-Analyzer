@@ -12,6 +12,7 @@ from app.lifecycle.privacy import database_utc_now
 from app.planning_documents.context import AccountRef
 from app.planning_documents.evidence_local import changed
 from app.planning_documents.ports import GenerationTicket
+from app.planning_documents.prepared_generation import PreparedGenerationChecks, require_prepared
 from app.planning_documents.selected_paired_evidence import (
     SelectedPairedEvidenceV1,
     _validate_paired_ticket_pair,
@@ -61,8 +62,13 @@ def recheck_selected_paired_sources(
     bundle: SelectedPairedEvidenceV1,
     authorize: Authorize,
     clock: Callable[[], datetime],
+    prepared: PreparedGenerationChecks | None = None,
 ) -> None:
-    bundle, ticket = _validate_paired_ticket_pair(bundle, ticket)
+    if prepared is None:
+        bundle, ticket = _validate_paired_ticket_pair(bundle, ticket)
+    else:
+        require_prepared(prepared, db)
+        prepared.paired(db, ticket, bundle)
     root = db.get_transaction()
     if root is None or not root.is_active or db.in_nested_transaction():
         raise changed()
@@ -94,8 +100,12 @@ def recheck_selected_paired_sources(
         bundle=bundle.selected,
         authorize=authorize,
         clock=clock,
+        prepared=prepared,
     )
-    bundle.assert_ticket(ticket)
+    if prepared is None:
+        bundle.assert_ticket(ticket)
+    else:
+        prepared.paired(db, ticket, bundle)
     selected = bundle.selected
     refs = [c.reference for c in selected.catalogs]
     refs += [p.reference for p in selected.performance]

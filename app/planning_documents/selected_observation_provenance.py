@@ -139,6 +139,13 @@ class SelectedObservationProvenanceV1(Frozen):
 def selected_observation_provenance(capture: SelectedCaptureV1) -> SelectedObservationProvenanceV1:
     """Project exact validated original request; never infer from totals or prose."""
     capture = SelectedCaptureV1.model_validate(capture)
+    return _selected_observation_provenance_checked(capture)
+
+
+def _selected_observation_provenance_checked(
+    capture: SelectedCaptureV1,
+) -> SelectedObservationProvenanceV1:
+    """Same-call validated input only; retained metadata conveys no authority."""
     request, selection = capture.request, capture.request.selection
     value = SelectedObservationProvenanceV1(
         schema_version=(

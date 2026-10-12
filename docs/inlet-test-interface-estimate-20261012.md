@@ -1,0 +1,13 @@
+# Test Interface Estimate Assessment — 2026-10-12
+
+Checkout: codex/inlet-w1-followup at 79f15fc5 plus uncommitted configured-v6 and pure projection repair. No hosting or account state was inspected live.
+
+The proposed 3–7 focused development days is plausible only as a provisional engineering allowance for a restricted, clearly labelled sample-data test after reliability qualification and availability of an authorized test environment. It is not an evidence-backed calendar commitment from today. This checkout has a real customer portal and API flows exercised by local TLS browser tests; it does not establish a persistent owner-accessible hosted test URL or successful real provider login. Test fixtures are not themselves a durable hosted sandbox provisioning workflow.
+
+Shortest honest test scope: invite-only isolated sample-data workspaces; sign-in/session/logout, editable goal and budget, manual plan generation, history/export and recorded decisions, with synthetic fixtures visibly labelled. Creative proposals can use the already qualified explicit-v5 path if product testing does not require shared-budget investigations; v6 remains blocked pending current qualification. This is a test scope only, not a reduction of the approved three-platform launch scope. No real ad actions or payment collection. TikTok completeness must remain unavailable and explicit.
+
+Concrete prerequisites: authorize and prepare test hosting/domain/HTTPS/PostgreSQL/migrations and isolated media storage; configure Google Identity Platform test app/domain/workload identity and verify real popup/CSP/cookie/revocation behavior; define a safe non-production fixture provisioning/reset and test-entitlement route without bypassing production checks; qualify current reader/wire-version deployment floor; run real hosted smoke tests and human plan-quality review. Existing deployment documents mainly include the older operator-IAP path and are not evidence of customer identity deployment.
+
+The 1–2 week real Google/Meta estimate should be described as an optimistic engineering estimate after usable approved read access, OAuth callbacks/grants and representative accounts are available. Provider approvals, access, history coverage, rate limits and reconciliation qualification are external/unknown dependencies and have no defensible bounded elapsed-time estimate from this checkout. Shopify evidence is also needed for real goal/baseline flows. Commercial launch, charging and all-platform readiness are separate.
+
+This assessment changes no scope or priority and authorizes no provisioning, login/provider call, credential action, deployment or spending. Continue reliability work first.

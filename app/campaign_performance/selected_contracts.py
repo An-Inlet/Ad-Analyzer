@@ -363,6 +363,11 @@ class SelectedCaptureV1(Frozen):
 def selected_capture_digest(capture: SelectedCaptureV1) -> str:
     """Whole graph commitment, including absent/unsupported states and request."""
     checked = SelectedCaptureV1.model_validate(capture)
+    return _selected_capture_digest_checked(checked)
+
+
+def _selected_capture_digest_checked(checked: SelectedCaptureV1) -> str:
+    """Same-call validated input only; not an authorization or public entry point."""
     ordered = checked.model_copy(
         update={"facts": tuple(sorted(checked.facts, key=lambda f: (f.campaign_id, f.metric_date)))}
     )

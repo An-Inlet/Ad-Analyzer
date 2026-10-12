@@ -25,6 +25,7 @@ def configured_owner_review(
     partial: bool = False,
     response_control: OwnerCatalogResponseControl | None = None,
     native_names: dict[str, str] | None = None,
+    configured_runtime: bool = False,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]], dict[str, Any]]:
     # Existing helper obtains uploaded image, aggregate/selected capture and original
     # catalog/discovery receipts via real APIs. It does not save any input or plan.
@@ -36,20 +37,22 @@ def configured_owner_review(
         tmp_path,
         partial=partial,
         response_control=response_control,
+        configured_runtime=configured_runtime,
         native_names=native_names,
     )
-    monkeypatch.setattr(
-        api,
-        "PlanningDocumentService",
-        partial_factory(
-            PlanningDocumentService,
-            policy=PlanningCompositionPolicy(
-                version="inlet.descriptive-review.v6",
-                generator_version="inlet.descriptive-planning.v6",
+    if not configured_runtime:
+        monkeypatch.setattr(
+            api,
+            "PlanningDocumentService",
+            partial_factory(
+                PlanningDocumentService,
+                policy=PlanningCompositionPolicy(
+                    version="inlet.descriptive-review.v6",
+                    generator_version="inlet.descriptive-planning.v6",
+                ),
+                media_store=fixture.store,
             ),
-            media_store=fixture.store,
-        ),
-    )
+        )
     from tests.test_customer_optimization_api import headers
 
     alice, _, _ = replicas

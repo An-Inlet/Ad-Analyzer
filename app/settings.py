@@ -247,7 +247,7 @@ class Settings(BaseSettings):
     tiktok_runtime_mode: str = Field(default="disabled", alias="AD_ANALYZER_TIKTOK_RUNTIME_MODE")
     tiktok_app_id: str = Field(default="", alias="AD_ANALYZER_TIKTOK_APP_ID")
     tiktok_app_secret: SecretStr | None = Field(default=None, alias="AD_ANALYZER_TIKTOK_APP_SECRET")
-    customer_planning_policy: Literal["v3", "v4", "v5"] = Field(
+    customer_planning_policy: Literal["v3", "v4", "v5", "v6"] = Field(
         default="v3", validation_alias="INLET_CUSTOMER_PLANNING_POLICY"
     )
     customer_google_reporting_enabled: bool = Field(

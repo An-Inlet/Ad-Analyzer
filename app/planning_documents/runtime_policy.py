@@ -8,7 +8,7 @@ from app.settings import Settings
 
 def configured_policy(config: Settings) -> PlanningCompositionPolicy | None:
     value = config.customer_planning_policy
-    if type(value) is not str or value not in ("v3", "v4", "v5"):
+    if type(value) is not str or value not in ("v3", "v4", "v5", "v6"):
         raise HTTPException(503, "Customer planning policy is not configured.")
     # Preserve the established service default and historical injected readers.
     if value == "v3":

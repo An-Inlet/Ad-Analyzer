@@ -68,6 +68,7 @@ def acquired_owner_catalog(
     *,
     response_control: OwnerCatalogResponseControl | None = None,
     native_names: dict[str, str] | None = None,
+    configured_runtime: bool = False,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]]]:
     # Copy once before bootstrap; callers cannot mutate later acquisition responses.
     names = {} if native_names is None else dict(native_names)
@@ -88,6 +89,7 @@ def acquired_owner_catalog(
         tmp_path / "media",
         platform="google_ads",
         selected_value="10",
+        configured_runtime=configured_runtime,
     )
     alice, _, _ = replicas
     aid, wid = fixture.basis.account_id, fixture.basis.workspace_id

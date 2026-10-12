@@ -58,6 +58,7 @@ def test_actual_owner_review_planning_browser(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     journey: str,
+    configured_runtime: bool = False,
 ) -> None:
     listener = socket.socket()
     request.addfinalizer(listener.close)
@@ -89,6 +90,7 @@ def test_actual_owner_review_planning_browser(
         monkeypatch,
         tmp_path,
         partial=journey == "partial",
+        configured_runtime=configured_runtime,
         response_control=response_control,
         native_names=(
             {"1": "Mug Campaign", "2": "Mug Campaign", "3": "Mug Campaign"}
@@ -119,15 +121,10 @@ def test_actual_owner_review_planning_browser(
         with Session(customer_engine) as db:
             yield db
 
-    monkeypatch.setattr(
-        app,
-        "dependency_overrides",
-        {
-            get_db: database,
-            get_identity_provider: lambda: provider,
-            get_media_store: lambda: fixture.store,
-        },
-    )
+    overrides: dict[Any, Any] = {get_db: database, get_identity_provider: lambda: provider}
+    if not configured_runtime:
+        overrides[get_media_store] = lambda: fixture.store
+    monkeypatch.setattr(app, "dependency_overrides", overrides)
     # Only form values, never the fixture's prepared scenario/owner request body.
     form = {
         key: body["inputs"][key]

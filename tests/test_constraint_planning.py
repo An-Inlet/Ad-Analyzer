@@ -20,7 +20,6 @@ from app.planning_documents.ports import (
 from app.planning_documents.runtime_policy import configured_policy
 from app.planning_documents.storage import canonical, plan_version_storage_pair
 from app.settings import Settings
-from fastapi import HTTPException
 
 from tests.test_creative_plan_composer import compose
 from tests.test_creative_plan_composer import ready as legacy_ready
@@ -220,13 +219,11 @@ def test_retained_constraint_or_copy_forgery_refused(fault: str) -> None:
             PlanVersion.model_validate(data)
 
 
-def test_candidate_not_configurable_and_legacy_reader_floor() -> None:
+def test_candidate_explicit_configuration_and_legacy_reader_floor() -> None:
     config = Settings()
     assert config.customer_planning_policy == "v3"
-    with pytest.raises(ValueError):
-        Settings(INLET_CUSTOMER_PLANNING_POLICY="v7")
-    with pytest.raises(HTTPException):
-        configured_policy(config.model_copy(update=dict(customer_planning_policy="v7")))
+    selected = Settings(INLET_CUSTOMER_PLANNING_POLICY="v7")
+    assert configured_policy(selected) == candidate_policy()
     old = compose(legacy_ready())
     assert "constraint_interpretation" not in old.model_dump(mode="json")
     import hashlib

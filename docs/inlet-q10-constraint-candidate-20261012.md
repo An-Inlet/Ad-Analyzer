@@ -1,5 +1,9 @@
 # Q10 Constraint-Aware Planning Candidate
 
+Historical checkpoint at `135be937`. The later [configured browser workflow](inlet-q10-configured-browser-20261012.md)
+adds explicit V7 configuration and actual editor/controller qualification. Configuration
+refusal and browser gaps described below record this earlier checkpoint.
+
 Implemented the reviewed finite interpretation boundary as a separately versioned
 v7 candidate. It recognizes exactly `No discount claims.` in global instructions
 and product restrictions, preserves each original ordered entry and input digest,

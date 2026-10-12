@@ -15,7 +15,8 @@
 <section id="planning-creative-inputs" hidden></section>
 <label>Milestone<textarea id="planning-milestone" maxlength="2000" required></textarea></label>
 <label>Product And Offer Facts<textarea id="planning-product" maxlength="2000"></textarea></label>
-<label>Constraints — One Per Line<textarea id="planning-constraints"></textarea></label>
+<label>Constraints — One Per Line<textarea id="planning-constraints" aria-describedby="planning-constraint-help"></textarea></label>
+<p id="planning-constraint-help" hidden></p>
 <label>Customer Assumptions — One Per Line<textarea id="planning-assumptions"></textarea></label>
 <label>Reporting Starts (UTC)<input id="planning-start" type="datetime-local" step="60" required></label><label>Reporting Ends (UTC, Exclusive)<input id="planning-end" type="datetime-local" step="60" required></label>
 <label><input id="planning-comparison-enabled" type="checkbox">Include An Earlier Comparison Period</label>

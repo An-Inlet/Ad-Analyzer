@@ -62,7 +62,9 @@ def service(
     db.rollback()
     if policy is None:
         return PlanningDocumentService(engine, provider, clock=utc_now)
-    if policy.version in ("inlet.descriptive-review.v5", "inlet.descriptive-review.v6"):
+    if policy.version in (
+        "inlet.descriptive-review.v5", "inlet.descriptive-review.v6", "inlet.descriptive-review.v7"
+    ):
         return PlanningDocumentService(
             engine, provider, clock=utc_now, policy=policy, media_store=ConfiguredPlanningMedia()
         )

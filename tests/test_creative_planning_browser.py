@@ -169,7 +169,10 @@ def test_actual_creative_planning_browser(
             )(scope, receive, send)
             return
         if path == "/__fixture__/driver.mjs":
-            script = Path("tests/javascript/planning_creative_browser.mjs").read_text()
+            driver = (
+                "planning_constraint_browser" if journey == "q10" else "planning_creative_browser"
+            )
+            script = Path(f"tests/javascript/{driver}.mjs").read_text()
             await Response(
                 script.replace("__CONFIG__", json.dumps(browser_config)),
                 media_type="text/javascript",
@@ -291,7 +294,7 @@ def test_actual_creative_planning_browser(
         retained = []
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(MediaObject)) == 1
-            expected = 0 if journey == "safety" else 2 if journey == "google" else 1
+            expected = 0 if journey == "safety" else 2 if journey in ("google", "q10") else 1
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == expected
             assert db.scalar(select(func.count()).select_from(PlanInputRow)) == expected
             for row in db.scalars(select(PlanVersionRow)):
@@ -351,6 +354,7 @@ def test_actual_creative_planning_browser(
                     ("route_observer_shutdown_complete", not thread.is_alive())
                 )
                 try:
+                    (tmp_path / "browser-reports.json").write_text(json.dumps(results))
                     (tmp_path / "generation-outcomes.json").write_text(
                         json.dumps(tuple(generation_outcomes)[:100], indent=2)
                     )

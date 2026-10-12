@@ -8895,3 +8895,25 @@ Next: exact candidate browser capability and actual input/save/controller journe
 without runtime activation or broader language recognition. V6 stays selectable but
 unqualified with INLET-REL-20261012-01 open. Q13 synthetic observations do not establish
 live verification. Local-only branch `codex/inlet-w1-followup`; no push or release action.
+
+## Q10 Configured Browser Workflow — 2026-10-12
+
+Continued from local `135be937`. V7 now uses parsed configuration, the real service and
+configured media, plus the existing editor/controller. Default remains v3; exact prior
+capability objects and readers are preserved. V7 exposes creative/selected-reporting
+inputs and honest finite-instruction guidance, without V6 owner-review controls.
+
+Final q10-browser03 passed whole Ruff, mypy (1,569 files), exact collection/diff and
+25 tests without skips: 21 component/configuration/compatibility, two SQLite HTTPS
+browser cases, then two PostgreSQL cases. Actual configured V7 create/recover/generate/
+review/edit/regenerate/history/export passes on both databases; repeated submits and
+lost committed responses create exactly five receipts, two revisions/versions and one
+bound decision. Late workspace/session responses are fenced; stale export produces no
+download. Existing configured V5 Meta browser passes too. Providers are synthetic.
+
+V7 is now explicitly selectable but default-off and release-unqualified. It shares the
+open generation/authority reliability risk from INLET-REL-20261012-01, without using
+V6's prepared optimization. No concurrency or incident closure claimed. Next release
+dependency: bounded reliability qualification and owner incident assessment. No new
+policy version, deployed activation, push or live action. Q13 evidence remains synthetic.
+See [exact workflow evidence, preserved attempts and limits](inlet-q10-configured-browser-20261012.md).

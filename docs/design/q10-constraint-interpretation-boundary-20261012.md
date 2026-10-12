@@ -1,5 +1,9 @@
 # Q10 Constrained Creative Interpretation Boundary
 
+This is the initial candidate boundary, retained as historical design evidence.
+The [configured browser follow-up](q10-configured-browser-boundary-20261012.md)
+extends configuration and controller admission without changing the version contract.
+
 ## Current Evidence
 
 `compose_creative_proposals` defers every nonempty global constraints tuple. Empty

@@ -36,12 +36,12 @@ def configure(patch: pytest.MonkeyPatch, value: str | None) -> Settings:
     return config
 
 
-@pytest.mark.parametrize("value", [None, "v3", "v4", "v5", "v6"])
+@pytest.mark.parametrize("value", [None, "v3", "v4", "v5", "v6", "v7"])
 def test_configuration_selection(value: str | None, monkeypatch: pytest.MonkeyPatch) -> None:
     config = configure(monkeypatch, value)
     assert config.customer_planning_policy == (value or "v3")
     policy = configured_policy(config)
-    if value in ("v4", "v5", "v6"):
+    if value in ("v4", "v5", "v6", "v7"):
         assert policy and policy.version == f"inlet.descriptive-review.{value}"
         assert policy.generator_version == f"inlet.descriptive-planning.{value}"
     else:
@@ -51,14 +51,14 @@ def test_configuration_selection(value: str | None, monkeypatch: pytest.MonkeyPa
     assert config.google_customer_runtime_mode == "disabled"
 
 
-@pytest.mark.parametrize("value", ["", "v1", "v2", "v7", "V4", " v4", "unknown"])
+@pytest.mark.parametrize("value", ["", "v1", "v2", "v8", "V4", " v4", "unknown"])
 def test_invalid_environment(value: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("INLET_CUSTOMER_PLANNING_POLICY", value)
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
 
 
-@pytest.mark.parametrize("value", [None, True, "v7", ""])
+@pytest.mark.parametrize("value", [None, True, "v8", ""])
 def test_defensive_config_refusal(value: Any) -> None:
     config = Settings(_env_file=None).model_copy(update={"customer_planning_policy": value})
     with pytest.raises(HTTPException) as caught:

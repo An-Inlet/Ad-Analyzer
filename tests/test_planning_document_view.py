@@ -139,6 +139,7 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
     shutil.copy("app/portal/static/plan-comparison.mjs", tmp_path / "plan-comparison.mjs")
     for module in (
         "plan-document.mjs",
+        "plan-constraints.mjs",
         "plan-reporting-comparability.mjs",
         "plan-creative-basis.mjs",
         "plan-google-owner-inputs.mjs",

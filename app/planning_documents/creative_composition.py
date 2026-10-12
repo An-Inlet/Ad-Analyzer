@@ -5,6 +5,7 @@ from pydantic import model_validator
 from app.planning_documents.actions import CreativeBrief, ManualAction
 from app.planning_documents.common import MAX_ACTIONS, Digest, Key, NoAuthority, unique
 from app.planning_documents.composer import PlanCompositionUnavailable, location, targets
+from app.planning_documents.constraint_policy import is_constraint_policy
 from app.planning_documents.context import AccountTarget, PlanInputRevision, TargetRef
 from app.planning_documents.creative_basis import CreativeBasisV1, CustomerProductV1
 from app.planning_documents.creative_production_contracts import (
@@ -41,7 +42,10 @@ class CreativeCompositionReferencesV1(NoAuthority):
             PlanningCompositionPolicy(
                 version=self.policy.version, generator_version=self.policy.generator_version
             )
-            if is_owner_review_policy(self.policy.version, self.policy.generator_version)
+            if (
+                is_owner_review_policy(self.policy.version, self.policy.generator_version)
+                or is_constraint_policy(self.policy.version, self.policy.generator_version)
+            )
             else canonical_creative_policy()
         )
         if self.policy != canonical or self.policy_digest != canonical.digest():

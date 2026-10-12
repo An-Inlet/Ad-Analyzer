@@ -1,3 +1,4 @@
+import {appendConstraintInterpretation} from './plan-constraints.mjs';
 import {appendReportingComparability} from './plan-reporting-comparability.mjs';
 import {appendGoogleOwnerReview} from './plan-google-owner-review.mjs';
 import {appendCreativeBasis} from './plan-creative-basis.mjs';
@@ -28,7 +29,7 @@ function target(value) {
 export function clearPlanDocument(host) {host.replaceChildren(); host.hidden = true;}
 export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, reasons = []}, now = Date.now()) {
   clearPlanDocument(host);
-  if (!['inlet.plan-version.v1','inlet.plan-version.v2','inlet.plan-version.v3'].includes(plan?.schema_version) || plan.advertising_writes_enabled !== false || plan.spending_authority !== 'none' || plan.inputs?.workspace_id !== workspaceId || plan.inputs?.plan_id !== planId || !Number.isSafeInteger(plan.version) || plan.version < 1 || !Object.hasOwn(statuses, freshness) || plan.quality_status !== 'not_expert_qualified' || !['reviewable', 'needs_input'].includes(plan.readiness)) throw new Error('Plan response does not match the selected workspace and plan.');
+  if (!['inlet.plan-version.v1','inlet.plan-version.v2','inlet.plan-version.v3','inlet.plan-version.v4'].includes(plan?.schema_version) || plan.advertising_writes_enabled !== false || plan.spending_authority !== 'none' || plan.inputs?.workspace_id !== workspaceId || plan.inputs?.plan_id !== planId || !Number.isSafeInteger(plan.version) || plan.version < 1 || !Object.hasOwn(statuses, freshness) || plan.quality_status !== 'not_expert_qualified' || !['reviewable', 'needs_input'].includes(plan.readiness)) throw new Error('Plan response does not match the selected workspace and plan.');
   for (const [key, bound] of [['actions', 100], ['scenarios', 8], ['briefs', 30], ['evidence', 400]]) if (!Array.isArray(plan[key]) || plan[key].length > bound) throw new Error('Plan response exceeds display limits.');
   const doc = host.ownerDocument, fragment = doc.createDocumentFragment(), inputs = plan.inputs;
   const expires = Date.parse(plan.valid_until);
@@ -52,6 +53,7 @@ export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, 
   if (inputs.product_offer) fragment.append(text(doc, 'p', `Customer Product Facts: ${inputs.product_offer}`));
   list(doc, fragment, 'Customer Constraints', inputs.constraints);
   list(doc, fragment, 'Customer Assumptions', inputs.assumptions.map(item => `${item.key}: ${item.statement}`));
+  appendConstraintInterpretation(fragment,plan);
   appendCreativeBasis(fragment,plan);
   appendGoogleOwnerReview(fragment,plan);
   appendReportingComparability(fragment,plan,{freshness:displayFreshness,now});

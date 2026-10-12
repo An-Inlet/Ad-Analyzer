@@ -1,0 +1,7 @@
+{
+  "source_commit": "06c66a9",
+  "source_path": "app/planning_documents/documents.py",
+  "sha256": "4bce02acca17b6c6c6a27f0445ccf31fdb36dde8367ff94fd6fd8ea431e96242",
+  "enriched_v4_json_sha256": "ed23cba16836cedb81816c5c03ee9552b421e0a76797c4e8f056580333b634ec",
+  "enriched_v4_attribution": "q10-baseline-attribution01: exact original golden test on clean06c66a9 checkout"
+}

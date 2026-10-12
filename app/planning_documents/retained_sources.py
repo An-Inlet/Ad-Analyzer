@@ -33,6 +33,7 @@ from app.planning_documents.common import (
     Title,
     fingerprint,
 )
+from app.planning_documents.constraint_policy import is_constraint_policy
 from app.planning_documents.context import AccountRef
 from app.planning_documents.creative_inputs import (
     CREATIVE_GENERATOR_VERSION,
@@ -344,6 +345,19 @@ def capture_retained_sources(
         except (ValueError, ShopifyError):
             raise RetainedSourcesChanged("proof_unavailable") from None
 
+    if is_constraint_policy(document.policy_version, document.generator_version):
+        from app.planning_documents.constraint_retained import (
+            capture_constraint_sources,
+        )
+
+        try:
+            return capture_constraint_sources(db, principal=principal, document=document, now=now)
+        except HTTPException as error:
+            if error.status_code != 409:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
     if (document.policy_version, document.generator_version) == (
         CREATIVE_POLICY_VERSION,
         CREATIVE_GENERATOR_VERSION,
@@ -533,6 +547,23 @@ def recheck_retained_sources(
             return
         except HTTPException as error:
             if error.status_code in {401, 402, 403}:
+                raise
+            raise RetainedSourcesChanged("source_integrity_unavailable") from None
+        except (ValueError, ShopifyError):
+            raise RetainedSourcesChanged("proof_unavailable") from None
+    if is_constraint_policy(document.policy_version, document.generator_version):
+        # V5 must reject dirty/changed roots before the generic first SQL guard.
+        from app.planning_documents.constraint_retained import (
+            recheck_constraint_sources,
+        )
+
+        try:
+            recheck_constraint_sources(
+                db, principal=principal, document=document, dependencies=dependencies, now=now
+            )
+            return
+        except HTTPException as error:
+            if error.status_code in {401, 403, 402}:
                 raise
             raise RetainedSourcesChanged("source_integrity_unavailable") from None
         except (ValueError, ShopifyError):

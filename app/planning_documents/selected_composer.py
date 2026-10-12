@@ -10,6 +10,9 @@ from app.campaign_performance.selected_contracts import CustomerEventSelectionV1
 from app.planning_documents.actions import Allocation, BudgetScenario, CreativeBrief, ManualAction
 from app.planning_documents.common import MAX_ACTIONS, MAX_BRIEFS, MAX_EVIDENCE, MAX_SCENARIOS
 from app.planning_documents.composer import PLATFORMS, PlanCompositionUnavailable, location, targets
+from app.planning_documents.constrained_creative import compose_constrained_creative
+from app.planning_documents.constraint_interpretation import interpret_constraints
+from app.planning_documents.constraint_policy import is_constraint_policy
 from app.planning_documents.context import (
     AccountRef,
     AccountTarget,
@@ -333,6 +336,7 @@ class SelectedPlanComposer:
     ) -> PlanVersion:
         ticket = GenerationTicket.model_validate(ticket)
         owner_policy = is_owner_review_policy(policy.version, policy.generator_version)
+        constraint_policy = is_constraint_policy(policy.version, policy.generator_version)
         if owner_policy:
             if ticket.inputs.google_daily_budget_intents is None or creative is None:
                 raise PlanCompositionUnavailable("complete genuine owner review inputs required")
@@ -436,8 +440,9 @@ class SelectedPlanComposer:
             for gap in evidence.gaps
         ]
         section_limits.extend(grouped_window_gaps(evidence))
-        section_limits.extend(inputs.constraints)
-        if inputs.constraints:
+        if not constraint_policy:
+            section_limits.extend(inputs.constraints)
+        if inputs.constraints and not constraint_policy:
             section_limits.append(
                 "Freeform constraints need customer clarification before substantive proposals."
             )
@@ -634,7 +639,10 @@ class SelectedPlanComposer:
             )
             actions.extend(owner_actions)
         if creative is not None:
-            creative_composition = compose_creative_proposals(
+            composition_fn = (
+                compose_constrained_creative if constraint_policy else compose_creative_proposals
+            )
+            creative_composition = composition_fn(
                 inputs,
                 evidence.catalogs,
                 creative.basis,
@@ -708,7 +716,10 @@ class SelectedPlanComposer:
                 ),
             )
         return PlanVersion(
-            schema_version="inlet.plan-version.v3"
+            constraint_interpretation=interpret_constraints(inputs) if constraint_policy else None,
+            schema_version="inlet.plan-version.v4"
+            if constraint_policy
+            else "inlet.plan-version.v3"
             if any(
                 item.capture_pin is not None
                 and item.capture_pin.observation_provenance is not None

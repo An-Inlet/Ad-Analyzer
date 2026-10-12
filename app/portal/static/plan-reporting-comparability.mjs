@@ -83,7 +83,8 @@ export function appendReportingComparability(host,plan,{freshness,now}){
   for(const a of list){const key=accountKey(a);if(a.workspace_id!==input.workspace_id||accounts.has(key)||[...accounts.values()].some(other=>other.account_id===a.account_id))fail();accounts.set(key,a);}
   const pins=validatedPins(plan,accounts),evidence=new Map();
   const captures=[...pins.values()].map(p=>p.capture_pin).filter(Boolean),hasSettings=captures.some(p=>p.observation_provenance?.settings!=null);
-  if((plan.schema_version==='inlet.plan-version.v3')!==hasSettings)fail();
+  if(plan.schema_version!=='inlet.plan-version.v4'&&(plan.schema_version==='inlet.plan-version.v3')!==hasSettings)fail();
+  if(plan.schema_version==='inlet.plan-version.v4'&&captures.some(p=>p.observation_provenance!=null)&&captures.some(p=>p.observation_provenance==null))fail();
   if(['inlet.plan-version.v2','inlet.plan-version.v3'].includes(plan.schema_version)&&(!captures.length||captures.some(p=>p.observation_provenance==null)))fail();
   for(const e of plan.evidence){
     if(!bounded(e.key,200)||evidence.has(e.key)||e.workspace_id!==input.workspace_id||(e.account&&!accounts.has(accountKey(e.account))))fail();

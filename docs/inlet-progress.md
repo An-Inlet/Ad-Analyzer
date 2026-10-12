@@ -8871,3 +8871,27 @@ restriction echo is not enforcement; promotional names/facts cannot bypass const
 public-copy rules. No interpreter, new policy or runtime behavior is implemented yet.
 See [next-package boundary](design/q10-constraint-interpretation-boundary-20261012.md).
 Documentation-only continuation; no new runtime test run or live action claimed.
+
+## Q10 Finite Constraint Candidate — 2026-10-12
+
+Implemented exact v7 interpretation for `No discount claims.` across ordered global
+and product restrictions. Unknown/mixed instructions defer; neutral public-copy
+production cannot interpolate promotional names/facts. Original customer inputs,
+ceiling, fixed allocations, exclusions, selected assets and capacity remain intact.
+Outer plan-version.v4 binds the interpretation/proof and enforces a reader floor;
+legacy policy composition and bytes remain protected. Settings/runtime still reject
+v7, v3 stays default, and browser editor admission is not yet implemented.
+
+Final q10-candidate06 passed all 19 commands: whole Ruff, configured mypy (1,568 files),
+exact collection/diff and 56 tests without skips (48 component, four SQLite, then four
+PostgreSQL). Actual locally injected service routes cover input/generation/decisions/
+correction/history/export/isolation/revocation/erasure, with Chromium rendering saved
+API artifacts. Providers are synthetic, execution tables unchanged; no live verification.
+Stopped attempts preserve original failures/unrun cases, including independently
+attributed pre-existing golden drift, repaired version guard and fixture read-count
+expectation. See [package evidence and limits](inlet-q10-constraint-candidate-20261012.md).
+
+Next: exact candidate browser capability and actual input/save/controller journey,
+without runtime activation or broader language recognition. V6 stays selectable but
+unqualified with INLET-REL-20261012-01 open. Q13 synthetic observations do not establish
+live verification. Local-only branch `codex/inlet-w1-followup`; no push or release action.

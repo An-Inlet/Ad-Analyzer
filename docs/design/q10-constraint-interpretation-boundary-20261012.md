@@ -10,7 +10,7 @@ owned exclusions/fixed allocations/capacity/product restrictions and separately
 demonstrates global `No discount claims.` deferral. Preserve these historical policy
 results. V3 stays default; v6 remains selectable but unqualified with its open incident.
 
-## Proposed Shared Interfaces (Not Yet Implemented)
+## Shared Interfaces And Candidate Implementation
 
 Use a versioned pure interpretation result with:
 
@@ -20,8 +20,10 @@ Use a versioned pure interpretation result with:
   rule identifier or unresolved reason. No inferred extra restriction or omission.
 - Derived disposition: no constraints, fully recognized, or unresolved. Any unknown
   or mixed recognized/unknown input defers composition. Never ignore the unknown part.
-  Fully recognized applies only to this exact global constraint tuple, not to all
-  product restrictions or external assets. Duplicate inputs retain separate source
+  The implementation explicitly adds a separate ordered product-restriction tuple
+  and entries. Fully recognized applies only to these two exact retained tuples;
+  unknown product restrictions also defer. It does not qualify external assets.
+  Duplicate inputs retain separate source
   entries even if identical production obligations can later be deduplicated.
 - Explicit production obligations for every recognized rule. Interpretations are
   customer-instruction provenance, not measured product facts or approvals.
@@ -55,6 +57,20 @@ floor, strict optional serialization and retained proof binding; design that joi
 before changing stored documents. Do not reuse v6 selection as a back door around
 its reliability gate. This contract makes no decision to activate a new policy.
 
+The candidate uses exact v7 policy/generator recognition and outer plan-version.v4
+with mandatory input-bound interpretation. V1/v2/v3 omit the absent field and retain
+their semantics. V4 requires complete typed provenance across capture pins if any
+pin is typed; it does not fabricate captures for accounts without them. Settings and
+runtime selection remain closed to v7. Real-service API fixtures explicitly inject
+candidate policy/media dependencies; they do not replace validators or composers.
+
+The v7 neutral template applies to all its creative proposals, including unconstrained
+inputs. Public-copy fields are brief hooks, offer, objective, copy directions and
+storyboard captions. Manual steps, rationale, hypothesis, visual/capture instructions,
+landing-page constraints and review checklist also avoid arbitrary product strings.
+Original name/price/facts remain in original inputs and retained creative basis. No
+empty-account creative fallback or unselected-image substitution is introduced.
+
 The composer must revalidate the original input binding and enforce all obligations
 before producing a substantive proposal. Exclusions (including children), fixed
 allocations, total ceiling, asset capacity, account ownership, image evidence and
@@ -80,6 +96,6 @@ finite first rule; no provider calls or advertising writes belong in this packag
    erasure as applicable, with no advertising or financial writes. Browser display
    must distinguish original instruction, bounded interpretation and unresolved parts.
 
-This is a reviewed implementation contract, not implemented interpretation, a changed
-policy, full Q10 acceptance or live verification. Next package is the pure interpreter
-and constrained production contract, followed by compatibility and service joins.
+This contract does not establish qualification. Candidate code and its exact frozen
+test results must be recorded separately; full Q10 and live verification require
+broader acceptance beyond the finite first rule and synthetic provider fixtures.

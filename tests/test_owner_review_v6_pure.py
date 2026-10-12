@@ -369,14 +369,17 @@ def test_retained_mixed_meta_optional_schedule_is_original_evidence(usage: str) 
     )
 
 
-def test_frozen_full_v4_v5_document_and_descriptor_bytes() -> None:
+def test_frozen_full_v4_v5_document_and_descriptor_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
     import hashlib
     import json
     from pathlib import Path
 
+    from tests.test_selected_observation_provenance import legacy_pin_projection
     from tests.test_selected_paired_composer import compose as compose_v4
     from tests.test_selected_paired_composer import ready as ready_v4
 
+    # These frozen hashes predate typed capture provenance. Keep original bytes.
+    legacy_pin_projection(monkeypatch)
     expected = json.loads(
         (Path(__file__).parent / "fixtures/owner_review/legacy-goldens.json").read_text()
     )

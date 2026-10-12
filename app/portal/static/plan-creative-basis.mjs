@@ -1,7 +1,8 @@
 import {imageMetadata} from './plan-creative-inputs.mjs';
 // Render the saved observation, never substitute today's media metadata or bytes.
 export function appendCreativeBasis(host,plan){
- const creativePolicy=[5,6].some(version=>plan.policy_version===`inlet.descriptive-review.v${version}`&&plan.generator_version===`inlet.descriptive-planning.v${version}`);
+ if(plan.policy_version==='inlet.descriptive-review.v7'&&plan.schema_version!=='inlet.plan-version.v4')throw Error('The constraint-aware creative basis requires its versioned document.');
+ const creativePolicy=[5,6,7].some(version=>plan.policy_version===`inlet.descriptive-review.v${version}`&&plan.generator_version===`inlet.descriptive-planning.v${version}`);
  if(!creativePolicy){if(plan.creative_proof!=null||plan.creative_composition!=null)throw Error('Creative basis does not match the planning policy.');return;}
  const basis=plan.creative_proof?.basis,input=plan.inputs.creative;
  if(!basis||!input||!plan.creative_composition||basis.workspace_id!==plan.inputs.workspace_id||JSON.stringify(basis.requested)!==JSON.stringify(input)||!Array.isArray(basis.images)||basis.images.length>30||basis.images.length!==input.media_selections.length)throw Error('The saved creative basis could not be verified.');

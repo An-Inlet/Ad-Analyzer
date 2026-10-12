@@ -28,6 +28,7 @@ def reporting_capability(policy_version: str, generator_version: str) -> Reporti
         (4, "selected_requested_window", "local_reporting_v3"),
         (5, "creative_selected_requested_window", "local_reporting_v3"),
         (6, "owner_review_creative_selected_requested_window", "local_reporting_v3"),
+        (7, "creative_selected_requested_window", "local_reporting_v3"),
     ):
         if (policy_version, generator_version) == (
             f"inlet.descriptive-review.v{version}",
@@ -40,7 +41,7 @@ def reporting_capability(policy_version: str, generator_version: str) -> Reporti
 def ticket_reporting_capability(policy_version: str, policy_digest: str) -> ReportingCapability:
     if type(policy_version) is not str or type(policy_digest) is not str:
         raise ValueError("exact policy version and digest required")
-    for version in (1, 2, 3, 4, 5, 6):
+    for version in (1, 2, 3, 4, 5, 6, 7):
         policy = PlanningCompositionPolicy(
             version=f"inlet.descriptive-review.v{version}",
             generator_version=f"inlet.descriptive-planning.v{version}",

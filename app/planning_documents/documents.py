@@ -26,6 +26,8 @@ from app.planning_documents.common import (
     Text,
     unique,
 )
+from app.planning_documents.constraint_interpretation import ConstraintInterpretationV1
+from app.planning_documents.constraint_policy import is_constraint_policy
 from app.planning_documents.context import AccountTarget, EvidenceRef, PlanInputRevision, TargetRef
 from app.planning_documents.creative_inputs import (
     CREATIVE_GENERATOR_VERSION,
@@ -57,7 +59,10 @@ from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 
 class PlanVersion(NoAuthority):
     schema_version: Literal[
-        "inlet.plan-version.v1", "inlet.plan-version.v2", "inlet.plan-version.v3"
+        "inlet.plan-version.v1",
+        "inlet.plan-version.v2",
+        "inlet.plan-version.v3",
+        "inlet.plan-version.v4",
     ] = "inlet.plan-version.v1"
     inputs: PlanInputRevision
     version: Positive
@@ -78,6 +83,7 @@ class PlanVersion(NoAuthority):
     quality_status: Literal["not_expert_qualified"] = "not_expert_qualified"
     selected_reporting_proof: SelectedRetainedProofV1 | None = None
 
+    constraint_interpretation: ConstraintInterpretationV1 | None = None
     creative_proof: CreativeRetainedProofV1 | None = None
     creative_composition: CreativeCompositionV1 | None = None
 
@@ -97,10 +103,15 @@ class PlanVersion(NoAuthority):
             raw = dict(value)
         else:
             return value
-        if (raw.get("policy_version"), raw.get("generator_version")) != (
-            CREATIVE_POLICY_VERSION,
-            CREATIVE_GENERATOR_VERSION,
-        ) and not is_owner_review_policy(raw.get("policy_version"), raw.get("generator_version")):
+        if (
+            (raw.get("policy_version"), raw.get("generator_version"))
+            != (
+                CREATIVE_POLICY_VERSION,
+                CREATIVE_GENERATOR_VERSION,
+            )
+            and not is_owner_review_policy(raw.get("policy_version"), raw.get("generator_version"))
+            and not is_constraint_policy(raw.get("policy_version"), raw.get("generator_version"))
+        ):
             return value
         if is_owner_review_policy(raw.get("policy_version"), raw.get("generator_version")):
             _originals(raw.get("google_budget_input_catalogs"))
@@ -125,7 +136,10 @@ class PlanVersion(NoAuthority):
     def serialize_selected_proof(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         checked = self
         if (
-            self.policy_version == "inlet.descriptive-review.v6"
+            self.constraint_interpretation is not None
+            or self.policy_version == "inlet.descriptive-review.v7"
+            or self.generator_version == "inlet.descriptive-planning.v7"
+            or self.policy_version == "inlet.descriptive-review.v6"
             or self.generator_version == "inlet.descriptive-planning.v6"
             or self.google_budget_owner_review is not None
             or self.google_budget_input_catalogs is not None
@@ -133,6 +147,8 @@ class PlanVersion(NoAuthority):
         ):
             checked = type(self).model_validate(self)
         result: dict[str, Any] = handler(checked)
+        if self.constraint_interpretation is None:
+            result.pop("constraint_interpretation", None)
         if self.selected_reporting_proof is None:
             result.pop("selected_reporting_proof", None)
         if self.creative_proof is None:
@@ -161,8 +177,30 @@ class PlanVersion(NoAuthority):
             and pin.observation_provenance.settings is not None
             for pin in captures
         )
-        if (self.schema_version == "inlet.plan-version.v3") != has_settings:
+        constraint_policy = is_constraint_policy(self.policy_version, self.generator_version)
+        if (self.schema_version == "inlet.plan-version.v4") != constraint_policy:
+            raise ValueError("constraint policy requires plan-version.v4 reader floor")
+        if constraint_policy:
+            from app.planning_documents.constraint_document import validate_constraint_document
+
+            validate_constraint_document(self)
+        elif (
+            self.constraint_interpretation is not None
+            or self.policy_version == "inlet.descriptive-review.v7"
+            or self.generator_version == "inlet.descriptive-planning.v7"
+        ):
+            raise ValueError("constraint interpretation requires exact v7 policy")
+        if (
+            not constraint_policy
+            and (self.schema_version == "inlet.plan-version.v3") != has_settings
+        ):
             raise ValueError("request/effective settings require plan-version.v3")
+        if constraint_policy:
+            from app.planning_documents.constraint_document import (
+                assert_constraint_capture_provenance,
+            )
+
+            assert_constraint_capture_provenance(captures)
         if self.schema_version in {"inlet.plan-version.v2", "inlet.plan-version.v3"}:
             captures = (
                 tuple(
@@ -198,10 +236,15 @@ class PlanVersion(NoAuthority):
             ):
                 raise ValueError("owner review document requires exact v6 policy")
         validate_creative_policy(self.inputs.creative, self.policy_version, self.generator_version)
-        creative_policy = (self.policy_version, self.generator_version) == (
-            CREATIVE_POLICY_VERSION,
-            CREATIVE_GENERATOR_VERSION,
-        ) or owner_policy
+        creative_policy = (
+            (self.policy_version, self.generator_version)
+            == (
+                CREATIVE_POLICY_VERSION,
+                CREATIVE_GENERATOR_VERSION,
+            )
+            or owner_policy
+            or constraint_policy
+        )
         if creative_policy:
             if self.creative_proof is None or self.creative_composition is None:
                 raise ValueError("complete creative document proof and composition required")
@@ -436,10 +479,11 @@ class PlanVersion(NoAuthority):
                 or brief_action.target != brief.target
             ):
                 raise ValueError("brief must bind exact creative action target")
-        if owner_policy:
+        if owner_policy or constraint_policy:
             # Serialize already validated child values, not this document's checked
             # serializer: invoking it here would recursively validate this node.
             omitted = {
+                "constraint_interpretation",
                 "selected_reporting_proof",
                 "creative_proof",
                 "creative_composition",

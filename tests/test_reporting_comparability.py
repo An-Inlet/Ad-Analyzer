@@ -30,7 +30,7 @@ pytestmark = pytest.mark.planning_boundary
 
 
 def review_browser(tmp_path: Path, documents: dict[str, Any]) -> None:
-    for name in ("plan-document.mjs", "plan-reporting-comparability.mjs"):
+    for name in ("plan-document.mjs", "plan-constraints.mjs", "plan-reporting-comparability.mjs"):
         shutil.copy(Path("app/portal/static") / name, tmp_path / name)
     (tmp_path / "reporting-documents.json").write_text(json.dumps(documents))
     run_component(tmp_path, "plan_reporting_comparability_dom")
@@ -59,7 +59,11 @@ def test_actual_three_platform_review_current_export_and_replay(
     partial: bool,
 ) -> None:
     fixture = prepare_creative_q05_basis(
-        customer_engine, configuration, replicas, monkeypatch, tmp_path / "media",
+        customer_engine,
+        configuration,
+        replicas,
+        monkeypatch,
+        tmp_path / "media",
         missing_selected_day=date(2026, 9, 12) if partial else None,
     )
     basis = fixture.creative.basis
@@ -91,8 +95,12 @@ def test_actual_three_platform_review_current_export_and_replay(
     replay = alice.post(path + "/generate", headers=headers(alice), json=intent)
     assert replay.status_code == 200, replay.text
     assert (len(fixture.native_calls), len(fixture.creative.calls)) == calls_before
-    artifacts = {"generated": original, "current": read.json(), "export": exported.json(),
-                 "replay": replay.json()}
+    artifacts = {
+        "generated": original,
+        "current": read.json(),
+        "export": exported.json(),
+        "replay": replay.json(),
+    }
     for result in artifacts.values():
         retained = PlanVersion.model_validate_json(json.dumps(result["document"]))
         assert retained.digest() == document.digest() == result["document_digest"]

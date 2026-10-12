@@ -8826,3 +8826,21 @@ TikTok completeness is blocked on source semantics; expert usefulness, commercia
 inputs and intended-environment/live release gates remain. Next independent larger
 planning work is Q13 exact field-observation comparison or Q10 typed constrained-
 creative interpretation. See [dependency review and package evidence](inlet-planning-dependency-review-20261012.md).
+
+## Q13 Pure Field Comparison — 2026-10-12
+
+Added a normalized-facts comparator with exact version/action/target/source/privacy/
+time binding and explicit missing-field results. It keeps customer reports and
+retractions separate; matches never establish who changed a setting or business lift.
+Existing event DTOs and runtime behavior are unchanged. The interface is ordinary
+pure input, not authorization or provider qualification. Partial/mixed comparisons
+remain unreachable under current single-field action contracts; no schema widening.
+
+Final q13-pure-comparison04 passed whole Ruff, configured mypy (1,560 files), exact
+collection, diff check and 87 runtime cases (35 new, 52 existing contracts), no skips.
+Prior stopped attempts and their unrun cases remain preserved separately. Synthetic
+facts and pure export serialization only; no database/browser/live verification.
+Next: read-only observation renderer, then qualified producer/service joins when
+their prerequisites exist. Q13 overall remains incomplete. Local-only branch
+`codex/inlet-w1-followup`; no push, PR, activation or advertising action.
+See [package evidence and remaining limits](inlet-q13-field-comparison-20261012.md).

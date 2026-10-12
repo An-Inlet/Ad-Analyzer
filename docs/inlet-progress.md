@@ -8090,3 +8090,61 @@ was made. Runtime16 remains wholly unrun. Next: preserve this incident, prepare
 a resource-bounded qualification successor with durable threshold telemetry and
 per-case outcomes, then qualify on sufficient resources without relabeling this
 interruption as success. The repair is still uncommitted and unintegrated.
+
+
+Owner authorized resource recovery using bounded processes with durable per-case
+evidence. Read-only preflight found no pytest/mypy/Ruff processes and reserves
+above unchanged floors (~1.0GB memory,1.35GB workspace,4.25GB scratch free).
+The minimally revised runner retains each intact test in a separate subprocess,
+writes an immutable original outcome before final XML/source checks, records
+launch/terminal resources and the precise failed threshold before termination,
+and reaps pytest even on telemetry errors. Independent review closed the runner
+and exact24 prior PostgreSQL IDs /1,493 unchanged sources /216 fresh paths.
+Recovery manifest cc7153d8c22003b01478afb4ae87b35d4984cd80771ce51be8c720cef2cd76bf
+is running; prior resource interruption remains unchanged and no anonymous
+progress markers count as passes. Application runtime16 remains separately gated.
+
+
+Bounded PostgreSQL recovery passed24/24 exact cases, all originalexit0, no
+skips/errors/interruption,469.293801s summed subprocess time. Root and independent
+review verified each immutable original outcome, exact XML identity and all1,493
+unchanged sources. No trigger files were created; launch/terminal resources were
+preserved per case. This closes parity under bounded processes, not continuous
+process capacity; the original aggregate interruption remains unqualified.
+Runtime16 collection exited0 with exact ordered identities. Reviewed runtime
+manifest de810a0c8f1558cd6450b7a0fbcbe4d1ef43d09d24acd44a16386836eebf6a9a
+now runs SQLite8; PostgreSQL8 is separately held. Actual V1/edit/V2/report and
+historical retraction/export remain intact within one test, using normal assertion
+rewriting and original authority deadlines. No live/remote/release gates changed.
+
+
+## October 12 Qualified Row-Admission Repair Checkpoint
+
+Runtime16 completed:SQLite8 and PostgreSQL8 all originalexit0, exact identities,
+no skips/errors/interruption. Both intact V1/edit/V2/report/historical-retraction
+and export journeys passed under normal assertion rewriting. Real authority-expiry,
+original-receipt and post-flush rollback, source mutation, connection/late-owner
+and final-head reconstruction refusals passed. Process totals:SQLite143.097395s,
+PostgreSQL199.133056s. Independent review closed completion freeze
+6f67a5ab187ac989f7ecbf9009c7b696847239497e038bca322d5848527690a9
+covering255 evidence files and1,493 unchanged application/test source hashes.
+
+Local branch `codex/inlet-version-row-admission` now has clean commit
+`b82968829a73c9fe1f9df4927dd13be39176fafa`:four production files, six focused test
+files and `docs/inlet-version-row-admission-qualification.md`. Commit binding
+rechecked all qualified source bytes unchanged. Whole Ruff and configured
+mypy1503 passed on these same sources; no redundant static/test rerun was made.
+Regression total83distinct =35pure+23SQLiteparity+24PGparity+1priorSQLite
+mechanism; runtime16 is additional. Root production remains4c8e28f:the candidate
+is committed locally, not merged/cherry-picked/pushed/deployed.
+
+Original baseline/repair failures, pure-test hypothesis failure, PostgreSQL resource
+interruption and earlier R01/R02/R03 incidents remain preserved. Bounded-process
+passes do not prove continuous-process capacity or live production reliability.
+No pending test in this reviewed83+16 package remains; separate Session identity
+and actual Connection-wrapper fault tests remain external draft follow-up.
+Next package:review local candidate integration/dependent acceptance work with
+these exact evidence limits; complete optional identity fault drafts if needed.
+Reconnect retention, artifact sharing and human quality decisions remain pending.
+No hosted CI, pushes, external sharing, credentials, providers, ads, spend or
+deployment occurred.

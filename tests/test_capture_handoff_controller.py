@@ -14,8 +14,11 @@ import pytest
 from tests.test_customer_portal import portal_executable
 
 
+@pytest.mark.parametrize("platform", ["google_ads", "meta_ads"])
 @pytest.mark.parametrize("mode", ["workspace", "session", "cancel", "saved", "legacy"])
-def test_capture_handoff_controller_revokes_pending_choice(tmp_path: Path, mode: str) -> None:
+def test_capture_handoff_controller_revokes_pending_choice(
+    tmp_path: Path, mode: str, platform: str
+) -> None:
     browser_path = portal_executable("chromium", "chromium-browser", "google-chrome")
     assets = tmp_path / "app" / "assets"
     assets.mkdir(parents=True)
@@ -28,8 +31,10 @@ def test_capture_handoff_controller_revokes_pending_choice(tmp_path: Path, mode:
     )
     (tmp_path / "index.html").write_text(page)
     (tmp_path / "test.mjs").write_text(
-        Path("tests/javascript/plan_capture_handoff_controller.mjs").read_text()
+        Path("tests/javascript/plan_capture_handoff_controller.mjs")
+        .read_text()
         .replace("__MODE__", mode)
+        .replace("__PLATFORM__", platform)
     )
     complete = threading.Event()
     reports: list[str] = []

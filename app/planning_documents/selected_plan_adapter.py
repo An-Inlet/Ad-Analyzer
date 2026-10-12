@@ -242,7 +242,9 @@ class OwnedSelectedEvidenceReader:
                 reason = None
                 if target is None:
                     reason = "catalog_unavailable" if cat is None else "no_catalog_campaigns"
-                elif account.platform != "google_ads" or (graph is not None and not recognized):
+                elif (account.platform != "google_ads" and graph is None) or (
+                    graph is not None and not recognized
+                ):
                     reason = "unsupported_selected_mapping"
                 elif graph is None:
                     reason = "selected_capture_not_requested"

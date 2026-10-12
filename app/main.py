@@ -28,6 +28,7 @@ from app.api.customer_initial_planning import router as customer_initial_plannin
 from app.api.customer_lifecycle import router as customer_lifecycle_router
 from app.api.customer_mandates import router as customer_mandates_router
 from app.api.customer_meta import router as customer_meta_router
+from app.api.customer_meta_reporting import router as customer_meta_reporting_router
 from app.api.customer_optimization import router as customer_optimization_router
 from app.api.customer_outcomes import router as customer_outcomes_router
 from app.api.customer_plan_review import router as customer_plan_review_router
@@ -222,6 +223,7 @@ app.include_router(customer_optimization_router)
 app.include_router(customer_planning_catalog_router)
 app.include_router(customer_planning_documents_router)
 app.include_router(customer_candidates_router)
+app.include_router(customer_meta_reporting_router)
 app.include_router(customer_reporting_router)
 app.include_router(customer_reporting_capture_router)
 app.include_router(customer_reporting_range_router)

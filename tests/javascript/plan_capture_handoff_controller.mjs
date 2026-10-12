@@ -6,7 +6,7 @@ window.fetch=async(url,init={})=>{
  if(path==='/api/customer/v1/session')value={user_id:'alice'};
  else if(path==='/api/customer/v1/workspaces')value=[{id:1,name:'One',role:'owner'},{id:2,name:'Two',role:'owner'}];
  else if(path.endsWith('/goals'))value=[];
- else if(path.endsWith('/planning/accounts'))value={complete:true,accounts:[{id:2,name:'Google',platform:'google_ads'}]};
+ else if(path.endsWith('/planning/accounts'))value={complete:true,accounts:[{id:2,name:'Google',platform:'__PLATFORM__'}]};
  else if(path.endsWith('/capabilities')){if(delayed)await new Promise(resolve=>{release=resolve;});const version=legacy?3:4;value={schema_version:'inlet.planning-capabilities.v1',workspace_id:1,policy_version:`inlet.descriptive-review.v${version}`,generator_version:`inlet.descriptive-planning.v${version}`,selected_reporting_available:!legacy,...none};}
  else if(path.endsWith('/plans?limit=20'))value={items:[{plan_id:'b'.repeat(32),version:0,input_revision:1,...none}],next_cursor:null};
  else if(path.endsWith('/plans/'+'b'.repeat(32)))return new Response('{}',{status:404});

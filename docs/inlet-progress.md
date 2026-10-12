@@ -8417,3 +8417,33 @@ verified attribution remain distinct gaps. Owner retention/artifact-sharing deci
 six human quality judgments, Q13 verification and historical R01–R03 uncertainty
 remain open. All remote/hosted/live/release/spend holds remain. Local branch
 `codex/inlet-w1-followup`; no push or PR in this package.
+
+
+## 2026-10-12 — Customer Meta Count Selection And Planning Handoff
+
+Implemented explicit owned imported-range review, Website Purchases — Count Only
+selection, HMAC-bound capture preparation/acquisition, exact retry and invalidation.
+The original session, reviewed basis/grant, selection and account remain bound
+through final authorization. Runtime defaults to unavailable. Reporting and Planning
+now accept the exact Meta count profile through the customer's explicit handoff;
+counts project into new plans with unsupported money/traffic and unknown attribution.
+Google's direct capture path and historical document validation remain intact.
+[Checkpoint](inlet-meta-customer-count-20261012.md) and
+[contract](design/meta-customer-count-flow-v1.md) record scope and limitations.
+
+75 exact cases passed: 23 component, 26 SQLite and 26 PostgreSQL, including actual
+capture-to-saved-plan/history/export for positive, zero and missing counts on both
+engines; original-authority rollback; exact replay; grant/session changes; stale
+controller responses; and existing Google browser/API flows. Full Ruff, configured
+mypy (1,529 files), exact collection, diff and seven JS syntax checks passed.
+Original failures and unrun phases remain preserved. Final evidence and six journey
+artifacts are in `/workspace/inlet-evidence/20261012/meta-customer-attempt09/`.
+Independent source and carry review closed; final evidence review and commit binding
+are recorded alongside the completion freeze.
+
+Next: explicit opt-in Meta runtime composition and an assembled Meta browser/API
+journey, preserving unavailable defaults and live gates. TikTok report qualification,
+custom events, money and effective attribution remain separate gaps. Owner retention/
+artifact-sharing decisions, six human quality judgments, Q13 verification and
+historical R01–R03 uncertainty remain open. All remote/hosted/live/release/spend holds
+remain. Local branch `codex/inlet-w1-followup`; no push or PR in this package.

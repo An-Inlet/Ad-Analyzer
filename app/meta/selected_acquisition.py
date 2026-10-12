@@ -29,6 +29,7 @@ from app.campaign_performance.selected_storage import (
 )
 from app.customers.access import CustomerPrincipal
 from app.customers.identity import IdentityProvider
+from app.customers.models import CustomerSession
 from app.meta.models import MetaConnection
 from app.meta.security import MetaError, Vault
 from app.meta.selected_collection import collect_meta_selected_capture
@@ -51,6 +52,7 @@ def acquire_selected(
     configuration: Settings,
     transport: httpx.BaseTransport,
     clock: Callable[[], datetime],
+    expected_grant_digest: str | None = None,
 ) -> SelectedCaptureV1:
     try:
         req = SelectedCaptureRequestV1.model_validate(request)
@@ -67,6 +69,13 @@ def acquire_selected(
 
         def guard(db: Session) -> MetaConnection:
             contexts.authorize(db, wid, actor)
+            original = contexts.principal.session
+            current = db.get(CustomerSession, original.digest, populate_existing=True)
+            if current is None or (current.authenticated_at, current.expires_at) != (
+                original.authenticated_at,
+                original.expires_at,
+            ):
+                raise ValueError("original session changed")
             paid_work(db, wid, now())
             controls = AutomationControlService(db)
             if (
@@ -116,10 +125,12 @@ def acquire_selected(
         with contexts.open() as db:
             source = guard(db)
             owned_mapping = mapping(db)
+            grant = hashlib.sha256(source.encrypted_credentials.encode()).digest()
+            if expected_grant_digest is not None and grant.hex() != expected_grant_digest:
+                raise ValueError("reviewed grant changed")
             previous = existing(db)
             if previous is not None:
                 return previous
-            grant = hashlib.sha256(source.encrypted_credentials.encode()).digest()
             bundle = Vault(configuration).open(
                 wid, scope.native_account_id, source.encrypted_credentials
             )

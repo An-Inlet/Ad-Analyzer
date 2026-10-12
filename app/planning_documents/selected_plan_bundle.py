@@ -13,6 +13,7 @@ from app.commerce.reporting import MeasurementWindow
 from app.goals.progress_contracts import ClosedDayCoverageV1, GoalSalesProgressV1
 from app.goals.schemas import GoalDefinition
 from app.google_connections.selected_presence import PRODUCER, query_profile_digest
+from app.meta import selected_profile as meta_profile
 from app.planning_documents.common import (
     MAX_ACCOUNTS,
     MAX_EVIDENCE,
@@ -84,6 +85,20 @@ def supported(graph: SelectedPlanCaptureV1) -> bool:
     graph = SelectedPlanCaptureV1.model_validate(graph)
     req = graph.capture.request
     choice = req.selection
+    if choice.scope.platform == "meta_ads":
+        return (
+            graph.capture.capability == "supported"
+            and choice.api_version == "v26.0"
+            and choice.metric_family == "actions"
+            and choice.native_event_id == meta_profile.EVENT
+            and choice.native_event_owner_id == choice.scope.native_account_id
+            and req.producer_contract == meta_profile.PRODUCER
+            and req.query_profile_digest
+            == choice.query_profile_digest
+            == meta_profile.query_profile_digest()
+            and req.settings == meta_profile.settings()
+            and all(f.selected_value_micros.presence == "unsupported" for f in graph.capture.facts)
+        )
     if choice.metric_family not in {"conversions", "all_conversions"}:
         return False
     family: Literal["conversions", "all_conversions"] = (
@@ -389,7 +404,9 @@ def _assert_selected_ticket_checked(
             if catalog is None:
                 raise ValueError("selected campaign gap lacks catalog")
             _target(catalog, gap.target)
-            if gap.account.platform != "google_ads" or (graph is not None and not supported(graph)):
+            if (gap.account.platform != "google_ads" and graph is None) or (
+                graph is not None and not supported(graph)
+            ):
                 expected = "unsupported_selected_mapping"
             elif graph is None:
                 expected = "selected_capture_not_requested"

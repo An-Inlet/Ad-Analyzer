@@ -17,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.commerce.mutation_guards import register as register_workspace_guard
 from app.database.session import Base
 
 
@@ -169,3 +170,6 @@ class ShopifyPrivacyIdentity(Base):
     kind: Mapped[str] = mapped_column(String(16), primary_key=True)
     object_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     pending_legacy: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+register_workspace_guard(Base.metadata.tables[ShopifyPrivacyIdentity.__tablename__])

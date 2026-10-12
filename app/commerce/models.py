@@ -15,6 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.commerce.mutation_guards import register as register_workspace_guard
 from app.database.session import Base
 
 
@@ -228,3 +229,7 @@ class CommerceMeasurementPublication(Base):
     completion_digest: Mapped[str] = mapped_column(String(64))
     manifest_digest: Mapped[str] = mapped_column(String(64))
     manifest: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+register_workspace_guard(Base.metadata.tables[CommerceStore.__tablename__])
+register_workspace_guard(Base.metadata.tables[CommerceShopAlias.__tablename__])

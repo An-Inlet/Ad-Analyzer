@@ -243,3 +243,17 @@ retained. Neither all transitive tables nor concurrent generation/cascade blocki
 claimed. Catalog deletion still has no intrinsic privacy increment. The next concrete
 family is cross-store aliases/identity markers and their indirect writers, retaining
 workspace-wide query membership and all current reconstruction.
+
+## Commerce Alias And Identity Writer Follow-Up
+
+The [commerce membership package](commerce-membership-fences-20261012.md) introduces
+migration0094 and matching PostgreSQL metadata guards on the existing CommerceStore,
+CommerceShopAlias and ShopifyPrivacyIdentity tables. Generic I/U/D, old/new ownership,
+alias/store move/delete contention, actual disconnect versus deletion, populated
+migration parity and cascade rollback are qualified by14 distinct tests across both
+backends. Both workspace cascade fixtures actually completed the owned cascade.
+SQLite still requires the independently owned physical reader reservation; its
+production reader transaction is unchanged. Ordinary enforced-FK DML is the bound,
+not privileged bypass or universal freshness. The original52-model inventory is not
+expanded; the linked report names all49 remaining models and cross-cutting proof work.
+Full current reconstruction and the pending owner reconnect-retention decision remain.

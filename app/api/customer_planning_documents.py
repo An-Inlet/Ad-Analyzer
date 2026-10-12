@@ -44,7 +44,15 @@ router = APIRouter(
 )
 Cursor = Annotated[str | None, Query(max_length=256)]
 Limit = Annotated[int, Query(ge=1, le=100)]
-Operation = Literal["create", "revise", "generate", "decide", "assert_applied"]
+Operation = Literal[
+    "create",
+    "revise",
+    "generate",
+    "decide",
+    "assert_applied",
+    "budget_observe",
+    "budget_invalidate",
+]
 RequestKey = Annotated[str, Path(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")]
 
 
@@ -63,7 +71,9 @@ def service(
     if policy is None:
         return PlanningDocumentService(engine, provider, clock=utc_now)
     if policy.version in (
-        "inlet.descriptive-review.v5", "inlet.descriptive-review.v6", "inlet.descriptive-review.v7"
+        "inlet.descriptive-review.v5",
+        "inlet.descriptive-review.v6",
+        "inlet.descriptive-review.v7",
     ):
         return PlanningDocumentService(
             engine, provider, clock=utc_now, policy=policy, media_store=ConfiguredPlanningMedia()

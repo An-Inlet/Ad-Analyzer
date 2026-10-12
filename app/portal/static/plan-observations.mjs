@@ -5,7 +5,7 @@ const key=v=>typeof v==='string'&&/^[a-z][a-z0-9_:-]{0,95}$/.test(v);
 const digest=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const numeric=v=>typeof v==='string'&&/^[0-9]{1,32}$/.test(v);
 // API timestamps preserve microseconds; Date.parse alone rounds and normalizes bad dates.
-const instant=v=>{
+export const instant=v=>{
   if(typeof v!=='string')return null;
   const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(v);
   if(!m)return null;

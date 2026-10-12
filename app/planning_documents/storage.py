@@ -10,6 +10,10 @@ from app.planning_documents.common import MAX_DOCUMENT_BYTES, Frozen
 from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
+from app.planning_documents.google_budget_events import (
+    GoogleBudgetInvalidationV1,
+    GoogleBudgetObservationV1,
+)
 
 CATALOG_RECEIPT_TABLES = frozenset(
     {
@@ -85,6 +89,16 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             "observation": ReadObservedStatus,
         }
         model = event_models[row["kind"]]
+        if row["kind"] == "observation":
+            schema = json.loads(raw).get("schema_version")
+            if schema is not None:
+                budget_models: dict[str, type[Frozen]] = {
+                    "inlet.google-budget-observation.v1": GoogleBudgetObservationV1,
+                    "inlet.google-budget-invalidation.v1": GoogleBudgetInvalidationV1,
+                }
+                if schema not in budget_models:
+                    raise ValueError("unknown planning observation schema")
+                model = budget_models[schema]
     else:
         raise ValueError("unknown planning document table")
     document = model.model_validate_json(raw)
@@ -118,7 +132,16 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             generated_at=document.generated_at,
             valid_until=document.valid_until,
         )
-    elif isinstance(document, (CustomerDecision, ManualAssertion, ReadObservedStatus)):
+    elif isinstance(
+        document,
+        (
+            CustomerDecision,
+            ManualAssertion,
+            ReadObservedStatus,
+            GoogleBudgetObservationV1,
+            GoogleBudgetInvalidationV1,
+        ),
+    ):
         expected = dict(
             workspace_id=document.workspace_id,
             plan_id=document.plan_id,
@@ -127,7 +150,19 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             action_key=document.action_key,
             action_digest=document.action_digest,
         )
-        if isinstance(document, (CustomerDecision, ManualAssertion)):
+        if isinstance(document, GoogleBudgetObservationV1):
+            expected["prior_sequence"] = None
+        elif isinstance(document, GoogleBudgetInvalidationV1):
+            expected["prior_sequence"] = document.observation_sequence
+        if isinstance(
+            document,
+            (
+                CustomerDecision,
+                ManualAssertion,
+                GoogleBudgetObservationV1,
+                GoogleBudgetInvalidationV1,
+            ),
+        ):
             expected["actor_id"] = document.actor_id
             expected["recorded_at"] = document.recorded_at
         else:

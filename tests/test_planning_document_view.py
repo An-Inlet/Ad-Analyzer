@@ -16,6 +16,7 @@ from app.planning_documents.events import CustomerDecision, ManualAssertion
 from app.planning_documents.field_comparison import FieldSnapshotV1, compare_fields
 from app.planning_documents.responses import EventPage, EventResult
 
+from tests.google_budget_event_fixture import history as budget_history
 from tests.test_customer_portal import portal_executable
 from tests.test_planning_composer import compose, fixture
 from tests.test_planning_field_comparison import admission, document, snapshot_data
@@ -116,8 +117,21 @@ def test_document_view_escapes_text_labels_history_and_clears_foreign_response(
             ).model_dump(mode="json")
         )
     (tmp_path / "observation-values.json").write_text(json.dumps(values))
+    budget_events = budget_history()
+    (tmp_path / "budget-events.json").write_text(
+        EventPage(
+            items=tuple(
+                EventResult(event_sequence=i, event=event)
+                for i, event in enumerate(budget_events, start=1)
+            ),
+            next_cursor=None,
+        ).model_dump_json()
+    )
     shutil.copy("app/portal/static/plan-events.mjs", tmp_path / "plan-events.mjs")
     shutil.copy("app/portal/static/plan-observations.mjs", tmp_path / "plan-observations.mjs")
+    shutil.copy(
+        "app/portal/static/plan-budget-observations.mjs", tmp_path / "plan-budget-observations.mjs"
+    )
     changed_goal = inputs.goal.model_dump(mode="python")
     changed_definition = inputs.goal.definition.model_copy(update=dict(target_micros=12000000000))
     changed_goal.update(
@@ -346,6 +360,38 @@ try {
                   {...observationOptions,afterSequence:3});
  assert(host.textContent.includes('Continuation after event 3'),'observation continuation');
  clearPlanEvents(host);assert(host.hidden&&!host.childNodes.length,'history clear');
+ const budgetPage=await (await fetch('/budget-events.json')).json();
+ const budgetOptions={workspaceId:budgetPage.items[0].event.workspace_id,
+  planId:budgetPage.items[0].event.plan_id};
+ renderPlanEvents(host,budgetPage,budgetOptions);
+ assert(host.textContent.includes('Historical Budget Setting Matches Hypothesis')&&
+  host.textContent.includes('Historical Budget Evidence Invalidated'),
+  'separate budget event types');
+ assert(host.textContent.includes('Not A Live Provider Verification')&&
+  host.textContent.includes('Current reliance is not assessed'),'fixture and historical limits');
+ renderPlanEvents(host,{...budgetPage,items:budgetPage.items.slice(0,1),next_cursor:'1'},budgetOptions);
+ assert(host.textContent.includes('later invalidations may appear on another page'),
+  'partial page honest');
+ renderPlanEvents(host,{...budgetPage,items:budgetPage.items.slice(1)},{...budgetOptions,afterSequence:1});
+ assert(host.textContent.includes('Source generation changed'),'invalidation continuation');
+ for(const alter of [
+   p=>{p.items[0].event.comparison.document.inputs.workspace_id++;},
+   p=>{p.items[0].event.comparison.fresh.catalog_evidence.reference.account.account_id++;},
+   p=>{p.items[0].event.proof.ticket.privacy_revision++;},
+   p=>{p.items[0].event.comparison.fresh.catalog_evidence.reference.observed_at='2099-01-01T00:00:00Z';},
+   p=>{p.items[0].event.recorded_at='2026-02-30T00:00:00Z';},
+   p=>{p.items[0].event.finding='implemented';},
+   p=>{p.items[0].event.provenance='authenticated_provider';},
+   p=>{p.items[0].event.schema_version='inlet.google-budget-observation.v99';},
+   p=>{p.items[1].event.observation_sequence=2;},
+   p=>{p.items[1].event.observation_recorded_at='2099-01-01T00:00:00Z';},
+ ]){
+   const invalid=structuredClone(budgetPage);alter(invalid);
+   renderPlanEvents(host,budgetPage,budgetOptions);
+   try{renderPlanEvents(host,invalid,budgetOptions);throw Error('accepted budget forgery');}
+   catch(error){assert(error.message!=='accepted budget forgery','budget rejection');}
+   assert(host.hidden&&!host.childNodes.length,'whole budget page cleared');
+ }
  document.querySelector('#result').textContent='PASS';
 } catch(error) {document.querySelector('#result').textContent='FAIL '+error.stack;}
 await fetch('/result',{method:'POST',body:document.querySelector('#result').textContent});

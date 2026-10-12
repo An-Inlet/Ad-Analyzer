@@ -1,5 +1,6 @@
 // Immutable customer history and separate field observations, never execution state.
 import {validateObservation,appendObservation,observationLabels} from './plan-observations.mjs';
+import {isBudgetEvent,validateBudgetEvent,budgetEventLabel,appendBudgetEvent} from './plan-budget-observations.mjs';
 const decisions={accepted_for_manual_application:'Accepted For Manual Application',rejected:'Rejected',deferred:'Deferred'};
 const assertions={customer_reports_applied:'Customer Reports Applied',retracted:'Customer Report Retracted'};
 const id=value=>typeof value==='string'&&/^[a-f0-9]{32}$/.test(value);
@@ -15,8 +16,9 @@ export function renderPlanEvents(host,page,{workspaceId,planId,afterSequence=0})
   if(!positive(workspaceId)||!id(planId)||!Number.isSafeInteger(afterSequence)||afterSequence<0||!noAuthority(page)||!Array.isArray(page.items)||page.items.length>100||(page.next_cursor!==null&&(typeof page.next_cursor!=='string'||!page.next_cursor.length||page.next_cursor.length>256)))fail();
   let previous=afterSequence;const seen=new Set();
   for(const row of page.items){
-    const e=row?.event,decision=Object.hasOwn(e??{},'decision'),assertion=Object.hasOwn(e??{},'assertion'),observation=Object.hasOwn(e??{},'status');
-    if(!noAuthority(row)||!positive(row.event_sequence)||row.event_sequence<=previous||!noAuthority(e)||e.workspace_id!==workspaceId||e.plan_id!==planId||!positive(e.version)||!id(e.event_id)||seen.has(e.event_id)||!digest(e.document_digest)||!digest(e.action_digest)||typeof e.action_key!=='string'||!(/^[a-z][a-z0-9_:-]{0,95}$/).test(e.action_key)||Number(decision)+Number(assertion)+Number(observation)!==1)fail();
+    const e=row?.event,decision=Object.hasOwn(e??{},'decision'),assertion=Object.hasOwn(e??{},'assertion'),observation=Object.hasOwn(e??{},'status'),budget=isBudgetEvent(e);
+    if(!noAuthority(row)||!positive(row.event_sequence)||row.event_sequence<=previous||!noAuthority(e)||e.workspace_id!==workspaceId||e.plan_id!==planId||!positive(e.version)||!id(e.event_id)||seen.has(e.event_id)||!digest(e.document_digest)||!digest(e.action_digest)||typeof e.action_key!=='string'||!(/^[a-z][a-z0-9_:-]{0,95}$/).test(e.action_key)||Number(decision)+Number(assertion)+Number(observation)+Number(budget)!==1)fail();
+    if(budget){validateBudgetEvent(e);if(e.schema_version==='inlet.google-budget-invalidation.v1'&&e.observation_sequence>=row.event_sequence)fail();seen.add(e.event_id);previous=row.event_sequence;continue;}
     if(observation){validateObservation(e);seen.add(e.event_id);previous=row.event_sequence;continue;}
     if(!id(e.actor_id)||typeof e.recorded_at!=='string'||!Number.isFinite(Date.parse(e.recorded_at))||(e.supersedes_event_id!==null&&(!id(e.supersedes_event_id)||e.supersedes_event_id===e.event_id))||['observed_at','comparisons','limitations','causality','applied_by'].some(k=>Object.hasOwn(e,k)))fail();
     if(decision){if(!Object.hasOwn(decisions,e.decision)||!bounded(e.reason))fail();}
@@ -33,16 +35,18 @@ export function renderPlanEvents(host,page,{workspaceId,planId,afterSequence=0})
   if(afterSequence>0)fragment.append(text('p',`Continuation after event ${afterSequence}. Earlier records are on preceding pages.`));
   const list=doc.createElement('ol');
   for(const row of page.items){
-    const e=row.event,item=doc.createElement('li'),isDecision=Object.hasOwn(e,'decision'),isObservation=Object.hasOwn(e,'status');
-    item.append(text('h3',`Event ${row.event_sequence} · ${isObservation?observationLabels[e.status]:isDecision?decisions[e.decision]:assertions[e.assertion]}`),text('p',`Plan Version ${e.version} · Action ${e.action_key}`));
-    if(isObservation)appendObservation(item,e,text,stamp);
+    const e=row.event,item=doc.createElement('li'),isDecision=Object.hasOwn(e,'decision'),isObservation=Object.hasOwn(e,'status'),budget=isBudgetEvent(e);
+    item.append(text('h3',`Event ${row.event_sequence} · ${budget?budgetEventLabel(e):isObservation?observationLabels[e.status]:isDecision?decisions[e.decision]:assertions[e.assertion]}`),text('p',`Plan Version ${e.version} · Action ${e.action_key}`));
+    if(budget)appendBudgetEvent(item,e,text,stamp);
+    else if(isObservation)appendObservation(item,e,text,stamp);
     else{
       item.append(text('p',`Recorded ${stamp(e.recorded_at)}`),text('p',isDecision?e.reason:e.statement));
       if(!isDecision){item.append(text('p','Customer Report Only — Not Independently Verified'));if(e.reported_applied_at!==null)item.append(text('p',`Customer-Reported Application Time: ${stamp(e.reported_applied_at)}`));}
     }
     const details=doc.createElement('dl');
     const entries=[['Event ID',e.event_id],['Document Digest',e.document_digest],['Action Digest',e.action_digest]];
-    if(!isObservation)entries.push(['Customer ID',e.actor_id],['Replaces Event',e.supersedes_event_id??'None']);
+    if(budget)entries.push(['Requesting Customer ID',e.actor_id]);
+    else if(!isObservation)entries.push(['Customer ID',e.actor_id],['Replaces Event',e.supersedes_event_id??'None']);
     for(const [label,value] of entries)details.append(text('dt',label),text('dd',value));
     item.append(details);list.append(item);
   }

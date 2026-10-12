@@ -8,6 +8,10 @@ from app.planning_documents.common import Frozen, Id, NoAuthority, Positive, Tex
 from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
+from app.planning_documents.google_budget_events import (
+    GoogleBudgetInvalidationV1,
+    GoogleBudgetObservationV1,
+)
 
 
 class PlanSummary(NoAuthority):
@@ -64,7 +68,13 @@ class PlanReadResult(PlanSummary, DocumentProjection):
 
 class EventResult(NoAuthority):
     event_sequence: Positive
-    event: CustomerDecision | ManualAssertion | ReadObservedStatus
+    event: (
+        CustomerDecision
+        | ManualAssertion
+        | ReadObservedStatus
+        | GoogleBudgetObservationV1
+        | GoogleBudgetInvalidationV1
+    )
 
 
 class PlanPage(Frozen):

@@ -3,6 +3,7 @@
 from collections.abc import Callable, Iterator
 from contextlib import closing, contextmanager, nullcontext
 from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -37,6 +38,10 @@ from app.planning_documents.events import CustomerDecision, ManualAssertion, Rea
 from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
 from app.planning_documents.generation_ports import GenerationEvidence, GenerationEvidenceReader
+from app.planning_documents.google_budget_events import (
+    GoogleBudgetInvalidationV1,
+    GoogleBudgetObservationV1,
+)
 from app.planning_documents.google_budget_generation_guard import (
     reject_google_budget_generation,
     validate_google_budget_input_policy,
@@ -754,7 +759,8 @@ class PlanningDocumentService:
         limit: int = 20,
     ) -> EventPage:
         after = self._page(limit, cursor, numeric=True)
-        with self._read_session(principal, wid) as (db, _):
+
+        def snapshot(db: Session) -> tuple[dict[str, Any], ...]:
             repository.owned(db, wid, plan_id)
             query = select(PlanEventRow).where(
                 PlanEventRow.workspace_id == wid, PlanEventRow.plan_id == plan_id
@@ -762,27 +768,106 @@ class PlanningDocumentService:
             if after is not None:
                 query = query.where(PlanEventRow.sequence > after)
             rows = tuple(db.scalars(query.order_by(PlanEventRow.sequence).limit(limit + 1)))
-            return EventPage(
-                items=tuple(self._event_result(row) for row in rows[:limit]),
-                next_cursor=str(rows[limit - 1].sequence) if len(rows) > limit else None,
-            )
+            return tuple(repository.values(row) for row in rows)
+
+        with self._prepared_event_read_session(principal, wid) as (db, _):
+            rows = snapshot(db)
+        result = EventPage(
+            items=tuple(self._event_values_result(row) for row in rows[:limit]),
+            next_cursor=str(rows[limit - 1]["sequence"]) if len(rows) > limit else None,
+        )
+        with self._prepared_event_read_session(principal, wid) as (db, _):
+            if snapshot(db) != rows:
+                raise repository.changed("event page changed during preparation")
+            return result
+
+    @contextmanager
+    def _prepared_event_read_session(
+        self, principal: CustomerPrincipal, wid: int
+    ) -> Iterator[tuple[Session, CustomerPrincipal]]:
+        fact = authority.refresh(principal, self.provider)
+        with Session(self.engine) as db, db.begin():
+            if self.engine.dialect.name == "sqlite":
+                connection = db.connection()
+                driver = connection.connection.driver_connection
+                assert driver is not None
+                if not driver.in_transaction:
+                    connection.exec_driver_sql("BEGIN")
+            current = authority.lock(db, principal, wid, fact, roles=authority.READ_ROLES)
+            yield db, current
+            authority.final(current, fact)
 
     @staticmethod
     def _event_result(row: PlanEventRow) -> EventResult:
-        event = document_for_row(row.__tablename__, repository.values(row))
-        assert isinstance(event, (CustomerDecision, ManualAssertion, ReadObservedStatus))
-        return EventResult(event_sequence=row.sequence, event=event)
+        return PlanningDocumentService._event_values_result(repository.values(row))
+
+    @staticmethod
+    def _event_values_result(row: dict[str, Any]) -> EventResult:
+        event = document_for_row(PlanEventRow.__tablename__, row)
+        assert isinstance(
+            event,
+            (
+                CustomerDecision,
+                ManualAssertion,
+                ReadObservedStatus,
+                GoogleBudgetObservationV1,
+                GoogleBudgetInvalidationV1,
+            ),
+        )
+        return EventResult(event_sequence=row["sequence"], event=event)
+
+    def _budget_request_result(
+        self, principal: CustomerPrincipal, wid: int, operation: str, request_key: str
+    ) -> EventResult:
+        def snapshot(
+            db: Session, current: CustomerPrincipal
+        ) -> tuple[dict[str, Any], dict[str, Any]]:
+            row = db.get(PlanRequestRow, (wid, current.user.id, operation, request_key))
+            if row is None:
+                raise HTTPException(404, "planning request not found")
+            repository.owned(db, wid, row.plan_id)
+            if row.result_kind != "event":
+                raise repository.changed("budget request result type changed")
+            event = db.get(PlanEventRow, (wid, row.plan_id, row.event_sequence))
+            if event is None:
+                raise HTTPException(404, "planning request result unavailable")
+            return repository.values(row), repository.values(event)
+
+        with self._prepared_event_read_session(principal, wid) as (db, current):
+            receipt, event = snapshot(db, current)
+        result = self._event_values_result(event)
+        if (
+            not isinstance(result.event, (GoogleBudgetObservationV1, GoogleBudgetInvalidationV1))
+            or result.event.actor_id != principal.user.id
+            or (operation == "budget_observe")
+            != isinstance(result.event, GoogleBudgetObservationV1)
+        ):
+            raise repository.changed("budget request result binding changed")
+        with self._prepared_event_read_session(principal, wid) as (db, current):
+            if snapshot(db, current) != (receipt, event):
+                raise repository.changed("budget request changed during preparation")
+            return result
 
     def request_result(
         self, principal: CustomerPrincipal, wid: int, operation: str, request_key: str
     ) -> InputResult | VersionResult | EventResult:
-        if operation not in {"create", "revise", "generate", "decide", "assert_applied"}:
+        if operation not in {
+            "create",
+            "revise",
+            "generate",
+            "decide",
+            "assert_applied",
+            "budget_observe",
+            "budget_invalidate",
+        }:
             raise HTTPException(422, "unknown planning operation")
         if not 8 <= len(request_key) <= 128 or any(
             c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
             for c in request_key
         ):
             raise HTTPException(422, "invalid request key")
+        if operation in {"budget_observe", "budget_invalidate"}:
+            return self._budget_request_result(principal, wid, operation, request_key)
         with self._read_session(principal, wid) as (db, current):
             row = db.get(PlanRequestRow, (wid, current.user.id, operation, request_key))
             if row is None:

@@ -78,7 +78,7 @@ def check_creative_media_references(
             raise changed("selected creative media unavailable")
 
 
-def values(row: PlanInputRow | PlanVersionRow | PlanEventRow) -> dict[str, Any]:
+def values(row: PlanInputRow | PlanVersionRow | PlanEventRow | PlanRequestRow) -> dict[str, Any]:
     return {column.name: getattr(row, column.name) for column in row.__table__.columns}
 
 

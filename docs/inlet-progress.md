@@ -8960,3 +8960,33 @@ Next dependency is an API-version/presence/pagination-bound read provenance enve
 and append-only integrity invalidation, before persistence. Customer reports remain
 separate; V6/V7 release restrictions and INLET-REL-20261012-01 remain open. No push,
 PR or live action. See [evidence and limits](inlet-q13-google-budget-hypothesis-20261012.md).
+
+
+## Q13 Injected Google Budget Observation History — 2026-10-12
+
+Continues `ab3e5f44` on local `codex/inlet-w1-followup`. Implemented one bounded Google
+v22 DAILY shared-budget hypothesis path: exact field presence/units/profile, owned
+source/privacy, complete pagination and timestamps; freshly derived minimal catalog;
+immutable fixture observation and server-proven source-generation invalidation; atomic
+head/event/receipt persistence; replay, history/receipt APIs, browser and archive readers.
+Numeric equality remains a historical hypothesis match, never customer implementation,
+provider authenticity, spend-limit compliance or results. No writer route/runtime factory.
+
+Two PostgreSQL qualification failures exposed full retained-proof validation inside the
+five-second authority window (first service replay, then history GET). Preserved both
+original failures and all unrun cases. Added invocation-private preparation between
+fresh authorized snapshots, complete row/page/lookahead rechecks and unchanged final
+authority guards. No expiry retry, trusted-data bypass or incident-closure claim.
+
+Final `q13-budget-history12`: whole Ruff, mypy (1,581 files), exact collection/diff and
+44 tests pass across 22 commands: 30 components including Chromium, then seven SQLite
+and seven PostgreSQL cases. Actual mixed legacy/budget history, archives, revocation,
+erasure, final-authority rollback, simulated snapshot mismatch, late receipt recovery,
+PostgreSQL exact CAS conflict and actual source-row blocking are covered. No skips.
+Original static/setup/runtime failures and four final synthetic artifacts are retained.
+See [exact evidence, preserved attempts and limitations](inlet-q13-google-budget-history-20261012.md).
+
+Default V3, V6/V7 release holds and INLET-REL-20261012-01 remain unchanged. This does not
+qualify concurrent generation or live provider evidence. Next package: review remaining
+provenance/activation prerequisites for this narrow flow before broadening fields or
+platforms. No push, PR, hosted CI, merge, deployment, live provider/model call or spend.

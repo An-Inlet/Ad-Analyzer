@@ -21,7 +21,10 @@ from app.planning_documents.evidence_local import (
 from app.planning_documents.ports import (
     GenerationTicket,
 )
-from app.planning_documents.selected_plan_bundle import SelectedPlanEvidenceBundleV1
+from app.planning_documents.selected_plan_bundle import (
+    SelectedPlanEvidenceBundleV1,
+    _validate_selected_ticket_pair,
+)
 from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 from app.planning_documents.selected_plan_reader import load_selected_plan_graph
 from app.planning_documents.selected_plan_retained import capture_selected_reporting_pin
@@ -77,9 +80,7 @@ def recheck_selected_sources(
     clock: Callable[[], datetime],
 ) -> None:
     """Reconstruct all reports/gaps locally; never assert current provider absence."""
-    ticket = GenerationTicket.model_validate(ticket)
-    bundle = SelectedPlanEvidenceBundleV1.model_validate(bundle)
-    bundle.assert_ticket(ticket)
+    bundle, ticket = _validate_selected_ticket_pair(bundle, ticket)
     check_selected_start(db, principal=principal, ticket=ticket, authorize=authorize, clock=clock)
     if not bundle.catalogs or len(bundle.context) != 2 or bundle.commerce is None:
         raise changed()

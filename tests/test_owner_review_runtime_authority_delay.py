@@ -16,6 +16,7 @@ from app.campaign_performance.selected_models import (
 )
 from app.customers.access import CustomerPrincipal
 from app.planning_documents import authority
+from app.planning_documents.authority_diagnostics import PlanningDiagnosticPhase
 from app.planning_documents.catalog_receipt_models import (
     CatalogReceiptRow,
     CatalogReceiptSelectionRow,
@@ -72,6 +73,7 @@ def test_v6_real_delay_after_final_flush_rolls_back(
     replicas: Any,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     fixture, body, calls, _ = configured_owner_review(
         customer_engine, configuration, replicas, monkeypatch, tmp_path
@@ -159,12 +161,17 @@ def test_v6_real_delay_after_final_flush_rolls_back(
         flushed.append(True)
         time.sleep(6)  # One real delay; original fact, clocks and guards remain unchanged.
 
-    def final(principal: CustomerPrincipal, fact: authority.IdentityFact) -> None:
+    def final(
+        principal: CustomerPrincipal,
+        fact: authority.IdentityFact,
+        *,
+        diagnostic_phase: PlanningDiagnosticPhase = "unspecified",
+    ) -> None:
         if not flushed:
-            return original_final(principal, fact)
+            return original_final(principal, fact, diagnostic_phase=diagnostic_phase)
         assert not refused
         try:
-            original_final(principal, fact)
+            original_final(principal, fact, diagnostic_phase=diagnostic_phase)
         except HTTPException as error:
             assert error.status_code == 409 and error.detail == "planning_authority_expired"
             refused.append(True)
@@ -177,6 +184,22 @@ def test_v6_real_delay_after_final_flush_rolls_back(
     assert flushed == refused == [True]
     assert response.status_code == 409, response.text
     assert response.json()["detail"] == "planning_authority_expired"
+    records = [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "inlet.planning.authority"
+    ]
+    assert records == [
+        dict(
+            event="planning_authority_expired",
+            schema_version=1,
+            route="generate",
+            phase="post_flush",
+            cause="fact_age_outside_window",
+            session_predicate="not_evaluated",
+            status=409,
+        )
+    ]
     assert (planning_snapshot(customer_engine), _source_snapshot(customer_engine, wid)) == before
     assert financial_counts(customer_engine) == financial_before
     assert (len(calls), len(fixture.calls)) == provider_before
@@ -185,11 +208,14 @@ def test_v6_real_delay_after_final_flush_rolls_back(
         assert head is not None and (head.input_head, head.version_head) == (1, 0)
         for model in (PlanVersionRow, PlanDependencyRow):
             assert db.scalar(select(model).where(model.workspace_id == wid)) is None
-        assert db.scalar(
-            select(PlanRequestRow).where(
-                PlanRequestRow.workspace_id == wid, PlanRequestRow.operation == "generate"
+        assert (
+            db.scalar(
+                select(PlanRequestRow).where(
+                    PlanRequestRow.workspace_id == wid, PlanRequestRow.operation == "generate"
+                )
             )
-        ) is None
+            is None
+        )
     (tmp_path / "authority-delay-outcome.json").write_text(
         json.dumps(
             dict(

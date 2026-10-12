@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.planning_documents.documents import PlanVersion
     from app.planning_documents.models import PlanDependencyRow
     from app.planning_documents.retained_sources import RetainedSourceWitness
+    from app.planning_documents.version_row_admission import _VersionRowAdmission
 
 
 class RetainedOwnerInputEvidence(Frozen):
@@ -257,9 +258,25 @@ def recheck_owner_review_retained_sources(
 
 
 def validate_owner_review_plan_history(db: Session, document: "PlanVersion") -> None:
-    from app.planning_documents.selected_plan_history import _validate_selected_plan_history
-
     document = _owner_document(document)
+    _owner_review_plan_history_body(db, document)
+
+
+def _validate_owner_review_plan_history_admitted(
+    db: Session, document: "PlanVersion", admission: "_VersionRowAdmission"
+) -> None:
+    document = _owner_document(document)
+    _owner_review_plan_history_body(db, document, admission=admission)
+
+
+def _owner_review_plan_history_body(
+    db: Session, document: "PlanVersion", *, admission: "_VersionRowAdmission | None" = None
+) -> None:
+    from app.planning_documents.selected_plan_history import (
+        _validate_selected_plan_history,
+        _validate_selected_plan_history_body,
+    )
+
     root = db.get_transaction()
     if root is None or not root.is_active:
         raise ValueError("historical transaction required")
@@ -285,7 +302,10 @@ def validate_owner_review_plan_history(db: Session, document: "PlanVersion") -> 
 
     with db.no_autoflush:
         guard()
-        _validate_selected_plan_history(db, document)
+        if admission is None:
+            _validate_selected_plan_history(db, document)
+        else:
+            _validate_selected_plan_history_body(db, document, admission=admission)
         guard()
         _owner_evidence(db, document)
         guard()

@@ -8,7 +8,11 @@ from pydantic import Field, model_validator
 from app.planning_documents.common import Digest, Frozen, NoAuthority, Text, fingerprint
 from app.planning_documents.context import AccountRef, EvidenceRef, ReportingWindow, TargetRef
 from app.planning_documents.ports import GenerationTicket
-from app.planning_documents.selected_plan_bundle import SelectedPlanEvidenceBundleV1
+from app.planning_documents.selected_plan_bundle import (
+    SelectedPlanEvidenceBundleV1,
+    _assert_selected_ticket_checked,
+    _inert_selected_values,
+)
 from app.planning_documents.selected_traffic import (
     PreparedRawRangeTrafficProjection,
     RawRangeTrafficGraphV1,
@@ -111,90 +115,114 @@ class SelectedPairedEvidenceV1(NoAuthority):
     def assert_ticket(self, ticket: GenerationTicket) -> None:
         self = type(self).model_validate(self)
         ticket = GenerationTicket.model_validate(ticket)
-        self.selected.assert_ticket(ticket)
-        proofs = {p.source_fence.account: p for p in self.selected.reporting_proof.accounts}
-        graphs = {g.source_fence.account: g for g in self.traffic_graphs}
-        if len(graphs) != len(self.traffic_graphs) or set(graphs) != {
-            a for a, p in proofs.items() if p.traffic_pin is not None
-        }:
-            raise ValueError("exact retained traffic graph set required")
-        prepared = {a: PreparedRawRangeTrafficProjection(g) for a, g in graphs.items()}
-        for account, projection in prepared.items():
-            if projection.pin != proofs[account].traffic_pin:
-                raise ValueError("retained traffic graph changed")
+        if type(self) is SelectedPairedEvidenceV1 and _inert_selected_values(self, ticket):
+            _assert_paired_ticket_checked(self, ticket)
+        else:
+            self.selected.assert_ticket(ticket)
+            _assert_paired_ticket_remaining(self, ticket)
 
-        def slot(
-            target: TargetRef, window: ReportingWindow
-        ) -> tuple[AccountRef, str, tuple[datetime, datetime]]:
-            return target.account, target.canonical_entity_key, instants(window)
 
-        selected = {
-            slot(p.target, p.document.requested_window): p for p in self.selected.performance
-        }
-        catalogs = {c.reference.account: c for c in self.selected.catalogs}
-        seen = set()
-        all_refs = (
-            [c.reference for c in self.selected.catalogs]
-            + [p.reference for p in self.selected.performance]
-            + [c.reference for c in self.selected.context]
+def _assert_paired_ticket_checked(self: SelectedPairedEvidenceV1, ticket: GenerationTicket) -> None:
+    _assert_selected_ticket_checked(self.selected, ticket)
+    _assert_paired_ticket_remaining(self, ticket)
+
+
+def _assert_paired_ticket_remaining(
+    self: SelectedPairedEvidenceV1, ticket: GenerationTicket
+) -> None:
+    proofs = {p.source_fence.account: p for p in self.selected.reporting_proof.accounts}
+    graphs = {g.source_fence.account: g for g in self.traffic_graphs}
+    if len(graphs) != len(self.traffic_graphs) or set(graphs) != {
+        a for a, p in proofs.items() if p.traffic_pin is not None
+    }:
+        raise ValueError("exact retained traffic graph set required")
+    prepared = {a: PreparedRawRangeTrafficProjection(g) for a, g in graphs.items()}
+    for account, projection in prepared.items():
+        if projection.pin != proofs[account].traffic_pin:
+            raise ValueError("retained traffic graph changed")
+
+    def slot(
+        target: TargetRef, window: ReportingWindow
+    ) -> tuple[AccountRef, str, tuple[datetime, datetime]]:
+        return target.account, target.canonical_entity_key, instants(window)
+
+    selected = {slot(p.target, p.document.requested_window): p for p in self.selected.performance}
+    catalogs = {c.reference.account: c for c in self.selected.catalogs}
+    seen = set()
+    all_refs = (
+        [c.reference for c in self.selected.catalogs]
+        + [p.reference for p in self.selected.performance]
+        + [c.reference for c in self.selected.context]
+    )
+    if self.selected.commerce is not None:
+        all_refs.append(self.selected.commerce.reference)
+    for item in self.traffic:
+        key = slot(item.target, item.document.requested_window)
+        pair = selected.get(key)
+        graph = graphs.get(item.target.account)
+        if key in seen or pair is None or graph is None or pair.target != item.target:
+            raise ValueError("unpaired or duplicate traffic window")
+        seen.add(key)
+        pin, chosen = item.document.pin, pair.document.pin
+        if (
+            pin != prepared[item.target.account].pin
+            or (pin.source_fence, pin.aggregate, pin.campaign_map_digest)
+            != (chosen.source_fence, chosen.aggregate, chosen.campaign_map_digest)
+            or item.document.campaign_id != pair.document.summary.campaign_id
+            or item.document.native_campaign_id != pair.document.summary.native_campaign_id
+        ):
+            raise ValueError("selected/traffic source, aggregate or mapping mismatch")
+        actual = prepared[item.target.account].read(
+            campaign_id=item.document.campaign_id,
+            requested_window=item.document.requested_window,
         )
-        if self.selected.commerce is not None:
-            all_refs.append(self.selected.commerce.reference)
-        for item in self.traffic:
-            key = slot(item.target, item.document.requested_window)
-            pair = selected.get(key)
-            graph = graphs.get(item.target.account)
-            if key in seen or pair is None or graph is None or pair.target != item.target:
-                raise ValueError("unpaired or duplicate traffic window")
-            seen.add(key)
-            pin, chosen = item.document.pin, pair.document.pin
-            if (
-                pin != prepared[item.target.account].pin
-                or (pin.source_fence, pin.aggregate, pin.campaign_map_digest)
-                != (chosen.source_fence, chosen.aggregate, chosen.campaign_map_digest)
-                or item.document.campaign_id != pair.document.summary.campaign_id
-                or item.document.native_campaign_id != pair.document.summary.native_campaign_id
-            ):
-                raise ValueError("selected/traffic source, aggregate or mapping mismatch")
-            actual = prepared[item.target.account].read(
-                campaign_id=item.document.campaign_id,
-                requested_window=item.document.requested_window,
+        if actual != item.document:
+            raise ValueError("traffic arithmetic or coverage changed")
+        ref = item.reference
+        completed = graph.receipt.completed_at.astimezone(UTC)
+        catalog = catalogs[item.target.account]
+        if (
+            ref.observation_started_at.astimezone(UTC) != completed
+            or ref.observed_at.astimezone(UTC) != completed
+            or not ref.observed_at.astimezone(UTC)
+            <= self.selected.collected_at.astimezone(UTC)
+            < ref.expires_at.astimezone(UTC)
+            or ref.expires_at.astimezone(UTC)
+            > min(
+                pair.reference.expires_at.astimezone(UTC),
+                catalog.reference.expires_at.astimezone(UTC),
             )
-            if actual != item.document:
-                raise ValueError("traffic arithmetic or coverage changed")
-            ref = item.reference
-            completed = graph.receipt.completed_at.astimezone(UTC)
-            catalog = catalogs[item.target.account]
-            if (
-                ref.observation_started_at.astimezone(UTC) != completed
-                or ref.observed_at.astimezone(UTC) != completed
-                or not ref.observed_at.astimezone(UTC)
-                <= self.selected.collected_at.astimezone(UTC)
-                < ref.expires_at.astimezone(UTC)
-                or ref.expires_at.astimezone(UTC)
-                > min(
-                    pair.reference.expires_at.astimezone(UTC),
-                    catalog.reference.expires_at.astimezone(UTC),
-                )
-            ):
-                raise ValueError("traffic publication observation or deadline changed")
-            all_refs.append(ref)
-        for gap in self.traffic_gaps:
-            key = slot(gap.target, gap.requested_window)
-            pair = selected.get(key)
-            proof = proofs.get(gap.account)
-            if (
-                key in seen
-                or pair is None
-                or gap.target != pair.target
-                or proof is None
-                or proof.traffic_pin is not None
-                or gap.reporting_pin_digest != proof.state_digest()
-            ):
-                raise ValueError("unpaired, duplicate or non-absent traffic gap")
-            seen.add(key)
-        if seen != set(selected):
-            raise ValueError("every selected success requires a traffic observation or gap")
-        keys = [r.key for r in all_refs]
-        if len(keys) != len(set(keys)):
-            raise ValueError("duplicate paired reference key")
+        ):
+            raise ValueError("traffic publication observation or deadline changed")
+        all_refs.append(ref)
+    for gap in self.traffic_gaps:
+        key = slot(gap.target, gap.requested_window)
+        pair = selected.get(key)
+        proof = proofs.get(gap.account)
+        if (
+            key in seen
+            or pair is None
+            or gap.target != pair.target
+            or proof is None
+            or proof.traffic_pin is not None
+            or gap.reporting_pin_digest != proof.state_digest()
+        ):
+            raise ValueError("unpaired, duplicate or non-absent traffic gap")
+        seen.add(key)
+    if seen != set(selected):
+        raise ValueError("every selected success requires a traffic observation or gap")
+    keys = [r.key for r in all_refs]
+    if len(keys) != len(set(keys)):
+        raise ValueError("duplicate paired reference key")
+
+
+def _validate_paired_ticket_pair(
+    bundle: SelectedPairedEvidenceV1, ticket: GenerationTicket
+) -> tuple[SelectedPairedEvidenceV1, GenerationTicket]:
+    ticket = GenerationTicket.model_validate(ticket)
+    bundle = SelectedPairedEvidenceV1.model_validate(bundle)
+    if type(bundle) is SelectedPairedEvidenceV1 and _inert_selected_values(bundle, ticket):
+        _assert_paired_ticket_checked(bundle, ticket)
+    else:
+        bundle.assert_ticket(ticket)
+    return bundle, ticket

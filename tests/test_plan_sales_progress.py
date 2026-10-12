@@ -217,6 +217,7 @@ def test_authority_denials_are_not_unavailable_sales(
 
     from app.customers.models import CustomerUser
     from app.planning_documents import authority
+    from app.planning_documents.authority_diagnostics import PlanningDiagnosticPhase
     from app.planning_documents.service import PlanningDocumentService
     from app.workspaces.models import Workspace
     from fastapi import HTTPException
@@ -248,11 +249,13 @@ def test_authority_denials_are_not_unavailable_sales(
         original_final = authority.final
         calls = []
 
-        def final(current: Any, fact: Any) -> None:
+        def final(
+            current: Any, fact: Any, *, diagnostic_phase: PlanningDiagnosticPhase = "unspecified"
+        ) -> None:
             calls.append(1)
             if len(calls) > 1:
                 fact = replace(fact, completed_monotonic=fact.completed_monotonic - 6)
-            original_final(current, fact)
+            original_final(current, fact, diagnostic_phase=diagnostic_phase)
 
         monkeypatch.setattr(authority, "final", final)
     with pytest.raises(HTTPException) as error:

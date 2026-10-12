@@ -12,7 +12,10 @@ from app.lifecycle.privacy import database_utc_now
 from app.planning_documents.context import AccountRef
 from app.planning_documents.evidence_local import changed
 from app.planning_documents.ports import GenerationTicket
-from app.planning_documents.selected_paired_evidence import SelectedPairedEvidenceV1
+from app.planning_documents.selected_paired_evidence import (
+    SelectedPairedEvidenceV1,
+    _validate_paired_ticket_pair,
+)
 from app.planning_documents.selected_plan_bundle import SelectedPlanEvidenceBundleV1
 from app.planning_documents.selected_plan_local import (
     check_selected_start,
@@ -59,9 +62,7 @@ def recheck_selected_paired_sources(
     authorize: Authorize,
     clock: Callable[[], datetime],
 ) -> None:
-    ticket = GenerationTicket.model_validate(ticket)
-    bundle = SelectedPairedEvidenceV1.model_validate(bundle)
-    bundle.assert_ticket(ticket)
+    bundle, ticket = _validate_paired_ticket_pair(bundle, ticket)
     root = db.get_transaction()
     if root is None or not root.is_active or db.in_nested_transaction():
         raise changed()

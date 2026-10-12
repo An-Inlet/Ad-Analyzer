@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.customers.access import CustomerPrincipal, guard_customer_mutation
 from app.customers.identity import IdentityProvider
 from app.customers.models import CustomerSession, CustomerUser
+from app.planning_documents.authority_diagnostics import PlanningDiagnosticPhase, emit_expiry
 
 AUTHORITY_MAX_AGE_SECONDS = 5.0
 OWNER_ROLES = frozenset({"owner"})
@@ -68,11 +69,16 @@ def lock(
     if user is None or session is None:
         raise HTTPException(401, "customer authentication required")
     current = CustomerPrincipal(user, session)
-    final(current, fact)
+    final(current, fact, diagnostic_phase="lock")
     return current
 
 
-def final(principal: CustomerPrincipal, fact: IdentityFact) -> None:
+def final(
+    principal: CustomerPrincipal,
+    fact: IdentityFact,
+    *,
+    diagnostic_phase: PlanningDiagnosticPhase = "unspecified",
+) -> None:
     """Mandatory AFTER all plan/goal/source lock waits, immediately before acceptance."""
     if (
         not _same(principal, fact)
@@ -82,5 +88,9 @@ def final(principal: CustomerPrincipal, fact: IdentityFact) -> None:
     ):
         raise HTTPException(401, "customer authentication required")
     age = time.monotonic() - fact.completed_monotonic
-    if not 0 <= age <= AUTHORITY_MAX_AGE_SECONDS or principal.session.expires_at <= time.time():
+    if not 0 <= age <= AUTHORITY_MAX_AGE_SECONDS:
+        emit_expiry(phase=diagnostic_phase, cause="fact_age_outside_window")
+        raise HTTPException(409, "planning_authority_expired")
+    if principal.session.expires_at <= time.time():
+        emit_expiry(phase=diagnostic_phase, cause="session_expired")
         raise HTTPException(409, "planning_authority_expired")

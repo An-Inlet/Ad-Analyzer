@@ -8148,3 +8148,28 @@ these exact evidence limits; complete optional identity fault drafts if needed.
 Reconnect retention, artifact sharing and human quality decisions remain pending.
 No hosted CI, pushes, external sharing, credentials, providers, ads, spend or
 deployment occurred.
+
+
+## October 12 Local Integration Acceptance
+
+Owner authorized integrating qualified b829688 plus its selected-kernel/diagnostic
+dependencies into the active branch. Independent security review found no new
+P1/P2. Root app/tests had no newer changes since4c8e28f;24 reviewed app/test paths
+and8missing docs were applied, preserving newer root documentation and isolated
+candidate history. All1,493app/test hashes equal the qualified candidate.
+
+New final-integrated-byte checks:whole Ruff0, configured mypy0, exact18collection0,
+SQLite9 and PostgreSQL9 allpassed originalexit0/noerrors/skips/interruption. This
+adds genuine concurrent PostgreSQL edit/CAS/replay/second-generation acceptance
+and existing V5 fresh-consent erasure joins, plus report/retraction, mutation,
+originalreceipt/newsession/lateowner and realpre-save/postflush deadline cases.
+SQLite CAS is sequential parity. Freeze638c3f567924836103bfbc621204aae958679690ab32d64bf3d2dfc41b6031e0
+binds124evidence/1493sources, independently CLOSED. Prior83regression+16runtime
+results remain exact-source carried evidence, not rerun counts.
+
+See docs/inlet-row-admission-integration-20261012.md for explicit R01–R03
+uncertainty and proven duplicate-decoder/ORM-classification/permit mechanism.
+No sole historical cause, continuous-process capacity, liveverification or
+new retention policy is claimed. Next separate package:four real Session/
+Connection-wrapper scope cases using the reviewed unchanged proof interface.
+Owner retention/artifact-sharing decisions remain pending; no remote/live action.

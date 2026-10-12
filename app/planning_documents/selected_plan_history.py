@@ -6,7 +6,7 @@ This port does not register v4 or activate archive delivery.
 """
 
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -23,6 +23,9 @@ from app.planning_documents.selected_policy_contract import selected_policy_cont
 from app.planning_documents.selected_traffic_reader import validate_historical_raw_range_traffic
 from app.planning_documents.storage import document_for_row
 from app.shopify.security import utc
+
+if TYPE_CHECKING:
+    from app.planning_documents.version_row_admission import _VersionRowAdmission
 
 
 def validate_selected_historical_pin(db: Session, pin: SelectedPlanPinV1) -> None:
@@ -134,6 +137,12 @@ def validate_selected_historical_dependencies(
 
 def _validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
     """Read complete retained SQL under caller-owned viewer/lifecycle transaction."""
+    _validate_selected_plan_history_body(db, document)
+
+
+def _validate_selected_plan_history_body(
+    db: Session, document: PlanVersion, *, admission: "_VersionRowAdmission | None" = None
+) -> None:
     document = PlanVersion.model_validate(document)
     transaction = db.get_transaction()
     if (
@@ -145,18 +154,27 @@ def _validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
         or db.deleted
     ):
         raise ValueError("clean historical read transaction required")
-    row = (
-        db.execute(
-            select(PlanVersionRow.__table__).where(
-                PlanVersionRow.workspace_id == document.inputs.workspace_id,
-                PlanVersionRow.plan_id == document.inputs.plan_id,
-                PlanVersionRow.version == document.version,
-            )
-        )
-        .mappings()
-        .one_or_none()
+    statement = select(PlanVersionRow.__table__).where(
+        PlanVersionRow.workspace_id == document.inputs.workspace_id,
+        PlanVersionRow.plan_id == document.inputs.plan_id,
+        PlanVersionRow.version == document.version,
     )
-    if row is None or document_for_row("planning_document_versions", dict(row)) != document:
+    if admission is None:
+        result = db.execute(statement)
+    else:
+        with admission.reading_statement(statement):
+            result = db.execute(statement)
+    row = result.mappings().one_or_none()
+    if row is None:
+        raise ValueError("exact retained selected plan required")
+    matched = None
+    if admission is not None:
+        from app.planning_documents.version_row_admission import _matches_admitted_version_row
+
+        matched = _matches_admitted_version_row(
+            db=db, row=dict(row), document=document, admission=admission
+        )
+    if matched is None and document_for_row("planning_document_versions", dict(row)) != document:
         raise ValueError("exact retained selected plan required")
     contract = selected_policy_contract(document.policy_version, document.generator_version)
     dependencies = tuple(
@@ -189,12 +207,34 @@ def _validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
 
 def validate_selected_plan_history(db: Session, document: PlanVersion) -> None:
     document = PlanVersion.model_validate(document)
+    _dispatch_selected_plan_history(db, document)
+
+
+def _validate_selected_plan_history_admitted(
+    db: Session, document: PlanVersion, admission: "_VersionRowAdmission"
+) -> None:
+    document = PlanVersion.model_validate(document)
+    _dispatch_selected_plan_history(db, document, admission=admission)
+
+
+def _dispatch_selected_plan_history(
+    db: Session, document: PlanVersion, *, admission: "_VersionRowAdmission | None" = None
+) -> None:
     contract = selected_policy_contract(document.policy_version, document.generator_version)
     if contract.requires_owner_review:
         from app.planning_documents.google_budget_owner_retained import (
             validate_owner_review_plan_history,
         )
 
-        validate_owner_review_plan_history(db, document)
-    else:
+        if admission is None:
+            validate_owner_review_plan_history(db, document)
+        else:
+            from app.planning_documents.google_budget_owner_retained import (
+                _validate_owner_review_plan_history_admitted,
+            )
+
+            _validate_owner_review_plan_history_admitted(db, document, admission)
+    elif admission is None:
         _validate_selected_plan_history(db, document)
+    else:
+        _validate_selected_plan_history_body(db, document, admission=admission)

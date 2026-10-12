@@ -126,15 +126,27 @@ def version(
     )
     if row is None:
         raise HTTPException(404, "plan version not found")
-    result = document_for_row(row.__tablename__, values(row))
+    stored = values(row)
+    result = document_for_row(row.__tablename__, stored)
     assert isinstance(result, PlanVersion)
     if result.selected_reporting_proof is not None:
-        from app.planning_documents.selected_plan_history import validate_selected_plan_history
+        from app.planning_documents.selected_plan_history import (
+            _validate_selected_plan_history_admitted,
+            validate_selected_plan_history,
+        )
+        from app.planning_documents.version_row_admission import _make_version_row_admission
 
+        admission = _make_version_row_admission(db=db, row=stored, document=result)
         try:
-            validate_selected_plan_history(db, result)
+            if admission is None:
+                validate_selected_plan_history(db, result)
+            else:
+                _validate_selected_plan_history_admitted(db, result, admission)
         except ValueError as error:
             raise changed("selected plan historical integrity unavailable") from error
+        finally:
+            if admission is not None:
+                admission.close()
     return row, result
 
 
@@ -557,7 +569,7 @@ def save_generation(
         if prior.plan_id != plan_id:
             raise changed("request key belongs to another plan")
         _, result = version(db, plan, prior.version)
-        authority.final(current, fact)
+        authority.final(current, fact, diagnostic_phase="replay")
         return result
     if (
         plan.input_head != ticket.inputs.revision
@@ -591,7 +603,7 @@ def save_generation(
         )
     except RetainedSourcesChanged as error:
         raise changed(error.reason) from error
-    authority.final(current, fact)
+    authority.final(current, fact, diagnostic_phase="pre_cas")
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
     updated = db.scalar(
@@ -666,5 +678,5 @@ def save_generation(
     db.flush()
     if max(utc(now), database_utc_now(db)) >= utc(candidate.valid_until):
         raise changed("generation evidence expired")
-    authority.final(current, fact)
+    authority.final(current, fact, diagnostic_phase="post_flush")
     return candidate

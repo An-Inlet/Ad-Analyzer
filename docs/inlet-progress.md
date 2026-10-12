@@ -8311,3 +8311,28 @@ recomputed payload digests; both mixed-lineage artifacts bind v2 to the exact v1
 and preserve old export/replay/archive payloads. Typed v2 archive serialization is
 assertion-backed in passing API tests, not a separately copied artifact. No blocker
 to local commit; rollout limits and all unresolved owner/live/source gates remain.
+
+## 2026-10-12 — Q14 Unknown Parent Customer Join
+
+From `d65df67`, added actual TLS customer/browser/API coverage of orphan-parent
+refusal and explicit fresh recovery for Google/Meta/TikTok on both databases.
+Existing production behavior was correct; no production edits. Failed read/Save
+preserves complete planning/catalog graph; stable child identity never transfers
+an old snapshot choice. Explicit recovery retains the exact new parent/selector,
+V1 document/digest and honest historical export currentness.
+
+Final12TLS cases passed:6new +6existing disappearance preservation. WholeRuff,
+configuredmypy1512, exactcollection, JSsyntax and diffcheck passed. Original mypy
+and two test-expectation failures preserved with source/unrun records; no case
+passes credited from partial execution. [Checkpoint](inlet-q14-unknown-parent-20261012.md).
+Freeze d744433ffa3071aae118c793bc1b185318c9632c1c911408ef67c0d226b1c073
+binds224evidence/1726sources. Local-only branch `codex/inlet-w1-followup`.
+
+Next: reviewed social selected-event contracts using parent's newly recovered
+primary sources, keeping request/effective settings distinct and missing/zero
+separate. Q13 independent verification, human/retention/sharing/live gates and
+historicalR01–R03 uncertainty remain. No remote/live/deployment/spending actions.
+
+Independent completion CLOSED:224evidence/1726source hashes,12exactTLS passes,
+five static checks and all30new-artifact document digests verified. No local
+commit blocker; no human/live/fullQ14 or historical incident closure claimed.

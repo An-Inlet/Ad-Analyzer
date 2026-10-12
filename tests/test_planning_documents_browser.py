@@ -26,6 +26,7 @@ from starlette.types import Receive, Scope, Send
 
 from tests import test_customer_identity, test_selected_customer_api
 from tests.planning_target_inventory_fixture import Platform, install_inventory_scenario
+from tests.planning_unknown_parent_fixture import install_unknown_parent_scenario, topology_state
 from tests.test_customer_browser_api_journey import localhost_certificate
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -43,7 +44,9 @@ pytestmark = pytest.mark.planning_boundary
      ("targets", "meta_ads"), ("targets", "tiktok_ads"), ("scenarios", "google_ads"),
      ("progress", "google_ads"), ("periods", "google_ads"), ("windows", "meta_ads"),
      ("target_disappearance", "google_ads"), ("target_disappearance", "meta_ads"),
-     ("target_disappearance", "tiktok_ads")],
+     ("target_disappearance", "tiktok_ads"),
+     ("unknown_parent", "google_ads"), ("unknown_parent", "meta_ads"),
+     ("unknown_parent", "tiktok_ads")],
 )
 def test_actual_planning_browser_lost_response_recovery_and_versions(
     journey: str,
@@ -103,7 +106,9 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
         )
     inventory = (
         install_inventory_scenario(cast(Platform, platform), monkeypatch)
-        if journey == "target_disappearance" else None
+        if journey == "target_disappearance" else
+        install_unknown_parent_scenario(cast(Platform, platform), monkeypatch)
+        if journey == "unknown_parent" else None
     )
     generation_counts: list[tuple[int, int]] = []
     browser_inputs = ticket.inputs.model_dump(mode="json")
@@ -173,15 +178,33 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             script = script.replace("__INPUTS__", json.dumps(browser_inputs))
             await Response(script, media_type="text/javascript")(scope, receive, send)
             return
+        if journey == "unknown_parent" and path == "/__fixture__/topology-state":
+            if scope.get("method") != "GET":
+                await JSONResponse({"error": "GET required"}, status_code=405)(
+                    scope, receive, send
+                )
+                return
+            await JSONResponse(topology_state(customer_engine))(scope, receive, send)
+            return
         if inventory is not None and path in (
-            "/__fixture__/inventory/absent", "/__fixture__/inventory/replacement"
+            "/__fixture__/inventory/absent", "/__fixture__/inventory/replacement",
+            "/__fixture__/inventory/orphan", "/__fixture__/inventory/recovered"
         ):
             if scope.get("method") != "POST":
                 await JSONResponse({"error": "POST required"}, status_code=405)(
                     scope, receive, send
                 )
                 return
-            inventory.advance("absent" if path.endswith("/absent") else "replacement")
+            from tests.planning_unknown_parent_fixture import UnknownParentScenario
+
+            if isinstance(inventory, UnknownParentScenario):
+                assert path in ("/__fixture__/inventory/orphan", "/__fixture__/inventory/recovered")
+                inventory.advance("orphan" if path.endswith("/orphan") else "recovered")
+            else:
+                assert path in (
+                    "/__fixture__/inventory/absent", "/__fixture__/inventory/replacement"
+                )
+                inventory.advance("absent" if path.endswith("/absent") else "replacement")
             await JSONResponse({"phase": inventory.phase, "native_calls": len(calls)})(
                 scope, receive, send
             )
@@ -289,7 +312,7 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
             # Navigation retains no earlier page for this transient-hint journey.
             # Bound renderer memory without changing application or API behavior.
             *(["--disable-features=BackForwardCache", "--renderer-process-limit=1"]
-              if journey == "capture_handoff" else []),
+              if journey in {"capture_handoff", "unknown_parent"} else []),
             "--no-first-run",
             "--disable-extensions",
             "--ignore-certificate-errors",
@@ -323,12 +346,23 @@ def test_actual_planning_browser_lost_response_recovery_and_versions(
                 json.dumps(results[0], indent=2)
             )
         if inventory is not None:
-            assert inventory.phase == "replacement"
+            expected_phase = "recovered" if journey == "unknown_parent" else "replacement"
+            assert inventory.phase == expected_phase
             assert len(generation_counts) == 2 and all(a == b for a, b in generation_counts)
-            (tmp_path / "target-disappearance-result.json").write_text(json.dumps({
+            (tmp_path / ("unknown-parent-result.json" if journey == "unknown_parent"
+                         else "target-disappearance-result.json")).write_text(json.dumps({
                 "browser": results[0], "generation_native_call_counts": generation_counts,
                 "platform": platform, "database": customer_engine.dialect.name,
             }, indent=2))
+        if journey == "unknown_parent":
+            from app.planning_documents.documents import PlanVersion
+
+            for name in ("v1", "original_export", "v2", "historical", "old_export"):
+                result = results[0][name]
+                document = PlanVersion.model_validate_json(json.dumps(result["document"]))
+                assert document.digest() == result["document_digest"]
+                assert document.advertising_writes_enabled is False
+                assert document.spending_authority == "none"
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(PlanRow)) == 1
             assert db.scalar(select(func.count()).select_from(PlanVersionRow)) == 2

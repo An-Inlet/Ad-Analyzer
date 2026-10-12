@@ -8942,3 +8942,21 @@ provider-observation/live qualification. See [evidence and precise writer blocke
 V6/V7 remain release-unqualified and INLET-REL-20261012-01 stays open; this is not
 concurrent-generation reliability evidence. Next observation dependency is an admitted
 native-field/proposal and retained-proof/invalidation contract. No push or live action.
+
+## Q13 Google Daily Budget Hypothesis Comparison — 2026-10-12
+
+From `d92644ba`, selected retained Google DAILY amount_micros and the existing V6
+owner investigation hypothesis, grounded in official versioned field semantics. Added
+a pure bounded packet retaining the original exact plan/action and complete fresh
+normalized owner witness. Checks bind ownership/generation/privacy/source, active and
+removed topology, currency/time zone and strict freshness. Numeric equality means only
+matches_hypothesis; missing is unavailable and malformed/invalidated evidence refuses.
+No supported native edit, application claim, event, runtime caller or writer was added.
+
+q13-budget-comparison01: whole Ruff, mypy (1,572 files), exact collection/diff and 26
+pure tests passed without skips or retries. Independent contract review precedes code;
+full normalized proof remains explicitly unauthenticated synthetic evidence in tests.
+Next dependency is an API-version/presence/pagination-bound read provenance envelope
+and append-only integrity invalidation, before persistence. Customer reports remain
+separate; V6/V7 release restrictions and INLET-REL-20261012-01 remain open. No push,
+PR or live action. See [evidence and limits](inlet-q13-google-budget-hypothesis-20261012.md).

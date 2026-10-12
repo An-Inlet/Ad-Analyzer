@@ -40,6 +40,7 @@ def prepare_selected_common_basis(
     value: str | None,
     missing_selected_day: date | None = None,
     owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
+    configure_planning: bool = True,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     if engine.dialect.name == "sqlite":
         with engine.connect() as connection:
@@ -210,17 +211,18 @@ def prepare_selected_common_basis(
             ),
         )
     alice.app.dependency_overrides.pop(get_selected_customer_runtime)
-    patch.setattr(
-        planning,
-        "PlanningDocumentService",
-        partial(
-            PlanningDocumentService,
-            policy=PlanningCompositionPolicy(
-                version="inlet.descriptive-review.v4",
-                generator_version="inlet.descriptive-planning.v4",
+    if configure_planning:
+        patch.setattr(
+            planning,
+            "PlanningDocumentService",
+            partial(
+                PlanningDocumentService,
+                policy=PlanningCompositionPolicy(
+                    version="inlet.descriptive-review.v4",
+                    generator_version="inlet.descriptive-planning.v4",
+                ),
             ),
-        ),
-    )
+        )
     body = basis.body
     body["inputs"]["selected_reporting"] = [
         dict(account_id=basis.account_id, capture_id=capture_id)

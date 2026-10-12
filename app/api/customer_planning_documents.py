@@ -31,6 +31,7 @@ from app.planning_documents.responses import (
     VersionPage,
     VersionResult,
 )
+from app.planning_documents.runtime_media import ConfiguredPlanningMedia
 from app.planning_documents.runtime_policy import configured_policy
 from app.planning_documents.service import PlanningDocumentService
 from app.publication.customer_runtime import utc_now
@@ -61,6 +62,10 @@ def service(
     db.rollback()
     if policy is None:
         return PlanningDocumentService(engine, provider, clock=utc_now)
+    if policy.version == "inlet.descriptive-review.v5":
+        return PlanningDocumentService(
+            engine, provider, clock=utc_now, policy=policy, media_store=ConfiguredPlanningMedia()
+        )
     return PlanningDocumentService(engine, provider, clock=utc_now, policy=policy)
 
 

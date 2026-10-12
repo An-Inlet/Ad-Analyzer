@@ -8555,3 +8555,45 @@ startup/readiness/live behavior. Existing owner decisions, six quality judgments
 Q13 verification and historical R01–R03 uncertainty remain open. Next dependency:
 explicit creative planning media composition/review qualification; TikTok count
 producer still requires exact official report-combination evidence.
+
+
+## Creative Planning Runtime Composition — 2026-10-12
+
+Baseline `d5ac260`; branch `codex/inlet-w1-followup`. Added exact canonical v5
+selection and lazy read-only planner adapter to the existing configured media store.
+Default v3 and v4 unchanged; v6 stays private. No backend initializes during planner
+construction. Existing owned metadata/authority/privacy checks surround exact byte
+reads; uploads remain existing authenticated routes. Disabled/bad storage returns 503
+for byte-dependent generation, missing/corrupt bytes 409, zero-image briefs need no
+storage. History/export/replay stay independent of current media availability.
+
+58 exact cases passed (20 component,19 SQLite,19 PostgreSQL), full Ruff, configured
+no-path mypy (1,543 files), exact collection/diff/JavaScript syntax. Real configured
+Google/Meta/TikTok/safety browsers use no planner/media override; artifacts bind
+exports to SQL versions and exact successor parents. Configured API tests preserve
+cross-customer media isolation, no-IO metadata admission, missing-byte history,
+semantic planning erasure, zero-image generation and exact creative-proposal manual
+decision/replay with tampered-digest refusal and zero execution/financial effects.
+Existing late media/reporting/authority fences and actual configured v3/v4 customer
+journeys remain covered. Sixteen artifact sets retain 36 PlanVersion payloads.
+
+Mypy fixture inference and missing foreign-workspace fixture entitlement failures
+remain preserved. Entitlement setup corrected through actual offline checkout,
+signed webhook and reconciliation; no gate relaxed. Independent review approved
+27 unaffected retained cases, then the complete 56 retained cases for a sole additive
+exact-creative-proposal review test. Fresh static and changed cases passed.
+[Package](inlet-creative-composition-20261012.md) and
+[contract](design/creative-runtime-composition-v1.md); evidence/review/commit binding
+`/workspace/inlet-evidence/20261012/creative-composition-attempt04/`.
+
+Parent targeted official research now resolves the narrow TikTok regular website
+purchase report-combination documentation gap; see
+[source update](inlet-tiktok-count-source-update-20261012.md). Next producer contract
+must fail completeness on synchronous 20,000-ad truncation, retain request/header and
+exact page scope, use account-local maximum 30-day daily ranges, and never turn
+missing/dash into verified zero. No live availability or attribution window is proven.
+V6 owner-review composition remains separate. Both pending owner decisions, six
+human quality judgments, Q13 verification and historical R01–R03 uncertainty remain.
+No live activation/provider/model/credential/access operations, push/PR/hosted CI,
+merge/deployment, advertising changes or spend. Local_dev fixture qualification is
+not GCS/live readiness or proof of physical blob erasure.

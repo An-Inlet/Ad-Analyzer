@@ -36,14 +36,14 @@ def configure(patch: pytest.MonkeyPatch, value: str | None) -> Settings:
     return config
 
 
-@pytest.mark.parametrize("value", [None, "v3", "v4"])
+@pytest.mark.parametrize("value", [None, "v3", "v4", "v5"])
 def test_configuration_selection(value: str | None, monkeypatch: pytest.MonkeyPatch) -> None:
     config = configure(monkeypatch, value)
     assert config.customer_planning_policy == (value or "v3")
     policy = configured_policy(config)
-    if value == "v4":
-        assert policy and policy.version == "inlet.descriptive-review.v4"
-        assert policy.generator_version == "inlet.descriptive-planning.v4"
+    if value in ("v4", "v5"):
+        assert policy and policy.version == f"inlet.descriptive-review.{value}"
+        assert policy.generator_version == f"inlet.descriptive-planning.{value}"
     else:
         assert policy is None
     assert not config.customer_google_reporting_enabled
@@ -51,7 +51,7 @@ def test_configuration_selection(value: str | None, monkeypatch: pytest.MonkeyPa
     assert config.google_customer_runtime_mode == "disabled"
 
 
-@pytest.mark.parametrize("value", ["", "v1", "v2", "v5", "v6", "V4", " v4", "unknown"])
+@pytest.mark.parametrize("value", ["", "v1", "v2", "v6", "V4", " v4", "unknown"])
 def test_invalid_environment(value: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("INLET_CUSTOMER_PLANNING_POLICY", value)
     with pytest.raises(ValidationError):

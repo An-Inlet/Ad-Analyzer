@@ -64,6 +64,7 @@ def test_actual_creative_planning_browser(
     tmp_path: Path,
     journey: str,
     platform: Platform,
+    configured_runtime: bool = False,
 ) -> None:
     listener = socket.socket()
     request.addfinalizer(listener.close)
@@ -88,6 +89,7 @@ def test_actual_creative_planning_browser(
             tmp_path / "media",
             platform=platform,
             selected_value="10" if platform == "google_ads" else None,
+            configured_runtime=configured_runtime,
         )
     basis = fixture.basis
     # Only workspace ownership fixture rows; never seed plans, proofs or execution.
@@ -111,15 +113,13 @@ def test_actual_creative_planning_browser(
         with Session(customer_engine) as db:
             yield db
 
-    monkeypatch.setattr(
-        app,
-        "dependency_overrides",
-        {
-            get_db: database,
-            get_identity_provider: lambda: provider,
-            get_media_store: lambda: fixture.store,
-        },
-    )
+    overrides: dict[Any, Any] = {
+        get_db: database,
+        get_identity_provider: lambda: provider,
+    }
+    if not configured_runtime:
+        overrides[get_media_store] = lambda: fixture.store
+    monkeypatch.setattr(app, "dependency_overrides", overrides)
     complete = threading.Event()
     results: list[dict[str, Any]] = []
     mutation_requests: list[str] = []
@@ -288,6 +288,7 @@ def test_actual_creative_planning_browser(
         assert results and results[0]["status"] == "passed", (results, generation_outcomes)
         assert financial_counts(customer_engine) == counts
         assert fixture.calls and all(":mutate" not in call for call in fixture.calls)
+        retained = []
         with Session(customer_engine) as db:
             assert db.scalar(select(func.count()).select_from(MediaObject)) == 1
             expected = 0 if journey == "safety" else 2 if journey == "google" else 1
@@ -295,6 +296,10 @@ def test_actual_creative_planning_browser(
             assert db.scalar(select(func.count()).select_from(PlanInputRow)) == expected
             for row in db.scalars(select(PlanVersionRow)):
                 doc = PlanVersion.model_validate_json(row.canonical_json)
+                assert doc.digest() == row.digest
+                retained.append(
+                    dict(document=doc.model_dump(mode="json"), document_digest=row.digest)
+                )
                 assert doc.creative_proof is not None
                 assert len(doc.creative_proof.basis.images) == 1
                 assert doc.creative_proof.basis.images[0].sha256 == basis.media_sha256
@@ -318,6 +323,7 @@ def test_actual_creative_planning_browser(
             json.dumps(
                 {
                     "browser": results[0],
+                    "retained_versions": retained,
                     "journey": journey,
                     "database": customer_engine.dialect.name,
                     "planning_mutation_requests": mutation_requests,

@@ -8,7 +8,7 @@ const checked=(node,value)=>{node.checked=value;node.dispatchEvent(new Event('ch
 const settled=()=>!$('list-refresh').disabled;
 const mediaPath=`/api/customer/v1/workspaces/${cfg.workspace_id}/media`;
 const root=`/api/customer/v1/workspaces/${cfg.workspace_id}/planning/plans`;
-let uploadPosts=0,creates=0;
+let uploadPosts=0,creates=0;const exported=[];
 const selected=()=>[...$('image-library').querySelectorAll('input[type=checkbox]:checked')];
 const uploadFile=bytes=>{const transfer=new DataTransfer();transfer.items.add(new File([bytes],'mug.png',{type:'image/png'}));$('image-file').files=transfer.files;$('image-file').dispatchEvent(new Event('change'));};
 try{
@@ -64,7 +64,7 @@ try{
   assert(/not assessed/i.test($('creative-basis').textContent),'visible unassessed boundary');
   const list=await json(await native(root)),path=root+'/'+list.items[0].plan_id;
   let downloaded=null;window.fetch=async(...args)=>{const response=await native(...args);if(String(args[0])===path+'/export?version=1'&&response.ok)downloaded=await response.clone().json();return response;};
-  $('export').click();await until(()=>settled()&&downloaded!==null,'actual portal version download');const first=downloaded;
+  $('export').click();await until(()=>settled()&&downloaded!==null,'actual portal version download');const first=downloaded;exported.push(first);
   assert(first.document.policy_version==='inlet.descriptive-review.v5','genuine private service');
   assert(first.document.creative_proof.basis.images[0].sha256===cfg.media_sha256,'genuine private image witness');
   assert($('creative-basis').textContent.includes(first.document.creative_proof.basis.images[0].observed_at),'original observation time displayed');
@@ -79,7 +79,7 @@ try{
    $('save').click();await until(()=>settled()&&$('editor').hidden,'saved input revision');$('generate').click();await until(()=>settled()&&$('document').textContent.includes('Plan Version 2'),'second version');
    const old=await json(await native(path+'/export?version=1'));assert(old.document_digest===first.document_digest,'immutable v1 export');
    await json(await native('/__fixture__/remove-bytes',{method:'POST'}));
-   const historical=await json(await native(path+'/export?version=1'));assert(historical.document_digest===first.document_digest,'byte loss does not rewrite history');
+   const historical=await json(await native(path+'/export?version=1'));exported.push(historical);assert(historical.document_digest===first.document_digest,'byte loss does not rewrite history');
    $('edit').click();await until(()=>settled()&&!$('editor').hidden,'metadata still editable separately from bytes');
    let missingReads=0;window.fetch=async(...args)=>{const response=await native(...args);if(String(args[0])===mediaPath+'/'+cfg.media_id&&!response.ok)missingReads++;return response;};
    const missingRow=$('image-library').querySelector(`[data-planning-media-id="${cfg.media_id}"]`),missingPreview=[...missingRow.querySelectorAll('button')].find(x=>x.textContent==='Preview Image');missingPreview.click();
@@ -104,10 +104,10 @@ try{
     assert(doc.actions.every(a=>a.native_budget===null&&a.proposed_fields.length===0),'no native mutation proposal');
     assert($('document').textContent.includes(proposal.action.title)&&$('document').textContent.includes(proposal.action.manual_steps[0]),'account preparation displayed');
     assert($('document').textContent.includes(prerequisite.title),'measurement prerequisite displayed');
-    const historical=await json(await native(path+'/export?version=1'));assert(historical.document_digest===first.document_digest,'exact zero-ceiling history export');
+    const historical=await json(await native(path+'/export?version=1'));exported.push(historical);assert(historical.document_digest===first.document_digest,'exact zero-ceiling history export');
    }
   }
   assert(document.cookie===originalCookies,'original browser session preserved');
-  await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',journey:cfg.journey,upload_posts:uploadPosts,creates})});
+  await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'passed',journey:cfg.journey,upload_posts:uploadPosts,creates,exported})});
  }
 }catch(error){await native('/__fixture__/result',{method:'POST',body:JSON.stringify({status:'failed',message:error.message})});}

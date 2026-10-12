@@ -49,6 +49,7 @@ def prepare_creative_common_basis(
     platform: Platform,
     selected_value: Literal["10", "0"] | None = None,
     missing_selected_day: date | None = None,
+    configured_runtime: bool = False,
 ) -> CreativeCommonBasis:
     if platform != "google_ads" and selected_value is not None:
         raise ValueError("social fixtures cannot adopt Google selected observations")
@@ -56,7 +57,10 @@ def prepare_creative_common_basis(
     store = LocalMediaStore(artifacts)
     for client in (alice, bob):
         client.app.include_router(media_api.router)
-        client.app.dependency_overrides[get_media_store] = lambda: store
+        if not configured_runtime:
+            client.app.dependency_overrides[get_media_store] = lambda: store
+        else:
+            assert get_media_store not in client.app.dependency_overrides
     original_session: list[str] = []
 
     def upload(wid: int) -> tuple[str, str]:
@@ -83,6 +87,7 @@ def prepare_creative_common_basis(
             value=selected_value,
             missing_selected_day=missing_selected_day,
             owned_image_upload=upload,
+            configure_planning=not configured_runtime,
         )
     else:
         basis, body, calls = prepare_social_common_basis(
@@ -93,6 +98,7 @@ def prepare_creative_common_basis(
             artifacts,
             platform=platform,
             owned_image_upload=upload,
+            configure_planning=not configured_runtime,
         )
     assert original_session == [alice.cookies[SESSION_COOKIE]]
     body["inputs"]["creative"] = CreativeInputV1(
@@ -109,9 +115,10 @@ def prepare_creative_common_basis(
             ),
         ),
     ).model_dump(mode="json")
-    patch.setattr(
-        planning,
-        "PlanningDocumentService",
-        partial(PlanningDocumentService, policy=canonical_creative_policy(), media_store=store),
-    )
+    if not configured_runtime:
+        patch.setattr(
+            planning,
+            "PlanningDocumentService",
+            partial(PlanningDocumentService, policy=canonical_creative_policy(), media_store=store),
+        )
     return CreativeCommonBasis(basis, body, calls, store)

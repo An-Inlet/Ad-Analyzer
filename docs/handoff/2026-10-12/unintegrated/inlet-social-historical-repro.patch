@@ -1,0 +1,14 @@
+diff --git a/tests/test_social_configuration_migration.py b/tests/test_social_configuration_migration.py
+index e6e0b8aa..b9f0c55a 100644
+--- a/tests/test_social_configuration_migration.py
++++ b/tests/test_social_configuration_migration.py
+@@ -17 +17 @@ from scripts.reset_disposable_postgres import validate_disposable_url
+-from sqlalchemy import create_engine, insert, inspect, make_url, text
++from sqlalchemy import create_engine, func, insert, inspect, make_url, select, text
+@@ -109 +109,2 @@ def test_populated_no_dsa_review_roundtrip(
+-            assert db.query(ProviderExecutionRun).count() == 1
++            # Historical schemas have the row identity, not later ORM authority columns.
++            assert db.scalar(select(func.count(ProviderExecutionRun.id))) == 1
+@@ -113 +114 @@ def test_populated_no_dsa_review_roundtrip(
+-            assert db.query(ProviderExecutionRun).count() == 1
++            assert db.scalar(select(func.count(ProviderExecutionRun.id))) == 1

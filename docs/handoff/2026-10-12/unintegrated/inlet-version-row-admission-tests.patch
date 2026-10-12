@@ -1,0 +1,823 @@
+diff --git a/tests/test_owner_review_pre_save_authority_delay.py b/tests/test_owner_review_pre_save_authority_delay.py
+new file mode 100644
+index 00000000..cf11132e
+--- /dev/null
++++ b/tests/test_owner_review_pre_save_authority_delay.py
+@@ -0,0 +1,129 @@
++"""Real pre-save final-fact expiry; controlled fault, not a latency benchmark."""
++
++import copy
++import hmac
++import json
++import time
++from pathlib import Path
++from typing import Any
++
++import pytest
++from app.customers.access import SESSION_COOKIE
++from app.planning_documents import authority, repository
++from app.planning_documents.owner_review_plan_composer import OwnerReviewPlanComposer
++from app.settings import Settings
++from fastapi import HTTPException
++from sqlalchemy import Engine
++
++from tests.creative_q07_fixture import planning_snapshot
++from tests.owner_review_runtime_fixture import configured_owner_review
++from tests.test_creative_common_basis import financial_counts
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_customer_identity import replicas as replicas
++from tests.test_customer_optimization_api import headers
++from tests.test_owner_review_runtime_api import generation
++from tests.test_owner_review_runtime_authority_delay import _source_snapshot
++from tests.test_shopify_sales import configuration as configuration
++
++pytestmark = pytest.mark.planning_boundary
++
++
++def test_v6_real_delay_after_final_refresh_before_save(
++    customer_engine: Engine,
++    configuration: Settings,
++    replicas: Any,
++    monkeypatch: pytest.MonkeyPatch,
++    tmp_path: Path,
++    caplog: pytest.LogCaptureFixture,
++) -> None:
++    fixture, body, calls, _ = configured_owner_review(
++        customer_engine, configuration, replicas, monkeypatch, tmp_path
++    )
++    alice, _, _ = replicas
++    original_cookie = alice.cookies[SESSION_COOKIE]
++    wid = fixture.basis.workspace_id
++    root = f"/api/customer/v1/workspaces/{wid}/planning/plans"
++    response = alice.post(root, headers=headers(alice), json=body)
++    assert response.status_code == 201, response.text
++    plan_id = response.json()["plan_id"]
++    before = planning_snapshot(customer_engine), _source_snapshot(customer_engine, wid)
++    effects = financial_counts(customer_engine)
++    provider_calls = copy.deepcopy(calls), copy.deepcopy(fixture.calls)
++    composed: list[bool] = []
++    delayed: list[authority.IdentityFact] = []
++    save_facts: list[authority.IdentityFact] = []
++    original_errors: list[HTTPException] = []
++    original_compose = OwnerReviewPlanComposer.compose
++    original_refresh = authority.refresh
++    original_save = repository.save_generation
++    original_lock = authority.lock
++
++    def compose(self: OwnerReviewPlanComposer, **kwargs: Any) -> Any:
++        result = original_compose(self, **kwargs)
++        assert result.policy_version == "inlet.descriptive-review.v6"
++        assert result.inputs.plan_id == plan_id and not composed
++        composed.append(True)
++        return result
++
++    def refresh(*args: Any, **kwargs: Any) -> authority.IdentityFact:
++        fact = original_refresh(*args, **kwargs)
++        if composed:
++            already_delayed = bool(delayed)
++            assert not already_delayed, "unexpected refresh after final composition"
++            delayed.append(fact)
++            time.sleep(6)  # One real wait; original completed_monotonic is untouched.
++        return fact
++
++    def lock(*args: Any, **kwargs: Any) -> Any:
++        try:
++            return original_lock(*args, **kwargs)
++        except HTTPException as error:
++            if delayed:
++                assert error.status_code == 409 and error.detail == "planning_authority_expired"
++                original_errors.append(error)
++            raise
++
++    def save(*args: Any, **kwargs: Any) -> Any:
++        ready_for_save = composed == [True] and len(delayed) == 1 and not save_facts
++        assert ready_for_save, "final publication marker or save count changed"
++        same_fact = kwargs["fact"] is delayed[0]
++        assert same_fact, "original final publication fact changed at save"
++        save_facts.append(kwargs["fact"])
++        try:
++            return original_save(*args, **kwargs)
++        except HTTPException as error:
++            assert len(original_errors) == 1 and error is original_errors[0]
++            raise
++
++    monkeypatch.setattr(OwnerReviewPlanComposer, "compose", compose)
++    monkeypatch.setattr(authority, "refresh", refresh)
++    monkeypatch.setattr(authority, "lock", lock)
++    monkeypatch.setattr(repository, "save_generation", save)
++    response = alice.post(root + f"/{plan_id}/generate", headers=headers(alice), json=generation())
++    counts_match = composed == [True] and len(delayed) == len(save_facts) == len(original_errors) == 1
++    assert counts_match, "expected one composition, delay, save and original refusal"
++    same_fact = save_facts[0] is delayed[0]
++    assert same_fact, "original final publication fact changed"
++    assert response.status_code == 409, response.text
++    assert response.json() == {"detail": "planning_authority_expired"}
++    records = [
++        json.loads(record.getMessage())
++        for record in caplog.records
++        if record.name == "inlet.planning.authority"
++    ]
++    assert records == [
++        dict(
++            event="planning_authority_expired",
++            schema_version=1,
++            route="generate",
++            phase="lock",
++            cause="fact_age_outside_window",
++            session_predicate="not_evaluated",
++            status=409,
++        )
++    ]
++    assert (planning_snapshot(customer_engine), _source_snapshot(customer_engine, wid)) == before
++    assert financial_counts(customer_engine) == effects
++    assert (calls, fixture.calls) == provider_calls
++    same_session = hmac.compare_digest(alice.cookies[SESSION_COOKIE], original_cookie)
++    assert same_session, "original authenticated session changed"
+diff --git a/tests/test_version_row_admission_decode_count.py b/tests/test_version_row_admission_decode_count.py
+new file mode 100644
+index 00000000..1cf07835
+--- /dev/null
++++ b/tests/test_version_row_admission_decode_count.py
+@@ -0,0 +1,67 @@
++"""Named decoder counts on real retained evidence; no timing or API acceptance claim.
++
++This regression deliberately imports no new admission implementation. On the old
++source the expected optimized history count fails (one actual repeated decoder).
++The fixture acquires actual source/input evidence, then composes/stores directly;
++real generation acceptance remains the separate report/retraction API journey.
++"""
++
++from pathlib import Path
++from typing import Any, cast
++
++import pytest
++from app.planning_documents import repository
++from app.planning_documents import selected_plan_history as history
++from app.planning_documents.models import PlanRow
++from app.planning_documents.storage import canonical
++from sqlalchemy import Engine
++from sqlalchemy.orm import Session
++
++from tests.owner_review_retained_fixture import stored
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_customer_identity import replicas as replicas
++from tests.test_shopify_sales import configuration as configuration
++
++pytestmark = pytest.mark.planning_boundary
++
++
++def test_each_version_invocation_decodes_original_row_once(
++    customer_engine: Engine,
++    configuration: Any,
++    replicas: Any,
++    monkeypatch: pytest.MonkeyPatch,
++    tmp_path: Path,
++) -> None:
++    document, _, _, calls = stored(
++        customer_engine, configuration, replicas, monkeypatch, tmp_path
++    )
++    expected_json = document.model_dump_json()
++    expected_digest = document.digest()
++    expected_canonical = canonical(document)
++    provider_calls = list(calls)
++    original_repository = cast(Any, repository).document_for_row
++    original_history = cast(Any, history).document_for_row
++    decoded: list[str] = []
++
++    def repository_decode(*args: Any, **kwargs: Any) -> Any:
++        decoded.append("repository")
++        return original_repository(*args, **kwargs)
++
++    def history_decode(*args: Any, **kwargs: Any) -> Any:
++        decoded.append("history")
++        return original_history(*args, **kwargs)
++
++    monkeypatch.setattr(repository, "document_for_row", repository_decode)
++    monkeypatch.setattr(history, "document_for_row", history_decode)
++    with Session(customer_engine) as db, db.begin():
++        plan = db.get(PlanRow, (document.inputs.workspace_id, document.inputs.plan_id))
++        assert plan is not None
++        # Each invocation must admit its own first row, never reuse across calls.
++        for _ in range(2):
++            start = len(decoded)
++            row, actual = repository.version(db, plan)
++            assert actual.model_dump_json() == expected_json
++            assert actual.digest() == expected_digest
++            assert row.canonical_json == expected_canonical
++            assert decoded[start:] == ["repository"]
++    assert calls == provider_calls
+diff --git a/tests/test_version_row_admission_lifecycle.py b/tests/test_version_row_admission_lifecycle.py
+new file mode 100644
+index 00000000..cadf73ee
+--- /dev/null
++++ b/tests/test_version_row_admission_lifecycle.py
+@@ -0,0 +1,264 @@
++"""Real retained row fallback and local admission lifecycle; no clock substitutions."""
++
++from typing import Any
++
++import pytest
++from app.planning_documents import repository
++from app.planning_documents import version_row_admission as admission
++from app.planning_documents.models import PlanVersionRow
++from app.planning_documents.storage import document_for_row
++from sqlalchemy import Engine, event, select
++from sqlalchemy.orm import Session
++
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_customer_identity import replicas as replicas
++from tests.test_owner_review_retained_dispatch import ready as ready
++from tests.test_shopify_sales import configuration as configuration
++
++
++def _closed(db: Session, proof: Any) -> None:
++    assert proof.consumed and proof.row is None and proof.document is None
++    assert proof.db is None and proof.connection is None and proof.root is None
++    assert proof.transaction is None
++    assert proof.permitted_statement is None and not proof.permit_active
++    assert not event.contains(db, "before_flush", proof.invalidate)
++    assert not event.contains(db, "do_orm_execute", proof.orm_read)
++
++
++@pytest.mark.parametrize("fault", ["none", "document", "row", "orm_read", "nested"])
++def test_real_row_match_or_original_fallback(
++    customer_engine: Engine, ready: Any, fault: str
++) -> None:
++    expected, _, _, _ = ready
++    with Session(customer_engine) as db, db.begin():
++        stored = db.get(
++            PlanVersionRow,
++            (expected.inputs.workspace_id, expected.inputs.plan_id, expected.version),
++        )
++        assert stored is not None
++        initial = repository.values(stored)
++        document = document_for_row("planning_document_versions", initial)
++        proof = admission._make_version_row_admission(db=db, row=initial, document=document)
++        assert proof is not None
++        # The mapped predicates mark this Select ORM-aware. Permit exactly this
++        # original statement once, matching the production second-read boundary.
++        statement = select(PlanVersionRow.__table__).where(
++            PlanVersionRow.workspace_id == expected.inputs.workspace_id,
++            PlanVersionRow.plan_id == expected.inputs.plan_id,
++            PlanVersionRow.version == expected.version,
++        )
++        with proof.reading_statement(statement):
++            result = db.execute(statement)
++        fresh = dict(result.mappings().one())
++        nested = None
++        if fault == "document":
++            object.__setattr__(document, "__pydantic_private__", {})
++        elif fault == "row":
++            fresh["digest"] = "0" * 64
++        elif fault == "orm_read":
++            db.execute(select(PlanVersionRow)).scalars().all()
++        elif fault == "nested":
++            nested = db.begin_nested()
++        matched = admission._matches_admitted_version_row(
++            db=db, row=fresh, document=document, admission=proof
++        )
++        _closed(db, proof)
++        if nested is not None:
++            nested.rollback()
++        if fault == "none":
++            assert matched is True
++        else:
++            assert matched is None
++            if fault == "row":
++                with pytest.raises(ValueError):
++                    document_for_row("planning_document_versions", fresh)
++            else:
++                decoded = document_for_row("planning_document_versions", fresh)
++                assert (decoded == document) is (fault != "document")
++        assert admission._matches_admitted_version_row(
++            db=db, row=fresh, document=document, admission=proof
++        ) is None
++        _closed(db, proof)
++
++
++@pytest.mark.parametrize("install_second", [False, True])
++def test_partial_listener_setup_preserves_error_and_removes_registered_listeners(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch, install_second: bool
++) -> None:
++    expected, _, _, _ = ready
++    original_listen = event.listen
++    callbacks: list[tuple[Any, str, Any]] = []
++    failure = RuntimeError("controlled second-listener setup failure")
++
++    def listen(target: Any, name: str, callback: Any, *args: Any, **kwargs: Any) -> None:
++        if name == "do_orm_execute":
++            if install_second:
++                original_listen(target, name, callback, *args, **kwargs)
++                callbacks.append((target, name, callback))
++            raise failure
++        original_listen(target, name, callback, *args, **kwargs)
++        callbacks.append((target, name, callback))
++
++    with Session(customer_engine) as db, db.begin():
++        row = db.get(
++            PlanVersionRow,
++            (expected.inputs.workspace_id, expected.inputs.plan_id, expected.version),
++        )
++        assert row is not None
++        raw = repository.values(row)
++        document = document_for_row("planning_document_versions", raw)
++        monkeypatch.setattr(event, "listen", listen)
++        with pytest.raises(RuntimeError) as error:
++            admission._make_version_row_admission(db=db, row=raw, document=document)
++        assert error.value is failure
++        assert len(callbacks) == (2 if install_second else 1)
++        for target, name, callback in callbacks:
++            assert not event.contains(target, name, callback)
++
++
++@pytest.mark.parametrize("fault", ["flush", "root", "connection", "matcher_error"])
++def test_completed_scope_fault_or_exception_closes_local_proof(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch, fault: str
++) -> None:
++    from app.planning_documents.models import PlanRow
++
++    expected, _, _, _ = ready
++    with Session(customer_engine) as db:
++        db.begin()
++        row = db.get(
++            PlanVersionRow,
++            (expected.inputs.workspace_id, expected.inputs.plan_id, expected.version),
++        )
++        assert row is not None
++        raw = repository.values(row)
++        document = document_for_row("planning_document_versions", raw)
++        plan = db.get(PlanRow, (expected.inputs.workspace_id, expected.inputs.plan_id))
++        assert plan is not None
++        proof = admission._make_version_row_admission(db=db, row=raw, document=document)
++        assert proof is not None
++        failure = RuntimeError("controlled matcher snapshot failure")
++        if fault == "flush":
++            plan.event_sequence += 1
++            db.flush()
++            assert not db.new and not db.dirty and not db.deleted
++        elif fault == "root":
++            db.rollback()
++            db.begin()
++        elif fault == "connection":
++            connection = db.connection()
++            connection.rollback()
++            connection.begin()
++        else:
++            def fail(*args: Any, **kwargs: Any) -> Any:
++                raise failure
++            monkeypatch.setattr(admission, "_snapshot_row", fail)
++        if fault == "matcher_error":
++            with pytest.raises(RuntimeError) as error:
++                admission._matches_admitted_version_row(
++                    db=db, row=raw, document=document, admission=proof
++                )
++            assert error.value is failure
++        else:
++            assert admission._matches_admitted_version_row(
++                db=db, row=raw, document=document, admission=proof
++            ) is None
++            # Scope invalidation declines optimization, not original decoding.
++            assert document_for_row("planning_document_versions", raw) == document
++        _closed(db, proof)
++        db.rollback()
++
++
++@pytest.mark.parametrize("event_name", ["before_flush", "do_orm_execute"])
++def test_preexisting_listener_declines_without_removing_original_listener(
++    customer_engine: Engine, ready: Any, event_name: str
++) -> None:
++    expected, _, _, _ = ready
++    with Session(customer_engine) as db, db.begin():
++        row = db.get(
++            PlanVersionRow,
++            (expected.inputs.workspace_id, expected.inputs.plan_id, expected.version),
++        )
++        assert row is not None
++        raw = repository.values(row)
++        document = document_for_row("planning_document_versions", raw)
++
++        def listener(*args: Any, **kwargs: Any) -> None:
++            return None
++
++        event.listen(db, event_name, listener)
++        try:
++            assert admission._make_version_row_admission(
++                db=db, row=raw, document=document
++            ) is None
++            assert event.contains(db, event_name, listener)
++            assert document_for_row("planning_document_versions", raw) == document
++        finally:
++            event.remove(db, event_name, listener)
++        proof = admission._make_version_row_admission(db=db, row=raw, document=document)
++        assert proof is not None
++        proof.close()
++        _closed(db, proof)
++
++
++@pytest.mark.parametrize("mode", ["once", "replay", "reopen", "different", "exception"])
++def test_exact_select_permit_is_single_use_and_cleared_on_exit(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch, mode: str
++) -> None:
++    expected, _, _, _ = ready
++    with Session(customer_engine) as db, db.begin():
++        row = db.get(
++            PlanVersionRow,
++            (expected.inputs.workspace_id, expected.inputs.plan_id, expected.version),
++        )
++        assert row is not None
++        raw = repository.values(row)
++        document = document_for_row("planning_document_versions", raw)
++        proof = admission._make_version_row_admission(db=db, row=raw, document=document)
++        assert proof is not None
++        statement = select(PlanVersionRow.__table__).where(
++            PlanVersionRow.workspace_id == expected.inputs.workspace_id,
++            PlanVersionRow.plan_id == expected.inputs.plan_id,
++            PlanVersionRow.version == expected.version,
++        )
++        original_execute = Session.execute
++        failure = RuntimeError("controlled original execute failure")
++        executed: list[bool] = []
++
++        def execute(session: Session, actual: Any, *args: Any, **kwargs: Any) -> Any:
++            result = original_execute(session, actual, *args, **kwargs)
++            if actual is statement:
++                executed.append(True)
++                if mode == "exception":
++                    raise failure
++            return result
++
++        monkeypatch.setattr(Session, "execute", execute)
++        try:
++            if mode == "exception":
++                with pytest.raises(RuntimeError) as error:
++                    with proof.reading_statement(statement):
++                        db.execute(statement)
++                assert error.value is failure
++                assert executed == [True]
++            else:
++                with proof.reading_statement(statement):
++                    actual = (
++                        statement.where(PlanVersionRow.version == expected.version)
++                        if mode == "different" else statement
++                    )
++                    fresh = dict(db.execute(actual).mappings().one())
++                    if mode == "replay":
++                        db.execute(statement).all()
++                if mode == "reopen":
++                    with proof.reading_statement(statement):
++                        db.execute(statement).all()
++                matched = admission._matches_admitted_version_row(
++                    db=db, row=fresh, document=document, admission=proof
++                )
++                assert matched is (True if mode == "once" else None)
++                assert document_for_row("planning_document_versions", fresh) == document
++            assert proof.permitted_statement is None
++            assert not proof.permit_active and proof.permit_used
++        finally:
++            proof.close()
++        _closed(db, proof)
+diff --git a/tests/test_version_row_admission_repository.py b/tests/test_version_row_admission_repository.py
+new file mode 100644
+index 00000000..056fb3ba
+--- /dev/null
++++ b/tests/test_version_row_admission_repository.py
+@@ -0,0 +1,167 @@
++"""Actual repository entry and second SQL-row boundary, with original history checks."""
++
++from typing import Any, cast
++
++import pytest
++from app.planning_documents import repository, selected_plan_history
++from app.planning_documents import version_row_admission as admission
++from app.planning_documents.models import PlanRow, PlanVersionRow
++from fastapi import HTTPException
++from sqlalchemy import Engine, event
++from sqlalchemy.orm import Session
++
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_customer_identity import replicas as replicas
++from tests.test_owner_review_retained_dispatch import ready as ready
++from tests.test_shopify_sales import configuration as configuration
++
++
++def test_original_and_admitted_history_have_same_sql_order_and_value(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    document, _, _, _ = ready
++    original_factory = admission._make_version_row_admission
++    original_decoder = cast(Any, selected_plan_history).document_for_row
++    statements: list[str] = []
++    decodes: list[bool] = []
++
++    def sql(connection: Any, cursor: Any, statement: str, *args: Any) -> None:
++        statements.append(statement)
++
++    def decode(*args: Any, **kwargs: Any) -> Any:
++        decodes.append(True)
++        return original_decoder(*args, **kwargs)
++
++    monkeypatch.setattr(selected_plan_history, "document_for_row", decode)
++    results: list[tuple[str, tuple[str, ...], int]] = []
++    for enabled in (False, True):
++        with Session(customer_engine) as db, db.begin():
++            plan = db.get(PlanRow, (document.inputs.workspace_id, document.inputs.plan_id))
++            assert plan is not None
++            monkeypatch.setattr(
++                admission, "_make_version_row_admission",
++                original_factory if enabled else lambda **kwargs: None,
++            )
++            statements.clear()
++            decodes.clear()
++            event.listen(db.connection(), "before_cursor_execute", sql)
++            try:
++                _, actual = repository.version(db, plan)
++            finally:
++                event.remove(db.connection(), "before_cursor_execute", sql)
++            results.append((actual.model_dump_json(), tuple(statements), len(decodes)))
++    # Compare privately: never print SQL or bindings in assertion explanations.
++    same_sql = results[0][1] == results[1][1]
++    assert same_sql, "admitted history SQL order differs from original public path"
++    assert results[0][0] == results[1][0] == document.model_dump_json()
++    assert (results[0][2], results[1][2]) == (1, 0)
++
++
++@pytest.mark.parametrize("fault", ["fresh_row", "current_document"])
++def test_repository_second_read_mutation_keeps_original_integrity_refusal(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch, fault: str
++) -> None:
++    document, _, _, _ = ready
++    original_factory = admission._make_version_row_admission
++    original_match = admission._matches_admitted_version_row
++    original_execute = Session.execute
++    original_decode = cast(Any, selected_plan_history).document_for_row
++    armed: list[bool] = []
++    changed: list[bool] = []
++    fallback: list[bool] = []
++
++    def factory(**kwargs: Any) -> Any:
++        proof = original_factory(**kwargs)
++        assert proof is not None
++        armed.append(True)
++        return proof
++
++    def execute(db: Session, statement: Any, *args: Any, **kwargs: Any) -> Any:
++        result = original_execute(db, statement, *args, **kwargs)
++        if fault != "fresh_row" or not armed or changed:
++            return result
++        if not getattr(statement, "is_select", False):
++            return result
++        tables = statement.get_final_froms()
++        if len(tables) != 1 or tables[0] is not PlanVersionRow.__table__:
++            return result
++
++        class ChangedResult:
++            def mappings(self) -> "ChangedResult":
++                return self
++
++            def one_or_none(self) -> Any:
++                raw = result.mappings().one_or_none()
++                assert raw is not None
++                changed.append(True)
++                return dict(raw, digest="0" * 64)
++
++        return ChangedResult()
++
++    def match(**kwargs: Any) -> Any:
++        if fault == "current_document":
++            assert not changed
++            object.__setattr__(kwargs["document"], "__pydantic_private__", {})
++            changed.append(True)
++        return original_match(**kwargs)
++
++    def decode(*args: Any, **kwargs: Any) -> Any:
++        fallback.append(True)
++        return original_decode(*args, **kwargs)
++
++    monkeypatch.setattr(admission, "_make_version_row_admission", factory)
++    monkeypatch.setattr(admission, "_matches_admitted_version_row", match)
++    monkeypatch.setattr(Session, "execute", execute)
++    monkeypatch.setattr(selected_plan_history, "document_for_row", decode)
++    with Session(customer_engine) as db, db.begin():
++        plan = db.get(PlanRow, (document.inputs.workspace_id, document.inputs.plan_id))
++        assert plan is not None
++        with pytest.raises(HTTPException) as error:
++            repository.version(db, plan)
++        assert error.value.status_code == 409
++        assert error.value.detail == "selected plan historical integrity unavailable"
++        assert armed == changed == fallback == [True]
++        assert not db.new and not db.dirty and not db.deleted
++
++
++def test_actual_nested_version_read_invalidates_outer_admission_without_listener_reentry(
++    customer_engine: Engine, ready: Any, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    document, _, _, _ = ready
++    original_factory = admission._make_version_row_admission
++    original_decode = cast(Any, selected_plan_history).document_for_row
++    entered: list[bool] = []
++    proofs: list[Any] = []
++    decoded: list[bool] = []
++    nested_values: list[str] = []
++    with Session(customer_engine) as db, db.begin():
++        plan = db.get(PlanRow, (document.inputs.workspace_id, document.inputs.plan_id))
++        assert plan is not None
++
++        def factory(**kwargs: Any) -> Any:
++            proof = original_factory(**kwargs)
++            if entered:
++                assert proof is None
++                return proof
++            assert proof is not None
++            entered.append(True)
++            proofs.append(proof)
++            _, nested = repository.version(db, plan)
++            nested_values.append(nested.model_dump_json())
++            return proof
++
++        def decode(*args: Any, **kwargs: Any) -> Any:
++            decoded.append(True)
++            return original_decode(*args, **kwargs)
++
++        monkeypatch.setattr(admission, "_make_version_row_admission", factory)
++        monkeypatch.setattr(selected_plan_history, "document_for_row", decode)
++        _, outer = repository.version(db, plan)
++        assert nested_values == [outer.model_dump_json()]
++        assert outer.model_dump_json() == document.model_dump_json()
++        assert decoded == [True, True]
++        assert len(proofs) == 1
++        proof = proofs[0]
++        assert proof.consumed and proof.db is None and proof.transaction is None
++        assert not event.contains(db, "before_flush", proof.invalidate)
++        assert not event.contains(db, "do_orm_execute", proof.orm_read)
+diff --git a/tests/test_version_row_admission_snapshots.py b/tests/test_version_row_admission_snapshots.py
+new file mode 100644
+index 00000000..40db5b91
+--- /dev/null
++++ b/tests/test_version_row_admission_snapshots.py
+@@ -0,0 +1,166 @@
++"""Lossless resident snapshots; pure synthetic V6, never source authority."""
++
++from datetime import datetime
++from typing import Any, cast
++from zoneinfo import ZoneInfo
++
++import pytest
++from app.planning_documents import version_row_admission as admission
++from app.planning_documents.documents import PlanVersion
++
++from tests.owner_review_v6_fixture import ready
++from tests.test_owner_review_v6_pure import compose
++
++
++@pytest.fixture
++def document() -> PlanVersion:
++    value = compose(ready())
++    return PlanVersion.model_validate_json(value.model_dump_json())
++
++
++@pytest.mark.parametrize("field", ["__pydantic_private__", "__pydantic_extra__"])
++def test_empty_model_state_is_distinct_from_none(document: PlanVersion, field: str) -> None:
++    original = admission._snapshot_version(document)
++    assert original is not None
++    copied = document.model_copy()
++    object.__setattr__(copied, field, {})
++    changed = admission._snapshot_version(copied)
++    assert changed is not None and changed != original
++    assert copied != document
++
++
++@pytest.mark.parametrize("fold", [0, 1])
++def test_ambiguous_zoneinfo_is_ineligible(document: PlanVersion, fold: int) -> None:
++    value = datetime(2026, 11, 1, 1, 30, tzinfo=ZoneInfo("America/New_York"), fold=fold)
++    copied = document.model_copy(update={"generated_at": value})
++    assert admission._snapshot_version(copied) is None
++
++
++def test_current_unsafe_copy_changes_snapshot(document: PlanVersion) -> None:
++    before = admission._snapshot_version(document)
++    assert before is not None
++    copied = document.model_copy(update={"version": True})
++    assert admission._snapshot_version(copied) is None
++    assert admission._snapshot_version(document) == before
++
++
++def test_hostile_row_key_never_executes_equality() -> None:
++    callbacks: list[str] = []
++
++    class Hostile:
++        def __hash__(self) -> int:
++            return hash("workspace_id")
++
++        def __eq__(self, other: object) -> bool:
++            callbacks.append("equality")
++            raise AssertionError("hostile row equality executed")
++
++    row = {Hostile(): 1}
++    assert admission._snapshot_row(row) is None
++    assert callbacks == []
++
++
++@pytest.fixture
++def row(document: PlanVersion) -> dict[str, object]:
++    from app.planning_documents.storage import canonical
++
++    return dict(
++        workspace_id=document.inputs.workspace_id,
++        plan_id=document.inputs.plan_id,
++        version=document.version,
++        input_revision=document.inputs.revision,
++        parent_digest=document.parent_digest,
++        generator_version=document.generator_version,
++        policy_version=document.policy_version,
++        actor_id=document.generated_by,
++        generated_at=document.generated_at,
++        valid_until=document.valid_until,
++        privacy_revision=document.evidence[0].privacy_revision,
++        canonical_json=canonical(document),
++        digest=document.digest(),
++    )
++
++
++@pytest.mark.parametrize(
++    "field",
++    [
++        "workspace_id", "plan_id", "version", "input_revision", "parent_digest",
++        "generator_version", "policy_version", "actor_id", "generated_at",
++        "valid_until", "privacy_revision", "canonical_json", "digest",
++    ],
++)
++def test_each_row_commitment_changes_snapshot_and_original_decoder_refuses(
++    row: dict[str, object], field: str
++) -> None:
++    from datetime import timedelta
++
++    from app.planning_documents.storage import document_for_row
++
++    # First prove this full row is an ordinary valid decoder input.
++    original = document_for_row("planning_document_versions", row)
++    before = admission._snapshot_row(row)
++    assert before is not None
++    changed = dict(row)
++    value = changed[field]
++    if type(value) is int:
++        changed[field] = value + 1
++    elif type(value) is datetime:
++        changed[field] = value + timedelta(seconds=1)
++    elif field == "canonical_json":
++        changed[field] = "{}"
++    elif field in {"digest", "parent_digest"}:
++        changed[field] = "f" * 64
++    else:
++        changed[field] = str(value) + "-changed"
++    assert admission._snapshot_row(changed) != before
++    with pytest.raises(ValueError):
++        document_for_row("planning_document_versions", changed)
++    assert document_for_row("planning_document_versions", row) == original
++
++
++def test_valid_offset_representation_falls_back_without_new_refusal(
++    row: dict[str, object],
++) -> None:
++    from datetime import timedelta, timezone
++
++    from app.planning_documents.storage import document_for_row
++
++    original = document_for_row("planning_document_versions", row)
++    changed = dict(row)
++    value = changed["generated_at"]
++    assert isinstance(value, datetime)
++    changed["generated_at"] = value.astimezone(timezone(timedelta(hours=5, minutes=30)))
++    assert admission._snapshot_row(changed) != admission._snapshot_row(row)
++    assert document_for_row("planning_document_versions", changed) == original
++
++
++def test_original_version_decoder_performs_five_root_validations(row: dict[str, object]) -> None:
++    import sys
++    from types import FrameType
++
++    from app.planning_documents.storage import document_for_row
++    from pydantic import BaseModel
++
++    codes = {
++        cast(Any, BaseModel.model_validate).__func__.__code__: "model",
++        cast(Any, BaseModel.model_validate_json).__func__.__code__: "json",
++    }
++    calls: list[str] = []
++    previous = sys.getprofile()
++
++    def profile(frame: FrameType, event: str, arg: Any) -> None:
++        if event == "call" and frame.f_locals.get("cls") is PlanVersion:
++            label = codes.get(frame.f_code)
++            if label is not None:
++                calls.append(label)
++        if previous is not None:
++            previous(frame, event, arg)
++
++    try:
++        sys.setprofile(profile)
++        document_for_row("planning_document_versions", row)
++    finally:
++        sys.setprofile(previous)
++    assert calls.count("json") == 1
++    assert calls.count("model") == 4
++    assert len(calls) == 5

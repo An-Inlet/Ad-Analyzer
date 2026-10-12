@@ -16,6 +16,7 @@ from app.planning_documents.creative_inputs import (
 )
 from app.planning_documents.creative_retained_proof import creative_image_row_identity_digest
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.prepared_candidate import validate_retained_candidate
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
     RetainedSourceWitness,
@@ -40,7 +41,7 @@ def _capture_creative_retained_source(
         raise RetainedSourcesChanged("source_changed")
     now = now.astimezone(UTC)
     try:
-        document = PlanVersion.model_validate(document)
+        document = validate_retained_candidate(document, db)
     except ValidationError:
         raise RetainedSourcesChanged("proof_unavailable") from None
     proof = document.creative_proof

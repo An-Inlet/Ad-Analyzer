@@ -1,0 +1,50 @@
+diff --git a/tests/test_reported_feedback_historical_review.py b/tests/test_reported_feedback_historical_review.py
+new file mode 100644
+index 00000000..c4b6b9b9
+--- /dev/null
++++ b/tests/test_reported_feedback_historical_review.py
+@@ -0,0 +1,44 @@
++"""Independent structural regression: retained history is not current spend authority."""
++from datetime import timedelta
++from pathlib import Path
++
++import pytest
++from sqlalchemy import Engine
++from sqlalchemy.orm import Session
++
++from app.publication.execution_models import ProviderExposureReservation
++from app.reported_feedback.models import ReportedActionComparison
++from app.reported_feedback.service import read_comparison, validate_comparison_dependencies
++from app.settings import Settings
++from tests.test_customer_identity import FakeProvider
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_reported_feedback_acquisition import acquisition_fixture, complete
++from tests.test_shopify_sales import configuration as configuration
++
++
++def test_completed_history_survives_original_hold_retirement(
++    customer_engine: Engine, configuration: Settings, tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    with Session(customer_engine) as db:
++        wid, principal, runtime, job, _, _, clock, runner, _, _, _ = acquisition_fixture(
++            db, configuration, tmp_path, monkeypatch
++        )
++        complete(runner, wid, clock[0])
++        complete(runner, wid, clock[0])
++        complete(runner, wid, clock[0])
++        clock[0] += timedelta(seconds=61)
++        complete(runner, wid, clock[0])
++        complete(runner, wid, clock[0])
++        result = read_comparison(db, principal, FakeProvider(), wid, job.id, runtime)
++        db.commit()
++        row = db.get(ReportedActionComparison, result.id)
++        assert row is not None
++        assert validate_comparison_dependencies(db, row, clock[0]).id == result.id
++        reservation = db.get(ProviderExposureReservation, result.anchor.reservation_id)
++        assert reservation is not None
++        # Controlled lifecycle state transition, not a fabricated provider closure proof.
++        # Historical observation validation should not itself require spend still held.
++        reservation.state = "settled"
++        db.commit()
++        assert validate_comparison_dependencies(db, row, clock[0]).id == result.id

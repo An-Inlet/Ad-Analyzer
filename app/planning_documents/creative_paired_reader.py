@@ -43,6 +43,14 @@ class OwnedCreativePairedReader:
         return now.astimezone(UTC)
 
     def collect(self, supplied: GenerationTicket) -> CreativePairedEvidenceV1:
+        """Default collection retains the joint final-read transaction contract."""
+        return self._collect(supplied, staged=False)
+
+    def collect_for_generation(self, supplied: GenerationTicket) -> CreativePairedEvidenceV1:
+        """V6 provisional evidence only; publication must jointly recheck all sources."""
+        return self._collect(supplied, staged=True)
+
+    def _collect(self, supplied: GenerationTicket, *, staged: bool) -> CreativePairedEvidenceV1:
         ticket = GenerationTicket.model_validate(supplied)
         contract = assert_selected_composition_policy(
             self.policy,
@@ -52,6 +60,8 @@ class OwnedCreativePairedReader:
         validate_creative_policy(
             ticket.inputs.creative, contract.policy_version, contract.generator_version
         )
+        if staged and not contract.requires_owner_review:
+            raise changed()
         if not contract.requires_creative or ticket.inputs.selected_reporting is None:
             raise changed()
         if (self.principal.user.id, self.principal.session.digest) != (
@@ -84,7 +94,8 @@ class OwnedCreativePairedReader:
             ticket.inputs.workspace_id,
             ticket.actor_id,
         )
-        with reads.open() as db:
+
+        def reporting_stage(db: Session) -> None:
             recheck_selected_paired_sources(
                 db,
                 principal=self.principal,
@@ -93,6 +104,8 @@ class OwnedCreativePairedReader:
                 authorize=reads.authorize,
                 clock=self._now,
             )
+
+        def creative_stage(db: Session) -> None:
             actual = recheck_collected_creative(
                 db,
                 principal=self.principal,
@@ -103,14 +116,20 @@ class OwnedCreativePairedReader:
             )
             if actual != expected:
                 raise changed()
-            recheck_selected_paired_sources(
-                db,
-                principal=self.principal,
-                ticket=ticket,
-                bundle=reporting,
-                authorize=reads.authorize,
-                clock=self._now,
-            )
+
+        if staged:
+            # Each prior context must finish its original five-second guard and
+            # close before the next provider refresh. No expired-stage retry.
+            # Released locks mean this is provisional collection, never a joint
+            # currentness certificate or authority for publication.
+            for stage in (reporting_stage, creative_stage, reporting_stage):
+                with reads.open() as db:
+                    stage(db)
+        else:
+            with reads.open() as db:
+                reporting_stage(db)
+                creative_stage(db)
+                reporting_stage(db)
         # Context exit performs original authority checks and may itself wait.
         # Retain original observation/expiry values; never renew their deadlines.
         result = CreativePairedEvidenceV1.model_validate(result)

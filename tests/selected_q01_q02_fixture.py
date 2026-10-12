@@ -1,5 +1,6 @@
 """Frozen Common Basis through real selected APIs; provider IO is MockHTTP only."""
 
+import copy
 import json
 from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
@@ -25,6 +26,7 @@ from pydantic import SecretStr
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.planning_matrix_identity import FixtureIdentity, native_wire
 from tests.q16_fixture import Q16Basis, prepare_q16_basis
 from tests.test_customer_optimization_api import headers
 from tests.test_google_aggregate_range_http import campaign, metric
@@ -41,6 +43,7 @@ def prepare_selected_common_basis(
     missing_selected_day: date | None = None,
     owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
     configure_planning: bool = True,
+    identity: FixtureIdentity | None = None,
 ) -> tuple[Q16Basis, dict[str, Any], list[str]]:
     if engine.dialect.name == "sqlite":
         with engine.connect() as connection:
@@ -57,6 +60,7 @@ def prepare_selected_common_basis(
         native_calls=calls,
         generation_stage="october",
         owned_image_upload=owned_image_upload,
+        identity=identity,
     )
     alice, _, _ = replicas
     original_cookie = alice.cookies[SESSION_COOKIE]
@@ -149,9 +153,25 @@ def prepare_selected_common_basis(
             row = campaign()
             row["campaign"]["name"] = "Mug Campaign"
             rows = [row]
+        if (
+            identity is not None
+            and identity.reporting_campaigns > 1
+            and rows
+            and "campaign" in rows[0]
+        ):
+            expanded = []
+            for number in range(1, identity.reporting_campaigns + 1):
+                for row in rows:
+                    changed = copy.deepcopy(row)
+                    changed["campaign"].update(
+                        id=str(number), resourceName=f"customers/1234567890/campaigns/{number}"
+                    )
+                    expanded.append(changed)
+            rows = expanded
         return httpx.Response(200, json={"results": rows})
 
-    with httpx.MockTransport(wire) as oauth_transport:
+    identity_wire = native_wire(wire, identity)
+    with httpx.MockTransport(identity_wire) as oauth_transport:
         oauth = GoogleHTTPRead(
             "synthetic-client",
             SecretStr("synthetic-secret"),
@@ -163,7 +183,7 @@ def prepare_selected_common_basis(
             lambda: Session(engine),
             oauth,
             Vault(),
-            lambda: httpx.MockTransport(wire),
+            lambda: httpx.MockTransport(identity_wire),
             lambda: datetime.now(UTC),
         )
         alice.app.include_router(router)

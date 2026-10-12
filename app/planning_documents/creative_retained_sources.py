@@ -14,6 +14,7 @@ from app.planning_documents.creative_inputs import (
 )
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow
+from app.planning_documents.prepared_candidate import validate_retained_candidate
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
     RetainedSourceWitness,
@@ -37,7 +38,7 @@ class _Context:
         *,
         required_pair: tuple[str, str] | None = None,
     ) -> None:
-        self.document = PlanVersion.model_validate(document)
+        self.document = validate_retained_candidate(document, db)
         if required_pair is not None and (
             type(required_pair) is not tuple
             or len(required_pair) != 2

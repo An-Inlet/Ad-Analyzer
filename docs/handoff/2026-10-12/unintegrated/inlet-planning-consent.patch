@@ -1,0 +1,217 @@
+diff --git a/app/api/customer_candidates.py b/app/api/customer_candidates.py
+index 026742b2..3099a107 100644
+--- a/app/api/customer_candidates.py
++++ b/app/api/customer_candidates.py
+@@ -11,0 +12 @@ from app.ads.models import AdvertisingAccount
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -224 +225,5 @@ def status(
+-@router.post("/results/{result_id}/review", response_model=CandidateReviewPrepared)
++@router.post(
++    "/results/{result_id}/review",
++    response_model=CandidateReviewPrepared,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+diff --git a/app/api/customer_execution.py b/app/api/customer_execution.py
+index 1ae0d665..c3cf054e 100644
+--- a/app/api/customer_execution.py
++++ b/app/api/customer_execution.py
+@@ -13,0 +14 @@ from app.api.customer_optimization import Runtime as OptimizationRuntime
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -154 +155 @@ def list_mandates(
+-@router.post("/mandates", status_code=201)
++@router.post("/mandates", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
+@@ -174 +175 @@ def create_mandate(
+-@router.put("/mandates/{mandate_id}")
++@router.put("/mandates/{mandate_id}", dependencies=[Depends(deny_advertising_mutation)])
+@@ -203 +204 @@ def edit_mandate(
+-@router.post("/mandates/{mandate_id}/consent")
++@router.post("/mandates/{mandate_id}/consent", dependencies=[Depends(deny_advertising_mutation)])
+@@ -284 +285,3 @@ def options(
+-@router.post("/creation-reviews", status_code=201)
++@router.post(
++    "/creation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
++)
+@@ -343 +346,3 @@ def prepare_creation(
+-@router.post("/activation-reviews", status_code=201)
++@router.post(
++    "/activation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
++)
+@@ -388 +393 @@ def get_review(
+-@router.post("/reviews/{review_id}/approval")
++@router.post("/reviews/{review_id}/approval", dependencies=[Depends(deny_advertising_mutation)])
+@@ -456 +461,3 @@ def approve(
+-@router.post("/reviews/{review_id}/runs", status_code=201)
++@router.post(
++    "/reviews/{review_id}/runs", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
++)
+@@ -530 +537 @@ def get_run(
+-@router.post("/runs/{run_id}/advance")
++@router.post("/runs/{run_id}/advance", dependencies=[Depends(deny_advertising_mutation)])
+diff --git a/app/api/customer_initial_execution.py b/app/api/customer_initial_execution.py
+index d2d8f455..2a6c5bba 100644
+--- a/app/api/customer_initial_execution.py
++++ b/app/api/customer_initial_execution.py
+@@ -3 +3 @@
+-from fastapi import APIRouter, Response
++from fastapi import APIRouter, Depends, Response
+@@ -7,0 +8 @@ from app.api.customer_optimization import Runtime as OptimizationRuntime
++from app.api.planning_boundary import deny_advertising_mutation, deny_advertising_options
+@@ -29 +30,5 @@ router = APIRouter(
+-@router.get("/execution-review-options", response_model=InitialPreviewExecutionOptionsV1)
++@router.get(
++    "/execution-review-options",
++    response_model=InitialPreviewExecutionOptionsV1,
++    dependencies=[Depends(deny_advertising_options)],
++)
+@@ -52 +57,5 @@ def options(
+-@router.post("/execution-review", response_model=InitialPreviewExecutionPreparedV1)
++@router.post(
++    "/execution-review",
++    response_model=InitialPreviewExecutionPreparedV1,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+diff --git a/app/api/customer_initial_planning.py b/app/api/customer_initial_planning.py
+index a966c918..465a976b 100644
+--- a/app/api/customer_initial_planning.py
++++ b/app/api/customer_initial_planning.py
+@@ -12,0 +13 @@ from app.ads.models import AdvertisingAccount, Campaign
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -439 +440,5 @@ def review_status(
+-@router.post("/previews/{preview_id}/review", response_model=InitialPreviewReviewPrepared)
++@router.post(
++    "/previews/{preview_id}/review",
++    response_model=InitialPreviewReviewPrepared,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+diff --git a/app/api/customer_mandates.py b/app/api/customer_mandates.py
+index 914bc872..03e01a5c 100644
+--- a/app/api/customer_mandates.py
++++ b/app/api/customer_mandates.py
+@@ -6 +6 @@ from typing import Any
+-from fastapi import APIRouter, HTTPException, Response
++from fastapi import APIRouter, Depends, HTTPException, Response
+@@ -9,0 +10 @@ from app import advertising_capabilities
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -179 +180,3 @@ def draft(
+-@router.post("/{mandate_id}/actions/{action_id}/review")
++@router.post(
++    "/{mandate_id}/actions/{action_id}/review", dependencies=[Depends(deny_advertising_mutation)]
++)
+@@ -200 +203,4 @@ def review(
+-@router.post("/{mandate_id}/actions/{action_id}/simulate/claim")
++@router.post(
++    "/{mandate_id}/actions/{action_id}/simulate/claim",
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+@@ -220 +226,4 @@ def claim(
+-@router.post("/{mandate_id}/actions/{action_id}/simulate/dispatch")
++@router.post(
++    "/{mandate_id}/actions/{action_id}/simulate/dispatch",
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+diff --git a/app/api/customer_optimization.py b/app/api/customer_optimization.py
+index 1986efe3..0304d9d7 100644
+--- a/app/api/customer_optimization.py
++++ b/app/api/customer_optimization.py
+@@ -9,0 +10 @@ from app.api.customer_planning_catalog import accounts as planning_accounts
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -116 +117 @@ def target_options(
+-@router.post("/mandates", status_code=201)
++@router.post("/mandates", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
+@@ -137 +138 @@ def create_mandate(
+-@router.put("/mandates/{mandate_id}")
++@router.put("/mandates/{mandate_id}", dependencies=[Depends(deny_advertising_mutation)])
+@@ -167 +168 @@ def edit_mandate(
+-@router.post("/mandates/{mandate_id}/consent")
++@router.post("/mandates/{mandate_id}/consent", dependencies=[Depends(deny_advertising_mutation)])
+@@ -197 +198 @@ def consent(
+-@router.post("/initial-reviews", status_code=201)
++@router.post("/initial-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
+@@ -215 +216 @@ def initial_review(
+-@router.post("/repeat-reviews", status_code=201)
++@router.post("/repeat-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)])
+@@ -233 +234,6 @@ def repeat_review(
+-@router.post("/budget-mandates", status_code=201, response_model=PreparedOptimizationMandateV1)
++@router.post(
++    "/budget-mandates",
++    status_code=201,
++    response_model=PreparedOptimizationMandateV1,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+@@ -250 +256,5 @@ def prepare_customer_budget(
+-@router.post("/budget-mandates/{mandate_id}/consent", response_model=PreparedOptimizationMandateV1)
++@router.post(
++    "/budget-mandates/{mandate_id}/consent",
++    response_model=PreparedOptimizationMandateV1,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+diff --git a/app/api/customer_session_automation.py b/app/api/customer_session_automation.py
+index 45ec4f7a..35a23aec 100644
+--- a/app/api/customer_session_automation.py
++++ b/app/api/customer_session_automation.py
+@@ -10,0 +11 @@ from app.ads.models import AdvertisingAccount
++from app.api.planning_boundary import deny_advertising_mutation, deny_advertising_options
+@@ -80 +81,4 @@ def capabilities(
+-            available=False, reason="automation_not_available", policies=[], mandates=[],
++            available=False,
++            reason="automation_not_available",
++            policies=[],
++            mandates=[],
+@@ -190 +194,5 @@ def capabilities(
+-@router.post("/start", response_model=SessionAutomationStatus)
++@router.post(
++    "/start",
++    response_model=SessionAutomationStatus,
++    dependencies=[Depends(deny_advertising_mutation)],
++)
+@@ -258 +266 @@ def stop(
+-@router.get("/initial-options/{preview_id}")
++@router.get("/initial-options/{preview_id}", dependencies=[Depends(deny_advertising_options)])
+diff --git a/app/api/customer_social_execution.py b/app/api/customer_social_execution.py
+index 1cb62da7..de2c2ca7 100644
+--- a/app/api/customer_social_execution.py
++++ b/app/api/customer_social_execution.py
+@@ -5 +5 @@ from typing import Annotated, Any
+-from fastapi import APIRouter, Query, Response
++from fastapi import APIRouter, Depends, Query, Response
+@@ -10,0 +11 @@ from app.api.customer_social_review import view
++from app.api.planning_boundary import deny_advertising_mutation
+@@ -26 +27,3 @@ router = APIRouter(
+-@router.post("/creation-reviews", status_code=201)
++@router.post(
++    "/creation-reviews", status_code=201, dependencies=[Depends(deny_advertising_mutation)]
++)
+@@ -64,3 +67,3 @@ def configurations(
+-            SocialConfigurationReview.document["schema_version"].as_string().in_(
+-                ["inlet.social-configuration-review.v1", "inlet.social-configuration-review.v2"]
+-            ),
++            SocialConfigurationReview.document["schema_version"]
++            .as_string()
++            .in_(["inlet.social-configuration-review.v1", "inlet.social-configuration-review.v2"]),
+diff --git a/app/api/planning_boundary.py b/app/api/planning_boundary.py
+new file mode 100644
+index 00000000..7cb235c0
+--- /dev/null
++++ b/app/api/planning_boundary.py
+@@ -0,0 +1,21 @@
++"""Authenticate scoped blocked intents before constructing execution dependencies."""
++
++from typing import NoReturn
++
++from app import advertising_capabilities
++from app.customers.access import Database, MutationPrincipal, Principal, Provider
++from app.publication.customer_authority import bind_authority
++
++
++def deny_advertising_mutation(
++    workspace_id: int, principal: MutationPrincipal, provider: Provider, db: Database
++) -> NoReturn:
++    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
++    advertising_capabilities.require_advertising_write()
++
++
++def deny_advertising_options(
++    workspace_id: int, principal: Principal, provider: Provider, db: Database
++) -> NoReturn:
++    bind_authority(principal, provider)(db, workspace_id, principal.user.id)
++    advertising_capabilities.require_advertising_write()

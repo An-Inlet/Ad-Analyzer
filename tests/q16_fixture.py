@@ -30,6 +30,7 @@ from pydantic import SecretStr
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from tests.planning_matrix_identity import FixtureIdentity, native_wire, paid_workspace
 from tests.q16_clock_feasibility_probe import NOV3, NOV4, issue_at, paid
 from tests.test_commerce_measurement import FakeMeasurement, agreement, source
 from tests.test_customer_identity import login
@@ -70,9 +71,11 @@ class Q16Basis:
 
 
 class NewYorkMeasurement(FakeMeasurement):
+    shop_gid = "gid://shopify/Shop/123"
+
     def shop(self, shop: str, token: str) -> dict[str, Any]:
         result = super().shop(shop, token)
-        result["shop"].update(id="gid://shopify/Shop/123", ianaTimezone="America/New_York")
+        result["shop"].update(id=self.shop_gid, ianaTimezone="America/New_York")
         return result
 
 
@@ -81,13 +84,17 @@ def native_account(
     wid: int,
     patch: pytest.MonkeyPatch,
     calls: list[str],
+    *,
+    identity: FixtureIdentity | None = None,
 ) -> int:
-    patch.setattr(
-        settings, "google_customer_encryption_key", SecretStr(Fernet.generate_key().decode())
-    )
-    patch.setattr(settings, "google_customer_client_id", "synthetic-client")
-    patch.setattr(settings, "google_customer_client_secret", SecretStr("synthetic-secret"))
-    patch.setattr(settings, "customer_native_diagnostics_enabled", True)
+    if identity is None:
+        patch.setattr(
+            settings, "google_customer_encryption_key", SecretStr(Fernet.generate_key().decode())
+        )
+        patch.setattr(settings, "google_customer_client_id", "synthetic-client")
+        patch.setattr(settings, "google_customer_client_secret", SecretStr("synthetic-secret"))
+        patch.setattr(settings, "customer_native_diagnostics_enabled", True)
+    external_id = identity.customer if identity else "1234567890"
     with Session(engine) as db:
         integration = WorkspaceIntegration(
             workspace_id=wid,
@@ -103,7 +110,7 @@ def native_account(
             workspace_id=wid,
             connection_id=integration.id,
             platform=AdvertisingPlatform("google_ads"),
-            external_account_id="1234567890",
+            external_account_id=external_id,
             name="Q16 Google",
             currency_code="USD",
             time_zone="America/New_York",
@@ -117,8 +124,12 @@ def native_account(
                 workspace_id=wid,
                 integration_id=integration.id,
                 account_id=account.id,
-                external_account_id="1234567890",
-                encrypted_grant=GoogleVault().seal(wid, sid, "synthetic-refresh"),
+                external_account_id=external_id,
+                encrypted_grant=GoogleVault().seal(
+                    wid,
+                    sid,
+                    "synthetic-refresh-" + identity.namespace if identity else "synthetic-refresh",
+                ),
                 backfill_through=date(2026, 9, 1),
                 history_floor=date(2026, 8, 1),
                 window_start=date(2026, 8, 1),
@@ -158,7 +169,11 @@ def native_account(
             rows = data["campaign"] if ".name" in query else data[key(query)]
         return httpx.Response(200, json={"results": rows})
 
-    patch.setattr(account_diagnostics, "diagnostic_transport", lambda: httpx.MockTransport(wire))
+    patch.setattr(
+        account_diagnostics,
+        "diagnostic_transport",
+        lambda: httpx.MockTransport(native_wire(wire, identity)),
+    )
     return aid
 
 
@@ -175,29 +190,38 @@ def prepare_q16_basis(
     native_account_factory: Callable[[Engine, int, pytest.MonkeyPatch, list[str]], int]
     | None = None,
     owned_image_upload: Callable[[int], tuple[str, str]] | None = None,
+    identity: FixtureIdentity | None = None,
 ) -> Q16Basis:
     now = datetime.now(UTC)
     assert now < NOV3 and now.year == 2026 and now.month == 10
     alice, _, provider = replicas
-    actor = login(alice, "q16-owner:initial")
+    actor = login(alice, identity.namespace + ":initial" if identity else "q16-owner:initial")
+    shop_domain = identity.shop if identity else "q16-store.myshopify.com"
     config.shopify_measurement_enabled = True
     with Session(engine) as db:
-        workspace = Workspace(slug="q16-" + branch, name="Q16", client_name="Q16", status="active")
+        workspace = Workspace(
+            slug=identity.namespace if identity else "q16-" + branch,
+            name="Q16",
+            client_name="Q16",
+            status="active",
+        )
         db.add(workspace)
         db.flush()
         wid = workspace.id
         db.add(CustomerMembership(user_id=actor, workspace_id=wid, role="owner"))
         db.commit()
         client = NewYorkMeasurement(config, [([source(updated=now - timedelta(seconds=1))], None)])
+        if identity is not None:
+            client.shop_gid = "gid://shopify/Shop/" + identity.customer
         client.facts = [
             agreement(
                 gross="8000", tax="0", when=datetime.fromisoformat("2026-09-15T12:00:00-04:00")
             )
         ]
         connection = ConnectionService(db, config, client)
-        auth = connection.begin(wid, "q16-store.myshopify.com", actor, now)
+        auth = connection.begin(wid, shop_domain, actor, now)
         nonce = parse_qs(urlsplit(auth).query)["state"][0]
-        state = connection.pending(dict(state=nonce, shop="q16-store.myshopify.com"), actor, now)
+        state = connection.pending(dict(state=nonce, shop=shop_domain), actor, now)
         shop = connection.finish(state, "synthetic-code", "owner", now)
         assert shop.commerce_store_id
         store_id = shop.commerce_store_id
@@ -242,8 +266,13 @@ def prepare_q16_basis(
     )
     assert confirmed.status_code == 200, confirmed.text
     generation_at = NOV3 if generation_stage == "nov3" else datetime.now(UTC)
-    aid = (native_account_factory or native_account)(engine, wid, patch, native_calls)
-    paid(engine, wid, generation_at, patch)
+    if identity is None:
+        aid = (native_account_factory or native_account)(engine, wid, patch, native_calls)
+        paid(engine, wid, generation_at, patch)
+    else:
+        assert native_account_factory is None and generation_stage == "october"
+        aid = native_account(engine, wid, patch, native_calls, identity=identity)
+        paid_workspace(engine, wid, identity, generation_at)
     with Session(engine) as db:
         if generation_stage == "nov3":
             client = NewYorkMeasurement(config, [([], None)])

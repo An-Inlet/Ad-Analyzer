@@ -11,6 +11,7 @@ from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 from app.planning_documents.google_budget_events import (
+    GoogleBudgetHTTPObservationV1,
     GoogleBudgetInvalidationV1,
     GoogleBudgetObservationV1,
 )
@@ -94,6 +95,7 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             if schema is not None:
                 budget_models: dict[str, type[Frozen]] = {
                     "inlet.google-budget-observation.v1": GoogleBudgetObservationV1,
+                    "inlet.google-budget-http-observation.v1": GoogleBudgetHTTPObservationV1,
                     "inlet.google-budget-invalidation.v1": GoogleBudgetInvalidationV1,
                 }
                 if schema not in budget_models:
@@ -139,6 +141,7 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             ManualAssertion,
             ReadObservedStatus,
             GoogleBudgetObservationV1,
+            GoogleBudgetHTTPObservationV1,
             GoogleBudgetInvalidationV1,
         ),
     ):
@@ -150,7 +153,7 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
             action_key=document.action_key,
             action_digest=document.action_digest,
         )
-        if isinstance(document, GoogleBudgetObservationV1):
+        if isinstance(document, (GoogleBudgetObservationV1, GoogleBudgetHTTPObservationV1)):
             expected["prior_sequence"] = None
         elif isinstance(document, GoogleBudgetInvalidationV1):
             expected["prior_sequence"] = document.observation_sequence
@@ -160,6 +163,7 @@ def document_for_row(table: str, row: Mapping[str, Any]) -> Frozen:
                 CustomerDecision,
                 ManualAssertion,
                 GoogleBudgetObservationV1,
+                GoogleBudgetHTTPObservationV1,
                 GoogleBudgetInvalidationV1,
             ),
         ):

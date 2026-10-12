@@ -9040,3 +9040,103 @@ history, receipts and exports, preserving mock provenance and all current author
 fences. Real provider authentication/transport remain unqualified. V3 default, V6/V7
 release holds, six expert decisions and INLET-REL-20261012-01 remain unchanged. No push,
 PR, hosted CI, merge, deployment, live call, credential operation, ad write or spend.
+
+
+## Q13 V24 Mock HTTP Admission — Paused At Memory Reserve, 2026-10-12
+
+Uncommitted from b273e3e4. Added explicit mock_http event/intent/receipt admission,
+source/privacy/identity/deadline-fenced service and immutable mock bundle, strict
+storage/history/recovery/archive dispatch and synthetic browser acquisition/recovery.
+V22 canonical bytes and readers remain preserved; v24 invalidation is excluded.
+
+Frozen q13-http-admission05: static checks passed (Ruff, mypy 1,592 files, collection,
+diff); 48 components, five SQLite and two PostgreSQL tests passed. All 1,909 source
+hashes verified. PostgreSQL browser stopped at 533,606,400 bytes memory headroom,
+below the 512 MiB reserve, exit -15 with incomplete XML. Cleanup left no children;
+two later PostgreSQL regressions are unrun. This is 55/58 passes, not full qualification.
+Independent review confirmed the resource stop and precise partial results. Four
+earlier failed attempts and unrun cases remain preserved; no unchanged retry follows.
+
+See [implementation, exact evidence and continuation](inlet-q13-http-admission-20261012.md).
+Next action: restore documented sustained memory headroom, then run only the interrupted
+PostgreSQL browser plus two unrun PostgreSQL legacy cases from remaining-nodes.json,
+bound to unchanged source and prior passes. Preserve reserve, timeout and cleanup rules.
+Finish evidence review before local commit. No active heavy tests, push or live actions.
+All owner, V6/V7 release and INLET-REL-20261012-01 holds remain. Legitimate live-read
+integration still needs separately versioned provenance, owned credential/account
+coordination, production read transport and expressly authorized live qualification.
+
+
+## Q13 HTTP Admission Continuation — Authority Failure, 2026-10-12
+
+Reviewed recovery removed only 352 inactive task-owned regenerable mypy cache files
+(975,491,072 bytes); source/evidence/services preserved. Six samples over 50 seconds
+held at least 1,694,973,952 bytes headroom. No owner memory purchase/reconfiguration
+was required. Recovery inventories, results and exclusions are retained and hashed.
+
+Continuation q13-http-admission06 bound unchanged 1,909 source hashes, runner, 55
+prior passes and four static checks, resuming only three interrupted/unrun cases.
+The first PostgreSQL browser case failed genuine generation with409
+planning_authority_expired (route12.292752s, process74.470196s, originalexit1), before
+HTTP observation. No resource interruption, cleanup escalation or surviving children.
+Two later legacy cases remain unrun. Independent review confirms55pass/1fail/2unrun;
+original memory stop is separate. No unchanged retry, timer weakening or completed
+commit. Source/contract review remains closed; overall qualification remains blocked.
+See [retained evidence and next diagnostic scope](inlet-q13-http-admission-20261012.md).
+
+Next: reviewed bounded generation authority phase/age diagnosis; route elapsed alone
+does not establish cause. INLET-REL-20261012-01 and V6/V7 release holds remain open.
+All work is local; no push/PR/hosted CI/merge/deployment/live calls/ad writes/spend.
+
+
+## Generation Authorization Boundary Review — 2026-10-12
+
+Feature expansion paused for recurring real generation expiry. Independent security
+review confirmed the existing two-stage compose/prepare→fresh-provider-auth flow;
+the remaining final transaction still reconstructs extensive current source graphs.
+A shorter prepared-publication design requires complete current dependency and writer
+fencing, including inserts/absences; privacy epoch alone is insufficient. A concrete
+RangeReceipt insertion/cardinality example and campaign/metric join dependency are
+recorded. Also inventory response construction and ORM commit callbacks after final
+repository authorization. Five-second snapshots, original-session revalidation,
+rollback and no provider IO under locks remain unchanged.
+
+[Reviewed architecture and next package](design/generation-authorization-boundary-20261012.md):
+close dependency/writer inventory with both-DB insertion/deletion/membership contract
+tests before optimizing; no production currentness checks removed. Independent remaining
+legacy PostgreSQL API/browser passed separately, yielding57unmodified acceptance passes
+and one unresolved failure across the selection. Preserve original55pass/1fail/2unrun.
+One separately reviewed diagnostic passed with2.568319s save,1.377696s final_sources,
+0.950314s retainedcapture;365frames, no observer errors/truncation/restoration failure.
+This does not explain the original failure or resolve INLET-REL-20261012-01. No further
+retry, feature expansion, authority change, completed commit or live action occurred.
+
+
+## Generation Dependency Contracts And Writer Inventory — 2026-10-12
+
+Added six both-database contracts proving receipt/campaign phantom inserts can leave
+privacy unchanged while full current rereads refuse; receipt updates are trigger-refused
+and unchanged after rollback; deletes advance privacy; PostgreSQL scope locks block the
+normal writer; SQLite requires explicit physical BEGIN IMMEDIATE to do so. No production
+transaction or source reader changed. Whole Ruff/mypy1593/collection/diff and six tests
+passed in generation-dependency02 (attempt01 strictoptionaltyping stop preserved).
+
+An additional18existingsecurityregressions passed in generation-dependency-security01,
+nine perDB, covering committed session/membership/privacy/source changes, metric update,
+raw/receipt deletion and same/different-key publication. PostgreSQL proves overlap;
+SQLite's publication cases are sequentialfinaltransactions, not concurrent-write proof.
+All1910source hashes verified;14artifact hashes retained, no skips/interruption/survivors.
+
+[Inventory and exact evidence](design/generation-dependency-writer-inventory-20261012.md)
+includes52models/13families/1346references and concrete catalog and receipt/job writer
+walks. A background failed-job finalizer lacks its own workspace reacquisition; private
+source full-row comparisons remain transient/unpersisted. Census is NOT all-writer proof.
+Keep current reconstruction until alias/generic DML, cascades, predicates and physical
+transaction/callback boundaries close. No measuredoptimizationbenefit claimed; next is
+writerclosure, notfeature expansion. Original57pass/1unresolved HTTP inventory and
+INLET-REL-20261012-01 remain unchanged. No external/live operations or ad authority.
+
+Local reviewed dependency checkpoint committed as `b6f3f1278bb6870bb34a293ce6b6971b3e4ab368` on
+`codex/inlet-w1-followup` (four explicit test/design paths only). Pending HTTP changes
+remain unstaged; no push/PR or overall package completion. Commit binding is retained
+in generation-dependency-inventory/commit-binding.json.

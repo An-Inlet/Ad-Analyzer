@@ -1,0 +1,127 @@
+diff --git a/tests/test_initial_calibration_review.py b/tests/test_initial_calibration_review.py
+new file mode 100644
+index 00000000..7b5cc3e4
+--- /dev/null
++++ b/tests/test_initial_calibration_review.py
+@@ -0,0 +1,87 @@
++from datetime import UTC, datetime
++
++from app.initial_planning.calibration import evaluate
++from app.initial_planning.contracts import ObservationV1
++from tests.test_initial_calibration import NOW, objective, observation, policy
++
++
++def test_delayed_capture_cannot_close_an_open_window_acquisition() -> None:
++    records = []
++    for month in (7, 8):
++        data = observation(month).model_dump(mode="python")
++        data["completed_at"] = datetime(2026, month, 15, tzinfo=UTC)
++        records.append(ObservationV1.model_validate(data))
++    configuration = policy().model_copy(update={"minimum_report_age_seconds": 86400})
++    report = evaluate(tuple(records), objective(records[0]), configuration, NOW)
++    assert report.status == "insufficient", report.model_dump()
++
++
++def test_semantic_privacy_fence_erases_retained_capsule(
++    customer_engine, configuration, monkeypatch
++):
++    from sqlalchemy.orm import Session
++    from app.initial_planning.capture import capture_current
++    from app.initial_planning.models import ObservationRow
++    from app.lifecycle.privacy import bump_workspace_export_revision
++    from tests.test_initial_observations import ready
++    with Session(customer_engine) as db:
++        source, cid, actor, provider, runtime, _, _ = ready(
++            db, customer_engine, configuration, monkeypatch
++        )
++        item = capture_current(db, actor, provider, source.workspace_id, source.account_id, cid, runtime)
++        db.commit()
++        bump_workspace_export_revision(db, source.workspace_id)
++        db.commit()
++        assert db.get(ObservationRow, item.id, populate_existing=True) is None
++
++
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_meta_connection import configuration as configuration
++
++
++import pytest
++
++
++@pytest.mark.parametrize("operation", ["disconnect", "expiry"])
++def test_actual_captured_observation_lifecycle(customer_engine, configuration, monkeypatch, operation):
++    import time
++    from dataclasses import replace
++    from sqlalchemy.orm import Session
++    from fastapi import HTTPException
++    from app.initial_planning.capture import capture_current, read_observation
++    from app.initial_planning.models import ObservationRow
++    from app.initial_planning.retention import purge_expired_observations
++    from app.lifecycle.privacy import database_utc_now
++    from app.meta.service import ConnectionService
++    from app.workspaces.models import Workspace
++    from tests.test_initial_observations import ready
++    with Session(customer_engine) as db:
++        source, cid, actor, provider, runtime, _, _ = ready(
++            db, customer_engine, configuration, monkeypatch
++        )
++        if operation == "expiry":
++            runtime = replace(runtime, configuration=runtime.configuration.model_copy(update={"retention_seconds": 2}))
++        wid = source.workspace_id
++        item = capture_current(db, actor, provider, wid, source.account_id, cid, runtime)
++        db.commit()
++        assert read_observation(db, actor, provider, wid, item.id, runtime) == item
++        db.rollback()
++        if operation == "disconnect":
++            ConnectionService(db, configuration).disconnect(wid, "owner")
++        else:
++            # The immutable persisted deadline, not a forged ahead app clock,
++            # expires. Closing status and absent configuration cannot veto cleanup.
++            workspace = db.get(Workspace, wid)
++            workspace.status = "closing"
++            db.commit()
++            deadline = time.monotonic() + 6
++            while database_utc_now(db) < item.expires_at:
++                assert time.monotonic() < deadline
++                db.rollback()
++                time.sleep(0.05)
++            db.rollback()
++            runtime = replace(runtime, configuration=None)
++            assert purge_expired_observations(lambda: Session(customer_engine)) == 1
++        assert db.get(ObservationRow, item.id, populate_existing=True) is None
++        with pytest.raises(HTTPException):
++            read_observation(db, actor, provider, wid, item.id, runtime)
+diff --git a/tests/test_initial_planning_migration_review.py b/tests/test_initial_planning_migration_review.py
+new file mode 100644
+index 00000000..c40c4484
+--- /dev/null
++++ b/tests/test_initial_planning_migration_review.py
+@@ -0,0 +1,28 @@
++"""Independent exercise of actual0075 DDL on disposable fixture schemas."""
++
++import importlib
++
++from alembic.migration import MigrationContext
++from alembic.operations import Operations
++from sqlalchemy import inspect
++
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_meta_connection import configuration as configuration
++from tests.test_initial_observations import (
++    test_dependency_delete_erases_parent_and_expiry_export_fence as dependency_check,
++)
++
++
++def test_actual_migration_dependency_erase_and_roundtrip(customer_engine, configuration, monkeypatch):
++    migration = importlib.import_module("migrations.versions.20261006_0075_initial_planning")
++    with customer_engine.begin() as connection:
++        with Operations.context(MigrationContext.configure(connection)):
++            migration.downgrade()
++            assert "initial_observations" not in inspect(connection).get_table_names()
++            migration.upgrade()
++    dependency_check(customer_engine, configuration, monkeypatch, False)
++    with customer_engine.begin() as connection:
++        with Operations.context(MigrationContext.configure(connection)):
++            migration.downgrade()
++            migration.upgrade()
++        assert "initial_calibration_dependencies" in inspect(connection).get_table_names()

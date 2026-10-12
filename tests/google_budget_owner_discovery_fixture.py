@@ -16,6 +16,7 @@ from app.settings import Settings
 from sqlalchemy import Engine
 
 from tests.creative_common_basis_fixture import prepare_creative_common_basis
+from tests.planning_matrix_identity import FixtureIdentity, native_wire
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
 from tests.test_customer_optimization_api import headers
@@ -69,12 +70,15 @@ def acquired_owner_catalog(
     response_control: OwnerCatalogResponseControl | None = None,
     native_names: dict[str, str] | None = None,
     configured_runtime: bool = False,
+    identity: FixtureIdentity | None = None,
 ) -> tuple[Any, dict[str, Any], list[tuple[str, str]]]:
     # Copy once before bootstrap; callers cannot mutate later acquisition responses.
     names = {} if native_names is None else dict(native_names)
     if any(
-        type(key) is not str or key not in {"1", "2", "3"}
-        or type(value) is not str or not 1 <= len(value) <= 160
+        type(key) is not str
+        or key not in {"1", "2", "3"}
+        or type(value) is not str
+        or not 1 <= len(value) <= 160
         or any(ord(char) < 32 or ord(char) > 126 for char in value)
         for key, value in names.items()
     ):
@@ -90,6 +94,7 @@ def acquired_owner_catalog(
         platform="google_ads",
         selected_value="10",
         configured_runtime=configured_runtime,
+        identity=identity,
     )
     alice, _, _ = replicas
     aid, wid = fixture.basis.account_id, fixture.basis.workspace_id
@@ -105,7 +110,11 @@ def acquired_owner_catalog(
                 "name": names.get(native, f"Mug Campaign {native}"),
             }
         }
-        for native, budget in (("1", "2"), ("2", "2"), ("3", "4"))
+        for native, budget in (
+            (("1", "2"), ("2", "2"), ("3", "4"), ("4", "4"))
+            if identity and identity.size == "large"
+            else (("1", "2"), ("2", "2"), ("3", "4"))
+        )
     ]
     shared = data["campaign_budget"][0]["campaignBudget"]
     shared.update(referenceCount="3" if partial else "2", explicitlyShared=True)
@@ -114,8 +123,8 @@ def acquired_owner_catalog(
             "campaignBudget": {
                 **shared,
                 "resourceName": PREFIX + "campaignBudgets/4",
-                "referenceCount": "1",
-                "explicitlyShared": False,
+                "referenceCount": "2" if identity and identity.size == "large" else "1",
+                "explicitlyShared": bool(identity and identity.size == "large"),
             }
         }
     )
@@ -147,7 +156,7 @@ def acquired_owner_catalog(
                         type="SEARCH_STANDARD",
                     )
                 }
-                for i in (1, 2, 3)
+                for i in range(1, (identity.native_campaigns if identity else 3) + 1)
             ]
         elif "FROM campaign " in query or query.endswith("FROM campaign"):
             token = body.get("pageToken", "")
@@ -168,7 +177,9 @@ def acquired_owner_catalog(
         return httpx.Response(200, json={"results": rows})
 
     monkeypatch.setattr(
-        account_diagnostics, "diagnostic_transport", lambda: httpx.MockTransport(wire)
+        account_diagnostics,
+        "diagnostic_transport",
+        lambda: httpx.MockTransport(native_wire(wire, identity)),
     )
     alice.app.include_router(customer_planning_target_catalog.router)
     root = f"/api/customer/v1/workspaces/{wid}"

@@ -1,8 +1,11 @@
 # Bounded V6 Concurrency Release Qualification
 
 Proposed future release evidence, not an execution request or a retrospective-cause
-experiment. V6 stays default-off and unqualified. INLET-REL-20261012-01 remains open.
-No execution in this package; review this exact contract before reserving a heavy slot.
+experiment. V3 is the default; V6/V7 remain technically selectable and release-unqualified.
+INLET-REL-20261012-01 remains open. No matrix execution has occurred.
+See [the harness preparation record](v6-concurrency-harness-preparation-20261012.md)
+for tested infrastructure, the independent V5 result and exact fixture prerequisites.
+Review the assembled matrix contract before reserving its heavy slot.
 
 ## Fixed Workload And Setup
 

@@ -15,6 +15,13 @@ from app.planning_documents.common import Id
 from app.planning_documents.comparison import VersionComparison, compare_versions
 from app.planning_documents.google_budget_events import BudgetReadIntent
 from app.planning_documents.google_budget_fixture_runtime import configured_fixture, require_fixture
+from app.planning_documents.google_budget_http import GoogleBudgetHTTPUnavailable
+from app.planning_documents.google_budget_http_events import BudgetHTTPIntent
+from app.planning_documents.google_budget_http_fixture import (
+    configured_http_fixture,
+    require_http_fixture,
+)
+from app.planning_documents.google_budget_http_service import GoogleBudgetHTTPService
 from app.planning_documents.google_budget_observation_service import GoogleBudgetObservationService
 from app.planning_documents.google_budget_read import GoogleBudgetReadTicketV1
 from app.planning_documents.policy_capabilities import ticket_reporting_capability
@@ -56,6 +63,7 @@ Operation = Literal[
     "decide",
     "assert_applied",
     "budget_observe",
+    "budget_http_observe",
     "budget_invalidate",
 ]
 RequestKey = Annotated[str, Path(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")]
@@ -103,6 +111,7 @@ def planning_capabilities(
     configured = service(db, provider, principal)
     with configured._read_session(principal, workspace_id):
         fixture = configured_fixture(request)
+        http_fixture = configured_http_fixture(request)
         capability = ticket_reporting_capability(
             configured.policy.version, configured.policy.digest()
         )
@@ -111,7 +120,9 @@ def planning_capabilities(
             policy_version=configured.policy.version,
             generator_version=configured.policy.generator_version,
             google_budget_observation=(
-                "injected_fixture"
+                "mock_http"
+                if http_fixture is not None and http_fixture.workspace_id == workspace_id
+                else "injected_fixture"
                 if fixture is not None and fixture.workspace_id == workspace_id
                 else "unavailable"
             ),
@@ -158,6 +169,32 @@ def observe_budget(
         ))
     except ValueError as error:
         raise HTTPException(409, "Synthetic budget evidence could not be compared.") from error
+
+
+@router.post("/{plan_id}/budget-http-observations", response_model=EventResult)
+def observe_http_budget(
+    workspace_id: int, plan_id: Id, body: BudgetObservationIntent, request: Request,
+    principal: MutationPrincipal, provider: Provider, db: Database, response: Response,
+) -> EventResult:
+    no_store(response)
+    bundle = require_http_fixture(request)
+    configured = service(db, provider, principal)
+
+    def guard() -> None:
+        require_http_fixture(request, bundle)
+
+    runtime = GoogleBudgetHTTPService(configured.engine, provider, bundle, utc_now, guard)
+    try:
+        return runtime.observe(principal, BudgetHTTPIntent(
+            workspace_id=workspace_id, plan_id=plan_id, version=body.expected_version,
+            expected_event_sequence=body.expected_event_sequence,
+            document_digest=body.document_digest, action_key=body.action_key,
+            action_digest=body.action_digest, request_key=body.request_key,
+        ))
+    except GoogleBudgetHTTPUnavailable:
+        raise HTTPException(503, "Mock HTTP budget acquisition is unavailable.") from None
+    except ValueError:
+        raise HTTPException(409, "Mock HTTP budget evidence could not be compared.") from None
 
 
 @router.post("", response_model=InputResult, status_code=201)

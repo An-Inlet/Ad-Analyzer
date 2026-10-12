@@ -7,7 +7,7 @@ import os
 import sys
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from pathlib import Path
 from threading import Event, Lock, Thread
@@ -138,7 +138,7 @@ class Evidence:
             sample = resource_sample()
             after = time.monotonic()
             with self.mutex:
-                if len(self.resources) < 512:
+                if len(self.resources) < 4096:
                     self.resources.append(
                         dict(at=before - self.started, sampling_seconds=after - before, **sample)
                     )
@@ -441,4 +441,5 @@ class Evidence:
             if kind is None:
                 raise
             # Never replace the original request/assertion failure with an observer failure.
-            print("CONTENTION_EVIDENCE_WRITE_OR_CLEANUP_FAILED", file=sys.stderr)
+            with suppress(BaseException):
+                print("CONTENTION_EVIDENCE_WRITE_OR_CLEANUP_FAILED", file=sys.stderr)

@@ -10,6 +10,7 @@ from app.customers.access import CustomerPrincipal
 from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow
+from app.planning_documents.prepared_candidate import validate_retained_candidate
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
     RetainedSourceWitness,
@@ -50,7 +51,7 @@ def capture_selected_reporting_sources(
     Caller owns original identity refresh/final age, workspace lock and transaction.
     A viewer may inspect currentness; this helper grants no write authority.
     """
-    document = PlanVersion.model_validate(document)
+    document = validate_retained_candidate(document, db)
     proof = document.selected_reporting_proof
     selected_policy_contract(document.policy_version, document.generator_version)
     if proof is None or document.inputs.selected_reporting is None:

@@ -1,8 +1,10 @@
 """Actual configured v6 preparation, fresh boundaries and atomic publication."""
 
 import json
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ from sqlalchemy import Engine, event, func, select, update
 from sqlalchemy.orm import Session
 
 from tests.creative_q07_fixture import planning_snapshot
+from tests.planning_release_evidence import record_intentional_delay
 from tests.test_creative_common_basis import financial_counts
 from tests.test_customer_identity import customer_engine as customer_engine
 from tests.test_customer_identity import replicas as replicas
@@ -405,6 +408,7 @@ def test_configured_real_expiry_preserves_complete_rollback(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     boundary: str,
+    tmp_path: Path,
 ) -> None:
     alice, url = create(actual_owner)
     captured = trace_preparation(monkeypatch)
@@ -439,32 +443,134 @@ def test_configured_real_expiry_preserves_complete_rollback(
                     .where(PlanRequestRow.operation == "generate")
                 )
             assert (versions, receipts) == ((0, 0) if boundary == "pre_cas" else (1, 1))
+            record_intentional_delay(fact, boundary, 6)
             delayed.append(True)
             time.sleep(6)  # Original fact and five-second guard remain untouched.
         original_final(principal, fact, diagnostic_phase=diagnostic_phase)
 
     monkeypatch.setattr(repository, "save_generation", saving)
     monkeypatch.setattr(authority, "final", final)
-    response = alice.post(url + "/generate", headers=headers(alice), json=generation())
-    assert delayed == [True]
-    assert response.status_code == 409
-    assert response.json() == {"detail": "planning_authority_expired"}
-    records = [
-        json.loads(record.getMessage())
-        for record in caplog.records
-        if record.name == "inlet.planning.authority"
-    ]
-    assert records == [
-        dict(
-            event="planning_authority_expired",
-            schema_version=1,
-            route="generate",
-            phase=boundary,
-            cause="fact_age_outside_window",
-            session_predicate="not_evaluated",
-            status=409,
+    response: Any = None
+    try:
+        response = alice.post(url + "/generate", headers=headers(alice), json=generation())
+        assert delayed == [True]
+        assert response.status_code == 409
+        assert response.json() == {"detail": "planning_authority_expired"}
+        records = [
+            json.loads(record.getMessage())
+            for record in caplog.records
+            if record.name == "inlet.planning.authority"
+        ]
+        assert records == [
+            dict(
+                event="planning_authority_expired",
+                schema_version=1,
+                route="generate",
+                phase=boundary,
+                cause="fact_age_outside_window",
+                session_predicate="not_evaluated",
+                status=409,
+            )
+        ]
+        assert (
+            planning_snapshot(customer_engine),
+            _source_snapshot(customer_engine, wid),
+        ) == before
+        assert financial_counts(customer_engine) == effects
+        assert captured[0][0].snapshots is None
+    finally:
+        _persist_expiry_outcome(
+            tmp_path / "expiry-outcome.json",
+            response,
+            delayed,
+            caplog.records,
+            failed=sys.exception() is not None,
         )
-    ]
-    assert (planning_snapshot(customer_engine), _source_snapshot(customer_engine, wid)) == before
-    assert financial_counts(customer_engine) == effects
-    assert captured[0][0].snapshots is None
+
+
+def _persist_expiry_outcome(
+    destination: Path, response: Any, delayed: list[bool], records: list[Any], *, failed: bool
+) -> None:
+    """Fixed failure evidence only; never replace an active assertion/exception."""
+    try:
+        status = response.status_code if response is not None else None
+        if status is not None and (type(status) is not int or not 100 <= status <= 599):
+            raise ValueError("invalid diagnostic status")
+        category = "no_response" if status is None else "other_response"
+        malformed_response = False
+        if status is not None and 400 <= status < 500 and len(response.content) <= 4096:
+            try:
+                payload = response.json()
+                malformed_response = type(payload) is not dict
+            except (TypeError, ValueError):
+                payload = None
+                malformed_response = True
+            detail = payload.get("detail") if type(payload) is dict else None
+            if type(detail) is str and detail in {
+                "planning_authority_expired",
+                "prepared generation evidence changed",
+                "Planning evidence changed. Read current sources again.",
+                "customer authentication required",
+                "generation evidence expired",
+            }:
+                category = detail
+        expiry: list[dict[str, Any]] = []
+        malformed = 0
+        expected: dict[str, set[Any]] = {
+            "event": {"planning_authority_expired"},
+            "schema_version": {1},
+            "route": {"generate", "current", "history", "version", "unspecified"},
+            "phase": {"lock", "replay", "pre_cas", "post_flush", "unspecified"},
+            "cause": {"fact_age_outside_window", "session_expired"},
+            "session_predicate": {"not_evaluated", "expired"},
+            "status": {409},
+        }
+        for record in records:
+            if record.name != "inlet.planning.authority":
+                continue
+            if len(expiry) >= 32:
+                malformed += 1
+                continue
+            try:
+                if type(record.msg) is not str or record.args or len(record.msg) > 1024:
+                    raise ValueError("bounded fixed message required")
+                value = json.loads(record.msg)
+                if (
+                    type(value) is not dict
+                    or set(value) != set(expected)
+                    or any(
+                        type(value[key])
+                        is not (int if key in {"schema_version", "status"} else str)
+                        or value[key] not in allowed
+                        for key, allowed in expected.items()
+                    )
+                ):
+                    raise ValueError("fixed authority fields required")
+                if value["session_predicate"] != (
+                    "expired" if value["cause"] == "session_expired" else "not_evaluated"
+                ):
+                    raise ValueError("consistent authority fields required")
+                expiry.append(value)
+            except (TypeError, ValueError):
+                malformed += 1
+        with destination.open("x") as target:
+            json.dump(
+                dict(
+                    status=status,
+                    category=category,
+                    delay_reached=delayed == [True],
+                    assertion_or_request_failed=failed,
+                    authority_events=expiry,
+                    malformed_events=malformed,
+                    malformed_response=malformed_response,
+                ),
+                target,
+                indent=2,
+                allow_nan=False,
+            )
+            target.write("\n")
+    except BaseException:
+        if not failed:
+            raise
+        with suppress(BaseException):
+            print("EXPIRY_OUTCOME_WRITE_FAILED", file=sys.stderr)

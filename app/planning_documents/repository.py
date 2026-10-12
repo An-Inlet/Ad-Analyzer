@@ -45,6 +45,7 @@ from app.planning_documents.policy_capabilities import (
     ticket_reporting_capability,
 )
 from app.planning_documents.ports import EvidenceBundle, GenerationTicket
+from app.planning_documents.prepared_candidate import retained_candidate_scope
 from app.planning_documents.prepared_generation import PreparedGenerationChecks, require_prepared
 from app.planning_documents.retained_sources import (
     RetainedSourcesChanged,
@@ -610,9 +611,11 @@ def save_generation(
     if prepared is not None:
         prepared.generation(db, ticket, bundle, candidate)
     try:
-        witnesses = capture_retained_sources(
-            db, principal=current, document=candidate, now=max(now, database_utc_now(db))
-        )
+        retained_now = max(now, database_utc_now(db))
+        with retained_candidate_scope(prepared, db):
+            witnesses = capture_retained_sources(
+                db, principal=current, document=candidate, now=retained_now
+            )
     except RetainedSourcesChanged as error:
         raise changed(error.reason) from error
     if prepared is not None:

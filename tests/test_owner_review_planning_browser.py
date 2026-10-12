@@ -98,10 +98,12 @@ def test_actual_owner_review_planning_browser(
         ),
     )
     basis = fixture.basis
-    if journey == "budget_observation":
-        from tests.google_budget_runtime_fixture import install_fixture
+    if journey in ("budget_observation", "budget_http"):
+        from tests.google_budget_runtime_fixture import install_fixture, install_http_fixture
 
-        install_fixture(
+        install = install_http_fixture if journey == "budget_http" else install_fixture
+
+        install(
             customer_engine, monkeypatch, basis.workspace_id, basis.account_id,
             fixture_catalog["native_observation"]["time_zone"],
         )
@@ -183,12 +185,14 @@ def test_actual_owner_review_planning_browser(
                 raise AssertionError("Original authenticated session changed")
         if path == "/__fixture__/disable-budget":
             checkpoint = Request(scope)
-            assert journey == "budget_observation" and scope.get("method") == "POST"
+            assert journey in ("budget_observation", "budget_http")
+            assert scope.get("method") == "POST"
             assert checkpoint.headers.get("origin") == origin
             assert hmac.compare_digest(checkpoint.cookies.get(SESSION_COOKIE, ""), original_cookie)
             assert hmac.compare_digest(checkpoint.headers.get("x-csrf-token", ""), original_csrf)
             assert active_requests == 0
             monkeypatch.setattr(settings, "customer_google_budget_observation_mode", "disabled")
+            monkeypatch.setattr(settings, "customer_google_budget_http_mode", "disabled")
             await JSONResponse({"ok": True})(scope, receive, send)
             return
         if path == "/__fixture__/make-partial":
@@ -364,7 +368,7 @@ def test_actual_owner_review_planning_browser(
         assert session_posts == 0
         assert financial_counts(customer_engine) == counts
         result = results[0]
-        if journey == "budget_observation":
+        if journey in ("budget_observation", "budget_http"):
             assert result["budget_checks"] is True
             (tmp_path / "budget-browser-result.json").write_text(
                 json.dumps(result["budget_result"])

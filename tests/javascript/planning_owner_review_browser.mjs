@@ -214,18 +214,19 @@ try{
   assert(canonical(old.document)===originalDocument&&canonical(oldExport.document)===originalDocument,'original complete V1 document immutable');
   transition.historical=old;transition.historical_export=oldExport;transition.final_input_posts=inputPosts;
  }
- if(cfg.journey==='budget_observation'){
+ if(['budget_observation','budget_http'].includes(cfg.journey)){
+  const http=cfg.journey==='budget_http',suffix=http?'/budget-http-observations':'/budget-observations',operation=http?'budget_http_observe':'budget_observe';
   assert(!$('budget-observation').hidden&&$('budget-request').disabled,'fixture control requires explicit acknowledgement');
   assert($('budget-observation').textContent.includes('not a live advertising account'),'synthetic limits visible');
   change($('budget-action'),documentValue.google_budget_owner_review.reviews[0].action_key);
   checked($('budget-confirm'),true);assert(!$('budget-request').disabled,'explicit fixture request enabled');
   const previousFetch=window.fetch;let observationPosts=0,recoveryGets=0,requestBody=null;
   window.fetch=async(path,init={})=>{
-   if(String(path).endsWith('/budget-observations')&&init.method==='POST'){
+   if(String(path).endsWith(suffix)&&init.method==='POST'){
     observationPosts++;requestBody=JSON.parse(init.body);const response=await previousFetch(path,init);
     budgetResult=await json(response.clone());const forged=structuredClone(budgetResult);forged.event.advertising_writes_enabled=true;return new Response(JSON.stringify(forged),{status:200,headers:{'Content-Type':'application/json'}});
    }
-   if(String(path).includes('/requests/budget_observe/')){
+   if(String(path).includes('/requests/'+operation+'/')){
     recoveryGets++;const response=await previousFetch(path,init);
     if(recoveryGets===1){await response.json();throw Error('lost receipt response');}
     if(recoveryGets===2){const forged=await response.json();forged.event.actor_id='f'.repeat(32);return new Response(JSON.stringify(forged),{status:200,headers:{'Content-Type':'application/json'}});}
@@ -234,7 +235,7 @@ try{
    return previousFetch(path,init);
   };
   $('budget-request').click();await until(()=>settled()&&!$('pending').hidden,'ambiguous request retained');
-  assert(observationPosts===1&&requestBody.request_key&&budgetResult.event.provenance==='injected_fixture','one real synthetic observation committed');
+  assert(observationPosts===1&&requestBody.request_key&&budgetResult.event.provenance===(http?'mock_http':'injected_fixture'),'one real synthetic observation committed');
   assert($('message').textContent.includes('could not be verified'),'malformed POST authority rejected');
   $('recover').click();await until(()=>settled()&&recoveryGets===1,'lost receipt response settled');
   assert(!$('pending').hidden&&$('retry').hidden,'lost response preserves key without automatic retry');
@@ -244,8 +245,8 @@ try{
   await json(await native('/__fixture__/disable-budget',{method:'POST',headers:{'X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))}}));
   $('recover').click();await until(()=>settled()&&$('pending').hidden&&!$('events').hidden,'receipt recovery while disabled');
   assert(observationPosts===1&&$('budget-observation').hidden,'no reacquisition after disable');
-  assert($('events').textContent.includes('Injected Fixture Evidence')&&$('events').textContent.includes('Current reliance is not assessed'),'strict historical fixture display');
-  const replay=await native(plan+'/budget-observations',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))},body:JSON.stringify(requestBody)});
+  assert($('events').textContent.includes(http?'Mock HTTP Evidence':'Injected Fixture Evidence')&&$('events').textContent.includes('Current reliance is not assessed'),'strict historical fixture display');
+  const replay=await native(plan+suffix,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':decodeURIComponent(csrf.slice(csrf.indexOf('=')+1))},body:JSON.stringify(requestBody)});
   assert(replay.status===503,'stale browser POST replay refuses when disabled');
   window.fetch=previousFetch;budgetChecks=true;
  }

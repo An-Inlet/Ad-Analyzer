@@ -43,6 +43,7 @@ from app.planning_documents.documents import PlanVersion
 from app.planning_documents.evidence_local import ordinary_meta
 from app.planning_documents.models import PlanDependencyRow
 from app.planning_documents.policy_capabilities import reporting_capability
+from app.planning_documents.prepared_candidate import validate_retained_candidate
 from app.planning_documents.selected_inputs import (
     SELECTED_GENERATOR_VERSION,
     SELECTED_POLICY_VERSION,
@@ -326,7 +327,7 @@ def capture_reporting_presence_pin(
 def capture_retained_sources(
     db: Session, *, principal: CustomerPrincipal, document: PlanVersion, now: datetime
 ) -> tuple[RetainedSourceWitness, ...]:
-    document = PlanVersion.model_validate(document)
+    document = validate_retained_candidate(document, db)
     from app.planning_documents.owner_review_policy import is_owner_review_policy
 
     if is_owner_review_policy(document.policy_version, document.generator_version):

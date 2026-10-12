@@ -9,6 +9,7 @@ from app.planning_documents.context import PlanInputRevision
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.events import CustomerDecision, ManualAssertion, ReadObservedStatus
 from app.planning_documents.google_budget_events import (
+    GoogleBudgetHTTPObservationV1,
     GoogleBudgetInvalidationV1,
     GoogleBudgetObservationV1,
 )
@@ -72,6 +73,7 @@ class EventResult(NoAuthority):
         CustomerDecision
         | ManualAssertion
         | ReadObservedStatus
+        | GoogleBudgetHTTPObservationV1
         | GoogleBudgetObservationV1
         | GoogleBudgetInvalidationV1
     )

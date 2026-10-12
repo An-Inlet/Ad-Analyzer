@@ -23,6 +23,7 @@ from app.planning_documents.service import PlanningDocumentService
 from app.settings import Settings
 from sqlalchemy import Engine
 
+from tests.planning_matrix_identity import FixtureIdentity
 from tests.q16_fixture import IMAGE, Q16Basis
 from tests.selected_q01_q02_fixture import prepare_selected_common_basis
 from tests.social_common_basis_fixture import prepare_social_common_basis
@@ -50,6 +51,7 @@ def prepare_creative_common_basis(
     selected_value: Literal["10", "0"] | None = None,
     missing_selected_day: date | None = None,
     configured_runtime: bool = False,
+    identity: FixtureIdentity | None = None,
 ) -> CreativeCommonBasis:
     if platform != "google_ads" and selected_value is not None:
         raise ValueError("social fixtures cannot adopt Google selected observations")
@@ -88,6 +90,7 @@ def prepare_creative_common_basis(
             missing_selected_day=missing_selected_day,
             owned_image_upload=upload,
             configure_planning=not configured_runtime,
+            identity=identity,
         )
     else:
         basis, body, calls = prepare_social_common_basis(

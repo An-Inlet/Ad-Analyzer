@@ -40,8 +40,10 @@ from app.planning_documents.evidence_adapter import OwnedPlanningEvidenceReader
 from app.planning_documents.evidence_local import recheck_local_sources, resolve_source_fences
 from app.planning_documents.generation_ports import GenerationEvidence, GenerationEvidenceReader
 from app.planning_documents.google_budget_events import (
+    GoogleBudgetHTTPObservationV1,
     GoogleBudgetInvalidationV1,
     GoogleBudgetObservationV1,
+    budget_operation,
 )
 from app.planning_documents.google_budget_generation_guard import (
     reject_google_budget_generation,
@@ -447,7 +449,11 @@ class PlanningDocumentService:
                 clock=self.clock,
             )
             try:
-                bundle: GenerationEvidence = creative_reader.collect(ticket)
+                bundle: GenerationEvidence = (
+                    creative_reader.collect_for_generation(ticket)
+                    if capability.mode == "owner_review_creative_selected_requested_window"
+                    else creative_reader.collect(ticket)
+                )
             except (PlanningImageUnavailable, RetainedSourcesChanged) as error:
                 raise repository.changed("creative planning evidence unavailable") from error
         else:
@@ -813,6 +819,7 @@ class PlanningDocumentService:
                 ManualAssertion,
                 ReadObservedStatus,
                 GoogleBudgetObservationV1,
+                GoogleBudgetHTTPObservationV1,
                 GoogleBudgetInvalidationV1,
             ),
         )
@@ -839,10 +846,13 @@ class PlanningDocumentService:
             receipt, event = snapshot(db, current)
         result = self._event_values_result(event)
         if (
-            not isinstance(result.event, (GoogleBudgetObservationV1, GoogleBudgetInvalidationV1))
+            not isinstance(
+                result.event,
+                (GoogleBudgetObservationV1, GoogleBudgetInvalidationV1,
+                 GoogleBudgetHTTPObservationV1),
+            )
             or result.event.actor_id != principal.user.id
-            or (operation == "budget_observe")
-            != isinstance(result.event, GoogleBudgetObservationV1)
+            or operation != budget_operation(result.event)
         ):
             raise repository.changed("budget request result binding changed")
         with self._prepared_event_read_session(principal, wid) as (db, current):
@@ -860,6 +870,7 @@ class PlanningDocumentService:
             "decide",
             "assert_applied",
             "budget_observe",
+            "budget_http_observe",
             "budget_invalidate",
         }:
             raise HTTPException(422, "unknown planning operation")
@@ -868,7 +879,7 @@ class PlanningDocumentService:
             for c in request_key
         ):
             raise HTTPException(422, "invalid request key")
-        if operation in {"budget_observe", "budget_invalidate"}:
+        if operation in {"budget_observe", "budget_invalidate", "budget_http_observe"}:
             return self._budget_request_result(principal, wid, operation, request_key)
         with self._read_session(principal, wid) as (db, current):
             row = db.get(PlanRequestRow, (wid, current.user.id, operation, request_key))

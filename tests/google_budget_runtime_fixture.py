@@ -38,3 +38,18 @@ def install_fixture(
     patch.setattr(app.state, "google_budget_observation_fixture", fixture, raising=False)
     patch.setattr(settings, "customer_google_budget_observation_mode", "injected_fixture")
     return fixture
+
+
+def install_http_fixture(
+    engine: Engine, patch: pytest.MonkeyPatch, workspace: int, account: int, zone: str,
+) -> object:
+    from app.planning_documents.google_budget_http_fixture import GoogleBudgetHTTPFixture
+
+    legacy = install_fixture(engine, patch, workspace, account, zone)
+    fixture = GoogleBudgetHTTPFixture(
+        workspace_id=workspace, privacy_revision=legacy.privacy_revision,
+        source_binding_digest=legacy.source_binding_digest, pages=legacy.pages,
+    )
+    patch.setattr(app.state, "google_budget_http_fixture", fixture, raising=False)
+    patch.setattr(settings, "customer_google_budget_http_mode", "mock_http")
+    return fixture

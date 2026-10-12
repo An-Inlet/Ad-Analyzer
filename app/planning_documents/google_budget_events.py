@@ -13,6 +13,12 @@ from pydantic import (
 
 from app.planning_documents.common import Digest, Id, Positive
 from app.planning_documents.events import VersionBinding
+from app.planning_documents.google_budget_http_events import (
+    BudgetHTTPIntent,
+)
+from app.planning_documents.google_budget_http_events import (
+    GoogleBudgetHTTPObservationV1 as GoogleBudgetHTTPObservationV1,
+)
 from app.planning_documents.google_budget_hypothesis_comparison import (
     GoogleBudgetHypothesisComparisonV1,
 )
@@ -137,4 +143,13 @@ class GoogleBudgetInvalidationV1(BudgetHistoricalEvent):
         return _instant(value)
 
 
-BudgetEvent = GoogleBudgetObservationV1 | GoogleBudgetInvalidationV1
+BudgetEvent = GoogleBudgetObservationV1 | GoogleBudgetInvalidationV1 | GoogleBudgetHTTPObservationV1
+BudgetIntent = BudgetReadIntent | BudgetHTTPIntent
+
+
+def budget_operation(event: BudgetEvent) -> str:
+    return {
+        GoogleBudgetObservationV1: "budget_observe",
+        GoogleBudgetInvalidationV1: "budget_invalidate",
+        GoogleBudgetHTTPObservationV1: "budget_http_observe",
+    }[type(event)]

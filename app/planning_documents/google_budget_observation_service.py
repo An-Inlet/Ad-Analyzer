@@ -17,10 +17,13 @@ from app.lifecycle.privacy import database_utc_now, workspace_export_revision
 from app.planning_documents import authority, repository
 from app.planning_documents.google_budget_events import (
     BudgetEvent,
+    BudgetIntent,
     BudgetInvalidationIntent,
     BudgetReadIntent,
+    GoogleBudgetHTTPObservationV1,
     GoogleBudgetInvalidationV1,
     GoogleBudgetObservationV1,
+    budget_operation,
 )
 from app.planning_documents.google_budget_hypothesis_comparison import (
     GoogleBudgetHypothesisComparisonV1,
@@ -98,7 +101,7 @@ class GoogleBudgetObservationService:
             self.runtime_guard()
 
     def _replay(
-        self, db: Session, principal: CustomerPrincipal, request: BudgetReadIntent, operation: str
+        self, db: Session, principal: CustomerPrincipal, request: BudgetIntent, operation: str
     ) -> EventResult | None:
         receipt = repository.receipt(
             db,
@@ -113,7 +116,7 @@ class GoogleBudgetObservationService:
         raise _ReplayNeeded
 
     def _recover(
-        self, principal: CustomerPrincipal, request: BudgetReadIntent, operation: str
+        self, principal: CustomerPrincipal, request: BudgetIntent, operation: str
     ) -> EventResult:
         def snapshot(
             db: Session, current: CustomerPrincipal
@@ -147,12 +150,15 @@ class GoogleBudgetObservationService:
         # Invocation-private preparation; retain every original strict parser/check.
         # No SQL or final identity fact is held during potentially expensive proof work.
         event = document_for_row(PlanEventRow.__tablename__, row_values)
-        if not isinstance(event, (GoogleBudgetObservationV1, GoogleBudgetInvalidationV1)):
+        if not isinstance(
+            event,
+            (GoogleBudgetObservationV1, GoogleBudgetInvalidationV1, GoogleBudgetHTTPObservationV1),
+        ):
             raise repository.changed("budget receipt type mismatch")
         if (
             event.actor_id != principal.user.id
             or event.binding() != request.binding()
-            or (operation == "budget_observe") != isinstance(event, GoogleBudgetObservationV1)
+            or operation != budget_operation(event)
         ):
             raise repository.changed("budget receipt binding mismatch")
         result = EventResult(event_sequence=row_values["sequence"], event=event)
@@ -377,7 +383,7 @@ class GoogleBudgetObservationService:
     def _append(
         db: Session,
         principal: CustomerPrincipal,
-        request: BudgetReadIntent,
+        request: BudgetIntent,
         event: BudgetEvent,
         raw: str,
         digest: str,
@@ -390,7 +396,7 @@ class GoogleBudgetObservationService:
             PlanRow.id == request.plan_id,
             PlanRow.event_sequence == request.expected_event_sequence,
         )
-        if isinstance(event, GoogleBudgetObservationV1):
+        if isinstance(event, (GoogleBudgetObservationV1, GoogleBudgetHTTPObservationV1)):
             statement = statement.where(
                 PlanRow.version_head == event.version,
                 PlanRow.input_head == event.comparison.document.inputs.revision,

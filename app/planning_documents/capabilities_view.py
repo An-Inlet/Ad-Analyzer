@@ -14,11 +14,13 @@ class PlanningCapabilitiesV1(NoAuthority):
     policy_version: str
     generator_version: str
     selected_reporting_available: StrictBool
-    google_budget_observation: Literal["unavailable", "injected_fixture"] = "unavailable"
+    google_budget_observation: Literal["unavailable", "injected_fixture", "mock_http"] = (
+        "unavailable"
+    )
 
     @model_validator(mode="after")
     def configured(self) -> "PlanningCapabilitiesV1":
-        if (self.google_budget_observation == "injected_fixture"
+        if (self.google_budget_observation in ("injected_fixture", "mock_http")
                 and self.policy_version != "inlet.descriptive-review.v6"):
             raise ValueError("fixture budget observation requires V6")
         capability = reporting_capability(self.policy_version, self.generator_version)

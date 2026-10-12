@@ -14,6 +14,8 @@ from app.planning_documents.documents import PlanVersion
 from app.planning_documents.generation_ports import GenerationEvidence
 from app.planning_documents.owner_review_policy import is_owner_review_policy
 from app.planning_documents.ports import GenerationTicket
+from app.planning_documents.prepared_candidate import PreparedCandidate, prepare_candidate
+from app.planning_documents.prepared_snapshot_match import prepare_snapshot_match
 from app.planning_documents.selected_paired_evidence import (
     SelectedPairedEvidenceV1,
     _validate_paired_ticket_pair,
@@ -40,13 +42,31 @@ def _changed() -> HTTPException:
     return HTTPException(409, "prepared generation evidence changed")
 
 
+_SNAPSHOT = _snapshot
+_SNAPSHOT_CLASS = _Snapshot
+
+
 class PreparedGenerationChecks:
     """Private explicit single-use scope; snapshots contain no mutable models."""
 
-    def __init__(self, key: object, snapshots: tuple[object, ...]) -> None:
+    def __init__(
+        self,
+        key: object,
+        snapshots: tuple[object, ...],
+        operands: tuple[tuple[object, type[Any]], ...] | None = None,
+    ) -> None:
         if key is not _KEY:
             raise _changed()
         self.snapshots: tuple[object, ...] | None = snapshots
+        self.matchers = (
+            tuple(
+                prepare_snapshot_match(snapshot, value, expected)
+                for snapshot, (value, expected) in zip(snapshots, operands, strict=True)
+            )
+            if operands is not None
+            else (None,) * len(snapshots)
+        )
+        self.candidate_replay: PreparedCandidate | None = None
         self.used = self.invalid = self.publishing = False
         self.db: Session | None = None
         self.root: Any = None
@@ -92,8 +112,19 @@ class PreparedGenerationChecks:
         self._current(db)
         assert self.snapshots is not None
         for index, value, expected in operands:
-            snapshot = _snapshot(value, expected)
-            if snapshot is None or snapshot != self.snapshots[index]:
+            matcher = self.matchers[index]
+            matched = (
+                matcher.matches(value)
+                if matcher is not None
+                and matcher.snapshot is self.snapshots[index]
+                and _snapshot is _SNAPSHOT
+                and _Snapshot is _SNAPSHOT_CLASS
+                else None
+            )
+            if matched is None:
+                snapshot = _snapshot(value, expected)
+                matched = snapshot is not None and snapshot == self.snapshots[index]
+            if not matched:
                 self.invalid = True
                 raise _changed()
         self._current(db)
@@ -171,6 +202,10 @@ class PreparedGenerationChecks:
             self.hooks.clear()
             self.invalid = self.used = True
             self.snapshots = None
+            self.matchers = ()
+            if self.candidate_replay is not None:
+                self.candidate_replay.close()
+                self.candidate_replay = None
             self.db = self.root = self.connection = self.transaction = None
         if cleanup is not None and original is None:
             raise cleanup
@@ -252,4 +287,10 @@ def prepare_generation_checks(
         _snapshot(bundle.reporting.selected, SelectedPlanEvidenceBundleV1),
     ) != extra:
         return None
-    return PreparedGenerationChecks(_KEY, first + extra)
+    result = PreparedGenerationChecks(
+        _KEY,
+        first + extra,
+        roots + ((paired, SelectedPairedEvidenceV1), (selected, SelectedPlanEvidenceBundleV1)),
+    )
+    result.candidate_replay = prepare_candidate(checked_candidate, candidate)
+    return result

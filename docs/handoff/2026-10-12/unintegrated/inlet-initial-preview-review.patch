@@ -1,0 +1,36 @@
+diff --git a/tests/test_initial_preview_review.py b/tests/test_initial_preview_review.py
+new file mode 100644
+index 00000000..445ae0b5
+--- /dev/null
++++ b/tests/test_initial_preview_review.py
+@@ -0,0 +1,30 @@
++import pytest
++from sqlalchemy.orm import Session
++from fastapi.testclient import TestClient
++from app.api import customer_initial_planning as api
++from app.customers.access import SESSION_COOKIE, CustomerPrincipal, digest
++from app.customers.models import CustomerSession, CustomerUser
++from tests.test_customer_identity import customer_engine as customer_engine
++from tests.test_customer_identity import replicas as replicas
++from tests.test_customer_identity import login
++from tests.test_customer_optimization_api import headers
++from tests.test_initial_planning_api import ready_history
++from tests.test_shopify_sales import configuration as configuration
++
++@pytest.mark.parametrize('endpoint', ['native-options', 'previews'])
++def test_mismatched_native_intent_has_controlled_denial(customer_engine, configuration, monkeypatch, replicas, endpoint):
++    alice, _, provider = replicas
++    actor = login(alice, 'alice:1')
++    with Session(customer_engine) as db:
++        user = db.get(CustomerUser, actor)
++        session = db.get(CustomerSession, digest(alice.cookies[SESSION_COOKIE]))
++        wid, gid, aid, _, runtime, observations = ready_history(customer_engine, configuration, monkeypatch, CustomerPrincipal(user, session), provider)
++    alice.app.include_router(api.router)
++    alice.app.dependency_overrides[api.get_initial_planning_runtime] = lambda: runtime
++    root = f'/api/customer/v1/workspaces/{wid}/initial-planning'
++    report = alice.post(root+'/calibrations', headers=headers(alice), json=dict(observation_id=observations[-1], goal_id=gid, goal_revision=1, maximum_reported_cpa_micros=10000000))
++    assert report.status_code == 200
++    with TestClient(alice.app, base_url=str(alice.base_url), raise_server_exceptions=False) as client:
++        client.cookies.update(alice.cookies)
++        response = client.post(root+'/'+endpoint, headers=headers(client), json=dict(calibration_id=report.json()['id'], observation_id=observations[-1], choice=dict(goal_id=gid, goal_revision=1, account_id=aid+1, option_id='a'*64), mandate_id='b'*32, mandate_revision=1))
++    assert response.status_code in {403,404,409,422}, response.status_code

@@ -8,6 +8,7 @@ from app.planning_documents.creative_inputs import (
 )
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow
+from app.planning_documents.prepared_candidate import validate_retained_candidate
 from app.planning_documents.retained_sources import RetainedSourceWitness, _row
 from app.shopify.security import utc
 
@@ -25,7 +26,7 @@ def creative_local_witness(document: PlanVersion) -> RetainedSourceWitness:
 def _creative_local_witness(document: PlanVersion) -> RetainedSourceWitness:
     from app.planning_documents.selected_policy_contract import selected_policy_contract
 
-    document = PlanVersion.model_validate(document)
+    document = validate_retained_candidate(document)
     if (
         not selected_policy_contract(
             document.policy_version, document.generator_version

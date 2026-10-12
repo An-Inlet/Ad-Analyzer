@@ -1,0 +1,178 @@
+{
+  "source_worktree_count": 546,
+  "missing_registered_paths": [
+    "inlet-baseline",
+    "inlet-context-baseline",
+    "inlet-migration-fixtures-baseline"
+  ],
+  "excluded": "Regenerable pytest cache symlinks and browser node_modules; raw local evidence/database/cache archives remain outside Git.",
+  "snapshots": [
+    {
+      "worktree_name": "inlet-analysis-session-baseline",
+      "base_sha": "5cec843e5c79bd7d661f869bce6915e040dee966",
+      "paths": [
+        "tests/test_customer_analysis_session.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-analysis-session-baseline.patch",
+      "base_availability": "primary_history"
+    },
+    {
+      "worktree_name": "inlet-initial-calibration-review",
+      "base_sha": "41541ae55dbcb98448a981ebdc747f6d6cd566df",
+      "paths": [
+        "tests/test_initial_calibration_review.py",
+        "tests/test_initial_planning_migration_review.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-initial-calibration-review.patch",
+      "base_availability": "refs/heads/review/inlet-20261012/patch-base/inlet-initial-calibration-review"
+    },
+    {
+      "worktree_name": "inlet-initial-preview-review",
+      "base_sha": "b92a3c8b237273adcdeac100811e7f5a2d7cb598",
+      "paths": [
+        "tests/test_initial_preview_review.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-initial-preview-review.patch",
+      "base_availability": "primary_history"
+    },
+    {
+      "worktree_name": "inlet-plan-review-baseline",
+      "base_sha": "943ce8ddeff60c597684c7223900268a34d0b34b",
+      "paths": [
+        "tests/test_plan_review_authority.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-plan-review-baseline.patch",
+      "base_availability": "refs/heads/review/inlet-20261012/patch-base/inlet-plan-review-baseline"
+    },
+    {
+      "worktree_name": "inlet-planning-consent",
+      "base_sha": "fea1cf6f20af2e0927431ffbc96471003b93cca3",
+      "paths": [
+        "app/api/customer_candidates.py",
+        "app/api/customer_execution.py",
+        "app/api/customer_initial_execution.py",
+        "app/api/customer_initial_planning.py",
+        "app/api/customer_mandates.py",
+        "app/api/customer_optimization.py",
+        "app/api/customer_session_automation.py",
+        "app/api/customer_social_execution.py",
+        "app/api/planning_boundary.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-planning-consent.patch",
+      "base_availability": "refs/heads/review/inlet-20261012/patch-base/inlet-planning-consent"
+    },
+    {
+      "worktree_name": "inlet-reported-feedback-review",
+      "base_sha": "e832d25af0a048c9f8fc481ad3e50ec9761551aa",
+      "paths": [
+        "tests/test_reported_feedback_historical_review.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-reported-feedback-review.patch",
+      "base_availability": "refs/heads/review/inlet-20261012/patch-base/inlet-reported-feedback-review"
+    },
+    {
+      "worktree_name": "inlet-review-repro",
+      "base_sha": "4d1506ac60f4f68556383c709755fc4d3067a0c4",
+      "paths": [
+        "tests/test_inlet_review_regressions.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-review-repro.patch",
+      "base_availability": "primary_history"
+    },
+    {
+      "worktree_name": "inlet-social-historical-repro",
+      "base_sha": "dc3c0d5b63eee06bd04a0aa73354ae289ef55333",
+      "paths": [
+        "tests/test_social_configuration_migration.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-social-historical-repro.patch",
+      "base_availability": "primary_history"
+    },
+    {
+      "worktree_name": "inlet-version-row-admission-tests",
+      "base_sha": "9c6b96cb9ea8cb8f6064c3de9a667fc82bf06a88",
+      "paths": [
+        "tests/test_owner_review_pre_save_authority_delay.py",
+        "tests/test_version_row_admission_decode_count.py",
+        "tests/test_version_row_admission_lifecycle.py",
+        "tests/test_version_row_admission_repository.py",
+        "tests/test_version_row_admission_snapshots.py"
+      ],
+      "disposition": "historical_unintegrated_patch_not_qualified",
+      "patch": "docs/handoff/2026-10-12/unintegrated/inlet-version-row-admission-tests.patch",
+      "base_availability": "refs/heads/review/inlet-20261012/patch-base/inlet-version-row-admission-tests"
+    },
+    {
+      "worktree_name": "inlet-w1-followup",
+      "base_sha": "f8107a9c5f60accb5e73e6d9fa82a5b4e33021dd",
+      "paths": [
+        "app/api/customer_planning_documents.py",
+        "app/planning_documents/capabilities_view.py",
+        "app/planning_documents/creative_currentness.py",
+        "app/planning_documents/creative_history.py",
+        "app/planning_documents/creative_paired_reader.py",
+        "app/planning_documents/creative_retained_sources.py",
+        "app/planning_documents/google_budget_events.py",
+        "app/planning_documents/google_budget_observation_service.py",
+        "app/planning_documents/google_budget_read_projection.py",
+        "app/planning_documents/prepared_generation.py",
+        "app/planning_documents/repository.py",
+        "app/planning_documents/responses.py",
+        "app/planning_documents/retained_sources.py",
+        "app/planning_documents/selected_plan_witnesses.py",
+        "app/planning_documents/service.py",
+        "app/planning_documents/storage.py",
+        "app/portal/static/plan-budget-observations.mjs",
+        "app/portal/static/planning.mjs",
+        "docs/design/v6-concurrency-release-qualification-20261012.md",
+        "docs/inlet-progress.md",
+        "tests/contention_evidence.py",
+        "tests/creative_common_basis_fixture.py",
+        "tests/google_budget_input_fixture.py",
+        "tests/google_budget_owner_discovery_fixture.py",
+        "tests/google_budget_runtime_fixture.py",
+        "tests/javascript/planning_owner_review_browser.mjs",
+        "tests/owner_review_runtime_fixture.py",
+        "tests/q16_fixture.py",
+        "tests/selected_q01_q02_fixture.py",
+        "tests/test_owner_review_planning_browser.py",
+        "tests/test_prepared_generation_runtime.py",
+        "app/planning_documents/google_budget_http_events.py",
+        "app/planning_documents/google_budget_http_fixture.py",
+        "app/planning_documents/google_budget_http_service.py",
+        "app/planning_documents/prepared_candidate.py",
+        "app/planning_documents/prepared_snapshot_match.py",
+        "docs/design/prepared-candidate-reuse-blocked-20261012.md",
+        "docs/design/prepared-snapshot-match-blocked-20261012.md",
+        "docs/design/q13-http-admission-20261012.md",
+        "docs/design/v6-concurrency-harness-preparation-20261012.md",
+        "docs/design/v6-matrix-preflight-blocked-20261012.md",
+        "docs/design/v6-staged-preparatory-reads-20261012.md",
+        "docs/design/v6-staged-reads-publication-blocked-20261012.md",
+        "docs/inlet-q13-http-admission-20261012.md",
+        "tests/planning_concurrency_harness.py",
+        "tests/planning_matrix_fixture.py",
+        "tests/planning_matrix_identity.py",
+        "tests/planning_release_evidence.py",
+        "tests/test_google_budget_http_admission.py",
+        "tests/test_google_budget_http_admission_pure.py",
+        "tests/test_planning_concurrency_harness.py",
+        "tests/test_planning_release_matrix.py",
+        "tests/test_prepared_candidate.py",
+        "tests/test_prepared_candidate_runtime.py",
+        "tests/test_prepared_expiry_evidence.py",
+        "tests/test_prepared_snapshot_match.py",
+        "tests/test_v6_staged_collection.py"
+      ],
+      "disposition": "primary_wip_candidate"
+    }
+  ]
+}

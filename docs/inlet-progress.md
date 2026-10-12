@@ -8860,3 +8860,14 @@ is synthetic display compatibility, not observation API/database/live acceptance
 Full Q13 and the v6 reliability incident remain open. Next independent package: Q10
 explicit constrained-creative interpretation with existing policy behavior protected.
 See [display package evidence and limits](inlet-q13-observation-history-20261012.md).
+
+## Q10 Next-Package Contract — 2026-10-12
+
+Observation display checkpoint saved locally as `6c45c25`. Inspected the Q10 global
+constraint deferral and existing v5 common-basis fixture. Defined an exact finite
+interpretation/production-obligation interface and ordered acceptance plan, preserving
+old policy bytes/defaults and deferral for unknown or mixed constraints. Verbatim
+restriction echo is not enforcement; promotional names/facts cannot bypass constrained
+public-copy rules. No interpreter, new policy or runtime behavior is implemented yet.
+See [next-package boundary](design/q10-constraint-interpretation-boundary-20261012.md).
+Documentation-only continuation; no new runtime test run or live action claimed.

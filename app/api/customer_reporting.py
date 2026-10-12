@@ -25,8 +25,9 @@ router = APIRouter(
 
 
 def get_selected_customer_runtime() -> SelectedCustomerRuntime | None:
-    """Explicit infrastructure injection only; no default live factory."""
-    return None
+    from app.google_connections.selected_runtime import configured_runtime
+
+    return configured_runtime()
 
 
 Runtime = Annotated[SelectedCustomerRuntime | None, Depends(get_selected_customer_runtime)]

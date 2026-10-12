@@ -50,6 +50,7 @@ class OwnedGoogleReportingContext:
         clock: Callable[[], datetime],
         *,
         expected_grant: tuple[str, str | None] | None = None,
+        runtime_available: Callable[[], bool] | None = None,
     ) -> None:
         if (
             type(oauth) is not GoogleHTTPRead
@@ -57,6 +58,7 @@ class OwnedGoogleReportingContext:
             or (oauth.developer is None or not oauth.developer.get_secret_value())
         ):
             raise HTTPException(503, "Google reporting configuration unavailable")
+        self._runtime_available = runtime_available
         self._sessions, self._oauth, self._vault, self._clock = sessions, oauth, vault, clock
         principal = snapshot(principal)
         self._actor, self._sid = principal.user.id, principal.session.digest
@@ -98,6 +100,8 @@ class OwnedGoogleReportingContext:
         return value.astimezone(UTC)
 
     def _check_time(self) -> None:
+        if self._runtime_available is not None and not self._runtime_available():
+            raise HTTPException(503, "reporting_selection_runtime_unavailable")
         if not self._started <= self._now() < self._deadline:
             raise HTTPException(409, "Google reporting operation expired")
 

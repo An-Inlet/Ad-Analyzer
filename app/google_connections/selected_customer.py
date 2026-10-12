@@ -120,6 +120,7 @@ class SelectedCustomerRuntime:
     vault: Vault = field(repr=False)
     transport: Callable[[], httpx.BaseTransport] = field(repr=False)
     clock: Callable[[], datetime] = field(repr=False)
+    available: Callable[[], bool] | None = field(default=None, repr=False)
 
 
 def unavailable() -> HTTPException:
@@ -172,6 +173,12 @@ class SelectedCustomerService:
             raise unavailable()
         return value.astimezone(UTC)
 
+    def require_runtime(self) -> None:
+        if self.runtime is None or (
+            self.runtime.available is not None and not self.runtime.available()
+        ):
+            raise HTTPException(503, "reporting_selection_runtime_unavailable")
+
     def guard(self, db: Session, account_id: int, *, read: bool = False) -> None:
         active = self._active
         if active is None or active[0] is not db or active[2] is not db.get_transaction():
@@ -187,12 +194,15 @@ class SelectedCustomerService:
         if account.platform.value != "google_ads":
             raise unavailable()
         if read:
+            self.require_runtime()
             paid_work(db, self.wid, self.now())
             if not AutomationControlService(db).master_enabled(AutomationControlKey.ALL_DATA_SYNCS):
                 raise HTTPException(409, "reporting_reads_paused")
         authority.final(current, active[1])
         if self.now().timestamp() >= self.original.session.expires_at:
             raise HTTPException(401, "original customer session expired")
+        if read:
+            self.require_runtime()
 
     def head(self, db: Session, account_id: int) -> CurrentEventSelectionRow | None:
         return db.get(CurrentEventSelectionRow, account_id, populate_existing=True)
@@ -267,6 +277,7 @@ class SelectedCustomerService:
             runtime.vault,
             runtime.clock,
             expected_grant=self._catalog_pin.grant(),
+            runtime_available=runtime.available,
         )
         request = context.catalog_request()
         try:
@@ -392,6 +403,7 @@ class SelectedCustomerService:
             db.flush()
             self.current_catalog(db, intent.account_id, catalog)
             result = self.receipt(chosen, option.label)
+            self.require_runtime()
             db.commit()
             return result
 

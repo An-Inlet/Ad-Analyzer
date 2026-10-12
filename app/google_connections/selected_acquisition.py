@@ -202,6 +202,7 @@ def acquire_selected(service: SelectedCustomerService, supplied: CaptureIntent) 
         runtime.vault,
         runtime.clock,
         expected_grant=pin.grant(),
+        runtime_available=runtime.available,
     )
     read = GoogleSelectedHTTPRead(
         context.selected_context,
@@ -247,5 +248,6 @@ def acquire_selected(service: SelectedCustomerService, supplied: CaptureIntent) 
         service.guard(db, intent.account_id, read=True)
         if not request.started_at <= service.now() < request.started_at + timedelta(seconds=60):
             raise unavailable()
+        service.require_runtime()
         db.commit()
         return result

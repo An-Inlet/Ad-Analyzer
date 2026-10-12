@@ -171,6 +171,7 @@ def acquire_range(service: SelectedCustomerService, intent: RangeIntent) -> Rang
         runtime.vault,
         runtime.clock,
         expected_grant=initial.grant.grant(),
+        runtime_available=runtime.available,
     )
     base = resolver.catalog_request()
     if base.scope != initial.scope:
@@ -315,5 +316,6 @@ def acquire_range(service: SelectedCustomerService, intent: RangeIntent) -> Rang
         if not request.base.started_at <= service.now() < result.expires_at:
             raise unavailable()
         response = view(receipt)
+        service.require_runtime()
         db.commit()
         return response

@@ -8485,3 +8485,41 @@ TikTok exact report qualification, custom events, money and verified attribution
 remain separate. Existing owner decisions, human quality judgments, Q13 and
 historical uncertainty remain. No push/PR/hosted CI/merge/deployment/live calls/spend.
 Branch `codex/inlet-w1-followup`, predecessor `bb79dbf`.
+
+
+## 2026-10-12 — Opt-In Google Reporting Runtime And Assembled Flow
+
+Closed the actual application's always-unavailable Google reporting dependency using
+existing credential/Vault/context interfaces. Dedicated false-default flag, existing
+mode and exact v24/config validation gate all reads. Lazy owned transport permits
+only refresh-token OAuth and Google read-search requests. Read/replay/context and
+final-commit availability fences preserve authority and roll back late disables;
+state/invalidation stay available without runtime. No policy/schema/grant changes.
+[Contract](design/google-reporting-runtime-v1.md) and
+[checkpoint](inlet-google-reporting-runtime-20261012.md) retain exact scope.
+
+64 focused cases passed: 18 component, 23 SQLite and 23 PostgreSQL; full Ruff,
+configured mypy (1,538 files), exact collection and diff passed. Six actual-app Google
+browser journeys cover positive/zero/missing counts through capture/handoff/save/
+generation/history/export, including close-sensitive complete two-page reports and
+account timezone. Two Meta browser regressions and historical PlanVersion readers
+also pass. Private v4 is fixture-configured; actual default v3 remains unavailable.
+
+Original SQLite final-range failure was a missing foreign-key prerequisite in the
+new test fixture; the existing trigger refused publication. Diagnostic evidence is
+preserved, fixture enforcement was enabled, and no production constraint was changed.
+Independent review retained 30 unaffected early/component passes; remaining 34 were
+qualified once in a fresh source freeze. Resource-aware isolated processes and all
+original floors remain; only verified regenerable caches were removed beforehand.
+Results and eight artifact sets are under
+`/workspace/inlet-evidence/20261012/google-reporting-runtime-attempt02/`; independent
+closure and local commit binding accompany the completion freeze.
+
+TikTok exact website-purchase metric/report/dimension support remains unqualified:
+accessible official SDK endpoint documentation is insufficient and official gateway
+reads were blocked here. No inferred value units or attribution were introduced.
+Next: qualify that exact source contract or explicitly compose selected planning
+while retaining v3/private-v4–v6 gates. Owner decisions, human quality judgments,
+Q13 verification and historical uncertainty remain open. No push/PR/hosted CI/merge/
+deployment/live calls/credential changes/spend. Branch `codex/inlet-w1-followup`;
+predecessor `076695d`.

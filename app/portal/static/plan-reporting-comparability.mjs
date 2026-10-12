@@ -13,6 +13,20 @@ function instant(value){if(typeof value!=='string'||!Number.isFinite(Date.parse(
 function period(value){if(!value||instant(value.starts_at)>=instant(value.ends_at_exclusive))fail();return `${new Date(value.starts_at).toISOString()} → ${new Date(value.ends_at_exclusive).toISOString()} (End Exclusive, UTC)`;}
 const samePeriod=(a,b)=>a&&b&&instant(a.starts_at)===instant(b.starts_at)&&instant(a.ends_at_exclusive)===instant(b.ends_at_exclusive);
 const sameFence=(a,b)=>a&&b&&accountKey(a.account)===accountKey(b.account)&&a.source_revision===b.source_revision&&a.privacy_revision===b.privacy_revision&&a.source_binding_digest===b.source_binding_digest;
+function provenance(pin){
+  const p=pin.observation_provenance;if(p==null)return null;
+  const attr=p.attribution,scope=pin.aggregate.scope,names={google_ads:'google_conversion_action',meta_ads:'meta_action_type',tiktok_ads:'tiktok_event'},families={google_ads:['conversions','all_conversions'],meta_ads:['actions'],tiktok_ads:['event_count']};
+  if(p.schema_version!=='inlet.selected-observation-provenance.v1'||p.event_namespace!==names[scope.platform]||!families[scope.platform].includes(p.metric_family)||!bounded(p.native_event_owner_id,128)||!bounded(p.native_event_id,128)||!bounded(p.api_version,16)||!digest(p.query_profile_digest)||!bounded(p.producer_contract,160)||!['supported','unsupported','unknown'].includes(p.capability))fail();
+  if(scope.platform==='google_ads'){if(!/^customers\/[0-9]{10}\/conversionActions\/[0-9]{1,32}$/.test(p.native_event_id)||p.native_event_id.split('/')[1]!==p.native_event_owner_id)fail();}else if(!/^[A-Za-z0-9_.:-]{1,128}$/.test(p.native_event_id))fail();
+  if(!attr||attr.producer_contract!==p.producer_contract||!['interaction','conversion','unknown'].includes(attr.report_time_basis)||!['observed_response','verified_request_contract','provider_default_unknown'].includes(attr.provenance))fail();
+  for(const k of ['click_window_days','view_window_days'])if(attr[k]!==null&&(!Number.isSafeInteger(attr[k])||attr[k]<0||attr[k]>400))fail();
+  if(attr.provenance==='provider_default_unknown'&&(attr.click_window_days!==null||attr.view_window_days!==null||attr.report_time_basis!=='unknown'))fail();
+  for(const d of [p.requested_starts_on,p.requested_ends_on])if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(Date.parse(d))||new Date(d).toISOString().slice(0,10)!==d)fail();
+  if(p.requested_starts_on<pin.aggregate.starts_on||p.requested_ends_on>pin.aggregate.ends_on||p.requested_starts_on>p.requested_ends_on||instant(p.started_at)>instant(p.completed_at))fail();
+  const parts=new Intl.DateTimeFormat('en',{timeZone:scope.time_zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(p.started_at)),part=k=>parts.find(x=>x.type===k).value;
+  if(p.requested_ends_on>=`${part('year')}-${part('month')}-${part('day')}`)fail();
+  return p;
+}
 function validatedPins(plan,accounts){
   const proof=plan.selected_reporting_proof,selectors=plan.inputs.selected_reporting,result=new Map();
   if(proof==null){if(selectors!=null)fail();return result;}
@@ -30,6 +44,7 @@ function validatedPins(plan,accounts){
     try{new Intl.DateTimeFormat('en',{timeZone:scope.time_zone});}catch{fail();}
     for(const date of [pin.aggregate.starts_on,pin.aggregate.ends_on])if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)fail();
     if(pin.aggregate.starts_on>pin.aggregate.ends_on)fail();
+    provenance(pin);
     const traffic=item.traffic_pin;
     if(traffic){const other=traffic.aggregate;if(!sameFence(traffic.source_fence,f)||traffic.campaign_map_digest!==pin.campaign_map_digest||!other||['completion_id','manifest_digest','starts_on','ends_on'].some(k=>other[k]!==pin.aggregate[k])||Object.keys(scope).some(k=>other.scope?.[k]!==scope[k]))fail();}
     requested.delete(a.account_id);
@@ -51,7 +66,7 @@ export function appendReportingComparability(host,plan,{freshness,now}){
   add(section,'h3','Reporting Comparability');
   add(section,'p','Review Accounts Separately. This version does not qualify cross-platform CPA rankings, event equivalence, unique-customer totals or causal results. Matching currencies or reporting dates alone does not make observations comparable.');
   add(section,'p',`Displayed Version: ${plan.version} · ${freshness.replaceAll('_',' ')}. This is document-level freshness, not verification that every account or attribution setting is current.`);
-  add(section,'p','Attribution Windows: Click-through, view-through and report-time basis are not available as verified settings in this saved view. Event Business Meaning: Not Qualified Across Accounts. These unknowns block numeric comparison.');
+  add(section,'p','Attribution Windows: Click-through, view-through and report-time basis are shown only when retained from the original capture; unavailable values remain unknown. Event Business Meaning: Not Qualified Across Accounts. These unknowns block numeric comparison.');
   add(section,'p',`Requested Primary Period: ${period(input.reporting_window)}`);
   add(section,'p',input.comparison_window?`Requested Comparison Period: ${period(input.comparison_window)}`:'Comparison Period: Not Requested.');
   const currencies=new Set();
@@ -64,9 +79,16 @@ export function appendReportingComparability(host,plan,{freshness,now}){
     else add(accountSection,'p','Recorded Selected-Report Currency And Time Zone: Unavailable. The Shopify goal currency and time zone are not substituted.');
     if(!rows.length)add(accountSection,'p','Selected/Traffic Reporting Evidence: Unavailable. Missing observations are not zero. Review the recorded explanations for this account’s exact gaps.');
     else add(accountSection,'p','Coverage requires review. Partial or unavailable evidence is not a complete-period total or zero; exact day counts, when retained, appear in the recorded explanation.');
+    const originalMetadata=pin?provenance(pin):null;
+    if(originalMetadata){
+      const p=originalMetadata,at=p.attribution,days=v=>v===null?'Unavailable':`${v} Days`;
+      add(accountSection,'p',`Recorded Selected Event: ${p.native_event_id} · Namespace ${p.event_namespace} · Owner ${p.native_event_owner_id} · Metric Family ${p.metric_family} · Capability ${p.capability}. Selection is not business equivalence or coverage proof.`);
+      add(accountSection,'p',`Recorded Attribution: Click ${days(at.click_window_days)} · View ${days(at.view_window_days)} · Report Time ${at.report_time_basis} · Provenance ${at.provenance}. Original settings only; no cross-account comparability is granted.`);
+    }else add(accountSection,'p','Typed Event And Attribution Metadata: Unavailable In This Version. Original explanations below remain unchanged; no metadata is reconstructed from their wording.');
     const details=doc.createElement('details');add(details,'summary','Review Source, Periods And Recorded Explanations');
     add(details,'p',`Source: ${platforms[a.platform]} · Account ${a.account_id} · Connection ${a.connection_id} · Original Revision ${a.connection_version}`);
     if(pin)add(details,'p',`Capture ${pin.capture_id} · Confirmed Choice Reference ${pin.selection_id} · Aggregate Acquisition Range ${pin.aggregate.starts_on} Through ${pin.aggregate.ends_on} (Inclusive Account-Local Dates). This range alone does not establish complete day coverage.`);
+    if(originalMetadata){const p=originalMetadata;add(details,'p',`Original Selected Request: ${p.requested_starts_on} Through ${p.requested_ends_on} (Inclusive Account-Local Dates) · API ${p.api_version} · Producer ${p.producer_contract} · Query Profile ${p.query_profile_digest} · Read ${p.started_at} → ${p.completed_at}. Capture interval does not establish complete day coverage.`);}
     for(const e of rows){
       if(!['complete_in_declared_scope','partial','unavailable'].includes(e.coverage)||!Array.isArray(e.reasons)||e.reasons.length>30||e.reasons.some(r=>!bounded(r))||!bounded(e.metric_basis)||!bounded(e.declared_scope))fail();
       if(['inlet.selected-plan-window.v1','inlet.selected-traffic-window.v1'].includes(e.document_schema)&&(!pin||e.source_revision!==pin.source_fence.source_revision||e.source_binding_digest!==pin.source_fence.source_binding_digest||e.privacy_revision!==pin.source_fence.privacy_revision))fail();
@@ -88,7 +110,7 @@ export function appendReportingComparability(host,plan,{freshness,now}){
       const explanation=doc.createElement('section'),ref=action.target.provider_reference;
       add(explanation,'h5',`Recorded Measurement Explanation · ${action.target.display_name??'Name Unavailable'}${ref?` · ${action.target.kind} ${ref.entity_id}`:''}`);
       add(explanation,'p',action.rationale);
-      add(explanation,'p',`Recorded Event And Metric Family: Retained only within the explanation above when supplied. Its wording is not a verified cross-account event taxonomy. Reporting Evidence References: ${references.filter(e=>e.kind==='reported_metrics').map(e=>e.key).join(', ')||'Unavailable'}.`);
+      add(explanation,'p',`Recorded Explanation: Preserved verbatim alongside any typed original metadata above. Its wording is not a verified cross-account event taxonomy. Reporting Evidence References: ${references.filter(e=>e.kind==='reported_metrics').map(e=>e.key).join(', ')||'Unavailable'}.`);
       details.append(explanation);
     }
     accountSection.append(details);section.append(accountSection);

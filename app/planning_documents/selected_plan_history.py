@@ -18,6 +18,7 @@ from app.planning_documents.common import MAX_ACCOUNTS, MAX_EVIDENCE
 from app.planning_documents.documents import PlanVersion
 from app.planning_documents.models import PlanDependencyRow, PlanVersionRow
 from app.planning_documents.retained_sources import RetainedSourceWitness, _row
+from app.planning_documents.selected_observation_provenance import selected_observation_provenance
 from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
 from app.planning_documents.selected_policy_contract import selected_policy_contract
 from app.planning_documents.selected_traffic_reader import validate_historical_raw_range_traffic
@@ -42,6 +43,10 @@ def validate_selected_historical_pin(db: Session, pin: SelectedPlanPinV1) -> Non
         or request.capture_id != pin.capture_id
         or capture.request_digest != pin.request_digest
         or selected_capture_digest(capture) != pin.capture_digest
+        or (
+            pin.observation_provenance is not None
+            and pin.observation_provenance != selected_observation_provenance(capture)
+        )
     ):
         raise ValueError("selected historical capture commitment mismatch")
 

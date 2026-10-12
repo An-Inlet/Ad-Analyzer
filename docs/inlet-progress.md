@@ -8256,3 +8256,31 @@ Independent completion review CLOSED: all 100 evidence and 1,716 source hashes,
 recomputed every retained PlanVersion-domain digest across six API/TLS artifact files;
 recorded document views match, advertising writes remain disabled and spending authority
 is none. No blocker to local commit; qualification limits and human gates unchanged.
+
+## 2026-10-12 — Retained Typed Event And Attribution Provenance
+
+From local `0b9962a`, added the smallest complete original-capture metadata path:
+explicit identity-free projection → optional existing capture pin → saved-plan typed
+review → exact capture history validation/current/export/replay. Absent legacy metadata
+serializes identically; no new version tag/table/route. Backward read compatibility only;
+older strict readers reject enriched documents. Legacy currentness becomes source_changed
+without rewriting historical payloads. Unknown attribution stays distinct from zero.
+
+Whole Ruff/configured mypy (1,510 files) and 28 exact focused tests passed: 24 component,
+compatibility/kernel/inventory cases plus typed/legacy API cases on SQLite and PostgreSQL.
+All original exits 0/no errors/skips/interruption, verified sources. Freeze
+6062864f05ca30ee7007b09a890f18bf2c4113d33d1c2ce63f7f8f28ac67f40b binds89evidence/1720sources.
+[Checkpoint](inlet-retained-provenance-20261012.md) distinguishes genuine old export JSON
+from new legacy-projection DB cases and preserves exact checks, evidence and limits.
+
+Next: verify authoritative version-specific Meta/TikTok selected-event/attribution
+semantics before producer implementation. Generic totals remain unsupported selected
+proof. Full Q09, owner retention/sharing/six judgments and historical R01–R03 remain open.
+No push/new PR/hosted/main merge/deploy/live calls/advertising writes/spend.
+
+Independent completion review CLOSED: verified 89 evidence/1,720 source hashes, all
+28 exact ordered passing XML identities/original exits and static logs, clear process
+cleanup. Independently recomputed each payload digest across four API artifacts;
+all recorded full documents match. Typed current/empty reasons and legacy source_changed
+reasons verified, with advertising writes false and spending authority none. No blocker
+to local commit; qualification limits and all owner/live/release gates unchanged.

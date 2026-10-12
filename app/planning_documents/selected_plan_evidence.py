@@ -17,6 +17,7 @@ from app.campaign_performance.selected_summary import (
 from app.planning_documents.common import Frozen, NoAuthority, fingerprint
 from app.planning_documents.context import ReportingWindow
 from app.planning_documents.ports import SourceFence
+from app.planning_documents.selected_observation_provenance import selected_observation_provenance
 from app.planning_documents.selected_plan_contracts import (
     SelectedCampaignBindingV1 as SelectedCampaignBindingV1,
 )
@@ -61,6 +62,7 @@ class SelectedPlanCaptureV1(Frozen):
             capture_id=request.capture_id,
             request_digest=self.capture.request_digest,
             capture_digest=selected_capture_digest(self.capture),
+            observation_provenance=selected_observation_provenance(self.capture),
             campaign_map_digest=fingerprint(
                 "selected-plan-campaign-map",
                 {"campaigns": [x.model_dump() for x in self.campaigns]},

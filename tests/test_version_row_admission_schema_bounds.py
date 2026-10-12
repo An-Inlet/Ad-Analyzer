@@ -130,6 +130,7 @@ def test_unknown_container_and_repeated_model_alias_fall_back() -> None:
 # config, intrinsic validators/serializers or their fixed helper changes. This
 # is test-only and never becomes a production registry/cache.
 _SCHEMA_MODELS = (
+    "app.campaign_performance.presence_contracts.AttributionBasisV1",
     "app.campaign_performance.presence_contracts.Frozen",
     "app.campaign_performance.selected_contracts.AggregateDependencyV1",
     "app.campaign_performance.selected_contracts.ReportingScopeV1",
@@ -194,6 +195,7 @@ _SCHEMA_MODELS = (
     "app.planning_documents.google_budget_owner_review_contracts.GoogleBudgetOwnerReviewProofV1",
     "app.planning_documents.google_budget_owner_review_contracts.GoogleBudgetOwnerReviewV1",
     "app.planning_documents.selected_inputs.SelectedCaptureSelectorV1",
+    "app.planning_documents.selected_observation_provenance.SelectedObservationProvenanceV1",
     "app.planning_documents.selected_plan_contracts.SelectedPlanPinV1",
     "app.planning_documents.selected_plan_proof.SelectedHeadProofV1",
     "app.planning_documents.selected_plan_proof.SelectedRetainedAccountProofV1",
@@ -214,7 +216,7 @@ _HELPER_MODULES = (
     "app.publication.contracts",
 )
 
-_INVENTORY_SHA256 = "c3e544be984b0dfb7402d16b9cda6ecfd0f4f1a6c8c1e4307165cd290fd055cd"
+_INVENTORY_SHA256 = "3b21c28d47885187f14a053855f772424c631c1879b12b5ac557102dddc3c749"
 
 
 def test_declared_schema_and_config_inventory_is_complete() -> None:

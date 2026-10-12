@@ -1,11 +1,14 @@
 """Immutable selected planning commitments shared with retained documents."""
 
-from pydantic import model_validator
+from typing import Any
+
+from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from app.campaign_performance.presence_contracts import NativeId
 from app.campaign_performance.selected_contracts import AggregateDependencyV1
 from app.planning_documents.common import Digest, Frozen, Id, Positive
 from app.planning_documents.context import AccountRef
+from app.planning_documents.selected_observation_provenance import SelectedObservationProvenanceV1
 from app.planning_documents.source_contracts import SourceFence
 
 
@@ -24,6 +27,14 @@ class SelectedPlanPinV1(Frozen):
     request_digest: Digest
     capture_digest: Digest
     campaign_map_digest: Digest
+    observation_provenance: SelectedObservationProvenanceV1 | None = None
+
+    @model_serializer(mode="wrap")
+    def omit_absent_provenance(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.observation_provenance is None:
+            result.pop("observation_provenance", None)
+        return result
 
     @model_validator(mode="after")
     def scope(self) -> "SelectedPlanPinV1":
@@ -36,5 +47,6 @@ class SelectedPlanPinV1(Frozen):
             != (scope.workspace_id, scope.connection_id, scope.account_id, scope.platform)
         ):
             raise ValueError("selected plan pin scope mismatch")
+        if self.observation_provenance is not None:
+            self.observation_provenance.assert_aggregate(self.aggregate)
         return self
-

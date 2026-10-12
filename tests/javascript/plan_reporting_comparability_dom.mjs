@@ -14,6 +14,15 @@ try{
   const details=[...pane.querySelectorAll('details')];assert(details.every(d=>!d.open),'explicit initial disclosure');details[0].querySelector('summary').click();assert(details[0].open,'usable expand');details[0].querySelector('summary').click();assert(!details[0].open,'usable collapse');details[0].open=true;
   render(plan);assert([...host.querySelectorAll('#planning-reporting-comparability details')].every(d=>!d.open),'repeat clears disclosure state');assert(JSON.stringify(plan)===original,'display never mutates artifact');
   if(['positive','partial','missing','zero','mixed','mixed_partial'].includes(name)){assert(pane.textContent.includes('Recorded Currency: USD')&&pane.textContent.includes('America/New_York'),'saved source currency and timezone');assert(pane.textContent.includes('Aggregate Acquisition Range')&&pane.textContent.includes('not establish complete day coverage'),'capture range is not completeness');assert(pane.textContent.includes('Confirmed Choice Reference'),'source choice trace');}
+  if(name==='retained_legacy')assert(pane.textContent.includes('Typed Event And Attribution Metadata: Unavailable'),'legacy metadata remains absent');
+  if(name==='retained_typed'){
+   assert(pane.textContent.includes('Recorded Selected Event: customers/')&&pane.textContent.includes('Recorded Attribution: Click Unavailable · View Unavailable'),'typed event and explicit unknown attribution');
+   const known=structuredClone(plan),pin=known.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin,p=pin.observation_provenance;
+   p.attribution={click_window_days:7,view_window_days:0,report_time_basis:'interaction',provenance:'verified_request_contract',producer_contract:p.producer_contract};
+   render(known);assert(host.textContent.includes('Click 7 Days · View 0 Days')&&host.textContent.includes('no cross-account comparability is granted'),'presentation-only known windows keep zero literal');
+   for(const corrupt of [p=>p.native_event_owner_id='9999999999',p=>p.native_event_id='generic_total',p=>p.started_at=p.requested_ends_on+'T00:00:00Z']){const bad=structuredClone(plan);corrupt(bad.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance);let refused=false;try{render(bad);}catch{refused=true;}assert(refused&&host.hidden,'malformed typed event or unclosed capture refused');}
+   p.attribution.provenance='provider_default_unknown';let refused=false;try{render(known);}catch{refused=true;}assert(refused&&host.hidden,'unknown cannot carry windows');render(plan);
+  }
   if(name==='missing')assert(pane.textContent.includes('selected count unavailable')&&pane.textContent.includes('not full-window zero'),'missing is not zero');
   if(name==='zero')assert(pane.textContent.includes('Observed zero selected conversions across this complete requested window'),'true zero retained');
   if(name==='partial')assert(pane.textContent.includes('Missing or partial selected observations'),'partial retained');

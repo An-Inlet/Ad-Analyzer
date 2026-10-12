@@ -73,7 +73,15 @@ def original_paired(bundle: Any, ticket: Any) -> None:
 
 @pytest.mark.parametrize("kind", ["selected", "paired", "owner"])
 @pytest.mark.parametrize("roundtrip", [False, True])
-def test_original_byte_goldens_and_actual_eligibility(kind: str, roundtrip: bool) -> None:
+def test_original_byte_goldens_and_actual_eligibility(
+    kind: str,
+    roundtrip: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Original pre-enrichment projection: compatibility goldens must stay unchanged.
+    from tests.test_selected_observation_provenance import legacy_pin_projection
+
+    legacy_pin_projection(monkeypatch)
     ticket, bundle = fixture(kind)
     if roundtrip:
         ticket = GenerationTicket.model_validate_json(ticket.model_dump_json())
@@ -456,6 +464,7 @@ SCHEMA_CLASSES = (
     "app.planning_documents.ports.PlanningCompositionPolicy",
     "app.planning_documents.ports.ReportingGapPin",
     "app.planning_documents.selected_inputs.SelectedCaptureSelectorV1",
+    "app.planning_documents.selected_observation_provenance.SelectedObservationProvenanceV1",
     "app.planning_documents.selected_paired_evidence.SelectedPairedEvidenceV1",
     "app.planning_documents.selected_paired_evidence.TrafficWindowEvidenceV1",
     "app.planning_documents.selected_paired_evidence.TrafficWindowGapV1",
@@ -479,7 +488,7 @@ SCHEMA_CLASSES = (
     "app.planning_documents.selected_traffic_contracts.SelectedTrafficPinV1",
     "app.planning_documents.source_contracts.SourceFence",
 )
-SCHEMA_SHA256 = "a5ef7d7a6554c5954997e0b6858474f0dc74e0ea7e59706781cd3654db1748c4"
+SCHEMA_SHA256 = "068061f81df21ad23a92beaaa7482e2db8eaa49a04cbe8dfb7e91fa7638ff447"
 
 
 def test_declared_field_and_revalidation_configuration_inventory() -> None:

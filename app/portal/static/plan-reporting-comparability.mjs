@@ -57,6 +57,7 @@ export function appendReportingComparability(host,plan,{freshness,now}){
   const accounts=new Map();
   for(const a of list){const key=accountKey(a);if(a.workspace_id!==input.workspace_id||accounts.has(key)||[...accounts.values()].some(other=>other.account_id===a.account_id))fail();accounts.set(key,a);}
   const pins=validatedPins(plan,accounts),evidence=new Map();
+  if(plan.schema_version==='inlet.plan-version.v2'){const captures=[...pins.values()].map(p=>p.capture_pin).filter(Boolean);if(!captures.length||captures.some(p=>p.observation_provenance==null))fail();}
   for(const e of plan.evidence){
     if(!bounded(e.key,200)||evidence.has(e.key)||e.workspace_id!==input.workspace_id||(e.account&&!accounts.has(accountKey(e.account))))fail();
     evidence.set(e.key,e);

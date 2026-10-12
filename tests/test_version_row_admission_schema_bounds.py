@@ -216,7 +216,7 @@ _HELPER_MODULES = (
     "app.publication.contracts",
 )
 
-_INVENTORY_SHA256 = "3b21c28d47885187f14a053855f772424c631c1879b12b5ac557102dddc3c749"
+_INVENTORY_SHA256 = "a5fb280bf5b193f2bad4c9cf936a4f8dc722b372d0c3a2ce6d7ba4830ba079c7"
 
 
 def test_declared_schema_and_config_inventory_is_complete() -> None:

@@ -8,7 +8,9 @@ from typing import Any
 
 import pytest
 from app.campaign_performance.presence_contracts import AttributionBasisV1
+from app.lifecycle.export_serializers import serialize
 from app.planning_documents.documents import PlanVersion
+from app.planning_documents.models import PlanVersionRow
 from app.planning_documents.selected_observation_provenance import (
     SelectedObservationProvenanceV1,
     selected_observation_provenance,
@@ -17,7 +19,7 @@ from app.planning_documents.selected_plan_contracts import SelectedPlanPinV1
 from app.planning_documents.selected_plan_evidence import SelectedPlanCaptureV1
 from app.planning_documents.selected_plan_history import validate_selected_historical_pin
 from app.settings import Settings
-from sqlalchemy import Engine
+from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from tests.creative_q05_fixture import prepare_creative_q05_basis
@@ -151,6 +153,9 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
     assert generated.status_code == 200, generated.text
     original = generated.json()
     document = PlanVersion.model_validate(original["document"])
+    assert document.schema_version == (
+        "inlet.plan-version.v1" if legacy else "inlet.plan-version.v2"
+    )
     assert document.selected_reporting_proof
     pin = next(p.capture_pin for p in document.selected_reporting_proof.accounts if p.capture_pin)
     assert (pin.observation_provenance is None) is legacy
@@ -198,6 +203,47 @@ def test_retained_metadata_actual_generate_history_export_and_replay(
     for result in artifacts.values():
         assert result["document"] == original["document"]
         assert result["document_digest"] == document.digest()
+    history = alice.get(path + "/versions/1")
+    assert history.status_code == 200 and history.json()["document"] == original["document"]
+    with Session(customer_engine) as db:
+        stored = (
+            db.execute(
+                select(PlanVersionRow.__table__).where(
+                    PlanVersionRow.workspace_id == basis.workspace_id,
+                    PlanVersionRow.plan_id == document.inputs.plan_id,
+                    PlanVersionRow.version == 1,
+                )
+            )
+            .mappings()
+            .one()
+        )
+        exported_row, excluded = serialize("planning_document_versions", dict(stored), db=db)
+        assert not excluded and exported_row["document"] == original["document"]
+    if legacy:
+        next_intent = dict(expected_input_revision=1, expected_version=1, request_key="schema-v2")
+        second = alice.post(path + "/generate", headers=headers(alice), json=next_intent)
+        assert second.status_code == 200, second.text
+        next_document = PlanVersion.model_validate(second.json()["document"])
+        assert next_document.schema_version == "inlet.plan-version.v2"
+        assert next_document.parent_digest == document.digest() and next_document.version == 2
+        old_export = alice.get(path + "/export?version=1")
+        old_replay = alice.post(path + "/generate", headers=headers(alice), json=intent)
+        assert old_export.status_code == old_replay.status_code == 200
+        assert (
+            old_export.json()["document"] == old_replay.json()["document"] == original["document"]
+        )
+        (tmp_path / "mixed-schema-lineage.json").write_text(
+            json.dumps(
+                {
+                    "v1": original,
+                    "v2": second.json(),
+                    "old_export": old_export.json(),
+                    "old_replay": old_replay.json(),
+                    "archive_v1": exported_row,
+                },
+                indent=2,
+            )
+        )
     assert not document.advertising_writes_enabled and document.spending_authority == "none"
     (tmp_path / "retained-metadata-artifacts.json").write_text(json.dumps(artifacts, indent=2))
     review_browser(

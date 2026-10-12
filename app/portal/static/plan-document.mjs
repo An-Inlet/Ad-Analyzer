@@ -28,7 +28,7 @@ function target(value) {
 export function clearPlanDocument(host) {host.replaceChildren(); host.hidden = true;}
 export function renderPlanDocument(host, plan, {workspaceId, planId, freshness, reasons = []}, now = Date.now()) {
   clearPlanDocument(host);
-  if (plan?.schema_version !== 'inlet.plan-version.v1' || plan.advertising_writes_enabled !== false || plan.spending_authority !== 'none' || plan.inputs?.workspace_id !== workspaceId || plan.inputs?.plan_id !== planId || !Number.isSafeInteger(plan.version) || plan.version < 1 || !Object.hasOwn(statuses, freshness) || plan.quality_status !== 'not_expert_qualified' || !['reviewable', 'needs_input'].includes(plan.readiness)) throw new Error('Plan response does not match the selected workspace and plan.');
+  if (!['inlet.plan-version.v1','inlet.plan-version.v2'].includes(plan?.schema_version) || plan.advertising_writes_enabled !== false || plan.spending_authority !== 'none' || plan.inputs?.workspace_id !== workspaceId || plan.inputs?.plan_id !== planId || !Number.isSafeInteger(plan.version) || plan.version < 1 || !Object.hasOwn(statuses, freshness) || plan.quality_status !== 'not_expert_qualified' || !['reviewable', 'needs_input'].includes(plan.readiness)) throw new Error('Plan response does not match the selected workspace and plan.');
   for (const [key, bound] of [['actions', 100], ['scenarios', 8], ['briefs', 30], ['evidence', 400]]) if (!Array.isArray(plan[key]) || plan[key].length > bound) throw new Error('Plan response exceeds display limits.');
   const doc = host.ownerDocument, fragment = doc.createDocumentFragment(), inputs = plan.inputs;
   const expires = Date.parse(plan.valid_until);

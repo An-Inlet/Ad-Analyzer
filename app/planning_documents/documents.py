@@ -56,7 +56,9 @@ from app.planning_documents.selected_plan_proof import SelectedRetainedProofV1
 
 
 class PlanVersion(NoAuthority):
-    schema_version: Literal["inlet.plan-version.v1"] = "inlet.plan-version.v1"
+    schema_version: Literal["inlet.plan-version.v1", "inlet.plan-version.v2"] = (
+        "inlet.plan-version.v1"
+    )
     inputs: PlanInputRevision
     version: Positive
     parent_digest: Digest | None
@@ -145,6 +147,20 @@ class PlanVersion(NoAuthority):
 
     @model_validator(mode="after")
     def coherent(self) -> "PlanVersion":
+        if self.schema_version == "inlet.plan-version.v2":
+            captures = (
+                tuple(
+                    item.capture_pin
+                    for item in self.selected_reporting_proof.accounts
+                    if item.capture_pin is not None
+                )
+                if self.selected_reporting_proof is not None
+                else ()
+            )
+            if not captures or any(pin.observation_provenance is None for pin in captures):
+                raise ValueError("v2 requires typed provenance for every selected capture")
+        # V1 is retained unchanged, including the interim unreleased enriched format.
+        # New enriched v1 is refused by the canonical repository write boundary.
         owner_policy = is_owner_review_policy(self.policy_version, self.generator_version)
         if not owner_policy and (
             self.policy_version == "inlet.descriptive-review.v6"

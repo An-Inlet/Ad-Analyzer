@@ -8284,3 +8284,30 @@ cleanup. Independently recomputed each payload digest across four API artifacts;
 all recorded full documents match. Typed current/empty reasons and legacy source_changed
 reasons verified, with advertising writes false and spending authority none. No blocker
 to local commit; qualification limits and all owner/live/release gates unchanged.
+
+## 2026-10-12 — Explicit Provenance Wire Version Boundary
+
+From `a9c4bc3`, corrected the previous compatibility conclusion: new typed-provenance
+plans use `inlet.plan-version.v2`; canonical writer refuses new enriched v1. Real
+historical readers retain original and interim v1 bytes/digests through an explicit
+read-only bridge. V2 requires all retained captures typed; backend/browser closed tags.
+Reader-first upgrade and provenance/v2-aware rollback floors are documented, without
+lossy conversion or deployment authority. Existing policy/generator/default V3 unchanged.
+
+Final wholeRuff/configuredmypy1511 and exact30tests passed:26component/storage/oldreader/
+inventory/browser plus typed/legacy API/archive and mixed v1→v2 lineage on both databases.
+Original RuffE501 and two mypy test-only errors preserved acrossattempts01/02, concrete
+fixes only; no tests ran until passing staticattempt03. Freeze
+5be922ee906b8faa7974d3703f596c90566756b175b5dc1cbdfc62adcd2b1558 binds124evidence/1724sources.
+[Checkpoint](inlet-provenance-version-boundary-20261012.md) includes exact checks and limits.
+
+Official Meta26.0/TikTok1.3 documentation research continues to lack readable selected-event
+and attribution semantics; no field-name inference and no dependent producers implemented.
+Retention/sharing/human judgments, historicalR01–R03 and all remote/live/release holds remain.
+
+Independent completion review CLOSED: all124 evidence and1724source hashes, 30exact
+XML passes/original exits and static logs verified. Four API sets have independently
+recomputed payload digests; both mixed-lineage artifacts bind v2 to the exact v1 parent
+and preserve old export/replay/archive payloads. Typed v2 archive serialization is
+assertion-backed in passing API tests, not a separately copied artifact. No blocker
+to local commit; rollout limits and all unresolved owner/live/source gates remain.

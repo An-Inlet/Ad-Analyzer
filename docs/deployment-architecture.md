@@ -106,3 +106,12 @@ No deployment step should enable live Google Ads writes or disable the kill swit
 ## Phase 12.2 managed configuration extension
 
 Managed TCP environments should supply `DATABASE_URL`, `DATABASE_SSL_MODE`, pool sizing, timeout, and secret-reference variables through external configuration. Cloud Run may supply the four Cloud SQL socket variables instead; `DATABASE_PASSWORD` is then the database secret and the local socket transport does not require PostgreSQL `sslmode`. The web, worker, scheduler, and migration processes remain separate and must each run startup validation. Migrations run before web, worker, and scheduler startup for a release; rollback means restoring the last known-good secret and environment references, rerunning validation, and restarting processes with writes disabled and the kill switch enabled.
+
+## Planning Artifact Reader Floor
+
+Planning JSON survives application rollback. Follow the
+[provenance wire-version upgrade/rollback contract](inlet-provenance-version-boundary-20261012.md)
+before any release involving enriched plans: upgrade API/export/restore/frontend readers
+before permitting v2 generation, suspend generation during transitions, and never roll
+back to a binary unable to validate existing retained formats. Do not strip fields or
+rewrite historical tags/digests. This adds a release prerequisite, not deployment approval.

@@ -8,3 +8,9 @@ Original artifact: `reporting-comparability-attempt01/sqlite-01-0-q09-api-artifa
 Original artifact SHA256: `6a542295d1a841c42d2ba44c7173495e8760394d7ceeade8ad529d4aa0b057f8`.
 Document digest: `55e7570b06d6f25a86c3f8862f0281c73d1698a8b50d194b8ad58b1bac193280`.
 Fixture file SHA256: `81f40580521e03caa8eccc95188b25c2929a7608610283ccfd5b55b25a1186e3`.
+
+Interim enriched v1 fixture: original qualified a9c4bc3 SQLite export, preserved for
+read-only compatibility. Document digest `a8b52c7cda6f3de5a812100238c36b2def9459f25610c5f4cea005f97ec49ae2`.
+The two .py.txt sources are exact PlanVersion and selected pin definitions from
+0b9962a, used in an isolated Python reader with unchanged transitive validation helpers.
+This tests actual strict prior DTO readers, not a deployed old-image restoration.

@@ -1,5 +1,9 @@
 # Retained Selected Observation Provenance v1
 
+Compatibility correction: the no-version-bump conclusion below is superseded by
+[the explicit v2 writer and historical-reader boundary](plan-provenance-version-boundary-v1.md). Original
+checkpoint facts remain recorded; newly enriched output requires v2.
+
 Baseline: local `0b9962a`. First dependency is a typed retained metadata path for
 already qualified captures; social producers are a separate dependent package.
 

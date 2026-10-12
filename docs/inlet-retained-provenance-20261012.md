@@ -1,5 +1,9 @@
 # Retained Selected Observation Provenance — 2026-10-12
 
+Compatibility correction: the no-version-bump conclusion below is superseded by
+[the explicit v2 writer and historical-reader boundary](inlet-provenance-version-boundary-20261012.md). Original
+checkpoint facts remain recorded; newly enriched output requires v2.
+
 Baseline: clean local `0b9962a0f117ffc6021b85759c4bcdb19c9d8369` on
 `codex/inlet-w1-followup`. Local-only Q09 dependency package, no push/new PR.
 

@@ -20,6 +20,7 @@ try{
    const known=structuredClone(plan),pin=known.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin,p=pin.observation_provenance;
    p.attribution={click_window_days:7,view_window_days:0,report_time_basis:'interaction',provenance:'verified_request_contract',producer_contract:p.producer_contract};
    render(known);assert(host.textContent.includes('Click 7 Days · View 0 Days')&&host.textContent.includes('no cross-account comparability is granted'),'presentation-only known windows keep zero literal');
+   const missing=structuredClone(plan);delete missing.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance;let missingRefused=false;try{render(missing);}catch{missingRefused=true;}assert(missingRefused&&host.hidden,'v2 cannot lose required metadata');
    for(const corrupt of [p=>p.native_event_owner_id='9999999999',p=>p.native_event_id='generic_total',p=>p.started_at=p.requested_ends_on+'T00:00:00Z']){const bad=structuredClone(plan);corrupt(bad.selected_reporting_proof.accounts.find(a=>a.capture_pin).capture_pin.observation_provenance);let refused=false;try{render(bad);}catch{refused=true;}assert(refused&&host.hidden,'malformed typed event or unclosed capture refused');}
    p.attribution.provenance='provider_default_unknown';let refused=false;try{render(known);}catch{refused=true;}assert(refused&&host.hidden,'unknown cannot carry windows');render(plan);
   }
@@ -33,6 +34,7 @@ try{
   render(plan,{},Date.parse(plan.valid_until));assert(host.querySelector('#planning-reporting-comparability').textContent.includes('expired'),'expiry visible');
   clearPlanDocument(host);assert(host.hidden&&!host.childNodes.length,'session clear');
   for(const corrupt of [
+    p=>{p.schema_version='inlet.plan-version.v99';},
     p=>{p.inputs.accounts[0].workspace_id+=100;},
     p=>{p.inputs.accounts.push(p.inputs.accounts[0]);},
     p=>{const e=p.evidence.find(e=>e.account);e.account.connection_id+=100;},

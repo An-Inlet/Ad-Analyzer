@@ -53,6 +53,16 @@ def plan_version_storage_pair(document: PlanVersion) -> tuple[str, str]:
     if type(document) is not PlanVersion:
         raise ValueError("planning storage requires exact PlanVersion")
     raw = canonical(document)
+    if document.schema_version == "inlet.plan-version.v1":
+        # Inspect validated canonical output, not potentially copied/unvalidated fields.
+        # Historical canonical/read/export paths deliberately do not enforce this gate.
+        proof = json.loads(raw).get("selected_reporting_proof")
+        if proof is not None and any(
+            item["capture_pin"] is not None
+            and item["capture_pin"].get("observation_provenance") is not None
+            for item in proof["accounts"]
+        ):
+            raise ValueError("new typed provenance requires plan-version.v2")
     digest = hashlib.sha256(
         b"inlet.planning-documents.v1\0PlanVersion\0" + raw.encode("utf-8")
     ).hexdigest()

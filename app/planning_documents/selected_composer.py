@@ -708,6 +708,12 @@ class SelectedPlanComposer:
                 ),
             )
         return PlanVersion(
+            schema_version="inlet.plan-version.v2"
+            if any(
+                item.capture_pin is not None and item.capture_pin.observation_provenance is not None
+                for item in evidence.reporting_proof.accounts
+            )
+            else "inlet.plan-version.v1",
             google_budget_owner_review=owner_proof,
             google_budget_input_catalogs=owner_catalogs,
             creative_proof=creative_proof,

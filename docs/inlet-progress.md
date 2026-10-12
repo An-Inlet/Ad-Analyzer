@@ -8075,3 +8075,18 @@ binds these checks. PostgreSQL24 is now separately authorized and running.
 Normal-assertion runtime16 (actual V1/edit/V2/report/retraction/export and original
 authority/source mutation cases) remains gated on all parity phases. No runtime
 reliability, capacity, release or historical-incident closure is claimed.
+
+
+PostgreSQL24 did not qualify: the runner terminated its subprocess at299.372537s
+with original exit-15 (shell241). The log contains22 progress dots, but final XML
+is absent, so no PostgreSQL node is counted as independently verified. All1,493
+source hashes remain unchanged. The generic resource-reserve guard fired; elapsed
+time rules out its900-second bound, but the triggering memory/disk sample was
+not persisted, so the precise reserve crossing cannot be established. Independent
+review confirmed this classification. Freeze interruption01 SHA256
+a5e7302dfe3a45f75d6d59dcd29d7a73161e93a7f75f44ecba1d7a4ba42306bf
+binds55 evidence files. No assertion failure was reported and no unchanged retry
+was made. Runtime16 remains wholly unrun. Next: preserve this incident, prepare
+a resource-bounded qualification successor with durable threshold telemetry and
+per-case outcomes, then qualify on sufficient resources without relabeling this
+interruption as success. The repair is still uncommitted and unintegrated.

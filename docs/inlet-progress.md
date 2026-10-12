@@ -8917,3 +8917,28 @@ V6's prepared optimization. No concurrency or incident closure claimed. Next rel
 dependency: bounded reliability qualification and owner incident assessment. No new
 policy version, deployed activation, push or live action. Q13 evidence remains synthetic.
 See [exact workflow evidence, preserved attempts and limits](inlet-q10-configured-browser-20261012.md).
+
+## Q13 Writer Prerequisites And Report Correction CAS — 2026-10-12
+
+From `ae030a34`, confirmed the observation writer is not dependency-ready: no qualified
+planning native-field producer or supported production proposal constructor, and native
+status/landing-page/country semantics, retained proof and observation invalidation
+contracts remain absent. Defined ownership/provenance/replay/correction/erasure interfaces
+before implementation. No synthetic production proof, writer or observation route added.
+
+Closed a separate configured V7 customer-report acceptance gap with actual HTTP/service/
+SQL/history/archive/revocation/erasure joins. PostgreSQL concurrent requests correcting
+one report head produce one winner and one exact conflict with no loser rows; SQLite
+is sequential CAS parity. Exact replay, same-key changed-intent refusal, stale-input
+refusal, historical withdrawal and post-erasure replay refusal pass. All three events
+remain customer_report_only; provider reads and financial/execution effects do not grow.
+
+Final q13-customer-correction04: whole Ruff, mypy (1,570 files), exact collection/diff
+and four tests pass without skips (two existing pure/Chromium components, new SQLite,
+then new PostgreSQL lifecycle). Original failed static/key-fixture attempts and unrun
+checks are retained separately. Tests/docs only, no application behavior change or
+provider-observation/live qualification. See [evidence and precise writer blockers](inlet-q13-writer-readiness-and-report-corrections-20261012.md).
+
+V6/V7 remain release-unqualified and INLET-REL-20261012-01 stays open; this is not
+concurrent-generation reliability evidence. Next observation dependency is an admitted
+native-field/proposal and retained-proof/invalidation contract. No push or live action.

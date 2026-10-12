@@ -8173,3 +8173,32 @@ No sole historical cause, continuous-process capacity, liveverification or
 new retention policy is claimed. Next separate package:four real Session/
 Connection-wrapper scope cases using the reviewed unchanged proof interface.
 Owner retention/artifact-sharing decisions remain pending; no remote/live action.
+
+
+## October 12 Proof-Scope Follow-up Complete
+
+The local integration checkpoint is cfe110b466c39d69a908b9faf424d2d77b41e36e.
+The next dependency-ready package adds only test coverage for a genuinely
+different Session and a distinct SQLAlchemy Connection wrapper under the same
+Session/root via OptionEngine, each onSQLite/PostgreSQL. Preconditions prove
+actual identity changes; mismatches decline reuse while original decoding and
+listener cleanup remain available. The otherSession must not acquire a connection.
+Bind restoration and unconditional rollback cover setup/assertion failures.
+SQLite uses its existing shared pool; no physical DBAPI isolation claim is made.
+
+Initial RuffE501 was preserved with its original testsource/log; a formatting-only
+line wrap fixed it. New wholeRuff0/configuredmypy1504zero/exact4collection0 then
+SQLite2+PostgreSQL2 passed with originalexit0 and noerrors/skips/interruption.
+Freeze6cabad313659631fff037d954be824eef138d4d3dcb540a30d8f6c16978aa0c8
+binds40evidence/1494sources, independently CLOSED. All1493 previously integrated
+source hashes remain unchanged; the new test is the only application/test addition.
+No production code, policy, scope, deadline, erasure or retention semantics changed.
+
+Current local acceptance now includes18 final-integration cases plus4additive
+scope cases, with older83+16 results separately carried by exactsource identity.
+No fullsuite/capacity/live qualification is inferred. HistoricalR01–R03 and the
+original resource interruption remain preserved with their stated uncertainty.
+Next unresolved planning work is Q01–Q16 evidence reconciliation, particularly
+source-qualified social selected-event/known-attribution producers; do not invent
+provider semantics. Owner retention and artifact-sharing/human judgments remain
+pending. No pushes/hosted/mainmerge/deploy/livecalls/ads/spend occurred.

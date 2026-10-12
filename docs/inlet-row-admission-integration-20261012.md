@@ -23,3 +23,15 @@ Final result: all 18 cases passed with original exits 0, exact per-case XML and 
 No schema, authority age, session lifetime, source ownership, privacy, retention, provider access or advertising permission changes are introduced. Owner retention and artifact-sharing decisions and human quality judgments remain pending. No push, hosted run, main merge, deployment, provider/model call or spend occurred.
 
 Next dependency-ready package: four additive cases for distinct Session and actual Connection-wrapper identity, using the reviewed unchanged proof interface. Keep them separate from this frozen integration cohort and label SQLite's shared pool correctly.
+
+
+## Follow-up Completed
+
+The separate four-case proof-scope package passed on both databases: actual
+distinct Session and controlled Connection-wrapper changes decline reuse, preserve
+original decoding, and clean up listeners/binds/transactions. The production
+implementation did not change. Whole Ruff and configured mypy1504 passed; the
+initial formatting-only Ruff failure remains recorded. Completion freeze
+`6cabad313659631fff037d954be824eef138d4d3dcb540a30d8f6c16978aa0c8`
+binds40 evidence files and1494 source hashes. This closes the previously external
+scope-test gap, not physical SQLite connection isolation or live capacity.

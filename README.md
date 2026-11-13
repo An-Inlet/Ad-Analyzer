@@ -1,79 +1,141 @@
-# Ad Analyzer
+# Inlet
 
-The workspace **Decision center** connects company strategy, customer outcomes, budget scenarios, events, experiments, and reviewed actions. See [the feature and operating guide](docs/business-decision-center.md).
+### Turn advertising data into a clearer growth strategy.
 
-Ad Analyzer is the complete multi-workspace advertising analysis platform: dashboard, API,
-workers, database, recommendation engine, and controlled execution layer. **Denticode Ad
-Analyzer** is Denticode's client workspace inside that platform.
+Inlet brings advertising performance, business goals, customer outcomes, and commerce data into one decision center. It helps growth teams understand where money is going, identify what deserves attention, and build an evidence-backed plan for what to do next.
 
-The platform currently synchronizes advertising data, reports performance, generates
-deterministic findings and recommendations, records review decisions, and performs guarded dry
-runs. Live advertising writes remain disabled.
+**Connect the evidence. Diagnose performance. Explore the options. Review the plan. Learn from the results.**
 
-## Account hierarchy
+Built by [An Inlet](https://aninlet.com), the platform is designed for founders, marketing teams, and operators managing one business or a portfolio of client workspaces.
+
+[Explore the decision center](docs/business-decision-center.md) · [See integration coverage](docs/available-data-analysis.md) · [Developer setup](#developer-setup)
+
+## What Inlet brings together
+
+### A business plan behind every advertising decision
+
+Set goals, approved budgets, acquisition-cost limits, margin assumptions, audiences, positioning, and offers. Connect those choices to launches, promotions, conferences, seasonal demand, and capacity constraints.
+
+The decision center puts that context beside performance so recommendations can be evaluated against the business the advertising is meant to grow.
+
+### A clearer view of performance and outcomes
+
+Review spend, impressions, clicks, campaign comparisons, and available conversion metrics. With an approved measurement contract and the required sources, connect Google Ads cohorts, pseudonymous web-analytics events, and CRM outcomes to examine customer acquisition cost, observed revenue, and contribution after advertising.
+
+Shopify sales add a separate commerce view: payments, refunds, orders, product demand, and supported campaign-tag comparisons. Inlet keeps platform-reported conversions, CRM outcomes, and store sales distinct so different sources do not quietly become the same number.
+
+### Explainable recommendations
+
+Find campaign, ad-group, keyword, and masked search-term issues using reproducible rules. Review a ranked action queue with supporting evidence, business context, next steps, confidence, budget implications, and review dates.
+
+Record decisions and compare expected results with observed results later. Recommendation review history provides transparent prioritization context without silently rewriting diagnostic thresholds or treating approval as proof that an idea worked.
+
+### Budget scenarios before budget commitments
+
+Track completed-day spending against the approved plan, reserve funds for upcoming activities, and explore custom or 80% / 100% / 120% budget scenarios. Where the evidence supports it, preview bounded campaign-allocation changes.
+
+Scenario outputs expose their assumptions. They are planning estimates, not guaranteed returns or automatic changes to live campaign budgets.
+
+### A repeatable learning cycle
+
+Plan two-arm experiments with defined success criteria, record aggregate results, and review sample and maturity checks. Keep a history of strategy revisions, business changes, and decisions.
+
+Post-sync, nightly, and weekly analysis can refresh findings and save briefs. Weekly learning reports compare completed periods and suggest improvements for review. CSV action briefs make the next steps portable.
+
+## Start with the connections you have
+
+Inlet supports independent capabilities rather than requiring every source before anything becomes useful.
+
+| Available evidence | What it unlocks |
+| --- | --- |
+| No connected sources | Goals, budgets, events, experiment plans, and decision history |
+| An advertising account | Imported traffic and spend analysis, campaign comparisons, and directional review suggestions |
+| Shopify sales | Order, payment, refund, and product-demand analysis |
+| Approved measurement and required data sources | Mature funnel comparisons and business-outcome reporting |
+
+Missing, stale, partial, and low-volume data remain visible. A missing connection is not treated as zero performance, and an unfinished import is not presented as complete.
+
+## Current implementation and integration coverage
+
+**The capabilities below are implemented in this repository.** Availability in a deployed workspace depends on configuration, provider authorization, data coverage, and release validation. This README does not imply that every integration is already connected or that a public self-service release is live.
+
+| Area | Implemented scope | Important boundary |
+| --- | --- | --- |
+| Google Ads | Read-only collection, synchronization, campaign/ad-group analysis, keyword and masked search-term diagnostics | Requires authorized credentials and configured accounts; no live advertising mutations |
+| Meta Ads | Workspace authorization, account selection, campaign/ad-set inventory, daily campaign insights, and import status | One Meta account per workspace in the current connection flow; operator app setup and provider approval are required |
+| Web analytics + CRM | Pseudonymous event and CRM pipelines, measurement contracts, mature cohort and outcome reporting | Requires valid source mappings and sufficient evidence; not a universal one-click CRM connector |
+| Shopify | Workspace store authorization, bounded sales imports, refunds, product demand, and privacy-event handling | Disabled by default; rolling 59-day order window and release checks apply; store sales are not Shop Campaigns advertising data |
+| Decision center | Strategy, measurement health, funnel diagnosis, scenarios, events, creative test briefs, experiments, and decision history | Creative analysis uses campaign context, not isolated individual-ad or demographic performance |
+| Reporting | Workspace dashboard, authorized portfolio views, operator API, CSV action briefs, scheduled briefs, and topic-based answers | Answers use deterministic evidence lookup, not unrestricted AI chat |
+| Governance | Workspace memberships, review permissions, versioned planning records, audit history, and guarded dry runs | The current product remains planning and review focused; live ad writes are disabled |
+
+See [available-data analysis and Meta setup](docs/available-data-analysis.md), [Shopify setup and measurement definitions](docs/shopify-sales.md), and the [decision-center operating guide](docs/business-decision-center.md).
+
+## Built for accountable decisions
+
+- **Evidence before confidence.** Coverage, freshness, comparable time windows, and sample requirements determine which conclusions are available.
+- **Business outcomes stay distinct.** Platform conversions are not automatically customers. Observed revenue is not predicted lifetime value. Correlation is not proof of incremental impact.
+- **Workspace boundaries.** Each business has its own configuration, memberships, integrations, accounts, findings, and operational history.
+- **Privacy-conscious reporting.** Outcome reports exclude raw click, session, user, and CRM lead identifiers. Search-term diagnostics keep query text masked.
+- **Human control.** Planning and review do not change live ads. Future execution requires separate implementation, explicit authorization, dry-run review, and auditability.
+- **Operational visibility.** Separate collection workers, bounded imports, retry controls, sync-health reporting, and deduplicated analysis help operators understand what ran and what needs attention.
+
+## Where Inlet is headed
+
+The product direction is a comprehensive advertising-planning workspace that helps a team move from fragmented performance data to a prioritized, reviewable growth plan.
+
+Future capabilities are **roadmap goals, not claims of availability or delivery dates**:
+
+- Broader channel coverage, including TikTok Ads, with platform-specific measurement and permission controls.
+- Deeper creative and audience analysis, richer planning outputs, and more ways to compare opportunities across connected accounts.
+- Expanded import flexibility and historical coverage, subject to provider access, privacy requirements, and performance validation.
+- More CRM and commerce connections, with clearer links between marketing activity and verified business results.
+- A streamlined self-service SaaS experience for onboarding, account management, and recurring plan review.
+- Optional, tightly controlled execution after the planning product, with explicit human approval and auditable safeguards.
+
+The immediate focus remains useful diagnosis, comprehensive planning, and reliable review. Automatic campaign execution is outside the planning-only MVP.
+
+## Architecture
 
 ```text
-Ad Analyzer platform
-└── Denticode Ad Analyzer workspace
-    ├── workspace configuration
-    ├── workspace memberships and roles
-    ├── workspace integrations
-    ├── workspace measurement contract
-    ├── pseudonymous web-analytics events and outcome reporting
-    ├── post-sync, nightly, and weekly analysis run history
-    ├── workspace findings and recommendations
-    └── Google Ads / Meta Ads advertising accounts
+Inlet
+└── Business / client workspace
+    ├── Goals, strategy, budgets, events, and experiments
+    ├── Memberships, permissions, and measurement contract
+    ├── Advertising, web analytics, CRM, and commerce integrations
+    ├── Performance evidence, findings, and recommended actions
+    └── Decision history, scheduled briefs, and operational health
 ```
 
-Every client-owned record is reached through a workspace boundary. A workspace owns its
-configuration, permissions, integrations, findings, recommendations, CRM connection, advertising
-accounts, and operational job history. Advertising accounts are data sources within a workspace;
-they are not themselves client workspaces.
+The implementation uses **Python 3.12, FastAPI, Pydantic, SQLAlchemy, PostgreSQL, and Alembic**, with a server-rendered dashboard and separate synchronization workers. The repository includes Docker and Google Cloud deployment configuration, plus pytest, Ruff, mypy, migration, privacy, and isolation checks.
 
-The existing Denticode production records are migrated into a seeded `denticode` workspace named
-`Denticode Ad Analyzer`. Platform infrastructure and environment identifiers use the `AD_ANALYZER_` namespace. See [the workspace architecture](docs/workspace-architecture.md) and [the platform naming cutover](docs/platform-name-cutover.md).
+The repository name `Ad-Analyzer`, package name `ad-analyzer`, and `AD_ANALYZER_` environment variables remain technical identifiers. The product presented here is **Inlet**; this documentation update does not rename infrastructure or alter deployments.
 
-## Current capabilities
+## Documentation
 
-- Workspace-scoped dashboard and operator API.
-- Google Ads and CRM synchronization workers with auditable job runs.
-- Idempotent post-sync, nightly, and weekly analysis cadences with aggregate run history and
-  bounded, deduplicated recommendation counts.
-- Privacy-safe Google Ads, GA4, and CRM outcome correlation behind an active measurement
-  contract, with aggregate-only API and dashboard reporting.
-- Canonical campaign and ad-group performance windows, deterministic scoped findings, and richer
-  funnel/value metrics without double-counting account or campaign totals.
-- Deterministic keyword and masked search-term waste/shift diagnostics with bounded read-only
-  pagination and privacy-safe review proposals.
-- SQLAlchemy/PostgreSQL persistence and Alembic migrations.
-- Automatic deterministic recommendations across account, campaign, ad-group, keyword, and masked
-  search-term scopes, with human review and guarded dry-run execution.
-- Workspace-scoped decision learning from approve/reject audit actions, with transparent evidence
-  counts and no use of actor identities or free-text reasons.
-- Deterministic weekly learning reports that compare completed-week analysis and review activity,
-  then propose bounded analyzer improvements without applying changes.
-- Workspace configuration, measurement contracts, memberships, integrations, and persistent
-  finding boundaries.
-- pytest, Ruff, and mypy development tooling.
+- [Decision center and calculation boundaries](docs/business-decision-center.md)
+- [Analysis with partial connections and Meta setup](docs/available-data-analysis.md)
+- [Shopify sales and privacy handling](docs/shopify-sales.md)
+- [Workspace architecture](docs/workspace-architecture.md)
+- [Measurement contracts](docs/measurement-contract.md) and [unified outcomes](docs/unified-outcome-data.md)
+- [Granular analysis](docs/granular-analysis.md) and [masked search-term diagnostics](docs/query-performance-analysis.md)
+- [Analysis cadences](docs/analysis-cadences.md), [recommendations](docs/automated-recommendations.md), and [decision learning](docs/decision-learning.md)
+- [Weekly learning reports](docs/weekly-learning-report.md)
+- [Deployment architecture](docs/deployment-architecture.md) and [operations runbook](docs/operations/runbook.md)
 
-## Safety model
+## Developer setup
 
-This project is designed for cautious, auditable ad optimization. Unless explicitly requested,
-implemented, and reviewed, the application must not:
+<details>
+<summary><strong>Installation, local development, API, dashboard, and worker operations</strong></summary>
 
-- Request or create credentials.
-- Upload conversions.
-- Change campaigns, budgets, bids, assets, audiences, or targeting.
-- Run automated campaign mutations without human approval and dry-run review.
-- expose one workspace's data, configuration, integration metadata, or operational activity to
-  another workspace.
+The commands below retain the repository's existing technical names. Follow [AGENTS.md](AGENTS.md) and the release and security gates before connecting real services or changing a deployment.
 
-## Windows PowerShell setup
+### Windows PowerShell setup
 
 From a PowerShell terminal:
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/An-Inlet/Ad-Analyzer.git
 cd Ad-Analyzer
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -96,7 +158,7 @@ Copy-Item .env.example .env
 
 Do not put real advertising credentials in `.env` until credential handling has been explicitly requested and reviewed.
 
-## Run the application locally
+### Run the application locally
 
 ```powershell
 uvicorn app.main:app --reload
@@ -108,7 +170,7 @@ Open <http://127.0.0.1:8000/health> and expect:
 {"status":"ok"}
 ```
 
-## Run checks
+### Run checks
 
 ```powershell
 pytest
@@ -116,7 +178,7 @@ ruff check .
 mypy
 ```
 
-## Docker development image
+### Docker development image
 
 Build and run the development container:
 
@@ -125,7 +187,7 @@ docker build -t ad-analyzer:dev .
 docker run --rm --env-file .env -p 8000:8000 ad-analyzer:dev
 ```
 
-## Database and migrations
+### Database and migrations
 
 The default local database URL uses a platform-neutral local database name:
 
@@ -140,7 +202,7 @@ alembic revision --autogenerate -m "describe change"
 alembic upgrade head
 ```
 
-## Local read-only API
+### Local operator API
 
 Start the FastAPI application locally with:
 
@@ -148,9 +210,10 @@ Start the FastAPI application locally with:
 uvicorn app.main:app --reload
 ```
 
-Versioned operator endpoints are available under `/api/v1`. These routes read only from the local
-PostgreSQL database unless a hidden, explicitly gated recommendation workflow says otherwise. They
-do not trigger synchronizations or mutate advertising platforms.
+Versioned operator endpoints are available under `/api/v1`. The reporting GET routes below read
+synchronized PostgreSQL data. Separate, authorized decision-center commands save local planning
+records and preview scenarios; they do not mutate advertising platforms. See the
+[decision-center API](docs/business-decision-center.md#storage-access-and-apis) for those commands.
 
 All `/api/v1` endpoints require an operator bearer token. `AD_ANALYZER_API_TOKEN` must be a URL-safe opaque token containing only letters, digits, hyphens, and underscores (43–128 characters). Generate one locally with `python -c "import secrets; print(secrets.token_urlsafe(48))"`, then set it in your local environment or uncommitted `.env` file before starting the service. The container must receive the same variable (for example, through `--env-file .env`); protected routes are unavailable if it is not configured. Never commit the token.
 
@@ -174,6 +237,8 @@ Endpoint groups:
 - Account metrics: `GET /api/v1/accounts/{account_id}/metrics/summary`
 - Sync job visibility: `GET /api/v1/job-runs`, `GET /api/v1/job-runs/latest`, `GET /api/v1/sync-status`
 
+Replace `WORKSPACE_SLUG` below with a workspace returned by `GET /api/v1/workspaces`.
+
 Examples:
 
 ```bash
@@ -181,8 +246,8 @@ curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/ap
 curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/metrics?date_from=2026-07-01&date_to=2026-07-31"
 curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/accounts/1/campaign-performance?date_from=2026-07-01&date_to=2026-07-31"
 curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/campaigns/1/ad-group-performance?date_from=2026-07-01&date_to=2026-07-31"
-curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
-curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/denticode/analysis-runs?limit=25&offset=0"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/WORKSPACE_SLUG/outcome-analysis?date_from=2026-04-01&date_to=2026-04-30"
+curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/workspaces/WORKSPACE_SLUG/analysis-runs?limit=25&offset=0"
 curl -H "Authorization: Bearer $AD_ANALYZER_API_TOKEN" "http://127.0.0.1:8000/api/v1/sync-status"
 ```
 
@@ -195,11 +260,12 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/accounts/1/metrics/summary?date_
 Invoke-RestMethod "http://127.0.0.1:8000/api/v1/job-runs/latest?platform=google_ads" -Headers $headers
 ```
 
-## Local operator dashboard
+### Local operator dashboard
 
-The server-rendered local dashboard is strictly read-only. It displays already-synchronized
-local database data only; it never invokes collectors, starts a sync, contacts Google Ads, or
-changes advertising accounts, campaigns, budgets, bids, audiences, or conversions.
+The server-rendered dashboard's reporting views display already-synchronized database data.
+Authorized planning and review flows can save local records, and separately configured integration
+flows handle connections and permitted refreshes. Viewing performance does not trigger a Google Ads
+sync, and no dashboard action enables live advertising mutations.
 
 Set a locally generated `AD_ANALYZER_API_TOKEN` before startup (never commit the value), then run:
 
@@ -257,7 +323,7 @@ week and emits deterministic, evidence-backed suggestions for improving analyzer
 review context. It uses only local aggregate records, excludes identities, reasons, and search-term
 text, and applies no changes. See [weekly learning reports](docs/weekly-learning-report.md).
 
-## Phase 7: separate Google Ads sync worker
+### Separate synchronization worker
 
 The API/dashboard process and the sync scheduler are deliberately separate processes.  FastAPI
 startup and lifespan hooks never schedule collection, so future API workers cannot multiply
@@ -317,3 +383,11 @@ Stale means it is older (or absent), Failed means the latest attempt failed, Run
 latest JobRun is in progress, and Never Synced means no prior attempt exists. In production run
 the scheduler as its own supervised process; do not put it in Uvicorn, FastAPI startup, or a web
 request handler.
+
+### Legacy workspace compatibility
+
+The seeded Denticode Ad Analyzer workspace remains a client-specific migration detail, not the
+identity or scope of Inlet. Existing workspace data and identifiers are unchanged. See the
+[platform naming cutover](docs/platform-name-cutover.md) for migration history.
+
+</details>
